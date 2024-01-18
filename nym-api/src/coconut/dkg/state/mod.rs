@@ -2,57 +2,78 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::complaints::ComplaintReason;
+use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
+use crate::coconut::dkg::state::dealing_exchange::DealingExchangeState;
 use crate::coconut::dkg::state::registration::RegistrationState;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::{KeyPair as CoconutKeyPair, KeyPairWithEpoch};
 use cosmwasm_std::Addr;
 use log::debug;
 use nym_coconut_dkg_common::dealer::DealerDetails;
-use nym_coconut_dkg_common::types::{DealingIndex, EpochId, EpochState};
+use nym_coconut_dkg_common::types::{
+    DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, EpochState,
+};
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use nym_dkg::{Dealing, NodeIndex, RecoveredVerificationKeys, Threshold};
 use nym_validator_client::nyxd::{tx, Hash};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_helpers::{bte_pk_serde, generated_dealings, vks_serde};
+use serde_helpers::{bte_pk_serde, generated_dealings_old, vks_serde};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 use url::Url;
 
+mod dealing_exchange;
 mod registration;
 mod serde_helpers;
+
+#[derive(Clone, Deserialize, Debug, Serialize)]
+pub(crate) enum ParticipantState {
+    Invalid(ComplaintReason),
+    VerifiedKey(#[serde(with = "bte_pk_serde")] PublicKeyWithProof),
+}
+
+impl ParticipantState {
+    pub fn is_valid(&self) -> bool {
+        matches!(self, ParticipantState::VerifiedKey(..))
+    }
+
+    fn from_raw_encoded_key(raw: EncodedBTEPublicKeyWithProof) -> Self {
+        // TODO: include more error information
+        let Ok(bytes) = bs58::decode(raw).into_vec() else {
+            return ParticipantState::Invalid(ComplaintReason::MalformedBTEPublicKey);
+        };
+
+        let Ok(key) = PublicKeyWithProof::try_from_bytes(&bytes) else {
+            return ParticipantState::Invalid(ComplaintReason::MalformedBTEPublicKey);
+        };
+
+        if !key.verify() {
+            return ParticipantState::Invalid(ComplaintReason::InvalidBTEPublicKey);
+        }
+
+        ParticipantState::VerifiedKey(key)
+    }
+}
 
 // note: each dealer is also a receiver which simplifies some logic significantly
 #[derive(Clone, Deserialize, Debug, Serialize)]
 pub(crate) struct DkgParticipant {
-    pub(crate) _address: Addr,
-    #[serde(with = "bte_pk_serde")]
-    pub(crate) bte_public_key_with_proof: PublicKeyWithProof,
+    pub(crate) address: Addr,
     pub(crate) assigned_index: NodeIndex,
+    pub(crate) state: ParticipantState,
 }
 
-impl TryFrom<DealerDetails> for DkgParticipant {
-    type Error = ComplaintReason;
-
-    fn try_from(dealer: DealerDetails) -> Result<Self, Self::Error> {
-        let bte_public_key_with_proof = bs58::decode(dealer.bte_public_key_with_proof)
-            .into_vec()
-            .map(|bytes| PublicKeyWithProof::try_from_bytes(&bytes))
-            .map_err(|_| ComplaintReason::MalformedBTEPublicKey)?
-            .map_err(|_| ComplaintReason::MalformedBTEPublicKey)?;
-
-        if !bte_public_key_with_proof.verify() {
-            return Err(ComplaintReason::InvalidBTEPublicKey);
-        }
-
-        Ok(DkgParticipant {
-            _address: dealer.address,
-            bte_public_key_with_proof,
+impl From<DealerDetails> for DkgParticipant {
+    fn from(dealer: DealerDetails) -> Self {
+        DkgParticipant {
+            address: dealer.address,
+            state: ParticipantState::from_raw_encoded_key(dealer.bte_public_key_with_proof),
             assigned_index: dealer.assigned_index,
-        })
+        }
     }
 }
 
@@ -139,7 +160,7 @@ pub(crate) struct PersistentState {
     //
     node_index: Option<NodeIndex>,
     dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
-    #[serde(with = "generated_dealings")]
+    #[serde(with = "generated_dealings_old")]
     generated_dealings: HashMap<EpochId, HashMap<DealingIndex, Dealing>>,
     receiver_index: Option<usize>,
     threshold: Option<Threshold>,
@@ -189,6 +210,7 @@ impl From<&State> for PersistentState {
 
 impl PersistentState {
     pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), CoconutError> {
+        debug!("persisting the dkg state");
         std::fs::write(path, serde_json::to_string(self)?)?;
         Ok(())
     }
@@ -201,6 +223,28 @@ impl PersistentState {
 #[derive(Default)]
 pub(crate) struct DkgState {
     pub(crate) registration: RegistrationState,
+
+    // available after registration is finished:
+    pub(crate) dealers: BTreeMap<NodeIndex, DkgParticipant>,
+
+    pub(crate) dealing_exchange: DealingExchangeState,
+}
+
+impl DkgState {
+    pub(crate) fn set_dealers(&mut self, raw_dealers: Vec<DealerDetails>) {
+        assert!(self.dealers.is_empty());
+        for raw_dealer in raw_dealers {
+            let dkg_participant = DkgParticipant::from(raw_dealer);
+            if let ParticipantState::Invalid(complaint) = &dkg_participant.state {
+                warn!(
+                    "{} dealer is malformed: {complaint}",
+                    dkg_participant.address
+                )
+            }
+            self.dealers
+                .insert(dkg_participant.assigned_index, dkg_participant);
+        }
+    }
 }
 
 pub(crate) struct State {
@@ -288,24 +332,62 @@ impl State {
         self.was_in_progress = Default::default();
     }
 
-    pub fn init_dkg_state(&mut self, epoch_id: EpochId) {
+    pub fn maybe_init_dkg_state(&mut self, epoch_id: EpochId) {
         if !self.dkg_instances.contains_key(&epoch_id) {
             self.dkg_instances.insert(epoch_id, Default::default());
         }
     }
 
-    pub fn registration_state(&self, epoch_id: EpochId) -> &RegistrationState {
-        // safety: before any accessors are called, `init_dkg_state` is used at the beginning of submission handler
-        &self.dkg_instances[&epoch_id].registration
+    pub fn dkg_state(&self, epoch_id: EpochId) -> Result<&DkgState, CoconutError> {
+        self.dkg_instances
+            .get(&epoch_id)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
     }
 
-    pub fn registration_state_mut(&mut self, epoch_id: EpochId) -> &mut RegistrationState {
-        // safety: before any accessors are called, `init_dkg_state` is used at the beginning of submission handler
-        &mut self.dkg_instances.get_mut(&epoch_id).unwrap().registration
+    pub fn dkg_state_mut(&mut self, epoch_id: EpochId) -> Result<&mut DkgState, CoconutError> {
+        self.dkg_instances
+            .get_mut(&epoch_id)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
     }
 
-    pub fn already_registered(&self, epoch_id: EpochId) -> bool {
-        self.registration_state(epoch_id).completed()
+    pub fn registration_state(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<&RegistrationState, CoconutError> {
+        self.dkg_instances
+            .get(&epoch_id)
+            .map(|state| &state.registration)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn registration_state_mut(
+        &mut self,
+        epoch_id: EpochId,
+    ) -> Result<&mut RegistrationState, CoconutError> {
+        self.dkg_instances
+            .get_mut(&epoch_id)
+            .map(|state| &mut state.registration)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn dealing_exchange_state(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<&DealingExchangeState, CoconutError> {
+        self.dkg_instances
+            .get(&epoch_id)
+            .map(|state| &state.dealing_exchange)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn dealing_exchange_state_mut(
+        &mut self,
+        epoch_id: EpochId,
+    ) -> Result<&mut DealingExchangeState, CoconutError> {
+        self.dkg_instances
+            .get_mut(&epoch_id)
+            .map(|state| &mut state.dealing_exchange)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
     }
 
     pub fn persistent_state_path(&self) -> &Path {
@@ -379,17 +461,18 @@ impl State {
 
     // FIXME: BUG: if we remove dealers, we won't be able to verify shares of other parties...
     pub fn current_dealers_by_idx(&self) -> BTreeMap<NodeIndex, PublicKey> {
-        self.dealers
-            .iter()
-            .filter_map(|(_, dealer)| {
-                dealer.as_ref().ok().map(|participant| {
-                    (
-                        participant.assigned_index,
-                        *participant.bte_public_key_with_proof.public_key(),
-                    )
-                })
-            })
-            .collect()
+        todo!()
+        // self.dealers
+        //     .iter()
+        //     .filter_map(|(_, dealer)| {
+        //         dealer.as_ref().ok().map(|participant| {
+        //             (
+        //                 participant.assigned_index,
+        //                 *participant.bte_public_key_with_proof.public_key(),
+        //             )
+        //         })
+        //     })
+        //     .collect()
     }
 
     pub fn recovered_vks(&self) -> &Vec<RecoveredVerificationKeys> {
@@ -424,13 +507,13 @@ impl State {
         self.node_index = node_index;
     }
 
-    pub fn set_dealers(&mut self, dealers: Vec<DealerDetails>) {
-        self.dealers = BTreeMap::from_iter(
-            dealers
-                .into_iter()
-                .map(|details| (details.address.clone(), DkgParticipant::try_from(details))),
-        )
-    }
+    // pub fn set_dealers(&mut self, dealers: Vec<DealerDetails>) {
+    //     self.dealers = BTreeMap::from_iter(
+    //         dealers
+    //             .into_iter()
+    //             .map(|details| (details.address.clone(), DkgParticipant::try_from(details))),
+    //     )
+    // }
 
     pub fn mark_bad_dealer(&mut self, dealer_addr: &Addr, reason: ComplaintReason) {
         if let Some((_, value)) = self

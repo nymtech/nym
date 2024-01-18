@@ -138,6 +138,9 @@ pub enum CoconutError {
     #[error("the provided query arguments were invalid")]
     InvalidQueryArguments,
 
+    #[error("the internal dkg state for epoch {epoch_id} is missing - we might have joined mid exchange")]
+    MissingDkgState { epoch_id: EpochId },
+
     #[error("insufficient number of dealings provided to derive the key")]
     InsufficientDealings {
         // TODO: details

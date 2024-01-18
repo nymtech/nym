@@ -51,6 +51,39 @@ pub(super) mod vks_serde {
 }
 
 pub(super) mod generated_dealings {
+    use nym_coconut_dkg_common::types::DealingIndex;
+    use nym_dkg::Dealing;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::collections::HashMap;
+
+    pub fn serialize<S: Serializer>(
+        dealings: &HashMap<DealingIndex, Dealing>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut helper = HashMap::new();
+
+        for (dealing_index, dealing) in dealings {
+            helper.insert(*dealing_index, dealing.to_bytes());
+        }
+
+        helper.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<HashMap<DealingIndex, Dealing>, D::Error> {
+        <HashMap<DealingIndex, Vec<u8>>>::deserialize(deserializer)?
+            .into_iter()
+            .map(|(index, raw_dealing)| {
+                Dealing::try_from_bytes(&raw_dealing)
+                    .map_err(serde::de::Error::custom)
+                    .map(|dealing| (index, dealing))
+            })
+            .collect()
+    }
+}
+
+pub(super) mod generated_dealings_old {
     use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
     use nym_dkg::Dealing;
     use serde::{Deserialize, Deserializer, Serialize, Serializer};

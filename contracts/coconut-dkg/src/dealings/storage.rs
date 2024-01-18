@@ -22,6 +22,9 @@ type Dealer<'a> = &'a Addr;
 
 pub(crate) struct StoredDealing;
 
+// part of `StoredDealing` to make existence lookup cheaper
+pub(crate) struct UNIMPLEMENTED_DealingLookup;
+
 impl StoredDealing {
     const NAMESPACE: &'static [u8] = b"dealing";
 

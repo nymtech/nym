@@ -8,14 +8,14 @@ use log::debug;
 use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
 
-impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
+impl<R: RngCore + CryptoRng> DkgController<R> {
     pub(crate) async fn public_key_submission(
         &mut self,
         epoch_id: EpochId,
         resharing: bool,
     ) -> Result<(), CoconutError> {
-        self.state.init_dkg_state(epoch_id);
-        let registration_state = self.state.registration_state(epoch_id);
+        self.state.maybe_init_dkg_state(epoch_id);
+        let registration_state = self.state.registration_state(epoch_id)?;
 
         // check if we have already submitted the key
         if registration_state.completed() {
@@ -25,20 +25,20 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             return Ok(());
         }
 
-        // if we have coconut keys available, it means we have already completed the DKG before (in previous epoch)
-        // in which case, archive and reset those keys
-        if let Some(old_keypair) = self.state.take_coconut_keypair().await {
-            debug!("resetting and archiving old coconut keypair");
-            if let Err(source) =
-                archive_coconut_keypair(&self.coconut_key_path, old_keypair.issued_for_epoch)
-            {
-                return Err(CoconutError::KeyArchiveFailure {
-                    epoch_id,
-                    path: self.coconut_key_path.clone(),
-                    source,
-                });
-            }
-        }
+        // // if we have coconut keys available, it means we have already completed the DKG before (in previous epoch)
+        // // in which case, archive and reset those keys
+        // if let Some(old_keypair) = self.state.take_coconut_keypair().await {
+        //     debug!("resetting and archiving old coconut keypair");
+        //     if let Err(source) =
+        //         archive_coconut_keypair(&self.coconut_key_path, old_keypair.issued_for_epoch)
+        //     {
+        //         return Err(CoconutError::KeyArchiveFailure {
+        //             epoch_id,
+        //             path: self.coconut_key_path.clone(),
+        //             source,
+        //         });
+        //     }
+        // }
 
         // FAILURE CASE:
         // check if we have already sent the registration transaction, but it timed out or got stuck in the mempool and
@@ -48,7 +48,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         if dealer_details.dealer_type.is_current() {
             if let Some(details) = dealer_details.details {
                 // the tx did actually go through
-                self.state.registration_state_mut(epoch_id).assigned_index =
+                self.state.registration_state_mut(epoch_id)?.assigned_index =
                     Some(details.assigned_index);
                 info!("DKG: recovered node index: {}", details.assigned_index);
                 return Ok(());
@@ -64,7 +64,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             .dkg_client
             .register_dealer(bte_key, identity_key, announce_address, resharing)
             .await?;
-        self.state.registration_state_mut(epoch_id).assigned_index = Some(assigned_index);
+        self.state.registration_state_mut(epoch_id)?.assigned_index = Some(assigned_index);
         info!("DKG: Using node index {assigned_index}");
 
         Ok(())
@@ -90,8 +90,7 @@ pub(crate) mod tests {
     const TEST_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
     #[tokio::test]
-    #[ignore] // expensive test
-    async fn submit_public_key() {
+    async fn submit_public_key() -> anyhow::Result<()> {
         let dkg_client = DkgClient::new(DummyClient::new(
             AccountId::from_str(TEST_VALIDATOR_ADDRESS).unwrap(),
         ));
@@ -110,26 +109,21 @@ pub(crate) mod tests {
         assert!(controller
             .dkg_client
             .get_self_registered_dealer_details()
-            .await
-            .unwrap()
+            .await?
             .details
             .is_none());
-        controller
-            .public_key_submission(epoch, false)
-            .await
-            .unwrap();
+        controller.public_key_submission(epoch, false).await?;
         let client_idx = controller
             .dkg_client
             .get_self_registered_dealer_details()
-            .await
-            .unwrap()
+            .await?
             .details
             .unwrap()
             .assigned_index;
         assert_eq!(
             controller
                 .state
-                .registration_state(epoch)
+                .registration_state(epoch)?
                 .assigned_index
                 .unwrap(),
             client_idx
@@ -138,19 +132,18 @@ pub(crate) mod tests {
         // keeps the same index from chain, not calling register_dealer again
         controller
             .state
-            .registration_state_mut(epoch)
+            .registration_state_mut(epoch)?
             .assigned_index = None;
-        controller
-            .public_key_submission(epoch, false)
-            .await
-            .unwrap();
+        controller.public_key_submission(epoch, false).await?;
         assert_eq!(
             controller
                 .state
-                .registration_state(epoch)
+                .registration_state(epoch)?
                 .assigned_index
                 .unwrap(),
             client_idx
         );
+
+        Ok(())
     }
 }

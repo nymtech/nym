@@ -48,7 +48,7 @@ features = ["net", "sync", "time"]
 workspace = true
 # the choice of this particular tls feature was arbitrary;
 # if you reckon a different one would be more appropriate, feel free to change it
-features = ["native-tls"]
+# features = ["native-tls"]
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]

@@ -67,8 +67,7 @@ impl<'a> Instance<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProofOfChunking {
     y0: G1Projective,
     bb: Vec<G1Projective>,

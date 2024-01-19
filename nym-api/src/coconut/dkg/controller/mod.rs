@@ -18,6 +18,7 @@ use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
+use rand_chacha::ChaCha20Rng;
 use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -300,6 +301,20 @@ impl DkgController {
             coconut_key_path: Default::default(),
             state,
             rng: OsRng,
+            polling_rate: Default::default(),
+        }
+    }
+
+    pub(crate) fn test_mock_new(
+        rng: ChaCha20Rng,
+        dkg_client: DkgClient,
+        state: State,
+    ) -> DkgController<ChaCha20Rng> {
+        DkgController {
+            dkg_client,
+            coconut_key_path: Default::default(),
+            state,
+            rng,
             polling_rate: Default::default(),
         }
     }

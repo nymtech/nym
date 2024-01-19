@@ -125,3 +125,6 @@ sqlx = { workspace = true, features = [
 [dev-dependencies]
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
+rand_chacha = "0.3"
+rand_chacha_02 = { package = "rand_chacha", version = "0.2" }
+

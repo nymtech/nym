@@ -82,8 +82,7 @@ impl RecoveredVerificationKeys {
     }
 }
 
-#[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dealing {
     pub public_coefficients: PublicCoefficients,
     pub ciphertexts: Ciphertexts,

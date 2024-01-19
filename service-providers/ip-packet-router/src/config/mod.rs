@@ -1,6 +1,9 @@
 pub use nym_client_core::config::Config as BaseClientConfig;
 
 use nym_bin_common::logging::LoggingSettings;
+use nym_client_core::{
+    cli_helpers::client_init::ClientConfig, config::disk_persistence::CommonClientPaths,
+};
 use nym_config::{
     defaults::mainnet, must_get_home, save_formatted_config_to_file,
     serde_helpers::de_maybe_stringified, NymConfigTemplate, DEFAULT_CONFIG_DIR,
@@ -68,6 +71,24 @@ pub struct Config {
 impl NymConfigTemplate for Config {
     fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
+    }
+}
+
+impl ClientConfig for Config {
+    fn common_paths(&self) -> &CommonClientPaths {
+        &self.storage_paths.common_paths
+    }
+
+    fn core_config(&self) -> &BaseClientConfig {
+        &self.base
+    }
+
+    fn default_store_location(&self) -> PathBuf {
+        self.default_location()
+    }
+
+    fn save_to<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+        save_formatted_config_to_file(self, path)
     }
 }
 

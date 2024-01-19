@@ -386,7 +386,6 @@ pub fn withdrawal_request(
     sk_user: &SecretKeyUser,
     expiration_date: u64,
 ) -> Result<(WithdrawalRequest, RequestInfo)> {
-    let gammas = params.gammas();
     // Generate random and unique wallet secret
     let v = params.random_scalar();
     let joined_commitment_opening = params.random_scalar();
@@ -404,11 +403,7 @@ pub fn withdrawal_request(
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
     let private_attributes = vec![sk_user.sk, v];
     let (private_attributes_openings, private_attributes_commitments) =
-        compute_private_attribute_commitments(
-            &params,
-            &joined_commitment_hash,
-            &private_attributes,
-        );
+        compute_private_attribute_commitments(params, &joined_commitment_hash, &private_attributes);
 
     // construct a NIZK proof of knowledge proving possession of m1, m2, o, o1, o2
     let instance = WithdrawalReqInstance {
@@ -425,7 +420,7 @@ pub fn withdrawal_request(
         joined_commitment_opening,
         private_attributes_openings: private_attributes_openings.clone(),
     };
-    let zk_proof = WithdrawalReqProof::construct(&params, &instance, &witness);
+    let zk_proof = WithdrawalReqProof::construct(params, &instance, &witness);
 
     // Create and return WithdrawalRequest and RequestInfo
     Ok((
@@ -482,7 +477,7 @@ pub fn request_verify(
         private_attributes_commitments: req.private_attributes_commitments.clone(),
         pk_user,
     };
-    if !req.zk_proof.verify(&params, &instance) {
+    if !req.zk_proof.verify(params, &instance) {
         return Err(CompactEcashError::WithdrawalRequestVerification(
             "Failed to verify the proof of knowledge".to_string(),
         ));
@@ -535,9 +530,9 @@ pub fn sign_expiration_date(
     if let Some(yi) = sk_auth.get_y_by_idx(2) {
         Ok(joined_commitment_hash * (yi * Scalar::from(expiration_date)))
     } else {
-        return Err(CompactEcashError::Issuance(
+        Err(CompactEcashError::Issuance(
             "The secret key of the authority does not have enough elements".to_string(),
-        ));
+        ))
     }
 }
 
@@ -568,7 +563,7 @@ pub fn issue(
     expiration_date: u64,
 ) -> Result<BlindedSignature> {
     // Verify the withdrawal request
-    request_verify(&params, &withdrawal_req, pk_user, expiration_date)?;
+    request_verify(params, withdrawal_req, pk_user, expiration_date)?;
     // Blind sign the private attributes
     let blind_signatures: G1Projective = withdrawal_req
         .private_attributes_commitments
@@ -635,7 +630,7 @@ pub fn issue_verify(
         .sum::<G1Projective>();
     let unblinded_c = blind_signature.1 - blinding_removers;
 
-    let attr = vec![sk_user.sk, req_info.wallet_secret, req_info.expiration_date];
+    let attr = [sk_user.sk, req_info.wallet_secret, req_info.expiration_date];
 
     let signed_attributes = attr
         .iter()

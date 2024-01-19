@@ -56,7 +56,7 @@ where
 impl Aggregatable for PartialSignature {
     fn aggregate(sigs: &[PartialSignature], indices: Option<&[u64]>) -> Result<Signature> {
         let h = sigs
-            .get(0)
+            .first()
             .ok_or_else(|| CompactEcashError::Aggregation("Empty set of signatures".to_string()))?
             .sig1();
 
@@ -156,16 +156,16 @@ pub fn aggregate_wallets(
 
     let attributes = vec![
         sk_user.sk,
-        req_info.get_v().clone(),
-        req_info.get_expiration_date().clone(),
+        *req_info.get_v(),
+        *req_info.get_expiration_date(),
     ];
     let aggregated_signature =
         aggregate_signature_shares(params, verification_key, &attributes, &signature_shares)?;
 
     Ok(Wallet {
         sig: aggregated_signature,
-        v: req_info.get_v().clone(),
-        expiration_date: req_info.get_expiration_date().clone(),
+        v: *req_info.get_v(),
+        expiration_date: *req_info.get_expiration_date(),
         l: Cell::new(0),
     })
 }

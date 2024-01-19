@@ -92,7 +92,7 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
 impl WithdrawalReqInstance {
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         let pc_coms_len = self.private_attributes_commitments.len();
-        let mut bytes = Vec::with_capacity(8 + (pc_coms_len + 3) as usize * 48);
+        let mut bytes = Vec::with_capacity(8 + (pc_coms_len + 3) * 48);
         bytes.extend_from_slice(self.joined_commitment.to_bytes().as_ref());
         bytes.extend_from_slice(self.joined_commitment_hash.to_bytes().as_ref());
         bytes.extend_from_slice(&pc_coms_len.to_le_bytes());

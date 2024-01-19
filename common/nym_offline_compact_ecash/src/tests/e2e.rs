@@ -1,7 +1,7 @@
 use itertools::izip;
 
 use crate::constants;
-use crate::error::{CompactEcashError, Result};
+use crate::error::Result;
 use crate::scheme::aggregation::{aggregate_verification_keys, aggregate_wallets};
 use crate::scheme::expiration_date_signatures::{
     aggregate_expiration_signatures, sign_expiration_date, ExpirationDateSignature,
@@ -162,7 +162,7 @@ fn main() -> Result<()> {
 
     // Let's try to spend some coins
     let pay_info = PayInfo {
-        pay_info_bytes: [6u8; 88],
+        pay_info_bytes: [6u8; 72],
     };
     let spend_vv = 1;
 

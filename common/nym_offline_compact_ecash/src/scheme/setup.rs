@@ -59,7 +59,7 @@ impl GroupParameters {
     pub(crate) fn gammas_to_bytes(&self) -> Vec<u8> {
         let mut bytes = Vec::with_capacity(self.gammas.len() * 48);
         for g in &self.gammas {
-            bytes.extend_from_slice(&g.to_bytes().as_ref());
+            bytes.extend_from_slice(g.to_bytes().as_ref());
         }
         bytes
     }
@@ -231,7 +231,7 @@ pub fn sign_coin_indices(
         .fold(
             || Vec::with_capacity(params.get_total_coins() as usize),
             |mut partial_coins_signatures, l| {
-                let m0: Scalar = Scalar::from(l as u64);
+                let m0: Scalar = Scalar::from(l);
                 // Compute the hash h
                 let mut concatenated_bytes =
                     Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
@@ -241,9 +241,9 @@ pub fn sign_coin_indices(
 
                 // Sign the attributes
                 let mut s_exponent = sk_auth.x;
-                s_exponent += &sk_auth.ys[0] * m0;
-                s_exponent += &sk_auth.ys[1] * m1;
-                s_exponent += &sk_auth.ys[2] * m2;
+                s_exponent += sk_auth.ys[0] * m0;
+                s_exponent += sk_auth.ys[1] * m1;
+                s_exponent += sk_auth.ys[2] * m2;
 
                 // Create the signature struct
                 let coin_idx_sign = PartialCoinIndexSignature {
@@ -314,7 +314,7 @@ pub fn verify_coin_indices_signatures(
                 .zip(concatenated_bytes_list.par_iter()),
         )
         .enumerate()
-        .try_for_each(|(l, (m0, (sig, concatenated_bytes)))| {
+        .try_for_each(|(_, (m0, (sig, concatenated_bytes)))| {
             // Compute the hash h
             let h = hash_g1(concatenated_bytes.clone());
             // Check if the hash is matching
@@ -326,7 +326,7 @@ pub fn verify_coin_indices_signatures(
             let partially_signed_attributes = [*m0, m1, m2]
                 .iter()
                 .zip(vk_auth.beta_g2.iter())
-                .map(|(m, beta_i)| beta_i * Scalar::from(*m))
+                .map(|(m, beta_i)| beta_i * m)
                 .sum::<G2Projective>();
 
             if !check_bilinear_pairing(
@@ -392,14 +392,12 @@ pub fn aggregate_indices_signatures(
             .map(|(index, _, _)| *index)
             .collect::<Vec<_>>(),
     );
-    let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
-    let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
 
     // Verify that all signatures are valid
     signatures
         .par_iter()
         .try_for_each(|(_, vk_auth, partial_signatures)| {
-            verify_coin_indices_signatures(&params, &vk, &vk_auth, &partial_signatures)
+            verify_coin_indices_signatures(params, vk, vk_auth, partial_signatures)
         })?;
 
     // Pre-allocate vectors
@@ -407,7 +405,6 @@ pub fn aggregate_indices_signatures(
         Vec::with_capacity(params.get_total_coins() as usize);
 
     for l in 0..params.get_total_coins() {
-        let m0: Scalar = Scalar::from(l);
         // Compute the hash h
         let mut concatenated_bytes =
             Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
@@ -431,7 +428,7 @@ pub fn aggregate_indices_signatures(
         let aggr_sig = CoinIndexSignature { h, s: aggr_s };
         aggregated_coin_signatures.push(aggr_sig);
     }
-    verify_coin_indices_signatures(&params, &vk, &vk, &aggregated_coin_signatures)?;
+    verify_coin_indices_signatures(params, vk, vk, &aggregated_coin_signatures)?;
     Ok(aggregated_coin_signatures)
 }
 

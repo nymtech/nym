@@ -1,24 +1,24 @@
 use std::cell::Cell;
 use std::convert::TryInto;
 
-use bls12_381::{G1Affine, G1Projective, G2Prepared, G2Projective, Scalar};
+use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 
 use crate::constants;
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::expiration_date_signatures::{find_index, ExpirationDateSignature};
-use crate::scheme::keygen::{PublicKeyUser, SecretKeyUser, VerificationKeyAuth};
+use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{CoinIndexSignature, GroupParameters, Parameters};
 use crate::traits::Bytable;
 use crate::utils::{
     check_bilinear_pairing, hash_to_scalar, try_deserialize_g1_projective,
-    try_deserialize_g2_projective, try_deserialize_scalar, Signature, SignerIndex,
+    try_deserialize_g2_projective, Signature, SignerIndex,
 };
 use crate::{Attribute, Base58};
-use chrono::{Timelike, Utc};
+use chrono::Utc;
 use getset::{CopyGetters, Getters};
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
 pub mod aggregation;
 pub mod expiration_date_signatures;
@@ -263,6 +263,7 @@ impl Wallet {
     /// # Returns
     ///
     /// A tuple containing the generated payment and a reference to the updated wallet, or an error.
+    #[allow(clippy::too_many_arguments)]
     pub fn spend(
         &self,
         params: &Parameters,
@@ -282,15 +283,15 @@ impl Wallet {
         let attributes = vec![sk_user.sk, self.v(), self.expiration_date()];
 
         // Check if there is enough remaining allowance in the wallet
-        self.check_remaining_allowance(&params, spend_value)?;
+        self.check_remaining_allowance(params, spend_value)?;
 
         // Randomize wallet signature
         let (signature_prime, sign_blinding_factor) = self.signature().randomise(grp_params);
 
         // compute kappa (i.e., blinded attributes for show) to prove possession of the wallet signature
         let kappa = compute_kappa(
-            &grp_params,
-            &verification_key,
+            grp_params,
+            verification_key,
             &attributes,
             sign_blinding_factor,
         );
@@ -303,11 +304,11 @@ impl Wallet {
             .unwrap()
             .clone();
         let (date_signature_prime, date_sign_blinding_factor) =
-            date_signature.randomise(&grp_params);
+            date_signature.randomise(grp_params);
         // compute kappa_e to prove possession of the expiration signature
         let kappa_e: G2Projective = grp_params.gen2() * date_sign_blinding_factor
             + verification_key.alpha
-            + verification_key.beta_g2.get(0).unwrap() * self.expiration_date();
+            + verification_key.beta_g2.first().unwrap() * self.expiration_date();
 
         // pick random openings o_c and compute commitments C to v (wallet secret)
         let o_c = grp_params.random_scalar();
@@ -320,9 +321,8 @@ impl Wallet {
         let mut o_a: Vec<Scalar> = Default::default();
         let mut o_mu: Vec<Scalar> = Default::default();
         let mut mu: Vec<Scalar> = Default::default();
-        let mut r_k_vec: Vec<Scalar> = Default::default();
+        let r_k_vec: Vec<Scalar> = Default::default();
         let mut kappa_k_vec: Vec<G2Projective> = Default::default();
-        let mut sign_lk_prime_vec: Vec<Signature> = Default::default();
         let mut lk_vec: Vec<Scalar> = Default::default();
 
         let mut coin_indices_signatures_prime: Vec<CoinIndexSignature> = Default::default();
@@ -341,11 +341,11 @@ impl Wallet {
             aa.push(aa_k);
 
             // compute the serial numbers
-            let ss_k = pseudorandom_f_delta_v(&grp_params, self.v(), lk);
+            let ss_k = pseudorandom_f_delta_v(grp_params, self.v(), lk);
             ss.push(ss_k);
             // compute the identification tags
             let tt_k = grp_params.gen1() * sk_user.sk
-                + pseudorandom_f_g_v(&grp_params, self.v(), lk) * rr_k;
+                + pseudorandom_f_g_v(grp_params, self.v(), lk) * rr_k;
             tt.push(tt_k);
 
             // compute values mu, o_mu, lambda, o_lambda
@@ -359,13 +359,12 @@ impl Wallet {
 
             // Randomize the coin index signatures and compute kappa_k to prove possession of each coin's signature
             // This involves iterating over the signatures corresponding to the coins we want to spend in this payment.
-            let coin_sign: CoinIndexSignature =
-                coin_indices_signatures.get(lk as usize).unwrap().clone();
-            let (coin_sign_prime, coin_sign_blinding_factor) = coin_sign.randomise(&grp_params);
+            let coin_sign: CoinIndexSignature = *coin_indices_signatures.get(lk as usize).unwrap();
+            let (coin_sign_prime, coin_sign_blinding_factor) = coin_sign.randomise(grp_params);
             coin_indices_signatures_prime.push(coin_sign_prime);
             let kappa_k: G2Projective = grp_params.gen2() * coin_sign_blinding_factor
                 + verification_key.alpha
-                + verification_key.beta_g2.get(0).unwrap() * Scalar::from(lk);
+                + verification_key.beta_g2.first().unwrap() * Scalar::from(lk);
             kappa_k_vec.push(kappa_k);
         }
 
@@ -450,8 +449,8 @@ impl TryFrom<&[u8]> for Wallet {
         let l_bytes: &[u8; 8] = &bytes[160..168].try_into().expect("Slice size != 8");
 
         let sig = Signature::try_from(sig_bytes.as_slice()).unwrap();
-        let v = Scalar::from_bytes(&v_bytes).unwrap();
-        let expiration_date = Scalar::from_bytes(&expiration_date_bytes).unwrap();
+        let v = Scalar::from_bytes(v_bytes).unwrap();
+        let expiration_date = Scalar::from_bytes(expiration_date_bytes).unwrap();
         let l = Cell::new(u64::from_le_bytes(*l_bytes));
 
         Ok(Wallet {
@@ -701,7 +700,7 @@ impl Payment {
                     "Not all serial numbers are unique".to_string(),
                 ));
             }
-            seen_serial_numbers.push(serial_number.clone());
+            seen_serial_numbers.push(*serial_number);
         }
 
         Ok(())
@@ -786,9 +785,9 @@ impl Payment {
         spend_date: Scalar,
     ) -> Result<bool> {
         // Verify whether the payment signature and kappa are correct
-        self.check_signature_validity(&params)?;
+        self.check_signature_validity(params)?;
         // Verify whether the expiration date signature and kappa_e are correct
-        self.check_exp_signature_validity(&params, &verification_key, spend_date)?;
+        self.check_exp_signature_validity(params, verification_key, spend_date)?;
         // check if all serial numbers are different
         self.no_duplicate_serial_numbers()?;
 
@@ -796,9 +795,9 @@ impl Payment {
         let mut rr = Vec::with_capacity(self.spend_value as usize);
         for k in 0..self.spend_value {
             // Verify whether the coin indices signatures and kappa_k are correct
-            self.check_coin_index_signature(&params, &verification_key, k)?;
+            self.check_coin_index_signature(params, verification_key, k)?;
             // Compute hashes R_k = H(payinfo, k)
-            let rr_k = compute_pay_info_hash(&pay_info, k);
+            let rr_k = compute_pay_info_hash(pay_info, k);
             rr.push(rr_k);
         }
         // verify the zk proof
@@ -809,7 +808,7 @@ impl Payment {
             ss: self.ss.clone(),
             tt: self.tt.clone(),
             kappa_k: self.kappa_k.clone(),
-            kappa_e: self.kappa_e.clone(),
+            kappa_e: self.kappa_e,
         };
 
         // verify the zk-proof
@@ -903,7 +902,6 @@ impl Payment {
         }
 
         let zk_proof_bytes = self.zk_proof.to_bytes();
-        let zk_proof_bytes_len = self.zk_proof.to_bytes().len();
         bytes.extend_from_slice(&zk_proof_bytes);
         bytes
     }

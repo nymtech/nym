@@ -1,5 +1,5 @@
 use crate::constants;
-use crate::error::{CompactEcashError, Result};
+use crate::error::Result;
 use crate::scheme::expiration_date_signatures::{
     aggregate_expiration_signatures, sign_expiration_date, ExpirationDateSignature,
     PartialExpirationDateSignature,
@@ -10,9 +10,8 @@ use crate::scheme::setup::{
     PartialCoinIndexSignature,
 };
 use crate::scheme::{compute_pay_info_hash, Payment};
-use crate::utils::hash_to_scalar;
+
 use crate::PayInfo;
-use bls12_381::Scalar;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum IdentifyResult {
@@ -22,7 +21,6 @@ pub enum IdentifyResult {
 }
 
 pub fn identify(
-    verification_key: &VerificationKeyAuth,
     payment1: Payment,
     payment2: Payment,
     pay_info1: PayInfo,
@@ -71,7 +69,7 @@ pub fn generate_expiration_date_signatures(
     let mut edt_partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
         Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
     for sk_auth in secret_keys_authorities.iter() {
-        let sign = sign_expiration_date(&sk_auth, expiration_date);
+        let sign = sign_expiration_date(sk_auth, expiration_date);
         edt_partial_signatures.push(sign);
     }
     let combined_data: Vec<(
@@ -85,10 +83,10 @@ pub fn generate_expiration_date_signatures(
                 .iter()
                 .zip(edt_partial_signatures.iter()),
         )
-        .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
+        .map(|(i, (vk, sigs))| (*i, vk.clone(), sigs.clone()))
         .collect();
 
-    aggregate_expiration_signatures(&params, &verification_key, expiration_date, &combined_data)
+    aggregate_expiration_signatures(params, verification_key, expiration_date, &combined_data)
 }
 
 pub fn generate_coin_indices_signatures(
@@ -101,16 +99,16 @@ pub fn generate_coin_indices_signatures(
     // create the partial signatures from each authority
     let partial_signatures: Vec<Vec<PartialCoinIndexSignature>> = secret_keys_authorities
         .iter()
-        .map(|sk_auth| sign_coin_indices(&params, &verification_key, sk_auth))
+        .map(|sk_auth| sign_coin_indices(params, verification_key, sk_auth))
         .collect();
 
     let combined_data: Vec<(u64, VerificationKeyAuth, Vec<PartialCoinIndexSignature>)> = indices
         .iter()
         .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
-        .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
+        .map(|(i, (vk, sigs))| (*i, vk.clone(), sigs.clone()))
         .collect();
 
-    aggregate_indices_signatures(&params, &verification_key, &combined_data)
+    aggregate_indices_signatures(params, verification_key, &combined_data)
 }
 
 #[cfg(test)]
@@ -123,6 +121,7 @@ mod tests {
         aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue, issue_verify,
         ttp_keygen, withdrawal_request, PartialWallet, PayInfo, VerificationKeyAuth,
     };
+    use bls12_381::Scalar;
     use itertools::izip;
 
     #[test]
@@ -231,14 +230,8 @@ mod tests {
             .unwrap());
 
         let pay_info2 = pay_info1.clone();
-        let identify_result = identify(
-            &verification_key,
-            payment1,
-            payment2,
-            pay_info1.clone(),
-            pay_info2.clone(),
-        )
-        .unwrap();
+        let identify_result =
+            identify(payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(
             identify_result,
             IdentifyResult::DuplicatePayInfo(pay_info1.clone())
@@ -366,14 +359,8 @@ mod tests {
             .spend_verify(&params, &verification_key, &pay_info2, spend_date)
             .unwrap());
 
-        let identify_result = identify(
-            &verification_key,
-            payment1,
-            payment2,
-            pay_info1.clone(),
-            pay_info2.clone(),
-        )
-        .unwrap();
+        let identify_result =
+            identify(payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::NotADuplicatePayment);
     }
 
@@ -513,14 +500,8 @@ mod tests {
             .spend_verify(&params, &verification_key, &pay_info2, spend_date)
             .unwrap());
 
-        let identify_result = identify(
-            &verification_key,
-            payment1,
-            payment2,
-            pay_info1.clone(),
-            pay_info2.clone(),
-        )
-        .unwrap();
+        let identify_result =
+            identify(payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(
             identify_result,
             IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key())
@@ -659,14 +640,8 @@ mod tests {
             )
             .unwrap();
 
-        let identify_result = identify(
-            &verification_key,
-            payment1,
-            payment2,
-            pay_info1.clone(),
-            pay_info2.clone(),
-        )
-        .unwrap();
+        let identify_result =
+            identify(payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(
             identify_result,
             IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key())

@@ -297,7 +297,6 @@ pub fn compute_instance_commitments(
     let g1 = *grp_params.gen1();
     let gamma0 = grp_params.gamma_idx(0).unwrap();
     let gamma1 = grp_params.gamma_idx(1).unwrap();
-    let gamma2 = grp_params.gamma_idx(2).unwrap();
 
     let tt_kappa = grp_params.gen2() * witness_replacement.r_r
         + verification_key.alpha
@@ -374,23 +373,15 @@ impl SpendProof {
     ) -> Self {
         let grp_params = params.grp();
         // generate random values to replace each witness
-        let witness_replacement = generate_witness_replacement(&params, &witness);
-
-        let g1 = *grp_params.gen1();
-        let gamma0 = *grp_params.gamma_idx(0).unwrap();
-        let beta2_bytes = verification_key
-            .beta_g2
-            .iter()
-            .map(|beta_i| beta_i.to_bytes())
-            .collect::<Vec<_>>();
+        let witness_replacement = generate_witness_replacement(params, witness);
 
         // compute zkp commitment for each instance
         let instance_commitments = compute_instance_commitments(
-            &params,
+            params,
             &witness_replacement,
-            &instance,
-            &verification_key,
-            &rr,
+            instance,
+            verification_key,
+            rr,
         );
 
         let tt_aa_bytes = instance_commitments
@@ -405,11 +396,6 @@ impl SpendProof {
             .collect::<Vec<_>>();
         let tt_tt_bytes = instance_commitments
             .tt_tt
-            .iter()
-            .map(|x| x.to_bytes())
-            .collect::<Vec<_>>();
-        let tt_gamma1_bytes = instance_commitments
-            .tt_gamma1
             .iter()
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
@@ -486,13 +472,7 @@ impl SpendProof {
     ) -> bool {
         let grp_params = params.grp();
         let g1 = *grp_params.gen1();
-        let g2 = *grp_params.gen2();
         let gamma0 = *grp_params.gamma_idx(0).unwrap();
-        let beta2_bytes = verification_key
-            .beta_g2
-            .iter()
-            .map(|beta_i| beta_i.to_bytes())
-            .collect::<Vec<_>>();
 
         // re-compute each zkp commitment
         let tt_kappa = instance.kappa * self.challenge
@@ -548,20 +528,6 @@ impl SpendProof {
             .collect::<Vec<_>>();
 
         let tt_tt_bytes = tt_tt.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
-
-        let tt_gamma00 = instance
-            .aa
-            .iter()
-            .zip(self.responses_mu.iter())
-            .zip(self.responses_o_mu.iter())
-            .map(|((aa_k, resp_mu_k), resp_o_mu_k)| {
-                (aa_k + instance.cc + gamma0) * resp_mu_k
-                    + g1 * resp_o_mu_k
-                    + gamma0 * self.challenge
-            })
-            .collect::<Vec<_>>();
-
-        let tt_gamma00_bytes = tt_gamma00.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
         let tt_kappa_k = instance
             .kappa_k

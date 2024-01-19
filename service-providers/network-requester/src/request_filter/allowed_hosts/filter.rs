@@ -184,13 +184,11 @@ impl OutboundRequestFilter {
     fn get_domain_root(&self, host: &str) -> Option<String> {
         if let Some(domain) = self.root_domain_list.domain(host.as_bytes()) {
             return String::from_utf8(domain.as_bytes().to_vec()).ok();
-        } else {
-            if let Some(suffix) = self.root_domain_list.suffix(host.as_bytes()) {
-                if suffix.is_known() {
-                    return String::from_utf8(suffix.as_bytes().to_vec()).ok();
-                } else {
-                    return None;
-                }
+        } else if let Some(suffix) = self.root_domain_list.suffix(host.as_bytes()) {
+            if suffix.is_known() {
+                return String::from_utf8(suffix.as_bytes().to_vec()).ok();
+            } else {
+                return None;
             }
         }
         log::warn!("Error parsing domain: {:?}", host);

@@ -7,13 +7,21 @@ To see all the stats about Nym Mixnet live, we recommend you to visit [status.no
 <iframe src="https://status.notrustverify.ch/d-solo/CW3L7dVVk/nym-mixnet?orgId=1&from=1702215592419&to=1704807592419&panelId=12" width="800" height="400" frameborder="0"></iframe>
 
 
+### Is there an explorer for Nym Mixnet?
+
+Yes, there are several places, some are built by Nym core community:
+
+* [Nym Explorer](https://explorer.nymtech.net/)
+* [Guru Explorer](https://mixnet.explorers.guru/)
+* [ExploreNYM](https://explorenym.net/)
+
 ### What determines the rewards when running a Mix Node?
 
 The stake required for a Mix Node to achieve maximum rewards is called Mix Node saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 50% of the staking supply locked in Mix Nodes.
 
 The node stake saturation point, which we denote by Nsat, is given by the stake supply, target level of staking divided by the number of rewarded (active) nodes.
 
-This design ensures the nodes aim to have a same size of stake (reputation) which can be done by delegation staking, as well as it ensures that there is a decentralization of staking as any higher level of staked tokens per node results in worse rewards. On the contrary, the more Mix Nodes are active, the lower is Nsat. The equilibrium is reached when the staked tokens are delegated equally across the active mix-nodes and that's our basis for this incentive system.
+This design ensures the nodes aim to have a same size of stake (reputation) which can be done by delegation staking, as well as it ensures that there is a decentralization of staking as any higher level of staked tokens per node results in worse rewards. On the contrary, the more Mix Nodes are active, the lower is Nsat. The equilibrium is reached when the staked tokens are delegated equally across the active Mix nodes and that's our basis for this incentive system.
 
 For more detailed calculation, read our blog post [Nym Token Economics update](https://blog.nymtech.net/nym-token-economics-update-fedff0ed5267). More info on staking can be found [here](https://blog.nymtech.net/staking-in-nym-introducing-mainnet-mixmining-f9bb1cbc7c36). And [here](https://blog.nymtech.net/want-to-stake-in-nym-here-is-how-to-choose-a-mix-node-to-delegate-nym-to-c3b862add165) is more info on how to choose a Mix Node for delegation. And finally an [update](https://blog.nymtech.net/quarterly-token-economic-parameter-update-b2862948710f) on token economics from July 2023.
 
@@ -21,7 +29,9 @@ For more detailed calculation, read our blog post [Nym Token Economics update](h
 
 Consider in which jurisdiction you reside and where do you want to run a Mix Node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to choose smaller and decentralised VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Linode, Ghandi, Flokinet and Exoscale. Do your own research and share with the community.
 
-<!---### Why is a mix node setup on a self-hosted machine so tricky?--->
+### Why is a mix node setup on a self-hosted machine so tricky?
+
+We don't recommend this setup because it's really difficult to get a stable IPv6 from most of the ISPs.
 
 ### What's the Sphinx packet size?
 
@@ -33,7 +43,7 @@ Because of the way the smart contract works we keep it one-node one-address at t
 
 ### Which nodes are the most needed to be setup to strengthen Nym infrastructure and which ones bring rewards?
 
-Right now only Mix Nodes are rewarded. We're working on Gateway and service payments. Gateways are the weak link right now due mostly to lack of incentivisation. Services like Network Requesters are obviously the most necessary for people to start using the platform, and we're working on smart contracts to allow for people to start advertising them the same way they do Mix Nodes.
+Ath this point the most crutial component needed are [Exit Gateways](../legal/exit-gateway.md).
 
 ### Are Mix Nodes whitelisted?
 

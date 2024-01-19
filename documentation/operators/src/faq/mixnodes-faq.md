@@ -2,7 +2,7 @@
 
 ## Nym Mixnet
 
-To see all the stats about Nym Mixnet live, we recommend you to visit [status.notrustverify.ch](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1) built by [No Trust Verify](https://notrustverify.ch/) crew, one of the squads within Nym core community.
+To see different stats about Nym Mixnet live, we recommend you to visit [status.notrustverify.ch](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1) built by [No Trust Verify](https://notrustverify.ch/) crew, one of the squads within Nym core community.
 
 <iframe src="https://status.notrustverify.ch/d-solo/CW3L7dVVk/nym-mixnet?orgId=1&from=1702215592419&to=1704807592419&panelId=12" width="800" height="400" frameborder="0"></iframe>
 
@@ -75,6 +75,6 @@ We are currently working towards building up a closed set of reputable validator
 
 We understand that the early days of the Nyx blockchain will face possible vulnerabilities in terms of size - easy to disrupt or halt the chain if a malicious party entered with a large portion of stake. Besides that, there are some legal issues we need to address before we can distribute the validator set in a fully permissions fashion.
 
-### Why does Nym do many airdrops?
+### Why does Nym do airdrops?
 
 It is part of ensuring decentralisation - we need to avoid a handful of people having too much control over the token and market. Of course ideally people will stake the tokens and contribute to the project at this stage. We run surveys to better understand what people are doing with their tokens and what usability issues there are for staking. Any feedback is appreciated as it helps us improve all aspects of using the token and participating in the ecosystem.

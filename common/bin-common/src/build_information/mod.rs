@@ -42,12 +42,20 @@ pub struct BinaryBuildInformation {
 
     // VERGEN_CARGO_DEBUG
     /// Provides the cargo debug mode that was used for the build.
-    pub cargo_debug: &'static str,
+    // NOTE: keep the old name cargo_profile instead of cargo_debug for backwards compatibility
+    pub cargo_profile: &'static str,
 }
 
 impl BinaryBuildInformation {
     // explicitly require the build_version to be passed as it's binary specific
     pub const fn new(binary_name: &'static str, build_version: &'static str) -> Self {
+        let cargo_debug = env!("VERGEN_CARGO_DEBUG");
+        let cargo_profile = if const_str::equal!(cargo_debug, "true") {
+            "debug"
+        } else {
+            "release"
+        };
+
         BinaryBuildInformation {
             binary_name,
             build_timestamp: env!("VERGEN_BUILD_TIMESTAMP"),
@@ -57,7 +65,7 @@ impl BinaryBuildInformation {
             commit_branch: env!("VERGEN_GIT_BRANCH"),
             rustc_version: env!("VERGEN_RUSTC_SEMVER"),
             rustc_channel: env!("VERGEN_RUSTC_CHANNEL"),
-            cargo_debug: env!("VERGEN_CARGO_DEBUG"),
+            cargo_profile,
         }
     }
 
@@ -71,7 +79,7 @@ impl BinaryBuildInformation {
             commit_branch: self.commit_branch.to_owned(),
             rustc_version: self.rustc_version.to_owned(),
             rustc_channel: self.rustc_channel.to_owned(),
-            cargo_debug: self.cargo_debug.to_owned(),
+            cargo_profile: self.cargo_profile.to_owned(),
         }
     }
 
@@ -117,7 +125,8 @@ pub struct BinaryBuildInformationOwned {
 
     // VERGEN_CARGO_DEBUG
     /// Provides the cargo debug mode that was used for the build.
-    pub cargo_debug: String,
+    // NOTE: keep the old name cargo_profile instead of cargo_debug for backwards compatibility
+    pub cargo_profile: String,
 }
 
 impl Display for BinaryBuildInformationOwned {
@@ -151,8 +160,8 @@ impl Display for BinaryBuildInformationOwned {
             self.rustc_version,
             "rustc Channel:",
             self.rustc_channel,
-            "cargo Debug:",
-            self.cargo_debug,
+            "cargo Profile:",
+            self.cargo_profile,
         )
     }
 }

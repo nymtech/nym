@@ -1560,6 +1560,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
 
 [[package]]
+name = "const-str"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aca749d3d3f5b87a0d6100509879f9cf486ab510803a4a4e1001da1ff61c2bd6"
+
+[[package]]
 name = "const_format"
 version = "0.2.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6047,6 +6053,7 @@ dependencies = [
  "clap 4.4.7",
  "clap_complete",
  "clap_complete_fig",
+ "const-str",
  "log",
  "opentelemetry",
  "opentelemetry-jaeger",

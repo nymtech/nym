@@ -1,5 +1,5 @@
 use clap::{CommandFactory, Parser, Subcommand};
-use log::{error, info, trace};
+use log::{error, trace};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::{bin_info, version_checker};
 use nym_client_core::client::base_client::storage::gateway_details::{
@@ -12,10 +12,10 @@ use nym_client_core::error::ClientCoreError;
 use crate::config::Config;
 use crate::error::IpPacketRouterError;
 
+mod build_info;
 mod init;
 mod run;
 mod sign;
-mod build_info;
 
 lazy_static::lazy_static! {
     pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
@@ -66,14 +66,14 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    nym_apis: Option<Vec<url::Url>>,
-    fastmode: bool,
-    no_cover: bool,
-    nyxd_urls: Option<Vec<url::Url>>,
-    enabled_credentials_mode: Option<bool>,
+    // nym_apis: Option<Vec<url::Url>>,
+    // fastmode: bool,
+    // no_cover: bool,
+    // nyxd_urls: Option<Vec<url::Url>>,
+    // enabled_credentials_mode: Option<bool>,
 }
 
-pub(crate) fn override_config(mut config: Config, opts: OverrideConfig) -> Config {
+pub(crate) fn override_config(mut config: Config, _opts: OverrideConfig) -> Config {
     // disable poisson rate in the BASE client if the IPR option is enabled
     if config.ip_packet_router.disable_poisson_rate {
         log::info!("Disabling poisson rate for ip packet router");
@@ -97,6 +97,8 @@ pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {
     Ok(())
 }
 
+// Unused until we need to start implementing config upgrades
+#[allow(unused)]
 fn persist_gateway_details(
     config: &Config,
     details: GatewayEndpointConfig,
@@ -119,7 +121,7 @@ fn persist_gateway_details(
         })
 }
 
-fn try_upgrade_config(id: &str) -> Result<(), IpPacketRouterError> {
+fn try_upgrade_config(_id: &str) -> Result<(), IpPacketRouterError> {
     trace!("Attempting to upgrade config");
     Ok(())
 }

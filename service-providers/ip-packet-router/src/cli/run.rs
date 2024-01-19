@@ -15,13 +15,13 @@ pub(crate) struct Run {
 }
 
 impl From<Run> for OverrideConfig {
-    fn from(run_config: Run) -> Self {
+    fn from(_run_config: Run) -> Self {
         OverrideConfig {
-            nym_apis: None,
-            fastmode: run_config.common_args.fastmode,
-            no_cover: run_config.common_args.no_cover,
-            nyxd_urls: run_config.common_args.nyxd_urls,
-            enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
+            // nym_apis: None,
+            // fastmode: run_config.common_args.fastmode,
+            // no_cover: run_config.common_args.no_cover,
+            // nyxd_urls: run_config.common_args.nyxd_urls,
+            // enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
         }
     }
 }

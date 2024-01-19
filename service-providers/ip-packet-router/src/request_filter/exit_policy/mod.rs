@@ -10,6 +10,7 @@ use reqwest::IntoUrl;
 use url::Url;
 
 pub struct ExitPolicyRequestFilter {
+    #[allow(unused)]
     upstream: Option<Url>,
     policy: ExitPolicy,
 }
@@ -34,10 +35,12 @@ impl ExitPolicyRequestFilter {
         }
     }
 
+    #[allow(unused)]
     pub fn policy(&self) -> &ExitPolicy {
         &self.policy
     }
 
+    #[allow(unused)]
     pub fn upstream(&self) -> Option<&Url> {
         self.upstream.as_ref()
     }

@@ -53,13 +53,13 @@ pub(crate) struct Init {
 }
 
 impl From<Init> for OverrideConfig {
-    fn from(init_config: Init) -> Self {
+    fn from(_init_config: Init) -> Self {
         OverrideConfig {
-            nym_apis: init_config.common_args.nym_apis,
-            fastmode: init_config.common_args.fastmode,
-            no_cover: init_config.common_args.no_cover,
-            nyxd_urls: init_config.common_args.nyxd_urls,
-            enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
+            // nym_apis: init_config.common_args.nym_apis,
+            // fastmode: init_config.common_args.fastmode,
+            // no_cover: init_config.common_args.no_cover,
+            // nyxd_urls: init_config.common_args.nyxd_urls,
+            // enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
         }
     }
 }

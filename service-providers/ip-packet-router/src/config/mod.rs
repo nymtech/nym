@@ -102,6 +102,7 @@ impl Config {
         }
     }
 
+    #[allow(unused)]
     pub fn with_data_directory<P: AsRef<Path>>(mut self, data_directory: P) -> Self {
         self.storage_paths = IpPacketRouterPaths::new_base(data_directory);
         self
@@ -119,6 +120,7 @@ impl Config {
         default_config_filepath(&self.base.client.id)
     }
 
+    #[allow(unused)]
     pub fn save_to_default_location(&self) -> io::Result<()> {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)

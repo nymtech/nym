@@ -7,7 +7,7 @@ use nym_coconut_dkg_common::types::EpochId;
 use nym_dkg::Scalar;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
@@ -61,8 +61,11 @@ impl KeyPair {
         // *w_lock = Some(keypair);
     }
 
-    #[deprecated]
-    pub async fn invalidate(&self) {
-        *self.keys.write().await = None
+    pub fn is_valid(&self) -> bool {
+        self.valid.load(Ordering::SeqCst)
+    }
+
+    pub fn invalidate(&self) {
+        self.valid.store(true, Ordering::SeqCst);
     }
 }

@@ -1,7 +1,6 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
 use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::error::CoconutError;
 use log::debug;
@@ -25,20 +24,9 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             return Ok(());
         }
 
-        // // if we have coconut keys available, it means we have already completed the DKG before (in previous epoch)
-        // // in which case, archive and reset those keys
-        // if let Some(old_keypair) = self.state.take_coconut_keypair().await {
-        //     debug!("resetting and archiving old coconut keypair");
-        //     if let Err(source) =
-        //         archive_coconut_keypair(&self.coconut_key_path, old_keypair.issued_for_epoch)
-        //     {
-        //         return Err(CoconutError::KeyArchiveFailure {
-        //             epoch_id,
-        //             path: self.coconut_key_path.clone(),
-        //             source,
-        //         });
-        //     }
-        // }
+        // if we have coconut keys available, it means we have already completed the DKG before (in previous epoch)
+        // in which case, invalidate it so that it wouldn't be used for credential issuance
+        self.state.invalidate_coconut_keypair();
 
         // FAILURE CASE:
         // check if we have already sent the registration transaction, but it timed out or got stuck in the mempool and
@@ -73,38 +61,12 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::*;
-    use crate::coconut::dkg::client::DkgClient;
-    use crate::coconut::dkg::state::{PersistentState, State};
-    use crate::coconut::tests::DummyClient;
-    use crate::coconut::KeyPair;
-    use nym_crypto::asymmetric::identity;
-    use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
-    use nym_validator_client::nyxd::AccountId;
-    use rand::rngs::OsRng;
-    use rand_07::thread_rng;
-    use std::path::PathBuf;
-    use std::str::FromStr;
-    use url::Url;
-
-    const TEST_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+    use crate::coconut::tests::fixtures;
 
     #[tokio::test]
     async fn submit_public_key() -> anyhow::Result<()> {
-        let dkg_client = DkgClient::new(DummyClient::new(
-            AccountId::from_str(TEST_VALIDATOR_ADDRESS).unwrap(),
-        ));
-        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-        let state = State::new(
-            PathBuf::default(),
-            PersistentState::default(),
-            Url::parse("localhost:8000").unwrap(),
-            DkgKeyPair::new(&nym_dkg::bte::setup(), OsRng),
-            *identity_keypair.public_key(),
-            KeyPair::new(),
-        );
-        let epoch = dkg_client.get_current_epoch().await.unwrap().epoch_id;
-        let mut controller = DkgController::test_mock(dkg_client, state);
+        let mut controller = fixtures::dkg_controller_fixture();
+        let epoch = controller.dkg_client.get_current_epoch().await?.epoch_id;
 
         assert!(controller
             .dkg_client

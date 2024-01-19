@@ -356,7 +356,6 @@ pub(crate) async fn verification_key_finalization(
 pub(crate) mod tests {
     use super::*;
     use crate::coconut::dkg::controller::DkgController;
-    use crate::coconut::dkg::dealing::dealing_exchange;
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
@@ -443,9 +442,7 @@ pub(crate) mod tests {
     async fn prepare_clients_and_states_with_dealing(db: &MockContractDb) -> Vec<DkgController> {
         let mut clients_and_states = prepare_clients_and_states(db).await;
         for controller in clients_and_states.iter_mut() {
-            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, false)
-                .await
-                .unwrap();
+            controller.dealing_exchange(0, false).await.unwrap();
         }
         clients_and_states
     }
@@ -579,9 +576,7 @@ pub(crate) mod tests {
 
         // add all but the first dealing
         for controller in clients_and_states.iter_mut().skip(1) {
-            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, true)
-                .await
-                .unwrap();
+            controller.dealing_exchange(0, true).await.unwrap();
         }
 
         for controller in clients_and_states.iter_mut().skip(1) {
@@ -624,9 +619,7 @@ pub(crate) mod tests {
 
         // add all but the first dealing
         for controller in clients_and_states.iter_mut().skip(1) {
-            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, true)
-                .await
-                .unwrap();
+            controller.dealing_exchange(0, true).await.unwrap();
         }
 
         for controller in clients_and_states.iter_mut().skip(1) {
@@ -1074,12 +1067,7 @@ pub(crate) mod tests {
 
         for controller in clients_and_states.iter_mut() {
             controller.public_key_submission(0, true).await.unwrap();
-        }
-
-        for controller in clients_and_states.iter_mut() {
-            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, true)
-                .await
-                .unwrap();
+            controller.dealing_exchange(0, true).await.unwrap();
         }
 
         for controller in clients_and_states.iter_mut() {
@@ -1201,9 +1189,7 @@ pub(crate) mod tests {
             controller.public_key_submission(0, false).await.unwrap();
         }
         for controller in clients_and_states.iter_mut() {
-            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, false)
-                .await
-                .unwrap();
+            controller.dealing_exchange(0, false).await.unwrap();
         }
         for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
@@ -1277,12 +1263,7 @@ pub(crate) mod tests {
 
         for controller in clients_and_states.iter_mut() {
             controller.public_key_submission(0, true).await.unwrap();
-        }
-
-        for controller in clients_and_states.iter_mut() {
-            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, true)
-                .await
-                .unwrap();
+            controller.dealing_exchange(0, true).await.unwrap();
         }
 
         for controller in clients_and_states.iter_mut() {

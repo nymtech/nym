@@ -67,6 +67,16 @@ pub(crate) struct DkgParticipant {
     pub(crate) state: ParticipantState,
 }
 
+impl DkgParticipant {
+    #[cfg(test)]
+    pub(crate) fn unwrap_key(&self) -> PublicKeyWithProof {
+        if let ParticipantState::VerifiedKey(key) = &self.state {
+            return key.clone()
+        } 
+        panic!("no key")
+    }
+}
+
 impl From<DealerDetails> for DkgParticipant {
     fn from(dealer: DealerDetails) -> Self {
         DkgParticipant {
@@ -319,7 +329,7 @@ impl State {
 
     pub async fn reset_persistent(&mut self, reset_coconut_keypair: bool) {
         if reset_coconut_keypair {
-            self.coconut_keypair.invalidate().await;
+            self.coconut_keypair.invalidate();
         }
         self.node_index = Default::default();
         self.dealers = Default::default();
@@ -414,6 +424,10 @@ impl State {
         self.coconut_keypair.take().await
     }
 
+    pub fn invalidate_coconut_keypair(&self) {
+        self.coconut_keypair.invalidate()
+    }
+
     pub fn get_dealing(&self, epoch_id: EpochId, dealing_index: DealingIndex) -> Option<&Dealing> {
         self.generated_dealings
             .get(&epoch_id)
@@ -432,7 +446,6 @@ impl State {
             .insert(dealing_index, dealing);
     }
 
-    #[cfg(test)]
     pub async fn coconut_keypair(
         &self,
     ) -> tokio::sync::RwLockReadGuard<'_, Option<KeyPairWithEpoch>> {

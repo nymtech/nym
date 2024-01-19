@@ -36,7 +36,7 @@ use nym_config::defaults::VOUCHER_INFO;
 use nym_contracts_common::IdentityKey;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_dkg::Threshold;
+use nym_dkg::{NodeIndex, Threshold};
 use nym_validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
@@ -53,126 +53,171 @@ use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
+pub(crate) mod fixtures;
+pub(crate) mod helpers;
 mod issued_credentials;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
+#[derive(Debug)]
+pub(crate) struct FakeChainState {
+    // new
+    pub(crate) dealers: HashMap<NodeIndex, DealerDetails>,
+    pub(crate) dealings: HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>,
+
+    // old
+    txs: HashMap<Hash, TxResponse>,
+    proposals: HashMap<u64, ProposalResponse>,
+    spent_credentials: HashMap<String, SpendCredentialResponse>,
+
+    epoch: Epoch,
+    contract_state: ContractState,
+    old_dealers: HashMap<String, (DealerDetails, bool)>,
+    threshold: Option<Threshold>,
+
+    verification_shares: HashMap<String, ContractVKShare>,
+    group: HashMap<String, MemberResponse>,
+    initial_dealers: Option<InitialReplacementData>,
+}
+
+impl Default for FakeChainState {
+    fn default() -> Self {
+        FakeChainState {
+            dealers: HashMap::new(),
+
+            txs: HashMap::new(),
+            proposals: HashMap::new(),
+            spent_credentials: HashMap::new(),
+            epoch: Epoch::default(),
+            contract_state: ContractState {
+                mix_denom: TEST_COIN_DENOM.to_string(),
+                multisig_addr: Addr::unchecked("dummy address"),
+                group_addr: Cw4Contract::new(Addr::unchecked("dummy cw4")),
+                key_size: 5,
+            },
+            old_dealers: HashMap::new(),
+            threshold: None,
+            dealings: HashMap::new(),
+            verification_shares: HashMap::new(),
+            group: HashMap::new(),
+            initial_dealers: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct DummyClient {
     validator_address: AccountId,
-    tx_db: Arc<RwLock<HashMap<Hash, TxResponse>>>,
-    proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
-    spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
 
-    epoch: Arc<RwLock<Epoch>>,
-    contract_state: Arc<RwLock<ContractState>>,
-    dealer_details: Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
-    threshold: Arc<RwLock<Option<Threshold>>>,
-    // it's a really bad practice, but I'm not going to be changing it now...
-    #[allow(clippy::type_complexity)]
-    dealings: Arc<RwLock<HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>>>,
-    verification_share: Arc<RwLock<HashMap<String, ContractVKShare>>>,
-    group_db: Arc<RwLock<HashMap<String, MemberResponse>>>,
-    initial_dealers_db: Arc<RwLock<Option<InitialReplacementData>>>,
+    state: Arc<Mutex<FakeChainState>>,
 }
 
 impl DummyClient {
     pub fn new(validator_address: AccountId) -> Self {
         Self {
             validator_address,
-            tx_db: Arc::new(RwLock::new(HashMap::new())),
-            proposal_db: Arc::new(RwLock::new(HashMap::new())),
-            spent_credential_db: Arc::new(RwLock::new(HashMap::new())),
-            epoch: Arc::new(RwLock::new(Epoch::default())),
-            contract_state: Arc::new(RwLock::new(ContractState {
-                mix_denom: TEST_COIN_DENOM.to_string(),
-                multisig_addr: Addr::unchecked("dummy address"),
-                group_addr: Cw4Contract::new(Addr::unchecked("dummy cw4")),
-                key_size: 5,
-            })),
-            dealer_details: Arc::new(RwLock::new(HashMap::new())),
-            threshold: Arc::new(RwLock::new(None)),
-            dealings: Arc::new(RwLock::new(HashMap::new())),
-            verification_share: Arc::new(RwLock::new(HashMap::new())),
-            group_db: Arc::new(RwLock::new(HashMap::new())),
-            initial_dealers_db: Arc::new(RwLock::new(None)),
+            state: Arc::new(Mutex::new(FakeChainState::default())),
         }
     }
 
-    pub fn with_tx_db(mut self, tx_db: &Arc<RwLock<HashMap<Hash, TxResponse>>>) -> Self {
-        self.tx_db = Arc::clone(tx_db);
-        self
+    pub fn chain_state(&self) -> Arc<Mutex<FakeChainState>> {
+        self.state.clone()
     }
 
+    #[deprecated]
+    pub fn with_tx_db(mut self, tx_db: &Arc<RwLock<HashMap<Hash, TxResponse>>>) -> Self {
+        todo!()
+        // self.tx_db = Arc::clone(tx_db);
+        // self
+    }
+
+    #[deprecated]
     pub fn with_proposal_db(
         mut self,
         proposal_db: &Arc<RwLock<HashMap<u64, ProposalResponse>>>,
     ) -> Self {
-        self.proposal_db = Arc::clone(proposal_db);
-        self
+        todo!()
+        // self.proposal_db = Arc::clone(proposal_db);
+        // self
     }
 
+    #[deprecated]
     pub fn with_spent_credential_db(
         mut self,
         spent_credential_db: &Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
     ) -> Self {
-        self.spent_credential_db = Arc::clone(spent_credential_db);
-        self
+        todo!()
+        // self.spent_credential_db = Arc::clone(spent_credential_db);
+        // self
     }
+    #[deprecated]
 
     pub fn _with_epoch(mut self, epoch: &Arc<RwLock<Epoch>>) -> Self {
-        self.epoch = Arc::clone(epoch);
-        self
+        todo!()
+        // self.epoch = Arc::clone(epoch);
+        // self
     }
 
+    #[deprecated]
     pub fn with_dealer_details(
         mut self,
         dealer_details: &Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
     ) -> Self {
-        self.dealer_details = Arc::clone(dealer_details);
-        self
+        todo!()
+        // self.dealer_details = Arc::clone(dealer_details);
+        // self
     }
 
+    #[deprecated]
     pub fn with_threshold(mut self, threshold: &Arc<RwLock<Option<Threshold>>>) -> Self {
-        self.threshold = Arc::clone(threshold);
-        self
+        todo!()
+        // self.threshold = Arc::clone(threshold);
+        // self
     }
 
     // it's a really bad practice, but I'm not going to be changing it now...
     #[allow(clippy::type_complexity)]
+    #[deprecated]
     pub fn with_dealings(
         mut self,
         dealings: &Arc<RwLock<HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>>>,
     ) -> Self {
-        self.dealings = Arc::clone(dealings);
-        self
+        todo!()
+        // self.dealings = Arc::clone(dealings);
+        // self
     }
 
+    #[deprecated]
     pub fn with_verification_share(
         mut self,
         verification_share: &Arc<RwLock<HashMap<String, ContractVKShare>>>,
     ) -> Self {
-        self.verification_share = Arc::clone(verification_share);
-        self
+        todo!()
+        // self.verification_share = Arc::clone(verification_share);
+        // self
     }
 
+    #[deprecated]
     pub fn _with_group_db(
         mut self,
         group_db: &Arc<RwLock<HashMap<String, MemberResponse>>>,
     ) -> Self {
-        self.group_db = Arc::clone(group_db);
-        self
+        todo!()
+        // self.group_db = Arc::clone(group_db);
+        // self
     }
 
+    #[deprecated]
     pub fn with_initial_dealers_db(
         mut self,
         initial_dealers: &Arc<RwLock<Option<InitialReplacementData>>>,
     ) -> Self {
-        self.initial_dealers_db = Arc::clone(initial_dealers);
-        self
+        todo!()
+        // self.initial_dealers_db = Arc::clone(initial_dealers);
+        // self
     }
 }
 
@@ -183,13 +228,21 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse> {
-        Ok(self.tx_db.read().unwrap().get(&tx_hash).cloned().unwrap())
+        Ok(self
+            .state
+            .lock()
+            .unwrap()
+            .txs
+            .get(&tx_hash)
+            .cloned()
+            .unwrap())
     }
 
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse> {
-        self.proposal_db
-            .read()
+        self.state
+            .lock()
             .unwrap()
+            .proposals
             .get(&proposal_id)
             .cloned()
             .ok_or(CoconutError::IncorrectProposal {
@@ -198,16 +251,24 @@ impl super::client::Client for DummyClient {
     }
 
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>> {
-        Ok(self.proposal_db.read().unwrap().values().cloned().collect())
+        Ok(self
+            .state
+            .lock()
+            .unwrap()
+            .proposals
+            .values()
+            .cloned()
+            .collect())
     }
 
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,
     ) -> Result<SpendCredentialResponse> {
-        self.spent_credential_db
-            .read()
+        self.state
+            .lock()
             .unwrap()
+            .spent_credentials
             .get(&blinded_serial_number)
             .cloned()
             .ok_or(CoconutError::InvalidCredentialStatus {
@@ -216,36 +277,38 @@ impl super::client::Client for DummyClient {
     }
 
     async fn contract_state(&self) -> Result<ContractState> {
-        Ok(self.contract_state.read().unwrap().clone())
+        Ok(self.state.lock().unwrap().contract_state.clone())
     }
 
     async fn get_current_epoch(&self) -> Result<Epoch> {
-        Ok(*self.epoch.read().unwrap())
+        Ok(self.state.lock().unwrap().epoch)
     }
 
     async fn group_member(&self, addr: String) -> Result<MemberResponse> {
         Ok(self
-            .group_db
-            .read()
+            .state
+            .lock()
             .unwrap()
+            .group
             .get(&addr)
             .cloned()
             .unwrap_or(MemberResponse { weight: None }))
     }
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
-        Ok(*self.threshold.read().unwrap())
+        Ok(self.state.lock().unwrap().threshold)
     }
 
     async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>> {
-        Ok(self.initial_dealers_db.read().unwrap().clone())
+        Ok(self.state.lock().unwrap().initial_dealers.clone())
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
         let (details, dealer_type) = if let Some((details, current)) = self
-            .dealer_details
-            .read()
+            .state
+            .lock()
             .unwrap()
+            .old_dealers
             .get(self.validator_address.as_ref())
             .cloned()
         {
@@ -281,12 +344,12 @@ impl super::client::Client for DummyClient {
 
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>> {
         Ok(self
-            .dealer_details
-            .read()
+            .state
+            .lock()
             .unwrap()
+            .dealers
             .values()
             .cloned()
-            .filter_map(|(d, current)| if current { Some(d) } else { None })
             .collect())
     }
 
@@ -296,9 +359,10 @@ impl super::client::Client for DummyClient {
         dealer: &str,
     ) -> Result<Vec<PartialContractDealing>> {
         Ok(self
-            .dealings
-            .read()
+            .state
+            .lock()
             .unwrap()
+            .dealings
             .get(&epoch_id)
             .cloned()
             .unwrap_or_default()
@@ -312,9 +376,10 @@ impl super::client::Client for DummyClient {
         _epoch_id: EpochId,
     ) -> Result<Vec<ContractVKShare>> {
         Ok(self
-            .verification_share
-            .read()
+            .state
+            .lock()
             .unwrap()
+            .verification_shares
             .values()
             .cloned()
             .collect())
@@ -326,7 +391,7 @@ impl super::client::Client for DummyClient {
         vote_yes: bool,
         _fee: Option<Fee>,
     ) -> Result<()> {
-        if let Some(proposal) = self.proposal_db.write().unwrap().get_mut(&proposal_id) {
+        if let Some(proposal) = self.state.lock().unwrap().proposals.get_mut(&proposal_id) {
             // for now, just suppose that every vote is honest
             if !vote_yes {
                 proposal.status = cw3::Status::Rejected;
@@ -338,9 +403,10 @@ impl super::client::Client for DummyClient {
     }
 
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
-        self.proposal_db
-            .write()
+        self.state
+            .lock()
             .unwrap()
+            .proposals
             .entry(proposal_id)
             .and_modify(|prop| {
                 if prop.status == cw3::Status::Passed {
@@ -361,21 +427,22 @@ impl super::client::Client for DummyClient {
         announce_address: String,
         _resharing: bool,
     ) -> Result<ExecuteResult> {
-        let mut dealer_details = self.dealer_details.write().unwrap();
+        let mut guard = self.state.lock().unwrap();
         let assigned_index = if let Some((details, active)) =
-            dealer_details.get_mut(self.validator_address.as_ref())
+            guard.old_dealers.get_mut(self.validator_address.as_ref())
         {
             *active = true;
             details.assigned_index
         } else {
             // let assigned_index = OsRng.gen();
-            let assigned_index = dealer_details
+            let assigned_index = guard
+                .old_dealers
                 .values()
                 .map(|(d, _)| d.assigned_index)
                 .max()
                 .unwrap_or(0)
                 + 1;
-            dealer_details.insert(
+            guard.old_dealers.insert(
                 self.validator_address.to_string(),
                 (
                     DealerDetails {
@@ -407,9 +474,10 @@ impl super::client::Client for DummyClient {
         dealing: PartialContractDealing,
         _resharing: bool,
     ) -> Result<ExecuteResult> {
-        let current_epoch = self.epoch.read().unwrap().epoch_id;
-        let mut guard = self.dealings.write().unwrap();
-        let epoch_dealings = guard.entry(current_epoch).or_default();
+        let mut guard = self.state.lock().unwrap();
+        let current_epoch = guard.epoch.epoch_id;
+
+        let epoch_dealings = guard.dealings.entry(current_epoch).or_default();
         let existing_dealings = epoch_dealings
             .entry(self.validator_address.to_string())
             .or_default();
@@ -429,9 +497,10 @@ impl super::client::Client for DummyClient {
         resharing: bool,
     ) -> Result<ExecuteResult> {
         let (dealer_details, active) = self
-            .dealer_details
-            .read()
+            .state
+            .lock()
             .unwrap()
+            .old_dealers
             .get(self.validator_address.as_ref())
             .unwrap()
             .clone();
@@ -439,7 +508,7 @@ impl super::client::Client for DummyClient {
             // Just throw some error, not really the correct one
             return Err(CoconutError::DepositEncrKeyNotFound);
         }
-        self.verification_share.write().unwrap().insert(
+        self.state.lock().unwrap().verification_shares.insert(
             self.validator_address.to_string(),
             ContractVKShare {
                 share,
@@ -475,9 +544,10 @@ impl super::client::Client for DummyClient {
             proposer: Addr::unchecked(self.validator_address.as_ref()),
             deposit: None,
         };
-        self.proposal_db
-            .write()
+        self.state
+            .lock()
             .unwrap()
+            .proposals
             .insert(proposal_id, proposal);
         Ok(ExecuteResult {
             logs: vec![Log {

@@ -32,6 +32,7 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         "https://rpc.sandbox.nymtech.net",
         Some("https://sandbox-nym-api1.nymtech.net/api"),
+        Some("wss://rpc.sandbox.nymtech.net/websocket"),
     )]
 }
 

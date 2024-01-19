@@ -16,3 +16,4 @@ pub mod storage;
 
 pub use modules::{BlockModule, MsgModule, TxModule};
 pub use scraper::{Config, NyxdScraper};
+pub use storage::models;

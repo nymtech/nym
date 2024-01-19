@@ -362,12 +362,12 @@ pub fn blind_sign(
 /// The function returns `true` if the partial blind signature is valid, and `false` otherwise.
 pub fn verify_partial_blind_signature(
     params: &Parameters,
-    blind_sign_request: &BlindSignRequest,
+    private_attribute_commitments: &[G1Projective],
     public_attributes: &[&Attribute],
     blind_sig: &BlindedSignature,
     partial_verification_key: &VerificationKey,
 ) -> bool {
-    let num_private_attributes = blind_sign_request.private_attributes_commitments.len();
+    let num_private_attributes = private_attribute_commitments.len();
     if num_private_attributes + public_attributes.len() > partial_verification_key.beta_g2.len() {
         return false;
     }
@@ -388,8 +388,7 @@ pub fn verify_partial_blind_signature(
     ];
 
     // for each private attribute, add (cm_i, beta_i) to the miller terms
-    for (private_attr_commit, beta_g2) in blind_sign_request
-        .private_attributes_commitments
+    for (private_attr_commit, beta_g2) in private_attribute_commitments
         .iter()
         .zip(&partial_verification_key.beta_g2)
     {
@@ -422,7 +421,7 @@ pub fn verify_partial_blind_signature(
     // is equivalent to checking e(a, b) • e(c, d)^{-1} == id
     // and thus to e(a, b) • e(c^{-1}, d) == id
     //
-    // compute e(c^1, g2) • e(s, alpha) • e(cm_0, beta_0) • e(cm_i, beta_i) • (s^pub_0, beta_{i+1}) (s^pub_j, beta_{i + j})
+    // compute e(c^{-1}, g2) • e(s, alpha) • e(cm_0, beta_0) • e(cm_i, beta_i) • (s^pub_0, beta_{i+1}) (s^pub_j, beta_{i + j})
     multi_miller_loop(&terms_refs)
         .final_exponentiation()
         .is_identity()
@@ -519,7 +518,7 @@ mod tests {
 
         assert!(verify_partial_blind_signature(
             &params,
-            &request,
+            &request.private_attributes_commitments,
             &public_attributes,
             &blind_sig,
             validator_keypair.verification_key()
@@ -539,7 +538,7 @@ mod tests {
 
         assert!(verify_partial_blind_signature(
             &params,
-            &request,
+            &request.private_attributes_commitments,
             &[],
             &blind_sig,
             validator_keypair.verification_key()
@@ -568,7 +567,7 @@ mod tests {
         // this assertion should fail, as we try to verify with a wrong validator key
         assert!(!verify_partial_blind_signature(
             &params,
-            &request,
+            &request.private_attributes_commitments,
             &public_attributes,
             &blind_sig,
             validator2_keypair.verification_key()

@@ -24,7 +24,7 @@
 - [NymConnect X Electrum](tutorials/electrum.md)
 - [NymConnect X Firo wallet](tutorials/firo.md)
 
-# Code Examples 
+# Code Examples
 
 - [Custom Service Providers](examples/custom-services.md)
 - [Apps Using Network Requesters](examples/using-nrs.md)
@@ -49,9 +49,9 @@
 		- [Preparing Your Service](tutorials/cosmos-service/service.md)
 		- [Preparing Your Service pt2](tutorials/cosmos-service/service-src.md)
 		- [Querying the Chain](tutorials/cosmos-service/querying.md)
-   
+
 - [Typescript](tutorials/typescript.md)
-    - [Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md) 
+    - [Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md)
       	- [Tutorial Overview](tutorials/simple-service-provider/overview.md)
       	- [Preparing Your User Client Environment](tutorials/simple-service-provider/preparating-env.md)
       	- [Building Your User Client](tutorials/simple-service-provider/user-client.md)
@@ -68,6 +68,12 @@
 
 # Events
 
+- [CryptoTalk](events/cryptotalk/nym-vpn.md)
+    - [NymVPN Linux Guide](events/cryptotalk/nym-vpn-linux.md)
+    - [NymVPN MacOS Guide](events/cryptotalk/nym-vpn-mac.md)
+    - [NymVPN Testing](events/cryptotalk/nym-vpn-testing.md)
+    - [NymVPN Troubleshooting](events/cryptotalk/nym-vpn-troubleshooting.md)
+    - [NymVPN FAQ](events/cryptotalk/nym-vpn-faq.md)
 - [Web3Privacy Now](./events/web3-privacy.md)
 - [HCPP23-serinko](./events/hcpp23-serinko.md)
 - [HCPP23-max](./events/hcpp23-max.md)
@@ -83,7 +89,7 @@
 - [Community Applications and Guides](community-resources/community-applications-and-guides.md)
 - [Change Service Grantee Information](info-request.md)
 
---- 
+---
 # Misc.
 - [Code of Conduct](coc.md)
 - [Licensing](licensing.md)

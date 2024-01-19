@@ -4,7 +4,7 @@
 use crate::coconut::error::CoconutError;
 use nym_api_requests::coconut::models::{
     EpochCredentialsResponse, IssuedCredential as ApiIssuedCredential,
-    IssuedCredentialInner as ApiIssuedCredentialInner,
+    IssuedCredentialBody as ApiIssuedCredentialInner,
 };
 use nym_api_requests::coconut::BlindedSignatureResponse;
 use nym_coconut::{Base58, BlindedSignature};
@@ -95,13 +95,6 @@ impl TryFrom<IssuedCredential> for BlindedSignature {
             value.bs58_partial_credential,
         )?)
     }
-}
-
-impl IssuedCredential {
-    // safety: this should only ever be called on sanitized data from the database,
-    // thus the unwraps are fine (if somebody manually entered their db file and modified it, it's on them)
-    // pub fn private_attribute_commitments(&self) -> Vec<Scalar>
-    // pub fn public_attributes(&self)
 }
 
 pub fn join_attributes<I, M>(attrs: I) -> String

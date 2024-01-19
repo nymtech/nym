@@ -32,8 +32,8 @@ export default function HopSelect({
     >
       <div
         className={clsx([
-          'absolute left-3 -top-3 px-1',
-          'bg-blanc-nacre dark:bg-baltic-sea text-sm',
+          'absolute left-3 -top-2.5 px-1',
+          'bg-blanc-nacre dark:bg-baltic-sea text-xs',
         ])}
       >
         {nodeHop === 'entry' ? t('first-hop') : t('last-hop')}
@@ -41,7 +41,7 @@ export default function HopSelect({
       <div className="flex flex-row items-center gap-3">
         <img
           src={`./flags/${country.code.toLowerCase()}.svg`}
-          className="h-8 scale-90 pointer-events-none fill-current"
+          className="h-7 scale-90 pointer-events-none fill-current"
           alt={country.code}
         />
         <div className="text-base">{country.name}</div>

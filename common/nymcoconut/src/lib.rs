@@ -43,3 +43,5 @@ mod utils;
 pub type Attribute = bls12_381::Scalar;
 pub type PrivateAttribute = Attribute;
 pub type PublicAttribute = Attribute;
+
+pub use bls12_381::G1Projective;

@@ -24,7 +24,7 @@ function SettingsGroup({ settings }: Props) {
           value={setting.title}
           onClick={setting.onClick}
           className={clsx([
-            'bg-white dark:bg-baltic-sea-jaguar relative flex px-5 py-2 shadow-md focus:outline-none',
+            'bg-white dark:bg-baltic-sea-jaguar relative flex px-5 py-2 focus:outline-none',
             index === 0 && 'rounded-t-lg',
             index === settings.length - 1 &&
               settings.length === 2 &&
@@ -42,25 +42,27 @@ function SettingsGroup({ settings }: Props) {
             className="flex flex-1 items-center justify-between gap-4"
           >
             {setting.leadingIcon && (
-              <span className="font-icon text-2xl">{setting.leadingIcon}</span>
+              <span className="font-icon text-2xl select-none">
+                {setting.leadingIcon}
+              </span>
             )}
             <div className="flex flex-1 items-center">
               <div className="text-sm">
                 <RadioGroup.Label
                   as="p"
-                  className="font-semibold text-lg text-baltic-sea dark:text-mercury-pinkish"
+                  className="text-base text-baltic-sea dark:text-mercury-pinkish select-none"
                 >
                   {setting.title}
                 </RadioGroup.Label>
                 <RadioGroup.Description
                   as="span"
-                  className="text-base text-cement-feet dark:text-mercury-mist"
+                  className="text-sm text-cement-feet dark:text-mercury-mist select-none"
                 >
                   <span>{setting.desc}</span>
                 </RadioGroup.Description>
               </div>
             </div>
-            <div>{setting.trailing}</div>
+            <div className="select-none">{setting.trailing}</div>
           </div>
         </RadioGroup.Option>
       ))}

@@ -45,6 +45,12 @@ pub trait Client {
         epoch_id: EpochId,
         dealer: &str,
     ) -> Result<Vec<PartialContractDealing>>;
+
+    async fn get_verification_key_share(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<Option<ContractVKShare>>;
     async fn get_verification_key_shares(&self, epoch_id: EpochId) -> Result<Vec<ContractVKShare>>;
     async fn vote_proposal(&self, proposal_id: u64, vote_yes: bool, fee: Option<Fee>)
         -> Result<()>;

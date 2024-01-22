@@ -55,7 +55,7 @@ impl KeyPair {
         // self.keys.read().await
     }
 
-    pub async fn set(&self, epoch_id: EpochId, keypair: nym_coconut_interface::KeyPair) {
+    pub async fn set(&self, keypair: KeyPairWithEpoch) {
         todo!()
         // let mut w_lock = self.keys.write().await;
         // *w_lock = Some(keypair);

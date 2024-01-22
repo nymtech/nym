@@ -8,6 +8,18 @@ use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
 
 impl<R: RngCore + CryptoRng> DkgController<R> {
+    /// First step of the DKG process during which the nym api will register for the key exchange
+    /// by submitting its:
+    /// - BTE public key (alongside the proof of discrete log)
+    /// - ed25519 public key
+    /// - announce address to be used by clients for obtaining credentials
+    /// Upon successful registration, the node will receive a unique "NodeIndex"
+    /// which is the x-coordinate of the to be derived keys.
+    ///
+    /// During this step any prior coconut keys will be invalidated, i.e. keys from the previous epoch
+    /// won't be used for issuing new credentials.
+    ///
+    /// Furthermore, if the node experienced any failures during this step, a recovery will be attempted.
     pub(crate) async fn public_key_submission(
         &mut self,
         epoch_id: EpochId,

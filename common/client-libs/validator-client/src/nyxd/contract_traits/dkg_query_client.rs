@@ -19,7 +19,7 @@ pub use nym_coconut_dkg_common::{
         DealerDetails, DealingIndex, Epoch, EpochId, InitialReplacementData,
         PartialContractDealing, State,
     },
-    verification_key::{ContractVKShare, PagedVKSharesResponse},
+    verification_key::{ContractVKShare, PagedVKSharesResponse, VkShareResponse},
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -120,6 +120,15 @@ pub trait DkgQueryClient {
             limit,
             start_after,
         };
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_vk_share(
+        &self,
+        epoch_id: EpochId,
+        owner: String,
+    ) -> Result<VkShareResponse, NyxdError> {
+        let request = DkgQueryMsg::GetVerificationKey { epoch_id, owner };
         self.query_dkg_contract(request).await
     }
 
@@ -240,6 +249,9 @@ mod tests {
             } => client
                 .get_dealer_dealings_paged(epoch_id, &dealer, limit, start_after)
                 .ignore(),
+            DkgQueryMsg::GetVerificationKey { epoch_id, owner } => {
+                client.get_vk_share(epoch_id, owner).ignore()
+            }
             DkgQueryMsg::GetVerificationKeys {
                 epoch_id,
                 limit,

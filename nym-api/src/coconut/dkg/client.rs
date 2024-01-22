@@ -79,7 +79,7 @@ impl DkgClient {
         let address = self.inner.address().await.to_string();
 
         self.inner
-            .get_dealing_status(epoch_id, address.clone(), dealing_index)
+            .get_dealing_status(epoch_id, address, dealing_index)
             .await
             .map(|r| r.dealing_submitted)
     }
@@ -90,6 +90,18 @@ impl DkgClient {
         dealer: String,
     ) -> Result<Vec<PartialContractDealing>, CoconutError> {
         self.inner.get_dealings(epoch_id, &dealer).await
+    }
+
+    pub(crate) async fn get_verification_key_share_status(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<Option<bool>, CoconutError> {
+        let address = self.inner.address().await.to_string();
+
+        self.inner
+            .get_verification_key_share(epoch_id, address)
+            .await
+            .map(|maybe_share| maybe_share.map(|s| s.verified))
     }
 
     pub(crate) async fn get_verification_key_shares(

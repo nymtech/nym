@@ -227,9 +227,10 @@ impl std::ops::Div<f64> for PacketRates {
 impl PacketRates {
     fn summary(&self) -> String {
         format!(
-            "rx: {}/s (real: {}/s), tx: {}/s (real: {}/s), mix packet loss: {:.2}",
+            "rx: {}/s (real: {}/s, acks: {}/s), tx: {}/s (real: {}/s), mix packet loss: {:.2}",
             bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
             bibytes2(self.real_packets_received_size),
+            bibytes2(self.total_acks_received_size),
             bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
             bibytes2(self.real_packets_sent_size),
             self.retransmissions_queued / self.real_packets_queued
@@ -340,6 +341,7 @@ impl PacketStatisticsControl {
         let (summary_sent, summary_recv) = self.stats.summary();
         log::debug!("{}", summary_sent);
         log::debug!("{}", summary_recv);
+        log::info!("retransmissions: {}", self.stats.retransmissions_queued);
     }
 
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {

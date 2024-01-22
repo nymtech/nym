@@ -234,13 +234,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
     ) -> Result<(), CoconutError> {
         let dealing_state = self.state.dealing_exchange_state(epoch_id)?;
 
-        // TODO:
-        /*
-            let receiver_index = receivers
-        .keys()
-        .position(|node_index| *node_index == dealer_index);
-         */
-
         // check if we have already submitted the dealings
         if dealing_state.completed() {
             // the only way this could be a false positive is if the chain forked and blocks got reverted,
@@ -276,6 +269,30 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         }
 
         self.state.dkg_state_mut(epoch_id)?.set_dealers(dealers);
+
+        // obtain our dealer index to correctly set receiver index (used for share decryption)
+        let dealer_index = self.state.assigned_index(epoch_id)?;
+
+        // update internally used threshold value which should have been available after all dealers registered
+        let Some(threshold) = self.dkg_client.get_current_epoch_threshold().await? else {
+            // TODO: if we're in the dealing exchange phase, the threshold must have been already established
+            todo!("yell at me clippy")
+        };
+        self.state
+            .key_derivation_state_mut(epoch_id)?
+            .expected_threshold = Some(threshold);
+
+        // establish our receiver index
+        let sorted_dealers = &self.state.dkg_state(epoch_id)?.dealers;
+        let Some(receiver_index) = sorted_dealers.keys().position(|idx| idx == &dealer_index)
+        else {
+            // this branch should be impossible as `dealing_exchange` should never be called unless we're actually a dealer
+            error!("could not establish receiver index for epoch {epoch_id} even though we're a dealer!");
+            return Err(CoconutError::UnavailableReceiverIndex { epoch_id });
+        };
+        self.state
+            .dealing_exchange_state_mut(epoch_id)?
+            .receiver_index = Some(receiver_index);
 
         // get the expected key size which will determine the number of dealings we need to construct
         let contract_state = self.dkg_client.get_contract_state().await?;

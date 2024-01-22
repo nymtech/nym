@@ -282,7 +282,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         let mut valid_dealings: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
 
         // 1. for every valid dealer in this epoch, obtain its dealings
-        for (dealer, dealer_index) in self.state.valid_epoch_dealers(epoch_id)? {
+        for (dealer, dealer_index) in self.state.valid_epoch_receivers(epoch_id)? {
             // if we're in resharing mode, the contract itself will forbid submission of dealings from
             // parties that were not "initial" dealers, so we don't have to worry about it
 
@@ -316,7 +316,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             if let Ok(verified_dealings) = self.verified_dealer_dealings(
                 epoch_id,
                 dealer,
-                &epoch_receivers,
+                epoch_receivers,
                 raw_dealings,
                 old_public_key,
             ) {
@@ -330,6 +330,24 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             } else {
                 todo!("blacklist dealer")
             }
+
+            // if let Ok(verified_dealings) = self.verified_dealer_dealings(
+            //     epoch_id,
+            //     dealer,
+            //     epoch_receivers,
+            //     raw_dealings,
+            //     old_public_key,
+            // ) {
+            //     // if we managed to verify ALL the dealings from this dealer, insert them into the map
+            //     for (dealing_index, dealing) in verified_dealings {
+            //         valid_dealings
+            //             .entry(dealing_index)
+            //             .or_default()
+            //             .insert(dealer_index, dealing);
+            //     }
+            // } else {
+            //     todo!("blacklist dealer")
+            // }
         }
 
         Ok(valid_dealings)
@@ -360,7 +378,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             todo!("fail - can't reach threshold")
         }
 
-        let TEMP_TODO_all_indices = Vec::new();
+        let all_dealers = dealings[&0].keys().copied().collect::<Vec<_>>();
 
         let decryption_key = self.state.dkg_keypair().private_key();
 
@@ -371,17 +389,20 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
         // for every part of the key
         for (dealing_index, dealings) in dealings {
+            let dealings_vec = dealings.into_values().collect::<Vec<_>>();
+
             let human_index = dealing_index + 1;
             debug!("recovering part {human_index}/{total} of the keys");
 
             debug!("recovering the partial verification keys");
-            let recovered = try_recover_verification_keys(&[], threshold, &epoch_receivers)?;
+            let recovered =
+                try_recover_verification_keys(&dealings_vec, threshold, &epoch_receivers)?;
             // TODO:
 
             debug!("decrypting received shares");
             // for every received share of the key
-            let mut shares = Vec::with_capacity(dealings.len());
-            for (node_index, dealing) in dealings {
+            let mut shares = Vec::with_capacity(dealings_vec.len());
+            for (i, dealing) in dealings_vec.into_iter().enumerate() {
                 // attempt to decrypt our portion
                 let share = match decrypt_share(
                     decryption_key,
@@ -391,6 +412,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                 ) {
                     Ok(share) => share,
                     Err(err) => {
+                        let node_index = all_dealers[i];
                         error!("failed to decrypt share {human_index}/{total} generated from dealer {node_index}: {err} - can't generate the full key");
                         todo!("do something about it")
                     }
@@ -402,7 +424,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
             // SAFETY: combining shares can only fail if we have different number shares and indices
             // however, we returned an error if decryption of any share failed and thus we know those values must match
-            let secret = combine_shares(shares, &TEMP_TODO_all_indices).unwrap();
+            let secret = combine_shares(shares, &all_dealers).unwrap();
             if derived_x.is_none() {
                 derived_x = Some(secret)
             } else {
@@ -486,7 +508,9 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             todo!("finalize, we're done")
         }
 
-        let epoch_receivers = BTreeMap::new();
+        // ASSUMPTION:
+        // all nym-apis would have filtered the dealers the same way since they'd have had the same data
+        let epoch_receivers = self.state.valid_epoch_receivers_keys(epoch_id)?;
 
         let dealings = self
             .get_valid_dealings(&epoch_receivers, epoch_id, resharing)
@@ -661,966 +685,875 @@ pub(crate) async fn verification_key_finalization(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::coconut::dkg::controller::DkgController;
-    use crate::coconut::dkg::state::PersistentState;
-    use crate::coconut::tests::DummyClient;
-    use crate::coconut::KeyPair;
-    use nym_coconut::aggregate_verification_keys;
-    use nym_coconut_dkg_common::dealer::DealerDetails;
-    use nym_coconut_dkg_common::types::{EpochId, InitialReplacementData, PartialContractDealing};
-    use nym_coconut_dkg_common::verification_key::ContractVKShare;
-    use nym_crypto::asymmetric::identity;
-    use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
-    use nym_validator_client::nyxd::AccountId;
-    use rand::rngs::OsRng;
-    use rand::Rng;
-    use rand_07::thread_rng;
-    use std::collections::HashMap;
-    use std::env::temp_dir;
-    use std::path::PathBuf;
-    use std::str::FromStr;
-    use std::sync::{Arc, RwLock};
-    use url::Url;
-
-    struct MockContractDb {
-        dealer_details_db: Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
-        // it's a really bad practice, but I'm not going to be changing it now...
-        #[allow(clippy::type_complexity)]
-        dealings_db: Arc<RwLock<HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>>>,
-        proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
-        verification_share_db: Arc<RwLock<HashMap<String, ContractVKShare>>>,
-        threshold_db: Arc<RwLock<Option<Threshold>>>,
-        initial_dealers_db: Arc<RwLock<Option<InitialReplacementData>>>,
-    }
-
-    impl MockContractDb {
-        pub fn new() -> Self {
-            MockContractDb {
-                dealer_details_db: Arc::new(Default::default()),
-                dealings_db: Arc::new(Default::default()),
-                proposal_db: Arc::new(Default::default()),
-                verification_share_db: Arc::new(Default::default()),
-                threshold_db: Arc::new(RwLock::new(Some(2))),
-                initial_dealers_db: Arc::new(RwLock::new(Default::default())),
-            }
-        }
-    }
-
-    const TEST_VALIDATORS_ADDRESS: [&str; 4] = [
-        "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",
-        "n1s9l3xr4g0rglvk4yctktmck3h4eq0gp6z2e20v",
-        "n19kl4py32vsk297dm93ezem992cdyzdy4zuc2x6",
-        "n1jfrs6cmw9t7dv0x8cgny6geunzjh56n2s89fkv",
-    ];
-
-    async fn prepare_clients_and_states(db: &MockContractDb) -> Vec<DkgController> {
-        let params = dkg::params();
-        let mut clients_and_states = vec![];
-        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-
-        for addr in TEST_VALIDATORS_ADDRESS {
-            let dkg_client = DkgClient::new(
-                DummyClient::new(AccountId::from_str(addr).unwrap())
-                    .with_dealer_details(&db.dealer_details_db)
-                    .with_dealings(&db.dealings_db)
-                    .with_proposal_db(&db.proposal_db)
-                    .with_verification_share(&db.verification_share_db)
-                    .with_threshold(&db.threshold_db)
-                    .with_initial_dealers_db(&db.initial_dealers_db),
-            );
-            let keypair = DkgKeyPair::new(params, OsRng);
-            let state = State::new(
-                PathBuf::default(),
-                PersistentState::default(),
-                Url::parse("localhost:8000").unwrap(),
-                keypair,
-                *identity_keypair.public_key(),
-                KeyPair::new(),
-            );
-            clients_and_states.push(DkgController::test_mock(dkg_client, state));
-        }
-        for controller in clients_and_states.iter_mut() {
-            controller.public_key_submission(0, false).await.unwrap();
-        }
-        clients_and_states
-    }
-
-    async fn prepare_clients_and_states_with_dealing(db: &MockContractDb) -> Vec<DkgController> {
-        let mut clients_and_states = prepare_clients_and_states(db).await;
-        for controller in clients_and_states.iter_mut() {
-            controller.dealing_exchange(0, false).await.unwrap();
-        }
-        clients_and_states
-    }
-
-    async fn prepare_clients_and_states_with_submission(db: &MockContractDb) -> Vec<DkgController> {
-        let mut clients_and_states = prepare_clients_and_states_with_dealing(db).await;
-        for controller in clients_and_states.iter_mut() {
-            let random_file: usize = OsRng.gen();
-            let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
-            verification_key_submission(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                &keypath,
-                false,
-            )
-            .await
-            .unwrap();
-            std::fs::remove_file(keypath).unwrap();
-        }
-        clients_and_states
-    }
-
-    async fn prepare_clients_and_states_with_validation(db: &MockContractDb) -> Vec<DkgController> {
-        let mut clients_and_states = prepare_clients_and_states_with_submission(db).await;
-        for controller in clients_and_states.iter_mut() {
-            verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-                .await
-                .unwrap();
-        }
-        clients_and_states
-    }
-
-    async fn prepare_clients_and_states_with_finalization(
-        db: &MockContractDb,
-    ) -> Vec<DkgController> {
-        let mut clients_and_states = prepare_clients_and_states_with_validation(db).await;
-        for controller in clients_and_states.iter_mut() {
-            verification_key_finalization(&controller.dkg_client, &mut controller.state, false)
-                .await
-                .unwrap();
-        }
-        clients_and_states
-    }
+    use crate::coconut::tests::helpers::{
+        derive_keypairs, exchange_dealings, initialise_controllers, initialise_dkg,
+        submit_public_keys,
+    };
 
     #[tokio::test]
     #[ignore] // expensive test
-    async fn check_dealers_filter_all_good() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0]
-            .dkg_client
-            .get_contract_state()
-            .await
-            .unwrap();
+    async fn check_dealers_filter_all_good() -> anyhow::Result<()> {
+        let mut controllers = initialise_controllers(4);
+        let chain = controllers[0].chain_state.clone();
+        let expected = chain.lock().unwrap().dkg_contract_state.clone();
 
-        for controller in clients_and_states.iter_mut() {
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            assert_eq!(filtered.len(), contract_state.key_size as usize);
-            for mapping in filtered.iter() {
-                assert_eq!(mapping.len(), 4);
-            }
-        }
+        submit_public_keys(&mut controllers, false).await;
+        exchange_dealings(&mut controllers, false).await;
+
+        todo!()
+        //
+        // for controller in controllers.iter_mut() {
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert_eq!(filtered.len(), contract_state.key_size as usize);
+        //     for mapping in filtered.iter() {
+        //         assert_eq!(mapping.len(), 4);
+        //     }
+        // }
+        //
+        // Ok(())
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_one_bad_dealing() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0]
-            .dkg_client
-            .get_contract_state()
-            .await
-            .unwrap();
-
-        // corrupt just one dealing
-        db.dealings_db
-            .write()
-            .unwrap()
-            .entry(0)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings
-                    .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-                    .or_default();
-                let mut last = validator_dealings.pop().unwrap();
-                last.data.0.pop();
-                validator_dealings.push(last);
-            });
-
-        for controller in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            assert_eq!(filtered.len(), contract_state.key_size as usize);
-            let corrupted_status = controller
-                .state
-                .all_dealers()
-                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
-                .unwrap()
-                .as_ref()
-                .unwrap_err();
-            assert_eq!(*corrupted_status, ComplaintReason::MissingDealing);
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
+        // let contract_state = clients_and_states[0]
+        //     .dkg_client
+        //     .get_contract_state()
+        //     .await
+        //     .unwrap();
+        //
+        // // corrupt just one dealing
+        // db.dealings_db
+        //     .write()
+        //     .unwrap()
+        //     .entry(0)
+        //     .and_modify(|epoch_dealings| {
+        //         let validator_dealings = epoch_dealings
+        //             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
+        //             .or_default();
+        //         let mut last = validator_dealings.pop().unwrap();
+        //         last.data.0.pop();
+        //         validator_dealings.push(last);
+        //     });
+        //
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert_eq!(filtered.len(), contract_state.key_size as usize);
+        //     let corrupted_status = controller
+        //         .state
+        //         .all_dealers()
+        //         .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
+        //         .unwrap()
+        //         .as_ref()
+        //         .unwrap_err();
+        //     assert_eq!(*corrupted_status, ComplaintReason::MissingDealing);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_resharing_filter_one_missing_dealing() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states(&db).await;
-        let contract_state = clients_and_states[0]
-            .dkg_client
-            .get_contract_state()
-            .await
-            .unwrap();
-
-        // add all but the first dealing
-        for controller in clients_and_states.iter_mut().skip(1) {
-            controller.dealing_exchange(0, true).await.unwrap();
-        }
-
-        for controller in clients_and_states.iter_mut().skip(1) {
-            *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
-                initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
-                initial_height: 1,
-            });
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                true,
-            )
-            .await
-            .unwrap();
-            assert_eq!(filtered.len(), contract_state.key_size as usize);
-            let corrupted_status = controller
-                .state
-                .all_dealers()
-                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
-                .unwrap()
-                .as_ref()
-                .unwrap_err();
-
-            assert_eq!(*corrupted_status, ComplaintReason::MissingDealing);
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states(&db).await;
+        // let contract_state = clients_and_states[0]
+        //     .dkg_client
+        //     .get_contract_state()
+        //     .await
+        //     .unwrap();
+        //
+        // // add all but the first dealing
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     controller.dealing_exchange(0, true).await.unwrap();
+        // }
+        //
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
+        //         initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
+        //         initial_height: 1,
+        //     });
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         true,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert_eq!(filtered.len(), contract_state.key_size as usize);
+        //     let corrupted_status = controller
+        //         .state
+        //         .all_dealers()
+        //         .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
+        //         .unwrap()
+        //         .as_ref()
+        //         .unwrap_err();
+        //
+        //     assert_eq!(*corrupted_status, ComplaintReason::MissingDealing);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_resharing_filter_one_noninitial_missing_dealing() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states(&db).await;
-        let contract_state = clients_and_states[0]
-            .dkg_client
-            .get_contract_state()
-            .await
-            .unwrap();
-
-        // add all but the first dealing
-        for controller in clients_and_states.iter_mut().skip(1) {
-            controller.dealing_exchange(0, true).await.unwrap();
-        }
-
-        for controller in clients_and_states.iter_mut().skip(1) {
-            *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
-                initial_dealers: vec![],
-                initial_height: 1,
-            });
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                true,
-            )
-            .await
-            .unwrap();
-            assert_eq!(filtered.len(), contract_state.key_size as usize);
-            assert!(controller
-                .state
-                .all_dealers()
-                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
-                .unwrap()
-                .as_ref()
-                .is_ok(),);
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states(&db).await;
+        // let contract_state = clients_and_states[0]
+        //     .dkg_client
+        //     .get_contract_state()
+        //     .await
+        //     .unwrap();
+        //
+        // // add all but the first dealing
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     controller.dealing_exchange(0, true).await.unwrap();
+        // }
+        //
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
+        //         initial_dealers: vec![],
+        //         initial_height: 1,
+        //     });
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         true,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert_eq!(filtered.len(), contract_state.key_size as usize);
+        //     assert!(controller
+        //         .state
+        //         .all_dealers()
+        //         .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
+        //         .unwrap()
+        //         .as_ref()
+        //         .is_ok(),);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_all_bad_dealings() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0]
-            .dkg_client
-            .get_contract_state()
-            .await
-            .unwrap();
-
-        // corrupt all dealings of one address
-        db.dealings_db
-            .write()
-            .unwrap()
-            .entry(0)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings
-                    .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-                    .or_default();
-                validator_dealings.iter_mut().for_each(|dealing| {
-                    dealing.data.0.pop();
-                });
-            });
-
-        for controller in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            assert_eq!(filtered.len(), contract_state.key_size as usize);
-            for mapping in filtered.iter() {
-                assert_eq!(mapping.len(), 3);
-            }
-            let corrupted_status = controller
-                .state
-                .all_dealers()
-                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
-                .unwrap()
-                .as_ref()
-                .unwrap_err();
-            assert_eq!(*corrupted_status, ComplaintReason::MissingDealing);
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
+        // let contract_state = clients_and_states[0]
+        //     .dkg_client
+        //     .get_contract_state()
+        //     .await
+        //     .unwrap();
+        //
+        // // corrupt all dealings of one address
+        // db.dealings_db
+        //     .write()
+        //     .unwrap()
+        //     .entry(0)
+        //     .and_modify(|epoch_dealings| {
+        //         let validator_dealings = epoch_dealings
+        //             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
+        //             .or_default();
+        //         validator_dealings.iter_mut().for_each(|dealing| {
+        //             dealing.data.0.pop();
+        //         });
+        //     });
+        //
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert_eq!(filtered.len(), contract_state.key_size as usize);
+        //     for mapping in filtered.iter() {
+        //         assert_eq!(mapping.len(), 3);
+        //     }
+        //     let corrupted_status = controller
+        //         .state
+        //         .all_dealers()
+        //         .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
+        //         .unwrap()
+        //         .as_ref()
+        //         .unwrap_err();
+        //     assert_eq!(*corrupted_status, ComplaintReason::MissingDealing);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_malformed_dealing() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0]
-            .dkg_client
-            .get_contract_state()
-            .await
-            .unwrap();
-
-        // corrupt just one dealing
-        db.dealings_db
-            .write()
-            .unwrap()
-            .entry(0)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings
-                    .get_mut(TEST_VALIDATORS_ADDRESS[0])
-                    .expect("no dealing");
-                let mut last = validator_dealings.pop().unwrap();
-                last.data.0.pop();
-                validator_dealings.push(last);
-            });
-
-        for controller in clients_and_states.iter_mut().skip(1) {
-            deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            // second filter will leave behind the bad dealer and surface why it was left out
-            // in the first place
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            assert_eq!(filtered.len(), contract_state.key_size as usize);
-            let corrupted_status = controller
-                .state
-                .all_dealers()
-                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
-                .unwrap()
-                .as_ref()
-                .unwrap_err();
-            assert_eq!(*corrupted_status, ComplaintReason::MalformedDealing);
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
+        // let contract_state = clients_and_states[0]
+        //     .dkg_client
+        //     .get_contract_state()
+        //     .await
+        //     .unwrap();
+        //
+        // // corrupt just one dealing
+        // db.dealings_db
+        //     .write()
+        //     .unwrap()
+        //     .entry(0)
+        //     .and_modify(|epoch_dealings| {
+        //         let validator_dealings = epoch_dealings
+        //             .get_mut(TEST_VALIDATORS_ADDRESS[0])
+        //             .expect("no dealing");
+        //         let mut last = validator_dealings.pop().unwrap();
+        //         last.data.0.pop();
+        //         validator_dealings.push(last);
+        //     });
+        //
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     // second filter will leave behind the bad dealer and surface why it was left out
+        //     // in the first place
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert_eq!(filtered.len(), contract_state.key_size as usize);
+        //     let corrupted_status = controller
+        //         .state
+        //         .all_dealers()
+        //         .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
+        //         .unwrap()
+        //         .as_ref()
+        //         .unwrap_err();
+        //     assert_eq!(*corrupted_status, ComplaintReason::MalformedDealing);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_dealing_verification_error() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0]
-            .dkg_client
-            .get_contract_state()
-            .await
-            .unwrap();
-
-        // corrupt just one dealing
-        db.dealings_db
-            .write()
-            .unwrap()
-            .entry(0)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings
-                    .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-                    .or_default();
-                let mut last = validator_dealings.pop().unwrap();
-                let value = last.data.0.pop().unwrap();
-                if value == 42 {
-                    last.data.0.push(43);
-                } else {
-                    last.data.0.push(42);
-                }
-                validator_dealings.push(last);
-            });
-
-        for controller in clients_and_states.iter_mut().skip(1) {
-            deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            // second filter will leave behind the bad dealer and surface why it was left out
-            // in the first place
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            assert_eq!(filtered.len(), contract_state.key_size as usize);
-            let corrupted_status = controller
-                .state
-                .all_dealers()
-                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
-                .unwrap()
-                .as_ref()
-                .unwrap_err();
-            assert_eq!(*corrupted_status, ComplaintReason::DealingVerificationError);
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
+        // let contract_state = clients_and_states[0]
+        //     .dkg_client
+        //     .get_contract_state()
+        //     .await
+        //     .unwrap();
+        //
+        // // corrupt just one dealing
+        // db.dealings_db
+        //     .write()
+        //     .unwrap()
+        //     .entry(0)
+        //     .and_modify(|epoch_dealings| {
+        //         let validator_dealings = epoch_dealings
+        //             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
+        //             .or_default();
+        //         let mut last = validator_dealings.pop().unwrap();
+        //         let value = last.data.0.pop().unwrap();
+        //         if value == 42 {
+        //             last.data.0.push(43);
+        //         } else {
+        //             last.data.0.push(42);
+        //         }
+        //         validator_dealings.push(last);
+        //     });
+        //
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     // second filter will leave behind the bad dealer and surface why it was left out
+        //     // in the first place
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert_eq!(filtered.len(), contract_state.key_size as usize);
+        //     let corrupted_status = controller
+        //         .state
+        //         .all_dealers()
+        //         .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
+        //         .unwrap()
+        //         .as_ref()
+        //         .unwrap_err();
+        //     assert_eq!(*corrupted_status, ComplaintReason::DealingVerificationError);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn partial_keypair_derivation() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        for controller in clients_and_states.iter_mut() {
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            assert!(derive_partial_keypair(&mut controller.state, 2, filtered).is_ok());
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
+        // for controller in clients_and_states.iter_mut() {
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert!(derive_partial_keypair(&mut controller.state, 2, filtered).is_ok());
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn partial_keypair_derivation_with_threshold() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-
-        // corrupt just one dealing
-        db.dealings_db
-            .write()
-            .unwrap()
-            .entry(0)
-            .and_modify(|epoch_dealings| {
-                let validator_dealings = epoch_dealings
-                    .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-                    .or_default();
-                let mut last = validator_dealings.pop().unwrap();
-                last.data.0.pop();
-                validator_dealings.push(last);
-            });
-
-        for controller in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                2,
-                false,
-            )
-            .await
-            .unwrap();
-            assert!(derive_partial_keypair(&mut controller.state, 2, filtered).is_ok());
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
+        //
+        // // corrupt just one dealing
+        // db.dealings_db
+        //     .write()
+        //     .unwrap()
+        //     .entry(0)
+        //     .and_modify(|epoch_dealings| {
+        //         let validator_dealings = epoch_dealings
+        //             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
+        //             .or_default();
+        //         let mut last = validator_dealings.pop().unwrap();
+        //         last.data.0.pop();
+        //         validator_dealings.push(last);
+        //     });
+        //
+        // for controller in clients_and_states.iter_mut().skip(1) {
+        //     let filtered = deterministic_filter_dealers(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         2,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     assert!(derive_partial_keypair(&mut controller.state, 2, filtered).is_ok());
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
-    async fn submit_verification_key() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
+    async fn submit_verification_key() -> anyhow::Result<()> {
+        let mut controllers = initialise_controllers(4);
+        let chain = controllers[0].chain_state.clone();
+        let epoch = chain.lock().unwrap().dkg_epoch.epoch_id;
 
-        for controller in clients_and_states.iter_mut() {
-            assert!(db
-                .proposal_db
-                .read()
-                .unwrap()
-                .contains_key(&controller.state.proposal_id_value().unwrap()));
-            assert!(controller.state.coconut_keypair_is_some().await);
+        initialise_dkg(&mut controllers, false);
+        submit_public_keys(&mut controllers, false).await;
+        exchange_dealings(&mut controllers, false).await;
+
+        let chain = controllers[0].chain_state.clone();
+
+        derive_keypairs(&mut controllers, false).await;
+
+        for controller in controllers {
+            assert!(controller.state.key_derivation_state(epoch)?.completed);
+            let keys = controller.state.take_coconut_keypair().await;
+            assert!(keys.is_some());
+            assert_eq!(keys.as_ref().unwrap().issued_for_epoch, epoch);
         }
+
+        Ok(())
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
+        //
+        // for controller in clients_and_states.iter_mut() {
+        //     assert!(db
+        //         .proposal_db
+        //         .read()
+        //         .unwrap()
+        //         .contains_key(&controller.state.proposal_id_value().unwrap()));
+        //     assert!(controller.state.coconut_keypair_is_some().await);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn validate_verification_key() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_validation(&db).await;
-        for controller in clients_and_states.iter_mut() {
-            let proposal = db
-                .proposal_db
-                .read()
-                .unwrap()
-                .get(&controller.state.proposal_id_value().unwrap())
-                .unwrap()
-                .clone();
-            assert_eq!(proposal.status, Status::Passed);
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_validation(&db).await;
+        // for controller in clients_and_states.iter_mut() {
+        //     let proposal = db
+        //         .proposal_db
+        //         .read()
+        //         .unwrap()
+        //         .get(&controller.state.proposal_id_value().unwrap())
+        //         .unwrap()
+        //         .clone();
+        //     assert_eq!(proposal.status, Status::Passed);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn validate_verification_key_malformed_share() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
-
-        db.verification_share_db
-            .write()
-            .unwrap()
-            .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-            .and_modify(|share| share.share.push('x'));
-
-        for controller in clients_and_states.iter_mut() {
-            verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-                .await
-                .unwrap();
-        }
-
-        for (idx, controller) in clients_and_states.iter().enumerate() {
-            let proposal = db
-                .proposal_db
-                .read()
-                .unwrap()
-                .get(&controller.state.proposal_id_value().unwrap())
-                .unwrap()
-                .clone();
-            if idx == 0 {
-                assert_eq!(proposal.status, Status::Rejected);
-            } else {
-                assert_eq!(proposal.status, Status::Passed);
-            }
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
+        //
+        // db.verification_share_db
+        //     .write()
+        //     .unwrap()
+        //     .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
+        //     .and_modify(|share| share.share.push('x'));
+        //
+        // for controller in clients_and_states.iter_mut() {
+        //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
+        //         .await
+        //         .unwrap();
+        // }
+        //
+        // for (idx, controller) in clients_and_states.iter().enumerate() {
+        //     let proposal = db
+        //         .proposal_db
+        //         .read()
+        //         .unwrap()
+        //         .get(&controller.state.proposal_id_value().unwrap())
+        //         .unwrap()
+        //         .clone();
+        //     if idx == 0 {
+        //         assert_eq!(proposal.status, Status::Rejected);
+        //     } else {
+        //         assert_eq!(proposal.status, Status::Passed);
+        //     }
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn validate_verification_key_unpaired_share() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
-
-        let second_share = db
-            .verification_share_db
-            .write()
-            .unwrap()
-            .get(TEST_VALIDATORS_ADDRESS[1])
-            .unwrap()
-            .share
-            .clone();
-        db.verification_share_db
-            .write()
-            .unwrap()
-            .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-            .and_modify(|share| share.share = second_share);
-
-        for controller in clients_and_states.iter_mut() {
-            verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-                .await
-                .unwrap();
-        }
-
-        for (idx, controller) in clients_and_states.iter().enumerate() {
-            let proposal = db
-                .proposal_db
-                .read()
-                .unwrap()
-                .get(&controller.state.proposal_id_value().unwrap())
-                .unwrap()
-                .clone();
-            if idx == 0 {
-                assert_eq!(proposal.status, Status::Rejected);
-            } else {
-                assert_eq!(proposal.status, Status::Passed);
-            }
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
+        //
+        // let second_share = db
+        //     .verification_share_db
+        //     .write()
+        //     .unwrap()
+        //     .get(TEST_VALIDATORS_ADDRESS[1])
+        //     .unwrap()
+        //     .share
+        //     .clone();
+        // db.verification_share_db
+        //     .write()
+        //     .unwrap()
+        //     .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
+        //     .and_modify(|share| share.share = second_share);
+        //
+        // for controller in clients_and_states.iter_mut() {
+        //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
+        //         .await
+        //         .unwrap();
+        // }
+        //
+        // for (idx, controller) in clients_and_states.iter().enumerate() {
+        //     let proposal = db
+        //         .proposal_db
+        //         .read()
+        //         .unwrap()
+        //         .get(&controller.state.proposal_id_value().unwrap())
+        //         .unwrap()
+        //         .clone();
+        //     if idx == 0 {
+        //         assert_eq!(proposal.status, Status::Rejected);
+        //     } else {
+        //         assert_eq!(proposal.status, Status::Passed);
+        //     }
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn finalize_verification_key() {
-        let db = MockContractDb::new();
-        let clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
-
-        for controller in clients_and_states.iter() {
-            let proposal = db
-                .proposal_db
-                .read()
-                .unwrap()
-                .get(&controller.state.proposal_id_value().unwrap())
-                .unwrap()
-                .clone();
-            assert_eq!(proposal.status, Status::Executed);
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
+        //
+        // for controller in clients_and_states.iter() {
+        //     let proposal = db
+        //         .proposal_db
+        //         .read()
+        //         .unwrap()
+        //         .get(&controller.state.proposal_id_value().unwrap())
+        //         .unwrap()
+        //         .clone();
+        //     assert_eq!(proposal.status, Status::Executed);
+        // }
     }
 
     #[tokio::test]
     #[ignore] // expensive test
     async fn reshare_preserves_keys() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
-        for controller in clients_and_states.iter_mut() {
-            controller.state.set_was_in_progress();
-        }
-
-        let mut vks = vec![];
-        let mut indices = vec![];
-        for controller in clients_and_states.iter() {
-            let vk = controller
-                .state
-                .coconut_keypair()
-                .await
-                .as_ref()
-                .unwrap()
-                .keys
-                .verification_key()
-                .clone();
-            let index = controller.state.node_index().unwrap();
-            vks.push(vk);
-            indices.push(index);
-        }
-        let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
-
-        let new_dkg_client = DkgClient::new(
-            DummyClient::new(
-                AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
-            )
-            .with_dealer_details(&db.dealer_details_db)
-            .with_dealings(&db.dealings_db)
-            .with_proposal_db(&db.proposal_db)
-            .with_verification_share(&db.verification_share_db)
-            .with_threshold(&db.threshold_db)
-            .with_initial_dealers_db(&db.initial_dealers_db),
-        );
-        let keypair = DkgKeyPair::new(dkg::params(), OsRng);
-        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-        let state = State::new(
-            PathBuf::default(),
-            PersistentState::default(),
-            Url::parse("localhost:8000").unwrap(),
-            keypair,
-            *identity_keypair.public_key(),
-            KeyPair::new(),
-        );
-
-        for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
-            *active = false;
-        }
-
-        *db.dealings_db.write().unwrap() = Default::default();
-        *db.verification_share_db.write().unwrap() = Default::default();
-        let mut initial_dealers = vec![];
-        for controller in clients_and_states.iter() {
-            let client_address =
-                Addr::unchecked(controller.dkg_client.get_address().await.as_ref());
-            initial_dealers.push(client_address);
-        }
-        *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
-            initial_dealers,
-            initial_height: 1,
-        });
-        *clients_and_states.first_mut().unwrap() = DkgController::test_mock(new_dkg_client, state);
-
-        for controller in clients_and_states.iter_mut() {
-            controller.public_key_submission(0, true).await.unwrap();
-            controller.dealing_exchange(0, true).await.unwrap();
-        }
-
-        for controller in clients_and_states.iter_mut() {
-            let random_file: usize = OsRng.gen();
-            let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
-            verification_key_submission(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                &keypath,
-                true,
-            )
-            .await
-            .unwrap();
-            std::fs::remove_file(keypath).unwrap();
-        }
-        for controller in clients_and_states.iter_mut() {
-            verification_key_validation(&controller.dkg_client, &mut controller.state, true)
-                .await
-                .unwrap();
-        }
-        for controller in clients_and_states.iter_mut() {
-            verification_key_finalization(&controller.dkg_client, &mut controller.state, true)
-                .await
-                .unwrap();
-        }
-        assert!(db
-            .proposal_db
-            .read()
-            .unwrap()
-            .values()
-            .all(|proposal| { proposal.status == Status::Executed }));
-
-        let mut vks = vec![];
-        let mut indices = vec![];
-        for controller in clients_and_states.iter() {
-            let vk = controller
-                .state
-                .coconut_keypair()
-                .await
-                .as_ref()
-                .unwrap()
-                .keys
-                .verification_key()
-                .clone();
-            let index = controller.state.node_index().unwrap();
-            vks.push(vk);
-            indices.push(index);
-        }
-        let reshared_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
-        assert_eq!(initial_master_vk, reshared_master_vk);
-    }
-
-    #[tokio::test]
-    #[ignore] // expensive test
-    async fn reshare_after_reset() {
-        let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
-        for controller in clients_and_states.iter_mut() {
-            controller.state.set_was_in_progress();
-        }
-
-        let new_dkg_client = DkgClient::new(
-            DummyClient::new(
-                AccountId::from_str("n1vxkywf9g4cg0k2dehanzwzz64jw782qm0kuynf").unwrap(),
-            )
-            .with_dealer_details(&db.dealer_details_db)
-            .with_dealings(&db.dealings_db)
-            .with_proposal_db(&db.proposal_db)
-            .with_verification_share(&db.verification_share_db)
-            .with_threshold(&db.threshold_db)
-            .with_initial_dealers_db(&db.initial_dealers_db),
-        );
-        let keypair = DkgKeyPair::new(dkg::params(), OsRng);
-        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-        let state = State::new(
-            PathBuf::default(),
-            PersistentState::default(),
-            Url::parse("localhost:8000").unwrap(),
-            keypair,
-            *identity_keypair.public_key(),
-            KeyPair::new(),
-        );
-        let new_dkg_client2 = DkgClient::new(
-            DummyClient::new(
-                AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
-            )
-            .with_dealer_details(&db.dealer_details_db)
-            .with_dealings(&db.dealings_db)
-            .with_proposal_db(&db.proposal_db)
-            .with_verification_share(&db.verification_share_db)
-            .with_threshold(&db.threshold_db)
-            .with_initial_dealers_db(&db.initial_dealers_db),
-        );
-        let keypair = DkgKeyPair::new(dkg::params(), OsRng);
-        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-        let state2 = State::new(
-            PathBuf::default(),
-            PersistentState::default(),
-            Url::parse("localhost:8000").unwrap(),
-            keypair,
-            *identity_keypair.public_key(),
-            KeyPair::new(),
-        );
-
-        for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
-            *active = false;
-        }
-
-        *db.dealings_db.write().unwrap() = Default::default();
-        *db.verification_share_db.write().unwrap() = Default::default();
-        clients_and_states.pop().unwrap();
-        let controller2 = clients_and_states.pop().unwrap();
-        clients_and_states.push(DkgController::test_mock(new_dkg_client, state));
-        clients_and_states.push(DkgController::test_mock(new_dkg_client2, state2));
-
-        // DKG in reset mode
-        for controller in clients_and_states.iter_mut() {
-            controller.public_key_submission(0, false).await.unwrap();
-        }
-        for controller in clients_and_states.iter_mut() {
-            controller.dealing_exchange(0, false).await.unwrap();
-        }
-        for controller in clients_and_states.iter_mut() {
-            let random_file: usize = OsRng.gen();
-            let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
-            verification_key_submission(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                &keypath,
-                false,
-            )
-            .await
-            .unwrap();
-            std::fs::remove_file(keypath).unwrap();
-        }
-        for controller in clients_and_states.iter_mut() {
-            verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-                .await
-                .unwrap();
-        }
-        for controller in clients_and_states.iter_mut() {
-            verification_key_finalization(&controller.dkg_client, &mut controller.state, false)
-                .await
-                .unwrap();
-        }
-        assert!(db
-            .proposal_db
-            .read()
-            .unwrap()
-            .values()
-            .all(|proposal| { proposal.status == Status::Executed }));
-        for controller in clients_and_states.iter_mut() {
-            controller.state.set_was_in_progress();
-        }
-
-        // DKG in reshare mode
-        let mut vks = vec![];
-        let mut indices = vec![];
-        for controller in clients_and_states.iter() {
-            let vk = controller
-                .state
-                .coconut_keypair()
-                .await
-                .as_ref()
-                .unwrap()
-                .keys
-                .verification_key()
-                .clone();
-            let index = controller.state.node_index().unwrap();
-            vks.push(vk);
-            indices.push(index);
-        }
-        let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
-
-        for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
-            *active = false;
-        }
-        *db.dealings_db.write().unwrap() = Default::default();
-        *db.verification_share_db.write().unwrap() = Default::default();
-        let mut initial_dealers = vec![];
-        for controller in clients_and_states.iter() {
-            let client_address =
-                Addr::unchecked(controller.dkg_client.get_address().await.as_ref());
-            initial_dealers.push(client_address);
-        }
-        *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
-            initial_dealers,
-            initial_height: 1,
-        });
-        *clients_and_states.last_mut().unwrap() = controller2;
-
-        for controller in clients_and_states.iter_mut() {
-            controller.public_key_submission(0, true).await.unwrap();
-            controller.dealing_exchange(0, true).await.unwrap();
-        }
-
-        for controller in clients_and_states.iter_mut() {
-            let random_file: usize = OsRng.gen();
-            let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
-            verification_key_submission(
-                &controller.dkg_client,
-                &mut controller.state,
-                0,
-                &keypath,
-                true,
-            )
-            .await
-            .unwrap();
-            std::fs::remove_file(keypath).unwrap();
-        }
-
-        for controller in clients_and_states.iter_mut() {
-            verification_key_validation(&controller.dkg_client, &mut controller.state, true)
-                .await
-                .unwrap();
-        }
-        for controller in clients_and_states.iter_mut() {
-            verification_key_finalization(&controller.dkg_client, &mut controller.state, true)
-                .await
-                .unwrap();
-        }
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
+        // for controller in clients_and_states.iter_mut() {
+        //     controller.state.set_was_in_progress();
+        // }
+        //
+        // let mut vks = vec![];
+        // let mut indices = vec![];
+        // for controller in clients_and_states.iter() {
+        //     let vk = controller
+        //         .state
+        //         .coconut_keypair()
+        //         .await
+        //         .as_ref()
+        //         .unwrap()
+        //         .keys
+        //         .verification_key()
+        //         .clone();
+        //     let index = controller.state.node_index().unwrap();
+        //     vks.push(vk);
+        //     indices.push(index);
+        // }
+        // let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
+        //
+        // let new_dkg_client = DkgClient::new(
+        //     DummyClient::new(
+        //         AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
+        //     )
+        //     .with_dealer_details(&db.dealer_details_db)
+        //     .with_dealings(&db.dealings_db)
+        //     .with_proposal_db(&db.proposal_db)
+        //     .with_verification_share(&db.verification_share_db)
+        //     .with_threshold(&db.threshold_db)
+        //     .with_initial_dealers_db(&db.initial_dealers_db),
+        // );
+        // let keypair = DkgKeyPair::new(dkg::params(), OsRng);
+        // let identity_keypair = identity::KeyPair::new(&mut thread_rng());
+        // let state = State::new(
+        //     PathBuf::default(),
+        //     PersistentState::default(),
+        //     Url::parse("localhost:8000").unwrap(),
+        //     keypair,
+        //     *identity_keypair.public_key(),
+        //     KeyPair::new(),
+        // );
+        //
+        // for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
+        //     *active = false;
+        // }
+        //
+        // *db.dealings_db.write().unwrap() = Default::default();
+        // *db.verification_share_db.write().unwrap() = Default::default();
+        // let mut initial_dealers = vec![];
+        // for controller in clients_and_states.iter() {
+        //     let client_address =
+        //         Addr::unchecked(controller.dkg_client.get_address().await.as_ref());
+        //     initial_dealers.push(client_address);
+        // }
+        // *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
+        //     initial_dealers,
+        //     initial_height: 1,
+        // });
+        // *clients_and_states.first_mut().unwrap() = DkgController::test_mock(new_dkg_client, state);
+        //
+        // for controller in clients_and_states.iter_mut() {
+        //     controller.public_key_submission(0, true).await.unwrap();
+        //     controller.dealing_exchange(0, true).await.unwrap();
+        // }
+        //
+        // for controller in clients_and_states.iter_mut() {
+        //     let random_file: usize = OsRng.gen();
+        //     let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
+        //     verification_key_submission(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         &keypath,
+        //         true,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     std::fs::remove_file(keypath).unwrap();
+        // }
+        // for controller in clients_and_states.iter_mut() {
+        //     verification_key_validation(&controller.dkg_client, &mut controller.state, true)
+        //         .await
+        //         .unwrap();
+        // }
+        // for controller in clients_and_states.iter_mut() {
+        //     verification_key_finalization(&controller.dkg_client, &mut controller.state, true)
+        //         .await
+        //         .unwrap();
+        // }
         // assert!(db
         //     .proposal_db
         //     .read()
         //     .unwrap()
         //     .values()
         //     .all(|proposal| { proposal.status == Status::Executed }));
+        //
+        // let mut vks = vec![];
+        // let mut indices = vec![];
+        // for controller in clients_and_states.iter() {
+        //     let vk = controller
+        //         .state
+        //         .coconut_keypair()
+        //         .await
+        //         .as_ref()
+        //         .unwrap()
+        //         .keys
+        //         .verification_key()
+        //         .clone();
+        //     let index = controller.state.node_index().unwrap();
+        //     vks.push(vk);
+        //     indices.push(index);
+        // }
+        // let reshared_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
+        // assert_eq!(initial_master_vk, reshared_master_vk);
+    }
 
-        let mut vks = vec![];
-        let mut indices = vec![];
-        for controller in clients_and_states.iter() {
-            let vk = controller
-                .state
-                .coconut_keypair()
-                .await
-                .as_ref()
-                .unwrap()
-                .keys
-                .verification_key()
-                .clone();
-            let index = controller.state.node_index().unwrap();
-            vks.push(vk);
-            indices.push(index);
-        }
-        let reshared_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
-        assert_eq!(initial_master_vk, reshared_master_vk);
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn reshare_after_reset() {
+        todo!()
+        // let db = MockContractDb::new();
+        // let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
+        // for controller in clients_and_states.iter_mut() {
+        //     controller.state.set_was_in_progress();
+        // }
+        //
+        // let new_dkg_client = DkgClient::new(
+        //     DummyClient::new(
+        //         AccountId::from_str("n1vxkywf9g4cg0k2dehanzwzz64jw782qm0kuynf").unwrap(),
+        //     )
+        //     .with_dealer_details(&db.dealer_details_db)
+        //     .with_dealings(&db.dealings_db)
+        //     .with_proposal_db(&db.proposal_db)
+        //     .with_verification_share(&db.verification_share_db)
+        //     .with_threshold(&db.threshold_db)
+        //     .with_initial_dealers_db(&db.initial_dealers_db),
+        // );
+        // let keypair = DkgKeyPair::new(dkg::params(), OsRng);
+        // let identity_keypair = identity::KeyPair::new(&mut thread_rng());
+        // let state = State::new(
+        //     PathBuf::default(),
+        //     PersistentState::default(),
+        //     Url::parse("localhost:8000").unwrap(),
+        //     keypair,
+        //     *identity_keypair.public_key(),
+        //     KeyPair::new(),
+        // );
+        // let new_dkg_client2 = DkgClient::new(
+        //     DummyClient::new(
+        //         AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
+        //     )
+        //     .with_dealer_details(&db.dealer_details_db)
+        //     .with_dealings(&db.dealings_db)
+        //     .with_proposal_db(&db.proposal_db)
+        //     .with_verification_share(&db.verification_share_db)
+        //     .with_threshold(&db.threshold_db)
+        //     .with_initial_dealers_db(&db.initial_dealers_db),
+        // );
+        // let keypair = DkgKeyPair::new(dkg::params(), OsRng);
+        // let identity_keypair = identity::KeyPair::new(&mut thread_rng());
+        // let state2 = State::new(
+        //     PathBuf::default(),
+        //     PersistentState::default(),
+        //     Url::parse("localhost:8000").unwrap(),
+        //     keypair,
+        //     *identity_keypair.public_key(),
+        //     KeyPair::new(),
+        // );
+        //
+        // for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
+        //     *active = false;
+        // }
+        //
+        // *db.dealings_db.write().unwrap() = Default::default();
+        // *db.verification_share_db.write().unwrap() = Default::default();
+        // clients_and_states.pop().unwrap();
+        // let controller2 = clients_and_states.pop().unwrap();
+        // clients_and_states.push(DkgController::test_mock(new_dkg_client, state));
+        // clients_and_states.push(DkgController::test_mock(new_dkg_client2, state2));
+        //
+        // // DKG in reset mode
+        // for controller in clients_and_states.iter_mut() {
+        //     controller.public_key_submission(0, false).await.unwrap();
+        // }
+        // for controller in clients_and_states.iter_mut() {
+        //     controller.dealing_exchange(0, false).await.unwrap();
+        // }
+        // for controller in clients_and_states.iter_mut() {
+        //     let random_file: usize = OsRng.gen();
+        //     let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
+        //     verification_key_submission(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         &keypath,
+        //         false,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     std::fs::remove_file(keypath).unwrap();
+        // }
+        // for controller in clients_and_states.iter_mut() {
+        //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
+        //         .await
+        //         .unwrap();
+        // }
+        // for controller in clients_and_states.iter_mut() {
+        //     verification_key_finalization(&controller.dkg_client, &mut controller.state, false)
+        //         .await
+        //         .unwrap();
+        // }
+        // assert!(db
+        //     .proposal_db
+        //     .read()
+        //     .unwrap()
+        //     .values()
+        //     .all(|proposal| { proposal.status == Status::Executed }));
+        // for controller in clients_and_states.iter_mut() {
+        //     controller.state.set_was_in_progress();
+        // }
+        //
+        // // DKG in reshare mode
+        // let mut vks = vec![];
+        // let mut indices = vec![];
+        // for controller in clients_and_states.iter() {
+        //     let vk = controller
+        //         .state
+        //         .coconut_keypair()
+        //         .await
+        //         .as_ref()
+        //         .unwrap()
+        //         .keys
+        //         .verification_key()
+        //         .clone();
+        //     let index = controller.state.node_index().unwrap();
+        //     vks.push(vk);
+        //     indices.push(index);
+        // }
+        // let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
+        //
+        // for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
+        //     *active = false;
+        // }
+        // *db.dealings_db.write().unwrap() = Default::default();
+        // *db.verification_share_db.write().unwrap() = Default::default();
+        // let mut initial_dealers = vec![];
+        // for controller in clients_and_states.iter() {
+        //     let client_address =
+        //         Addr::unchecked(controller.dkg_client.get_address().await.as_ref());
+        //     initial_dealers.push(client_address);
+        // }
+        // *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
+        //     initial_dealers,
+        //     initial_height: 1,
+        // });
+        // *clients_and_states.last_mut().unwrap() = controller2;
+        //
+        // for controller in clients_and_states.iter_mut() {
+        //     controller.public_key_submission(0, true).await.unwrap();
+        //     controller.dealing_exchange(0, true).await.unwrap();
+        // }
+        //
+        // for controller in clients_and_states.iter_mut() {
+        //     let random_file: usize = OsRng.gen();
+        //     let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
+        //     verification_key_submission(
+        //         &controller.dkg_client,
+        //         &mut controller.state,
+        //         0,
+        //         &keypath,
+        //         true,
+        //     )
+        //     .await
+        //     .unwrap();
+        //     std::fs::remove_file(keypath).unwrap();
+        // }
+        //
+        // for controller in clients_and_states.iter_mut() {
+        //     verification_key_validation(&controller.dkg_client, &mut controller.state, true)
+        //         .await
+        //         .unwrap();
+        // }
+        // for controller in clients_and_states.iter_mut() {
+        //     verification_key_finalization(&controller.dkg_client, &mut controller.state, true)
+        //         .await
+        //         .unwrap();
+        // }
+        // // assert!(db
+        // //     .proposal_db
+        // //     .read()
+        // //     .unwrap()
+        // //     .values()
+        // //     .all(|proposal| { proposal.status == Status::Executed }));
+        //
+        // let mut vks = vec![];
+        // let mut indices = vec![];
+        // for controller in clients_and_states.iter() {
+        //     let vk = controller
+        //         .state
+        //         .coconut_keypair()
+        //         .await
+        //         .as_ref()
+        //         .unwrap()
+        //         .keys
+        //         .verification_key()
+        //         .clone();
+        //     let index = controller.state.node_index().unwrap();
+        //     vks.push(vk);
+        //     indices.push(index);
+        // }
+        // let reshared_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
+        // assert_eq!(initial_master_vk, reshared_master_vk);
     }
 }

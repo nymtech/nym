@@ -16,7 +16,7 @@ use nym_coconut_dkg_common::types::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
-use nym_dkg::{Dealing, NodeIndex, RecoveredVerificationKeys, Threshold};
+use nym_dkg::{bte, Dealing, NodeIndex, RecoveredVerificationKeys, Threshold};
 use nym_validator_client::nyxd::{tx, Hash};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -41,6 +41,13 @@ pub(crate) enum ParticipantState {
 impl ParticipantState {
     pub fn is_valid(&self) -> bool {
         matches!(self, ParticipantState::VerifiedKey(..))
+    }
+
+    pub fn public_key(&self) -> Option<bte::PublicKey> {
+        match self {
+            ParticipantState::Invalid(_) => None,
+            ParticipantState::VerifiedKey(key_with_proof) => Some(*key_with_proof.public_key()),
+        }
     }
 
     fn from_raw_encoded_key(raw: EncodedBTEPublicKeyWithProof) -> Self {
@@ -353,7 +360,7 @@ impl State {
     }
 
     /// Obtain the list of dealers for the provided epoch that have submitted valid public keys.
-    pub fn valid_epoch_dealers(
+    pub fn valid_epoch_receivers(
         &self,
         epoch_id: EpochId,
     ) -> Result<Vec<(Addr, NodeIndex)>, CoconutError> {
@@ -368,6 +375,18 @@ impl State {
                     None
                 }
             })
+            .collect())
+    }
+
+    pub fn valid_epoch_receivers_keys(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<BTreeMap<NodeIndex, bte::PublicKey>, CoconutError> {
+        Ok(self
+            .dkg_state(epoch_id)?
+            .dealers
+            .values()
+            .filter_map(|d| d.state.public_key().map(|k| (d.assigned_index, k)))
             .collect())
     }
 
@@ -449,11 +468,11 @@ impl State {
             .ok_or(CoconutError::UnavailableThreshold { epoch_id })
     }
 
-    // pub fn assigned_index(&self, epoch_id: EpochId) -> Result<NodeIndex, CoconutError> {
-    //     self.registration_state(epoch_id)?
-    //         .assigned_index
-    //         .ok_or(CoconutError::UnavailableAssignedIndex { epoch_id })
-    // }
+    pub fn assigned_index(&self, epoch_id: EpochId) -> Result<NodeIndex, CoconutError> {
+        self.registration_state(epoch_id)?
+            .assigned_index
+            .ok_or(CoconutError::UnavailableAssignedIndex { epoch_id })
+    }
 
     pub fn receiver_index(&self, epoch_id: EpochId) -> Result<usize, CoconutError> {
         self.dealing_exchange_state(epoch_id)?
@@ -509,7 +528,7 @@ impl State {
 
     pub async fn coconut_keypair(
         &self,
-    ) -> tokio::sync::RwLockReadGuard<'_, Option<KeyPairWithEpoch>> {
+    ) -> Option<tokio::sync::RwLockReadGuard<'_, Option<KeyPairWithEpoch>>> {
         self.coconut_keypair.get().await
     }
 

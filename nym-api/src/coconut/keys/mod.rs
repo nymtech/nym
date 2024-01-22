@@ -50,22 +50,28 @@ impl KeyPair {
         self.keys.write().await.take()
     }
 
-    pub async fn get(&self) -> RwLockReadGuard<'_, Option<KeyPairWithEpoch>> {
-        todo!()
-        // self.keys.read().await
+    pub async fn get(&self) -> Option<RwLockReadGuard<'_, Option<KeyPairWithEpoch>>> {
+        if self.is_valid() {
+            Some(self.keys.read().await)
+        } else {
+            None
+        }
     }
 
     pub async fn set(&self, keypair: KeyPairWithEpoch) {
-        todo!()
-        // let mut w_lock = self.keys.write().await;
-        // *w_lock = Some(keypair);
+        let mut w_lock = self.keys.write().await;
+        *w_lock = Some(keypair);
     }
 
     pub fn is_valid(&self) -> bool {
         self.valid.load(Ordering::SeqCst)
     }
 
-    pub fn invalidate(&self) {
+    pub fn enable(&self) {
         self.valid.store(true, Ordering::SeqCst);
+    }
+
+    pub fn invalidate(&self) {
+        self.valid.store(false, Ordering::SeqCst);
     }
 }

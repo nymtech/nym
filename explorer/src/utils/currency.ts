@@ -4,11 +4,31 @@ import Big from 'big.js';
 const DENOM = process.env.CURRENCY_DENOM || 'unym';
 const DENOM_STAKING = process.env.CURRENCY_STAKING_DENOM || 'unyx';
 
-export const currencyToString = (amount: string, denom: string = DENOM) =>
-  printableCoin({
+export const toDisplay = (val: string | number | Big, dp = 4) => {
+  let displayValue;
+  try {
+    displayValue = Big(val).toFixed(dp);
+  } catch (e: any) {
+    console.warn(`${displayValue} not a valid decimal number: ${e}`);
+  }
+  return displayValue;
+};
+
+export const currencyToString = ({ amount, dp, denom = DENOM }: { amount: string; dp?: number; denom?: string }) => {
+  if (!dp) {
+    printableCoin({
+      amount,
+      denom,
+    });
+  }
+
+  const [printableAmount, printableDenom] = printableCoin({
     amount,
     denom,
-  });
+  }).split(/\s+/);
+
+  return `${toDisplay(printableAmount, dp)} ${printableDenom}`;
+};
 
 export const stakingCurrencyToString = (amount: string, denom: string = DENOM_STAKING) =>
   printableCoin({
@@ -24,15 +44,6 @@ export const stakingCurrencyToString = (amount: string, denom: string = DENOM_ST
  * @param dp - number of decimal places (4 by default ie. 0.0000)
  * @returns A prettyfied decimal number
  */
-export const toDisplay = (val: string | number | Big, dp = 4) => {
-  let displayValue;
-  try {
-    displayValue = Big(val).toFixed(dp);
-  } catch (e: any) {
-    console.warn(`${displayValue} not a valid decimal number: ${e}`);
-  }
-  return displayValue;
-};
 
 /**
  * Converts a decimal number of μNYM (micro NYM) to NYM.

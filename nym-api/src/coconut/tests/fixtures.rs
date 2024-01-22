@@ -19,6 +19,7 @@ use rand_chacha::{
 };
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
+use tempfile::{tempdir, TempDir};
 
 pub fn test_rng(seed: [u8; 32]) -> ChaCha20Rng {
     ChaCha20Rng::from_seed(seed)
@@ -73,6 +74,8 @@ pub struct TestingDkgControllerBuilder {
     address: Option<AccountId>,
     threshold: Option<Threshold>,
 
+    chain_state: Option<Arc<Mutex<FakeChainState>>>,
+
     self_dealer: Option<DealerDetails>,
     dealers: Vec<DealerDetails>,
 }
@@ -85,6 +88,11 @@ impl TestingDkgControllerBuilder {
 
     pub fn with_rng(mut self, rng: ChaCha20Rng) -> Self {
         self.rng = Some(rng);
+        self
+    }
+
+    pub fn with_shared_chain_state(mut self, fake_chain: Arc<Mutex<FakeChainState>>) -> Self {
+        self.chain_state = Some(fake_chain);
         self
     }
 
@@ -141,8 +149,11 @@ impl TestingDkgControllerBuilder {
             }
         });
 
-        let dummy_client = DummyClient::new(self_dealer.address.to_string().parse().unwrap());
-        let chain_state = dummy_client.chain_state();
+        let chain_state = self.chain_state.unwrap_or_default();
+        let dummy_client = DummyClient::new(
+            self_dealer.address.to_string().parse().unwrap(),
+            chain_state.clone(),
+        );
         // insert initial data into the chain state
 
         let mut state_guard = chain_state.lock().unwrap();
@@ -153,13 +164,14 @@ impl TestingDkgControllerBuilder {
             state_guard.dealers.insert(dealer.assigned_index, dealer);
         }
 
-        let epoch = state_guard.epoch.epoch_id;
+        let epoch = state_guard.dkg_epoch.epoch_id;
         drop(state_guard);
 
         let dummy_client = DkgClient::new(dummy_client);
+        let tmp_dir = tempdir().unwrap();
 
         let mut state = State::new(
-            Default::default(),
+            tmp_dir.path().join("persistent_state.json"),
             Default::default(),
             self_dealer.announce_address.parse().unwrap(),
             // TODO: we might need to fix up the key here
@@ -176,8 +188,14 @@ impl TestingDkgControllerBuilder {
         }
 
         TestingDkgController {
-            controller: DkgController::test_mock_new(rng, dummy_client, state),
+            controller: DkgController::test_mock_new(
+                rng,
+                dummy_client,
+                state,
+                tmp_dir.path().join("coconut_keypair.pem"),
+            ),
             chain_state,
+            _tmp_dir: tmp_dir,
         }
     }
 }
@@ -190,6 +208,8 @@ pub(crate) struct TestingDkgController {
     pub(crate) controller: DkgController<ChaCha20Rng>,
 
     pub(crate) chain_state: Arc<Mutex<FakeChainState>>,
+
+    _tmp_dir: TempDir,
 }
 
 impl Deref for TestingDkgController {

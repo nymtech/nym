@@ -142,14 +142,14 @@ pub enum CoconutError {
     MissingDkgState { epoch_id: EpochId },
 
     #[error(
-        "the node index value for {epoch_id} is not available - are you sure we are a dealer?"
+        "the node index value for epoch {epoch_id} is not available - are you sure we are a dealer?"
     )]
     UnavailableAssignedIndex { epoch_id: EpochId },
 
-    #[error("the receiver index value for {epoch_id} is not available - are you sure we are a receiver?")]
+    #[error("the receiver index value for epoch {epoch_id} is not available - are you sure we are a receiver?")]
     UnavailableReceiverIndex { epoch_id: EpochId },
 
-    #[error("the threshold value for {epoch_id} is not available")]
+    #[error("the threshold value for epoch {epoch_id} is not available")]
     UnavailableThreshold { epoch_id: EpochId },
 
     #[error("insufficient number of dealings provided to derive the key")]

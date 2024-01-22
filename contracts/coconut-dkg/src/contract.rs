@@ -17,7 +17,7 @@ use crate::epoch_state::transactions::{
 use crate::error::ContractError;
 use crate::state::queries::query_state;
 use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
-use crate::verification_key_shares::queries::query_vk_shares_paged;
+use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_paged};
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
 use cosmwasm_std::{
@@ -159,6 +159,9 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             start_after,
             limit,
         )?)?,
+        QueryMsg::GetVerificationKey { owner, epoch_id } => {
+            to_binary(&query_vk_share(deps, owner, epoch_id)?)?
+        }
         QueryMsg::GetVerificationKeys {
             epoch_id,
             limit,

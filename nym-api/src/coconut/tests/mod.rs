@@ -64,46 +64,47 @@ const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8g
 
 #[derive(Debug)]
 pub(crate) struct FakeChainState {
-    // new
     pub(crate) dealers: HashMap<NodeIndex, DealerDetails>,
+    pub(crate) past_dealers: HashMap<NodeIndex, DealerDetails>,
+
     pub(crate) dealings: HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>,
+    pub(crate) verification_shares: HashMap<EpochId, HashMap<String, ContractVKShare>>,
 
+    pub(crate) dkg_epoch: Epoch,
+    pub(crate) dkg_contract_state: ContractState,
+    pub(crate) threshold: Option<Threshold>,
+
+    pub(crate) node_index_counter: NodeIndex,
+
+    pub(crate) proposals: HashMap<u64, ProposalResponse>,
     // old
-    txs: HashMap<Hash, TxResponse>,
-    proposals: HashMap<u64, ProposalResponse>,
-    spent_credentials: HashMap<String, SpendCredentialResponse>,
-
-    epoch: Epoch,
-    contract_state: ContractState,
-    old_dealers: HashMap<String, (DealerDetails, bool)>,
-    threshold: Option<Threshold>,
-
-    verification_shares: HashMap<String, ContractVKShare>,
-    group: HashMap<String, MemberResponse>,
-    initial_dealers: Option<InitialReplacementData>,
+    // txs: HashMap<Hash, TxResponse>,
+    // spent_credentials: HashMap<String, SpendCredentialResponse>,
+    //
+    // old_dealers: HashMap<String, (DealerDetails, bool)>,
+    //
+    // group: HashMap<String, MemberResponse>,
+    // initial_dealers: Option<InitialReplacementData>,
 }
 
 impl Default for FakeChainState {
     fn default() -> Self {
         FakeChainState {
             dealers: HashMap::new(),
+            past_dealers: Default::default(),
 
-            txs: HashMap::new(),
-            proposals: HashMap::new(),
-            spent_credentials: HashMap::new(),
-            epoch: Epoch::default(),
-            contract_state: ContractState {
+            dkg_epoch: Epoch::default(),
+            dkg_contract_state: ContractState {
                 mix_denom: TEST_COIN_DENOM.to_string(),
                 multisig_addr: Addr::unchecked("dummy address"),
                 group_addr: Cw4Contract::new(Addr::unchecked("dummy cw4")),
                 key_size: 5,
             },
-            old_dealers: HashMap::new(),
-            threshold: None,
             dealings: HashMap::new(),
             verification_shares: HashMap::new(),
-            group: HashMap::new(),
-            initial_dealers: None,
+            threshold: None,
+            node_index_counter: 0,
+            proposals: Default::default(),
         }
     }
 }
@@ -116,10 +117,10 @@ pub(crate) struct DummyClient {
 }
 
 impl DummyClient {
-    pub fn new(validator_address: AccountId) -> Self {
+    pub fn new(validator_address: AccountId, state: Arc<Mutex<FakeChainState>>) -> Self {
         Self {
             validator_address,
-            state: Arc::new(Mutex::new(FakeChainState::default())),
+            state,
         }
     }
 
@@ -219,6 +220,26 @@ impl DummyClient {
         // self.initial_dealers_db = Arc::clone(initial_dealers);
         // self
     }
+
+    async fn get_dealer_by_address(&self, address: &str) -> Option<DealerDetails> {
+        let guard = self.state.lock().unwrap();
+        for dealer in guard.dealers.values() {
+            if dealer.address.as_str() == address {
+                return Some(dealer.clone());
+            }
+        }
+        None
+    }
+
+    async fn get_past_dealer_by_address(&self, address: &str) -> Option<DealerDetails> {
+        let guard = self.state.lock().unwrap();
+        for dealer in guard.past_dealers.values() {
+            if dealer.address.as_str() == address {
+                return Some(dealer.clone());
+            }
+        }
+        None
+    }
 }
 
 #[async_trait]
@@ -228,71 +249,76 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse> {
-        Ok(self
-            .state
-            .lock()
-            .unwrap()
-            .txs
-            .get(&tx_hash)
-            .cloned()
-            .unwrap())
+        todo!()
+        // Ok(self
+        //     .state
+        //     .lock()
+        //     .unwrap()
+        //     .txs
+        //     .get(&tx_hash)
+        //     .cloned()
+        //     .unwrap())
     }
 
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse> {
-        self.state
-            .lock()
-            .unwrap()
-            .proposals
-            .get(&proposal_id)
-            .cloned()
-            .ok_or(CoconutError::IncorrectProposal {
-                reason: String::from("proposal not found"),
-            })
+        todo!()
+        // self.state
+        //     .lock()
+        //     .unwrap()
+        //     .proposals
+        //     .get(&proposal_id)
+        //     .cloned()
+        //     .ok_or(CoconutError::IncorrectProposal {
+        //         reason: String::from("proposal not found"),
+        //     })
     }
 
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>> {
-        Ok(self
-            .state
-            .lock()
-            .unwrap()
-            .proposals
-            .values()
-            .cloned()
-            .collect())
+        todo!()
+        // Ok(self
+        //     .state
+        //     .lock()
+        //     .unwrap()
+        //     .proposals
+        //     .values()
+        //     .cloned()
+        //     .collect())
     }
 
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,
     ) -> Result<SpendCredentialResponse> {
-        self.state
-            .lock()
-            .unwrap()
-            .spent_credentials
-            .get(&blinded_serial_number)
-            .cloned()
-            .ok_or(CoconutError::InvalidCredentialStatus {
-                status: String::from("spent credential not found"),
-            })
+        todo!()
+        // self.state
+        //     .lock()
+        //     .unwrap()
+        //     .spent_credentials
+        //     .get(&blinded_serial_number)
+        //     .cloned()
+        //     .ok_or(CoconutError::InvalidCredentialStatus {
+        //         status: String::from("spent credential not found"),
+        //     })
     }
 
     async fn contract_state(&self) -> Result<ContractState> {
-        Ok(self.state.lock().unwrap().contract_state.clone())
+        Ok(self.state.lock().unwrap().dkg_contract_state.clone())
     }
 
     async fn get_current_epoch(&self) -> Result<Epoch> {
-        Ok(self.state.lock().unwrap().epoch)
+        Ok(self.state.lock().unwrap().dkg_epoch)
     }
 
     async fn group_member(&self, addr: String) -> Result<MemberResponse> {
-        Ok(self
-            .state
-            .lock()
-            .unwrap()
-            .group
-            .get(&addr)
-            .cloned()
-            .unwrap_or(MemberResponse { weight: None }))
+        todo!()
+        // Ok(self
+        //     .state
+        //     .lock()
+        //     .unwrap()
+        //     .group
+        //     .get(&addr)
+        //     .cloned()
+        //     .unwrap_or(MemberResponse { weight: None }))
     }
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
@@ -300,30 +326,30 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>> {
-        Ok(self.state.lock().unwrap().initial_dealers.clone())
+        todo!()
+        // Ok(self.state.lock().unwrap().initial_dealers.clone())
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
-        let (details, dealer_type) = if let Some((details, current)) = self
-            .state
-            .lock()
-            .unwrap()
-            .old_dealers
-            .get(self.validator_address.as_ref())
-            .cloned()
-        {
-            let dealer_type = if current {
-                DealerType::Current
-            } else {
-                DealerType::Past
-            };
-            (Some(details), dealer_type)
-        } else {
-            (None, DealerType::Unknown)
-        };
+        let address = self.validator_address.as_ref();
+
+        if let Some(details) = self.get_dealer_by_address(address).await {
+            return Ok(DealerDetailsResponse {
+                details: Some(details),
+                dealer_type: DealerType::Current,
+            });
+        }
+
+        if let Some(details) = self.get_past_dealer_by_address(address).await {
+            return Ok(DealerDetailsResponse {
+                details: Some(details),
+                dealer_type: DealerType::Past,
+            });
+        }
+
         Ok(DealerDetailsResponse {
-            details,
-            dealer_type,
+            details: None,
+            dealer_type: DealerType::Unknown,
         })
     }
 
@@ -332,7 +358,7 @@ impl super::client::Client for DummyClient {
         epoch_id: EpochId,
         dealer: String,
         dealing_index: DealingIndex,
-    ) -> crate::coconut::error::Result<DealingStatusResponse> {
+    ) -> Result<DealingStatusResponse> {
         let dealings = self.get_dealings(epoch_id, &dealer).await?;
         Ok(DealingStatusResponse {
             epoch_id,
@@ -371,18 +397,28 @@ impl super::client::Client for DummyClient {
             .unwrap_or_default())
     }
 
-    async fn get_verification_key_shares(
+    async fn get_verification_key_share(
         &self,
-        _epoch_id: EpochId,
-    ) -> Result<Vec<ContractVKShare>> {
-        Ok(self
-            .state
-            .lock()
-            .unwrap()
-            .verification_shares
-            .values()
-            .cloned()
-            .collect())
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<Option<ContractVKShare>> {
+        let guard = self.state.lock().unwrap();
+        let epoch_shares = guard.verification_shares.get(&epoch_id);
+
+        match epoch_shares {
+            None => Ok(None),
+            Some(epoch_shares) => Ok(epoch_shares.get(&dealer).cloned()),
+        }
+    }
+
+    async fn get_verification_key_shares(&self, epoch_id: EpochId) -> Result<Vec<ContractVKShare>> {
+        let guard = self.state.lock().unwrap();
+        let epoch_shares = guard.verification_shares.get(&epoch_id);
+
+        match epoch_shares {
+            None => Ok(Vec::new()),
+            Some(epoch_shares) => Ok(epoch_shares.values().cloned().collect()),
+        }
     }
 
     async fn vote_proposal(
@@ -391,29 +427,31 @@ impl super::client::Client for DummyClient {
         vote_yes: bool,
         _fee: Option<Fee>,
     ) -> Result<()> {
-        if let Some(proposal) = self.state.lock().unwrap().proposals.get_mut(&proposal_id) {
-            // for now, just suppose that every vote is honest
-            if !vote_yes {
-                proposal.status = cw3::Status::Rejected;
-            } else if vote_yes && proposal.status == cw3::Status::Open {
-                proposal.status = cw3::Status::Passed;
-            }
-        }
-        Ok(())
+        todo!()
+        // if let Some(proposal) = self.state.lock().unwrap().proposals.get_mut(&proposal_id) {
+        //     // for now, just suppose that every vote is honest
+        //     if !vote_yes {
+        //         proposal.status = cw3::Status::Rejected;
+        //     } else if vote_yes && proposal.status == cw3::Status::Open {
+        //         proposal.status = cw3::Status::Passed;
+        //     }
+        // }
+        // Ok(())
     }
 
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
-        self.state
-            .lock()
-            .unwrap()
-            .proposals
-            .entry(proposal_id)
-            .and_modify(|prop| {
-                if prop.status == cw3::Status::Passed {
-                    prop.status = cw3::Status::Executed
-                }
-            });
-        Ok(())
+        todo!()
+        // self.state
+        //     .lock()
+        //     .unwrap()
+        //     .proposals
+        //     .entry(proposal_id)
+        //     .and_modify(|prop| {
+        //         if prop.status == cw3::Status::Passed {
+        //             prop.status = cw3::Status::Executed
+        //         }
+        //     });
+        // Ok(())
     }
 
     async fn advance_epoch_state(&self) -> Result<()> {
@@ -427,33 +465,39 @@ impl super::client::Client for DummyClient {
         announce_address: String,
         _resharing: bool,
     ) -> Result<ExecuteResult> {
-        let mut guard = self.state.lock().unwrap();
-        let assigned_index = if let Some((details, active)) =
-            guard.old_dealers.get_mut(self.validator_address.as_ref())
+        let assigned_index = if let Some(already_registered) = self
+            .get_dealer_by_address(self.validator_address.as_ref())
+            .await
         {
-            *active = true;
-            details.assigned_index
+            // current dealer
+            already_registered.assigned_index
+        } else if let Some(registered_in_the_past) = self
+            .get_past_dealer_by_address(self.validator_address.as_ref())
+            .await
+        {
+            // past dealer
+            let index = registered_in_the_past.assigned_index;
+            let mut guard = self.state.lock().unwrap();
+            guard.dealers.insert(index, registered_in_the_past);
+
+            index
         } else {
+            // new dealer
+            let mut guard = self.state.lock().unwrap();
+
             // let assigned_index = OsRng.gen();
-            let assigned_index = guard
-                .old_dealers
-                .values()
-                .map(|(d, _)| d.assigned_index)
-                .max()
-                .unwrap_or(0)
-                + 1;
-            guard.old_dealers.insert(
-                self.validator_address.to_string(),
-                (
-                    DealerDetails {
-                        address: Addr::unchecked(self.validator_address.to_string()),
-                        bte_public_key_with_proof,
-                        ed25519_identity: identity_key,
-                        announce_address,
-                        assigned_index,
-                    },
-                    true,
-                ),
+            guard.node_index_counter += 1;
+            let assigned_index = guard.node_index_counter;
+
+            guard.dealers.insert(
+                assigned_index,
+                DealerDetails {
+                    address: Addr::unchecked(self.validator_address.to_string()),
+                    bte_public_key_with_proof,
+                    ed25519_identity: identity_key,
+                    announce_address,
+                    assigned_index,
+                },
             );
             assigned_index
         };
@@ -475,7 +519,7 @@ impl super::client::Client for DummyClient {
         _resharing: bool,
     ) -> Result<ExecuteResult> {
         let mut guard = self.state.lock().unwrap();
-        let current_epoch = guard.epoch.epoch_id;
+        let current_epoch = guard.dkg_epoch.epoch_id;
 
         let epoch_dealings = guard.dealings.entry(current_epoch).or_default();
         let existing_dealings = epoch_dealings
@@ -496,33 +540,36 @@ impl super::client::Client for DummyClient {
         share: VerificationKeyShare,
         resharing: bool,
     ) -> Result<ExecuteResult> {
-        let (dealer_details, active) = self
-            .state
-            .lock()
-            .unwrap()
-            .old_dealers
-            .get(self.validator_address.as_ref())
-            .unwrap()
-            .clone();
-        if !active {
+        let address = self.validator_address.to_string();
+
+        let Some(dealer_details) = self.get_dealer_by_address(&address).await else {
             // Just throw some error, not really the correct one
             return Err(CoconutError::DepositEncrKeyNotFound);
-        }
-        self.state.lock().unwrap().verification_shares.insert(
-            self.validator_address.to_string(),
-            ContractVKShare {
-                share,
-                announce_address: dealer_details.announce_address.clone(),
-                node_index: dealer_details.assigned_index,
-                owner: Addr::unchecked(self.validator_address.to_string()),
-                epoch_id: 0,
-                verified: false,
-            },
-        );
+        };
+
+        let mut guard = self.state.lock().unwrap();
+        let epoch_id = guard.dkg_epoch.epoch_id;
+
+        guard
+            .verification_shares
+            .entry(epoch_id)
+            .or_default()
+            .insert(
+                self.validator_address.to_string(),
+                ContractVKShare {
+                    share,
+                    announce_address: dealer_details.announce_address.clone(),
+                    node_index: dealer_details.assigned_index,
+                    owner: Addr::unchecked(&address),
+                    epoch_id,
+                    verified: false,
+                },
+            );
+
         let proposal_id = OsRng.gen();
         let verify_vk_share_req =
             nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
-                owner: Addr::unchecked(self.validator_address.as_ref()),
+                owner: Addr::unchecked(&address),
                 resharing,
             };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -544,11 +591,7 @@ impl super::client::Client for DummyClient {
             proposer: Addr::unchecked(self.validator_address.as_ref()),
             deposit: None,
         };
-        self.state
-            .lock()
-            .unwrap()
-            .proposals
-            .insert(proposal_id, proposal);
+        guard.proposals.insert(proposal_id, proposal);
         Ok(ExecuteResult {
             logs: vec![Log {
                 msg_index: 0,

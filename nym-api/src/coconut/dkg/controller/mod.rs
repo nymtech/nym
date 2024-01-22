@@ -302,10 +302,11 @@ impl DkgController {
         rng: rand_chacha::ChaCha20Rng,
         dkg_client: DkgClient,
         state: State,
+        coconut_key_path: PathBuf,
     ) -> DkgController<rand_chacha::ChaCha20Rng> {
         DkgController {
             dkg_client,
-            coconut_key_path: Default::default(),
+            coconut_key_path,
             state,
             rng,
             polling_rate: Default::default(),

@@ -1,12 +1,15 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg;
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::complaints::ComplaintReason;
+use crate::coconut::dkg::controller::keys::persist_coconut_keypair;
+use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use crate::coconut::helpers::accepted_vote_err;
+use crate::coconut::keys::KeyPairWithEpoch;
 use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
 use cosmwasm_std::Addr;
 use cw3::{ProposalResponse, Status};
@@ -14,14 +17,15 @@ use log::debug;
 use nym_coconut::tests::helpers::transpose_matrix;
 use nym_coconut::{check_vk_pairing, Base58, KeyPair, SecretKey, VerificationKey};
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
-use nym_coconut_dkg_common::types::{EpochId, NodeIndex};
+use nym_coconut_dkg_common::types::{DealingIndex, EpochId, NodeIndex, PartialContractDealing};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use nym_coconut_interface::KeyPair as CoconutKeyPair;
-use nym_dkg::bte::decrypt_share;
+use nym_dkg::bte::{decrypt_share, PublicKey};
 use nym_dkg::error::DkgError;
-use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
+use nym_dkg::{bte, combine_shares, try_recover_verification_keys, Dealing, Threshold};
 use nym_pemstore::KeyPairPath;
 use nym_validator_client::nyxd::cosmwasm_client::logs::find_attribute;
+use rand::{CryptoRng, RngCore};
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
@@ -38,6 +42,9 @@ async fn deterministic_filter_dealers(
     threshold: Threshold,
     resharing: bool,
 ) -> Result<Vec<BTreeMap<NodeIndex, (Addr, Dealing)>>, CoconutError> {
+    // if we're in resharing mode, the contract itself will forbid submission of dealings from
+    // parties that were not "initial" dealers, so we don't have to worry about it
+
     let mut dealings_maps = Vec::new();
     let initial_dealers_by_addr = state.current_dealers_by_addr();
     let initial_receivers = state.current_dealers_by_idx();
@@ -204,52 +211,351 @@ fn derive_partial_keypair(
     Ok(CoconutKeyPair::from_keys(sk, vk))
 }
 
-pub(crate) async fn verification_key_submission(
-    dkg_client: &DkgClient,
-    state: &mut State,
-    epoch_id: EpochId,
-    key_path: &PathBuf,
-    resharing: bool,
-) -> Result<(), CoconutError> {
-    if state.coconut_keypair_is_some().await {
-        debug!("Coconut keypair was set previously, nothing to do");
-        return Ok(());
+impl<R: RngCore + CryptoRng> DkgController<R> {
+    fn verified_dealer_dealings(
+        &self,
+        epoch_id: EpochId,
+        dealer: Addr,
+        epoch_receivers: &BTreeMap<NodeIndex, bte::PublicKey>,
+        raw_dealings: Vec<PartialContractDealing>,
+        prior_public_key: Option<VerificationKey>,
+    ) -> Result<Vec<(DealingIndex, Dealing)>, CoconutError> {
+        let threshold = self.state.threshold(epoch_id)?;
+
+        // extract G2 elements from the old verification key of the dealer for checking the resharing dealings
+        let prior_public_components = match prior_public_key {
+            Some(vk) => {
+                if vk.beta_g2().len() != raw_dealings.len().saturating_sub(1) {
+                    todo!()
+                }
+
+                std::iter::once(Some(*vk.alpha()))
+                    .chain(vk.beta_g2().iter().copied().map(Some))
+                    .collect::<Vec<_>>()
+            }
+            None => vec![None; raw_dealings.len()],
+        };
+
+        let mut temp_verified = Vec::with_capacity(raw_dealings.len());
+        // make sure ALL of them verify correctly, we can't have a situation where dealing 2 is valid but dealing 3 is not
+        for (raw_dealing, prior_public) in raw_dealings
+            .into_iter()
+            .zip(prior_public_components.into_iter())
+        {
+            let index = raw_dealing.index;
+
+            // recover the actual dealing from its submitted bytes representation
+            let dealing = match Dealing::try_from_bytes(&raw_dealing.data) {
+                Ok(dealing) => dealing,
+                Err(err) => {
+                    warn!("failed to recover dealing {index} from {dealer}: {err}",);
+                    todo!("blacklist")
+                }
+            };
+
+            // make sure the cryptographic material embedded inside is actually valid
+            if let Err(err) =
+                dealing.verify(dkg::params(), threshold, epoch_receivers, prior_public)
+            {
+                warn!("dealing {index} from {dealer} is invalid: {err}");
+                todo!("blacklist")
+            }
+
+            temp_verified.push((index, dealing))
+        }
+
+        Ok(temp_verified)
     }
 
-    todo!()
-    //
-    // let threshold = state.threshold()?;
-    // let dealings_maps =
-    //     deterministic_filter_dealers(dkg_client, state, epoch_id, threshold, resharing).await?;
-    // debug!(
-    //     "Filtered dealers to {:?}",
-    //     dealings_maps[0].keys().collect::<Vec<_>>()
-    // );
-    // let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
-    // debug!("Derived own coconut keypair");
-    // let vk_share = coconut_keypair.verification_key().to_bs58();
-    // nym_pemstore::store_keypair(&coconut_keypair, keypair_path)?;
-    // let res = dkg_client
-    //     .submit_verification_key_share(vk_share, resharing)
-    //     .await?;
-    // let proposal_id = find_attribute(&res.logs, "wasm", DKG_PROPOSAL_ID)
-    //     .ok_or(CoconutError::ProposalIdError {
-    //         reason: String::from("proposal id not found"),
-    //     })?
-    //     .value
-    //     .parse::<u64>()
-    //     .map_err(|_| CoconutError::ProposalIdError {
-    //         reason: String::from("proposal id could not be parsed to u64"),
-    //     })?;
-    // debug!(
-    //     "Submitted own verification key share, proposal id {} is attached to it",
-    //     proposal_id
-    // );
-    // state.set_proposal_id(proposal_id);
-    // state.set_coconut_keypair(epoch_id, coconut_keypair).await;
-    // info!("DKG: Submitted own verification key");
-    //
-    // Ok(())
+    /// Attempt to retrieve valid dealings submitted this epoch.
+    ///
+    /// For each dealer that submitted a valid public key, query its dealings.
+    /// Then for each of those dealings, make sure they're cryptographically consistent
+    pub(crate) async fn get_valid_dealings(
+        &mut self,
+        epoch_receivers: &BTreeMap<NodeIndex, bte::PublicKey>,
+        epoch_id: EpochId,
+        resharing: bool,
+    ) -> Result<BTreeMap<DealingIndex, BTreeMap<NodeIndex, Dealing>>, CoconutError> {
+        let expected_key_size = self.dkg_client.get_contract_state().await?.key_size;
+
+        let mut valid_dealings: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
+
+        // 1. for every valid dealer in this epoch, obtain its dealings
+        for (dealer, dealer_index) in self.state.valid_epoch_dealers(epoch_id)? {
+            // if we're in resharing mode, the contract itself will forbid submission of dealings from
+            // parties that were not "initial" dealers, so we don't have to worry about it
+
+            // TODO: introduce caching here in case we crash because those queries are EXPENSIVE
+            let raw_dealings = self
+                .dkg_client
+                .get_dealings(epoch_id, dealer.to_string())
+                .await?;
+
+            if raw_dealings.is_empty() {
+                // we might be in resharing mode and this was not in "initial" set
+                todo!()
+            }
+
+            // no point in verifying any dealings if we don't have all of them
+            if raw_dealings.len() != expected_key_size as usize {
+                todo!("blacklist dealer - incomplete dealing exchange")
+            }
+
+            // TODO:
+            // if this is resharing DKG, get the public key of this dealer from the previous epoch
+            // and use it for dealing(s) verification
+            let old_public_key = if resharing {
+                // 1. check state from previous epoch
+                // 2. if that failed, query the chain
+                None
+            } else {
+                None
+            };
+
+            if let Ok(verified_dealings) = self.verified_dealer_dealings(
+                epoch_id,
+                dealer,
+                &epoch_receivers,
+                raw_dealings,
+                old_public_key,
+            ) {
+                // if we managed to verify ALL the dealings from this dealer, insert them into the map
+                for (dealing_index, dealing) in verified_dealings {
+                    valid_dealings
+                        .entry(dealing_index)
+                        .or_default()
+                        .insert(dealer_index, dealing);
+                }
+            } else {
+                todo!("blacklist dealer")
+            }
+        }
+
+        Ok(valid_dealings)
+    }
+
+    fn derive_partial_keypair(
+        &mut self,
+        epoch_id: EpochId,
+        epoch_receivers: BTreeMap<NodeIndex, PublicKey>,
+        dealings: BTreeMap<DealingIndex, BTreeMap<NodeIndex, Dealing>>,
+    ) -> Result<KeyPairWithEpoch, CoconutError> {
+        debug!("attempting to derive coconut keypair for epoch {epoch_id}");
+
+        let threshold = self.state.threshold(epoch_id)?;
+        let receiver_index = self.state.receiver_index(epoch_id)?;
+
+        // TODO: make sure that each receiver received its dealings
+
+        // SAFETY:
+        // we have ensured before calling this function that the dealings map is non-empty
+        // and has exactly 'expected key size' number of entries;
+        // furthermore each entry has the same number of sub-entries (ALL dealings from given node must be valid)
+        //
+        // SAFETY2:
+        // dealing indexing starts from 0
+        if dealings[&0].len() < threshold as usize {
+            // make sure we have sufficient number of dealings to derive keys for the provided threshold
+            todo!("fail - can't reach threshold")
+        }
+
+        let TEMP_TODO_all_indices = Vec::new();
+
+        let decryption_key = self.state.dkg_keypair().private_key();
+
+        let mut derived_x = None;
+        let mut derived_secrets = Vec::new();
+
+        let total = dealings.len();
+
+        // for every part of the key
+        for (dealing_index, dealings) in dealings {
+            let human_index = dealing_index + 1;
+            debug!("recovering part {human_index}/{total} of the keys");
+
+            debug!("recovering the partial verification keys");
+            let recovered = try_recover_verification_keys(&[], threshold, &epoch_receivers)?;
+            // TODO:
+
+            debug!("decrypting received shares");
+            // for every received share of the key
+            let mut shares = Vec::with_capacity(dealings.len());
+            for (node_index, dealing) in dealings {
+                // attempt to decrypt our portion
+                let share = match decrypt_share(
+                    decryption_key,
+                    receiver_index,
+                    &dealing.ciphertexts,
+                    None,
+                ) {
+                    Ok(share) => share,
+                    Err(err) => {
+                        error!("failed to decrypt share {human_index}/{total} generated from dealer {node_index}: {err} - can't generate the full key");
+                        todo!("do something about it")
+                    }
+                };
+                shares.push(share)
+            }
+
+            debug!("combining the shares into part {human_index}/{total} of the epoch key");
+
+            // SAFETY: combining shares can only fail if we have different number shares and indices
+            // however, we returned an error if decryption of any share failed and thus we know those values must match
+            let secret = combine_shares(shares, &TEMP_TODO_all_indices).unwrap();
+            if derived_x.is_none() {
+                derived_x = Some(secret)
+            } else {
+                derived_secrets.push(secret)
+            }
+        }
+
+        // SAFETY:
+        // we know we had a non-empty map of dealings and thus, at the very least, we must have derived a single secret
+        // (i.e. the x-element)
+        let sk = SecretKey::create_from_raw(derived_x.unwrap(), derived_secrets);
+        let derived_vk = sk.verification_key(&BANDWIDTH_CREDENTIAL_PARAMS);
+
+        // TODO: make sure derived_vk matches recovered VK
+
+        Ok(KeyPairWithEpoch {
+            keys: CoconutKeyPair::from_keys(sk, derived_vk),
+            issued_for_epoch: epoch_id,
+        })
+    }
+
+    async fn submit_partial_verification_key(
+        &mut self,
+        key: &VerificationKey,
+        resharing: bool,
+    ) -> Result<(), CoconutError> {
+        debug!("submitting derived partial verification key to the contract");
+        let res = self
+            .dkg_client
+            .submit_verification_key_share(key.to_bs58(), resharing)
+            .await?;
+        let hash = res.transaction_hash;
+        let proposal_id = find_attribute(&res.logs, "wasm", DKG_PROPOSAL_ID)
+            .ok_or(CoconutError::ProposalIdError {
+                reason: String::from("proposal id not found"),
+            })?
+            .value
+            .parse::<u64>()
+            .map_err(|_| CoconutError::ProposalIdError {
+                reason: String::from("proposal id could not be parsed to u64"),
+            })?;
+        debug!("Submitted own verification key share, proposal id {proposal_id} is attached to it. tx hash: {hash}");
+
+        // TODO: state.set_proposal_id(proposal_id);
+        Ok(())
+    }
+
+    /// Third step of the DKG process during which the nym api will generate its Coconut keypair
+    /// with the [Dealing] received from other dealers. It will then submit its verification key
+    /// to the system so that it could be validated by other participants.
+    pub(crate) async fn verification_key_submission(
+        &mut self,
+        epoch_id: EpochId,
+        resharing: bool,
+    ) -> Result<(), CoconutError> {
+        let key_generation_state = self.state.key_derivation_state(epoch_id)?;
+
+        // check if we have already generated the new keys and submitted verification proposal
+        if key_generation_state.completed() {
+            // TODO: ASSERT: we have a VALID key
+
+            // the only way this could be a false positive is if the chain forked and blocks got reverted,
+            // but I don't think we have to worry about that
+            debug!(
+                "we have already generated key for this epoch and submitted validation proposal"
+            );
+            return Ok(());
+        }
+
+        // TODO: make sure we have keys for that lol
+        // if we have keys and we're still here it means validation failed blah blah
+
+        // FAILURE CASE:
+        // check if we have already sent the verification key transaction, but it timed out or got stuck in the mempool and
+        // eventually got executed without us knowing about it, because it's illegal to recommit the key
+        let maybe_share = self
+            .dkg_client
+            .get_verification_key_share_status(epoch_id)
+            .await?;
+        if maybe_share.is_some() {
+            todo!("finalize, we're done")
+        }
+
+        let epoch_receivers = BTreeMap::new();
+
+        let dealings = self
+            .get_valid_dealings(&epoch_receivers, epoch_id, resharing)
+            .await?;
+        if dealings.is_empty() {
+            todo!("not a failure per se but something along the lines: can't continue, won't continue")
+        }
+
+        let dbg_dealers = dealings[&0].keys().collect::<Vec<_>>();
+        debug!("going to use dealings generated by {dbg_dealers:?}");
+
+        let coconut_keypair = self.derive_partial_keypair(epoch_id, epoch_receivers, dealings)?;
+
+        if let Err(err) = persist_coconut_keypair(&coconut_keypair, &self.coconut_key_path) {
+            todo!()
+        }
+
+        self.submit_partial_verification_key(coconut_keypair.keys.verification_key(), resharing)
+            .await?;
+
+        self.state.set_coconut_keypair(coconut_keypair).await;
+        self.state.key_derivation_state_mut(epoch_id)?.completed = true;
+
+        info!("DKG: Finished key derivation");
+        Ok(())
+
+        // TODO: set completed etc.
+
+        // let dealings = self.dkg_client.get_dealings();
+
+        // if state.coconut_keypair_is_some().await {
+        //     debug!("Coconut keypair was set previously, nothing to do");
+        //     return Ok(());
+        // }
+        //
+        //
+        // let threshold = state.threshold()?;
+        // let dealings_maps =
+        //     deterministic_filter_dealers(dkg_client, state, epoch_id, threshold, resharing).await?;
+        // debug!(
+        //     "Filtered dealers to {:?}",
+        //     dealings_maps[0].keys().collect::<Vec<_>>()
+        // );
+        // let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
+        // debug!("Derived own coconut keypair");
+        // let vk_share = coconut_keypair.verification_key().to_bs58();
+        // nym_pemstore::store_keypair(&coconut_keypair, keypair_path)?;
+        // let res = dkg_client
+        //     .submit_verification_key_share(vk_share, resharing)
+        //     .await?;
+        // let proposal_id = find_attribute(&res.logs, "wasm", DKG_PROPOSAL_ID)
+        //     .ok_or(CoconutError::ProposalIdError {
+        //         reason: String::from("proposal id not found"),
+        //     })?
+        //     .value
+        //     .parse::<u64>()
+        //     .map_err(|_| CoconutError::ProposalIdError {
+        //         reason: String::from("proposal id could not be parsed to u64"),
+        //     })?;
+        // debug!(
+        //     "Submitted own verification key share, proposal id {} is attached to it",
+        //     proposal_id
+        // );
+        // state.set_proposal_id(proposal_id);
+        // state.set_coconut_keypair(epoch_id, coconut_keypair).await;
+        // info!("DKG: Submitted own verification key");
+        //
+        // Ok(())
+    }
 }
 
 fn validate_proposal(proposal: &ProposalResponse) -> Option<(Addr, u64)> {

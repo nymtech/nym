@@ -15,7 +15,7 @@ use crate::{
         PagedDealingsResponse,
     },
     types::{Epoch, InitialReplacementData, State},
-    verification_key::PagedVKSharesResponse,
+    verification_key::{PagedVKSharesResponse, VkShareResponse},
 };
 use contracts_common::IdentityKey;
 #[cfg(feature = "schema")]
@@ -116,6 +116,9 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<DealingIndex>,
     },
+
+    #[cfg_attr(feature = "schema", returns(VkShareResponse))]
+    GetVerificationKey { epoch_id: EpochId, owner: String },
 
     #[cfg_attr(feature = "schema", returns(PagedVKSharesResponse))]
     GetVerificationKeys {

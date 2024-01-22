@@ -21,6 +21,13 @@ pub struct ContractVKShare {
 }
 
 #[cw_serde]
+pub struct VkShareResponse {
+    pub owner: Addr,
+    pub epoch_id: EpochId,
+    pub share: Option<ContractVKShare>,
+}
+
+#[cw_serde]
 pub struct PagedVKSharesResponse {
     pub shares: Vec<ContractVKShare>,
     pub per_page: usize,

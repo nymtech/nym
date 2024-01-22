@@ -4,6 +4,7 @@
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
 use crate::coconut::dkg::state::dealing_exchange::DealingExchangeState;
+use crate::coconut::dkg::state::key_derivation::KeyDerivationState;
 use crate::coconut::dkg::state::registration::RegistrationState;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::{KeyPair as CoconutKeyPair, KeyPairWithEpoch};
@@ -27,6 +28,7 @@ use tokio::sync::RwLockReadGuard;
 use url::Url;
 
 mod dealing_exchange;
+mod key_derivation;
 mod registration;
 mod serde_helpers;
 
@@ -71,8 +73,8 @@ impl DkgParticipant {
     #[cfg(test)]
     pub(crate) fn unwrap_key(&self) -> PublicKeyWithProof {
         if let ParticipantState::VerifiedKey(key) = &self.state {
-            return key.clone()
-        } 
+            return key.clone();
+        }
         panic!("no key")
     }
 }
@@ -238,6 +240,8 @@ pub(crate) struct DkgState {
     pub(crate) dealers: BTreeMap<NodeIndex, DkgParticipant>,
 
     pub(crate) dealing_exchange: DealingExchangeState,
+
+    pub(crate) key_generation: KeyDerivationState,
 }
 
 impl DkgState {
@@ -348,6 +352,25 @@ impl State {
         }
     }
 
+    /// Obtain the list of dealers for the provided epoch that have submitted valid public keys.
+    pub fn valid_epoch_dealers(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<Vec<(Addr, NodeIndex)>, CoconutError> {
+        Ok(self
+            .dkg_state(epoch_id)?
+            .dealers
+            .values()
+            .filter_map(|d| {
+                if d.state.is_valid() {
+                    Some((d.address.clone(), d.assigned_index))
+                } else {
+                    None
+                }
+            })
+            .collect())
+    }
+
     pub fn dkg_state(&self, epoch_id: EpochId) -> Result<&DkgState, CoconutError> {
         self.dkg_instances
             .get(&epoch_id)
@@ -398,6 +421,44 @@ impl State {
             .get_mut(&epoch_id)
             .map(|state| &mut state.dealing_exchange)
             .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn key_derivation_state(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<&KeyDerivationState, CoconutError> {
+        self.dkg_instances
+            .get(&epoch_id)
+            .map(|state| &state.key_generation)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn key_derivation_state_mut(
+        &mut self,
+        epoch_id: EpochId,
+    ) -> Result<&mut KeyDerivationState, CoconutError> {
+        self.dkg_instances
+            .get_mut(&epoch_id)
+            .map(|state| &mut state.key_generation)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn threshold(&self, epoch_id: EpochId) -> Result<Threshold, CoconutError> {
+        self.key_derivation_state(epoch_id)?
+            .expected_threshold
+            .ok_or(CoconutError::UnavailableThreshold { epoch_id })
+    }
+
+    // pub fn assigned_index(&self, epoch_id: EpochId) -> Result<NodeIndex, CoconutError> {
+    //     self.registration_state(epoch_id)?
+    //         .assigned_index
+    //         .ok_or(CoconutError::UnavailableAssignedIndex { epoch_id })
+    // }
+
+    pub fn receiver_index(&self, epoch_id: EpochId) -> Result<usize, CoconutError> {
+        self.dealing_exchange_state(epoch_id)?
+            .receiver_index
+            .ok_or(CoconutError::UnavailableReceiverIndex { epoch_id })
     }
 
     pub fn persistent_state_path(&self) -> &Path {
@@ -456,10 +517,6 @@ impl State {
         self.node_index
     }
 
-    pub fn receiver_index(&self) -> Option<usize> {
-        self.receiver_index
-    }
-
     pub fn current_dealers_by_addr(&self) -> BTreeMap<Addr, NodeIndex> {
         self.dealers
             .iter()
@@ -508,12 +565,8 @@ impl State {
         self.recovered_vks = recovered_vks;
     }
 
-    pub async fn set_coconut_keypair(
-        &mut self,
-        epoch_id: EpochId,
-        coconut_keypair: nym_coconut_interface::KeyPair,
-    ) {
-        self.coconut_keypair.set(epoch_id, coconut_keypair).await
+    pub async fn set_coconut_keypair(&mut self, coconut_keypair: KeyPairWithEpoch) {
+        self.coconut_keypair.set(coconut_keypair).await
     }
 
     pub fn set_node_index(&mut self, node_index: Option<NodeIndex>) {

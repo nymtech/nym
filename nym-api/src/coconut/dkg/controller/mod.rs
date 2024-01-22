@@ -3,11 +3,10 @@
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::controller::error::DkgError;
-use crate::coconut::dkg::state::{ConsistentState, PersistentState, State};
-use crate::coconut::dkg::verification_key::verification_key_submission;
-use crate::coconut::dkg::verification_key::{
+use crate::coconut::dkg::key_derivation::{
     verification_key_finalization, verification_key_validation,
 };
+use crate::coconut::dkg::state::{ConsistentState, PersistentState, State};
 use crate::coconut::keys::KeyPair as CoconutKeyPair;
 use crate::nyxd;
 use crate::support::config;
@@ -18,7 +17,6 @@ use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
-use rand_chacha::ChaCha20Rng;
 use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -153,16 +151,9 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         resharing: bool,
     ) -> Result<(), DkgError> {
         debug!("DKG: verification key submission (resharing: {resharing})");
-
-        verification_key_submission(
-            &self.dkg_client,
-            &mut self.state,
-            epoch_id,
-            &self.coconut_key_path,
-            resharing,
-        )
-        .await
-        .map_err(|source| DkgError::VerificationKeySubmissionFailure { source })
+        self.verification_key_submission(epoch_id, resharing)
+            .await
+            .map_err(|source| DkgError::VerificationKeySubmissionFailure { source })
     }
 
     async fn handle_verification_key_validation(
@@ -244,6 +235,8 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         if let Some(epoch_finish) = epoch.finish_timestamp {
             let now = OffsetDateTime::now_utc();
             if now.unix_timestamp() > epoch_finish.seconds() as i64 {
+                // TODO: make sure to not overload validator in case its running slow
+                // i.e. send it once at most every X seconds
                 self.try_advance_dkg_state().await?
             }
         }
@@ -306,10 +299,10 @@ impl DkgController {
     }
 
     pub(crate) fn test_mock_new(
-        rng: ChaCha20Rng,
+        rng: rand_chacha::ChaCha20Rng,
         dkg_client: DkgClient,
         state: State,
-    ) -> DkgController<ChaCha20Rng> {
+    ) -> DkgController<rand_chacha::ChaCha20Rng> {
         DkgController {
             dkg_client,
             coconut_key_path: Default::default(),

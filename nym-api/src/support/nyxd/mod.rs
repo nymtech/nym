@@ -1,4 +1,4 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::CoconutError;
@@ -434,10 +434,18 @@ impl crate::coconut::client::Client for Client {
         ))
     }
 
+    async fn get_verification_key_share(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<Option<ContractVKShare>, CoconutError> {
+        Ok(nyxd_query!(self, get_vk_share(epoch_id, dealer).await?).share)
+    }
+
     async fn get_verification_key_shares(
         &self,
         epoch_id: EpochId,
-    ) -> crate::coconut::error::Result<Vec<ContractVKShare>> {
+    ) -> Result<Vec<ContractVKShare>, CoconutError> {
         Ok(nyxd_query!(
             self,
             get_all_verification_key_shares(epoch_id).await?

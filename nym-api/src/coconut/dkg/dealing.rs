@@ -1,25 +1,20 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg;
-use crate::coconut::dkg::client::DkgClient;
-use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
 use crate::coconut::dkg::controller::DkgController;
-use crate::coconut::dkg::state::{ConsistentState, ParticipantState, State};
+use crate::coconut::dkg::state::ParticipantState;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::KeyPairWithEpoch;
 use log::debug;
 use nym_coconut_dkg_common::types::{
     ContractDealing, DealingIndex, EpochId, PartialContractDealing,
 };
-use nym_dkg::bte::{PublicKey, PublicKeyWithProof};
-use nym_dkg::{Dealing, NodeIndex, Scalar, Threshold};
+use nym_dkg::{Dealing, Scalar};
 use rand::{CryptoRng, RngCore};
-use rocket::form::validate::Len;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
-use zeroize::Zeroize;
 
 enum DealingGeneration {
     Fresh { number: u32 },
@@ -180,6 +175,8 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             .any(|d| d.as_str() == address.as_ref()))
     }
 
+    /// Deal with the dealing generation case where the system requests resharing
+    /// and this node contains an already derived coconut keypair from some previous epoch.
     async fn handle_resharing_with_prior_key(
         &mut self,
         epoch_id: EpochId,
@@ -225,12 +222,24 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         Ok(())
     }
 
+    /// Second step of the DKG process during which the nym api will generate appropriate [Dealing] for
+    /// other parties as indicated by public key registration from the previous step.
+    ///
+    /// Before submitting any dealings to the system, the node will persist them locally so that if any failure
+    /// occurs, it will be possible to recover.
     pub(crate) async fn dealing_exchange(
         &mut self,
         epoch_id: EpochId,
         resharing: bool,
     ) -> Result<(), CoconutError> {
         let dealing_state = self.state.dealing_exchange_state(epoch_id)?;
+
+        // TODO:
+        /*
+            let receiver_index = receivers
+        .keys()
+        .position(|node_index| *node_index == dealer_index);
+         */
 
         // check if we have already submitted the dealings
         if dealing_state.completed() {
@@ -258,7 +267,8 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         let dealers = self.dkg_client.get_current_dealers().await?;
 
         // EDGE CASE:
-        // if there are no dealers for some reason, don't attempt to generate dealings as this will fail with a panic
+        // if there are no receivers(dealers) in this epoch for some reason,
+        // don't attempt to generate dealings as this will fail with a panic
         if dealers.is_empty() {
             warn!("there are no active dealers/receivers to generate dealings for");
             self.state.dealing_exchange_state_mut(epoch_id)?.completed = true;
@@ -315,12 +325,18 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             }
         }
 
-        // if we have generated any dealings => submit them, otherwise we're done
         let dealings = &self
             .state
             .dealing_exchange_state(epoch_id)?
             .generated_dealings;
         let total = dealings.len();
+
+        // if we have generated any dealings persist the state in case we crash so that we would still have the data on hand
+        // for resubmission upon getting back up
+        if total > 0 {
+            self.state.persist()?;
+        }
+
         for (i, (dealing_index, dealing)) in dealings.iter().enumerate() {
             let i = i + 1;
             debug!("submitting dealing index {dealing_index} ({i}/{total})");

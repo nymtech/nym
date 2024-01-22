@@ -13,6 +13,8 @@ pub struct DealingExchangeState {
     #[serde(with = "generated_dealings")]
     pub(crate) generated_dealings: HashMap<DealingIndex, Dealing>,
 
+    pub(crate) receiver_index: Option<usize>,
+
     pub(crate) completed: bool,
 }
 

@@ -55,7 +55,7 @@ jobs:
 
       - name: Build deb packages
         shell: bash
-        run: make ppa
+        run: scripts/ppa.sh ${{ secrets.PPA_SIGNING_KEY }}
 
       - name: Prepare build output
         shell: bash

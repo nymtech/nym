@@ -177,5 +177,5 @@ run-api-tests:
 
 # Build debian package, and update PPA
 # Requires base64 encode GPG key to be set up in environment PPA_SIGNING_KEY
-ppa: build-nym-mixnode build-nym-gateway
-	scripts/ppa.sh
+# ppa: build-nym-mixnode build-nym-gateway
+# 	scripts/ppa.sh

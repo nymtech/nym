@@ -1,8 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_controller::ReplyControllerSender;
-use crate::client::replies::reply_storage::SentReplyKeys;
+use crate::client::{
+    packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter},
+    replies::{reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys},
+};
 use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
@@ -43,14 +45,25 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     // but perhaps it should be changed to include timestamps of when the message was reconstructed
     // and every now and then remove ids older than X
     recently_reconstructed: HashSet<i32>,
+
+    stats_tx: PacketStatisticsReporter,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
     fn recover_from_fragment(&mut self, fragment_data: &[u8]) -> Option<NymMessage> {
         if nym_sphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
+            self.stats_tx
+                .report(PacketStatisticsEvent::CoverPacketReceived(
+                    fragment_data.len(),
+                ));
             return None;
         }
+
+        self.stats_tx
+            .report(PacketStatisticsEvent::RealPacketReceived(
+                fragment_data.len(),
+            ));
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {
@@ -141,6 +154,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -149,6 +163,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 message_receiver: R::new(),
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
+                stats_tx,
             })),
             reply_key_storage,
             reply_controller_sender,
@@ -353,7 +368,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 };
 
             if let Some(completed) = completed_message {
-                info!("received {completed}");
+                debug!("received {completed}");
                 completed_messages.push(completed)
             }
         }
@@ -480,11 +495,13 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
+        packet_statistics_reporter: PacketStatisticsReporter,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
             reply_controller_sender,
+            packet_statistics_reporter,
         );
 
         ReceivedMessagesBufferController {

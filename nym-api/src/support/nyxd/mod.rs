@@ -346,6 +346,15 @@ impl crate::coconut::client::Client for Client {
         self.client_address().await
     }
 
+    async fn dkg_contract_address(&self) -> Result<AccountId, CoconutError> {
+        nyxd_query!(
+            self,
+            dkg_contract_address()
+                .cloned()
+                .ok_or_else(|| NyxdError::unavailable_contract_address("dkg contract").into())
+        )
+    }
+
     async fn get_tx(&self, tx_hash: Hash) -> crate::coconut::error::Result<nyxd::TxResponse> {
         nyxd_query!(self, get_tx(tx_hash).await).map_err(|source| {
             CoconutError::TxRetrievalFailure {

@@ -3,9 +3,7 @@
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::controller::error::DkgError;
-use crate::coconut::dkg::key_derivation::{
-    verification_key_finalization, verification_key_validation,
-};
+use crate::coconut::dkg::key_finalization::verification_key_finalization;
 use crate::coconut::dkg::state::{ConsistentState, PersistentState, State};
 use crate::coconut::keys::KeyPair as CoconutKeyPair;
 use crate::nyxd;
@@ -158,17 +156,19 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
     async fn handle_verification_key_validation(
         &mut self,
+        epoch_id: EpochId,
         resharing: bool,
     ) -> Result<(), DkgError> {
         debug!("DKG: verification key validation (resharing: {resharing})");
 
-        verification_key_validation(&self.dkg_client, &mut self.state, resharing)
+        self.verification_key_validation(epoch_id, resharing)
             .await
             .map_err(|source| DkgError::VerificationKeyValidationFailure { source })
     }
 
     async fn handle_verification_key_finalization(
         &mut self,
+        epoch_id: EpochId,
         resharing: bool,
     ) -> Result<(), DkgError> {
         debug!("DKG: verification key finalization (resharing: {resharing})");
@@ -218,10 +218,12 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                     .await?
             }
             EpochState::VerificationKeyValidation { resharing } => {
-                self.handle_verification_key_validation(resharing).await?
+                self.handle_verification_key_validation(epoch.epoch_id, resharing)
+                    .await?
             }
             EpochState::VerificationKeyFinalization { resharing } => {
-                self.handle_verification_key_finalization(resharing).await?
+                self.handle_verification_key_finalization(epoch.epoch_id, resharing)
+                    .await?
             }
             // Just wait, in case we need to redo dkg at some point
             EpochState::InProgress => self.handle_in_progress().await?,

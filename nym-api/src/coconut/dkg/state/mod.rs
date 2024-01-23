@@ -26,9 +26,13 @@ use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 use url::Url;
+use crate::coconut::dkg::state::key_finalization::FinalizationState;
+use crate::coconut::dkg::state::key_validation::ValidationState;
 
 mod dealing_exchange;
 mod key_derivation;
+mod key_finalization;
+mod key_validation;
 mod registration;
 mod serde_helpers;
 
@@ -242,18 +246,19 @@ impl PersistentState {
 #[derive(Default)]
 pub(crate) struct DkgState {
     pub(crate) registration: RegistrationState,
-
-    // available after registration is finished:
-    pub(crate) dealers: BTreeMap<NodeIndex, DkgParticipant>,
-
+    
     pub(crate) dealing_exchange: DealingExchangeState,
 
     pub(crate) key_generation: KeyDerivationState,
+    
+    pub(crate) key_validation: ValidationState,
+    
+    pub(crate) key_finalization: FinalizationState,
 }
 
 impl DkgState {
     pub(crate) fn set_dealers(&mut self, raw_dealers: Vec<DealerDetails>) {
-        assert!(self.dealers.is_empty());
+        assert!(self.dealing_exchange.dealers.is_empty());
         for raw_dealer in raw_dealers {
             let dkg_participant = DkgParticipant::from(raw_dealer);
             if let ParticipantState::Invalid(complaint) = &dkg_participant.state {
@@ -262,7 +267,7 @@ impl DkgState {
                     dkg_participant.address
                 )
             }
-            self.dealers
+            self.dealing_exchange.dealers
                 .insert(dkg_participant.assigned_index, dkg_participant);
         }
     }
@@ -365,7 +370,7 @@ impl State {
         epoch_id: EpochId,
     ) -> Result<Vec<(Addr, NodeIndex)>, CoconutError> {
         Ok(self
-            .dkg_state(epoch_id)?
+            .dealing_exchange_state(epoch_id)?
             .dealers
             .values()
             .filter_map(|d| {
@@ -383,7 +388,7 @@ impl State {
         epoch_id: EpochId,
     ) -> Result<BTreeMap<NodeIndex, bte::PublicKey>, CoconutError> {
         Ok(self
-            .dkg_state(epoch_id)?
+            .dealing_exchange_state(epoch_id)?
             .dealers
             .values()
             .filter_map(|d| d.state.public_key().map(|k| (d.assigned_index, k)))
@@ -459,6 +464,46 @@ impl State {
         self.dkg_instances
             .get_mut(&epoch_id)
             .map(|state| &mut state.key_generation)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn key_validation_state(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<&ValidationState, CoconutError> {
+        self.dkg_instances
+            .get(&epoch_id)
+            .map(|state| &state.key_validation)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn key_validation_state_mut(
+        &mut self,
+        epoch_id: EpochId,
+    ) -> Result<&mut ValidationState, CoconutError> {
+        self.dkg_instances
+            .get_mut(&epoch_id)
+            .map(|state| &mut state.key_validation)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn key_finalization_state(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<&FinalizationState, CoconutError> {
+        self.dkg_instances
+            .get(&epoch_id)
+            .map(|state| &state.key_finalization)
+            .ok_or(CoconutError::MissingDkgState { epoch_id })
+    }
+
+    pub fn key_finalization_state_mut(
+        &mut self,
+        epoch_id: EpochId,
+    ) -> Result<&mut FinalizationState, CoconutError> {
+        self.dkg_instances
+            .get_mut(&epoch_id)
+            .map(|state| &mut state.key_finalization)
             .ok_or(CoconutError::MissingDkgState { epoch_id })
     }
 

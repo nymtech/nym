@@ -50,6 +50,44 @@ pub(super) mod vks_serde {
     }
 }
 
+pub(super) mod recovered_keys {
+    use nym_coconut_dkg_common::types::DealingIndex;
+    use nym_dkg::RecoveredVerificationKeys;
+    use serde::de::Error;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::collections::{BTreeMap, HashMap};
+
+    type Helper = BTreeMap<DealingIndex, Vec<u8>>;
+
+    pub fn serialize<S: Serializer>(
+        val: &BTreeMap<DealingIndex, RecoveredVerificationKeys>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let helper: Helper = val
+            .iter()
+            .map(|(idx, rec)| (*idx, rec.to_bytes()))
+            .collect();
+        helper.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<BTreeMap<DealingIndex, RecoveredVerificationKeys>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let helper = Helper::deserialize(deserializer)?;
+        helper
+            .into_iter()
+            .map(|(idx, rec)| {
+                RecoveredVerificationKeys::try_from_bytes(&rec)
+                    .map_err(|err| D::Error::custom(format_args!("{:?}", err)))
+                    .map(|vk| (idx, vk))
+            })
+            .collect()
+    }
+}
+
 pub(super) mod generated_dealings {
     use nym_coconut_dkg_common::types::DealingIndex;
     use nym_dkg::Dealing;

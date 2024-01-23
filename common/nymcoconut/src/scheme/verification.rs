@@ -228,10 +228,11 @@ pub fn check_vk_pairing(
 
     // safety: we made an explicit check for if the length of the slice is 0, thus unwrap here is fine
     #[allow(clippy::unwrap_used)]
-    if &vk.alpha != *dkg_values.last().as_ref().unwrap() {
+    if &vk.alpha != *dkg_values.first().as_ref().unwrap() {
         return false;
     }
-    if dkg_values
+    let dkg_betas = &dkg_values[1..];
+    if dkg_betas
         .iter()
         .zip(vk.beta_g2.iter())
         .any(|(dkg_beta, vk_beta)| dkg_beta != vk_beta)
@@ -329,8 +330,9 @@ mod tests {
         let params = setup(2).unwrap();
         let keypair = keygen(&params);
         let vk = keypair.verification_key();
-        let mut dkg_values = vk.beta_g2.clone();
-        dkg_values.push(vk.alpha);
+
+        let mut dkg_values = vec![vk.alpha];
+        dkg_values.append(&mut vk.beta_g2.clone());
         assert!(check_vk_pairing(&params, &dkg_values, vk));
     }
 

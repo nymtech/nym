@@ -13,5 +13,7 @@ pub(crate) mod complaints;
 pub(crate) mod controller;
 pub(crate) mod dealing;
 pub(crate) mod key_derivation;
+mod key_finalization;
+mod key_validation;
 pub(crate) mod public_key;
 pub(crate) mod state;

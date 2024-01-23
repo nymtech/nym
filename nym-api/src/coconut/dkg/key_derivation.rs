@@ -24,192 +24,194 @@ use nym_dkg::bte::{decrypt_share, PublicKey};
 use nym_dkg::error::DkgError;
 use nym_dkg::{bte, combine_shares, try_recover_verification_keys, Dealing, Threshold};
 use nym_pemstore::KeyPairPath;
+use nym_validator_client::nyxd::bip32::secp256k1::elliptic_curve::group;
+use nym_validator_client::nyxd::bip32::secp256k1::elliptic_curve::group::GroupEncoding;
 use nym_validator_client::nyxd::cosmwasm_client::logs::find_attribute;
 use rand::{CryptoRng, RngCore};
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-// Filter the dealers based on what dealing they posted (or not) in the contract
-
-// TODO: change the return type to make sure that:
-// - each entry has the same number of dealings
-// - dealer data is not duplicated
-// - each dealer has submitted all or nothing
-async fn deterministic_filter_dealers(
-    dkg_client: &DkgClient,
-    state: &mut State,
-    epoch_id: EpochId,
-    threshold: Threshold,
-    resharing: bool,
-) -> Result<Vec<BTreeMap<NodeIndex, (Addr, Dealing)>>, CoconutError> {
-    // if we're in resharing mode, the contract itself will forbid submission of dealings from
-    // parties that were not "initial" dealers, so we don't have to worry about it
-
-    let mut dealings_maps = Vec::new();
-    let initial_dealers_by_addr = state.current_dealers_by_addr();
-    let initial_receivers = state.current_dealers_by_idx();
-    let initial_resharing_dealers = if resharing {
-        dkg_client
-            .get_initial_dealers()
-            .await?
-            .map(|d| d.initial_dealers)
-            .unwrap_or_default()
-    } else {
-        vec![]
-    };
-
-    let params = dkg::params();
-
-    // note: this is a temporary solution to replicate the behaviour of the old code so that I wouldn't need to
-    // fix the filtering in this PR, because the old code is quite buggy and misses few edge cases
-    let mut raw_dealings = HashMap::new();
-    for dealer in state.all_dealers().keys() {
-        let dealer_dealings = dkg_client
-            .get_dealings(epoch_id, dealer.to_string())
-            .await?;
-        for dealing in dealer_dealings {
-            let old_contract_dealing = raw_dealings.entry(dealing.index).or_insert(Vec::new());
-            old_contract_dealing.push((dealer.clone(), dealing.data))
-        }
-    }
-
-    // this is a temporary thing to reintroduce the bug to make sure tests still pass : )
-    // i will fix it properly in next PR
-    for dealing_index in 0..5 {
-        let dealings = raw_dealings.remove(&dealing_index).unwrap_or_default();
-        let dealings_map =
-            BTreeMap::from_iter(dealings.into_iter().filter_map(|(dealer, dealing)| {
-                match Dealing::try_from(&dealing) {
-                    Ok(dealing) => {
-                        if dealing
-                            .verify(params, threshold, &initial_receivers, None)
-                            .is_err()
-                        {
-                            state.mark_bad_dealer(
-                                &dealer,
-                                ComplaintReason::DealingVerificationError,
-                            );
-                            None
-                        } else {
-                            initial_dealers_by_addr
-                                .get(&dealer)
-                                .map(|idx| (*idx, (dealer, dealing)))
-                        }
-                    }
-                    Err(_) => {
-                        state.mark_bad_dealer(&dealer, ComplaintReason::MalformedDealing);
-                        None
-                    }
-                }
-            }));
-        dealings_maps.push(dealings_map);
-    }
-
-    //
-    //
-    //     for dealer in initial_dealers_by_addr.keys() {
-    //     let Some(dealer_index) = initial_dealers_by_addr.get(dealer) else {
-    //         warn!("could not obtain dealer index of {dealer}");
-    //         continue;
-    //     };
-    //
-    //     let dealer_dealings = dkg_client
-    //         .get_dealings(epoch_id, dealer.to_string())
-    //         .await?;
-    //
-    //     for contract_dealing in dealer_dealings {
-    //         match Dealing::try_from(&contract_dealing.data) {
-    //             // FIXME: bug: this doesn't check resharing
-    //             Ok(dealing) => {
-    //                 if let Err(err) = dealing.verify(params, threshold, &initial_receivers, None) {
-    //                     println!("dealing verification failure from {dealer}: {err}");
-    //                     state.mark_bad_dealer(dealer, ComplaintReason::DealingVerificationError);
-    //                 } else {
-    //                     let entry = dealings_maps
-    //                         .entry(contract_dealing.index)
-    //                         .or_insert(BTreeMap::new());
-    //                     entry.insert(*dealer_index, (dealer.clone(), dealing));
-    //                 }
-    //             }
-    //             Err(err) => {
-    //                 warn!("malformed dealing from {dealer}: {err}");
-    //                 state.mark_bad_dealer(dealer, ComplaintReason::MalformedDealing);
-    //             }
-    //         }
-    //     }
-    // }
-
-    for (addr, _) in initial_dealers_by_addr.iter() {
-        // in resharing mode, we don't commit dealings from dealers outside the initial set
-        if !resharing || initial_resharing_dealers.contains(addr) {
-            for dealings_map in dealings_maps.iter() {
-                if !dealings_map.iter().any(|(_, (address, _))| address == addr) {
-                    state.mark_bad_dealer(addr, ComplaintReason::MissingDealing);
-                    break;
-                }
-            }
-        }
-    }
-
-    Ok(dealings_maps)
-}
-
-fn derive_partial_keypair(
-    state: &mut State,
-    threshold: Threshold,
-    dealings_maps: Vec<BTreeMap<NodeIndex, (Addr, Dealing)>>,
-) -> Result<KeyPair, CoconutError> {
-    let filtered_receivers_by_idx = state.current_dealers_by_idx();
-    let filtered_dealers_by_addr = state.current_dealers_by_addr();
-    let dk = state.dkg_keypair().private_key();
-    let node_index_value = state.receiver_index_value()?;
-    let mut scalars = vec![];
-    let mut recovered_vks = vec![];
-    for dealings_map in dealings_maps.into_iter() {
-        let (filtered_dealers, filtered_dealings): (Vec<_>, Vec<_>) = dealings_map
-            .into_iter()
-            .filter_map(|(idx, (addr, dealing))| {
-                if filtered_dealers_by_addr.keys().any(|a| addr == *a) {
-                    Some((idx, dealing))
-                } else {
-                    None
-                }
-            })
-            .unzip();
-        debug!(
-            "Recovering verification keys from dealings of dealers {:?} with receivers {:?}",
-            filtered_dealers,
-            filtered_receivers_by_idx.keys().collect::<Vec<_>>()
-        );
-        let recovered = try_recover_verification_keys(
-            &filtered_dealings,
-            threshold,
-            &filtered_receivers_by_idx,
-        )?;
-        recovered_vks.push(recovered);
-
-        debug!("Decrypting shares");
-        let shares = filtered_dealings
-            .iter()
-            .map(|dealing| decrypt_share(dk, node_index_value, &dealing.ciphertexts, None))
-            .collect::<Result<_, _>>()?;
-        debug!("Combining shares into one secret");
-        let scalar = combine_shares(shares, &filtered_dealers)?;
-        scalars.push(scalar);
-    }
-    state.set_recovered_vks(recovered_vks);
-
-    let x = scalars.pop().ok_or(CoconutError::DkgError(
-        DkgError::NotEnoughDealingsAvailable {
-            available: 0,
-            required: 1,
-        },
-    ))?;
-    let sk = SecretKey::create_from_raw(x, scalars);
-    let vk = sk.verification_key(&BANDWIDTH_CREDENTIAL_PARAMS);
-
-    Ok(CoconutKeyPair::from_keys(sk, vk))
-}
+// // Filter the dealers based on what dealing they posted (or not) in the contract
+//
+// // TODO: change the return type to make sure that:
+// // - each entry has the same number of dealings
+// // - dealer data is not duplicated
+// // - each dealer has submitted all or nothing
+// async fn deterministic_filter_dealers(
+//     dkg_client: &DkgClient,
+//     state: &mut State,
+//     epoch_id: EpochId,
+//     threshold: Threshold,
+//     resharing: bool,
+// ) -> Result<Vec<BTreeMap<NodeIndex, (Addr, Dealing)>>, CoconutError> {
+//     // if we're in resharing mode, the contract itself will forbid submission of dealings from
+//     // parties that were not "initial" dealers, so we don't have to worry about it
+//
+//     let mut dealings_maps = Vec::new();
+//     let initial_dealers_by_addr = state.current_dealers_by_addr();
+//     let initial_receivers = state.current_dealers_by_idx();
+//     let initial_resharing_dealers = if resharing {
+//         dkg_client
+//             .get_initial_dealers()
+//             .await?
+//             .map(|d| d.initial_dealers)
+//             .unwrap_or_default()
+//     } else {
+//         vec![]
+//     };
+//
+//     let params = dkg::params();
+//
+//     // note: this is a temporary solution to replicate the behaviour of the old code so that I wouldn't need to
+//     // fix the filtering in this PR, because the old code is quite buggy and misses few edge cases
+//     let mut raw_dealings = HashMap::new();
+//     for dealer in state.all_dealers().keys() {
+//         let dealer_dealings = dkg_client
+//             .get_dealings(epoch_id, dealer.to_string())
+//             .await?;
+//         for dealing in dealer_dealings {
+//             let old_contract_dealing = raw_dealings.entry(dealing.index).or_insert(Vec::new());
+//             old_contract_dealing.push((dealer.clone(), dealing.data))
+//         }
+//     }
+//
+//     // this is a temporary thing to reintroduce the bug to make sure tests still pass : )
+//     // i will fix it properly in next PR
+//     for dealing_index in 0..5 {
+//         let dealings = raw_dealings.remove(&dealing_index).unwrap_or_default();
+//         let dealings_map =
+//             BTreeMap::from_iter(dealings.into_iter().filter_map(|(dealer, dealing)| {
+//                 match Dealing::try_from(&dealing) {
+//                     Ok(dealing) => {
+//                         if dealing
+//                             .verify(params, threshold, &initial_receivers, None)
+//                             .is_err()
+//                         {
+//                             state.mark_bad_dealer(
+//                                 &dealer,
+//                                 ComplaintReason::DealingVerificationError,
+//                             );
+//                             None
+//                         } else {
+//                             initial_dealers_by_addr
+//                                 .get(&dealer)
+//                                 .map(|idx| (*idx, (dealer, dealing)))
+//                         }
+//                     }
+//                     Err(_) => {
+//                         state.mark_bad_dealer(&dealer, ComplaintReason::MalformedDealing);
+//                         None
+//                     }
+//                 }
+//             }));
+//         dealings_maps.push(dealings_map);
+//     }
+//
+//     //
+//     //
+//     //     for dealer in initial_dealers_by_addr.keys() {
+//     //     let Some(dealer_index) = initial_dealers_by_addr.get(dealer) else {
+//     //         warn!("could not obtain dealer index of {dealer}");
+//     //         continue;
+//     //     };
+//     //
+//     //     let dealer_dealings = dkg_client
+//     //         .get_dealings(epoch_id, dealer.to_string())
+//     //         .await?;
+//     //
+//     //     for contract_dealing in dealer_dealings {
+//     //         match Dealing::try_from(&contract_dealing.data) {
+//     //             // FIXME: bug: this doesn't check resharing
+//     //             Ok(dealing) => {
+//     //                 if let Err(err) = dealing.verify(params, threshold, &initial_receivers, None) {
+//     //                     println!("dealing verification failure from {dealer}: {err}");
+//     //                     state.mark_bad_dealer(dealer, ComplaintReason::DealingVerificationError);
+//     //                 } else {
+//     //                     let entry = dealings_maps
+//     //                         .entry(contract_dealing.index)
+//     //                         .or_insert(BTreeMap::new());
+//     //                     entry.insert(*dealer_index, (dealer.clone(), dealing));
+//     //                 }
+//     //             }
+//     //             Err(err) => {
+//     //                 warn!("malformed dealing from {dealer}: {err}");
+//     //                 state.mark_bad_dealer(dealer, ComplaintReason::MalformedDealing);
+//     //             }
+//     //         }
+//     //     }
+//     // }
+//
+//     for (addr, _) in initial_dealers_by_addr.iter() {
+//         // in resharing mode, we don't commit dealings from dealers outside the initial set
+//         if !resharing || initial_resharing_dealers.contains(addr) {
+//             for dealings_map in dealings_maps.iter() {
+//                 if !dealings_map.iter().any(|(_, (address, _))| address == addr) {
+//                     state.mark_bad_dealer(addr, ComplaintReason::MissingDealing);
+//                     break;
+//                 }
+//             }
+//         }
+//     }
+//
+//     Ok(dealings_maps)
+// }
+//
+// fn derive_partial_keypair(
+//     state: &mut State,
+//     threshold: Threshold,
+//     dealings_maps: Vec<BTreeMap<NodeIndex, (Addr, Dealing)>>,
+// ) -> Result<KeyPair, CoconutError> {
+//     let filtered_receivers_by_idx = state.current_dealers_by_idx();
+//     let filtered_dealers_by_addr = state.current_dealers_by_addr();
+//     let dk = state.dkg_keypair().private_key();
+//     let node_index_value = state.receiver_index_value()?;
+//     let mut scalars = vec![];
+//     let mut recovered_vks = vec![];
+//     for dealings_map in dealings_maps.into_iter() {
+//         let (filtered_dealers, filtered_dealings): (Vec<_>, Vec<_>) = dealings_map
+//             .into_iter()
+//             .filter_map(|(idx, (addr, dealing))| {
+//                 if filtered_dealers_by_addr.keys().any(|a| addr == *a) {
+//                     Some((idx, dealing))
+//                 } else {
+//                     None
+//                 }
+//             })
+//             .unzip();
+//         debug!(
+//             "Recovering verification keys from dealings of dealers {:?} with receivers {:?}",
+//             filtered_dealers,
+//             filtered_receivers_by_idx.keys().collect::<Vec<_>>()
+//         );
+//         let recovered = try_recover_verification_keys(
+//             &filtered_dealings,
+//             threshold,
+//             &filtered_receivers_by_idx,
+//         )?;
+//         recovered_vks.push(recovered);
+//
+//         debug!("Decrypting shares");
+//         let shares = filtered_dealings
+//             .iter()
+//             .map(|dealing| decrypt_share(dk, node_index_value, &dealing.ciphertexts, None))
+//             .collect::<Result<_, _>>()?;
+//         debug!("Combining shares into one secret");
+//         let scalar = combine_shares(shares, &filtered_dealers)?;
+//         scalars.push(scalar);
+//     }
+//     state.set_recovered_vks(recovered_vks);
+//
+//     let x = scalars.pop().ok_or(CoconutError::DkgError(
+//         DkgError::NotEnoughDealingsAvailable {
+//             available: 0,
+//             required: 1,
+//         },
+//     ))?;
+//     let sk = SecretKey::create_from_raw(x, scalars);
+//     let vk = sk.verification_key(&BANDWIDTH_CREDENTIAL_PARAMS);
+//
+//     Ok(CoconutKeyPair::from_keys(sk, vk))
+// }
 
 impl<R: RngCore + CryptoRng> DkgController<R> {
     fn verified_dealer_dealings(
@@ -380,8 +382,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
         let all_dealers = dealings[&0].keys().copied().collect::<Vec<_>>();
 
-        let decryption_key = self.state.dkg_keypair().private_key();
-
         let mut derived_x = None;
         let mut derived_secrets = Vec::new();
 
@@ -397,19 +397,19 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             debug!("recovering the partial verification keys");
             let recovered =
                 try_recover_verification_keys(&dealings_vec, threshold, &epoch_receivers)?;
-            // TODO:
+
+            self.state
+                .key_derivation_state_mut(epoch_id)?
+                .derived_partials
+                .insert(dealing_index, recovered);
 
             debug!("decrypting received shares");
             // for every received share of the key
             let mut shares = Vec::with_capacity(dealings_vec.len());
             for (i, dealing) in dealings_vec.into_iter().enumerate() {
                 // attempt to decrypt our portion
-                let share = match decrypt_share(
-                    decryption_key,
-                    receiver_index,
-                    &dealing.ciphertexts,
-                    None,
-                ) {
+                let dk = self.state.dkg_keypair().private_key();
+                let share = match decrypt_share(dk, receiver_index, &dealing.ciphertexts, None) {
                     Ok(share) => share,
                     Err(err) => {
                         let node_index = all_dealers[i];
@@ -580,106 +580,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         //
         // Ok(())
     }
-}
-
-fn validate_proposal(proposal: &ProposalResponse) -> Option<(Addr, u64)> {
-    if proposal.status == Status::Open {
-        if let Some(owner) = owner_from_cosmos_msgs(&proposal.msgs) {
-            return Some((owner, proposal.id));
-        }
-    }
-    None
-}
-
-pub(crate) async fn verification_key_validation(
-    dkg_client: &DkgClient,
-    state: &mut State,
-    _resharing: bool,
-) -> Result<(), CoconutError> {
-    if state.voted_vks() {
-        debug!("Already voted on the verification keys, nothing to do");
-        return Ok(());
-    }
-
-    let epoch_id = dkg_client.get_current_epoch().await?.epoch_id;
-    let vk_shares = dkg_client.get_verification_key_shares(epoch_id).await?;
-    let proposal_ids = BTreeMap::from_iter(
-        dkg_client
-            .list_proposals()
-            .await?
-            .iter()
-            .filter_map(validate_proposal),
-    );
-    let filtered_receivers_by_idx: Vec<_> =
-        state.current_dealers_by_idx().keys().copied().collect();
-    let recovered_partials: Vec<_> = state
-        .recovered_vks()
-        .iter()
-        .map(|recovered_vk| recovered_vk.recovered_partials.clone())
-        .collect();
-    let recovered_partials = transpose_matrix(recovered_partials);
-    let params = &BANDWIDTH_CREDENTIAL_PARAMS;
-    for contract_share in vk_shares {
-        if let Some(proposal_id) = proposal_ids.get(&contract_share.owner).copied() {
-            match VerificationKey::try_from_bs58(contract_share.share) {
-                Ok(vk) => {
-                    if let Some(idx) = filtered_receivers_by_idx
-                        .iter()
-                        .position(|node_index| contract_share.node_index == *node_index)
-                    {
-                        let ret = if !check_vk_pairing(params, &recovered_partials[idx], &vk) {
-                            debug!(
-                                "Voting NO to proposal {} because of failed VK pairing",
-                                proposal_id
-                            );
-                            dkg_client
-                                .vote_verification_key_share(proposal_id, false)
-                                .await
-                        } else {
-                            debug!("Voting YES to proposal {}", proposal_id);
-                            dkg_client
-                                .vote_verification_key_share(proposal_id, true)
-                                .await
-                        };
-                        accepted_vote_err(ret)?;
-                    }
-                }
-                Err(_) => {
-                    debug!(
-                        "Voting NO to proposal {} because of failed base 58 deserialization",
-                        proposal_id
-                    );
-                    let ret = dkg_client
-                        .vote_verification_key_share(proposal_id, false)
-                        .await;
-                    accepted_vote_err(ret)?;
-                }
-            }
-        }
-    }
-    state.set_voted_vks();
-    info!("DKG: Validated the other verification keys");
-    Ok(())
-}
-
-pub(crate) async fn verification_key_finalization(
-    dkg_client: &DkgClient,
-    state: &mut State,
-    _resharing: bool,
-) -> Result<(), CoconutError> {
-    if state.executed_proposal() {
-        debug!("Already executed the proposal, nothing to do");
-        return Ok(());
-    }
-
-    let proposal_id = state.proposal_id_value()?;
-    dkg_client
-        .execute_verification_key_share(proposal_id)
-        .await?;
-    state.set_executed_proposal();
-    info!("DKG: Finalized own verification key on chain");
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -1095,11 +995,10 @@ pub(crate) mod tests {
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 
-        let chain = controllers[0].chain_state.clone();
+        for controller in controllers.iter_mut() {
+            let res = controller.verification_key_submission(epoch, false).await;
+            assert!(res.is_ok());
 
-        derive_keypairs(&mut controllers, false).await;
-
-        for controller in controllers {
             assert!(controller.state.key_derivation_state(epoch)?.completed);
             let keys = controller.state.take_coconut_keypair().await;
             assert!(keys.is_some());
@@ -1107,132 +1006,6 @@ pub(crate) mod tests {
         }
 
         Ok(())
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     assert!(db
-        //         .proposal_db
-        //         .read()
-        //         .unwrap()
-        //         .contains_key(&controller.state.proposal_id_value().unwrap()));
-        //     assert!(controller.state.coconut_keypair_is_some().await);
-        // }
-    }
-
-    #[tokio::test]
-    #[ignore] // expensive test
-    async fn validate_verification_key() {
-        todo!()
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_validation(&db).await;
-        // for controller in clients_and_states.iter_mut() {
-        //     let proposal = db
-        //         .proposal_db
-        //         .read()
-        //         .unwrap()
-        //         .get(&controller.state.proposal_id_value().unwrap())
-        //         .unwrap()
-        //         .clone();
-        //     assert_eq!(proposal.status, Status::Passed);
-        // }
-    }
-
-    #[tokio::test]
-    #[ignore] // expensive test
-    async fn validate_verification_key_malformed_share() {
-        todo!()
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
-        //
-        // db.verification_share_db
-        //     .write()
-        //     .unwrap()
-        //     .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-        //     .and_modify(|share| share.share.push('x'));
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-        //         .await
-        //         .unwrap();
-        // }
-        //
-        // for (idx, controller) in clients_and_states.iter().enumerate() {
-        //     let proposal = db
-        //         .proposal_db
-        //         .read()
-        //         .unwrap()
-        //         .get(&controller.state.proposal_id_value().unwrap())
-        //         .unwrap()
-        //         .clone();
-        //     if idx == 0 {
-        //         assert_eq!(proposal.status, Status::Rejected);
-        //     } else {
-        //         assert_eq!(proposal.status, Status::Passed);
-        //     }
-        // }
-    }
-
-    #[tokio::test]
-    #[ignore] // expensive test
-    async fn validate_verification_key_unpaired_share() {
-        todo!()
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
-        //
-        // let second_share = db
-        //     .verification_share_db
-        //     .write()
-        //     .unwrap()
-        //     .get(TEST_VALIDATORS_ADDRESS[1])
-        //     .unwrap()
-        //     .share
-        //     .clone();
-        // db.verification_share_db
-        //     .write()
-        //     .unwrap()
-        //     .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-        //     .and_modify(|share| share.share = second_share);
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-        //         .await
-        //         .unwrap();
-        // }
-        //
-        // for (idx, controller) in clients_and_states.iter().enumerate() {
-        //     let proposal = db
-        //         .proposal_db
-        //         .read()
-        //         .unwrap()
-        //         .get(&controller.state.proposal_id_value().unwrap())
-        //         .unwrap()
-        //         .clone();
-        //     if idx == 0 {
-        //         assert_eq!(proposal.status, Status::Rejected);
-        //     } else {
-        //         assert_eq!(proposal.status, Status::Passed);
-        //     }
-        // }
-    }
-
-    #[tokio::test]
-    #[ignore] // expensive test
-    async fn finalize_verification_key() {
-        todo!()
-        // let db = MockContractDb::new();
-        // let clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
-        //
-        // for controller in clients_and_states.iter() {
-        //     let proposal = db
-        //         .proposal_db
-        //         .read()
-        //         .unwrap()
-        //         .get(&controller.state.proposal_id_value().unwrap())
-        //         .unwrap()
-        //         .clone();
-        //     assert_eq!(proposal.status, Status::Executed);
-        // }
     }
 
     #[tokio::test]

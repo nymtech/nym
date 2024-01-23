@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::controller::DkgController;
-use crate::coconut::dkg::key_derivation::{
-    verification_key_finalization, verification_key_validation,
-};
 use crate::coconut::tests::fixtures::{TestingDkgController, TestingDkgControllerBuilder};
 use crate::coconut::tests::FakeChainState;
 use nym_coconut_dkg_common::types::EpochState;
@@ -110,23 +107,40 @@ pub(crate) async fn derive_keypairs(controllers: &mut [TestingDkgController], re
 }
 
 pub(crate) async fn validate_keys(controllers: &mut [TestingDkgController], resharing: bool) {
-    todo!()
-    // let mut clients_and_states = derive_keypairs(db).await;
-    // for controller in clients_and_states.iter_mut() {
-    //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-    //         .await
-    //         .unwrap();
-    // }
-    // clients_and_states
+    let epoch = controllers[0]
+        .chain_state
+        .lock()
+        .unwrap()
+        .dkg_epoch
+        .epoch_id;
+
+    for controller in controllers.iter_mut() {
+        controller
+            .verification_key_validation(epoch, resharing)
+            .await
+            .unwrap();
+    }
+
+    let mut guard = controllers[0].chain_state.lock().unwrap();
+    guard.dkg_epoch.state = EpochState::VerificationKeyFinalization { resharing }
 }
 
 pub(crate) async fn finalize(controllers: &mut [TestingDkgController], resharing: bool) {
-    todo!()
-    // let mut clients_and_states = validate_keys(db).await;
-    // for controller in clients_and_states.iter_mut() {
-    //     verification_key_finalization(&controller.dkg_client, &mut controller.state, false)
-    //         .await
-    //         .unwrap();
-    // }
-    // clients_and_states
+    let epoch = controllers[0]
+        .chain_state
+        .lock()
+        .unwrap()
+        .dkg_epoch
+        .epoch_id;
+
+    for controller in controllers.iter_mut() {
+        todo!()
+        // controller
+        //     .verification_key_finalization(epoch, resharing)
+        //     .await
+        //     .unwrap();
+    }
+
+    let mut guard = controllers[0].chain_state.lock().unwrap();
+    guard.dkg_epoch.state = EpochState::InProgress {}
 }

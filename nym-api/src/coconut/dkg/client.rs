@@ -35,6 +35,10 @@ impl DkgClient {
         self.inner.address().await
     }
 
+    pub(crate) async fn dkg_contract_address(&self) -> Result<AccountId, CoconutError> {
+        self.inner.dkg_contract_address().await
+    }
+
     pub(crate) async fn get_current_epoch(&self) -> Result<Epoch, CoconutError> {
         self.inner.get_current_epoch().await
     }

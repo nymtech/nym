@@ -64,7 +64,14 @@ pub fn to_cosmos_msg(
     Ok(msg)
 }
 
+// DKG SAFETY:
+// each legit verification proposal will only contain a single execute msg,
+// if they have more than one, we can safely ignore it
 pub fn owner_from_cosmos_msgs(msgs: &[CosmosMsg]) -> Option<Addr> {
+    if msgs.len() != 1 {
+        return None
+    }
+    
     if let Some(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: _,
         msg,

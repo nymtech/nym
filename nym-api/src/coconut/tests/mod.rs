@@ -64,6 +64,8 @@ const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8g
 
 #[derive(Debug)]
 pub(crate) struct FakeChainState {
+    pub(crate) dkg_contract: AccountId,
+
     pub(crate) dealers: HashMap<NodeIndex, DealerDetails>,
     pub(crate) past_dealers: HashMap<NodeIndex, DealerDetails>,
 
@@ -90,6 +92,7 @@ pub(crate) struct FakeChainState {
 impl Default for FakeChainState {
     fn default() -> Self {
         FakeChainState {
+            dkg_contract: AccountId::new("n", &[69u8; 32]).unwrap(),
             dealers: HashMap::new(),
             past_dealers: Default::default(),
 
@@ -248,6 +251,10 @@ impl super::client::Client for DummyClient {
         self.validator_address.clone()
     }
 
+    async fn dkg_contract_address(&self) -> Result<AccountId> {
+        Ok(self.state.lock().unwrap().dkg_contract.clone())
+    }
+
     async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse> {
         todo!()
         // Ok(self
@@ -274,15 +281,14 @@ impl super::client::Client for DummyClient {
     }
 
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>> {
-        todo!()
-        // Ok(self
-        //     .state
-        //     .lock()
-        //     .unwrap()
-        //     .proposals
-        //     .values()
-        //     .cloned()
-        //     .collect())
+        Ok(self
+            .state
+            .lock()
+            .unwrap()
+            .proposals
+            .values()
+            .cloned()
+            .collect())
     }
 
     async fn get_spent_credential(
@@ -427,16 +433,15 @@ impl super::client::Client for DummyClient {
         vote_yes: bool,
         _fee: Option<Fee>,
     ) -> Result<()> {
-        todo!()
-        // if let Some(proposal) = self.state.lock().unwrap().proposals.get_mut(&proposal_id) {
-        //     // for now, just suppose that every vote is honest
-        //     if !vote_yes {
-        //         proposal.status = cw3::Status::Rejected;
-        //     } else if vote_yes && proposal.status == cw3::Status::Open {
-        //         proposal.status = cw3::Status::Passed;
-        //     }
-        // }
-        // Ok(())
+        if let Some(proposal) = self.state.lock().unwrap().proposals.get_mut(&proposal_id) {
+            // for now, just suppose that every vote is honest
+            if !vote_yes {
+                proposal.status = cw3::Status::Rejected;
+            } else if vote_yes && proposal.status == cw3::Status::Open {
+                proposal.status = cw3::Status::Passed;
+            }
+        }
+        Ok(())
     }
 
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
@@ -541,6 +546,7 @@ impl super::client::Client for DummyClient {
         resharing: bool,
     ) -> Result<ExecuteResult> {
         let address = self.validator_address.to_string();
+        let dkg_contract = self.state.lock().unwrap().dkg_contract.clone();
 
         let Some(dealer_details) = self.get_dealer_by_address(&address).await else {
             // Just throw some error, not really the correct one
@@ -588,7 +594,7 @@ impl super::client::Client for DummyClient {
                 percentage: Decimal::from_ratio(2u32, 3u32),
                 total_weight: 100,
             },
-            proposer: Addr::unchecked(self.validator_address.as_ref()),
+            proposer: Addr::unchecked(dkg_contract.as_ref()),
             deposit: None,
         };
         guard.proposals.insert(proposal_id, proposal);

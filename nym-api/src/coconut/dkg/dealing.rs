@@ -60,16 +60,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
         // ASSUMPTION: all dealers see the same contract data, i.e. if one fails to decode and verify the receiver's key,
         // all of them will
-        let filtered_receivers: BTreeMap<_, _> = self
-            .state
-            .dkg_state(epoch_id)?
-            .dealers
-            .iter()
-            .filter_map(|(index, dealer)| match &dealer.state {
-                ParticipantState::Invalid(_) => None,
-                ParticipantState::VerifiedKey(key) => Some((*index, *key.public_key())),
-            })
-            .collect();
+        let filtered_receivers = self.state.valid_epoch_receivers_keys(epoch_id)?;
 
         let dbg_receivers = filtered_receivers.keys().collect::<Vec<_>>();
         debug!("generating dealings with threshold {threshold} for receivers: {dbg_receivers:?} with the following spec: {spec:?}. Our index is {dealer_index}");
@@ -283,7 +274,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             .expected_threshold = Some(threshold);
 
         // establish our receiver index
-        let sorted_dealers = &self.state.dkg_state(epoch_id)?.dealers;
+        let sorted_dealers = &self.state.dkg_state(epoch_id)?.dealing_exchange.dealers;
         let Some(receiver_index) = sorted_dealers.keys().position(|idx| idx == &dealer_index)
         else {
             // this branch should be impossible as `dealing_exchange` should never be called unless we're actually a dealer
@@ -452,7 +443,11 @@ pub(crate) mod tests {
         let key_size = controller.dkg_client.get_contract_state().await?.key_size;
 
         // initial state
-        assert!(controller.state.dkg_state(epoch)?.dealers.is_empty());
+        assert!(controller
+            .state
+            .dealing_exchange_state(epoch)?
+            .dealers
+            .is_empty());
         assert!(controller
             .state
             .dealing_exchange_state(epoch)?
@@ -473,7 +468,7 @@ pub(crate) mod tests {
             .collect::<Vec<_>>();
         let dealers = controller
             .state
-            .dkg_state(epoch)?
+            .dealing_exchange_state(epoch)?
             .dealers
             .values()
             .map(|p| (p.assigned_index, p.unwrap_key()))

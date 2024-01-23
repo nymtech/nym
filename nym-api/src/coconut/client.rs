@@ -19,6 +19,8 @@ use nym_validator_client::nyxd::{AccountId, Fee, Hash, TxResponse};
 #[async_trait]
 pub trait Client {
     async fn address(&self) -> AccountId;
+
+    async fn dkg_contract_address(&self) -> Result<AccountId>;
     async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse>;
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse>;
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>>;

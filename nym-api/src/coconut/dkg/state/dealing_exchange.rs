@@ -5,11 +5,13 @@ use super::serde_helpers::generated_dealings;
 use nym_coconut_dkg_common::types::DealingIndex;
 use nym_dkg::{Dealing, NodeIndex};
 use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use crate::coconut::dkg::state::DkgParticipant;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct DealingExchangeState {
-    // pub(crate) assigned_index: Option<NodeIndex>,
+    pub(crate) dealers: BTreeMap<NodeIndex, DkgParticipant>,
+
     #[serde(with = "generated_dealings")]
     pub(crate) generated_dealings: HashMap<DealingIndex, Dealing>,
 

@@ -225,7 +225,7 @@ impl Default for RewardingRatios {
 impl RewardingRatios {
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
         if self.block_signing + self.credential_verification + self.credential_issuance != 1.0 {
-            todo!()
+            return Err(NymRewarderError::InvalidRewardingRatios { ratios: *self });
         }
         Ok(())
     }

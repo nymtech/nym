@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::RewardingRatios;
 use nym_coconut::CoconutError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -50,7 +51,7 @@ pub enum NymRewarderError {
     NyxdFailure(#[from] NyxdError),
 
     #[error("the provided rewarding ratios don't add up to 1. ratios: {ratios:?}")]
-    InvalidRewardingRatios { ratios: Vec<f32> },
+    InvalidRewardingRatios { ratios: RewardingRatios },
 
     #[error("chain scraping failure: {source}")]
     ScraperFailure {

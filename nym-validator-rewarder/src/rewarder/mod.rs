@@ -86,6 +86,10 @@ impl Rewarder {
         };
 
         let epoch_signing = if config.block_signing.enabled {
+            if config.block_signing.whitelist.is_empty() {
+                return Err(NymRewarderError::EmptyBlockSigningWhitelist);
+            }
+
             let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
 
             Some(EpochSigning {
@@ -97,6 +101,10 @@ impl Rewarder {
         };
 
         let credential_issuance = if config.issuance_monitor.enabled {
+            if config.block_signing.whitelist.is_empty() {
+                return Err(NymRewarderError::EmptyCredentialIssuanceWhitelist);
+            }
+
             Some(CredentialIssuance::new(current_epoch, &nyxd_client).await?)
         } else {
             None

@@ -156,6 +156,12 @@ pub enum NymRewarderError {
 
     #[error("the scraper websocket endpoint hasn't been provided")]
     UnavailableWebsocketUrl,
+
+    #[error("block signing rewarding is enabled, but the validator whitelist is empty")]
+    EmptyBlockSigningWhitelist,
+
+    #[error("credential issuance rewarding is enabled, but the validator whitelist is empty")]
+    EmptyCredentialIssuanceWhitelist,
 }
 
 #[derive(Debug)]

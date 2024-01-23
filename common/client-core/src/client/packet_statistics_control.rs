@@ -9,7 +9,11 @@ use crate::spawn_future;
 
 // Time interval between reporting packet statistics
 const PACKET_REPORT_INTERVAL_SECS: u64 = 2;
+// Interval for taking snapshots of the packet statistics
 const SNAPSHOT_INTERVAL_MS: u64 = 500;
+// When computing rates, we include snapshots that are up to this old. We set it to some odd number
+// a tad larger than an integer number of snapshot intervals, so that we don't have to worry about
+// threshold effects
 const RECORDING_WINDOW_MS: u64 = 1700;
 
 #[derive(Default, Debug, Clone)]
@@ -142,6 +146,7 @@ impl std::ops::Sub for PacketStatistics {
     }
 }
 
+#[derive(Debug, Clone)]
 struct PacketRates {
     real_packets_sent: f64,
     real_packets_sent_size: f64,
@@ -194,6 +199,39 @@ impl From<PacketStatistics> for PacketRates {
     }
 }
 
+impl std::ops::Sub for PacketRates {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            real_packets_sent: self.real_packets_sent - rhs.real_packets_sent,
+            real_packets_sent_size: self.real_packets_sent_size - rhs.real_packets_sent_size,
+            cover_packets_sent: self.cover_packets_sent - rhs.cover_packets_sent,
+            cover_packets_sent_size: self.cover_packets_sent_size - rhs.cover_packets_sent_size,
+
+            real_packets_received: self.real_packets_received - rhs.real_packets_received,
+            real_packets_received_size: self.real_packets_received_size
+                - rhs.real_packets_received_size,
+            cover_packets_received: self.cover_packets_received - rhs.cover_packets_received,
+            cover_packets_received_size: self.cover_packets_received_size
+                - rhs.cover_packets_received_size,
+
+            total_acks_received: self.total_acks_received - rhs.total_acks_received,
+            total_acks_received_size: self.total_acks_received_size - rhs.total_acks_received_size,
+            real_acks_received: self.real_acks_received - rhs.real_acks_received,
+            real_acks_received_size: self.real_acks_received_size - rhs.real_acks_received_size,
+            cover_acks_received: self.cover_acks_received - rhs.cover_acks_received,
+            cover_acks_received_size: self.cover_acks_received_size - rhs.cover_acks_received_size,
+
+            real_packets_queued: self.real_packets_queued - rhs.real_packets_queued,
+            retransmissions_queued: self.retransmissions_queued - rhs.retransmissions_queued,
+            reply_surbs_queued: self.reply_surbs_queued - rhs.reply_surbs_queued,
+            additional_reply_surbs_queued: self.additional_reply_surbs_queued
+                - rhs.additional_reply_surbs_queued,
+        }
+    }
+}
+
 impl std::ops::Div<f64> for PacketRates {
     type Output = Self;
 
@@ -227,13 +265,12 @@ impl std::ops::Div<f64> for PacketRates {
 impl PacketRates {
     fn summary(&self) -> String {
         format!(
-            "rx: {}/s (real: {}/s, acks: {}/s), tx: {}/s (real: {}/s), mix packet loss: {:.2}",
+            "rx: {}/s (real: {}/s, acks: {}/s), tx: {}/s (real: {}/s)",
             bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
             bibytes2(self.real_packets_received_size),
             bibytes2(self.total_acks_received_size),
             bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
             bibytes2(self.real_packets_sent_size),
-            self.retransmissions_queued / self.real_packets_queued
         )
     }
 }
@@ -293,6 +330,9 @@ pub(crate) struct PacketStatisticsControl {
     // We keep snapshots of the statistics over time so we can compute rates, and also keeping the
     // full history allows for some more fancy averaging if we want to do that.
     history: VecDeque<(Instant, PacketStatistics)>,
+
+    // Keep previous rates so that we can detect notable events
+    rates: VecDeque<(Instant, PacketRates)>,
 }
 
 impl PacketStatisticsControl {
@@ -304,11 +344,13 @@ impl PacketStatisticsControl {
                 stats_rx,
                 stats: PacketStatistics::default(),
                 history: VecDeque::new(),
+                rates: VecDeque::new(),
             },
             PacketStatisticsReporter::new(stats_tx),
         )
     }
 
+    // Add the current stats to the history, and remove old ones.
     fn update_history(&mut self) {
         // Update latest
         self.history.push_back((Instant::now(), self.stats.clone()));
@@ -325,6 +367,9 @@ impl PacketStatisticsControl {
     }
 
     fn compute_rates(&self) -> Option<PacketRates> {
+        // NOTE: consider changing this to compute rates over the history instead of using current
+        // stats
+
         // Do basic averaging over the entire history, which just uses the first and last
         if let Some((start, start_stats)) = self.history.front() {
             let duration_secs = Instant::now().duration_since(*start).as_secs_f64();
@@ -336,12 +381,58 @@ impl PacketStatisticsControl {
         }
     }
 
+    fn update_rates(&mut self) {
+        // Update latest
+        if let Some(rates) = self.compute_rates() {
+            self.rates.push_back((Instant::now(), rates));
+        }
+
+        // Filter out old ones
+        let recording_window = Instant::now() - Duration::from_millis(RECORDING_WINDOW_MS);
+        while self
+            .rates
+            .front()
+            .map_or(false, |&(t, _)| t < recording_window)
+        {
+            self.rates.pop_front();
+        }
+    }
+
+    fn report_rates(&self) {
+        if let Some((_, rates)) = self.rates.back() {
+            log::info!("{}", rates.summary());
+        }
+    }
+
     fn report_counters(&self) {
         log::trace!("packet statistics: {:?}", &self.stats);
         let (summary_sent, summary_recv) = self.stats.summary();
         log::debug!("{}", summary_sent);
         log::debug!("{}", summary_recv);
-        log::info!("retransmissions: {}", self.stats.retransmissions_queued);
+    }
+
+    fn check_for_notable_events(&self) {
+        if let Some((_, rates)) = self.rates.back() {
+            // If we get a burst of retransmissions
+            if rates.retransmissions_queued > 0.0 {
+                log::warn!("retransmissions: {} pkt/s", rates.retransmissions_queued);
+            }
+            if rates.total_acks_received > 0.0 {
+                log::info!("acks: {:.1} pkt/s", rates.total_acks_received);
+            }
+
+            // Check if there is a sudden increase in acks received
+            if let Some((_, rates0)) = self.rates.front() {
+                let delta = rates.clone() - rates0.clone();
+                if delta.total_acks_received > 10.0 {
+                    log::warn!(
+                        "ack rate increased from {:.1} to {:.1} pkt/s",
+                        rates0.total_acks_received,
+                        rates.total_acks_received
+                    );
+                }
+            }
+        }
     }
 
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
@@ -366,11 +457,11 @@ impl PacketStatisticsControl {
                 },
                 _ = snapshot_interval.tick() => {
                     self.update_history();
+                    self.update_rates();
                 }
                 _ = interval.tick() => {
-                    if let Some(rates) = self.compute_rates() {
-                        log::info!("{}", rates.summary());
-                    }
+                    self.report_rates();
+                    self.check_for_notable_events();
                     self.report_counters();
                 }
                 _ = shutdown.recv_with_delay() => {

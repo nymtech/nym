@@ -280,7 +280,7 @@ pub struct IssuanceMonitor {
 impl Default for IssuanceMonitor {
     fn default() -> Self {
         IssuanceMonitor {
-            enabled: true,
+            enabled: false,
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             min_validate_per_issuer: DEFAULT_MONITOR_MIN_VALIDATE,
             sampling_rate: DEFAULT_MONITOR_SAMPLING_RATE,

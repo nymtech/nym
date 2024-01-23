@@ -239,7 +239,7 @@ impl Rewarder {
 
         if let Some(ref credential_issuance) = self.credential_issuance {
             credential_issuance.start_monitor(
-                self.config.issuance_monitor,
+                self.config.issuance_monitor.clone(),
                 self.nyxd_client.clone(),
                 task_manager.subscribe(),
             );

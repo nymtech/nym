@@ -9,7 +9,7 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::io;
@@ -238,19 +238,26 @@ pub struct NyxdScraper {
     // TODO: debug with everything that's currently hardcoded in the scraper
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Copy)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BlockSigning {
     /// Specifies whether credential issuance for block signing is enabled.
     pub enabled: bool,
+
+    /// List of validators that will receive rewards for block signing.
+    /// If not on the list, the validator will be treated as if it had 0 voting power.
+    pub whitelist: Vec<AccountId>,
 }
 
 impl Default for BlockSigning {
     fn default() -> Self {
-        BlockSigning { enabled: true }
+        BlockSigning {
+            enabled: true,
+            whitelist: vec![],
+        }
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Copy)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct IssuanceMonitor {
     /// Specifies whether credential issuance monitoring (and associated rewards) are enabled.
     pub enabled: bool,
@@ -264,6 +271,10 @@ pub struct IssuanceMonitor {
 
     /// The sampling rate of the issued credentials
     pub sampling_rate: f64,
+
+    /// List of validators that will receive rewards for credential issuance.
+    /// If not on the list, the validator will be treated as if it hadn't issued a single credential.
+    pub whitelist: Vec<AccountId>,
 }
 
 impl Default for IssuanceMonitor {
@@ -273,6 +284,7 @@ impl Default for IssuanceMonitor {
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             min_validate_per_issuer: DEFAULT_MONITOR_MIN_VALIDATE,
             sampling_rate: DEFAULT_MONITOR_SAMPLING_RATE,
+            whitelist: vec![],
         }
     }
 }

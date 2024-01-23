@@ -40,7 +40,13 @@ credential_verification = {{ rewarding.ratios.credential_verification }}
 [block_signing]
 # Specifies whether credential issuance for block signing is enabled.
 enabled = {{ block_signing.enabled }}
-    
+
+# List of validators that will receive rewards for block signing.
+# If not on the list, the validator will be treated as if it had 0 voting power.
+whitelist = [
+    # needs to be manually populated
+]
+ 
     
 [issuance_monitor]
 # Specifies whether credential issuance monitoring (and associated rewards) are enabled.
@@ -54,6 +60,12 @@ min_validate_per_issuer = {{ issuance_monitor.min_validate_per_issuer }}
 
 # The sampling rate of the issued credentials
 sampling_rate = {{ issuance_monitor.sampling_rate }}
+
+# List of validators that will receive rewards for credential issuance.
+# If not on the list, the validator will be treated as if it hadn't issued a single credential.
+whitelist = [
+    # needs to be manually populated
+]
     
 [nyxd_scraper]
 # Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`

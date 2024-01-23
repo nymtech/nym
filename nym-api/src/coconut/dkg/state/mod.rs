@@ -524,6 +524,10 @@ impl State {
             .receiver_index
             .ok_or(CoconutError::UnavailableReceiverIndex { epoch_id })
     }
+    
+    pub fn proposal_id(&self, epoch_id: EpochId) -> Result<u64, CoconutError>  {
+        self.key_derivation_state(epoch_id)?.proposal_id.ok_or(CoconutError::UnavailableProposalId {epoch_id})
+    }
 
     pub fn persistent_state_path(&self) -> &Path {
         self.persistent_state_path.as_path()

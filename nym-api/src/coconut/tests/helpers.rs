@@ -134,11 +134,10 @@ pub(crate) async fn finalize(controllers: &mut [TestingDkgController], resharing
         .epoch_id;
 
     for controller in controllers.iter_mut() {
-        todo!()
-        // controller
-        //     .verification_key_finalization(epoch, resharing)
-        //     .await
-        //     .unwrap();
+        controller
+            .verification_key_finalization(epoch, resharing)
+            .await
+            .unwrap();
     }
 
     let mut guard = controllers[0].chain_state.lock().unwrap();

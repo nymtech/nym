@@ -7,7 +7,7 @@ use crate::coconut::{self, State};
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use cosmwasm_std::{coin, to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
-use cw3::ProposalResponse;
+use cw3::{ProposalResponse, VoteResponse};
 use cw4::{Cw4Contract, MemberResponse};
 use nym_api_requests::coconut::models::{IssuedCredentialBody, IssuedCredentialResponse};
 use nym_api_requests::coconut::{
@@ -268,16 +268,15 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse> {
-        todo!()
-        // self.state
-        //     .lock()
-        //     .unwrap()
-        //     .proposals
-        //     .get(&proposal_id)
-        //     .cloned()
-        //     .ok_or(CoconutError::IncorrectProposal {
-        //         reason: String::from("proposal not found"),
-        //     })
+        self.state
+            .lock()
+            .unwrap()
+            .proposals
+            .get(&proposal_id)
+            .cloned()
+            .ok_or(CoconutError::IncorrectProposal {
+                reason: String::from("proposal not found"),
+            })
     }
 
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>> {
@@ -289,6 +288,10 @@ impl super::client::Client for DummyClient {
             .values()
             .cloned()
             .collect())
+    }
+
+    async fn get_vote(&self, proposal_id: u64, voter: String) -> Result<VoteResponse> {
+        todo!()
     }
 
     async fn get_spent_credential(
@@ -445,18 +448,17 @@ impl super::client::Client for DummyClient {
     }
 
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
-        todo!()
-        // self.state
-        //     .lock()
-        //     .unwrap()
-        //     .proposals
-        //     .entry(proposal_id)
-        //     .and_modify(|prop| {
-        //         if prop.status == cw3::Status::Passed {
-        //             prop.status = cw3::Status::Executed
-        //         }
-        //     });
-        // Ok(())
+        self.state
+            .lock()
+            .unwrap()
+            .proposals
+            .entry(proposal_id)
+            .and_modify(|prop| {
+                if prop.status == cw3::Status::Passed {
+                    prop.status = cw3::Status::Executed
+                }
+            });
+        Ok(())
     }
 
     async fn advance_epoch_state(&self) -> Result<()> {

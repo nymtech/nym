@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::Result;
-use cw3::ProposalResponse;
+use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse, DealingStatusResponse};
@@ -24,6 +24,7 @@ pub trait Client {
     async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse>;
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse>;
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>>;
+    async fn get_vote(&self, proposal_id: u64, voter: String) -> Result<VoteResponse>;
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,

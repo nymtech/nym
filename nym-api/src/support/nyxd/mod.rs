@@ -6,7 +6,7 @@ use crate::epoch_operations::MixnodeWithPerformance;
 use crate::support::config::Config;
 use anyhow::Result;
 use async_trait::async_trait;
-use cw3::ProposalResponse;
+use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use nym_coconut_dkg_common::dealer::DealingStatusResponse;
@@ -373,6 +373,14 @@ impl crate::coconut::client::Client for Client {
 
     async fn list_proposals(&self) -> crate::coconut::error::Result<Vec<ProposalResponse>> {
         Ok(nyxd_query!(self, get_all_proposals().await?))
+    }
+
+    async fn get_vote(
+        &self,
+        proposal_id: u64,
+        voter: String,
+    ) -> crate::coconut::error::Result<VoteResponse> {
+        Ok(nyxd_query!(self, query_vote(proposal_id, voter).await?))
     }
 
     async fn get_spent_credential(

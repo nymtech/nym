@@ -160,18 +160,20 @@ pub(crate) struct MonitoringResultsInner {
 
 impl From<MonitoringResultsInner> for CredentialIssuanceResults {
     fn from(value: MonitoringResultsInner) -> Self {
-        let total_issued = value
-            .operators
-            .values()
-            .map(|o| {
-                let operator_issued: u32 = o
+        let mut total_issued = 0;
+
+        for operator in value.operators.values() {
+            // if this validator is NOT whitelisted, do not increase the total VP
+            if operator.whitelisted {
+                let operator_issued: u32 = operator
                     .per_epoch
                     .values()
                     .map(|e| e.issued_since_monitor_started)
                     .sum();
-                operator_issued
-            })
-            .sum();
+
+                total_issued += operator_issued
+            }
+        }
 
         CredentialIssuanceResults {
             total_issued_partial_credentials: total_issued,

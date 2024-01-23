@@ -100,7 +100,11 @@ impl EpochSigningResults {
             let vp: u64 = raw_results.voting_power.try_into().unwrap_or_default();
             let signed: u64 = raw_results.signed_blocks.try_into().unwrap_or_default();
 
-            let voting_power_ratio = Decimal::from_ratio(vp, total_vp_u64);
+            let voting_power_ratio = if raw_results.whitelisted {
+                Decimal::from_ratio(vp, total_vp_u64)
+            } else {
+                Decimal::zero()
+            };
 
             debug_assert!(signed <= blocks_u64);
             let ratio_signed = Decimal::from_ratio(signed, blocks_u64);

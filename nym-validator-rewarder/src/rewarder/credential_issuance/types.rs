@@ -163,7 +163,7 @@ impl From<MonitoringResultsInner> for CredentialIssuanceResults {
         let mut total_issued = 0;
 
         for operator in value.operators.values() {
-            // if this validator is NOT whitelisted, do not increase the total VP
+            // if this validator is NOT whitelisted, do not increase the total issued credentials
             if operator.whitelisted {
                 let operator_issued: u32 = operator
                     .per_epoch
@@ -182,7 +182,7 @@ impl From<MonitoringResultsInner> for CredentialIssuanceResults {
                 .operators
                 .into_values()
                 .map(|runner| {
-                    let issued_ratio = if total_issued == 0 {
+                    let issued_ratio = if total_issued == 0 || !runner.whitelisted {
                         Decimal::zero()
                     } else {
                         Decimal::from_ratio(runner.issued_credentials(), total_issued)

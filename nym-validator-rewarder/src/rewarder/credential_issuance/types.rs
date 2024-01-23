@@ -324,10 +324,11 @@ impl CredentialIssuanceResults {
             .iter()
             .inspect(|a| {
                 info!(
-                    "operator {} will receive {} at address {} for credential issuance work",
+                    "operator {} will receive {} at address {} for credential issuance work (whitelisted: {})",
                     a.api_runner,
                     a.reward_amount(budget),
                     a.runner_account,
+                    a.whitelisted
                 );
             })
             .map(|v| (v.runner_account.clone(), vec![v.reward_amount(budget)]))

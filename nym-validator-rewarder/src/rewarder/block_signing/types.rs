@@ -141,10 +141,11 @@ impl EpochSigningResults {
             .iter()
             .inspect(|v| {
                 info!(
-                    "validator {} will receive {} at address {} for block signing work",
+                    "validator {} will receive {} at address {} for block signing work (whitelisted: {})",
                     v.moniker(),
                     v.reward_amount(budget),
-                    v.operator_account
+                    v.operator_account,
+                    v.whitelisted
                 );
             })
             .map(|v| (v.operator_account.clone(), vec![v.reward_amount(budget)]))

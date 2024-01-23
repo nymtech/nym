@@ -152,6 +152,9 @@ pub enum CoconutError {
     #[error("the threshold value for epoch {epoch_id} is not available")]
     UnavailableThreshold { epoch_id: EpochId },
 
+    #[error("the proposal id value for epoch {epoch_id} is not available")]
+    UnavailableProposalId { epoch_id: EpochId },
+
     #[error("insufficient number of dealings provided to derive the key")]
     InsufficientDealings {
         // TODO: details

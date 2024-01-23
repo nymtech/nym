@@ -1,9 +1,8 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::controller::error::DkgError;
-use crate::coconut::dkg::key_finalization::verification_key_finalization;
 use crate::coconut::dkg::state::{ConsistentState, PersistentState, State};
 use crate::coconut::keys::KeyPair as CoconutKeyPair;
 use crate::nyxd;
@@ -173,7 +172,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     ) -> Result<(), DkgError> {
         debug!("DKG: verification key finalization (resharing: {resharing})");
 
-        verification_key_finalization(&self.dkg_client, &mut self.state, resharing)
+        self.verification_key_finalization(epoch_id, resharing)
             .await
             .map_err(|source| DkgError::VerificationKeyFinalizationFailure { source })
     }

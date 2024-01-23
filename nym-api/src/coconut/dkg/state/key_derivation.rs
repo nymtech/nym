@@ -16,8 +16,11 @@ pub struct KeyDerivationState {
     #[serde(with = "recovered_keys")]
     pub(crate) derived_partials: BTreeMap<DealingIndex, RecoveredVerificationKeys>,
 
+    pub(crate) proposal_id: Option<u64>,
+    
     pub(crate) completed: bool,
-    // because we couldn't decrypt shares or there were no shares, etc
+    
+    // TODO: because we couldn't decrypt shares or there were no shares, etc
     // failed:
 }
 

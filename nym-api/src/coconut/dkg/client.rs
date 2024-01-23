@@ -3,7 +3,7 @@
 
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
-use cw3::ProposalResponse;
+use cw3::{ProposalResponse, Status};
 use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse};
 use nym_coconut_dkg_common::types::{
@@ -117,6 +117,13 @@ impl DkgClient {
 
     pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, CoconutError> {
         self.inner.list_proposals().await
+    }
+
+    pub(crate) async fn get_proposal_status(
+        &self,
+        proposal_id: u64,
+    ) -> Result<Status, CoconutError> {
+        self.inner.get_proposal(proposal_id).await.map(|p| p.status)
     }
 
     pub(crate) async fn advance_epoch_state(&self) -> Result<(), CoconutError> {

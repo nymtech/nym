@@ -4,11 +4,13 @@
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct FinalizationState {}
+pub struct FinalizationState {
+    pub(crate) completed: bool,
+}
 
 impl FinalizationState {
-    /// Specifies whether this dealer has already registered in the particular DKG epoch
+    /// Specifies whether this (or another) dealer has already executed its verification proposal
     pub fn completed(&self) -> bool {
-        todo!()
+        self.completed
     }
 }

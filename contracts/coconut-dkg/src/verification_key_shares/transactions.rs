@@ -54,6 +54,7 @@ pub fn try_commit_verification_key_share(
         resharing,
         env.contract.address.to_string(),
         STATE.load(deps.storage)?.multisig_addr.to_string(),
+        // TODO: make this value configurable
         env.block
             .time
             .plus_seconds(BLOCK_TIME_FOR_VERIFICATION_SECS),

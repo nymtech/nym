@@ -450,7 +450,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &mut self,
         key: &VerificationKey,
         resharing: bool,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<u64, CoconutError> {
         debug!("submitting derived partial verification key to the contract");
         let res = self
             .dkg_client
@@ -468,8 +468,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             })?;
         debug!("Submitted own verification key share, proposal id {proposal_id} is attached to it. tx hash: {hash}");
 
-        // TODO: state.set_proposal_id(proposal_id);
-        Ok(())
+        Ok(proposal_id)
     }
 
     /// Third step of the DKG process during which the nym api will generate its Coconut keypair
@@ -528,11 +527,14 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             todo!()
         }
 
-        self.submit_partial_verification_key(coconut_keypair.keys.verification_key(), resharing)
+        let proposal_id = self.submit_partial_verification_key(coconut_keypair.keys.verification_key(), resharing)
             .await?;
 
         self.state.set_coconut_keypair(coconut_keypair).await;
-        self.state.key_derivation_state_mut(epoch_id)?.completed = true;
+        let derivation_state = self.state.key_derivation_state_mut(epoch_id)?;
+
+        derivation_state.completed = true;
+        derivation_state.proposal_id = Some(proposal_id);
 
         info!("DKG: Finished key derivation");
         Ok(())

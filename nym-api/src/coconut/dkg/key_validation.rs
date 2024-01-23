@@ -269,8 +269,7 @@ mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn validate_verification_key() -> anyhow::Result<()> {
-        let unused = 42;
-        let validators = 1;
+        let validators = 4;
 
         let mut controllers = initialise_controllers(validators);
         let chain = controllers[0].chain_state.clone();
@@ -298,19 +297,6 @@ mod tests {
         }
 
         Ok(())
-
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_validation(&db).await;
-        // for controller in clients_and_states.iter_mut() {
-        //     let proposal = db
-        //         .proposal_db
-        //         .read()
-        //         .unwrap()
-        //         .get(&controller.state.proposal_id_value().unwrap())
-        //         .unwrap()
-        //         .clone();
-        //     assert_eq!(proposal.status, Status::Passed);
-        // }
     }
 
     #[tokio::test]

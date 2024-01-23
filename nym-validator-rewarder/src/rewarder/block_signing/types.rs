@@ -15,6 +15,7 @@ pub struct ValidatorSigning {
     pub validator: models::Validator,
     pub staking_details: staking::Validator,
     pub operator_account: AccountId,
+    pub whitelisted: bool,
 
     pub voting_power_at_epoch_start: i64,
     pub voting_power_ratio: Decimal,
@@ -33,6 +34,10 @@ impl ValidatorSigning {
     }
 
     pub fn reward_amount(&self, signing_budget: &Coin) -> Coin {
+        if !self.whitelisted {
+            return Coin::new(0, &signing_budget.denom);
+        }
+
         let amount =
             Uint128::new(signing_budget.amount) * self.ratio_signed * self.voting_power_ratio;
 
@@ -51,13 +56,15 @@ pub struct EpochSigningResults {
 pub struct RawValidatorResult {
     pub signed_blocks: i32,
     pub voting_power: i64,
+    pub whitelisted: bool,
 }
 
 impl RawValidatorResult {
-    pub fn new(signed_blocks: i32, voting_power: i64) -> Self {
+    pub fn new(signed_blocks: i32, voting_power: i64, whitelisted: bool) -> Self {
         Self {
             signed_blocks,
             voting_power,
+            whitelisted,
         }
     }
 }
@@ -110,6 +117,7 @@ impl EpochSigningResults {
                 validator,
                 staking_details,
                 operator_account,
+                whitelisted: raw_results.whitelisted,
                 voting_power_at_epoch_start: raw_results.voting_power,
                 voting_power_ratio,
                 signed_blocks: raw_results.signed_blocks,

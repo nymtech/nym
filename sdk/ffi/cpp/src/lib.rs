@@ -1,10 +1,13 @@
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use anyhow::{anyhow, bail};
 use lazy_static::lazy_static;
 use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, ReconstructedMessage};
-use std::ffi::{c_char, c_int, CStr, CString};
-use std::sync::{Arc, Mutex};
-use std::mem::forget;
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
+use std::ffi::{c_char, c_int, CStr, CString};
+use std::mem::forget;
+use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
 /*
@@ -27,7 +30,7 @@ pub enum StatusCode {
     SelfAddrError = -3,
     SendMsgError = -4,
     ReplyError = -5,
-    ListenError = -6
+    ListenError = -6,
 }
 
 // pub type CIntCallback = extern "C" fn(i32);
@@ -39,7 +42,7 @@ pub type CMessageCallback = extern "C" fn(ReceivedMessage);
 pub struct ReceivedMessage {
     message: *const u8,
     size: usize,
-    sender_tag: *const c_char
+    sender_tag: *const c_char,
 }
 
 #[no_mangle]
@@ -86,7 +89,9 @@ fn get_self_address_internal(callback: CStringCallback) -> anyhow::Result<(), an
     if client.is_none() {
         bail!("Client is not yet initialised");
     }
-    let nym_client = client.as_ref().ok_or_else(|| anyhow!("could not get client as_ref()"))?;
+    let nym_client = client
+        .as_ref()
+        .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
     // get address as cstring
     let c_string = CString::new(nym_client.nym_address().to_string())?;
     // as_ptr() keeps ownership in rust unlike into_raw() so no need to free it
@@ -102,12 +107,17 @@ pub extern "C" fn send_message(recipient: *const c_char, message: *const c_char)
     }
 }
 
-fn send_message_internal(recipient: *const c_char, message: *const c_char) -> anyhow::Result<(), anyhow::Error> {
+fn send_message_internal(
+    recipient: *const c_char,
+    message: *const c_char,
+) -> anyhow::Result<(), anyhow::Error> {
     let client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if client.is_none() {
         bail!("Client is not yet initialised");
     }
-    let nym_client = client.as_ref().ok_or_else(|| anyhow!("could not get client as_ref()"))?;
+    let nym_client = client
+        .as_ref()
+        .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
     let c_str = unsafe {
         if recipient.is_null() {
@@ -143,19 +153,25 @@ pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> c_i
     }
 }
 
-fn reply_internal(recipient: *const c_char, message: *const c_char) -> anyhow::Result<(), anyhow::Error> {
+fn reply_internal(
+    recipient: *const c_char,
+    message: *const c_char,
+) -> anyhow::Result<(), anyhow::Error> {
     let client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if client.is_none() {
         bail!("Client is not yet initialised");
     }
-    let nym_client = client.as_ref().ok_or_else(|| anyhow!("could not get client as_ref()"))?;
+    let nym_client = client
+        .as_ref()
+        .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
     let recipient = unsafe {
         if recipient.is_null() {
             bail!("recipient is null");
         }
         let r_str = CStr::from_ptr(recipient).to_string_lossy().into_owned();
-        AnonymousSenderTag::try_from_base58_string(r_str).expect("could not construct AnonymousSenderTag from supplied value")
+        AnonymousSenderTag::try_from_base58_string(r_str)
+            .expect("could not construct AnonymousSenderTag from supplied value")
     };
     let message = unsafe {
         if message.is_null() {
@@ -185,7 +201,9 @@ fn listen_for_incoming_internal(callback: CMessageCallback) -> anyhow::Result<()
     if binding.is_none() {
         bail!("recipient is null");
     }
-    let client = binding.as_mut().ok_or_else(|| anyhow!("could not get client as_ref()"))?;
+    let client = binding
+        .as_mut()
+        .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
     RUNTIME.block_on(async move {
         let received = wait_for_non_empty_message(client).await?;
@@ -195,7 +213,11 @@ fn listen_for_incoming_internal(callback: CMessageCallback) -> anyhow::Result<()
         let sender_ptr = c_string.as_ptr();
         // stop deallocation when out of scope as passing raw ptr to it elsewhere
         forget(received);
-        let rec_for_c = ReceivedMessage { message: message_ptr, size: message_length, sender_tag: sender_ptr };
+        let rec_for_c = ReceivedMessage {
+            message: message_ptr,
+            size: message_length,
+            sender_tag: sender_ptr,
+        };
         callback(rec_for_c);
         Ok::<(), anyhow::Error>(())
     })?;
@@ -207,9 +229,10 @@ pub async fn wait_for_non_empty_message(
 ) -> anyhow::Result<ReconstructedMessage> {
     while let Some(mut new_message) = client.wait_for_messages().await {
         if !new_message.is_empty() {
-            return new_message.pop().ok_or_else(|| anyhow!("could not get client as_ref()"));
+            return new_message
+                .pop()
+                .ok_or_else(|| anyhow!("could not get client as_ref()"));
         }
     }
     bail!("(Rust) did not receive any non-empty message")
 }
-

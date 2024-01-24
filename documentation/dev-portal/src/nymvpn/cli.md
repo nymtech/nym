@@ -24,11 +24,11 @@ chmod u+x execute-nym-vpn-cli-binary.sh
 ```
 3. Run the script as root, turn of any VPN and run
 ```sh
-sudo ./execute-nym-vpn-cli-binary.sh
+sudo -E ./execute-nym-vpn-cli-binary.sh
 ```
 4. Verify the `nym-vpn-cli` binary: When prompted to verify `sha256sum` paste your correct one from the [release page]({{nym_vpn_latest_binary_url}}) including the binary name (all as one input with a space in between), for example:
 ```sh
-# Choose one according to the system you use, this is just an example
+# choose a correct one according to your binary, this is just an example
 96623ccc69bc4cc0e4e3e18528b6dae6be69f645d0a592d926a3158ce2d0c269  nym-vpn-cli_0.1.0_macos_x86_64.zip
 ```
 5. The script will automatically start the client. Follow the instructions:  

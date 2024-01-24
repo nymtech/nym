@@ -58,7 +58,7 @@ When running `sudo sh ./test.sh` you may see an error like: `93: current_time: n
 
 In case the automatic download of all the Gateways fail (and it shouldn't), you do an easy manual work around:
 
-1. Open the list of Gateways created by API [here](https://nymvpn.com/en/ccc/api/gateways)
+1. Open the list of Gateways created by API [here](https://nymvpn.com/en/alpha/api/gateways)
 2. On top click on `JSON` option (shall be default view) and `Save`
 3. Save it as `data.json` to the `nym-vpn-tests` folder
 4. Replace line 3 in the [script `tests.sh`](testing.md#testssh) with:

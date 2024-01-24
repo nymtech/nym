@@ -354,10 +354,7 @@ impl<C, St> GatewayClient<C, St> {
         msg: Message,
     ) -> Result<(), GatewayClientError> {
         match self.connection {
-            SocketState::Available(ref mut conn) => {
-                conn.send(msg).await?;
-                Ok(())
-            }
+            SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
                 if let Err(err) = partially_delegated.send_without_response(msg).await {
                     error!("failed to send message without response - {err}...");

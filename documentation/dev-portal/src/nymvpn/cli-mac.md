@@ -9,21 +9,18 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for MacOS
-2. Open terminal in the same directory and check the the `sha256sum` by running:
+2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
-# x86_64
-sha256sum ./nym-vpn-cli_0.1.0_macos_x86_64.zip
-
-# aarch64
-sha256sum ./nym-vpn-cli_0.1.0_macos_aarch64.zip
+echo "<SHA_STRING>" | shasum -a 256 -c
+# Example:
+echo "96623ccc69bc4cc0e4e3e18528b6dae6be69f645d0a592d926a3158ce2d0c269  nym-vpn-cli_0.1.0_macos_x86_64.zip" | shasum -a 256 -c
 ```
-3. Compare the output with the sha256 hash shared on the [release page]({{nym_vpn_latest_binary_url}})
-4. Extract files with `unzip` command or manually as you are used to
-5. Make executable by running:
+5. Extract files with `unzip` command or manually as you are used to
+6. Make executable by running:
 ```sh
 chmod u+x ./nym-vpn-cli
 ```
-6. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
+7. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
 ```sh
 curl -L "https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env" -o sandbox.env
 ```
@@ -35,7 +32,7 @@ curl -L "https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env"
 Make sure your terminal is open in the same directory as your `nym-vpn-cli` binary.
 
 
-1. Go to [nymvpn.com/en/alpha](https://nymvpn.com/en/alpha) to get the entire command with all the needed arguments' values and your wireguard private key for testing purposes 
+1. Go to [nymvpn.com/en/alpha](https://nymvpn.com/en/alpha) to get the entire command with all the needed arguments' values and your wireguard private key for testing purposes
 2. Run it as root with `sudo` - the command will look like this with specified arguments:
 ```sh
 sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WIREGUARD_IP>
@@ -72,7 +69,7 @@ Options:
       --exit-router-address <EXIT_ROUTER_ADDRESS>
           Mixnet recipient address
       --exit-gateway-id <EXIT_GATEWAY_ID>
-          
+
       --exit-router-country <EXIT_ROUTER_COUNTRY>
           Mixnet recipient address
       --enable-wireguard
@@ -101,7 +98,7 @@ Options:
 
 Here is a list of the options and their descriptions. Some are essential, some are more technical and not needed to be adjusted by users.
 
-**Fundamental commands and arguments**  
+**Fundamental commands and arguments**
 
 - `-c` is a path to the [Sandbox config](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) file saved as `sandbox.env`
 - `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`) from [here](https://nymvpn.com/en/alpha/api/gateways)

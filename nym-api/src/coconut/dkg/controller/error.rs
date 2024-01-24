@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::key_finalization::KeyFinalizationError;
+use crate::coconut::dkg::key_validation::KeyValidationError;
 use crate::coconut::error::CoconutError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -51,7 +52,7 @@ pub enum DkgError {
     #[error("failed to validate verification keys in the DKG contract: {source}")]
     VerificationKeyValidationFailure {
         #[source]
-        source: CoconutError,
+        source: KeyValidationError,
     },
 
     #[error("failed to finalize verification keys in the DKG contract: {source}")]

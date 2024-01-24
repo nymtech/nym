@@ -1,22 +1,68 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::api_routes::epoch_credentials;
-use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::controller::DkgController;
-use crate::coconut::dkg::state::State;
 use crate::coconut::error::CoconutError;
-use crate::coconut::helpers::accepted_vote_err;
 use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
 use cosmwasm_std::Addr;
-use cw3::{ProposalResponse, Status};
-use nym_coconut::tests::helpers::transpose_matrix;
+use cw3::{ProposalResponse, Status, Vote};
 use nym_coconut::{check_vk_pairing, Base58, VerificationKey};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_dkg_common::verification_key::{owner_from_cosmos_msgs, ContractVKShare};
 use nym_validator_client::nyxd::AccountId;
 use rand::{CryptoRng, RngCore};
 use std::collections::HashMap;
+use thiserror::Error;
+
+fn vote_matches(voted_yes: bool, chain_vote: Vote) -> bool {
+    if voted_yes && chain_vote == Vote::Yes {
+        true
+    } else {
+        !voted_yes && chain_vote == Vote::No
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum KeyValidationError {
+    #[error(transparent)]
+    CoconutError(#[from] CoconutError),
+
+    #[error("can't complete key validation without key derivation")]
+    IncompleteKeyDerivation,
+}
+
+#[derive(Debug, Error)]
+pub enum ShareRejectionReason {
+    #[error("{owner} does not appear to be present in the list of receivers for epoch {epoch_id}")]
+    NotAReceiver { epoch_id: EpochId, owner: Addr },
+
+    #[error("the share from {owner} for epoch {epoch_id} already appears as verified on chain!")]
+    AlreadyVerifiedOnChain { epoch_id: EpochId, owner: Addr },
+
+    #[error(
+        "the share from {owner} for epoch {epoch_id} does not use valid base58 encoding: {source}"
+    )]
+    MalformedKeyEncoding {
+        epoch_id: EpochId,
+        owner: Addr,
+        #[source]
+        source: nym_coconut::CoconutError,
+    },
+
+    #[error("did not derive partial keys for {owner} at index {receiver_index} for epoch {epoch_id} during the dealings exchange")]
+    MissingDerivedPartialKey {
+        epoch_id: EpochId,
+        owner: Addr,
+        receiver_index: usize,
+    },
+
+    #[error("the provided keys {owner} at index {receiver_index} for epoch {epoch_id} either did not match the partial keys derived during the dealings exchange or failed the local bilinear pairing consistency check")]
+    InconsistentKeys {
+        epoch_id: EpochId,
+        owner: Addr,
+        receiver_index: usize,
+    },
+}
 
 impl<R: RngCore + CryptoRng> DkgController<R> {
     fn filter_proposal(
@@ -49,7 +95,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
         // for each proposal, make sure it's a valid validation request;
         // if for some reason there exist multiple proposals from the same owner, choose the one
-        // with the higher id
+        // with the higher id (there might be multiple since we're grabbing them across epochs)
         for proposal in all_proposals {
             if let Some((owner, id)) = self.filter_proposal(&dkg_contract, &proposal) {
                 if let Some(old_id) = deduped_proposals.get(&owner) {
@@ -72,55 +118,133 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &self,
         epoch_id: EpochId,
         share: ContractVKShare,
-    ) -> Result<(), CoconutError> {
-        if share.verified {
-            todo!()
+    ) -> Result<(Option<bool>, Option<ShareRejectionReason>), KeyValidationError> {
+        fn reject(
+            reason: ShareRejectionReason,
+        ) -> Result<(Option<bool>, Option<ShareRejectionReason>), KeyValidationError> {
+            Ok((Some(false), Some(reason)))
         }
 
+        let owner = share.owner;
+
+        if share.verified {
+            error!("the share from {owner} has already been validated on chain - this should be impossible unless this machine is running seriously behind");
+            let reason = ShareRejectionReason::AlreadyVerifiedOnChain { epoch_id, owner };
+            // explicitly return 'None' for the vote as we don't have to (nor even should) vote for this share
+            return Ok((None, Some(reason)));
+        }
+
+        // get the receiver index [of the dealings] for this participant
         let Some(receiver_index) = self
             .state
             .valid_epoch_receivers(epoch_id)?
             .iter()
-            .position(|(addr, _)| addr == share.owner)
+            .position(|(addr, _)| addr == owner)
         else {
-            todo!()
+            return reject(ShareRejectionReason::NotAReceiver { epoch_id, owner });
         };
-
-        // EDGE CASE:
-        // make sure the receiver index of this receiver/dealer is within the size of the derived keys
 
         // attempt to recover the underlying key from its bs58 representation
         let recovered_key = match VerificationKey::try_from_bs58(share.share) {
             Ok(key) => key,
-            Err(err) => {
-                warn!(
-                    "failed to decode verification share from {}: {err}",
-                    share.owner
-                );
-                todo!()
+            Err(source) => {
+                return reject(ShareRejectionReason::MalformedKeyEncoding {
+                    epoch_id,
+                    owner,
+                    source,
+                });
             }
         };
 
+        // retrieve the key we have recovered ourselves during the dealings exchange
         let Some(self_derived) = self
             .state
             .key_derivation_state(epoch_id)?
             .derived_partials_for(receiver_index)
         else {
-            todo!()
+            return reject(ShareRejectionReason::MissingDerivedPartialKey {
+                epoch_id,
+                owner,
+                receiver_index,
+            });
         };
 
         if !check_vk_pairing(&BANDWIDTH_CREDENTIAL_PARAMS, &self_derived, &recovered_key) {
-            todo!()
+            return reject(ShareRejectionReason::InconsistentKeys {
+                epoch_id,
+                owner,
+                receiver_index,
+            });
         }
 
+        // all is good -> accept the keys!
+        Ok((Some(true), None))
+    }
+
+    async fn generate_votes(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<HashMap<u64, bool>, KeyValidationError> {
+        let proposals = self.get_validation_proposals().await?;
+        let vk_shares = self
+            .dkg_client
+            .get_verification_key_shares(epoch_id)
+            .await?;
+
+        let mut votes = HashMap::new();
+        for contract_share in vk_shares {
+            let owner = contract_share.owner.clone();
+            debug!("verifying vk share from {owner}");
+
+            // TODO: if this is our share, obviously vote for yes
+
+            // there's no point in checking anything if there doesn't exist an associated multisig proposal
+            let Some(proposal_id) = proposals.get(&owner) else {
+                warn!("there does not seem to exist proposal for share validation from {owner}");
+                continue;
+            };
+
+            let (vote, rejection_reason) = self.verify_share(epoch_id, contract_share).await?;
+            if let Some(vote) = vote {
+                votes.insert(*proposal_id, vote);
+            }
+            if let Some(rejection_reason) = rejection_reason {
+                warn!("rejecting share from {owner} (proposal: {proposal_id}): {rejection_reason}");
+            }
+        }
+
+        Ok(votes)
+    }
+
+    async fn resubmit_validation_votes(&self, epoch_id: EpochId) -> Result<(), KeyValidationError> {
+        let key_validation_state = self.state.key_validation_state(epoch_id)?;
+
+        for (&proposal, &vote) in &key_validation_state.votes {
+            // check whether we might have already voted on this particular proposal
+            // (the vote might have gotten stuck in the mempool)
+            let chain_vote = self.dkg_client.get_vote(proposal).await?;
+            if let Some(chain_vote) = chain_vote.vote {
+                warn!("we have already voted for proposal {proposal} before - we probably crashed or the chain timed out!");
+
+                // that's an extremely weird behaviour -> perhaps the user voted manually outside the nym-api,
+                // but we can't do anything about it
+                if !vote_matches(vote, chain_vote.vote) {
+                    error!("our vote for proposal {proposal} doesn't match the on-chain data! We decided to vote '{vote}' but the chain has {:?}", chain_vote.vote);
+                }
+                continue;
+            }
+            warn!("we have already decided on the vote status for proposal {proposal} before (vote: {vote}), but failed to submit it");
+            self.dkg_client
+                .vote_verification_key_share(proposal, vote)
+                .await?;
+        }
         Ok(())
     }
 
     pub(crate) async fn verification_key_validation(
         &mut self,
         epoch_id: EpochId,
-        resharing: bool,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), KeyValidationError> {
         let key_validation_state = self.state.key_validation_state(epoch_id)?;
 
         // check if we have already validated and voted for all keys
@@ -131,6 +255,10 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             return Ok(());
         }
 
+        if !self.state.key_derivation_state(epoch_id)?.completed {
+            return Err(KeyValidationError::IncompleteKeyDerivation);
+        }
+
         // FAILURE CASE:
         // check if we have already verified the keys, but some voting txs either didn't get executed
         // or got executed without us knowing about it
@@ -138,41 +266,20 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             debug!(
                 "we have already validated all keys for this epoch, but might have failed to vote"
             );
-            // dkg_client.query_vote to check if our vote is there
-            todo!()
+            self.resubmit_validation_votes(epoch_id).await?;
+
+            // if we managed to resubmit the votes (i.e. we didn't return an error)
+            // it means the state is complete now
+            info!("DKG: resubmitted previously generated votes - finished key validation");
+            self.state.key_validation_state_mut(epoch_id)?.completed = true;
+            return Ok(());
         }
 
-        let proposals = self.get_validation_proposals().await?;
-        let vk_shares = self
-            .dkg_client
-            .get_verification_key_shares(epoch_id)
-            .await?;
+        let votes = self.generate_votes(epoch_id).await?;
+        self.state.key_validation_state_mut(epoch_id)?.votes = votes.clone();
 
-        for contract_share in vk_shares {
-            // there's no point in checking anything if there doesn't exist an associated multisig proposal
-            let Some(proposal_id) = proposals.get(&contract_share.owner) else {
-                warn!(
-                    "there does not seem to exist proposal for vk share from {}",
-                    contract_share.owner
-                );
-                continue;
-            };
-
-            let vote = if let Err(err) = self.verify_share(epoch_id, contract_share).await {
-                todo!();
-                false
-            } else {
-                true
-            };
-
-            self.state
-                .key_validation_state_mut(epoch_id)?
-                .votes
-                .insert(*proposal_id, vote);
-        }
-
-        // do vote
-        for (&proposal, &vote) in &self.state.key_validation_state(epoch_id)?.votes {
+        // send the votes
+        for (proposal, vote) in votes {
             // FUTURE OPTIMIZATION: we could batch them in a single tx
             self.dkg_client
                 .vote_verification_key_share(proposal, vote)
@@ -180,78 +287,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         }
 
         self.state.key_validation_state_mut(epoch_id)?.completed = true;
-
-        // if self.state.voted_vks() {
-        //     log::debug!("Already voted on the verification keys, nothing to do");
-        //     return Ok(());
-        // }
-        //
-        // let epoch_id = self.dkg_client.get_current_epoch().await?.epoch_id;
-        // let vk_shares = self
-        //     .dkg_client
-        //     .get_verification_key_shares(epoch_id)
-        //     .await?;
-        // let proposal_ids = BTreeMap::from_iter(
-        //     self.dkg_client
-        //         .list_proposals()
-        //         .await?
-        //         .iter()
-        //         .filter_map(validate_proposal),
-        // );
-        // let filtered_receivers_by_idx: Vec<_> = self
-        //     .state
-        //     .current_dealers_by_idx()
-        //     .keys()
-        //     .copied()
-        //     .collect();
-        // let recovered_partials: Vec<_> = self
-        //     .state
-        //     .recovered_vks()
-        //     .iter()
-        //     .map(|recovered_vk| recovered_vk.recovered_partials.clone())
-        //     .collect();
-        // let recovered_partials = transpose_matrix(recovered_partials);
-        // let params = &BANDWIDTH_CREDENTIAL_PARAMS;
-        // for contract_share in vk_shares {
-        //     if let Some(proposal_id) = proposal_ids.get(&contract_share.owner).copied() {
-        //         match VerificationKey::try_from_bs58(contract_share.share) {
-        //             Ok(vk) => {
-        //                 if let Some(idx) = filtered_receivers_by_idx
-        //                     .iter()
-        //                     .position(|node_index| contract_share.node_index == *node_index)
-        //                 {
-        //                     let ret = if !check_vk_pairing(params, &recovered_partials[idx], &vk) {
-        //                         log::debug!(
-        //                             "Voting NO to proposal {} because of failed VK pairing",
-        //                             proposal_id
-        //                         );
-        //                         self.dkg_client
-        //                             .vote_verification_key_share(proposal_id, false)
-        //                             .await
-        //                     } else {
-        //                         log::debug!("Voting YES to proposal {}", proposal_id);
-        //                         self.dkg_client
-        //                             .vote_verification_key_share(proposal_id, true)
-        //                             .await
-        //                     };
-        //                     accepted_vote_err(ret)?;
-        //                 }
-        //             }
-        //             Err(_) => {
-        //                 log::debug!(
-        //                     "Voting NO to proposal {} because of failed base 58 deserialization",
-        //                     proposal_id
-        //                 );
-        //                 let ret = self
-        //                     .dkg_client
-        //                     .vote_verification_key_share(proposal_id, false)
-        //                     .await;
-        //                 accepted_vote_err(ret)?;
-        //             }
-        //         }
-        //     }
-        // }
-        // self.state.set_voted_vks();
 
         info!("DKG: validated all the other verification keys");
         Ok(())
@@ -281,13 +316,12 @@ mod tests {
         derive_keypairs(&mut controllers, false).await;
 
         for controller in controllers.iter_mut() {
-            let res = controller.verification_key_validation(epoch, false).await;
+            let res = controller.verification_key_validation(epoch).await;
             assert!(res.is_ok());
 
             assert!(controller.state.key_validation_state(epoch)?.completed);
         }
 
-        let chain = controllers[0].chain_state.clone();
         let guard = chain.lock().unwrap();
         let proposals = &guard.proposals;
         assert_eq!(proposals.len(), validators);
@@ -301,79 +335,98 @@ mod tests {
 
     #[tokio::test]
     #[ignore] // expensive test
-    async fn validate_verification_key_malformed_share() {
-        todo!()
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
-        //
-        // db.verification_share_db
-        //     .write()
-        //     .unwrap()
-        //     .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-        //     .and_modify(|share| share.share.push('x'));
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-        //         .await
-        //         .unwrap();
-        // }
-        //
-        // for (idx, controller) in clients_and_states.iter().enumerate() {
-        //     let proposal = db
-        //         .proposal_db
-        //         .read()
-        //         .unwrap()
-        //         .get(&controller.state.proposal_id_value().unwrap())
-        //         .unwrap()
-        //         .clone();
-        //     if idx == 0 {
-        //         assert_eq!(proposal.status, Status::Rejected);
-        //     } else {
-        //         assert_eq!(proposal.status, Status::Passed);
-        //     }
-        // }
+    async fn validate_verification_key_malformed_share() -> anyhow::Result<()> {
+        let validators = 4;
+
+        let mut controllers = initialise_controllers(validators);
+        let chain = controllers[0].chain_state.clone();
+        let epoch = chain.lock().unwrap().dkg_epoch.epoch_id;
+
+        initialise_dkg(&mut controllers, false);
+        submit_public_keys(&mut controllers, false).await;
+        exchange_dealings(&mut controllers, false).await;
+        derive_keypairs(&mut controllers, false).await;
+
+        let first_dealer = controllers[0].dkg_client.get_address().await;
+
+        let mut guard = chain.lock().unwrap();
+        let shares = guard.verification_shares.get_mut(&epoch).unwrap();
+        let share = shares.get_mut(first_dealer.as_ref()).unwrap();
+        // mess up the share
+        share.share.push('x');
+        drop(guard);
+
+        for controller in controllers.iter_mut() {
+            let res = controller.verification_key_validation(epoch).await;
+            assert!(res.is_ok());
+
+            assert!(controller.state.key_validation_state(epoch)?.completed);
+        }
+
+        let guard = chain.lock().unwrap();
+        let proposals = &guard.proposals;
+        assert_eq!(proposals.len(), validators);
+
+        // the proposal from the first dealer would have gotten rejected
+        for proposal in proposals.values() {
+            let addr = owner_from_cosmos_msgs(&proposal.msgs).unwrap();
+            if addr.as_str() == first_dealer.as_ref() {
+                assert_eq!(Status::Rejected, proposal.status)
+            } else {
+                assert_eq!(Status::Passed, proposal.status)
+            }
+        }
+
+        Ok(())
     }
 
     #[tokio::test]
     #[ignore] // expensive test
-    async fn validate_verification_key_unpaired_share() {
-        todo!()
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
-        //
-        // let second_share = db
-        //     .verification_share_db
-        //     .write()
-        //     .unwrap()
-        //     .get(TEST_VALIDATORS_ADDRESS[1])
-        //     .unwrap()
-        //     .share
-        //     .clone();
-        // db.verification_share_db
-        //     .write()
-        //     .unwrap()
-        //     .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
-        //     .and_modify(|share| share.share = second_share);
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-        //         .await
-        //         .unwrap();
-        // }
-        //
-        // for (idx, controller) in clients_and_states.iter().enumerate() {
-        //     let proposal = db
-        //         .proposal_db
-        //         .read()
-        //         .unwrap()
-        //         .get(&controller.state.proposal_id_value().unwrap())
-        //         .unwrap()
-        //         .clone();
-        //     if idx == 0 {
-        //         assert_eq!(proposal.status, Status::Rejected);
-        //     } else {
-        //         assert_eq!(proposal.status, Status::Passed);
-        //     }
-        // }
+    async fn validate_verification_key_unpaired_share() -> anyhow::Result<()> {
+        let validators = 2;
+
+        let mut controllers = initialise_controllers(validators);
+        let chain = controllers[0].chain_state.clone();
+        let epoch = chain.lock().unwrap().dkg_epoch.epoch_id;
+
+        initialise_dkg(&mut controllers, false);
+        submit_public_keys(&mut controllers, false).await;
+        exchange_dealings(&mut controllers, false).await;
+        derive_keypairs(&mut controllers, false).await;
+
+        let first_dealer = controllers[0].dkg_client.get_address().await;
+        let second_dealer = controllers[1].dkg_client.get_address().await;
+
+        let mut guard = chain.lock().unwrap();
+        let shares = guard.verification_shares.get_mut(&epoch).unwrap();
+        let second_share = shares.get(second_dealer.as_ref()).unwrap().clone();
+
+        let share = shares.get_mut(first_dealer.as_ref()).unwrap();
+        // mess up the share
+        share.share = second_share.share;
+        drop(guard);
+
+        for controller in controllers.iter_mut() {
+            let res = controller.verification_key_validation(epoch).await;
+            assert!(res.is_ok());
+
+            assert!(controller.state.key_validation_state(epoch)?.completed);
+        }
+
+        let guard = chain.lock().unwrap();
+        let proposals = &guard.proposals;
+        assert_eq!(proposals.len(), validators);
+
+        // the proposal from the first dealer would have gotten rejected
+        for proposal in proposals.values() {
+            let addr = owner_from_cosmos_msgs(&proposal.msgs).unwrap();
+            if addr.as_str() == first_dealer.as_ref() {
+                assert_eq!(Status::Rejected, proposal.status)
+            } else {
+                assert_eq!(Status::Passed, proposal.status)
+            }
+        }
+
+        Ok(())
     }
 }

@@ -115,10 +115,7 @@ pub(crate) async fn validate_keys(controllers: &mut [TestingDkgController], resh
         .epoch_id;
 
     for controller in controllers.iter_mut() {
-        controller
-            .verification_key_validation(epoch, resharing)
-            .await
-            .unwrap();
+        controller.verification_key_validation(epoch).await.unwrap();
     }
 
     let mut guard = controllers[0].chain_state.lock().unwrap();

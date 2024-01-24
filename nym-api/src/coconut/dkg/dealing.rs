@@ -242,6 +242,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
             // if we managed to resubmit the dealings (i.e. we didn't return an error),
             // it means the state is complete now.
+            info!("DKG: resubmitted previously generated dealings - finished dealing exchange");
             self.state.dealing_exchange_state_mut(epoch_id)?.completed = true;
             return Ok(());
         }

@@ -1,14 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::connection::Connection;
 use crate::error::NoiseError;
 use crate::stream::{NoisePattern, NoiseStream};
 use log::*;
-use nym_topology::NymTopology;
+use nym_topology::{NodeVersion, NymTopology};
 use sha2::{Digest, Sha256};
 use snow::{error::Prerequisite, Builder, Error};
 use tokio::net::TcpStream;
 
+pub mod connection;
 pub mod error;
 pub mod stream;
 
@@ -19,7 +21,7 @@ pub async fn upgrade_noise_initiator(
     local_private_key: &[u8],
     remote_pub_key: &[u8],
     epoch: u32,
-) -> Result<NoiseStream, NoiseError> {
+) -> Result<Connection, NoiseError> {
     trace!("Perform Noise Handshake, initiator side");
 
     //In case the local key cannot be known by the remote party, e.g. in a client-gateway connection
@@ -39,7 +41,7 @@ pub async fn upgrade_noise_initiator(
 
     let noise_stream = NoiseStream::new(conn, handshake);
 
-    noise_stream.perform_handshake().await
+    Ok(Connection::Noise(noise_stream.perform_handshake().await?))
 }
 
 pub async fn upgrade_noise_initiator_with_topology(
@@ -49,7 +51,7 @@ pub async fn upgrade_noise_initiator_with_topology(
     epoch: u32,
     local_public_key: &[u8],
     local_private_key: &[u8],
-) -> Result<NoiseStream, NoiseError> {
+) -> Result<Connection, NoiseError> {
     //Get init material
     let responder_addr = match conn.peer_addr() {
         Ok(addr) => addr,
@@ -58,8 +60,9 @@ pub async fn upgrade_noise_initiator_with_topology(
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
-    let remote_pub_key = match topology.find_node_key_by_mix_host(responder_addr) {
-        Some(pub_key) => pub_key.to_bytes(),
+    let (remote_pub_key, version) = match topology.find_node_key_version_by_mix_host(responder_addr)
+    {
+        Some(res) => (res.0.to_bytes(), res.1),
         None => {
             error!(
                 "Cannot find public key for node with address {:?}",
@@ -68,6 +71,14 @@ pub async fn upgrade_noise_initiator_with_topology(
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
+
+    //SW Temporary test
+    match version {
+        NodeVersion::Explicit(v) if *v < semver::Version::parse("1.2.0").unwrap() => {}
+        _ => {
+            return Ok(Connection::Tcp(conn));
+        }
+    }
 
     upgrade_noise_initiator(
         conn,
@@ -87,7 +98,7 @@ pub async fn upgrade_noise_responder(
     local_private_key: &[u8],
     remote_pub_key: Option<&[u8]>,
     epoch: u32,
-) -> Result<NoiseStream, NoiseError> {
+) -> Result<Connection, NoiseError> {
     trace!("Perform Noise Handshake, responder side");
 
     //If the remote_key cannot be kwnown, e.g. in a client-gateway connection
@@ -106,7 +117,7 @@ pub async fn upgrade_noise_responder(
 
     let noise_stream = NoiseStream::new(conn, handshake);
 
-    noise_stream.perform_handshake().await
+    Ok(Connection::Noise(noise_stream.perform_handshake().await?))
 }
 
 pub async fn upgrade_noise_responder_with_topology(
@@ -116,7 +127,7 @@ pub async fn upgrade_noise_responder_with_topology(
     epoch: u32,
     local_public_key: &[u8],
     local_private_key: &[u8],
-) -> Result<NoiseStream, NoiseError> {
+) -> Result<Connection, NoiseError> {
     //Get init material
     let initiator_addr = match conn.peer_addr() {
         Ok(addr) => addr,
@@ -127,8 +138,9 @@ pub async fn upgrade_noise_responder_with_topology(
     };
 
     //SW : for private gateway, we could try to perform the handshake without that key?
-    let remote_pub_key = match topology.find_node_key_by_mix_host(initiator_addr) {
-        Some(pub_key) => pub_key.to_bytes(),
+    let (remote_pub_key, version) = match topology.find_node_key_version_by_mix_host(initiator_addr)
+    {
+        Some(res) => (res.0.to_bytes(), res.1),
         None => {
             error!(
                 "Cannot find public key for node with address {:?}",
@@ -137,6 +149,14 @@ pub async fn upgrade_noise_responder_with_topology(
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
+
+    //SW Temporary test
+    match version {
+        NodeVersion::Explicit(v) if *v < semver::Version::parse("1.2.0").unwrap() => {}
+        _ => {
+            return Ok(Connection::Tcp(conn));
+        }
+    }
 
     upgrade_noise_responder(
         conn,

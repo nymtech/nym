@@ -67,7 +67,7 @@ impl KeyPair {
         self.valid.load(Ordering::SeqCst)
     }
 
-    pub fn enable(&self) {
+    pub fn validate(&self) {
         self.valid.store(true, Ordering::SeqCst);
     }
 

@@ -172,7 +172,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     ) -> Result<(), DkgError> {
         debug!("DKG: verification key finalization (resharing: {resharing})");
 
-        self.verification_key_finalization(epoch_id, resharing)
+        self.verification_key_finalization(epoch_id)
             .await
             .map_err(|source| DkgError::VerificationKeyFinalizationFailure { source })
     }

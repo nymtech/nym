@@ -125,7 +125,7 @@ pub(crate) async fn validate_keys(controllers: &mut [TestingDkgController], resh
     guard.dkg_epoch.state = EpochState::VerificationKeyFinalization { resharing }
 }
 
-pub(crate) async fn finalize(controllers: &mut [TestingDkgController], resharing: bool) {
+pub(crate) async fn finalize(controllers: &mut [TestingDkgController]) {
     let epoch = controllers[0]
         .chain_state
         .lock()
@@ -135,7 +135,7 @@ pub(crate) async fn finalize(controllers: &mut [TestingDkgController], resharing
 
     for controller in controllers.iter_mut() {
         controller
-            .verification_key_finalization(epoch, resharing)
+            .verification_key_finalization(epoch)
             .await
             .unwrap();
     }

@@ -1,20 +1,33 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::controller::DkgController;
-use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use cw3::Status;
 use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum KeyFinalizationError {
+    #[error(transparent)]
+    CoconutError(#[from] CoconutError),
+
+    #[error("our proposal for key verification is still open (or is pending) (proposal id: {proposal_id}) ")]
+    UnresolvedProposal { proposal_id: u64 },
+
+    #[error("our proposal for key verification has been rejected (proposal id: {proposal_id})")]
+    RejectedProposal { proposal_id: u64 },
+
+    #[error("can't complete key finalization without key validation")]
+    IncompleteKeyValidation,
+}
 
 impl<R: RngCore + CryptoRng> DkgController<R> {
     pub(crate) async fn verification_key_finalization(
         &mut self,
         epoch_id: EpochId,
-        _resharing: bool,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), KeyFinalizationError> {
         let key_finalization_state = self.state.key_finalization_state(epoch_id)?;
 
         // check if we have already executed our own proposal
@@ -25,6 +38,10 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             return Ok(());
         }
 
+        if !self.state.key_validation_state(epoch_id)?.completed {
+            return Err(KeyFinalizationError::IncompleteKeyValidation);
+        }
+
         let proposal_id = self.state.proposal_id(epoch_id)?;
 
         // check whether our key has already been verified with executed proposal,
@@ -32,33 +49,41 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // or by another party
         let status = self.dkg_client.get_proposal_status(proposal_id).await?;
         match status {
+            // if the proposal hasn't been resolved, there's not much we can do but wait and pray
             Status::Pending | Status::Open => {
+                // 'theoretically' it's possible that more votes are going to come in, but it's very unlikely
                 warn!("our proposal ({proposal_id}) still hasn't received enough votes to get accepted");
-                todo!();
+                return Err(KeyFinalizationError::UnresolvedProposal { proposal_id });
             }
+            // if the proposal has been rejected, there's nothing we can do, we failed the DKG
             Status::Rejected => {
-                // TODO: technically there's nothing enforcing this...
+                // technically there's nothing enforcing this, so as long as our keys have been properly generated
+                // (even though they've been rejected by other parties), they could still issue [cryptographically] valid credentials
                 error!("our key verification proposal ({proposal_id}) has been rejected - we can't use our derived keys!");
-                todo!()
+                self.state.key_finalization_state_mut(epoch_id)?.completed = true;
+                return Err(KeyFinalizationError::RejectedProposal { proposal_id });
             }
+            // if the proposal has passed, execute it to finalize our key
             Status::Passed => {
                 self.dkg_client
                     .execute_verification_key_share(proposal_id)
                     .await?;
             }
+            // if they proposal has already been executed, we're done!
             Status::Executed => {
+                // generally each dealer is responsible for executing its own proposals,
+                // but technically there's nothing preventing other dealers from executing them
                 debug!("our dkg proposal has already been executed");
             }
         }
 
         self.state.key_finalization_state_mut(epoch_id)?.completed = true;
+        self.state.validate_coconut_keypair();
         info!("DKG: Finalized own verification key on chain");
 
         Ok(())
     }
 }
-
-// each dealer is responsible for executing its own proposals
 
 #[cfg(test)]
 mod tests {
@@ -84,7 +109,7 @@ mod tests {
         validate_keys(&mut controllers, false).await;
 
         for controller in controllers.iter_mut() {
-            let res = controller.verification_key_finalization(epoch, false).await;
+            let res = controller.verification_key_finalization(epoch).await;
             assert!(res.is_ok());
 
             assert!(controller.state.key_finalization_state(epoch)?.completed);

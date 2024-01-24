@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::dkg::key_finalization::KeyFinalizationError;
 use crate::coconut::error::CoconutError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -56,7 +57,7 @@ pub enum DkgError {
     #[error("failed to finalize verification keys in the DKG contract: {source}")]
     VerificationKeyFinalizationFailure {
         #[source]
-        source: CoconutError,
+        source: KeyFinalizationError,
     },
 
     #[error("failed to advance the DKG state: {source}")]

@@ -31,7 +31,7 @@ sudo -E nym-vpn-client-install-run.sh
 
 5. Verify the `nym-vpn` binary: When prompted to verify `sha256sum` paste your correct one from the [release page]({{nym_vpn_latest_binary_url}}) including the binary name (all as one input with a space in between), for example:
 ```sh
-# choose a correct one according to the your binary, this is just an example
+# choose a correct one according to your binary, this is just an example
 0a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip
 ```
 6. The script will run the application and it will prompt you for a country code to exit, chose one of the offered options in the same format as listed

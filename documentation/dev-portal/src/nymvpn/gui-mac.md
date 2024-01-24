@@ -19,7 +19,7 @@ mkdir -p "$HOME/nym-vpn-latest"
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
-# choose a correct one according to the your binary, this is just an example
+# choose a correct one according to your binary, this is just an example
 echo "da4c0bf8e8b52658312d341fa3581954cfcb6efd516d9a448c76d042a454b5df  nym-vpn-desktop_0.0.3_macos_x86_64.zip" | shasum -a 256 -c
 ```
 4. Extract files with `unzip` command or manually as you are used to

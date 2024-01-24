@@ -5,6 +5,8 @@ use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
 use crate::coconut::dkg::state::dealing_exchange::DealingExchangeState;
 use crate::coconut::dkg::state::key_derivation::KeyDerivationState;
+use crate::coconut::dkg::state::key_finalization::FinalizationState;
+use crate::coconut::dkg::state::key_validation::ValidationState;
 use crate::coconut::dkg::state::registration::RegistrationState;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::{KeyPair as CoconutKeyPair, KeyPairWithEpoch};
@@ -26,8 +28,6 @@ use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 use url::Url;
-use crate::coconut::dkg::state::key_finalization::FinalizationState;
-use crate::coconut::dkg::state::key_validation::ValidationState;
 
 mod dealing_exchange;
 mod key_derivation;
@@ -246,13 +246,13 @@ impl PersistentState {
 #[derive(Default)]
 pub(crate) struct DkgState {
     pub(crate) registration: RegistrationState,
-    
+
     pub(crate) dealing_exchange: DealingExchangeState,
 
     pub(crate) key_generation: KeyDerivationState,
-    
+
     pub(crate) key_validation: ValidationState,
-    
+
     pub(crate) key_finalization: FinalizationState,
 }
 
@@ -267,7 +267,8 @@ impl DkgState {
                     dkg_participant.address
                 )
             }
-            self.dealing_exchange.dealers
+            self.dealing_exchange
+                .dealers
                 .insert(dkg_participant.assigned_index, dkg_participant);
         }
     }
@@ -524,9 +525,11 @@ impl State {
             .receiver_index
             .ok_or(CoconutError::UnavailableReceiverIndex { epoch_id })
     }
-    
-    pub fn proposal_id(&self, epoch_id: EpochId) -> Result<u64, CoconutError>  {
-        self.key_derivation_state(epoch_id)?.proposal_id.ok_or(CoconutError::UnavailableProposalId {epoch_id})
+
+    pub fn proposal_id(&self, epoch_id: EpochId) -> Result<u64, CoconutError> {
+        self.key_derivation_state(epoch_id)?
+            .proposal_id
+            .ok_or(CoconutError::UnavailableProposalId { epoch_id })
     }
 
     pub fn persistent_state_path(&self) -> &Path {
@@ -555,6 +558,10 @@ impl State {
 
     pub fn invalidate_coconut_keypair(&self) {
         self.coconut_keypair.invalidate()
+    }
+
+    pub fn validate_coconut_keypair(&self) {
+        self.coconut_keypair.validate()
     }
 
     pub fn get_dealing(&self, epoch_id: EpochId, dealing_index: DealingIndex) -> Option<&Dealing> {

@@ -12,7 +12,7 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
-# Example:
+# example:
 echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_0.1.0_ubuntu-22.04_amd64.zip" | shasum -a 256 -c
 ```
 3. Extract files with `unzip` command or manually as you are used to

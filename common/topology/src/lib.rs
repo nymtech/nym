@@ -222,18 +222,18 @@ impl NymTopology {
         None
     }
 
-    pub fn find_node_key_by_mix_host(
+    pub fn find_node_key_version_by_mix_host(
         &self,
         mix_host: SocketAddr,
-    ) -> Option<&encryption::PublicKey> {
+    ) -> Option<(&encryption::PublicKey, &NodeVersion)> {
         for node in self.all_gateways.iter() {
             if node.mix_host.ip() == mix_host.ip() {
-                return Some(&node.sphinx_key);
+                return Some((&node.sphinx_key, &node.version));
             }
         }
         for node in self.all_mixes.iter() {
             if node.mix_host.ip() == mix_host.ip() {
-                return Some(&node.sphinx_key);
+                return Some((&node.sphinx_key, &node.version));
             }
         }
         None

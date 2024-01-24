@@ -1,69 +1,30 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::NoiseError;
 use bytes::BytesMut;
-use futures::Sink;
-use futures::SinkExt;
-use futures::Stream;
-use futures::StreamExt;
+use futures::{Sink, SinkExt, Stream, StreamExt};
 use log::*;
 use nym_topology::NymTopology;
 use pin_project::pin_project;
 use sha2::{Digest, Sha256};
-use snow::error::Prerequisite;
-use snow::Builder;
-use snow::Error;
-use snow::HandshakeState;
-use snow::TransportState;
+use snow::{error::Prerequisite, Builder, Error, HandshakeState, TransportState};
 use std::cmp::min;
 use std::collections::VecDeque;
 use std::io;
-use std::io::ErrorKind;
-use std::num::TryFromIntError;
 use std::pin::Pin;
 use std::task::Poll;
-use thiserror::Error;
-use tokio::io::ReadBuf;
 use tokio::{
-    io::{AsyncRead, AsyncWrite},
+    io::{AsyncRead, AsyncWrite, ReadBuf},
     net::TcpStream,
 };
 use tokio_util::codec::{Framed, LengthDelimitedCodec};
 
+pub mod error;
+
 const MAXMSGLEN: usize = 65535;
 const TAGLEN: usize = 16;
 
-#[derive(Error, Debug)]
-pub enum NoiseError {
-    #[error("encountered a Noise decryption error")]
-    DecryptionError,
-
-    #[error("encountered a Noise Protocol error - {0}")]
-    ProtocolError(Error),
-    #[error("encountered an IO error - {0}")]
-    IoError(#[from] io::Error),
-
-    #[error("Incorrect state")]
-    IncorrectStateError,
-
-    #[error("Handshake timeout")]
-    HandshakeTimeoutError(#[from] tokio::time::error::Elapsed),
-
-    #[error("Handshake did not complete")]
-    HandshakeError,
-
-    #[error(transparent)]
-    IntConversionError(#[from] TryFromIntError),
-}
-
-impl From<Error> for NoiseError {
-    fn from(err: Error) -> Self {
-        match err {
-            Error::Decrypt => NoiseError::DecryptionError,
-            err => NoiseError::ProtocolError(err),
-        }
-    }
-}
 #[derive(Default)]
 pub enum NoisePattern {
     #[default]
@@ -186,10 +147,10 @@ impl AsyncRead for NoiseStream {
                     Some(transport_state) => {
                         match transport_state.read_message(&noise_msg, &mut dec_msg) {
                             Ok(len) => len,
-                            Err(_) => return Poll::Ready(Err(ErrorKind::InvalidInput.into())),
+                            Err(_) => return Poll::Ready(Err(io::ErrorKind::InvalidInput.into())),
                         }
                     }
-                    None => return Poll::Ready(Err(ErrorKind::Other.into())),
+                    None => return Poll::Ready(Err(io::ErrorKind::Other.into())),
                 };
                 projected_self.dec_buffer.extend(&dec_msg[..len]);
             }
@@ -235,9 +196,9 @@ impl AsyncWrite for NoiseStream {
 
                 let Ok(len) = (match projected_self.noise {
                     Some(transport_state) => transport_state.write_message(buf, &mut noise_buf),
-                    None => return Poll::Ready(Err(ErrorKind::Other.into())),
+                    None => return Poll::Ready(Err(io::ErrorKind::Other.into())),
                 }) else {
-                    return Poll::Ready(Err(ErrorKind::InvalidInput.into()));
+                    return Poll::Ready(Err(io::ErrorKind::InvalidInput.into()));
                 };
                 noise_buf.truncate(len);
                 match projected_self.inner_stream.start_send(noise_buf.into()) {

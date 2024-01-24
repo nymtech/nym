@@ -17,9 +17,9 @@
 6. Fill and submit the [form!]({{nym_vpn_form_url}})
 7. Join the [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat) if you have any questions, comments or blockers
 
-***NymVPN Alpha testing will last from 15th of January - 15th of February.***
+***NymVPN alpha testing will last from 15th of January - 15th of February.***
 
-*NOTE: NymVPN Alpha is experimental software for [testing purposes](testing.md) only.*
+*NOTE: NymVPN alpha is experimental software for [testing purposes](testing.md) only.*
 
 
 ## NymVPN Overview

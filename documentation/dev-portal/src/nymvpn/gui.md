@@ -6,7 +6,7 @@ Our alpha testing round is done with participants at live workshop events. This 
 **If you commit to test NymVPN alpha, please start with the [user research form]({{nym_vpn_form_url}}) where all the steps will be provided**. If you disagree with any of the conditions listed, please leave this page.
 ```
 
-This is the alpha version of NymVPN application - the GUI. A demo of how the client will look like for majority of day-to-day users. For qualitative testing the [CLI](cli.md) is a necessity but to run the GUI holds the same importance as it provides the user with an experience of the actual app and the developers with a valuable feedback from the users. 
+This is the alpha version of NymVPN application - the GUI. A demo of how the client will look like for majority of day-to-day users. For qualitative testing the [CLI](cli.md) is a necessity but to run the GUI holds the same importance as it provides the user with an experience of the actual app and the developers with a valuable feedback from the users.
 
 Follow the simple [automated script](#automated-script-for-gui-installation) below to install and run NymVPN GUI. If you prefer to do a manual setup follow the steps in the guide for [Linux](gui-linux.md) or [MacOS](gui-mac.md).
 
@@ -29,14 +29,14 @@ sudo ./nym-vpn-client-installer.sh
 4. Verify the `nym-vpn` binary: When prompted to verify `sha256sum` paste your correct one from the [release page]({{nym_vpn_latest_binary_url}}) including the binary name (all as one input with a space in between), for example:
 ```sh
 # Choose one according to the system you use, this is just an example
-06c7c82f032f230187da1002a9a9a88242d3bbf6c5c09dc961a71df151d768d0  nym-vpn-ui_0.0.2_macos_x86_64.zip
+0a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip
 ```
 5. The script will run the application and it will prompt you for a country code to exit, chose one of the offered options in the same format as listed
 
 6. To start the application again, reconnect your wifi and run
 ```sh
 # Linux
-sudo -E ~/nym-vpn-latest/nym-vpn_0.0.2_amd64.AppImage
+sudo -E ~/nym-vpn-latest/nym-vpn_0.0.3_amd64.AppImage
 
 # MacOS
 sudo $nym_vpn_dir/nym-vpn

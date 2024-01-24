@@ -16,20 +16,16 @@ We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d
 
 1. To download the script, open a terminal in a directory where you want to download the script and run:
 ```sh
-curl -o nym-vpn-client-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/d67bfc1df720639955a998a22247bf31baec7306/nym-vpn-client-installer.sh
+curl -o nym-vpn-client-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/bc5b0923e53a08b936f3e449c0ab840c6dc1b2f6/nym-vpn-client-install-run.sh
 ```
-
-
-
-
 
 2. Make the script executable
 ```sh
-chmod u+x nym-vpn-client-installer.sh
+chmod u+x nym-vpn-client-install-run.sh
 ```
 3. Run the script as root, turn off any VPN and run
 ```sh
-sudo -E ./nym-vpn-client-installer.sh
+sudo -E nym-vpn-client-install-run.sh
 ```
 4. Follow the prompts in the program.
 

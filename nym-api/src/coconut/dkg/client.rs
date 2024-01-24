@@ -3,7 +3,7 @@
 
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
-use cw3::{ProposalResponse, Status};
+use cw3::{ProposalResponse, Status, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse};
 use nym_coconut_dkg_common::types::{
@@ -113,6 +113,11 @@ impl DkgClient {
         epoch_id: EpochId,
     ) -> Result<Vec<ContractVKShare>, CoconutError> {
         self.inner.get_verification_key_shares(epoch_id).await
+    }
+
+    pub(crate) async fn get_vote(&self, proposal_id: u64) -> Result<VoteResponse, CoconutError> {
+        let address = self.get_address().await.to_string();
+        self.inner.get_vote(proposal_id, address).await
     }
 
     pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, CoconutError> {

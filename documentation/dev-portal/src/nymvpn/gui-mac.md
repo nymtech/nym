@@ -18,7 +18,8 @@ mkdir -p "$HOME/nym-vpn-latest"
 3. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
-# example:
+
+# choose a correct one according to the your binary, this is just an example
 echo "da4c0bf8e8b52658312d341fa3581954cfcb6efd516d9a448c76d042a454b5df  nym-vpn-desktop_0.0.3_macos_x86_64.zip" | shasum -a 256 -c
 ```
 4. Extract files with `unzip` command or manually as you are used to

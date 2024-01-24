@@ -14,7 +14,8 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
-# example:
+
+# choose a correct one according to the your binary, this is just an example
 echo "a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip" | shasum -a 256 -c
 ```
 3. Extract files with `unzip` command or manually as you are used to
@@ -22,14 +23,13 @@ echo "a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-
 ```sh
 chmod u+x ./appimage/nym-vpn_0.0.2_amd64.AppImage
 ```
-5. If you prefer to use the `.deb` version for installation (Linux only), open terminal in the same directory and run:
+5. If you prefer to use the `.deb` version for installation (works on Debian based Linux only), open terminal in the same directory and run:
 ```sh
 cd deb
 
-sudo dpkg -i ./nym-vpn_0.0.2_amd64.deb
+sudo dpkg -i ./nym-vpn_0.0.3_amd64.deb
 # or
-sudo apt-get install -f ./nym-vpn_0.0.2_amd64.deb
-
+sudo apt-get install -f ./nym-vpn_0.0.3_amd64.deb
 ```
 
 ### Configuration

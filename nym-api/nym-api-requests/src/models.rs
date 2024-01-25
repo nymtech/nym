@@ -7,7 +7,7 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
-    GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
+    GatewayBond, IdentityKey, Interval, MixId, MixNode, MixNodeBond, Percent, RewardedSetNodeStatus,
 };
 use nym_node_requests::api::v1::gateway::models::WebSockets;
 use nym_node_requests::api::v1::node::models::{BinaryBuildInformationOwned, HostInformation};
@@ -385,6 +385,38 @@ impl From<GatewayBond> for DescribedGateway {
             bond,
             self_described: None,
         }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct DescribedMixnode {
+    pub bond: MixNodeBond,
+    pub self_described: Option<NymNodeDescription>,
+}
+
+impl From<MixNodeBond> for DescribedMixnode {
+    fn from(bond: MixNodeBond) -> Self {
+        DescribedMixnode {
+            bond,
+            self_described: None,
+        }
+    }
+}
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub enum DescribedNymNode {
+    Gateway(DescribedGateway),
+    Mixnode(DescribedMixnode),
+}
+
+impl From<GatewayBond> for DescribedNymNode {
+    fn from(value: GatewayBond) -> Self {
+        Self::Gateway(value.into())
+    }
+}
+
+impl From<MixNodeDetails> for DescribedNymNode {
+    fn from(value: MixNodeDetails) -> Self {
+        Self::Mixnode(value.bond_information.into())
     }
 }
 

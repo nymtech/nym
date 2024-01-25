@@ -222,21 +222,23 @@ impl NymTopology {
         None
     }
 
-    pub fn find_node_key_version_by_mix_host(
+    pub fn find_node_key_by_mix_host(
         &self,
         mix_host: SocketAddr,
-    ) -> Option<(&encryption::PublicKey, &NodeVersion)> {
+    ) -> Result<Option<&encryption::PublicKey>, NymTopologyError> {
         for node in self.all_gateways.iter() {
             if node.mix_host.ip() == mix_host.ip() {
-                return Some((&node.sphinx_key, &node.version));
+                todo!();
+                //return Ok(node.sphinx_key.as_ref());
             }
         }
         for node in self.all_mixes.iter() {
             if node.mix_host.ip() == mix_host.ip() {
-                return Some((&node.sphinx_key, &node.version));
+                todo!();
+                //return Ok(node.sphinx_key.as_ref());
             }
         }
-        None
+        Err(NymTopologyError::NoMixnodesAvailable)
     }
 
     pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::Node> {

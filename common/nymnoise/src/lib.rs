@@ -5,7 +5,7 @@ use crate::connection::Connection;
 use crate::error::NoiseError;
 use crate::stream::{NoisePattern, NoiseStream};
 use log::*;
-use nym_topology::{NodeVersion, NymTopology};
+use nym_topology::NymTopology;
 use sha2::{Digest, Sha256};
 use snow::{error::Prerequisite, Builder, Error};
 use tokio::net::TcpStream;
@@ -60,10 +60,16 @@ pub async fn upgrade_noise_initiator_with_topology(
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
-    let (remote_pub_key, version) = match topology.find_node_key_version_by_mix_host(responder_addr)
-    {
-        Some(res) => (res.0.to_bytes(), res.1),
-        None => {
+    let remote_pub_key = match topology.find_node_key_by_mix_host(responder_addr) {
+        Ok(Some(key)) => key.to_bytes(),
+        Ok(None) => {
+            warn!(
+                "{:?} can't speak Noise yet, falling back to TCP",
+                responder_addr
+            );
+            return Ok(Connection::Tcp(conn));
+        }
+        Err(_) => {
             error!(
                 "Cannot find public key for node with address {:?}",
                 responder_addr
@@ -71,14 +77,6 @@ pub async fn upgrade_noise_initiator_with_topology(
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
-
-    //SW Temporary test
-    match version {
-        NodeVersion::Explicit(v) if *v < semver::Version::parse("1.2.0").unwrap() => {}
-        _ => {
-            return Ok(Connection::Tcp(conn));
-        }
-    }
 
     upgrade_noise_initiator(
         conn,
@@ -138,10 +136,16 @@ pub async fn upgrade_noise_responder_with_topology(
     };
 
     //SW : for private gateway, we could try to perform the handshake without that key?
-    let (remote_pub_key, version) = match topology.find_node_key_version_by_mix_host(initiator_addr)
-    {
-        Some(res) => (res.0.to_bytes(), res.1),
-        None => {
+    let remote_pub_key = match topology.find_node_key_by_mix_host(initiator_addr) {
+        Ok(Some(key)) => key.to_bytes(),
+        Ok(None) => {
+            warn!(
+                "{:?} can't speak Noise yet, falling back to TCP",
+                initiator_addr
+            );
+            return Ok(Connection::Tcp(conn));
+        }
+        Err(_) => {
             error!(
                 "Cannot find public key for node with address {:?}",
                 initiator_addr
@@ -149,14 +153,6 @@ pub async fn upgrade_noise_responder_with_topology(
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
-
-    //SW Temporary test
-    match version {
-        NodeVersion::Explicit(v) if *v < semver::Version::parse("1.2.0").unwrap() => {}
-        _ => {
-            return Ok(Connection::Tcp(conn));
-        }
-    }
 
     upgrade_noise_responder(
         conn,

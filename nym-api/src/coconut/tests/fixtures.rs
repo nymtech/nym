@@ -6,7 +6,7 @@ use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::dkg::state::State;
 use crate::coconut::keys::KeyPair;
-use crate::coconut::tests::{DummyClient, FakeChainState};
+use crate::coconut::tests::{DummyClient, SharedFakeChain};
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::types::DealerDetails;
 use nym_crypto::asymmetric::identity;
@@ -18,14 +18,13 @@ use rand_chacha::{
     ChaCha20Rng,
 };
 use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex};
 use tempfile::{tempdir, TempDir};
 
 pub fn test_rng(seed: [u8; 32]) -> ChaCha20Rng {
     ChaCha20Rng::from_seed(seed)
 }
 
-fn test_rng_07(seed: [u8; 32]) -> rand_chacha_02::ChaCha20Rng {
+pub fn test_rng_07(seed: [u8; 32]) -> rand_chacha_02::ChaCha20Rng {
     use rand_chacha_02::rand_core::SeedableRng;
     rand_chacha_02::ChaCha20Rng::from_seed(seed)
 }
@@ -74,7 +73,7 @@ pub struct TestingDkgControllerBuilder {
     address: Option<AccountId>,
     threshold: Option<Threshold>,
 
-    chain_state: Option<Arc<Mutex<FakeChainState>>>,
+    chain_state: Option<SharedFakeChain>,
 
     self_dealer: Option<DealerDetails>,
     dealers: Vec<DealerDetails>,
@@ -86,12 +85,13 @@ impl TestingDkgControllerBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_rng(mut self, rng: ChaCha20Rng) -> Self {
         self.rng = Some(rng);
         self
     }
 
-    pub fn with_shared_chain_state(mut self, fake_chain: Arc<Mutex<FakeChainState>>) -> Self {
+    pub fn with_shared_chain_state(mut self, fake_chain: SharedFakeChain) -> Self {
         self.chain_state = Some(fake_chain);
         self
     }
@@ -101,6 +101,7 @@ impl TestingDkgControllerBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_dealer(mut self, dealer_details: DealerDetails) -> Self {
         self.dealers.push(dealer_details);
         self
@@ -111,6 +112,7 @@ impl TestingDkgControllerBuilder {
         self
     }
 
+    #[allow(dead_code)]
     pub fn with_address(mut self, address: impl Into<String>) -> Self {
         let addr = address.into();
         self.address = Some(addr.parse().unwrap());
@@ -158,13 +160,16 @@ impl TestingDkgControllerBuilder {
 
         let mut state_guard = chain_state.lock().unwrap();
         if let Some(threshold) = self.threshold {
-            state_guard.threshold = Some(threshold)
+            state_guard.dkg_contract.threshold = Some(threshold)
         }
         for dealer in self.dealers {
-            state_guard.dealers.insert(dealer.assigned_index, dealer);
+            state_guard
+                .dkg_contract
+                .dealers
+                .insert(dealer.assigned_index, dealer);
         }
 
-        let epoch = state_guard.dkg_epoch.epoch_id;
+        let epoch = state_guard.dkg_contract.epoch.epoch_id;
         drop(state_guard);
 
         let dummy_client = DkgClient::new(dummy_client);
@@ -207,7 +212,7 @@ pub fn dkg_controller_fixture() -> TestingDkgController {
 pub(crate) struct TestingDkgController {
     pub(crate) controller: DkgController<ChaCha20Rng>,
 
-    pub(crate) chain_state: Arc<Mutex<FakeChainState>>,
+    pub(crate) chain_state: SharedFakeChain,
 
     _tmp_dir: TempDir,
 }

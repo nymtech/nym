@@ -254,6 +254,7 @@ mod tests {
         derive_keypairs, exchange_dealings, initialise_controllers, initialise_dkg,
         submit_public_keys,
     };
+    use cw3::Status;
     use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 
     #[tokio::test]
@@ -263,9 +264,9 @@ mod tests {
 
         let mut controllers = initialise_controllers(validators);
         let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_epoch.epoch_id;
+        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
 
-        initialise_dkg(&mut controllers, false);
+        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
@@ -278,7 +279,7 @@ mod tests {
         }
 
         let guard = chain.lock().unwrap();
-        let proposals = &guard.proposals;
+        let proposals = &guard.multisig_contract.proposals;
         assert_eq!(proposals.len(), validators);
 
         for proposal in proposals.values() {
@@ -295,9 +296,9 @@ mod tests {
 
         let mut controllers = initialise_controllers(validators);
         let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_epoch.epoch_id;
+        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
 
-        initialise_dkg(&mut controllers, false);
+        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
@@ -305,7 +306,11 @@ mod tests {
         let first_dealer = controllers[0].dkg_client.get_address().await;
 
         let mut guard = chain.lock().unwrap();
-        let shares = guard.verification_shares.get_mut(&epoch).unwrap();
+        let shares = guard
+            .dkg_contract
+            .verification_shares
+            .get_mut(&epoch)
+            .unwrap();
         let share = shares.get_mut(first_dealer.as_ref()).unwrap();
         // mess up the share
         share.share.push('x');
@@ -319,7 +324,7 @@ mod tests {
         }
 
         let guard = chain.lock().unwrap();
-        let proposals = &guard.proposals;
+        let proposals = &guard.multisig_contract.proposals;
         assert_eq!(proposals.len(), validators);
 
         // the proposal from the first dealer would have gotten rejected
@@ -342,9 +347,9 @@ mod tests {
 
         let mut controllers = initialise_controllers(validators);
         let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_epoch.epoch_id;
+        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
 
-        initialise_dkg(&mut controllers, false);
+        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
@@ -353,7 +358,11 @@ mod tests {
         let second_dealer = controllers[1].dkg_client.get_address().await;
 
         let mut guard = chain.lock().unwrap();
-        let shares = guard.verification_shares.get_mut(&epoch).unwrap();
+        let shares = guard
+            .dkg_contract
+            .verification_shares
+            .get_mut(&epoch)
+            .unwrap();
         let second_share = shares.get(second_dealer.as_ref()).unwrap().clone();
 
         let share = shares.get_mut(first_dealer.as_ref()).unwrap();
@@ -369,7 +378,7 @@ mod tests {
         }
 
         let guard = chain.lock().unwrap();
-        let proposals = &guard.proposals;
+        let proposals = &guard.multisig_contract.proposals;
         assert_eq!(proposals.len(), validators);
 
         // the proposal from the first dealer would have gotten rejected

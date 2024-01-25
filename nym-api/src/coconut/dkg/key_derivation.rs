@@ -630,12 +630,12 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_all_good() -> anyhow::Result<()> {
-        let mut controllers = initialise_controllers(4);
-        let chain = controllers[0].chain_state.clone();
-        let expected = chain.lock().unwrap().dkg_contract_state.clone();
-
-        submit_public_keys(&mut controllers, false).await;
-        exchange_dealings(&mut controllers, false).await;
+        // let mut controllers = initialise_controllers(4);
+        // let chain = controllers[0].chain_state.clone();
+        // let expected = chain.lock().unwrap().dkg_contract_state.clone();
+        //
+        // submit_public_keys(&mut controllers, false).await;
+        // exchange_dealings(&mut controllers, false).await;
 
         todo!()
         //
@@ -1027,9 +1027,9 @@ pub(crate) mod tests {
         let validators = 4;
         let mut controllers = initialise_controllers(validators);
         let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_epoch.epoch_id;
+        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
 
-        initialise_dkg(&mut controllers, false);
+        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
 

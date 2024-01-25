@@ -1,24 +1,17 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::tests::fixtures::{TestingDkgController, TestingDkgControllerBuilder};
-use crate::coconut::tests::FakeChainState;
+use crate::coconut::tests::SharedFakeChain;
 use nym_coconut_dkg_common::types::EpochState;
-use nym_crypto::aes::cipher::crypto_common::rand_core::OsRng;
 use nym_dkg::bte::PublicKeyWithProof;
-use nym_dkg::Dealing;
-use std::env::temp_dir;
-use std::sync::{Arc, Mutex};
 
 pub(crate) fn unchecked_decode_bte_key(raw: &str) -> PublicKeyWithProof {
     let bytes = bs58::decode(raw).into_vec().unwrap();
     PublicKeyWithProof::try_from_bytes(&bytes).unwrap()
 }
 
-pub(crate) type SharedChainState = Arc<Mutex<FakeChainState>>;
-
-pub(crate) fn init_chain() -> SharedChainState {
+pub(crate) fn init_chain() -> SharedFakeChain {
     Default::default()
 }
 
@@ -39,14 +32,26 @@ pub(crate) fn initialise_controllers(amount: usize) -> Vec<TestingDkgController>
     controllers
 }
 
-pub(crate) fn initialise_dkg(controllers: &mut [TestingDkgController], resharing: bool) {
+pub(crate) async fn initialise_dkg(controllers: &mut [TestingDkgController], resharing: bool) {
     assert_eq!(
-        controllers[0].chain_state.lock().unwrap().dkg_epoch.state,
+        controllers[0]
+            .chain_state
+            .lock()
+            .unwrap()
+            .dkg_contract
+            .epoch
+            .state,
         EpochState::WaitingInitialisation
     );
 
-    controllers[0].chain_state.lock().unwrap().dkg_epoch.state =
-        EpochState::PublicKeySubmission { resharing }
+    let mut chain = controllers[0].chain_state.lock().unwrap();
+
+    // add every dealer to group contract
+    for controller in controllers.iter() {
+        chain.add_member(controller.dkg_client.get_address().await.as_ref(), 10);
+    }
+
+    chain.dkg_contract.epoch.state = EpochState::PublicKeySubmission { resharing }
 }
 
 pub(crate) async fn submit_public_keys(controllers: &mut [TestingDkgController], resharing: bool) {
@@ -54,7 +59,8 @@ pub(crate) async fn submit_public_keys(controllers: &mut [TestingDkgController],
         .chain_state
         .lock()
         .unwrap()
-        .dkg_epoch
+        .dkg_contract
+        .epoch
         .epoch_id;
 
     for controller in controllers.iter_mut() {
@@ -67,8 +73,8 @@ pub(crate) async fn submit_public_keys(controllers: &mut [TestingDkgController],
     let threshold = (2 * controllers.len() as u64 + 3 - 1) / 3;
 
     let mut guard = controllers[0].chain_state.lock().unwrap();
-    guard.dkg_epoch.state = EpochState::DealingExchange { resharing };
-    guard.threshold = Some(threshold)
+    guard.dkg_contract.epoch.state = EpochState::DealingExchange { resharing };
+    guard.dkg_contract.threshold = Some(threshold)
 }
 
 pub(crate) async fn exchange_dealings(controllers: &mut [TestingDkgController], resharing: bool) {
@@ -76,7 +82,8 @@ pub(crate) async fn exchange_dealings(controllers: &mut [TestingDkgController], 
         .chain_state
         .lock()
         .unwrap()
-        .dkg_epoch
+        .dkg_contract
+        .epoch
         .epoch_id;
 
     for controller in controllers.iter_mut() {
@@ -84,7 +91,7 @@ pub(crate) async fn exchange_dealings(controllers: &mut [TestingDkgController], 
     }
 
     let mut guard = controllers[0].chain_state.lock().unwrap();
-    guard.dkg_epoch.state = EpochState::VerificationKeySubmission { resharing };
+    guard.dkg_contract.epoch.state = EpochState::VerificationKeySubmission { resharing };
 }
 
 pub(crate) async fn derive_keypairs(controllers: &mut [TestingDkgController], resharing: bool) {
@@ -92,7 +99,8 @@ pub(crate) async fn derive_keypairs(controllers: &mut [TestingDkgController], re
         .chain_state
         .lock()
         .unwrap()
-        .dkg_epoch
+        .dkg_contract
+        .epoch
         .epoch_id;
 
     for controller in controllers.iter_mut() {
@@ -103,7 +111,7 @@ pub(crate) async fn derive_keypairs(controllers: &mut [TestingDkgController], re
     }
 
     let mut guard = controllers[0].chain_state.lock().unwrap();
-    guard.dkg_epoch.state = EpochState::VerificationKeyValidation { resharing }
+    guard.dkg_contract.epoch.state = EpochState::VerificationKeyValidation { resharing }
 }
 
 pub(crate) async fn validate_keys(controllers: &mut [TestingDkgController], resharing: bool) {
@@ -111,7 +119,8 @@ pub(crate) async fn validate_keys(controllers: &mut [TestingDkgController], resh
         .chain_state
         .lock()
         .unwrap()
-        .dkg_epoch
+        .dkg_contract
+        .epoch
         .epoch_id;
 
     for controller in controllers.iter_mut() {
@@ -119,7 +128,7 @@ pub(crate) async fn validate_keys(controllers: &mut [TestingDkgController], resh
     }
 
     let mut guard = controllers[0].chain_state.lock().unwrap();
-    guard.dkg_epoch.state = EpochState::VerificationKeyFinalization { resharing }
+    guard.dkg_contract.epoch.state = EpochState::VerificationKeyFinalization { resharing }
 }
 
 pub(crate) async fn finalize(controllers: &mut [TestingDkgController]) {
@@ -127,7 +136,8 @@ pub(crate) async fn finalize(controllers: &mut [TestingDkgController]) {
         .chain_state
         .lock()
         .unwrap()
-        .dkg_epoch
+        .dkg_contract
+        .epoch
         .epoch_id;
 
     for controller in controllers.iter_mut() {
@@ -138,5 +148,5 @@ pub(crate) async fn finalize(controllers: &mut [TestingDkgController]) {
     }
 
     let mut guard = controllers[0].chain_state.lock().unwrap();
-    guard.dkg_epoch.state = EpochState::InProgress {}
+    guard.dkg_contract.epoch.state = EpochState::InProgress {}
 }

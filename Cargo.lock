@@ -5993,6 +5993,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "sha2 0.9.9",
  "sqlx",
  "tap",
  "tempfile",

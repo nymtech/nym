@@ -397,29 +397,11 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::coconut::dkg::complaints::ComplaintReason;
-    use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::fixtures::{
         dealers_fixtures, test_rng, TestingDkgControllerBuilder,
     };
     use crate::coconut::tests::helpers::unchecked_decode_bte_key;
-    use crate::coconut::tests::DummyClient;
-    use crate::coconut::KeyPair;
-    use cosmwasm_std::Addr;
-    use nym_coconut::{ttp_keygen, Parameters};
-    use nym_coconut_dkg_common::dealer::DealerDetails;
-    use nym_coconut_dkg_common::types::InitialReplacementData;
-    use nym_crypto::asymmetric::identity;
-    use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
-    use nym_dkg::bte::{Params, PublicKeyWithProof};
-    use nym_validator_client::nyxd::AccountId;
-    use rand::rngs::OsRng;
-    use rand_07::thread_rng;
-    use std::collections::HashMap;
-    use std::path::PathBuf;
-    use std::str::FromStr;
-    use std::sync::{Arc, RwLock};
-    use url::Url;
+
     //
     // const TEST_VALIDATORS_ADDRESS: [&str; 4] = [
     //     "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",
@@ -518,6 +500,7 @@ pub(crate) mod tests {
         let chain_state = controller.chain_state.lock().unwrap();
 
         let submitted_dealings = chain_state
+            .dkg_contract
             .dealings
             .get(&epoch)
             .unwrap()

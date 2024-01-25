@@ -100,9 +100,9 @@ mod tests {
 
         let mut controllers = initialise_controllers(validators);
         let chain = controllers[0].chain_state.clone();
-        let epoch = chain.lock().unwrap().dkg_epoch.epoch_id;
+        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
 
-        initialise_dkg(&mut controllers, false);
+        initialise_dkg(&mut controllers, false).await;
         submit_public_keys(&mut controllers, false).await;
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
@@ -117,7 +117,7 @@ mod tests {
 
         let chain = controllers[0].chain_state.clone();
         let guard = chain.lock().unwrap();
-        let proposals = &guard.proposals;
+        let proposals = &guard.multisig_contract.proposals;
         assert_eq!(proposals.len(), validators);
 
         for proposal in proposals.values() {

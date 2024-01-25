@@ -191,7 +191,7 @@ async fn get_gateway_description(
         build_information: build_info,
         network_requester,
         ip_packet_router,
-        mixnet_websockets: websockets,
+        mixnet_websockets: Some(websockets),
     };
 
     Ok((gateway.identity_key, description))

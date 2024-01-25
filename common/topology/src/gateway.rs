@@ -202,8 +202,8 @@ impl<'a> TryFrom<&'a DescribedGateway> for Node {
             owner: value.bond.owner.as_str().to_owned(),
             host,
             mix_host,
-            clients_ws_port: self_described.mixnet_websockets.ws_port,
-            clients_wss_port: self_described.mixnet_websockets.wss_port,
+            clients_ws_port: self_described.mixnet_websockets.unwrap().ws_port, //SW gateway have that field
+            clients_wss_port: self_described.mixnet_websockets.unwrap().wss_port, //SW gateway have that field
             identity_key: identity::PublicKey::from_base58_string(
                 &self_described.host_information.keys.ed25519,
             )?,

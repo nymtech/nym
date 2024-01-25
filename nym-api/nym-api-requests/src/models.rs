@@ -370,7 +370,8 @@ pub struct NymNodeDescription {
     pub ip_packet_router: Option<IpPacketRouterDetails>,
 
     // for now we only care about their ws/wss situation, nothing more
-    pub mixnet_websockets: WebSockets,
+    #[serde(default)]
+    pub mixnet_websockets: Option<WebSockets>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]

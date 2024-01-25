@@ -78,15 +78,6 @@ pub(crate) async fn get_mixnode_description(
                 source: err,
             })?;
 
-    let websockets =
-        client
-            .get_mixnet_websockets()
-            .await
-            .map_err(|err| NodeDescribeCacheError::ApiFailure {
-                gateway: mixnode.identity_key.clone(),
-                source: err,
-            })?;
-
     //SW fill in
     // let noise = todo!();
 
@@ -95,7 +86,7 @@ pub(crate) async fn get_mixnode_description(
         build_information: build_info,
         network_requester: None,
         ip_packet_router: None,
-        mixnet_websockets: websockets,
+        mixnet_websockets: None,
     };
 
     Ok((mixnode.identity_key, description))

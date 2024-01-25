@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::keys::KeyPairWithEpoch;
-use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
+use crate::coconut::state::bandwidth_voucher_params;
 use nym_coconut::{CoconutError, KeyPair, SecretKey};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_pemstore::traits::PemStorableKey;
@@ -33,7 +33,7 @@ impl PemStorableKey for KeyPairWithEpoch {
         ]);
 
         let sk = SecretKey::from_bytes(&bytes[mem::size_of::<EpochId>()..])?;
-        let vk = sk.verification_key(&BANDWIDTH_CREDENTIAL_PARAMS);
+        let vk = sk.verification_key(bandwidth_voucher_params());
 
         Ok(KeyPairWithEpoch {
             keys: KeyPair::from_keys(sk, vk),

@@ -96,16 +96,22 @@ impl DkgClient {
         self.inner.get_dealings(epoch_id, &dealer).await
     }
 
-    pub(crate) async fn get_verification_key_share_status(
+    pub(crate) async fn get_verification_key_share<S: Into<String>>(
         &self,
         epoch_id: EpochId,
-    ) -> Result<Option<bool>, CoconutError> {
-        let address = self.inner.address().await.to_string();
-
+        address: S,
+    ) -> Result<Option<ContractVKShare>, CoconutError> {
         self.inner
-            .get_verification_key_share(epoch_id, address)
+            .get_verification_key_share(epoch_id, address.into())
             .await
-            .map(|maybe_share| maybe_share.map(|s| s.verified))
+    }
+
+    pub(crate) async fn get_verification_own_key_share(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<Option<ContractVKShare>, CoconutError> {
+        let address = self.inner.address().await;
+        self.get_verification_key_share(epoch_id, address).await
     }
 
     pub(crate) async fn get_verification_key_shares(

@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::dkg::key_derivation::KeyDerivationError;
 use crate::coconut::dkg::key_finalization::KeyFinalizationError;
 use crate::coconut::dkg::key_validation::KeyValidationError;
 use crate::coconut::error::CoconutError;
@@ -46,7 +47,7 @@ pub enum DkgError {
     #[error("failed to submit verification keys to the DKG contract: {source}")]
     VerificationKeySubmissionFailure {
         #[source]
-        source: CoconutError,
+        source: KeyDerivationError,
     },
 
     #[error("failed to validate verification keys in the DKG contract: {source}")]

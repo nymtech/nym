@@ -52,10 +52,14 @@ impl KeyPair {
 
     pub async fn get(&self) -> Option<RwLockReadGuard<'_, Option<KeyPairWithEpoch>>> {
         if self.is_valid() {
-            Some(self.keys.read().await)
+            Some(self.read_keys().await)
         } else {
             None
         }
+    }
+
+    pub async fn read_keys(&self) -> RwLockReadGuard<'_, Option<KeyPairWithEpoch>> {
+        self.keys.read().await
     }
 
     pub async fn set(&self, keypair: KeyPairWithEpoch) {

@@ -68,6 +68,7 @@ pub(crate) struct FakeChainState {
 
     pub(crate) dealers: HashMap<NodeIndex, DealerDetails>,
     pub(crate) past_dealers: HashMap<NodeIndex, DealerDetails>,
+    pub(crate) initial_dealers: Option<InitialReplacementData>,
 
     pub(crate) dealings: HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>,
     pub(crate) verification_shares: HashMap<EpochId, HashMap<String, ContractVKShare>>,
@@ -108,6 +109,7 @@ impl Default for FakeChainState {
             threshold: None,
             node_index_counter: 0,
             proposals: Default::default(),
+            initial_dealers: None,
         }
     }
 }
@@ -335,8 +337,7 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>> {
-        todo!()
-        // Ok(self.state.lock().unwrap().initial_dealers.clone())
+        Ok(self.state.lock().unwrap().initial_dealers.clone())
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {

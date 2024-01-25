@@ -17,6 +17,7 @@ pub(crate) mod key_finalization;
 pub(crate) mod key_validation;
 pub(crate) mod public_key;
 pub(crate) mod state;
+mod helpers;
 
 #[cfg(test)]
 mod tests {

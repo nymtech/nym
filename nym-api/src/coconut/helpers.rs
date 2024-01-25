@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::CoconutError;
-use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
+use crate::coconut::state::bandwidth_voucher_params;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_coconut::{BlindedSignature, SecretKey};
 use nym_validator_client::nyxd::error::NyxdError::AbciError;
@@ -29,7 +29,7 @@ pub(crate) fn blind_sign(
     let attributes_ref = public_attributes.iter().collect::<Vec<_>>();
 
     Ok(nym_coconut_interface::blind_sign(
-        &BANDWIDTH_CREDENTIAL_PARAMS,
+        bandwidth_voucher_params(),
         signing_key,
         &request.inner_sign_request,
         &attributes_ref,

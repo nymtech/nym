@@ -3,7 +3,7 @@
 
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum DkgError {
     #[error("Provided set of values contained duplicate coordinate")]
     DuplicateCoordinate,

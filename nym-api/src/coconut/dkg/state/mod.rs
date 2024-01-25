@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::complaints::ComplaintReason;
@@ -29,12 +29,12 @@ use time::OffsetDateTime;
 use tokio::sync::RwLockReadGuard;
 use url::Url;
 
-mod dealing_exchange;
-mod key_derivation;
-mod key_finalization;
-mod key_validation;
-mod registration;
-mod serde_helpers;
+pub(crate) mod dealing_exchange;
+pub(crate) mod key_derivation;
+pub(crate) mod key_finalization;
+pub(crate) mod key_validation;
+pub(crate) mod registration;
+pub(crate) mod serde_helpers;
 
 #[derive(Clone, Deserialize, Debug, Serialize)]
 pub(crate) enum ParticipantState {
@@ -586,6 +586,12 @@ impl State {
         &self,
     ) -> Option<tokio::sync::RwLockReadGuard<'_, Option<KeyPairWithEpoch>>> {
         self.coconut_keypair.get().await
+    }
+
+    pub async fn unchecked_coconut_keypair(
+        &self,
+    ) -> tokio::sync::RwLockReadGuard<'_, Option<KeyPairWithEpoch>> {
+        self.coconut_keypair.read_keys().await
     }
 
     pub fn node_index(&self) -> Option<NodeIndex> {

@@ -6,6 +6,13 @@ use crate::coconut::error::CoconutError;
 use log::debug;
 use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum PublicKeySubmissionError {
+    #[error(transparent)]
+    CoconutError(#[from] CoconutError),
+}
 
 impl<R: RngCore + CryptoRng> DkgController<R> {
     /// First step of the DKG process during which the nym api will register for the key exchange
@@ -24,7 +31,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &mut self,
         epoch_id: EpochId,
         resharing: bool,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), PublicKeySubmissionError> {
         self.state.maybe_init_dkg_state(epoch_id);
         let registration_state = self.state.registration_state(epoch_id)?;
 

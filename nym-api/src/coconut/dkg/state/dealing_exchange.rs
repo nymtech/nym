@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::serde_helpers::generated_dealings;
+use crate::coconut::dkg::state::DkgParticipant;
 use nym_coconut_dkg_common::types::DealingIndex;
 use nym_dkg::{Dealing, NodeIndex};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
-use crate::coconut::dkg::state::DkgParticipant;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub struct DealingExchangeState {
     pub(crate) dealers: BTreeMap<NodeIndex, DkgParticipant>,
 

@@ -1,15 +1,13 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-mod persistence;
-
 use nym_coconut_dkg_common::types::EpochId;
 use nym_dkg::Scalar;
-use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard};
+
+mod persistence;
 
 #[derive(Clone, Debug)]
 pub struct KeyPair {

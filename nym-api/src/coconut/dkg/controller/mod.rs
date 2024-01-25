@@ -3,7 +3,7 @@
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::controller::error::DkgError;
-use crate::coconut::dkg::state::{ConsistentState, PersistentState, State};
+use crate::coconut::dkg::state::{PersistentState, State};
 use crate::coconut::keys::KeyPair as CoconutKeyPair;
 use crate::nyxd;
 use crate::support::config;
@@ -13,7 +13,7 @@ use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
-use rand::{CryptoRng, RngCore};
+use rand::{CryptoRng, Rng, RngCore};
 use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -43,9 +43,12 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             bail!("can't start a DKG controller without specifying an announce address!")
         };
 
-        let persistent_state =
-            PersistentState::load_from_file(&config.storage_paths.dkg_persistent_state_path)
-                .unwrap_or_default();
+        let persistent_state = PersistentState::load_from_file(
+            &config.storage_paths.dkg_persistent_state_path,
+        ).unwrap_or_else(|err| {
+            warn!("could not load an existing persistent state from the file. a fresh state will be used: {err}");
+            Default::default()
+        });
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nyxd_client),
@@ -64,11 +67,6 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     }
 
     fn persist_state(&self) -> Result<(), DkgError> {
-        // if !self.state.coconut_keypair_is_some().await {
-        //     // Delete the files just in case the process is killed before the new keys are generated
-        //     std::fs::remove_file(&self.secret_key_path).ok();
-        //     std::fs::remove_file(&self.verification_key_path).ok();
-        // }
         let persistent_state = PersistentState::from(&self.state);
         let save_path = self.state.persistent_state_path();
         persistent_state.save_to_file(save_path).map_err(|source| {
@@ -107,14 +105,6 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         Ok(())
     }
 
-    async fn ensure_state_consistency(&self) -> Result<(), DkgError> {
-        todo!()
-        // if let Err(err) = self.state.is_consistent(epoch.state).await {
-        //     warn!("Epoch state is corrupted - {err}. Awaiting for a DKG restart.");
-        //     return;
-        // }
-    }
-
     async fn handle_awaiting_initialisation(&mut self) -> Result<(), DkgError> {
         info!("DKG hasn't been initialised yet - nothing to do");
         Ok(())
@@ -128,7 +118,8 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         debug!("DKG: public key submission (resharing: {resharing})");
         self.public_key_submission(epoch_id, resharing)
             .await
-            .map_err(|source| DkgError::PublicKeySubmissionFailure { source })
+            .map_err(|source| DkgError::PublicKeySubmissionFailure { source })?;
+        self.persist_state()
     }
 
     async fn handle_dealing_exchange(
@@ -139,7 +130,8 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         debug!("DKG: dealing exchange (resharing: {resharing})");
         self.dealing_exchange(epoch_id, resharing)
             .await
-            .map_err(|source| DkgError::DealingExchangeFailure { source })
+            .map_err(|source| DkgError::DealingExchangeFailure { source })?;
+        self.persist_state()
     }
 
     async fn handle_verification_key_submission(
@@ -150,7 +142,8 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         debug!("DKG: verification key submission (resharing: {resharing})");
         self.verification_key_submission(epoch_id, resharing)
             .await
-            .map_err(|source| DkgError::VerificationKeySubmissionFailure { source })
+            .map_err(|source| DkgError::VerificationKeySubmissionFailure { source })?;
+        self.persist_state()
     }
 
     async fn handle_verification_key_validation(
@@ -162,7 +155,8 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
         self.verification_key_validation(epoch_id)
             .await
-            .map_err(|source| DkgError::VerificationKeyValidationFailure { source })
+            .map_err(|source| DkgError::VerificationKeyValidationFailure { source })?;
+        self.persist_state()
     }
 
     async fn handle_verification_key_finalization(
@@ -174,13 +168,29 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
         self.verification_key_finalization(epoch_id)
             .await
-            .map_err(|source| DkgError::VerificationKeyFinalizationFailure { source })
+            .map_err(|source| DkgError::VerificationKeyFinalizationFailure { source })?;
+        self.persist_state()
     }
 
-    async fn handle_in_progress(&mut self) -> Result<(), DkgError> {
+    async fn handle_in_progress(&mut self, epoch_id: EpochId) -> Result<(), DkgError> {
         debug!("DKG: epoch in progress");
 
-        self.state.set_was_in_progress();
+        let Ok(state) = self.state.in_progress_state(epoch_id) else {
+            // we probably just started up the api while the DKG has already finished and we're waiting for new round to join
+            debug!("the DKG has finished without our participation");
+            return Ok(());
+        };
+
+        if !state.entered {
+            info!("this is the first time this node is in the in progress state - going to clear state from the PREVIOUS epoch...");
+            // if we finished dkg for epoch 123, we no longer care about anything from epoch 122
+            // (but keep track of data from 123 for the future reference)
+            self.state.clear_previous_epoch(epoch_id);
+
+            // SAFETY: we just accessed this item in an immutable way, thus it MUST exist so the unwrap is fine
+            self.state.in_progress_state_mut(epoch_id).unwrap().entered = true;
+        }
+
         Ok(())
     }
 
@@ -194,11 +204,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     }
 
     pub(crate) async fn handle_epoch_state(&mut self) -> Result<(), DkgError> {
-        self.ensure_state_consistency().await?;
         self.ensure_group_member().await?;
-
-        // make sure to always persist our state before continuing in case of failures
-        self.persist_state()?;
 
         let epoch = self.current_epoch().await?;
 
@@ -225,17 +231,14 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                     .await?
             }
             // Just wait, in case we need to redo dkg at some point
-            EpochState::InProgress => self.handle_in_progress().await?,
+            EpochState::InProgress => self.handle_in_progress(epoch.epoch_id).await?,
         };
 
-        // persist the state after the successful update
-        // (sure, we might be doing this unnecessarily for each "InProgress",
-        // but that's just one write every polling interval, which in the grand scheme of things is nothing
-        self.persist_state()?;
-
+        // add a bit of variance so that all apis wouldn't attempt to trigger it at the same time
+        let variance = self.rng.gen_range(0..=60);
         if let Some(epoch_finish) = epoch.finish_timestamp {
             let now = OffsetDateTime::now_utc();
-            if now.unix_timestamp() > epoch_finish.seconds() as i64 {
+            if now.unix_timestamp() > epoch_finish.seconds() as i64 + variance {
                 // TODO: make sure to not overload validator in case its running slow
                 // i.e. send it once at most every X seconds
                 self.try_advance_dkg_state().await?
@@ -247,9 +250,26 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
     pub(crate) async fn run(mut self, mut shutdown: TaskClient) {
         let mut interval = interval(self.polling_rate);
+
+        // sometimes when the process is running behind, the ticker resolves multiple times in quick succession
+        // so explicitly track those instances and make sure we don't overload the validator with contract calls
+        let mut last_polled = OffsetDateTime::now_utc();
+        let mut last_tick_duration = Default::default();
+
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = interval.tick() => {
+                    let now = OffsetDateTime::now_utc();
+                    let tick_duration = now - last_polled;
+                    last_polled = now;
+
+                    if tick_duration < self.polling_rate {
+                        warn!("it seems the process is running behind. The current tick rate is lower than the polling rate. rate: {:?}, current tick: {}, previous tick: {}", self.polling_rate, tick_duration, last_tick_duration);
+                        last_tick_duration = tick_duration;
+                        continue
+                    }
+                    last_tick_duration = tick_duration;
+
                     if let Err(err) = self.handle_epoch_state().await {
                         error!("failed to update the DKG state: {err}")
                     }
@@ -289,17 +309,21 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
 #[cfg(test)]
 impl DkgController {
-    pub(crate) fn test_mock(dkg_client: DkgClient, state: State) -> DkgController {
+    #[allow(dead_code)]
+    pub(crate) fn default_test_mock(
+        dkg_client: DkgClient,
+        state: State,
+    ) -> DkgController<rand_chacha::ChaCha20Rng> {
         DkgController {
             dkg_client,
             coconut_key_path: Default::default(),
             state,
-            rng: OsRng,
+            rng: crate::coconut::tests::fixtures::test_rng([1u8; 32]),
             polling_rate: Default::default(),
         }
     }
 
-    pub(crate) fn test_mock_new(
+    pub(crate) fn test_mock(
         rng: rand_chacha::ChaCha20Rng,
         dkg_client: DkgClient,
         state: State,

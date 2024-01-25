@@ -4,7 +4,6 @@
 use super::serde_helpers::recovered_keys;
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
-use nym_dkg::error::DkgError;
 use nym_dkg::{G2Projective, NodeIndex, RecoveredVerificationKeys, Threshold};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
@@ -69,7 +68,8 @@ pub enum DealerRejectionReason {
     },
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub struct KeyDerivationState {
     pub(crate) expected_threshold: Option<Threshold>,
 
@@ -95,10 +95,6 @@ impl KeyDerivationState {
             recovered.push(keys.recovered_partials[receiver_index])
         }
         Some(recovered)
-    }
-
-    pub fn completed(&self) -> bool {
-        self.completed.is_some()
     }
 
     pub fn completed_with_success(&self) -> bool {

@@ -31,11 +31,11 @@ pub enum KeyDerivationError {
     #[error(transparent)]
     CoconutError(#[from] CoconutError),
 
-    #[error("the initial, zeroth, epoch is set to be in resharing mode - this is illegal and should have been impossible!")]
-    ZerothEpochResharing,
-
     #[error("can't complete key derivation without dealing exchange")]
     IncompleteDealingExchange,
+
+    #[error("the initial, zeroth, epoch is set to be in resharing mode - this is illegal and should have been impossible!")]
+    ZerothEpochResharing,
 
     #[error("could not recover our own proposal id from the submitted share")]
     UnrecoverableProposalId,
@@ -554,6 +554,9 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             debug!(
                 "we have already generated key for this epoch and submitted validation proposal"
             );
+            return Ok(());
+        } else if let Some(failure) = key_generation_state.completion_failure() {
+            error!("key derivation failed with unrecoverable failure: {failure}");
             return Ok(());
         }
 

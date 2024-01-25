@@ -1,9 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::dkg::dealing::DealingGenerationError;
 use crate::coconut::dkg::key_derivation::KeyDerivationError;
 use crate::coconut::dkg::key_finalization::KeyFinalizationError;
 use crate::coconut::dkg::key_validation::KeyValidationError;
+use crate::coconut::dkg::public_key::PublicKeySubmissionError;
 use crate::coconut::error::CoconutError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -35,13 +37,13 @@ pub enum DkgError {
     #[error("failed to submit public keys to the DKG contract: {source}")]
     PublicKeySubmissionFailure {
         #[source]
-        source: CoconutError,
+        source: PublicKeySubmissionError,
     },
 
     #[error("failed to submit DKG dealings to the DKG contract: {source}")]
     DealingExchangeFailure {
         #[source]
-        source: CoconutError,
+        source: DealingGenerationError,
     },
 
     #[error("failed to submit verification keys to the DKG contract: {source}")]

@@ -4,7 +4,6 @@
 use crate::coconut::dkg;
 use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
 use crate::coconut::dkg::controller::DkgController;
-use crate::coconut::dkg::state::ParticipantState;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::KeyPairWithEpoch;
 use log::debug;
@@ -13,8 +12,10 @@ use nym_coconut_dkg_common::types::{
 };
 use nym_dkg::{Dealing, Scalar};
 use rand::{CryptoRng, RngCore};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
+use std::path::PathBuf;
+use thiserror::Error;
 
 enum DealingGeneration {
     Fresh { number: u32 },
@@ -36,12 +37,37 @@ impl Debug for DealingGeneration {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum DealingGenerationError {
+    #[error(transparent)]
+    CoconutError(#[from] CoconutError),
+
+    #[error("can't complete dealing exchange without registering public keys")]
+    IncompletePublicKeyRegistration,
+
+    #[error("contract state failure - the DKG threshold is unavailable even though dealing exchange has been initiated")]
+    UnavailableContractThreshold,
+
+    #[error("could not establish receiver index for epoch {epoch_id} even though we're a dealer!")]
+    UnavailableReceiverIndex { epoch_id: EpochId },
+
+    #[error("failed to archive coconut key for epoch {epoch_id} using path {}: {source}", path.display())]
+    KeyArchiveFailure {
+        epoch_id: EpochId,
+        path: PathBuf,
+
+        // I hate that we're using anyhow error source here, but changing that would require bigger refactoring
+        #[source]
+        source: anyhow::Error,
+    },
+}
+
 impl<R: RngCore + CryptoRng> DkgController<R> {
     async fn generate_dealings(
         &mut self,
         epoch_id: EpochId,
         spec: DealingGeneration,
-    ) -> Result<HashMap<DealingIndex, Dealing>, CoconutError> {
+    ) -> Result<HashMap<DealingIndex, Dealing>, DealingGenerationError> {
         let threshold = self.dkg_client.get_current_epoch_threshold().await?.ok_or(
             CoconutError::UnrecoverableState {
                 reason: String::from("Threshold should have been set"),
@@ -107,7 +133,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &mut self,
         epoch_id: EpochId,
         number: u32,
-    ) -> Result<HashMap<DealingIndex, Dealing>, CoconutError> {
+    ) -> Result<HashMap<DealingIndex, Dealing>, DealingGenerationError> {
         self.generate_dealings(epoch_id, DealingGeneration::Fresh { number })
             .await
     }
@@ -116,7 +142,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &mut self,
         epoch_id: EpochId,
         prior_secrets: Vec<Scalar>,
-    ) -> Result<HashMap<DealingIndex, Dealing>, CoconutError> {
+    ) -> Result<HashMap<DealingIndex, Dealing>, DealingGenerationError> {
         self.generate_dealings(epoch_id, DealingGeneration::Resharing { prior_secrets })
             .await
     }
@@ -125,7 +151,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &self,
         epoch_id: EpochId,
         resharing: bool,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), DealingGenerationError> {
         let dealing_state = self.state.dealing_exchange_state(epoch_id)?;
 
         for (dealing_index, dealing) in &dealing_state.generated_dealings {
@@ -154,7 +180,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
     /// Check whether this dealer can participate in the resharing
     /// by looking into the contract and ensuring it's in the list of initial dealers for this epoch
-    async fn can_reshare(&self) -> Result<bool, CoconutError> {
+    async fn can_reshare(&self) -> Result<bool, DealingGenerationError> {
         let Some(initial_data) = self.dkg_client.get_initial_dealers().await? else {
             return Ok(false);
         };
@@ -173,7 +199,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         epoch_id: EpochId,
         expected_key_size: u32,
         old_keypair: KeyPairWithEpoch,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), DealingGenerationError> {
         // make sure we're allowed to participate in resharing
         if !self.can_reshare().await? {
             // we have to wait for other dealers to give us the dealings (hopefully)
@@ -222,7 +248,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &mut self,
         epoch_id: EpochId,
         resharing: bool,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), DealingGenerationError> {
         let dealing_state = self.state.dealing_exchange_state(epoch_id)?;
 
         // check if we have already submitted the dealings
@@ -231,6 +257,10 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             // but I don't think we have to worry about that
             debug!("we have already submitted all the dealings for this epoch");
             return Ok(());
+        }
+
+        if !self.state.registration_state(epoch_id)?.completed() {
+            return Err(DealingGenerationError::IncompletePublicKeyRegistration);
         }
 
         // FAILURE CASE:
@@ -267,8 +297,8 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
         // update internally used threshold value which should have been available after all dealers registered
         let Some(threshold) = self.dkg_client.get_current_epoch_threshold().await? else {
-            // TODO: if we're in the dealing exchange phase, the threshold must have been already established
-            todo!("yell at me clippy")
+            // if we're in the dealing exchange phase, the threshold must have been already established
+            return Err(DealingGenerationError::UnavailableContractThreshold);
         };
         self.state
             .key_derivation_state_mut(epoch_id)?
@@ -280,7 +310,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         else {
             // this branch should be impossible as `dealing_exchange` should never be called unless we're actually a dealer
             error!("could not establish receiver index for epoch {epoch_id} even though we're a dealer!");
-            return Err(CoconutError::UnavailableReceiverIndex { epoch_id });
+            return Err(DealingGenerationError::UnavailableReceiverIndex { epoch_id });
         };
         self.state
             .dealing_exchange_state_mut(epoch_id)?
@@ -314,7 +344,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             self.state.persist()?;
             // archive the keypair
             if let Err(source) = archive_coconut_keypair(&self.coconut_key_path, keypair_epoch) {
-                return Err(CoconutError::KeyArchiveFailure {
+                return Err(DealingGenerationError::KeyArchiveFailure {
                     epoch_id,
                     path: self.coconut_key_path.clone(),
                     source,

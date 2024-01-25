@@ -188,7 +188,7 @@ impl TestingDkgControllerBuilder {
         }
 
         TestingDkgController {
-            controller: DkgController::test_mock_new(
+            controller: DkgController::test_mock(
                 rng,
                 dummy_client,
                 state,

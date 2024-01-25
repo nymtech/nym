@@ -6,7 +6,8 @@ use std::collections::HashMap;
 
 type ProposalId = u64;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub struct ValidationState {
     pub votes: HashMap<ProposalId, bool>,
 

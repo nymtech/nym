@@ -9,7 +9,6 @@ pub(crate) fn params() -> &'static nym_dkg::bte::Params {
 }
 
 pub(crate) mod client;
-pub(crate) mod complaints;
 pub(crate) mod controller;
 pub(crate) mod dealing;
 pub(crate) mod key_derivation;

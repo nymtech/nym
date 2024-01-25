@@ -1,10 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::client::Client;
 use crate::coconut::keys::KeyPairWithEpoch;
-use crate::support::config;
+use crate::support::{config, nyxd};
 use anyhow::{anyhow, bail, Context};
-use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_dkg_common::types::{EpochId, EpochState};
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
@@ -43,6 +44,29 @@ pub(crate) fn load_coconut_keypair_if_exists(
     nym_pemstore::load_key(&config.storage_paths.coconut_key_path)
         .context("coconut key load failure")
         .map(Some)
+}
+
+// the keys can be considered valid if they were generated for the current dkg epoch
+// and we're either in the "in progress" or "key finalization" states of the DKG
+pub(crate) async fn can_validate_coconut_keys(
+    nyxd_client: &nyxd::Client,
+    issued_for: EpochId,
+) -> anyhow::Result<bool> {
+    // validate the keys if they were generated for the current dkg epoch
+    // and we're either in the "in progress" or "key finalization" states of the DKG
+    let current_dkg_epoch = nyxd_client.get_current_epoch().await?;
+    if issued_for != current_dkg_epoch.epoch_id {
+        warn!("managed to load coconut keys, but they were generated for epoch {issued_for}. The current epoch is {}. the keys won't be used for credential issuance", current_dkg_epoch.epoch_id);
+        Ok(false)
+    } else if !matches!(
+        current_dkg_epoch.state,
+        EpochState::InProgress | EpochState::VerificationKeyFinalization { .. }
+    ) {
+        warn!("managed to load coconut keys, but the current DKG epoch is at {}. the keys won't (yet) be used for credential issuance", current_dkg_epoch.state);
+        Ok(false)
+    } else {
+        Ok(true)
+    }
 }
 
 pub(crate) fn persist_coconut_keypair<P: AsRef<Path>>(

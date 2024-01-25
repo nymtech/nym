@@ -4,7 +4,9 @@
 #[macro_use]
 extern crate rocket;
 
-use crate::coconut::dkg::controller::keys::{load_bte_keypair, load_coconut_keypair_if_exists};
+use crate::coconut::dkg::controller::keys::{
+    can_validate_coconut_keys, load_bte_keypair, load_coconut_keypair_if_exists,
+};
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
@@ -16,7 +18,6 @@ use crate::support::storage;
 use crate::support::storage::NymApiStorage;
 use ::ephemera::configuration::Configuration as EphemeraConfiguration;
 use ::nym_config::defaults::setup_env;
-use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
 use coconut::dkg::controller::DkgController;
@@ -73,8 +74,12 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
 
     // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
     if let Some(loaded_keys) = load_coconut_keypair_if_exists(&config.coconut_signer)? {
-        todo!()
-        // coconut_keypair_wrapper.set(loaded_keys).await
+        let issued_for = loaded_keys.issued_for_epoch;
+        coconut_keypair_wrapper.set(loaded_keys).await;
+
+        if can_validate_coconut_keys(&nyxd_client, issued_for).await? {
+            coconut_keypair_wrapper.validate()
+        }
     }
 
     let identity_keypair = config.base.storage_paths.load_identity()?;

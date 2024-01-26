@@ -23,6 +23,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 pub(crate) const BANDWIDTH_PER_CREDENTIAL: u64 = 1024 * 1024 * 1024; // 1GB
 
 pub(crate) struct CoconutVerifier {
+    #[allow(dead_code)]
     address: AccountId,
     nyxd_client: RwLock<DirectSigningHttpRpcNyxdClient>,
 
@@ -31,6 +32,8 @@ pub(crate) struct CoconutVerifier {
 
     // keys never change during epochs
     master_keys: RwLock<HashMap<EpochId, VerificationKey>>,
+
+    #[allow(dead_code)]
     mix_denom_base: String,
 }
 
@@ -153,6 +156,7 @@ impl CoconutVerifier {
         Ok(all_coconut_api_clients(self.nyxd_client.read().await.deref(), epoch_id).await?)
     }
 
+    #[allow(dead_code)]
     pub async fn release_funds(
         &self,
         api_clients: &[CoconutApiClient],

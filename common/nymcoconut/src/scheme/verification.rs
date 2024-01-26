@@ -54,7 +54,7 @@ impl TryFrom<&[u8]> for Theta {
 
         let blinded_serial_number_bytes = &bytes[96..192];
         let blinded_serial_number =
-            BlindedSerialNumber::try_from_byte_slice(&blinded_serial_number_bytes)?;
+            BlindedSerialNumber::try_from_byte_slice(blinded_serial_number_bytes)?;
 
         let credential = Signature::try_from(&bytes[192..288])?;
 

@@ -43,3 +43,4 @@ sudo ./execute-nym-vpn-cli-binary.sh
 To run `nym-vpn-cli` again, reconnect your wifi, move to the directory of your CLI binary `cd ~/nym-vpn-cli-dir` and follow the guide for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-mac.md#run-nymvpn). If you find it too difficult, just run this script again - like in step \#3 above.
 
 In case of errors check out the [troubleshooting](troubleshooting.md) section.
+

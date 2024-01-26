@@ -5,8 +5,13 @@ use super::HostsStore;
 use crate::request_filter::allowed_hosts::group::HostsGroup;
 use crate::request_filter::allowed_hosts::standard_list::StandardList;
 use crate::request_filter::allowed_hosts::stored_allowed_hosts::StoredAllowedHosts;
-use std::net::{IpAddr, SocketAddr};
+use publicsuffix::Psl;
+use std::{
+    net::{IpAddr, SocketAddr},
+    str::FromStr,
+};
 use tokio::sync::Mutex;
+use url::Url;
 
 #[derive(Debug)]
 enum RequestHost {
@@ -35,6 +40,23 @@ pub(crate) struct OutboundRequestFilter {
     unknown_hosts: Mutex<HostsStore>,
 }
 
+/// The official URL of the list
+pub const LIST_URL: &str = "https://publicsuffix.org/list/public_suffix_list.dat";
+
+async fn request(u: Url) -> String {
+    reqwest::get(u)
+        .await
+        .expect("failed to get LIST_URL")
+        .text()
+        .await
+        .expect("failed to get text")
+}
+
+async fn fetch_list() -> publicsuffix::List {
+    let str = request(Url::parse(LIST_URL).unwrap()).await;
+    publicsuffix::List::from_str(&str).unwrap()
+}
+
 impl OutboundRequestFilter {
     /// Create a new `OutboundRequestFilter` with the given `allowed_hosts` and `unknown_hosts` lists.
     ///
@@ -43,15 +65,12 @@ impl OutboundRequestFilter {
     ///
     /// Automatcially fetches the latest standard allowed list from the Nym website, so that all
     /// requesters are able to support the same minimal functionality out of the box.
-    pub(crate) fn new(
+    pub(crate) async fn new(
         allowed_hosts: StoredAllowedHosts,
         standard_list: StandardList,
         unknown_hosts: HostsStore,
     ) -> OutboundRequestFilter {
-        let domain_list = match publicsuffix::List::fetch() {
-            Ok(list) => list,
-            Err(err) => panic!("Couldn't fetch domain list for request filtering, do you have an internet connection?: {err}"),
-        };
+        let domain_list = fetch_list().await;
 
         OutboundRequestFilter {
             allowed_hosts,
@@ -163,17 +182,17 @@ impl OutboundRequestFilter {
     /// If the domain is itself registered in publicsuffix (e.g. s3.amazonaws.com),
     /// then just use the full address as root.
     fn get_domain_root(&self, host: &str) -> Option<String> {
-        match self.root_domain_list.parse_domain(host) {
-            Ok(d) => Some(
-                d.root()
-                    .map(|root| root.to_string())
-                    .unwrap_or_else(|| d.full().to_string()),
-            ),
-            Err(_) => {
-                log::warn!("Error parsing domain: {:?}", host);
-                None // domain couldn't be parsed
+        if let Some(domain) = self.root_domain_list.domain(host.as_bytes()) {
+            return String::from_utf8(domain.as_bytes().to_vec()).ok();
+        } else if let Some(suffix) = self.root_domain_list.suffix(host.as_bytes()) {
+            if suffix.is_known() {
+                return String::from_utf8(suffix.as_bytes().to_vec()).ok();
+            } else {
+                return None;
             }
         }
+        log::warn!("Error parsing domain: {:?}", host);
+        None // domain couldn't be parsed
     }
 }
 
@@ -235,14 +254,14 @@ mod tests {
     }
 
     impl OutboundRequestFilterFixture {
-        fn new() -> OutboundRequestFilterFixture {
+        async fn new() -> OutboundRequestFilterFixture {
             let allow_tmp_file = tempfile::NamedTempFile::new().unwrap();
             let unknown_tmp_file = tempfile::NamedTempFile::new().unwrap();
             let allowed = HostsStore::new(&allow_tmp_file);
             let unknown = HostsStore::new(&unknown_tmp_file);
             let standard = StandardList::new();
 
-            let inner = OutboundRequestFilter::new(allowed.into(), standard, unknown);
+            let inner = OutboundRequestFilter::new(allowed.into(), standard, unknown).await;
             OutboundRequestFilterFixture {
                 inner,
                 _allow_tmp_file: allow_tmp_file,
@@ -251,11 +270,11 @@ mod tests {
         }
     }
 
-    fn setup_empty() -> OutboundRequestFilterFixture {
-        OutboundRequestFilterFixture::new()
+    async fn setup_empty() -> OutboundRequestFilterFixture {
+        OutboundRequestFilterFixture::new().await
     }
 
-    fn setup_with_allowed(allowed: &[&str]) -> OutboundRequestFilterFixture {
+    async fn setup_with_allowed(allowed: &[&str]) -> OutboundRequestFilterFixture {
         let allow_tmp_file = tempfile::NamedTempFile::new().unwrap();
         let unknown_tmp_file = tempfile::NamedTempFile::new().unwrap();
         let mut allowed_store = HostsStore::new(&allow_tmp_file);
@@ -266,7 +285,7 @@ mod tests {
             allowed_store.add_host(allow)
         }
 
-        let inner = OutboundRequestFilter::new(allowed_store.into(), standard, unknown);
+        let inner = OutboundRequestFilter::new(allowed_store.into(), standard, unknown).await;
         OutboundRequestFilterFixture {
             inner,
             _allow_tmp_file: allow_tmp_file,
@@ -295,51 +314,52 @@ mod tests {
     mod getting_the_domain_root {
         use super::*;
 
-        #[test]
-        fn leaves_a_com_alone() {
-            let filter = setup_empty();
+        #[tokio::test]
+        async fn leaves_a_com_alone() {
+            let filter = setup_empty().await;
             assert_eq!(
                 Some("domain.com".to_string()),
                 filter.get_domain_root("domain.com")
             )
         }
 
-        #[test]
-        fn trims_subdomains_from_com() {
-            let filter = setup_empty();
+        #[tokio::test]
+        async fn trims_subdomains_from_com() {
+            let filter = setup_empty().await;
             assert_eq!(
                 Some("domain.com".to_string()),
                 filter.get_domain_root("foomp.domain.com")
             )
         }
 
-        #[test]
-        fn works_for_non_com_roots() {
-            let filter = setup_empty();
+        #[tokio::test]
+        async fn works_for_non_com_roots() {
+            let filter = setup_empty().await;
             assert_eq!(
                 Some("domain.co.uk".to_string()),
                 filter.get_domain_root("domain.co.uk")
             )
         }
 
-        #[test]
-        fn works_for_non_com_roots_with_subdomains() {
-            let filter = setup_empty();
+        #[tokio::test]
+        async fn works_for_non_com_roots_with_subdomains() {
+            let filter = setup_empty().await;
             assert_eq!(
                 Some("domain.co.uk".to_string()),
                 filter.get_domain_root("foomp.domain.co.uk")
             )
         }
 
-        #[test]
-        fn returns_none_on_garbage() {
-            let filter = setup_empty();
+        #[tokio::test]
+        async fn returns_none_on_garbage() {
+            let filter = setup_empty().await;
             assert_eq!(None, filter.get_domain_root("::/&&%@"));
         }
 
-        #[test]
-        fn returns_full_on_suffix_domains() {
-            let filter = setup_empty();
+        #[tokio::test]
+        async fn returns_full_on_suffix_domains() {
+            let filter = setup_empty().await;
+            dbg!(filter.get_domain_root("s3.amazonaws.com"));
             assert_eq!(
                 Some("s3.amazonaws.com".to_string()),
                 filter.get_domain_root("s3.amazonaws.com")
@@ -354,14 +374,14 @@ mod tests {
         #[tokio::test]
         async fn are_not_allowed() {
             let host = "unknown.com";
-            let filter = setup_empty();
+            let filter = setup_empty().await;
             assert!(!filter.check(host).await);
         }
 
         #[tokio::test]
         async fn get_appended_once_to_the_unknown_hosts_list() {
             let host = "unknown.com";
-            let filter = setup_empty();
+            let filter = setup_empty().await;
             filter.check(host).await;
             assert_eq!(1, filter.unknown_hosts.lock().await.data.domains.len());
             assert!(filter
@@ -391,7 +411,7 @@ mod tests {
         async fn are_allowed() {
             let host = "nymtech.net";
 
-            let filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]).await;
             assert!(filter.check(host).await);
         }
 
@@ -399,13 +419,13 @@ mod tests {
         async fn are_allowed_for_subdomains() {
             let host = "foomp.nymtech.net";
 
-            let filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]).await;
             assert!(filter.check(host).await);
         }
 
         #[tokio::test]
         async fn are_not_appended_to_file() {
-            let filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]).await;
 
             // test initial state
             let lines =
@@ -428,7 +448,7 @@ mod tests {
             let address_good_port = "1.1.1.1:1234";
             let address_bad = "1.1.1.2";
 
-            let filter = setup_with_allowed(&["1.1.1.1"]);
+            let filter = setup_with_allowed(&["1.1.1.1"]).await;
             assert!(filter.check(address_good).await);
             assert!(filter.check(address_good_port).await);
             assert!(!filter.check(address_bad).await);
@@ -445,8 +465,9 @@ mod tests {
 
             let ip_v6_loopback_port = "[::1]:1234";
 
-            let filter1 = setup_with_allowed(&[ip_v6_full, ip_v6_semi, "::1"]);
-            let filter2 = setup_with_allowed(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]);
+            let filter1 = setup_with_allowed(&[ip_v6_full, ip_v6_semi, "::1"]).await;
+            let filter2 =
+                setup_with_allowed(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]).await;
 
             assert!(filter1.check(ip_v6_full).await);
             assert!(filter1.check(ip_v6_full_rendered).await);
@@ -473,7 +494,7 @@ mod tests {
 
             let outside_range2 = "1.2.2.4";
 
-            let filter = setup_with_allowed(&[range1, range2]);
+            let filter = setup_with_allowed(&[range1, range2]).await;
             assert!(filter.check("127.0.0.1").await);
             assert!(filter.check("127.0.0.1:1234").await);
             assert!(filter.check(bottom_range2).await);
@@ -491,7 +512,7 @@ mod tests {
             let top = "2620:0:ffff:ffff:ffff:ffff:ffff:ffff";
             let mid = "2620:0:42::42";
 
-            let filter = setup_with_allowed(&[range]);
+            let filter = setup_with_allowed(&[range]).await;
             assert!(filter.check(bottom1).await);
             assert!(filter.check(bottom2).await);
             assert!(filter.check(top).await);

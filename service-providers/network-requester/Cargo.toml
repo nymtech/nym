@@ -16,6 +16,7 @@ name = "nym_network_requester"
 path = "src/lib.rs"
 
 [dependencies]
+addr = "0.15.6"
 async-trait = { workspace = true }
 bs58 = "0.4.0"
 clap = { workspace = true, features = ["cargo", "derive"]}
@@ -26,7 +27,7 @@ ipnetwork = "0.20.0"
 lazy_static = { workspace = true }
 log = { workspace = true }
 pretty_env_logger = "0.4.0"
-publicsuffix = "1.5" # Can't update this until bip updates to support newer idna version
+publicsuffix = "2.2.3"
 rand = "0.7.3"
 regex = "1.8.4"
 reqwest = { workspace = true, features = ["json"] }

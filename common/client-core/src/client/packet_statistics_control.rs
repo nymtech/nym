@@ -265,10 +265,22 @@ impl std::ops::Div<f64> for PacketRates {
 impl PacketRates {
     fn summary(&self) -> String {
         format!(
-            "rx: {}/s (real: {}/s, acks: {}/s), tx: {}/s (real: {}/s)",
+            "rx: {}/s (real: {}/s), tx: {}/s (real: {}/s)",
+            bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
+            bibytes2(self.real_packets_received_size),
+            bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
+            bibytes2(self.real_packets_sent_size),
+        )
+    }
+
+    fn detailed_summary(&self) -> String {
+        format!(
+            "RX: {:.1} mixpkt/s, {}/s (real: {}/s, acks: {}/s), TX: {:.1} mixpkt/s, {}/s (real: {}/s)",
+            self.real_packets_received + self.cover_packets_received,
             bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
             bibytes2(self.real_packets_received_size),
             bibytes2(self.total_acks_received_size),
+            self.real_packets_sent + self.cover_packets_sent,
             bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
             bibytes2(self.real_packets_sent_size),
         )
@@ -368,7 +380,9 @@ impl PacketStatisticsControl {
 
     fn compute_rates(&self) -> Option<PacketRates> {
         // NOTE: consider changing this to compute rates over the history instead of using current
-        // stats
+        // stats. Currently it should not make much of a difference since we call this just after
+        // updating the history, but it seems like it could be more internally consistent to do it
+        // that way.
 
         // Do basic averaging over the entire history, which just uses the first and last
         if let Some((start, start_stats)) = self.history.front() {
@@ -401,6 +415,7 @@ impl PacketStatisticsControl {
     fn report_rates(&self) {
         if let Some((_, rates)) = self.rates.back() {
             log::info!("{}", rates.summary());
+            log::debug!("{}", rates.detailed_summary());
         }
     }
 
@@ -412,34 +427,27 @@ impl PacketStatisticsControl {
     }
 
     fn check_for_notable_events(&self) {
-        if let Some((_, rates)) = self.rates.back() {
-            // If we get a burst of retransmissions
-            if rates.retransmissions_queued > 0.0 {
-                log::warn!("retransmissions: {} pkt/s", rates.retransmissions_queued);
-            }
-            if rates.total_acks_received > 0.0 {
-                log::info!("acks: {:.1} pkt/s", rates.total_acks_received);
-            }
+        let Some((_, latest_rates)) = self.rates.back() else {
+            return;
+        };
 
-            // Check if there is a sudden increase in acks received
-            if let Some((_, rates0)) = self.rates.front() {
-                let delta = rates.clone() - rates0.clone();
-                if delta.total_acks_received > 10.0 {
-                    log::warn!(
-                        "ack rate increased from {:.1} to {:.1} pkt/s",
-                        rates0.total_acks_received,
-                        rates.total_acks_received
-                    );
-                }
-            }
+        // If we get a burst of retransmissions
+        // TODO: consider making this the number of retransmissions since last report instead.
+        if latest_rates.retransmissions_queued > 0.0 {
+            log::info!(
+                "retransmissions: {} pkt/s",
+                latest_rates.retransmissions_queued
+            );
         }
+
+        // IDEA: if there is a burst of acks, that could indicate tokio task starvation.
     }
 
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         log::debug!("Started PacketStatisticsControl with graceful shutdown support");
 
-        let interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
-        let mut interval = tokio::time::interval(interval);
+        let report_interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
+        let mut report_interval = tokio::time::interval(report_interval);
         let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
         let mut snapshot_interval = tokio::time::interval(snapshot_interval);
 
@@ -459,7 +467,7 @@ impl PacketStatisticsControl {
                     self.update_history();
                     self.update_rates();
                 }
-                _ = interval.tick() => {
+                _ = report_interval.tick() => {
                     self.report_rates();
                     self.check_for_notable_events();
                     self.report_counters();

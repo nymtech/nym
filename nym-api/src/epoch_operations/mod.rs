@@ -12,7 +12,6 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
-use crate::ephemera::reward::{EpochOperations, RewardManager};
 use crate::node_status_api::ONE_DAY;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::nyxd::Client;
@@ -33,7 +32,6 @@ mod rewarding;
 mod transition_beginning;
 
 pub struct RewardedSetUpdater {
-    ephemera_reward_manager: Option<RewardManager>,
     nyxd_client: Client,
     nym_contract_cache: NymContractCache,
     storage: NymApiStorage,
@@ -47,13 +45,11 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) fn new(
-        ephemera_reward_manager: Option<RewardManager>,
         nyxd_client: Client,
         nym_contract_cache: NymContractCache,
         storage: NymApiStorage,
     ) -> Self {
         RewardedSetUpdater {
-            ephemera_reward_manager,
             nyxd_client,
             nym_contract_cache,
             storage,
@@ -92,11 +88,6 @@ impl RewardedSetUpdater {
     /// 8. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&mut self, interval: Interval) -> Result<(), RewardingError> {
         let mut rewards = self.nodes_to_reward(interval).await;
-        if let Some(ephemera_reward_manager) = self.ephemera_reward_manager.as_mut() {
-            rewards = ephemera_reward_manager
-                .perform_epoch_operations(rewards)
-                .await?;
-        }
         rewards.sort_by_key(|a| a.mix_id);
 
         log::info!("The current epoch has finished.");
@@ -274,14 +265,12 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) fn start(
-        ephemera_reward_manager: Option<RewardManager>,
         nyxd_client: Client,
         nym_contract_cache: &NymContractCache,
         storage: &NymApiStorage,
         shutdown: &TaskManager,
     ) {
         let mut rewarded_set_updater = RewardedSetUpdater::new(
-            ephemera_reward_manager,
             nyxd_client,
             nym_contract_cache.to_owned(),
             storage.to_owned(),

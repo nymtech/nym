@@ -6,7 +6,7 @@ use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
-use futures_util::{stream, StreamExt};
+use futures::{stream, StreamExt};
 use nym_api_requests::models::{
     IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
 };

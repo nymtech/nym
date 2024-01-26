@@ -245,6 +245,33 @@
     {
       "type": "object",
       "required": [
+        "get_verification_key"
+      ],
+      "properties": {
+        "get_verification_key": {
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "owner"
+          ],
+          "properties": {
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "owner": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_verification_keys"
       ],
       "properties": {

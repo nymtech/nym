@@ -1,11 +1,22 @@
-use std::time::Duration;
+use std::{
+    collections::VecDeque,
+    time::{Duration, Instant},
+};
+
+use si_scale::helpers::bibytes2;
 
 use crate::spawn_future;
 
 // Time interval between reporting packet statistics
 const PACKET_REPORT_INTERVAL_SECS: u64 = 2;
+// Interval for taking snapshots of the packet statistics
+const SNAPSHOT_INTERVAL_MS: u64 = 500;
+// When computing rates, we include snapshots that are up to this old. We set it to some odd number
+// a tad larger than an integer number of snapshot intervals, so that we don't have to worry about
+// threshold effects
+const RECORDING_WINDOW_MS: u64 = 1700;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 struct PacketStatistics {
     // Sent
     real_packets_sent: u64,
@@ -80,6 +91,200 @@ impl PacketStatistics {
             }
         }
     }
+
+    fn summary(&self) -> (String, String) {
+        (
+            format!(
+                "packets sent: {} (real: {}, cover: {}, retransmissions: {})",
+                self.real_packets_sent + self.cover_packets_sent,
+                self.real_packets_sent,
+                self.cover_packets_sent,
+                self.retransmissions_queued,
+            ),
+            format!(
+                "packets received: {}, (real: {}, cover: {}, acks: {}, acks for cover: {})",
+                self.real_packets_received + self.cover_packets_received,
+                self.real_packets_received,
+                self.cover_packets_received,
+                self.real_acks_received,
+                self.cover_acks_received,
+            ),
+        )
+    }
+}
+
+impl std::ops::Sub for PacketStatistics {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            real_packets_sent: self.real_packets_sent - rhs.real_packets_sent,
+            real_packets_sent_size: self.real_packets_sent_size - rhs.real_packets_sent_size,
+            cover_packets_sent: self.cover_packets_sent - rhs.cover_packets_sent,
+            cover_packets_sent_size: self.cover_packets_sent_size - rhs.cover_packets_sent_size,
+
+            real_packets_received: self.real_packets_received - rhs.real_packets_received,
+            real_packets_received_size: self.real_packets_received_size
+                - rhs.real_packets_received_size,
+            cover_packets_received: self.cover_packets_received - rhs.cover_packets_received,
+            cover_packets_received_size: self.cover_packets_received_size
+                - rhs.cover_packets_received_size,
+
+            total_acks_received: self.total_acks_received - rhs.total_acks_received,
+            total_acks_received_size: self.total_acks_received_size - rhs.total_acks_received_size,
+            real_acks_received: self.real_acks_received - rhs.real_acks_received,
+            real_acks_received_size: self.real_acks_received_size - rhs.real_acks_received_size,
+            cover_acks_received: self.cover_acks_received - rhs.cover_acks_received,
+            cover_acks_received_size: self.cover_acks_received_size - rhs.cover_acks_received_size,
+
+            real_packets_queued: self.real_packets_queued - rhs.real_packets_queued,
+            retransmissions_queued: self.retransmissions_queued - rhs.retransmissions_queued,
+            reply_surbs_queued: self.reply_surbs_queued - rhs.reply_surbs_queued,
+            additional_reply_surbs_queued: self.additional_reply_surbs_queued
+                - rhs.additional_reply_surbs_queued,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PacketRates {
+    real_packets_sent: f64,
+    real_packets_sent_size: f64,
+    cover_packets_sent: f64,
+    cover_packets_sent_size: f64,
+
+    real_packets_received: f64,
+    real_packets_received_size: f64,
+    cover_packets_received: f64,
+    cover_packets_received_size: f64,
+
+    total_acks_received: f64,
+    total_acks_received_size: f64,
+    real_acks_received: f64,
+    real_acks_received_size: f64,
+    cover_acks_received: f64,
+    cover_acks_received_size: f64,
+
+    real_packets_queued: f64,
+    retransmissions_queued: f64,
+    reply_surbs_queued: f64,
+    additional_reply_surbs_queued: f64,
+}
+
+impl From<PacketStatistics> for PacketRates {
+    fn from(stats: PacketStatistics) -> Self {
+        Self {
+            real_packets_sent: stats.real_packets_sent as f64,
+            real_packets_sent_size: stats.real_packets_sent_size as f64,
+            cover_packets_sent: stats.cover_packets_sent as f64,
+            cover_packets_sent_size: stats.cover_packets_sent_size as f64,
+
+            real_packets_received: stats.real_packets_received as f64,
+            real_packets_received_size: stats.real_packets_received_size as f64,
+            cover_packets_received: stats.cover_packets_received as f64,
+            cover_packets_received_size: stats.cover_packets_received_size as f64,
+
+            total_acks_received: stats.total_acks_received as f64,
+            total_acks_received_size: stats.total_acks_received_size as f64,
+            real_acks_received: stats.real_acks_received as f64,
+            real_acks_received_size: stats.real_acks_received_size as f64,
+            cover_acks_received: stats.cover_acks_received as f64,
+            cover_acks_received_size: stats.cover_acks_received_size as f64,
+
+            real_packets_queued: stats.real_packets_queued as f64,
+            retransmissions_queued: stats.retransmissions_queued as f64,
+            reply_surbs_queued: stats.reply_surbs_queued as f64,
+            additional_reply_surbs_queued: stats.additional_reply_surbs_queued as f64,
+        }
+    }
+}
+
+impl std::ops::Sub for PacketRates {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self {
+            real_packets_sent: self.real_packets_sent - rhs.real_packets_sent,
+            real_packets_sent_size: self.real_packets_sent_size - rhs.real_packets_sent_size,
+            cover_packets_sent: self.cover_packets_sent - rhs.cover_packets_sent,
+            cover_packets_sent_size: self.cover_packets_sent_size - rhs.cover_packets_sent_size,
+
+            real_packets_received: self.real_packets_received - rhs.real_packets_received,
+            real_packets_received_size: self.real_packets_received_size
+                - rhs.real_packets_received_size,
+            cover_packets_received: self.cover_packets_received - rhs.cover_packets_received,
+            cover_packets_received_size: self.cover_packets_received_size
+                - rhs.cover_packets_received_size,
+
+            total_acks_received: self.total_acks_received - rhs.total_acks_received,
+            total_acks_received_size: self.total_acks_received_size - rhs.total_acks_received_size,
+            real_acks_received: self.real_acks_received - rhs.real_acks_received,
+            real_acks_received_size: self.real_acks_received_size - rhs.real_acks_received_size,
+            cover_acks_received: self.cover_acks_received - rhs.cover_acks_received,
+            cover_acks_received_size: self.cover_acks_received_size - rhs.cover_acks_received_size,
+
+            real_packets_queued: self.real_packets_queued - rhs.real_packets_queued,
+            retransmissions_queued: self.retransmissions_queued - rhs.retransmissions_queued,
+            reply_surbs_queued: self.reply_surbs_queued - rhs.reply_surbs_queued,
+            additional_reply_surbs_queued: self.additional_reply_surbs_queued
+                - rhs.additional_reply_surbs_queued,
+        }
+    }
+}
+
+impl std::ops::Div<f64> for PacketRates {
+    type Output = Self;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Self {
+            real_packets_sent: self.real_packets_sent / rhs,
+            real_packets_sent_size: self.real_packets_sent_size / rhs,
+            cover_packets_sent: self.cover_packets_sent / rhs,
+            cover_packets_sent_size: self.cover_packets_sent_size / rhs,
+
+            real_packets_received: self.real_packets_received / rhs,
+            real_packets_received_size: self.real_packets_received_size / rhs,
+            cover_packets_received: self.cover_packets_received / rhs,
+            cover_packets_received_size: self.cover_packets_received_size / rhs,
+
+            total_acks_received: self.total_acks_received / rhs,
+            total_acks_received_size: self.total_acks_received_size / rhs,
+            real_acks_received: self.real_acks_received / rhs,
+            real_acks_received_size: self.real_acks_received_size / rhs,
+            cover_acks_received: self.cover_acks_received / rhs,
+            cover_acks_received_size: self.cover_acks_received_size / rhs,
+
+            real_packets_queued: self.real_packets_queued / rhs,
+            retransmissions_queued: self.retransmissions_queued / rhs,
+            reply_surbs_queued: self.reply_surbs_queued / rhs,
+            additional_reply_surbs_queued: self.additional_reply_surbs_queued / rhs,
+        }
+    }
+}
+
+impl PacketRates {
+    fn summary(&self) -> String {
+        format!(
+            "rx: {}/s (real: {}/s), tx: {}/s (real: {}/s)",
+            bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
+            bibytes2(self.real_packets_received_size),
+            bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
+            bibytes2(self.real_packets_sent_size),
+        )
+    }
+
+    fn detailed_summary(&self) -> String {
+        format!(
+            "RX: {:.1} mixpkt/s, {}/s (real: {}/s, acks: {}/s), TX: {:.1} mixpkt/s, {}/s (real: {}/s)",
+            self.real_packets_received + self.cover_packets_received,
+            bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
+            bibytes2(self.real_packets_received_size),
+            bibytes2(self.total_acks_received_size),
+            self.real_packets_sent + self.cover_packets_sent,
+            bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
+            bibytes2(self.real_packets_sent_size),
+        )
+    }
 }
 
 pub(crate) enum PacketStatisticsEvent {
@@ -130,45 +335,121 @@ impl PacketStatisticsReporter {
 pub(crate) struct PacketStatisticsControl {
     // Incoming packet stats events from other tasks
     stats_rx: PacketStatisticsReceiver,
+
+    // Keep track of packet statistics over time
     stats: PacketStatistics,
+
+    // We keep snapshots of the statistics over time so we can compute rates, and also keeping the
+    // full history allows for some more fancy averaging if we want to do that.
+    history: VecDeque<(Instant, PacketStatistics)>,
+
+    // Keep previous rates so that we can detect notable events
+    rates: VecDeque<(Instant, PacketRates)>,
 }
 
 impl PacketStatisticsControl {
     pub(crate) fn new() -> (Self, PacketStatisticsReporter) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
+
         (
             Self {
                 stats_rx,
                 stats: PacketStatistics::default(),
+                history: VecDeque::new(),
+                rates: VecDeque::new(),
             },
             PacketStatisticsReporter::new(stats_tx),
         )
     }
 
-    fn report_statistics(&self) {
+    // Add the current stats to the history, and remove old ones.
+    fn update_history(&mut self) {
+        // Update latest
+        self.history.push_back((Instant::now(), self.stats.clone()));
+
+        // Filter out old ones
+        let recording_window = Instant::now() - Duration::from_millis(RECORDING_WINDOW_MS);
+        while self
+            .history
+            .front()
+            .map_or(false, |&(t, _)| t < recording_window)
+        {
+            self.history.pop_front();
+        }
+    }
+
+    fn compute_rates(&self) -> Option<PacketRates> {
+        // NOTE: consider changing this to compute rates over the history instead of using current
+        // stats. Currently it should not make much of a difference since we call this just after
+        // updating the history, but it seems like it could be more internally consistent to do it
+        // that way.
+
+        // Do basic averaging over the entire history, which just uses the first and last
+        if let Some((start, start_stats)) = self.history.front() {
+            let duration_secs = Instant::now().duration_since(*start).as_secs_f64();
+            let delta = self.stats.clone() - start_stats.clone();
+            let rates = PacketRates::from(delta) / duration_secs;
+            Some(rates)
+        } else {
+            None
+        }
+    }
+
+    fn update_rates(&mut self) {
+        // Update latest
+        if let Some(rates) = self.compute_rates() {
+            self.rates.push_back((Instant::now(), rates));
+        }
+
+        // Filter out old ones
+        let recording_window = Instant::now() - Duration::from_millis(RECORDING_WINDOW_MS);
+        while self
+            .rates
+            .front()
+            .map_or(false, |&(t, _)| t < recording_window)
+        {
+            self.rates.pop_front();
+        }
+    }
+
+    fn report_rates(&self) {
+        if let Some((_, rates)) = self.rates.back() {
+            log::info!("{}", rates.summary());
+            log::debug!("{}", rates.detailed_summary());
+        }
+    }
+
+    fn report_counters(&self) {
         log::trace!("packet statistics: {:?}", &self.stats);
-        log::info!(
-            "packets sent: {} (real: {}, cover: {}, retransmissions: {})",
-            self.stats.real_packets_sent + self.stats.cover_packets_sent,
-            self.stats.real_packets_sent,
-            self.stats.cover_packets_sent,
-            self.stats.retransmissions_queued,
-        );
-        log::info!(
-            "packets received: {}, (real: {}, cover: {}, acks: {}, acks for cover: {})",
-            self.stats.real_packets_received + self.stats.cover_packets_received,
-            self.stats.real_packets_received,
-            self.stats.cover_packets_received,
-            self.stats.real_acks_received,
-            self.stats.cover_acks_received,
-        );
+        let (summary_sent, summary_recv) = self.stats.summary();
+        log::debug!("{}", summary_sent);
+        log::debug!("{}", summary_recv);
+    }
+
+    fn check_for_notable_events(&self) {
+        let Some((_, latest_rates)) = self.rates.back() else {
+            return;
+        };
+
+        // If we get a burst of retransmissions
+        // TODO: consider making this the number of retransmissions since last report instead.
+        if latest_rates.retransmissions_queued > 0.0 {
+            log::info!(
+                "retransmissions: {} pkt/s",
+                latest_rates.retransmissions_queued
+            );
+        }
+
+        // IDEA: if there is a burst of acks, that could indicate tokio task starvation.
     }
 
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         log::debug!("Started PacketStatisticsControl with graceful shutdown support");
 
-        let interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
-        let mut interval = tokio::time::interval(interval);
+        let report_interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
+        let mut report_interval = tokio::time::interval(report_interval);
+        let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
+        let mut snapshot_interval = tokio::time::interval(snapshot_interval);
 
         loop {
             tokio::select! {
@@ -182,8 +463,14 @@ impl PacketStatisticsControl {
                         break;
                     }
                 },
-                _ = interval.tick() => {
-                    self.report_statistics();
+                _ = snapshot_interval.tick() => {
+                    self.update_history();
+                    self.update_rates();
+                }
+                _ = report_interval.tick() => {
+                    self.report_rates();
+                    self.check_for_notable_events();
+                    self.report_counters();
                 }
                 _ = shutdown.recv_with_delay() => {
                     log::trace!("PacketStatisticsControl: Received shutdown");

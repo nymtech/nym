@@ -6246,6 +6246,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
+ "si-scale",
  "sqlx",
  "tap",
  "tempfile",
@@ -10053,6 +10054,12 @@ checksum = "7ccc8076840c4da029af4f87e4e8daeb0fca6b87bbb02e10cb60b791450e11e4"
 dependencies = [
  "dirs 4.0.0",
 ]
+
+[[package]]
+name = "si-scale"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44beb68bf488343b13ddbd74d1d5d5e6559a58b6dfaee74eb8d5ed4f7ed7666f"
 
 [[package]]
 name = "signal-hook"

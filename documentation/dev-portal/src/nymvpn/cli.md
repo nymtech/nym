@@ -12,26 +12,26 @@ Follow the simple [automated script](#automated-script-for-cli-installation) bel
 
 ## Automated Script for CLI Installation
 
-We wrote a [script](https://gist.github.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/) which does download, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
+We wrote a [script](https://gist.github.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af) which does download of the CLI, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
 
-1. Download the script and save it as `nym-vpn-client-executor.sh`: 
+1. Open a terminal window in a directory where you want the script and NymVPN CLI binary be downloaded and run
 ```sh
-curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/raw/99cea8f4d80f2d002802ed1cbedba288bfca4488/execute-nym-vpn-cli-binary.sh
+curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/raw/2a8b703655549f2e515ef1960b5f6dc54adc02fa/execute-nym-vpn-cli-binary.sh
 ```
+
 2. Make the script executable
 ```sh
 chmod u+x execute-nym-vpn-cli-binary.sh
 ```
-3. Run the script as root, turn of any VPN and run
+
+3. Start the script as root, turn off any VPN and run
 ```sh
-sudo -E ./execute-nym-vpn-cli-binary.sh
+sudo ./execute-nym-vpn-cli-binary.sh
 ```
-4. Verify the `nym-vpn-cli` binary: When prompted to verify `sha256sum` paste your correct one from the [release page]({{nym_vpn_latest_binary_url}}) including the binary name (all as one input with a space in between), for example:
-```sh
-# choose a correct one according to your binary, this is just an example
-96623ccc69bc4cc0e4e3e18528b6dae6be69f645d0a592d926a3158ce2d0c269  nym-vpn-cli_0.1.0_macos_x86_64.zip
-```
-5. The script will automatically start the client. Follow the instructions:  
+
+4. Follow the prompts in the program
+
+5. The script will automatically start the client. Make sure to **turn off any other VPNs** and follow the prompts:
 
 * It prints a JSON view of existing Gateways and prompt you to:
     - *Make sure to use two different Gateways for entry and exit!*
@@ -40,5 +40,9 @@ sudo -E ./execute-nym-vpn-cli-binary.sh
     - `do you want five hop or two hop?`: type `five` or `two`
     - `enable WireGuard? (yes/no):` if you chose yes, find your private key and wireguard IP [here](https://nymvpn.com/en/alpha)
 
-6. To run `nym-vpn-cli` again, reconnect your wifi and follow the easy steps for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-mac.md#run-nymvpn)
+6. To run `nym-vpn-cli` again, reconnect your wifi and run:
+```sh
+sudo ~/nym-vpn-cli-dir/nym-vpn-cli
+```
 
+To understand the setup step by step, follow easy guides for [Linux](cli-linux.md) or [MacOS](cli-mac.md). In case of errors check out the [troubleshooting](troubleshooting.md) section.

@@ -14,29 +14,24 @@ Follow the simple [automated script](#automated-script-for-gui-installation) bel
 
 We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19) which does download of dependencies and the application, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
 
-1. To download the script, open a terminal in a directory where you want to download the script and run:
+1. Open a terminal window in a directory where you want the script and NymVPN binary be downloaded and run
 ```sh
-curl -o nym-vpn-client-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/bc5b0923e53a08b936f3e449c0ab840c6dc1b2f6/nym-vpn-client-install-run.sh
+curl -o nym-vpn-client-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/933962e3e70198ec3d8a1bc5238bbaa20e7f0d52/nym-vpn-client-install-run.sh
 ```
 
 2. Make the script executable
 ```sh
 chmod u+x nym-vpn-client-install-run.sh
 ```
-3. Run the script as root, turn off any VPN and run
-```sh
-sudo -E nym-vpn-client-install-run.sh
-```
-4. Follow the prompts in the program.
 
-5. Verify the `nym-vpn` binary: When prompted to verify `sha256sum` paste your correct one from the [release page]({{nym_vpn_latest_binary_url}}) including the binary name (all as one input with a space in between), for example:
+3. Start the script as root, turn off any VPN and run
 ```sh
-# choose a correct one according to your binary, this is just an example
-0a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip
+sudo -E ./nym-vpn-client-install-run.sh
 ```
-6. The script will run the application and it will prompt you for a country code to exit, chose one of the offered options in the same format as listed
 
-7. To start the application again, reconnect your wifi and run
+4. Follow the prompts in the program
+
+To start the application again, reconnect your wifi and run
 ```sh
 # Linux
 sudo -E ~/nym-vpn-latest/nym-vpn_0.0.3_amd64.AppImage

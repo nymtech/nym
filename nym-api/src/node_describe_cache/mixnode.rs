@@ -78,8 +78,11 @@ pub(crate) async fn get_mixnode_description(
                 source: err,
             })?;
 
-    //SW fill in
-    // let noise = todo!();
+    let noise_info = if let Ok(noise_info) = client.get_noise_information().await {
+        noise_info
+    } else {
+        Default::default()
+    };
 
     let description = NymNodeDescription {
         host_information: host_info.data,
@@ -87,6 +90,7 @@ pub(crate) async fn get_mixnode_description(
         network_requester: None,
         ip_packet_router: None,
         mixnet_websockets: None,
+        noise_information: noise_info,
     };
 
     Ok((mixnode.identity_key, description))

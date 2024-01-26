@@ -183,8 +183,11 @@ async fn get_gateway_description(
         None
     };
 
-    //SW fill in
-    //let noise = todo!();
+    let noise_info = if let Ok(noise_info) = client.get_noise_information().await {
+        noise_info
+    } else {
+        Default::default()
+    };
 
     let description = NymNodeDescription {
         host_information: host_info.data,
@@ -192,6 +195,7 @@ async fn get_gateway_description(
         network_requester,
         ip_packet_router,
         mixnet_websockets: Some(websockets),
+        noise_information: noise_info,
     };
 
     Ok((gateway.identity_key, description))

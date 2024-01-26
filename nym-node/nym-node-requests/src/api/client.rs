@@ -14,6 +14,7 @@ use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use crate::api::v1::network_requester::models::NetworkRequester;
+use crate::api::v1::noise::models::NoiseInformation;
 pub use http_api_client::Client;
 
 pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
@@ -57,6 +58,11 @@ pub trait NymNodeApiClientExt: ApiClient {
 
     async fn get_ip_packet_router(&self) -> Result<IpPacketRouter, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::ip_packet_router_absolute())
+            .await
+    }
+
+    async fn get_noise_information(&self) -> Result<NoiseInformation, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::noise_info_absolute())
             .await
     }
 

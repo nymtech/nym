@@ -60,7 +60,7 @@ impl<'r> FromRequest<'r> for Location {
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         match find_location(request) {
             Ok(loc) => Outcome::Success(loc),
-            Err(e) => Outcome::Failure(e),
+            Err(e) => Outcome::Error(e),
         }
     }
 }

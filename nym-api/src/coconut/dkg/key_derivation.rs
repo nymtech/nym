@@ -622,7 +622,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::*;
     use crate::coconut::tests::helpers::{
         exchange_dealings, initialise_controllers, initialise_dkg, submit_public_keys,
     };

@@ -8,7 +8,7 @@ use nym_node_requests::api::v1::node::models::NoiseInformation;
 /// Returns host information of this node.
 #[utoipa::path(
     get,
-    path = "/noise-information",
+    path = "/noise",
     context_path = "/api/v1",
     tag = "Node",
     responses(

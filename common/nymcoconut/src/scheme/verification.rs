@@ -1,22 +1,21 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use core::ops::Neg;
-use std::convert::TryFrom;
-use std::convert::TryInto;
-
-use bls12_381::{multi_miller_loop, G1Affine, G2Prepared, G2Projective, Scalar};
-use group::{Curve, Group};
 
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofKappaZeta;
-use crate::scheme::double_use::BlindedSerialNumber;
 use crate::scheme::setup::Parameters;
 use crate::scheme::Signature;
 use crate::scheme::VerificationKey;
 use crate::traits::{Base58, Bytable};
 use crate::utils::try_deserialize_g2_projective;
 use crate::Attribute;
+use bls12_381::{multi_miller_loop, G1Affine, G2Prepared, G2Projective, Scalar};
+use core::ops::Neg;
+use group::{Curve, Group};
+use std::convert::TryFrom;
+use std::convert::TryInto;
+
+pub use crate::scheme::double_use::BlindedSerialNumber;
 
 // TODO NAMING: this whole thing
 // Theta
@@ -25,7 +24,7 @@ pub struct VerifyCredentialRequest {
     // blinded_message (kappa)
     pub blinded_message: G2Projective,
     // blinded serial number (zeta)
-    pub blinded_serial_number: G2Projective,
+    pub blinded_serial_number: BlindedSerialNumber,
     // sigma
     pub credential: Signature,
     // pi_v
@@ -53,15 +52,10 @@ impl TryFrom<&[u8]> for VerifyCredentialRequest {
             ),
         )?;
 
-        // safety: we just checked for the length so the unwraps are fine
-        #[allow(clippy::unwrap_used)]
-        let blinded_serial_number_bytes = bytes[96..192].try_into().unwrap();
-        let blinded_serial_number = try_deserialize_g2_projective(
-            &blinded_serial_number_bytes,
-            CoconutError::Deserialization(
-                "failed to deserialize the blinded serial number (zeta)".to_string(),
-            ),
-        )?;
+        let blinded_serial_number_bytes = &bytes[96..192];
+        let blinded_serial_number =
+            BlindedSerialNumber::try_from_byte_slice(blinded_serial_number_bytes)?;
+
         let credential = Signature::try_from(&bytes[192..288])?;
 
         let pi_v = ProofKappaZeta::from_bytes(&bytes[288..])?;
@@ -87,7 +81,7 @@ impl VerifyCredentialRequest {
 
     pub fn has_blinded_serial_number(&self, blinded_serial_number_bs58: &str) -> Result<bool> {
         let blinded_serial_number = BlindedSerialNumber::try_from_bs58(blinded_serial_number_bs58)?;
-        let ret = self.blinded_serial_number.eq(&blinded_serial_number.inner);
+        let ret = self.blinded_serial_number.eq(&blinded_serial_number);
         Ok(ret)
     }
 
@@ -112,10 +106,7 @@ impl VerifyCredentialRequest {
     }
 
     pub fn blinded_serial_number_bs58(&self) -> String {
-        let blinded_serial_nuumber = BlindedSerialNumber {
-            inner: self.blinded_serial_number,
-        };
-        blinded_serial_nuumber.to_bs58()
+        self.blinded_serial_number.to_bs58()
     }
 }
 
@@ -198,7 +189,7 @@ pub fn prove_bandwidth_credential(
 
     Ok(VerifyCredentialRequest {
         blinded_message,
-        blinded_serial_number,
+        blinded_serial_number: blinded_serial_number.into(),
         credential: signature_prime,
         pi_v,
     })

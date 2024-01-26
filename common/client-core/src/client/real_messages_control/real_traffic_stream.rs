@@ -3,6 +3,7 @@
 
 use self::sending_delay_controller::SendingDelayController;
 use crate::client::mix_traffic::BatchMixMessageSender;
+use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
@@ -113,6 +114,9 @@ where
 
     /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
     lane_queue_lengths: LaneQueueLengths,
+
+    /// Channel used for sending statistics events to `PacketStatisticsControl`.
+    stats_tx: PacketStatisticsReporter,
 }
 
 #[derive(Debug)]
@@ -171,6 +175,7 @@ where
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         OutQueueControl {
             config,
@@ -184,6 +189,7 @@ where
             transmission_buffer: TransmissionBuffer::new(),
             client_connection_rx,
             lane_queue_lengths,
+            stats_tx,
         }
     }
 
@@ -214,7 +220,7 @@ where
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
-        let (next_message, fragment_id) = match next_message {
+        let (next_message, fragment_id, packet_size) = match next_message {
             StreamMessage::Cover => {
                 let cover_traffic_packet_size = self.loop_cover_message_size();
                 trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
@@ -250,15 +256,28 @@ where
                         "Somehow failed to generate a loop cover message with a valid topology",
                     ),
                     None,
+                    cover_traffic_packet_size.size(),
                 )
             }
             StreamMessage::Real(real_message) => {
-                (real_message.mix_packet, real_message.fragment_id)
+                let packet_size = real_message.packet_size();
+                (
+                    real_message.mix_packet,
+                    real_message.fragment_id,
+                    packet_size,
+                )
             }
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
             log::error!("Failed to send: {err}");
+        } else {
+            let event = if fragment_id.is_some() {
+                PacketStatisticsEvent::RealPacketSent(packet_size)
+            } else {
+                PacketStatisticsEvent::CoverPacketSent(packet_size)
+            };
+            self.stats_tx.report(event);
         }
 
         // notify ack controller about sending our message only after we actually managed to push it
@@ -339,6 +358,28 @@ where
         // Update the published queue length
         let lane_length = self.transmission_buffer.lane_length(&lane);
         self.lane_queue_lengths.set(&lane, lane_length);
+
+        // This is the last step in the pipeline where we know the type of the message, so
+        // lets count the number of retransmissions and reply surb messages sent here.
+        let stat_event = match lane {
+            TransmissionLane::General => None,
+            TransmissionLane::ConnectionId(_) => None,
+            TransmissionLane::ReplySurbRequest => {
+                Some(PacketStatisticsEvent::ReplySurbRequestQueued)
+            }
+            TransmissionLane::AdditionalReplySurbs => {
+                Some(PacketStatisticsEvent::AdditionalReplySurbRequestQueued)
+            }
+            TransmissionLane::Retransmission => Some(PacketStatisticsEvent::RetransmissionQueued),
+        };
+        if let Some(stat_event) = stat_event {
+            self.stats_tx.report(stat_event);
+        }
+        // To avoid comparing apples to oranges when presenting the fraction of packets that are
+        // retransmissions, we also need to keep track to the total number of real messages queued,
+        // even though we also track the actual number of messages sent later in the pipeline.
+        self.stats_tx
+            .report(PacketStatisticsEvent::RealPacketQueued);
 
         Some(real_next)
     }
@@ -433,6 +474,13 @@ where
             Poll::Ready(Some((real_messages, conn_id))) => {
                 log::trace!("handling real_messages: size: {}", real_messages.len());
 
+                // This is the last step in the pipeline where we know the type of the message, so
+                // lets count the number of retransmissions here.
+                if conn_id == TransmissionLane::Retransmission {
+                    self.stats_tx
+                        .report(PacketStatisticsEvent::RetransmissionQueued);
+                }
+
                 // First store what we got for the given connection id
                 self.transmission_buffer.store(&conn_id, real_messages);
                 let real_next = self.pop_next_message().expect("we just added one");
@@ -471,10 +519,10 @@ where
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
         let status_str = if self.config.traffic.disable_main_poisson_packet_distribution {
-            format!("Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), no delay")
+            format!("Packet backlog: {backlog:.2} kiB ({packets}), {lanes} lanes, no delay")
         } else {
             format!(
-                "Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), avg delay: {delay}ms ({mult})"
+                "Packet backlog: {backlog:.2} kiB ({packets}), {lanes} lanes, avg delay: {delay}ms ({mult})"
             )
         };
         if packets > 1000 {

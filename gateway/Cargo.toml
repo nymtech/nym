@@ -103,3 +103,9 @@ sqlx = { workspace = true, features = [
 
 [features]
 wireguard = ["nym-wireguard", "defguard_wireguard_rs"]
+
+[package.metadata.deb]
+name = "nym-gateway"
+maintainer-scripts = "debian"
+depends = "curl"
+systemd-units = { enable = false }

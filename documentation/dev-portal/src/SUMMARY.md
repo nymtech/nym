@@ -18,13 +18,23 @@
 
 # User Manuals
 
+- [NymVPN alpha](nymvpn/intro.md)
+    - [GUI](nymvpn/gui.md)
+        - [Linux](nymvpn/gui-linux.md)
+        - [MacOS](nymvpn/gui-mac.md)
+    - [CLI](nymvpn/cli.md)
+        - [Linux](nymvpn/cli-linux.md)
+        - [MacOS](nymvpn/cli-mac.md)
+    - [Testing](nymvpn/testing.md)
+    - [Troubleshooting](nymvpn/troubleshooting.md)
+    - [NymVPN FAQ](nymvpn/faq.md)
 - [NymConnect X Monero](tutorials/monero.md)
 - [NymConnect X Matrix](tutorials/matrix.md)
 - [NymConnect X Telegram](tutorials/telegram.md)
 - [NymConnect X Electrum](tutorials/electrum.md)
 - [NymConnect X Firo wallet](tutorials/firo.md)
 
-# Code Examples 
+# Code Examples
 
 - [Custom Service Providers](examples/custom-services.md)
 - [Apps Using Network Requesters](examples/using-nrs.md)
@@ -49,9 +59,9 @@
 		- [Preparing Your Service](tutorials/cosmos-service/service.md)
 		- [Preparing Your Service pt2](tutorials/cosmos-service/service-src.md)
 		- [Querying the Chain](tutorials/cosmos-service/querying.md)
-   
+
 - [Typescript](tutorials/typescript.md)
-    - [Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md) 
+    - [Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md)
       	- [Tutorial Overview](tutorials/simple-service-provider/overview.md)
       	- [Preparing Your User Client Environment](tutorials/simple-service-provider/preparating-env.md)
       	- [Building Your User Client](tutorials/simple-service-provider/user-client.md)
@@ -83,7 +93,7 @@
 - [Community Applications and Guides](community-resources/community-applications-and-guides.md)
 - [Change Service Grantee Information](info-request.md)
 
---- 
+---
 # Misc.
 - [Code of Conduct](coc.md)
 - [Licensing](licensing.md)

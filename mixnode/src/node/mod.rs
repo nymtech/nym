@@ -278,7 +278,7 @@ impl MixNode {
         })
     }
 
-    async fn wait_for_interrupt(&self, shutdown: TaskManager) {
+    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
         let _res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym mixnode");
     }

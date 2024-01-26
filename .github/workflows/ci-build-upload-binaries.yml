@@ -4,18 +4,18 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'clients/**'
-      - 'common/**'
-      - 'explorer-api/**'
-      - 'gateway/**'
-      - 'integrations/**'
-      - 'mixnode/**'
-      - 'sdk/rust/nym-sdk/**'
-      - 'service-providers/**'
-      - 'nym-api/**'
-      - 'nym-outfox/**'
-      - 'tools/nym-cli/**'
-      - 'tools/ts-rs-cli/**'
+      - "clients/**"
+      - "common/**"
+      - "explorer-api/**"
+      - "gateway/**"
+      - "integrations/**"
+      - "mixnode/**"
+      - "sdk/rust/nym-sdk/**"
+      - "service-providers/**"
+      - "nym-api/**"
+      - "nym-outfox/**"
+      - "tools/nym-cli/**"
+      - "tools/ts-rs-cli/**"
 
 jobs:
   publish-nym:
@@ -53,6 +53,16 @@ jobs:
           command: build
           args: --workspace --release
 
+      - name: Install cargo-deb
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-deb
+
+      - name: Build deb packages
+        shell: bash
+        run: scripts/ppa.sh ${{ secrets.PPA_SIGNING_KEY }}
+
       - name: Prepare build output
         shell: bash
         env:
@@ -67,6 +77,7 @@ jobs:
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
+          cp ppa/debian/* $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true

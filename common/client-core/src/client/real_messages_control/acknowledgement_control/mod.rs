@@ -8,6 +8,7 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use crate::client::inbound_messages::InputMessageReceiver;
+use crate::client::packet_statistics_control::PacketStatisticsReporter;
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::spawn_future;
@@ -208,6 +209,7 @@ where
         connectors: AcknowledgementControllerConnectors,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -224,6 +226,7 @@ where
             Arc::clone(&ack_key),
             connectors.ack_receiver,
             connectors.ack_action_sender.clone(),
+            stats_tx,
         );
 
         // will listen for any new messages from the client

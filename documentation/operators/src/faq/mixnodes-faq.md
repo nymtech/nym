@@ -1,22 +1,51 @@
 # Frequently Asked Questions
 
-## Nym Nodes
+## Nym Mixnet
+
+To see different stats about Nym Mixnet live, we recommend you to visit [status.notrustverify.ch](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1) built by [No Trust Verify](https://notrustverify.ch/) crew, one of the squads within Nym core community.
+
+<iframe src="https://status.notrustverify.ch/d-solo/CW3L7dVVk/nym-mixnet?orgId=1&from=1702215592419&to=1704807592419&panelId=12" width="800" height="400" frameborder="0"></iframe>
+
+
+### Is there an explorer for Nym Mixnet?
+
+Yes, there are several places, some are built by Nym core community:
+
+* [Nym Explorer](https://explorer.nymtech.net/)
+* [Guru Explorer](https://mixnet.explorers.guru/)
+* [ExploreNYM](https://explorenym.net/)
 
 ### What determines the rewards when running a Mix Node?
 
-The stake required for a Mix Node to achieve maximum rewards is called Mix Node saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 50% of the staking supply locked in Mix Nodes.
+The stake required for a Mix Node to achieve maximum rewards is called Mix Node saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 40% of the staking supply locked in Mix Nodes.
 
-The node stake saturation point, which we denote by Nsat, is given by the stake supply, target level of staking divided by the number of rewarded (active) nodes. 
+The node stake saturation point, which we denote by Nsat, is given by the stake supply, target level of staking divided between the rewarded nodes.
 
-This design ensures the nodes aim to have a same size of stake (reputation) which can be done by delegation staking, as well as it ensures that there is a decentralization of staking as any higher level of staked tokens per node results in worse rewards. On the contrary, the more Mix Nodes are active, the lower is Nsat. The equilibrium is reached when the staked tokens are delegated equally across the active mix-nodes and that's our basis for this incentive system.
+This design ensures the nodes aim to have a same size of stake (reputation) which can be done by delegation staking, as well as it secures a whale prevention and decentralization of staking, as any higher level of delegated $NYM than Nsat per node results in worsening reward ratio. On the contrary, the more Mix Nodes are active, the lower is Nsat. The equilibrium is reached when the staked tokens are delegated equally across the active Mix nodes and that's our basis for this incentive system.
+
+<iframe src="https://status.notrustverify.ch/d-solo/CW3L7dVVk/nym-mixnet?orgId=1&from=1703074760986&to=1705666760986&panelId=5" width="800" height="400" frameborder="0"></iframe>
+
+
+The rewarded nodes are the nodes which will receive some rewards by the end of the given epoch. These can be separated further separated into:
+
+1. Active: Top *N* nodes of the rewarded set (currently all of them but this can change), these are nodes which are used by the clients and mix packets.
+
+2. Standby: Bottom *N* nodes of the rewarded set, they don't mix data from the clients but are used for testing. Their reward is smaller.
+
 
 For more detailed calculation, read our blog post [Nym Token Economics update](https://blog.nymtech.net/nym-token-economics-update-fedff0ed5267). More info on staking can be found [here](https://blog.nymtech.net/staking-in-nym-introducing-mainnet-mixmining-f9bb1cbc7c36). And [here](https://blog.nymtech.net/want-to-stake-in-nym-here-is-how-to-choose-a-mix-node-to-delegate-nym-to-c3b862add165) is more info on how to choose a Mix Node for delegation. And finally an [update](https://blog.nymtech.net/quarterly-token-economic-parameter-update-b2862948710f) on token economics from July 2023.
+
+<iframe src="https://status.notrustverify.ch/d-solo/CW3L7dVVk/nym-mixnet?orgId=1&from=1703074829887&to=1705666829887&panelId=31" width="850" height="400" frameborder="0"></iframe>
+
+*More graphs and stats at [stats.notrustverify.ch](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1&from=1703074861988&to=1705666862004).*
 
 ### Which VPS providers would you recommend?
 
 Consider in which jurisdiction you reside and where do you want to run a Mix Node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to choose smaller and decentralised VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Linode, Ghandi, Flokinet and Exoscale. Do your own research and share with the community.
 
-<!---### Why is a mix node setup on a self-hosted machine so tricky?--->
+### Why is a mix node setup on a self-hosted machine so tricky?
+
+We don't recommend this setup because it's really difficult to get a static IP and route IPv6 traffic.
 
 ### What's the Sphinx packet size?
 
@@ -28,7 +57,7 @@ Because of the way the smart contract works we keep it one-node one-address at t
 
 ### Which nodes are the most needed to be setup to strengthen Nym infrastructure and which ones bring rewards?
 
-Right now only Mix Nodes are rewarded. We're working on Gateway and service payments. Gateways are the weak link right now due mostly to lack of incentivisation. Services like Network Requesters are obviously the most necessary for people to start using the platform, and we're working on smart contracts to allow for people to start advertising them the same way they do Mix Nodes.
+Ath this point the most crutial component needed are [Exit Gateways](../legal/exit-gateway.md).
 
 ### Are Mix Nodes whitelisted?
 
@@ -60,7 +89,6 @@ We are currently working towards building up a closed set of reputable validator
 
 We understand that the early days of the Nyx blockchain will face possible vulnerabilities in terms of size - easy to disrupt or halt the chain if a malicious party entered with a large portion of stake. Besides that, there are some legal issues we need to address before we can distribute the validator set in a fully permissions fashion.
 
-### Why does Nym do many airdrops?
+### Why does Nym do airdrops?
 
 It is part of ensuring decentralisation - we need to avoid a handful of people having too much control over the token and market. Of course ideally people will stake the tokens and contribute to the project at this stage. We run surveys to better understand what people are doing with their tokens and what usability issues there are for staking. Any feedback is appreciated as it helps us improve all aspects of using the token and participating in the ecosystem.
-

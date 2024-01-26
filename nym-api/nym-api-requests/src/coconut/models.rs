@@ -187,18 +187,18 @@ pub struct EpochCredentialsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialsResponse {
     // note: BTreeMap returns ordered results so it's fine to use it with pagination
-    pub credentials: BTreeMap<i64, IssuedCredentialInner>,
+    pub credentials: BTreeMap<i64, IssuedCredentialBody>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialResponse {
-    pub credential: Option<IssuedCredentialInner>,
+    pub credential: Option<IssuedCredentialBody>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedCredentialInner {
+pub struct IssuedCredentialBody {
     pub credential: IssuedCredential,
 
     pub signature: identity::Signature,

@@ -9,8 +9,10 @@ use crate::rpc_client::RpcClient;
 use crate::scraper::subscriber::{run_websocket_driver, ChainSubscriber};
 use crate::storage::ScraperStorage;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tendermint_rpc::WebSocketClientDriver;
 use tokio::sync::mpsc::{channel, unbounded_channel};
+use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::info;
@@ -54,6 +56,7 @@ impl NyxdScraperBuilder {
         );
         let mut block_processor = BlockProcessor::new(
             scraper.cancel_token.clone(),
+            scraper.startup_sync.clone(),
             processing_rx,
             req_tx,
             scraper.storage.clone(),
@@ -112,7 +115,8 @@ pub struct NyxdScraper {
 
     task_tracker: TaskTracker,
     cancel_token: CancellationToken,
-    storage: ScraperStorage,
+    startup_sync: Arc<Notify>,
+    pub storage: ScraperStorage,
 }
 
 impl NyxdScraper {
@@ -127,6 +131,7 @@ impl NyxdScraper {
             config,
             task_tracker: TaskTracker::new(),
             cancel_token: CancellationToken::new(),
+            startup_sync: Arc::new(Default::default()),
             storage,
         })
     }
@@ -164,6 +169,7 @@ impl NyxdScraper {
         );
         let block_processor = BlockProcessor::new(
             self.cancel_token.clone(),
+            self.startup_sync.clone(),
             processing_rx,
             req_tx,
             self.storage.clone(),
@@ -189,8 +195,15 @@ impl NyxdScraper {
         Ok(())
     }
 
+    pub async fn wait_for_startup_sync(&self) {
+        info!("awaiting startup chain sync");
+        self.startup_sync.notified().await
+    }
+
     pub async fn stop(self) {
         info!("stopping the chain scrapper");
+        assert!(self.task_tracker.is_closed());
+
         self.cancel_token.cancel();
         self.task_tracker.wait().await
     }

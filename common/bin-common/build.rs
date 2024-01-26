@@ -1,13 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use vergen::{vergen, Config};
+use vergen::EmitBuilder;
 
 fn main() {
-    let mut config = Config::default();
-    if std::env::var("DOCS_RS").is_ok() {
-        // If we don't have access to git information, such as in a docs.rs build, don't error
-        *config.git_mut().skip_if_error_mut() = true;
-    }
-    vergen(config).expect("failed to extract build metadata");
+    EmitBuilder::builder()
+        .all_build()
+        .all_git()
+        .all_rustc()
+        .all_cargo()
+        .emit()
+        .expect("failed to extract build metadata");
 }

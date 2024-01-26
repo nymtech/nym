@@ -52,10 +52,6 @@ use wasmtimer::tokio::sleep;
 pub const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
 pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
 
-#[cfg(feature = "http-client")]
-#[async_trait]
-impl CosmWasmClient for cosmrs::rpc::HttpClient {}
-
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait CosmWasmClient: TendermintRpcClient {
@@ -522,3 +518,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
         res.try_into()
     }
 }
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<T> CosmWasmClient for T where T: TendermintRpcClient {}

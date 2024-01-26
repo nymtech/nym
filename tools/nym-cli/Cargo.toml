@@ -25,3 +25,8 @@ nym-cli-commands = { path = "../../common/commands" }
 nym-bin-common = { path = "../../common/bin-common"}
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["http-client"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
+
+[package.metadata.deb]
+name = "nym-cli"
+maintainer-scripts = "debian"
+systemd-units = { enable = false }

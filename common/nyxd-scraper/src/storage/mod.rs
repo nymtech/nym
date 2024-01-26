@@ -7,7 +7,7 @@ use crate::storage::manager::{
     insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
     update_last_processed, StorageManager,
 };
-use crate::storage::models::Validator;
+use crate::storage::models::{CommitSignature, Validator};
 use sqlx::types::time::OffsetDateTime;
 use sqlx::{ConnectOptions, Sqlite, Transaction};
 use std::fmt::Debug;
@@ -19,7 +19,7 @@ use tracing::{debug, error, info, instrument, trace, warn};
 
 mod helpers;
 mod manager;
-mod models;
+pub mod models;
 
 pub type StorageTransaction = Transaction<'static, Sqlite>;
 
@@ -31,8 +31,6 @@ pub struct ScraperStorage {
 impl ScraperStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
-        // TODO: we can inject here more stuff based on our nym-api global config
-        // struct. Maybe different pool size or timeout intervals?
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true);
@@ -91,6 +89,21 @@ impl ScraperStorage {
         Ok(self.manager.get_last_block_height_before(time).await?)
     }
 
+    pub async fn get_blocks_between(
+        &self,
+        start_time: OffsetDateTime,
+        end_time: OffsetDateTime,
+    ) -> Result<i64, ScraperError> {
+        let Some(block_start) = self.get_first_block_height_after(start_time).await? else {
+            return Ok(0);
+        };
+        let Some(block_end) = self.get_last_block_height_before(end_time).await? else {
+            return Ok(0);
+        };
+
+        Ok(block_end - block_start)
+    }
+
     pub async fn get_signed_between(
         &self,
         consensus_address: &str,
@@ -120,8 +133,23 @@ impl ScraperStorage {
             .await
     }
 
+    pub async fn get_precommit(
+        &self,
+        consensus_address: &str,
+        height: i64,
+    ) -> Result<Option<CommitSignature>, ScraperError> {
+        Ok(self
+            .manager
+            .get_precommit(consensus_address, height)
+            .await?)
+    }
+
     pub async fn get_block_signers(&self, height: i64) -> Result<Vec<Validator>, ScraperError> {
         Ok(self.manager.get_block_validators(height).await?)
+    }
+
+    pub async fn get_all_known_validators(&self) -> Result<Vec<Validator>, ScraperError> {
+        Ok(self.manager.get_validators().await?)
     }
 
     pub async fn get_last_processed_height(&self) -> Result<i64, ScraperError> {

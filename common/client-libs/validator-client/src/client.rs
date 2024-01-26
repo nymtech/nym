@@ -42,6 +42,14 @@ pub struct Config {
     nyxd_config: nyxd::Config,
 }
 
+impl TryFrom<NymNetworkDetails> for Config {
+    type Error = ValidatorClientError;
+
+    fn try_from(value: NymNetworkDetails) -> Result<Self, Self::Error> {
+        Config::try_from_nym_network_details(&value)
+    }
+}
+
 impl Config {
     pub fn try_from_nym_network_details(
         details: &NymNetworkDetails,

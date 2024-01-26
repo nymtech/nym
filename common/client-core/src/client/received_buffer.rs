@@ -1,8 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_controller::ReplyControllerSender;
-use crate::client::replies::reply_storage::SentReplyKeys;
+use crate::client::{
+    packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter},
+    replies::{reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys},
+};
 use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
@@ -43,14 +45,32 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     // but perhaps it should be changed to include timestamps of when the message was reconstructed
     // and every now and then remove ids older than X
     recently_reconstructed: HashSet<i32>,
+
+    stats_tx: PacketStatisticsReporter,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
-    fn recover_from_fragment(&mut self, fragment_data: &[u8]) -> Option<NymMessage> {
+    fn recover_from_fragment(
+        &mut self,
+        fragment_data: &[u8],
+        fragment_data_size: usize,
+    ) -> Option<NymMessage> {
         if nym_sphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
+            // NOTE: it's important to note that there is quite a bit of difference in size of
+            // received and sent packets due to the sphinx layers being removed by the exit gateway
+            // before it reaches the mixnet client.
+            self.stats_tx
+                .report(PacketStatisticsEvent::CoverPacketReceived(
+                    fragment_data_size,
+                ));
             return None;
         }
+
+        self.stats_tx
+            .report(PacketStatisticsEvent::RealPacketReceived(
+                fragment_data_size,
+            ));
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {
@@ -103,15 +123,17 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
         reply_ciphertext: &mut [u8],
         reply_key: SurbEncryptionKey,
     ) -> Result<Option<NymMessage>, MessageRecoveryError> {
+        let reply_ciphertext_size = reply_ciphertext.len();
         // note: this performs decryption IN PLACE without extra allocation
         self.message_receiver
             .recover_plaintext_from_reply(reply_ciphertext, reply_key)?;
         let fragment_data = reply_ciphertext;
 
-        Ok(self.recover_from_fragment(fragment_data))
+        Ok(self.recover_from_fragment(fragment_data, reply_ciphertext_size))
     }
 
     fn process_received_regular_packet(&mut self, mut raw_fragment: Vec<u8>) -> Option<NymMessage> {
+        let raw_fragment_size = raw_fragment.len();
         let fragment_data = match self.message_receiver.recover_plaintext_from_regular_packet(
             self.local_encryption_keypair.private_key(),
             &mut raw_fragment,
@@ -123,7 +145,7 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
             Ok(frag_data) => frag_data,
         };
 
-        self.recover_from_fragment(fragment_data)
+        self.recover_from_fragment(fragment_data, raw_fragment_size)
     }
 }
 
@@ -141,6 +163,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -149,6 +172,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 message_receiver: R::new(),
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
+                stats_tx,
             })),
             reply_key_storage,
             reply_controller_sender,
@@ -353,7 +377,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 };
 
             if let Some(completed) = completed_message {
-                info!("received {completed}");
+                debug!("received {completed}");
                 completed_messages.push(completed)
             }
         }
@@ -480,11 +504,13 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
+        packet_statistics_reporter: PacketStatisticsReporter,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
             reply_controller_sender,
+            packet_statistics_reporter,
         );
 
         ReceivedMessagesBufferController {

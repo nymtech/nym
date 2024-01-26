@@ -23,6 +23,7 @@ pub use scheme::setup::Parameters;
 pub use scheme::verification::check_vk_pairing;
 pub use scheme::verification::prove_bandwidth_credential;
 pub use scheme::verification::verify_credential;
+pub use scheme::verification::BlindedSerialNumber;
 pub use scheme::verification::Theta;
 pub use scheme::BlindedSignature;
 pub use scheme::Signature;

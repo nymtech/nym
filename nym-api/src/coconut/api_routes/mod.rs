@@ -110,7 +110,11 @@ pub async fn verify_bandwidth_credential(
     // Credential has not been spent before, and is on its way of being spent
     let credential_status = state
         .client
-        .get_spent_credential(verify_credential_body.credential.blinded_serial_number())
+        .get_spent_credential(
+            verify_credential_body
+                .credential
+                .blinded_serial_number_bs58(),
+        )
         .await?
         .spend_credential
         .ok_or(CoconutError::InvalidCredentialStatus {

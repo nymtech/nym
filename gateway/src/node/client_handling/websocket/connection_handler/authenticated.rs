@@ -19,8 +19,10 @@ use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
+use std::cmp::max;
 use std::{convert::TryFrom, process, time::Duration};
 
+use crate::node::client_handling::websocket::connection_handler::coconut::BANDWIDTH_PER_CREDENTIAL;
 use crate::node::{
     client_handling::{
         bandwidth::Bandwidth,
@@ -57,6 +59,9 @@ pub(crate) enum RequestHandlingError {
 
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
+
+    #[error("the provided bandwidth credential has already been spent before at this gateway")]
+    BandwidthCredentialAlreadySpent,
 
     #[error("This gateway is only accepting coconut credentials for bandwidth")]
     OnlyCoconutCredentials,
@@ -229,6 +234,17 @@ where
             iv,
         )?;
 
+        // check if the credential hasn't been spent before
+        let already_spent = self
+            .inner
+            .storage
+            .contains_credential(credential.blinded_serial_number())
+            .await?;
+        if already_spent {
+            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
+        }
+
+        // locally verify the credential
         let aggregated_verification_key = self
             .inner
             .coconut_verifier
@@ -241,19 +257,36 @@ where
             ));
         }
 
-        let api_clients = self
-            .inner
-            .coconut_verifier
-            .api_clients(*credential.epoch_id())
+        // technically this is not atomic, i.e. checking for the spending and then marking as spent,
+        // but because we have the `UNIQUE` constraint on the database table
+        // if somebody attempts to spend the same credential in another, parallel request,
+        // one of them will fail
+        //
+        // mark the credential as spent
+        // TODO: technically this should be done under a storage transaction so that if we experience any
+        // failures later on, it'd get reverted
+        self.inner
+            .storage
+            .insert_spent_credential(*credential.blinded_serial_number(), self.client.address)
             .await?;
 
-        self.inner
-            .coconut_verifier
-            .release_funds(&api_clients, &credential)
-            .await?;
+        // OLD CODE FOR RELEASING FUNDS
+        // let api_clients = self
+        //     .inner
+        //     .coconut_verifier
+        //     .api_clients(*credential.epoch_id())
+        //     .await?;
+        //
+        // self.inner
+        //     .coconut_verifier
+        //     .release_funds(&api_clients, &credential)
+        //     .await?;
 
         let bandwidth = Bandwidth::from(credential);
-        let bandwidth_value = bandwidth.value();
+
+        // if somebody decided to use a credential with bunch of tokens in it, sure, grant them that bandwidth
+        // otherwise use the default value
+        let bandwidth_value = max(bandwidth.value(), BANDWIDTH_PER_CREDENTIAL);
 
         if bandwidth_value > i64::MAX as u64 {
             // note that this would have represented more than 1 exabyte,

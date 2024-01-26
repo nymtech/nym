@@ -49,7 +49,11 @@ impl Credential {
         }
     }
 
-    pub fn blinded_serial_number(&self) -> String {
+    pub fn blinded_serial_number(&self) -> &BlindedSerialNumber {
+        &self.theta.blinded_serial_number
+    }
+
+    pub fn blinded_serial_number_bs58(&self) -> String {
         self.theta.blinded_serial_number_bs58()
     }
 

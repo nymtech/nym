@@ -20,6 +20,8 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
+pub(crate) const BANDWIDTH_PER_CREDENTIAL: u64 = 1024 * 1024 * 1024; // 1GB
+
 pub(crate) struct CoconutVerifier {
     address: AccountId,
     nyxd_client: RwLock<DirectSigningHttpRpcNyxdClient>,
@@ -165,7 +167,7 @@ impl CoconutVerifier {
                     credential.voucher_value().into(),
                     self.mix_denom_base.clone(),
                 ),
-                credential.blinded_serial_number(),
+                credential.blinded_serial_number_bs58(),
                 self.address.to_string(),
                 None,
             )

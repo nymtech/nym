@@ -1062,7 +1062,7 @@ async fn verification_of_bandwidth_credential() {
     );
 
     // Test the endpoint with no msg in the proposal action
-    proposal.description = credential.blinded_serial_number();
+    proposal.description = credential.blinded_serial_number_bs58();
     proposal_db
         .write()
         .unwrap()
@@ -1117,7 +1117,7 @@ async fn verification_of_bandwidth_credential() {
     );
 
     spent_credential_db.write().unwrap().insert(
-        credential.blinded_serial_number(),
+        credential.blinded_serial_number_bs58(),
         SpendCredentialResponse::new(None),
     );
     let response = client
@@ -1140,11 +1140,11 @@ async fn verification_of_bandwidth_credential() {
     // Test the endpoint with a credential that doesn't verify correctly
     let mut spent_credential = SpendCredential::new(
         funds.clone().into(),
-        credential.blinded_serial_number(),
+        credential.blinded_serial_number_bs58(),
         Addr::unchecked("unimportant"),
     );
     spent_credential_db.write().unwrap().insert(
-        credential.blinded_serial_number(),
+        credential.blinded_serial_number_bs58(),
         SpendCredentialResponse::new(Some(spent_credential.clone())),
     );
     let bad_credential = Credential::new(
@@ -1259,7 +1259,7 @@ async fn verification_of_bandwidth_credential() {
     // Test the endpoint with the credential marked as Spent in the Coconut Bandwidth Contract
     spent_credential.mark_as_spent();
     spent_credential_db.write().unwrap().insert(
-        credential.blinded_serial_number(),
+        credential.blinded_serial_number_bs58(),
         SpendCredentialResponse::new(Some(spent_credential)),
     );
     let response = client

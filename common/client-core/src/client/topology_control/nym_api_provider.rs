@@ -77,33 +77,22 @@ impl NymApiTopologyProvider {
             Ok(gateways) => gateways,
         };
 
-        let all_mixes = match self.validator_client.get_all_mixnodes().await {
+        let nodes_described = match self.validator_client.get_cached_described_nodes().await {
             Err(err) => {
-                error!("failed to get all mixes - {err}");
-                return None;
-            }
-            Ok(epoch) => epoch,
-        };
-
-        let all_gateways = match self.validator_client.get_all_gateways().await {
-            Err(err) => {
-                error!("failed to get all gateways - {err}");
+                error!("failed to get described nodes - {err}");
                 return None;
             }
             Ok(epoch) => epoch,
         };
 
         let topology = nym_topology_from_detailed(mixnodes, gateways)
-            .with_all_mixes(all_mixes.clone())
-            .with_all_gateways(all_gateways.clone())
+            .with_described_nodes(nodes_described.clone())
             .filter_system_version(&self.client_version);
 
         if let Err(err) = self.check_layer_distribution(&topology) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used: {err}");
             self.use_next_nym_api();
-            let empty_topology = NymTopology::empty()
-                .with_all_mixes(all_mixes)
-                .with_all_gateways(all_gateways);
+            let empty_topology = NymTopology::empty().with_described_nodes(nodes_described);
             Some(empty_topology)
         } else {
             Some(topology)

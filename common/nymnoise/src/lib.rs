@@ -5,6 +5,7 @@ use crate::connection::Connection;
 use crate::error::NoiseError;
 use crate::stream::{NoisePattern, NoiseStream};
 use log::*;
+use nym_crypto::asymmetric::encryption;
 use nym_topology::NymTopology;
 use sha2::{Digest, Sha256};
 use snow::{error::Prerequisite, Builder, Error};
@@ -61,7 +62,7 @@ pub async fn upgrade_noise_initiator_with_topology(
         }
     };
     let remote_pub_key = match topology.find_node_key_by_mix_host(responder_addr) {
-        Ok(Some(key)) => key.to_bytes(),
+        Ok(Some(key)) => encryption::PublicKey::from_base58_string(key)?.to_bytes(),
         Ok(None) => {
             warn!(
                 "{:?} can't speak Noise yet, falling back to TCP",
@@ -73,7 +74,7 @@ pub async fn upgrade_noise_initiator_with_topology(
             error!(
                 "Cannot find public key for node with address {:?}",
                 responder_addr
-            );
+            ); //Do we still pursue a TCP connection or not?
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
@@ -137,7 +138,7 @@ pub async fn upgrade_noise_responder_with_topology(
 
     //SW : for private gateway, we could try to perform the handshake without that key?
     let remote_pub_key = match topology.find_node_key_by_mix_host(initiator_addr) {
-        Ok(Some(key)) => key.to_bytes(),
+        Ok(Some(key)) => encryption::PublicKey::from_base58_string(key)?.to_bytes(),
         Ok(None) => {
             warn!(
                 "{:?} can't speak Noise yet, falling back to TCP",
@@ -149,7 +150,7 @@ pub async fn upgrade_noise_responder_with_topology(
             error!(
                 "Cannot find public key for node with address {:?}",
                 initiator_addr
-            );
+            ); //Do we still pursue a TCP connection with that node or not?
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };

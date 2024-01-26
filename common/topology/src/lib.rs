@@ -4,7 +4,6 @@
 use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
 use log::warn;
-use nym_crypto::asymmetric::encryption;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -20,7 +19,7 @@ use std::str::FromStr;
 
 #[cfg(feature = "serializable")]
 use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
-use nym_api_requests::models::DescribedGateway;
+use nym_api_requests::models::{DescribedGateway, DescribedNymNode};
 
 pub mod error;
 pub mod filter;
@@ -116,8 +115,7 @@ pub type MixLayer = u8;
 pub struct NymTopology {
     mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
-    all_mixes: Vec<mix::Node>,
-    all_gateways: Vec<gateway::Node>,
+    described_nodes: Vec<DescribedNymNode>,
 }
 
 impl NymTopology {
@@ -125,8 +123,7 @@ impl NymTopology {
         NymTopology {
             mixes: mixes.clone(),
             gateways: gateways.clone(),
-            all_mixes: mixes.values().flatten().cloned().collect(),
-            all_gateways: gateways,
+            described_nodes: Vec::new(),
         }
     }
 
@@ -134,45 +131,12 @@ impl NymTopology {
         NymTopology {
             mixes: BTreeMap::new(),
             gateways: Vec::new(),
-            all_mixes: Vec::new(),
-            all_gateways: Vec::new(),
+            described_nodes: Vec::new(),
         }
     }
 
-    pub fn with_all_mixes(mut self, all_mixes: Vec<MixNodeDetails>) -> Self {
-        let mut mixes = Vec::new();
-        for bond in all_mixes
-            .into_iter()
-            .map(|details| details.bond_information)
-        {
-            let mix_id = bond.mix_id;
-            let mix_identity = bond.mix_node.identity_key.clone();
-
-            match bond.try_into() {
-                Ok(mix) => mixes.push(mix),
-                Err(err) => {
-                    warn!("Mix {} / {} is malformed - {err}", mix_id, mix_identity);
-                    continue;
-                }
-            }
-        }
-        self.all_mixes = mixes;
-        self
-    }
-
-    pub fn with_all_gateways(mut self, all_gateways: Vec<GatewayBond>) -> Self {
-        let mut gateways = Vec::with_capacity(all_gateways.len());
-        for bond in all_gateways.into_iter() {
-            let gate_id = bond.gateway.identity_key.clone();
-            match bond.try_into() {
-                Ok(gate) => gateways.push(gate),
-                Err(err) => {
-                    warn!("Gateway {} is malformed - {err}", gate_id);
-                    continue;
-                }
-            }
-        }
-        self.all_gateways = gateways;
+    pub fn with_described_nodes(mut self, described_nodes: Vec<DescribedNymNode>) -> Self {
+        self.described_nodes = described_nodes;
         self
     }
 
@@ -225,19 +189,31 @@ impl NymTopology {
     pub fn find_node_key_by_mix_host(
         &self,
         mix_host: SocketAddr,
-    ) -> Result<Option<&encryption::PublicKey>, NymTopologyError> {
-        for node in self.all_gateways.iter() {
-            if node.mix_host.ip() == mix_host.ip() {
-                todo!();
-                //return Ok(node.sphinx_key.as_ref());
+    ) -> Result<Option<String>, NymTopologyError> {
+        for node in self.described_nodes.iter() {
+            let sphinx_key = match node {
+                DescribedNymNode::Gateway(g) => &g.bond.gateway.sphinx_key,
+                DescribedNymNode::Mixnode(m) => &m.bond.mix_node.sphinx_key,
+            };
+            if let Some(description) = match node {
+                DescribedNymNode::Gateway(g) => &g.self_described,
+                DescribedNymNode::Mixnode(m) => &m.self_described,
+            } {
+                if description
+                    .host_information
+                    .ip_address
+                    .contains(&mix_host.ip())
+                {
+                    //we have our node
+                    if description.noise_information.supported {
+                        return Ok(Some(sphinx_key.to_string()));
+                    } else {
+                        return Ok(None);
+                    }
+                }
             }
         }
-        for node in self.all_mixes.iter() {
-            if node.mix_host.ip() == mix_host.ip() {
-                todo!();
-                //return Ok(node.sphinx_key.as_ref());
-            }
-        }
+        //didn't find that node
         Err(NymTopologyError::NoMixnodesAvailable)
     }
 
@@ -452,8 +428,7 @@ impl NymTopology {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.clone(),
-            all_mixes: self.all_mixes.clone(),
-            all_gateways: self.all_gateways.clone(),
+            described_nodes: self.described_nodes.clone(),
         }
     }
 }

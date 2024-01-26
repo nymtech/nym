@@ -11,7 +11,7 @@ use crate::{
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
+use nym_api_requests::models::{DescribedGateway, DescribedNymNode, MixNodeBondAnnotated};
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
@@ -271,14 +271,6 @@ impl NymApiClient {
         Ok(self.nym_api.get_mixnodes().await?)
     }
 
-    pub async fn get_all_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api.get_all_mixnodes().await?)
-    }
-
-    pub async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.nym_api.get_all_gateways().await?)
-    }
-
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
@@ -287,6 +279,12 @@ impl NymApiClient {
         &self,
     ) -> Result<Vec<DescribedGateway>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways_described().await?)
+    }
+
+    pub async fn get_cached_described_nodes(
+        &self,
+    ) -> Result<Vec<DescribedNymNode>, ValidatorClientError> {
+        Ok(self.nym_api.get_nym_nodes_described().await?)
     }
 
     pub async fn get_current_epoch_id(

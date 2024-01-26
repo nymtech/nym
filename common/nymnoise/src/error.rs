@@ -27,6 +27,9 @@ pub enum NoiseError {
 
     #[error(transparent)]
     IntConversionError(#[from] TryFromIntError),
+
+    #[error("unable to extract public key - {0}")]
+    EncryptionKeyConversionError(#[from] nym_crypto::asymmetric::encryption::KeyRecoveryError),
 }
 
 impl From<Error> for NoiseError {

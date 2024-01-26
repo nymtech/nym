@@ -6948,6 +6948,7 @@ dependencies = [
  "bytes",
  "futures",
  "log",
+ "nym-crypto",
  "nym-topology",
  "pin-project",
  "semver 0.11.0",

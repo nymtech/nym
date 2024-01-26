@@ -18,3 +18,4 @@ semver = "0.11"
 
 # internal
 nym-topology = { path = "../topology"}
+nym-crypto = { path = "../crypto" }

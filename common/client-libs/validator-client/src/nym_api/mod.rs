@@ -13,11 +13,11 @@ use nym_api_requests::coconut::{
     VerifyCredentialResponse,
 };
 use nym_api_requests::models::{
-    ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
-    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-    StakeSaturationResponse, UptimeResponse,
+    ComputeRewardEstParam, DescribedGateway, DescribedNymNode, GatewayBondAnnotated,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
@@ -46,14 +46,6 @@ pub trait NymApiClientExt: ApiClient {
                 routes::MIXNODES,
                 routes::DETAILED,
             ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    async fn get_all_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
-        self.get_json(
-            &[routes::API_VERSION, routes::MIXNODES, routes::ALL],
             NO_PARAMS,
         )
         .await
@@ -100,9 +92,9 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
+    async fn get_nym_nodes_described(&self) -> Result<Vec<DescribedNymNode>, NymAPIError> {
         self.get_json(
-            &[routes::API_VERSION, routes::GATEWAYS, routes::ALL],
+            &[routes::API_VERSION, routes::NYM_NODES, routes::DESCRIBED],
             NO_PARAMS,
         )
         .await

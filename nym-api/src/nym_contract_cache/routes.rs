@@ -28,12 +28,6 @@ pub async fn get_mixnodes(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDe
     Json(cache.mixnodes_filtered().await)
 }
 
-#[openapi(tag = "contract-cache")]
-#[get("/mixnodes/all")]
-pub async fn get_mixnodes_all(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
-    Json(cache.mixnodes_all().await)
-}
-
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
 // replace this with
 // ```
@@ -53,12 +47,6 @@ pub async fn get_mixnodes_detailed(
 #[get("/gateways")]
 pub async fn get_gateways(cache: &State<NymContractCache>) -> Json<Vec<GatewayBond>> {
     Json(cache.gateways_filtered().await)
-}
-
-#[openapi(tag = "contract-cache")]
-#[get("/gateways/all")]
-pub async fn get_gateways_all(cache: &State<NymContractCache>) -> Json<Vec<GatewayBond>> {
-    Json(cache.gateways_all().await)
 }
 
 #[openapi(tag = "contract-cache")]

@@ -44,13 +44,14 @@ pub(crate) async fn initialise_dkg(controllers: &mut [TestingDkgController], res
         EpochState::WaitingInitialisation
     );
 
-    let mut chain = controllers[0].chain_state.lock().unwrap();
-
     // add every dealer to group contract
     for controller in controllers.iter() {
-        chain.add_member(controller.dkg_client.get_address().await.as_ref(), 10);
+        let address = controller.dkg_client.get_address().await;
+        let mut chain = controllers[0].chain_state.lock().unwrap();
+        chain.add_member(address.as_ref(), 10);
     }
 
+    let mut chain = controllers[0].chain_state.lock().unwrap();
     chain.dkg_contract.epoch.state = EpochState::PublicKeySubmission { resharing }
 }
 
@@ -131,22 +132,22 @@ pub(crate) async fn validate_keys(controllers: &mut [TestingDkgController], resh
     guard.dkg_contract.epoch.state = EpochState::VerificationKeyFinalization { resharing }
 }
 
-pub(crate) async fn finalize(controllers: &mut [TestingDkgController]) {
-    let epoch = controllers[0]
-        .chain_state
-        .lock()
-        .unwrap()
-        .dkg_contract
-        .epoch
-        .epoch_id;
-
-    for controller in controllers.iter_mut() {
-        controller
-            .verification_key_finalization(epoch)
-            .await
-            .unwrap();
-    }
-
-    let mut guard = controllers[0].chain_state.lock().unwrap();
-    guard.dkg_contract.epoch.state = EpochState::InProgress {}
-}
+// pub(crate) async fn finalize(controllers: &mut [TestingDkgController]) {
+//     let epoch = controllers[0]
+//         .chain_state
+//         .lock()
+//         .unwrap()
+//         .dkg_contract
+//         .epoch
+//         .epoch_id;
+//
+//     for controller in controllers.iter_mut() {
+//         controller
+//             .verification_key_finalization(epoch)
+//             .await
+//             .unwrap();
+//     }
+//
+//     let mut guard = controllers[0].chain_state.lock().unwrap();
+//     guard.dkg_contract.epoch.state = EpochState::InProgress {}
+// }

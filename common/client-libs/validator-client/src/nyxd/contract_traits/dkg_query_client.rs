@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
@@ -16,7 +16,7 @@ pub use nym_coconut_dkg_common::{
     },
     msg::QueryMsg as DkgQueryMsg,
     types::{
-        DealerDetails, DealingIndex, Epoch, EpochId, InitialReplacementData,
+        DealerDetails, DealingIndex, Epoch, EpochId, EpochState, InitialReplacementData,
         PartialContractDealing, State,
     },
     verification_key::{ContractVKShare, PagedVKSharesResponse, VkShareResponse},

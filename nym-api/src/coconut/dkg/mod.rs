@@ -11,17 +11,15 @@ pub(crate) fn params() -> &'static nym_dkg::bte::Params {
 pub(crate) mod client;
 pub(crate) mod controller;
 pub(crate) mod dealing;
+mod helpers;
 pub(crate) mod key_derivation;
 pub(crate) mod key_finalization;
 pub(crate) mod key_validation;
 pub(crate) mod public_key;
 pub(crate) mod state;
-mod helpers;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[tokio::test]
     #[ignore] // expensive test
     async fn reshare_preserves_keys() {

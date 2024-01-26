@@ -212,7 +212,7 @@ fn proposal_to_response(
     proposal: Proposal,
 ) -> ProposalResponse {
     // replicate behaviour from `query_proposal` of cw3
-    let status = proposal.current_status(&block);
+    let status = proposal.current_status(block);
     let threshold = proposal.threshold.to_response(proposal.total_weight);
     ProposalResponse {
         id: proposal_id,

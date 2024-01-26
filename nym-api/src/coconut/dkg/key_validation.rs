@@ -249,7 +249,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::coconut::tests::helpers::{
         derive_keypairs, exchange_dealings, initialise_controllers, initialise_dkg,
         submit_public_keys,
@@ -305,16 +304,17 @@ mod tests {
 
         let first_dealer = controllers[0].dkg_client.get_address().await;
 
-        let mut guard = chain.lock().unwrap();
-        let shares = guard
-            .dkg_contract
-            .verification_shares
-            .get_mut(&epoch)
-            .unwrap();
-        let share = shares.get_mut(first_dealer.as_ref()).unwrap();
-        // mess up the share
-        share.share.push('x');
-        drop(guard);
+        {
+            let mut guard = chain.lock().unwrap();
+            let shares = guard
+                .dkg_contract
+                .verification_shares
+                .get_mut(&epoch)
+                .unwrap();
+            let share = shares.get_mut(first_dealer.as_ref()).unwrap();
+            // mess up the share
+            share.share.push('x');
+        }
 
         for controller in controllers.iter_mut() {
             let res = controller.verification_key_validation(epoch).await;
@@ -357,18 +357,19 @@ mod tests {
         let first_dealer = controllers[0].dkg_client.get_address().await;
         let second_dealer = controllers[1].dkg_client.get_address().await;
 
-        let mut guard = chain.lock().unwrap();
-        let shares = guard
-            .dkg_contract
-            .verification_shares
-            .get_mut(&epoch)
-            .unwrap();
-        let second_share = shares.get(second_dealer.as_ref()).unwrap().clone();
+        {
+            let mut guard = chain.lock().unwrap();
+            let shares = guard
+                .dkg_contract
+                .verification_shares
+                .get_mut(&epoch)
+                .unwrap();
+            let second_share = shares.get(second_dealer.as_ref()).unwrap().clone();
 
-        let share = shares.get_mut(first_dealer.as_ref()).unwrap();
-        // mess up the share
-        share.share = second_share.share;
-        drop(guard);
+            let share = shares.get_mut(first_dealer.as_ref()).unwrap();
+            // mess up the share
+            share.share = second_share.share;
+        }
 
         for controller in controllers.iter_mut() {
             let res = controller.verification_key_validation(epoch).await;

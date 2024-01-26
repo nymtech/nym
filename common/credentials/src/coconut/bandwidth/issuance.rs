@@ -9,10 +9,10 @@ use crate::coconut::bandwidth::{
 };
 use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
-use bls12_381::G1Projective;
 use nym_credentials_interface::{
-    aggregate_signature_shares, hash_to_scalar, prepare_blind_sign, Attribute, BlindedSignature,
-    Parameters, PrivateAttribute, PublicAttribute, Signature, SignatureShare, VerificationKey,
+    aggregate_signature_shares, hash_to_scalar, prepare_blind_sign, Attribute, BlindedSerialNumber,
+    BlindedSignature, Parameters, PrivateAttribute, PublicAttribute, Signature, SignatureShare,
+    VerificationKey,
 };
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_validator_client::nym_api::EpochId;
@@ -140,15 +140,14 @@ impl IssuanceBandwidthCredential {
         Self::new(FreePassIssuanceData::new(expiry_date))
     }
 
-    pub fn blind_serial_number_in_g1subgroup(&self) -> G1Projective {
-        bandwidth_credential_params().gen1() * self.serial_number
+    pub fn blind_serial_number(&self) -> BlindedSerialNumber {
+        (bandwidth_credential_params().gen2() * self.serial_number).into()
     }
 
-    // NOT TO BE CONFUSED WITH BLINDED SERIAL NUMBER IN CREDENTIAL ITSELF
-    pub fn blinded_g1_serial_number_bs58(&self) -> String {
+    pub fn blinded_serial_number_bs58(&self) -> String {
         use nym_credentials_interface::Base58;
 
-        self.blind_serial_number_in_g1subgroup().to_bs58()
+        self.blind_serial_number().to_bs58()
     }
 
     pub fn typ(&self) -> CredentialType {

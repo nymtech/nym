@@ -10,9 +10,9 @@ use thiserror::Error;
 pub use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar, keygen,
     prepare_blind_sign, prove_bandwidth_credential, verify_credential, Attribute, Base58,
-    BlindSignRequest, BlindedSignature, Bytable, CoconutError, KeyPair, Parameters,
-    PrivateAttribute, PublicAttribute, SecretKey, Signature, SignatureShare, VerificationKey,
-    VerifyCredentialRequest,
+    BlindSignRequest, BlindedSerialNumber, BlindedSignature, Bytable, CoconutError, KeyPair,
+    Parameters, PrivateAttribute, PublicAttribute, SecretKey, Signature, SignatureShare,
+    VerificationKey, VerifyCredentialRequest,
 };
 
 pub const VOUCHER_INFO_TYPE: &str = "BandwidthVoucher";

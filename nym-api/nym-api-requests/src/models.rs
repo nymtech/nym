@@ -10,8 +10,9 @@ use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, MixNodeBond, Percent, RewardedSetNodeStatus,
 };
 use nym_node_requests::api::v1::gateway::models::WebSockets;
-use nym_node_requests::api::v1::node::models::{BinaryBuildInformationOwned, HostInformation};
-use nym_node_requests::api::v1::noise::models::NoiseInformation;
+use nym_node_requests::api::v1::node::models::{
+    BinaryBuildInformationOwned, HostInformation, NoiseInformation,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};

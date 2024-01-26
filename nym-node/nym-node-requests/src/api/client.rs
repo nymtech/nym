@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::api::v1::gateway::models::WebSockets;
-use crate::api::v1::node::models::SignedHostInformation;
+use crate::api::v1::node::models::{NoiseInformation, SignedHostInformation};
 use crate::api::ErrorResponse;
 use crate::routes;
 use async_trait::async_trait;
@@ -14,7 +14,6 @@ use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use crate::api::v1::network_requester::models::NetworkRequester;
-use crate::api::v1::noise::models::NoiseInformation;
 pub use http_api_client::Client;
 
 pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;

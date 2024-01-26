@@ -32,8 +32,8 @@ pin-project = "1.0"
 rand = "0.8.5"
 rand-07 = { package = "rand", version = "0.7.3" } # required for compatibility
 reqwest = { workspace = true, features = ["json"] }
-rocket = { version = "0.5.0-rc.2", features = ["json"] }
-rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", rev = "dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
+rocket = { version = "0.5.0", features = ["json"] }
+rocket_cors = { version = "0.6.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tap = "1.0"
@@ -60,8 +60,8 @@ sqlx = { workspace = true, features = [
     "migrate",
 ] }
 
-okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
-rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
+okapi = { version = "0.7.0", features = ["impl_json_schema"] }
+rocket_okapi = { version = "0.8.0", features = ["swagger"] }
 schemars = { workspace = true, features = ["preserve_order"] }
 zeroize = { workspace = true }
 

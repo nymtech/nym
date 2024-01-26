@@ -1,9 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// due to the macro expansion of rather old rocket macros...
-#![allow(unused_imports)]
-
 use super::helpers::_get_gateways_detailed;
 use super::NodeStatusCache;
 use crate::node_status_api::helpers::{

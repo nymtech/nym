@@ -128,11 +128,10 @@ impl CoconutVerifier {
 
         let api_clients = self.api_clients(epoch_id).await?;
 
-        let mut guard = self.master_keys.write().await;
-
         let aggregated_verification_key =
             nym_credentials::obtain_aggregate_verification_key(&api_clients).await?;
 
+        let mut guard = self.master_keys.write().await;
         guard.insert(epoch_id, aggregated_verification_key);
         let guard = guard.downgrade();
 

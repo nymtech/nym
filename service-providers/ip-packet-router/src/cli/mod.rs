@@ -9,7 +9,7 @@ use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
 
-use crate::config::Config;
+use crate::config::{BaseClientConfig, Config};
 use crate::error::IpPacketRouterError;
 
 mod build_info;
@@ -66,14 +66,12 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    // nym_apis: Option<Vec<url::Url>>,
-    // fastmode: bool,
-    // no_cover: bool,
-    // nyxd_urls: Option<Vec<url::Url>>,
-    // enabled_credentials_mode: Option<bool>,
+    nym_apis: Option<Vec<url::Url>>,
+    nyxd_urls: Option<Vec<url::Url>>,
+    enabled_credentials_mode: Option<bool>,
 }
 
-pub(crate) fn override_config(mut config: Config, _opts: OverrideConfig) -> Config {
+pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     // disable poisson rate in the BASE client if the IPR option is enabled
     if config.ip_packet_router.disable_poisson_rate {
         log::info!("Disabling poisson rate for ip packet router");
@@ -81,6 +79,22 @@ pub(crate) fn override_config(mut config: Config, _opts: OverrideConfig) -> Conf
     }
 
     config
+        .with_optional_base_custom_env(
+            BaseClientConfig::with_custom_nym_apis,
+            args.nym_apis,
+            nym_network_defaults::var_names::NYM_API,
+            nym_config::parse_urls,
+        )
+        .with_optional_base_custom_env(
+            BaseClientConfig::with_custom_nyxd,
+            args.nyxd_urls,
+            nym_network_defaults::var_names::NYXD,
+            nym_config::parse_urls,
+        )
+        .with_optional_base(
+            BaseClientConfig::with_disabled_credentials,
+            args.enabled_credentials_mode.map(|b| !b),
+        )
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {

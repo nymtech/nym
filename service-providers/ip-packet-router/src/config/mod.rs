@@ -7,13 +7,13 @@ use nym_client_core::{
 use nym_config::{
     defaults::mainnet, must_get_home, save_formatted_config_to_file,
     serde_helpers::de_maybe_stringified, NymConfigTemplate, DEFAULT_CONFIG_DIR,
-    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR, OptionalSet,
 };
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
 use serde::{Deserialize, Serialize};
 use std::{
     io,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, str::FromStr,
 };
 use url::Url;
 
@@ -134,6 +134,52 @@ impl Config {
     #[doc(hidden)]
     pub fn set_no_poisson_process(&mut self) {
         self.base.set_no_poisson_process()
+    }
+
+    // poor man's 'builder' method
+    #[allow(unused)]
+    pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
+    where
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
+    {
+        self.base = f(self.base, val);
+        self
+    }
+
+    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
+    // (plz, lets refactor it)
+    pub fn with_optional_base<F, T>(mut self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
+    {
+        self.base = self.base.with_optional(f, val);
+        self
+    }
+
+    #[allow(unused)]
+    pub fn with_optional_base_env<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
+        T: FromStr,
+        <T as FromStr>::Err: std::fmt::Debug,
+    {
+        self.base = self.base.with_optional_env(f, val, env_var);
+        self
+    }
+
+    pub fn with_optional_base_custom_env<F, T, G>(
+        mut self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(BaseClientConfig, T) -> BaseClientConfig,
+        G: Fn(&str) -> T,
+    {
+        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
+        self
     }
 }
 

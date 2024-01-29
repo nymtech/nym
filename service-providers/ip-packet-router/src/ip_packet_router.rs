@@ -12,9 +12,9 @@ use nym_sdk::mixnet::Recipient;
 use nym_task::{TaskClient, TaskHandle};
 
 use crate::{
+    config::Config,
     error::IpPacketRouterError,
     request_filter::{self, RequestFilter},
-    Config,
 };
 
 pub struct OnStartData {

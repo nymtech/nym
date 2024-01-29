@@ -15,6 +15,7 @@ use nym_task::TaskHandle;
 use tokio::io::AsyncWriteExt;
 
 use crate::{
+    config::Config,
     constants::{CLIENT_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL},
     error::{IpPacketRouterError, Result},
     request_filter::{self},
@@ -23,7 +24,6 @@ use crate::{
         create_message::create_input_message,
         parse_ip::{parse_packet, ParsedPacket},
     },
-    Config,
 };
 
 #[cfg(target_os = "linux")]

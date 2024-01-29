@@ -239,8 +239,15 @@ impl NymMessage {
         let (packets_used, space_left) =
             chunking::number_of_required_fragments(total_required_bytes, plaintext_per_packet);
 
-        let wasted_space = space_left as f32 / (bytes.len() + 1 + space_left) as f32;
-        log::trace!("Padding {self_display}: {} of raw plaintext bytes are required. They're going to be put into {packets_used} sphinx packets with {space_left} bytes of leftover space. {wasted_space}% of packet capacity is going to be wasted.", bytes.len() + 1);
+        let wasted_space_percentage =
+            (space_left as f32 / (bytes.len() + 1 + space_left) as f32) * 100.0;
+        log::trace!(
+            "Padding {self_display}: {} of raw plaintext bytes are required. \
+            They're going to be put into {packets_used} sphinx packets with {space_left} bytes \
+            of leftover space. {wasted_space_percentage:.1}% of packet capacity is going to \
+            be wasted.",
+            bytes.len() + 1
+        );
 
         bytes
             .into_iter()

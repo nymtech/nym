@@ -6,14 +6,15 @@ use nym_client_core::{
 };
 use nym_config::{
     defaults::mainnet, must_get_home, save_formatted_config_to_file,
-    serde_helpers::de_maybe_stringified, NymConfigTemplate, DEFAULT_CONFIG_DIR,
-    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR, OptionalSet,
+    serde_helpers::de_maybe_stringified, NymConfigTemplate, OptionalSet, DEFAULT_CONFIG_DIR,
+    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
 use serde::{Deserialize, Serialize};
 use std::{
     io,
-    path::{Path, PathBuf}, str::FromStr,
+    path::{Path, PathBuf},
+    str::FromStr,
 };
 use url::Url;
 

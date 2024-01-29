@@ -160,7 +160,12 @@ where
 
     log::info!(
         "Using nym-api: {}",
-        core.client.nym_api_urls.iter().map(|url| url.as_str()).collect::<Vec<&str>>().join(",")
+        core.client
+            .nym_api_urls
+            .iter()
+            .map(|url| url.as_str())
+            .collect::<Vec<&str>>()
+            .join(",")
     );
 
     // Setup gateway by either registering a new one, or creating a new config from the selected

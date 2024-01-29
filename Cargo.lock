@@ -6852,6 +6852,7 @@ dependencies = [
  "cfg-if",
  "dotenvy",
  "hex-literal",
+ "log",
  "once_cell",
  "schemars",
  "serde",

@@ -19,12 +19,12 @@ mod util;
 #[tokio::main]
 async fn main() -> Result<(), IpPacketRouterError> {
     let args = cli::Cli::parse();
+    setup_logging();
     setup_env(args.config_env_file.as_ref());
 
     if !args.no_banner {
         maybe_print_banner(crate_name!(), crate_version!());
     }
-    setup_logging();
 
     cli::execute(args).await
 }

@@ -3,12 +3,13 @@
 
 use crate::coconut::dkg;
 use crate::coconut::dkg::client::DkgClient;
+use crate::coconut::dkg::controller::keys::persist_coconut_keypair;
 use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::dkg::state::State;
 use crate::coconut::keys::KeyPair;
 use crate::coconut::tests::{DummyClient, SharedFakeChain};
 use cosmwasm_std::Addr;
-use nym_coconut_dkg_common::types::DealerDetails;
+use nym_coconut_dkg_common::types::{DealerDetails, EpochId, InitialReplacementData};
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_dkg::{NodeIndex, Threshold};
@@ -71,12 +72,15 @@ pub struct TestingDkgControllerBuilder {
     rng: Option<ChaCha20Rng>,
     rng_seed: Option<[u8; 32]>,
     address: Option<AccountId>,
-    threshold: Option<Threshold>,
+    keypair: Option<KeyPair>,
 
     chain_state: Option<SharedFakeChain>,
 
+    epoch_id: Option<EpochId>,
+    threshold: Option<Threshold>,
     self_dealer: Option<DealerDetails>,
     dealers: Vec<DealerDetails>,
+    initial_dealers: Option<InitialReplacementData>,
 }
 
 impl TestingDkgControllerBuilder {
@@ -88,6 +92,16 @@ impl TestingDkgControllerBuilder {
     #[allow(dead_code)]
     pub fn with_rng(mut self, rng: ChaCha20Rng) -> Self {
         self.rng = Some(rng);
+        self
+    }
+
+    pub fn with_initial_epoch_id(mut self, initial: EpochId) -> Self {
+        self.epoch_id = Some(initial);
+        self
+    }
+
+    pub fn with_keypair(mut self, keypair: KeyPair) -> Self {
+        self.keypair = Some(keypair);
         self
     }
 
@@ -112,6 +126,11 @@ impl TestingDkgControllerBuilder {
         self
     }
 
+    pub fn with_initial_dealers(mut self, initial_dealers: InitialReplacementData) -> Self {
+        self.initial_dealers = Some(initial_dealers);
+        self
+    }
+
     #[allow(dead_code)]
     pub fn with_address(mut self, address: impl Into<String>) -> Self {
         let addr = address.into();
@@ -124,13 +143,14 @@ impl TestingDkgControllerBuilder {
         self
     }
 
-    pub fn build(self) -> TestingDkgController {
+    pub async fn build(self) -> TestingDkgController {
         let mut rng = self.rng.unwrap_or_else(|| {
             let rng_seed = self.rng_seed.unwrap_or([69u8; 32]);
             test_rng(rng_seed)
         });
 
         let had_dealer_info = self.self_dealer.is_some();
+        // let had_keypair = self.keypair.is_some();
 
         // is this ideal? no, but it works : P
         let self_dealer = self.self_dealer.unwrap_or_else(|| {
@@ -168,6 +188,12 @@ impl TestingDkgControllerBuilder {
                 .dealers
                 .insert(dealer.assigned_index, dealer);
         }
+        if let Some(epoch_id) = self.epoch_id {
+            state_guard.dkg_contract.epoch.epoch_id = epoch_id;
+        }
+        if let Some(initial_dealers) = self.initial_dealers {
+            state_guard.dkg_contract.initial_dealers = Some(initial_dealers)
+        }
 
         let epoch = state_guard.dkg_contract.epoch.epoch_id;
         drop(state_guard);
@@ -175,14 +201,28 @@ impl TestingDkgControllerBuilder {
         let dummy_client = DkgClient::new(dummy_client);
         let tmp_dir = tempdir().unwrap();
 
+        let dkg_state_path = tmp_dir.path().join("persistent_state.json");
+        let coconut_key_path = tmp_dir.path().join("coconut_keypair.pem");
+
+        // if we had a keypair, make sure to put it on disk otherwise, if we're testing dealing exchange,
+        // we'll fail to archive it
+        let keypair = if let Some(keypair) = self.keypair {
+            if let Some(keys) = keypair.read_keys().await.as_ref() {
+                persist_coconut_keypair(keys, &coconut_key_path).unwrap();
+            }
+            keypair
+        } else {
+            KeyPair::new()
+        };
+
         let mut state = State::new(
-            tmp_dir.path().join("persistent_state.json"),
+            dkg_state_path,
             Default::default(),
             self_dealer.announce_address.parse().unwrap(),
             // TODO: we might need to fix up the key here
             DkgKeyPair::new(&nym_dkg::bte::setup(), &mut rng),
             self_dealer.ed25519_identity.parse().unwrap(),
-            KeyPair::new(),
+            keypair,
         );
 
         if had_dealer_info {
@@ -192,21 +232,21 @@ impl TestingDkgControllerBuilder {
                 Some(self_dealer.assigned_index);
         }
 
+        // if had_keypair {
+        //     // if we had keypair, it means we must have gone through dealing exchange
+        //     state.dealing_exchange_state(epoch).unwrap();
+        // }
+
         TestingDkgController {
-            controller: DkgController::test_mock(
-                rng,
-                dummy_client,
-                state,
-                tmp_dir.path().join("coconut_keypair.pem"),
-            ),
+            controller: DkgController::test_mock(rng, dummy_client, state, coconut_key_path),
             chain_state,
             _tmp_dir: tmp_dir,
         }
     }
 }
 
-pub fn dkg_controller_fixture() -> TestingDkgController {
-    TestingDkgControllerBuilder::default().build()
+pub async fn dkg_controller_fixture() -> TestingDkgController {
+    TestingDkgControllerBuilder::default().build().await
 }
 
 pub(crate) struct TestingDkgController {
@@ -215,6 +255,21 @@ pub(crate) struct TestingDkgController {
     pub(crate) chain_state: SharedFakeChain,
 
     _tmp_dir: TempDir,
+}
+
+impl TestingDkgController {
+    pub(crate) fn reset_epoch_state(&mut self, epoch_id: EpochId) {
+        let state = self.state.dkg_state_mut(epoch_id).unwrap();
+        *state = Default::default()
+    }
+
+    pub async fn address(&self) -> AccountId {
+        self.dkg_client.get_address().await
+    }
+
+    pub async fn cw_address(&self) -> Addr {
+        Addr::unchecked(self.address().await.as_ref())
+    }
 }
 
 impl Deref for TestingDkgController {

@@ -78,13 +78,15 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
     }
 }
 
+// NOTE: the following tests currently do NOT cover all cases
+// I've (@JS) only updated old, existing, tests. nothing more
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::coconut::tests::fixtures;
 
     #[tokio::test]
     async fn submit_public_key() -> anyhow::Result<()> {
-        let mut controller = fixtures::dkg_controller_fixture();
+        let mut controller = fixtures::dkg_controller_fixture().await;
         let epoch = controller.dkg_client.get_current_epoch().await?.epoch_id;
 
         assert!(controller

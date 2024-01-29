@@ -15,7 +15,7 @@ pub(crate) fn init_chain() -> SharedFakeChain {
     Default::default()
 }
 
-pub(crate) fn initialise_controllers(amount: usize) -> Vec<TestingDkgController> {
+pub(crate) async fn initialise_controllers(amount: usize) -> Vec<TestingDkgController> {
     let chain = init_chain();
 
     let mut controllers = Vec::with_capacity(amount);
@@ -24,7 +24,8 @@ pub(crate) fn initialise_controllers(amount: usize) -> Vec<TestingDkgController>
         let controller = TestingDkgControllerBuilder::default()
             .with_shared_chain_state(chain.clone())
             .with_magic_seed_val(rng_seed as u8)
-            .build();
+            .build()
+            .await;
 
         controllers.push(controller)
     }

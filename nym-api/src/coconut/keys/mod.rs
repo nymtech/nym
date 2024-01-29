@@ -23,6 +23,13 @@ pub struct KeyPairWithEpoch {
 }
 
 impl KeyPairWithEpoch {
+    pub(crate) fn new(keys: nym_coconut_interface::KeyPair, issued_for_epoch: EpochId) -> Self {
+        KeyPairWithEpoch {
+            keys,
+            issued_for_epoch,
+        }
+    }
+
     // extract underlying secrets from the coconut's secret key.
     // the caller of this function must exercise extreme care to not misuse the data and ensuring it gets zeroized
     // `KeyPair` and `SecretKey` implement ZeroizeOnDrop; `Scalar` does not (it implements `Copy` -> important to keep in mind)

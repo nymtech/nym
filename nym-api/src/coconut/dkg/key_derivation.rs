@@ -620,6 +620,8 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
     }
 }
 
+// NOTE: the following tests currently do NOT cover all cases
+// I've (@JS) only updated old, existing, tests. nothing more
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::coconut::tests::helpers::{
@@ -1024,7 +1026,7 @@ pub(crate) mod tests {
     #[ignore] // expensive test
     async fn submit_verification_key() -> anyhow::Result<()> {
         let validators = 4;
-        let mut controllers = initialise_controllers(validators);
+        let mut controllers = initialise_controllers(validators).await;
         let chain = controllers[0].chain_state.clone();
         let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
 

@@ -83,6 +83,14 @@ impl DkgParticipant {
         }
         panic!("no key")
     }
+
+    #[cfg(test)]
+    pub fn unwrap_rejection(&self) -> KeyRejectionReason {
+        if let ParticipantState::Invalid(rejection) = &self.state {
+            return rejection.clone();
+        }
+        panic!("not rejected")
+    }
 }
 
 #[derive(Clone, Error, Debug, Deserialize, Eq, PartialEq, Serialize)]

@@ -9,12 +9,17 @@ use crate::node::TaskClient;
 use futures::StreamExt;
 use log::debug;
 use log::{error, info, warn};
+use nym_client_core::client::topology_control::accessor::TopologyAccessor;
+use nym_crypto::asymmetric::encryption;
 use nym_mixnode_common::measure;
+use nym_noise::upgrade_noise_responder_with_topology;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::Delay as SphinxDelay;
+use nym_validator_client::NymApiClient;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
@@ -28,16 +33,25 @@ pub(crate) mod packet_processing;
 pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
     delay_forwarding_channel: PacketDelayForwardSender,
+    topology_access: TopologyAccessor,
+    api_client: NymApiClient,
+    local_identity: Arc<encryption::KeyPair>,
 }
 
 impl ConnectionHandler {
     pub(crate) fn new(
         packet_processor: PacketProcessor,
         delay_forwarding_channel: PacketDelayForwardSender,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
+        local_identity: Arc<encryption::KeyPair>,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
             delay_forwarding_channel,
+            topology_access,
+            api_client,
+            local_identity,
         }
     }
 
@@ -88,8 +102,43 @@ impl ConnectionHandler {
         mut shutdown: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
+
         shutdown.mark_as_success();
-        let mut framed_conn = Framed::new(conn, NymCodec);
+
+        let topology_ref = match self.topology_access.current_topology().await {
+            Some(topology) => topology,
+            None => {
+                error!("Cannot perform Noise handshake to {remote}, due to topology error");
+                return;
+            }
+        };
+
+        let epoch_id = match self.api_client.get_current_epoch_id().await {
+            Ok(id) => id,
+            Err(err) => {
+                error!("Cannot perform Noise handshake to {remote}, due to epoch id error - {err}");
+                return;
+            }
+        };
+
+        let noise_stream = match upgrade_noise_responder_with_topology(
+            conn,
+            Default::default(),
+            &topology_ref,
+            epoch_id,
+            &self.local_identity.public_key().to_bytes(),
+            &self.local_identity.private_key().to_bytes(),
+        )
+        .await
+        {
+            Ok(noise_stream) => noise_stream,
+            Err(err) => {
+                error!("Failed to perform Noise handshake with {remote} - {err}");
+                return;
+            }
+        };
+        debug!("Noise responder handshake completed for {:?}", remote);
+        let mut framed_conn = Framed::new(noise_stream, NymCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
@@ -121,10 +170,7 @@ impl ConnectionHandler {
             }
         }
 
-        info!(
-            "Closing connection from {:?}",
-            framed_conn.into_inner().peer_addr()
-        );
+        info!("Closing connection from {:?}", remote);
         log::trace!("ConnectionHandler: Exiting");
     }
 }

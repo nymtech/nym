@@ -6559,6 +6559,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node",
+ "nym-noise",
  "nym-pemstore",
  "nym-sphinx",
  "nym-statistics-common",
@@ -6710,10 +6711,16 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "log",
+ "nym-client-core",
+ "nym-crypto",
+ "nym-noise",
  "nym-sphinx",
  "nym-task",
+ "nym-validator-client",
+ "rand 0.7.3",
  "tokio",
  "tokio-util",
+ "url",
 ]
 
 [[package]]
@@ -6761,6 +6768,7 @@ dependencies = [
  "nym-mixnet-client",
  "nym-mixnode-common",
  "nym-node",
+ "nym-noise",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -7013,6 +7021,24 @@ dependencies = [
  "wasm-client-core",
  "wasm-utils",
  "wasmtimer",
+]
+
+[[package]]
+name = "nym-noise"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "log",
+ "nym-crypto",
+ "nym-topology",
+ "pin-project",
+ "semver 0.11.0",
+ "sha2 0.10.8",
+ "snow",
+ "thiserror",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -7819,9 +7845,9 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "openssl"
-version = "0.10.62"
+version = "0.10.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8cde4d2d9200ad5909f8dac647e29482e07c3a35de8a13fce7c9c7747ad9f671"
+checksum = "bac25ee399abb46215765b1cb35bc0212377e58a061560d8b29b024fd0430e7c"
 dependencies = [
  "bitflags 2.4.1",
  "cfg-if",
@@ -7860,9 +7886,9 @@ dependencies = [
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.98"
+version = "0.9.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1665caf8ab2dc9aef43d1c0023bd904633a6a05cb30b0ad59bec2ae986e57a7"
+checksum = "db4d56a4c0478783083cfafcc42493dd4a981d41669da64b4572a2a089b51b1d"
 dependencies = [
  "cc",
  "libc",
@@ -8617,9 +8643,9 @@ dependencies = [
 
 [[package]]
 name = "psl"
-version = "2.1.14"
+version = "2.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "383703acfc34f7a00724846c14dc5ea4407c59e5aedcbbb18a1c0c1a23fe5013"
+checksum = "fa35143bed048dcb22457ef82f8ba3008b842e9158e2cfcc904f5a4e2571cd4c"
 dependencies = [
  "psl-types",
 ]
@@ -9978,9 +10004,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.4.0"
+version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64cd236ccc1b7a29e7e2739f27c0b2dd199804abc4290e32f59f3b68d6405c23"
+checksum = "f5c9fdb6b00a489875b22efd4b78fe2b363b72265cc5f6eb2e2b9ee270e6140c"
 dependencies = [
  "base64 0.21.4",
  "chrono",
@@ -9995,9 +10021,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.4.0"
+version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93634eb5f75a2323b16de4748022ac4297f9e76b6dced2be287a099f41b5e788"
+checksum = "dbff351eb4b33600a2e138dfa0b10b65a238ea8ff8fb2387c422c5022a3e8298"
 dependencies = [
  "darling 0.20.3",
  "proc-macro2",

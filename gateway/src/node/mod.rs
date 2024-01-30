@@ -36,6 +36,7 @@ use nym_topology_control::accessor::TopologyAccessor;
 use nym_topology_control::nym_api_provider::NymApiTopologyProvider;
 use nym_topology_control::TopologyRefresher;
 use nym_topology_control::TopologyRefresherConfig;
+use nym_validator_client::NymApiClient;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -182,6 +183,8 @@ impl<St> Gateway<St> {
         &self,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) where
         St: Storage + Clone + 'static,
@@ -196,6 +199,9 @@ impl<St> Gateway<St> {
             self.storage.clone(),
             ack_sender,
             active_clients_store,
+            topology_access,
+            api_client,
+            Arc::clone(&self.sphinx_keypair),
         );
 
         let listening_address = SocketAddr::new(
@@ -249,15 +255,26 @@ impl<St> Gateway<St> {
         );
     }
 
-    fn start_packet_forwarder(&self, shutdown: TaskClient) -> MixForwardingSender {
+    fn start_packet_forwarder(
+        &self,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
+        shutdown: TaskClient,
+    ) -> MixForwardingSender {
         info!("Starting mix packet forwarder...");
 
-        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
+        let forwarder_config = nym_mixnet_client::client::Config::new(
             self.config.debug.packet_forwarding_initial_backoff,
             self.config.debug.packet_forwarding_maximum_backoff,
             self.config.debug.initial_connection_timeout,
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
+        );
+        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
+            forwarder_config,
+            topology_access,
+            api_client,
+            Arc::clone(&self.sphinx_keypair),
             shutdown,
         );
 
@@ -518,13 +535,20 @@ impl<St> Gateway<St> {
         )
         .await;
 
-        let mix_forwarding_channel =
-            self.start_packet_forwarder(shutdown.subscribe().named("PacketForwarder"));
+        let random_api_client = self.random_api_client()?;
+
+        let mix_forwarding_channel = self.start_packet_forwarder(
+            shared_topology_access.clone(),
+            random_api_client.clone(),
+            shutdown.subscribe().named("PacketForwarder"),
+        );
 
         let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
+            shared_topology_access,
+            random_api_client,
             shutdown.subscribe().named("mixnet_handling::Listener"),
         );
 

@@ -23,6 +23,7 @@ use nym_topology_control::accessor::TopologyAccessor;
 use nym_topology_control::nym_api_provider::NymApiTopologyProvider;
 use nym_topology_control::TopologyRefresher;
 use nym_topology_control::TopologyRefresherConfig;
+use nym_validator_client::NymApiClient;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -107,6 +108,8 @@ impl MixNode {
         &self,
         node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) {
         info!("Starting socket listener...");
@@ -114,7 +117,13 @@ impl MixNode {
         let packet_processor =
             PacketProcessor::new(self.sphinx_keypair.private_key(), node_stats_update_sender);
 
-        let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
+        let connection_handler = ConnectionHandler::new(
+            packet_processor,
+            delay_forwarding_channel,
+            topology_access,
+            api_client,
+            Arc::clone(&self.sphinx_keypair),
+        );
 
         let listening_address = SocketAddr::new(
             self.config.mixnode.listening_address,
@@ -127,6 +136,8 @@ impl MixNode {
     fn start_packet_delay_forwarder(
         &mut self,
         node_stats_update_sender: node_statistics::UpdateSender,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
@@ -140,7 +151,12 @@ impl MixNode {
         );
 
         let mut packet_forwarder = DelayForwarder::new(
-            nym_mixnet_client::Client::new(client_config),
+            nym_mixnet_client::Client::new(
+                client_config,
+                topology_access,
+                api_client,
+                Arc::clone(&self.sphinx_keypair),
+            ),
             node_stats_update_sender,
             shutdown,
         );
@@ -288,13 +304,21 @@ impl MixNode {
             shutdown.subscribe().named("TopologyRefresher"),
         )
         .await;
+
+        let random_api_client = self.random_api_client();
+
         let delay_forwarding_channel = self.start_packet_delay_forwarder(
             node_stats_update_sender.clone(),
+            shared_topology_access.clone(),
+            random_api_client.clone(),
             shutdown.subscribe().named("DelayForwarder"),
         );
+
         self.start_socket_listener(
             node_stats_update_sender,
             delay_forwarding_channel,
+            shared_topology_access,
+            random_api_client,
             shutdown.subscribe().named("Listener"),
         );
         let atomic_verloc_results =

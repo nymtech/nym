@@ -5,8 +5,11 @@ use crate::client::{Client, Config, SendWithoutResponse};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_client_core::client::topology_control::accessor::TopologyAccessor;
+use nym_crypto::asymmetric::encryption;
 use nym_sphinx::forwarding::packet::MixPacket;
-use std::time::Duration;
+use nym_validator_client::NymApiClient;
+use std::sync::Arc;
 
 pub type MixForwardingSender = mpsc::UnboundedSender<MixPacket>;
 type MixForwardingReceiver = mpsc::UnboundedReceiver<MixPacket>;
@@ -21,26 +24,22 @@ pub struct PacketForwarder {
 
 impl PacketForwarder {
     pub fn new(
-        initial_reconnection_backoff: Duration,
-        maximum_reconnection_backoff: Duration,
-        initial_connection_timeout: Duration,
-        maximum_connection_buffer_size: usize,
-        use_legacy_version: bool,
+        client_config: Config,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
+        local_identity: Arc<encryption::KeyPair>,
         shutdown: nym_task::TaskClient,
     ) -> (PacketForwarder, MixForwardingSender) {
-        let client_config = Config::new(
-            initial_reconnection_backoff,
-            maximum_reconnection_backoff,
-            initial_connection_timeout,
-            maximum_connection_buffer_size,
-            use_legacy_version,
-        );
-
         let (packet_sender, packet_receiver) = mpsc::unbounded();
 
         (
             PacketForwarder {
-                mixnet_client: Client::new(client_config),
+                mixnet_client: Client::new(
+                    client_config,
+                    topology_access,
+                    api_client,
+                    local_identity,
+                ),
                 packet_receiver,
                 shutdown,
             },

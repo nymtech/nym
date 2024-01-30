@@ -77,13 +77,23 @@ impl NymApiTopologyProvider {
             Ok(gateways) => gateways,
         };
 
+        let nodes_described = match self.validator_client.get_cached_described_nodes().await {
+            Err(err) => {
+                error!("failed to get described nodes - {err}");
+                return None;
+            }
+            Ok(epoch) => epoch,
+        };
+
         let topology = nym_topology_from_detailed(mixnodes, gateways)
+            .with_described_nodes(nodes_described.clone())
             .filter_system_version(&self.client_version);
 
         if let Err(err) = self.check_layer_distribution(&topology) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used: {err}");
             self.use_next_nym_api();
-            None
+            let empty_topology = NymTopology::empty().with_described_nodes(nodes_described);
+            Some(empty_topology)
         } else {
             Some(topology)
         }

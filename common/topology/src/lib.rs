@@ -19,7 +19,7 @@ use std::str::FromStr;
 
 #[cfg(feature = "serializable")]
 use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
-use nym_api_requests::models::DescribedGateway;
+use nym_api_requests::models::{DescribedGateway, DescribedNymNode};
 
 pub mod error;
 pub mod filter;
@@ -115,11 +115,29 @@ pub type MixLayer = u8;
 pub struct NymTopology {
     mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
+    described_nodes: Vec<DescribedNymNode>,
 }
 
 impl NymTopology {
     pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
-        NymTopology { mixes, gateways }
+        NymTopology {
+            mixes: mixes.clone(),
+            gateways: gateways.clone(),
+            described_nodes: Vec::new(),
+        }
+    }
+
+    pub fn empty() -> Self {
+        NymTopology {
+            mixes: BTreeMap::new(),
+            gateways: Vec::new(),
+            described_nodes: Vec::new(),
+        }
+    }
+
+    pub fn with_described_nodes(mut self, described_nodes: Vec<DescribedNymNode>) -> Self {
+        self.described_nodes = described_nodes;
+        self
     }
 
     pub fn new_unordered(unordered_mixes: Vec<mix::Node>, gateways: Vec<gateway::Node>) -> Self {
@@ -130,7 +148,7 @@ impl NymTopology {
             layer_entry.push(node)
         }
 
-        NymTopology { mixes, gateways }
+        NymTopology::new(mixes, gateways)
     }
 
     #[cfg(feature = "serializable")]
@@ -379,6 +397,7 @@ impl NymTopology {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.clone(),
+            described_nodes: self.described_nodes.clone(),
         }
     }
 }

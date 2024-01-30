@@ -52,7 +52,7 @@ fn single_sender() {
         .unwrap();
 
     // make sure each share is actually decryptable (even though proofs say they must be, perform this sanity check)
-    for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+    for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let _recovered = decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap();
     }
 
@@ -91,10 +91,13 @@ fn full_threshold_secret_sharing() {
     let dealings = node_indices
         .iter()
         .map(|&dealer_index| {
-            Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
+            (
+                dealer_index,
+                Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0,
+            )
         })
-        .collect::<Vec<_>>();
-    for dealing in dealings.iter() {
+        .collect::<BTreeMap<_, _>>();
+    for dealing in dealings.values() {
         dealing
             .verify(&params, threshold, &receivers, None)
             .unwrap();
@@ -109,9 +112,9 @@ fn full_threshold_secret_sharing() {
     let g2 = G2Projective::generator();
 
     let mut derived_secrets = Vec::new();
-    for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+    for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = dealings
-            .iter()
+            .values()
             .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
@@ -169,9 +172,12 @@ fn full_threshold_secret_resharing() {
     let first_dealings = node_indices
         .iter()
         .map(|&dealer_index| {
-            Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
+            (
+                dealer_index,
+                Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0,
+            )
         })
-        .collect::<Vec<_>>();
+        .collect::<BTreeMap<_, _>>();
 
     // recover verification keys
     let RecoveredVerificationKeys {
@@ -180,9 +186,9 @@ fn full_threshold_secret_resharing() {
     } = try_recover_verification_keys(&first_dealings, threshold, &receivers).unwrap();
 
     let mut derived_secrets = Vec::new();
-    for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+    for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = first_dealings
-            .iter()
+            .values()
             .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
@@ -203,19 +209,22 @@ fn full_threshold_secret_resharing() {
         .iter()
         .zip(derived_secrets.iter())
         .map(|(&dealer_index, prior_secret)| {
-            Dealing::create(
-                &mut rng,
-                &params,
+            (
                 dealer_index,
-                threshold,
-                &receivers,
-                Some(*prior_secret),
+                Dealing::create(
+                    &mut rng,
+                    &params,
+                    dealer_index,
+                    threshold,
+                    &receivers,
+                    Some(*prior_secret),
+                )
+                .0,
             )
-            .0
         })
-        .collect::<Vec<_>>();
+        .collect::<BTreeMap<_, _>>();
 
-    for (reshared_dealing, prior_vk) in resharing_dealings.iter().zip(recovered_partials.iter()) {
+    for (reshared_dealing, prior_vk) in resharing_dealings.values().zip(recovered_partials.iter()) {
         reshared_dealing
             .verify(&params, threshold, &receivers, Some(*prior_vk))
             .unwrap();
@@ -228,9 +237,9 @@ fn full_threshold_secret_resharing() {
     } = try_recover_verification_keys(&resharing_dealings, threshold, &receivers).unwrap();
 
     let mut reshared_secrets = Vec::new();
-    for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+    for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = resharing_dealings
-            .iter()
+            .values()
             .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
@@ -279,9 +288,12 @@ fn full_threshold_secret_resharing_left_party() {
     let first_dealings = node_indices
         .iter()
         .map(|&dealer_index| {
-            Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
+            (
+                dealer_index,
+                Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0,
+            )
         })
-        .collect::<Vec<_>>();
+        .collect::<BTreeMap<_, _>>();
 
     // recover verification keys
     let RecoveredVerificationKeys {
@@ -290,9 +302,9 @@ fn full_threshold_secret_resharing_left_party() {
     } = try_recover_verification_keys(&first_dealings, threshold, &receivers).unwrap();
 
     let mut derived_secrets = Vec::new();
-    for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+    for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = first_dealings
-            .iter()
+            .values()
             .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
@@ -323,20 +335,23 @@ fn full_threshold_secret_resharing_left_party() {
         .iter()
         .zip(derived_secrets.iter().take(2))
         .map(|(&dealer_index, prior_secret)| {
-            Dealing::create(
-                &mut rng,
-                &params,
+            (
                 dealer_index,
-                threshold,
-                &receivers,
-                Some(*prior_secret),
+                Dealing::create(
+                    &mut rng,
+                    &params,
+                    dealer_index,
+                    threshold,
+                    &receivers,
+                    Some(*prior_secret),
+                )
+                .0,
             )
-            .0
         })
-        .collect::<Vec<_>>();
+        .collect::<BTreeMap<_, _>>();
 
     for (reshared_dealing, prior_vk) in resharing_dealings
-        .iter()
+        .values()
         .zip(recovered_partials.iter().take(2))
     {
         reshared_dealing
@@ -351,9 +366,9 @@ fn full_threshold_secret_resharing_left_party() {
     } = try_recover_verification_keys(&resharing_dealings, threshold, &receivers).unwrap();
 
     let mut reshared_secrets = Vec::new();
-    for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+    for (i, (ref dk, _)) in full_keys.iter().enumerate() {
         let shares = resharing_dealings
-            .iter()
+            .values()
             .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 

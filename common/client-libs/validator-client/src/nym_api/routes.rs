@@ -9,6 +9,9 @@ pub const GATEWAYS: &str = "gateways";
 pub const NYM_NODES: &str = "nym-nodes";
 pub const DESCRIBED: &str = "described";
 
+pub const EPOCH: &str = "epoch";
+pub const CURRENT: &str = "current";
+
 pub const DETAILED: &str = "detailed";
 pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
 pub const ACTIVE: &str = "active";

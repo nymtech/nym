@@ -7,6 +7,7 @@ use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use futures_util::{stream, StreamExt};
+use mixnode::get_mixnode_description;
 use nym_api_requests::models::{
     IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
 };
@@ -16,6 +17,8 @@ use nym_mixnet_contract_common::Gateway;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use std::collections::HashMap;
 use thiserror::Error;
+
+pub mod mixnode;
 
 // type alias for ease of use
 pub type DescribedNodes = HashMap<IdentityKey, NymNodeDescription>;
@@ -180,12 +183,19 @@ async fn get_gateway_description(
         None
     };
 
+    let noise_info = if let Ok(noise_info) = client.get_noise_information().await {
+        noise_info
+    } else {
+        Default::default()
+    };
+
     let description = NymNodeDescription {
         host_information: host_info.data,
         build_information: build_info,
         network_requester,
         ip_packet_router,
-        mixnet_websockets: websockets,
+        mixnet_websockets: Some(websockets),
+        noise_information: noise_info,
     };
 
     Ok((gateway.identity_key, description))
@@ -202,16 +212,17 @@ impl CacheItemProvider for NodeDescriptionProvider {
 
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {
         let gateways = self.contract_cache.gateways_all().await;
+        let mixnodes = self.contract_cache.mixnodes_all().await;
 
         // let guard = self.network_gateways.get().await?;
         // let gateways = &*guard;
 
-        if gateways.is_empty() {
+        if gateways.is_empty() && mixnodes.is_empty() {
             return Ok(HashMap::new());
         }
 
         // TODO: somehow bypass the 'higher-ranked lifetime error' and remove that redundant clone
-        let websockets = stream::iter(
+        let mut websockets = stream::iter(
             gateways
                 // .deref()
                 // .clone()
@@ -231,6 +242,27 @@ impl CacheItemProvider for NodeDescriptionProvider {
         })
         .collect::<HashMap<_, _>>()
         .await;
+
+        let mixnodes_websockets = stream::iter(
+            mixnodes
+                .into_iter()
+                .map(|detail| detail.bond_information.mix_node)
+                .map(get_mixnode_description),
+        )
+        .buffer_unordered(self.batch_size)
+        .filter_map(|res| async move {
+            match res {
+                Ok((identity, description)) => Some((identity, description)),
+                Err(err) => {
+                    debug!("{err}");
+                    None
+                }
+            }
+        })
+        .collect::<HashMap<_, _>>()
+        .await;
+
+        websockets.extend(mixnodes_websockets);
 
         Ok(websockets)
     }

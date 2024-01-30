@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::api::v1::gateway::models::WebSockets;
-use crate::api::v1::node::models::SignedHostInformation;
+use crate::api::v1::node::models::{NoiseInformation, SignedHostInformation};
 use crate::api::ErrorResponse;
 use crate::routes;
 use async_trait::async_trait;
@@ -57,6 +57,11 @@ pub trait NymNodeApiClientExt: ApiClient {
 
     async fn get_ip_packet_router(&self) -> Result<IpPacketRouter, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::ip_packet_router_absolute())
+            .await
+    }
+
+    async fn get_noise_information(&self) -> Result<NoiseInformation, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::noise_info_absolute())
             .await
     }
 

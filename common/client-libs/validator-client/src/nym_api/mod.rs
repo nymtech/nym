@@ -15,11 +15,11 @@ pub use nym_api_requests::{
         VerifyCredentialBody, VerifyCredentialResponse,
     },
     models::{
-        ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
-        GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-        MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-        MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-        StakeSaturationResponse, UptimeResponse,
+        ComputeRewardEstParam, DescribedGateway, DescribedNymNode, GatewayBondAnnotated,
+        GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+        InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+        MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+        RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
     },
 };
 pub use nym_coconut_dkg_common::types::EpochId;
@@ -90,6 +90,14 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_gateways_described(&self) -> Result<Vec<DescribedGateway>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_nym_nodes_described(&self) -> Result<Vec<DescribedNymNode>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::NYM_NODES, routes::DESCRIBED],
             NO_PARAMS,
         )
         .await

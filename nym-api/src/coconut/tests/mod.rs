@@ -7,8 +7,10 @@ use crate::coconut::state::State;
 use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
-use cosmwasm_std::testing::mock_env;
-use cosmwasm_std::{coin, to_binary, Addr, BlockInfo, CosmosMsg, Decimal, WasmMsg};
+use cosmwasm_std::testing::{mock_env, mock_info};
+use cosmwasm_std::{
+    coin, from_binary, to_binary, Addr, Binary, BlockInfo, CosmosMsg, Decimal, MessageInfo, WasmMsg,
+};
 use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
 use nym_api_requests::coconut::models::{IssuedCredentialBody, IssuedCredentialResponse};
@@ -24,7 +26,7 @@ use nym_coconut_dkg_common::dealer::{
 };
 use nym_coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
 use nym_coconut_dkg_common::types::{
-    DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData,
+    DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, EpochState, InitialReplacementData,
     PartialContractDealing, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
@@ -34,6 +36,7 @@ use nym_contracts_common::IdentityKey;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_dkg::{NodeIndex, Threshold};
+use nym_mixnet_contract_common::BlockHeight;
 use nym_validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES,
 };
@@ -48,6 +51,7 @@ use rand_07::RngCore;
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
+use std::mem;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -104,20 +108,85 @@ pub(crate) struct FakeDkgContractState {
     pub(crate) threshold: Option<Threshold>,
 }
 
+impl FakeDkgContractState {
+    pub(crate) fn verified_dealers(&self) -> Vec<Addr> {
+        let epoch_id = self.epoch.epoch_id;
+        let Some(shares) = self.verification_shares.get(&epoch_id) else {
+            return Vec::new();
+        };
+
+        shares
+            .values()
+            .filter(|s| s.verified)
+            .map(|s| s.owner.clone())
+            .collect()
+    }
+
+    fn reset_dkg_state(&mut self) {
+        self.threshold = None;
+        let dealers = mem::take(&mut self.dealers);
+        for (index, details) in dealers {
+            self.past_dealers.insert(index, details);
+        }
+    }
+
+    pub(crate) fn reset_epoch_in_reshare_mode(&mut self, block_height: BlockHeight) {
+        if let Some(initial_dealers) = self.initial_dealers.as_mut() {
+            initial_dealers.initial_height = block_height;
+        } else {
+            self.initial_dealers = Some(InitialReplacementData {
+                initial_dealers: self.verified_dealers(),
+                initial_height: block_height,
+            })
+        }
+
+        self.reset_dkg_state();
+        self.epoch.state = EpochState::PublicKeySubmission { resharing: true };
+        self.epoch.epoch_id += 1;
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct FakeGroupContractState {
+    pub(crate) address: Addr,
     pub(crate) members: HashMap<String, MemberResponse>,
+}
+
+impl FakeGroupContractState {
+    pub(crate) fn total_weight(&self) -> u64 {
+        self.members
+            .values()
+            .map(|m| m.weight.unwrap_or_default())
+            .sum()
+    }
+
+    pub(crate) fn add_member<S: Into<String>>(&mut self, address: S, weight: u64) {
+        self.members.insert(
+            address.into(),
+            MemberResponse {
+                weight: Some(weight),
+            },
+        );
+    }
 }
 
 #[derive(Debug)]
 pub(crate) struct FakeMultisigContractState {
+    pub(crate) address: Addr,
     pub(crate) proposals: HashMap<u64, Proposal>,
     pub(crate) votes: HashMap<(String, u64), VoteInfo>,
 }
 
+impl FakeMultisigContractState {
+    pub(crate) fn reset_votes(&mut self) {
+        self.votes = HashMap::new()
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct FakeBandwidthContractState {
-    spent_credentials: HashMap<String, SpendCredentialResponse>,
+    pub(crate) address: Addr,
+    pub(crate) spent_credentials: HashMap<String, SpendCredentialResponse>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -146,6 +215,15 @@ pub(crate) struct FakeChainState {
 
 impl Default for FakeChainState {
     fn default() -> Self {
+        let multisig_contract =
+            Addr::unchecked("n14ph4e660eyqz0j36zlkaey4zgzexm5twkmjlqaequxr2cjm9eprqsmad6k");
+        let group_contract =
+            Addr::unchecked("n1pd7kfgvr5tpcv0xnlv46c4jsq9jg2r799xxrcwqdm4l2jhq2pjwqrmz5ju");
+        let dkg_contract =
+            Addr::unchecked("n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a");
+        let bandwidth_contract =
+            Addr::unchecked("n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l");
+
         FakeChainState {
             _counters: Default::default(),
 
@@ -153,15 +231,15 @@ impl Default for FakeChainState {
             txs: HashMap::new(),
 
             dkg_contract: FakeDkgContractState {
-                address: AccountId::new("n", &[69u8; 32]).unwrap(),
+                address: dkg_contract.as_ref().parse().unwrap(),
                 dealers: HashMap::new(),
                 past_dealers: Default::default(),
 
                 epoch: Epoch::default(),
                 contract_state: ContractState {
                     mix_denom: TEST_COIN_DENOM.to_string(),
-                    multisig_addr: Addr::unchecked("dummy address"),
-                    group_addr: Cw4Contract::new(Addr::unchecked("dummy cw4")),
+                    multisig_addr: multisig_contract.clone(),
+                    group_addr: Cw4Contract::new(group_contract.clone()),
                     key_size: 5,
                 },
                 dealings: HashMap::new(),
@@ -170,13 +248,16 @@ impl Default for FakeChainState {
                 initial_dealers: None,
             },
             group_contract: FakeGroupContractState {
+                address: group_contract,
                 members: Default::default(),
             },
             multisig_contract: FakeMultisigContractState {
+                address: multisig_contract,
                 proposals: Default::default(),
                 votes: Default::default(),
             },
             bandwidth_contract: FakeBandwidthContractState {
+                address: bandwidth_contract,
                 spent_credentials: Default::default(),
             },
         }
@@ -185,24 +266,90 @@ impl Default for FakeChainState {
 
 impl FakeChainState {
     pub(crate) fn total_group_weight(&self) -> u64 {
-        self.group_contract
-            .members
-            .values()
-            .map(|m| m.weight.unwrap_or_default())
-            .sum()
+        self.group_contract.total_weight()
     }
 
     pub(crate) fn add_member<S: Into<String>>(&mut self, address: S, weight: u64) {
-        self.group_contract.members.insert(
-            address.into(),
-            MemberResponse {
-                weight: Some(weight),
-            },
-        );
+        self.group_contract.add_member(address, weight)
     }
 
     pub(crate) fn reset_votes(&mut self) {
-        self.multisig_contract.votes = HashMap::new()
+        self.multisig_contract.reset_votes()
+    }
+
+    pub(crate) fn advance_epoch_in_reshare_mode(&mut self) {
+        self.dkg_contract
+            .reset_epoch_in_reshare_mode(self.block_info.height)
+    }
+
+    // TODO: make it return a result
+    fn execute_dkg_contract(&mut self, sender: MessageInfo, msg: &Binary) {
+        let exec_msg: nym_coconut_dkg_common::msg::ExecuteMsg = from_binary(msg).unwrap();
+        match exec_msg {
+            nym_coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
+                owner,
+                resharing,
+            } => {
+                if sender.sender != self.multisig_contract.address {
+                    panic!("not multisig")
+                }
+                assert_eq!(
+                    self.dkg_contract.epoch.state,
+                    EpochState::VerificationKeyFinalization { resharing }
+                );
+                let epoch_id = self.dkg_contract.epoch.epoch_id;
+                let Some(shares) = self.dkg_contract.verification_shares.get_mut(&epoch_id) else {
+                    unimplemented!("no shares for epoch")
+                };
+                let Some(share) = shares.get_mut(owner.as_str()) else {
+                    unimplemented!("no shares for owner")
+                };
+                share.verified = true
+            }
+            other => unimplemented!("unimplemented exec of {other:?}"),
+        }
+    }
+
+    // TODO: make it return a result
+    fn execute_contract_msg(&mut self, contract: &String, msg: &Binary, sender: MessageInfo) {
+        if contract == &self.group_contract.address {
+            unimplemented!("group contract exec")
+        }
+        if contract == &self.multisig_contract.address {
+            unimplemented!("multisig contract exec")
+        }
+        if contract == &self.bandwidth_contract.address {
+            unimplemented!("bandwidth contract exec")
+        }
+        if contract == self.dkg_contract.address.as_ref() {
+            return self.execute_dkg_contract(sender, msg);
+        }
+        panic!("unknown contract {contract}")
+    }
+
+    // TODO: make it return a result
+    fn execute_wasm_msg(&mut self, msg: &WasmMsg, sender_address: Addr) {
+        match msg {
+            WasmMsg::Execute {
+                contract_addr,
+                msg,
+                funds,
+            } => {
+                let sender = mock_info(sender_address.as_ref(), funds);
+                self.execute_contract_msg(contract_addr, msg, sender)
+            }
+            other => unimplemented!("unimplemented wasm proposal for {other:?}"),
+        }
+    }
+
+    // TODO: make it return a result
+    pub(crate) fn execute_msg(&mut self, msg: &CosmosMsg, sender_address: AccountId) {
+        match msg {
+            CosmosMsg::Wasm(wasm_msg) => {
+                self.execute_wasm_msg(wasm_msg, Addr::unchecked(sender_address.as_ref()))
+            }
+            other => unimplemented!("unimplemented proposal for {other:?}"),
+        };
     }
 }
 
@@ -618,17 +765,24 @@ impl super::client::Client for DummyClient {
     }
 
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
-        self.state
-            .lock()
-            .unwrap()
-            .multisig_contract
-            .proposals
-            .entry(proposal_id)
-            .and_modify(|prop| {
-                if prop.status == cw3::Status::Passed {
-                    prop.status = cw3::Status::Executed
-                }
+        let mut chain = self.state.lock().unwrap();
+        let multisig_address: AccountId = chain.multisig_contract.address.as_str().parse().unwrap();
+
+        let Some(proposal) = chain.multisig_contract.proposals.get_mut(&proposal_id) else {
+            return Err(CoconutError::ProposalIdError {
+                reason: String::from("proposal id not found"),
             });
+        };
+
+        if proposal.status != cw3::Status::Passed {
+            unimplemented!("proposal hasn't been passed")
+        }
+        proposal.status = cw3::Status::Executed;
+
+        for msg in &proposal.msgs.clone() {
+            chain.execute_msg(msg, multisig_address.clone());
+        }
+
         Ok(())
     }
 
@@ -762,7 +916,7 @@ impl super::client::Client for DummyClient {
                 resharing,
             };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: String::new(),
+            contract_addr: chain.dkg_contract.address.to_string(),
             msg: to_binary(&verify_vk_share_req).unwrap(),
             funds: vec![],
         });

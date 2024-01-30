@@ -22,7 +22,7 @@ use nym_validator_client::nyxd::cosmwasm_client::logs::{find_attribute, Log};
 use nym_validator_client::nyxd::Hash;
 use rand::{CryptoRng, RngCore};
 use rocket::form::validate::Contains;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use thiserror::Error;
 
@@ -91,19 +91,21 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                     }));
                 }
 
-                std::iter::once(Some(*vk.alpha()))
-                    .chain(vk.beta_g2().iter().copied().map(Some))
-                    .collect::<Vec<_>>()
+                let mut prior = HashMap::new();
+                prior.insert(0, *vk.alpha());
+                for (i, beta) in vk.beta_g2().iter().enumerate() {
+                    // element 1, 2, ...
+                    prior.insert((i + 1) as DealingIndex, *beta);
+                }
+
+                Some(prior)
             }
-            None => vec![None; raw_dealings.len()],
+            None => None,
         };
 
         let mut temp_verified = Vec::with_capacity(raw_dealings.len());
         // make sure ALL of them verify correctly, we can't have a situation where dealing 2 is valid but dealing 3 is not
-        for (raw_dealing, prior_public) in raw_dealings
-            .into_iter()
-            .zip(prior_public_components.into_iter())
-        {
+        for raw_dealing in raw_dealings {
             let index = raw_dealing.index;
 
             // recover the actual dealing from its submitted bytes representation
@@ -117,6 +119,10 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                     }));
                 }
             };
+
+            let prior_public = prior_public_components
+                .as_ref()
+                .and_then(|p| p.get(&index).copied());
 
             // make sure the cryptographic material embedded inside is actually valid
             if let Err(err) =

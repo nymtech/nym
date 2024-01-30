@@ -21,16 +21,20 @@ pub(crate) async fn initialise_controllers(amount: usize) -> Vec<TestingDkgContr
     let mut controllers = Vec::with_capacity(amount);
     assert!(amount <= u8::MAX as usize);
     for rng_seed in 0..amount {
-        let controller = TestingDkgControllerBuilder::default()
-            .with_shared_chain_state(chain.clone())
-            .with_magic_seed_val(rng_seed as u8)
-            .build()
-            .await;
+        let controller = initialise_controller(chain.clone(), rng_seed as u8).await;
 
         controllers.push(controller)
     }
 
     controllers
+}
+
+pub(crate) async fn initialise_controller(chain: SharedFakeChain, id: u8) -> TestingDkgController {
+    TestingDkgControllerBuilder::default()
+        .with_shared_chain_state(chain)
+        .with_magic_seed_val(id)
+        .build()
+        .await
 }
 
 pub(crate) async fn initialise_dkg(controllers: &mut [TestingDkgController], resharing: bool) {
@@ -133,22 +137,22 @@ pub(crate) async fn validate_keys(controllers: &mut [TestingDkgController], resh
     guard.dkg_contract.epoch.state = EpochState::VerificationKeyFinalization { resharing }
 }
 
-// pub(crate) async fn finalize(controllers: &mut [TestingDkgController]) {
-//     let epoch = controllers[0]
-//         .chain_state
-//         .lock()
-//         .unwrap()
-//         .dkg_contract
-//         .epoch
-//         .epoch_id;
-//
-//     for controller in controllers.iter_mut() {
-//         controller
-//             .verification_key_finalization(epoch)
-//             .await
-//             .unwrap();
-//     }
-//
-//     let mut guard = controllers[0].chain_state.lock().unwrap();
-//     guard.dkg_contract.epoch.state = EpochState::InProgress {}
-// }
+pub(crate) async fn finalize(controllers: &mut [TestingDkgController]) {
+    let epoch = controllers[0]
+        .chain_state
+        .lock()
+        .unwrap()
+        .dkg_contract
+        .epoch
+        .epoch_id;
+
+    for controller in controllers.iter_mut() {
+        controller
+            .verification_key_finalization(epoch)
+            .await
+            .unwrap();
+    }
+
+    let mut guard = controllers[0].chain_state.lock().unwrap();
+    guard.dkg_contract.epoch.state = EpochState::InProgress {}
+}

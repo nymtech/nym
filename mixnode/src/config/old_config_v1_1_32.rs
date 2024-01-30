@@ -109,6 +109,9 @@ impl From<ConfigV1_1_32> for Config {
             verloc: value.verloc.into(),
             logging: value.logging,
             debug: value.debug.into(),
+            // \/ ADDED
+            topology: Default::default(),
+            // /\ ADDED
         }
     }
 }

@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::Config;
+use crate::config::{Config, Topology};
 use crate::error::MixnodeError;
 use crate::node::helpers::{load_identity_keys, load_sphinx_keys};
 use crate::node::http::legacy::verloc::VerlocState;
@@ -15,14 +15,20 @@ use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSende
 use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
+use nym_client_core::client::topology_control::accessor::TopologyAccessor;
+use nym_client_core::client::topology_control::nym_api_provider::NymApiTopologyProvider;
+use nym_client_core::client::topology_control::TopologyRefresher;
+use nym_client_core::client::topology_control::TopologyRefresherConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
+use nym_topology::provider_trait::TopologyProvider;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+use url::Url;
 
 pub(crate) mod helpers;
 mod http;
@@ -185,6 +191,47 @@ impl MixNode {
         atomic_verloc_results
     }
 
+    fn setup_topology_provider(nym_api_urls: Vec<Url>) -> Box<dyn TopologyProvider + Send + Sync> {
+        // if no custom provider was ... provided ..., create one using nym-api
+        Box::new(NymApiTopologyProvider::new(
+            nym_api_urls,
+            env!("CARGO_PKG_VERSION").to_string(),
+        ))
+    }
+
+    // future responsible for periodically polling directory server and updating
+    // the current global view of topology
+    async fn start_topology_refresher(
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        topology_config: Topology,
+        topology_accessor: TopologyAccessor,
+        mut shutdown: TaskClient,
+    ) {
+        let topology_refresher_config =
+            TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
+
+        let mut topology_refresher = TopologyRefresher::new(
+            topology_refresher_config,
+            topology_accessor,
+            topology_provider,
+        );
+        // before returning, block entire runtime to refresh the current network view so that any
+        // components depending on topology would see a non-empty view
+        info!("Obtaining initial network topology");
+        topology_refresher.try_refresh().await;
+
+        if topology_config.disable_refreshing {
+            // if we're not spawning the refresher, don't cause shutdown immediately
+            info!("The topology refesher is not going to be started");
+            shutdown.mark_as_success();
+        } else {
+            // don't spawn the refresher if we don't want to be refreshing the topology.
+            // only use the initial values obtained
+            info!("Starting topology refresher...");
+            topology_refresher.start_with_shutdown(shutdown);
+        }
+    }
+
     fn random_api_client(&self) -> nym_validator_client::NymApiClient {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
@@ -231,6 +278,16 @@ impl MixNode {
 
         let (node_stats_pointer, node_stats_update_sender) = self
             .start_node_stats_controller(shutdown.subscribe().named("node_statistics::Controller"));
+
+        let topology_provider = Self::setup_topology_provider(self.config.get_nym_api_endpoints());
+        let shared_topology_access = TopologyAccessor::new();
+        Self::start_topology_refresher(
+            topology_provider,
+            self.config.topology,
+            shared_topology_access.clone(),
+            shutdown.subscribe().named("TopologyRefresher"),
+        )
+        .await;
         let delay_forwarding_channel = self.start_packet_delay_forwarder(
             node_stats_update_sender.clone(),
             shutdown.subscribe().named("DelayForwarder"),

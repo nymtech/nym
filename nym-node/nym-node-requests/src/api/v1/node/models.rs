@@ -42,3 +42,9 @@ pub struct HostKeys {
     /// Currently it corresponds to either mixnode's or gateway's key.
     pub x25519: String,
 }
+
+#[derive(Default, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct NoiseInformation {
+    pub supported: bool,
+}

@@ -11,6 +11,7 @@ use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_node::error::NymNodeError;
 use nym_node::http::api::api_requests;
+use nym_node::http::api::api_requests::v1::node::models::NoiseInformation;
 use nym_node::http::api::api_requests::SignedHostInformation;
 use nym_task::TaskClient;
 
@@ -93,6 +94,7 @@ impl<'a> HttpApiBuilder<'a> {
                 self.sphinx_keypair.public_key(),
                 self.identity_keypair,
             )?,
+            NoiseInformation { supported: true }, //this field somes with Noise support, so we can hardcode it (to ultimately remove it once it's granted)
         )
         .with_mixnode(load_mixnode_details(self.mixnode_config)?)
         .with_landing_page_assets(self.mixnode_config.http.landing_page_assets_path.as_ref());

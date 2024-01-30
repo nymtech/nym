@@ -12,6 +12,7 @@ use nym_network_requester::RequestFilter;
 use nym_node::error::NymNodeError;
 use nym_node::http::api::api_requests;
 use nym_node::http::api::api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy;
+use nym_node::http::api::api_requests::v1::node::models::NoiseInformation;
 use nym_node::http::api::api_requests::SignedHostInformation;
 use nym_node::http::router::WireguardAppState;
 use nym_node::wireguard::types::GatewayClientRegistry;
@@ -260,6 +261,7 @@ impl<'a> HttpApiBuilder<'a> {
                 self.sphinx_keypair.public_key(),
                 self.identity_keypair,
             )?,
+            NoiseInformation { supported: true }, //this field somes with Noise support, so we can hardcode it (to ultimately remove it once it's granted)
         )
         .with_gateway(load_gateway_details(self.gateway_config)?)
         .with_landing_page_assets(self.gateway_config.http.landing_page_assets_path.as_ref());

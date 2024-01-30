@@ -261,7 +261,7 @@ impl<'a> HttpApiBuilder<'a> {
                 self.sphinx_keypair.public_key(),
                 self.identity_keypair,
             )?,
-            NoiseInformation { supported: false }, //this field comes with Noise support, but with PR chain, the actual support might come later
+            NoiseInformation { supported: true }, //Now we can enable that
         )
         .with_gateway(load_gateway_details(self.gateway_config)?)
         .with_landing_page_assets(self.gateway_config.http.landing_page_assets_path.as_ref());

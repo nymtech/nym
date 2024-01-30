@@ -41,17 +41,19 @@ impl EpochRewards {
         let mut amounts = Vec::new();
 
         if let Some(signing) = &self.signing {
-            for signing_amount in signing.rewarding_amounts(&self.signing_budget) {
-                if signing_amount.1[0].amount != 0 {
-                    amounts.push(signing_amount)
+            for (account, signing_amount) in signing.rewarding_amounts(&self.signing_budget) {
+                if signing_amount[0].amount != 0 {
+                    amounts.push((account, signing_amount))
                 }
             }
         }
 
         if let Some(credentials) = &self.credentials {
-            for credential_amount in credentials.rewarding_amounts(&self.credentials_budget) {
-                if credential_amount.1[0].amount != 0 {
-                    amounts.push(credential_amount)
+            for (account, credential_amount) in
+                credentials.rewarding_amounts(&self.credentials_budget)
+            {
+                if credential_amount[0].amount != 0 {
+                    amounts.push((account, credential_amount))
                 }
             }
         }
@@ -86,18 +88,29 @@ impl Rewarder {
         };
 
         let epoch_signing = if config.block_signing.enabled {
+            let whitelist = config.block_signing.whitelist.clone();
+            if whitelist.is_empty() {
+                return Err(NymRewarderError::EmptyBlockSigningWhitelist);
+            }
+
             let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
 
             Some(EpochSigning {
                 nyxd_scraper,
                 nyxd_client: nyxd_client.clone(),
+                whitelist,
             })
         } else {
             None
         };
 
         let credential_issuance = if config.issuance_monitor.enabled {
-            Some(CredentialIssuance::new(current_epoch, &nyxd_client).await?)
+            let whitelist = &config.issuance_monitor.whitelist;
+            if whitelist.is_empty() {
+                return Err(NymRewarderError::EmptyCredentialIssuanceWhitelist);
+            }
+
+            Some(CredentialIssuance::new(current_epoch, &nyxd_client, whitelist).await?)
         } else {
             None
         };
@@ -239,7 +252,7 @@ impl Rewarder {
 
         if let Some(ref credential_issuance) = self.credential_issuance {
             credential_issuance.start_monitor(
-                self.config.issuance_monitor,
+                self.config.issuance_monitor.clone(),
                 self.nyxd_client.clone(),
                 task_manager.subscribe(),
             );

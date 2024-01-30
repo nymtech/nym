@@ -27,6 +27,7 @@ CREATE TABLE block_signing_reward
     rewarding_epoch_id          INTEGER NOT NULL REFERENCES rewarding_epoch (id),
     validator_consensus_address TEXT    NOT NULL,
     operator_account            TEXT    NOT NULL,
+    whitelisted                 BOOLEAN NOT NULL,
     amount                      TEXT    NOT NULL,
     voting_power                BIGINT  NOT NULL,
     voting_power_share          TEXT    NOT NULL,
@@ -38,11 +39,11 @@ CREATE TABLE block_signing_reward
 
 CREATE TABLE epoch_credential_issuance
 (
-    rewarding_epoch_id       INTEGER NOT NULL PRIMARY KEY REFERENCES rewarding_epoch (id),
-    starting_dkg_epoch       INTEGER NOT NULL,
-    ending_dkg_epoch         INTEGER NOT NULL,
+    rewarding_epoch_id               INTEGER NOT NULL PRIMARY KEY REFERENCES rewarding_epoch (id),
+    starting_dkg_epoch               INTEGER NOT NULL,
+    ending_dkg_epoch                 INTEGER NOT NULL,
     total_issued_partial_credentials INTEGER NOT NULL,
-    budget                   TEXT    NOT NULL
+    budget                           TEXT    NOT NULL
 );
 
 CREATE TABLE malformed_credential
@@ -56,6 +57,7 @@ CREATE TABLE credential_issuance_reward
     rewarding_epoch_id           INTEGER NOT NULL REFERENCES rewarding_epoch (id),
     operator_account             TEXT    NOT NULL,
     amount                       TEXT    NOT NULL,
+    whitelisted                  BOOLEAN NOT NULL,
     api_endpoint                 TEXT    NOT NULL,
     issued_partial_credentials   INTEGER NOT NULL,
     issued_credentials_share     TEXT    NOT NULL,

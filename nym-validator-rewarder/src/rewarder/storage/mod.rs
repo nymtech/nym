@@ -104,6 +104,7 @@ impl RewarderStorage {
                         epoch_id,
                         validator.validator.consensus_address,
                         validator.operator_account.to_string(),
+                        validator.whitelisted,
                         reward_amount,
                         validator.voting_power_at_epoch_start,
                         validator.voting_power_ratio.to_string(),
@@ -152,6 +153,7 @@ impl RewarderStorage {
                     .insert_rewarding_epoch_credential_issuance_reward(
                         epoch_id,
                         api_runner.runner_account.to_string(),
+                        api_runner.whitelisted,
                         reward_amount,
                         api_runner.api_runner,
                         api_runner.issued_credentials,

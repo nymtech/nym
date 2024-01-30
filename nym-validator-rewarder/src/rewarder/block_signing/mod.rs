@@ -6,18 +6,19 @@ use crate::rewarder::block_signing::types::{EpochSigningResults, RawValidatorRes
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use nym_validator_client::nyxd::module_traits::staking;
-use nym_validator_client::nyxd::PageRequest;
+use nym_validator_client::nyxd::{AccountId, PageRequest};
 use nyxd_scraper::NyxdScraper;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Range;
-use tracing::info;
+use tracing::{debug, info, warn};
 
 pub(crate) mod types;
 
 pub struct EpochSigning {
     pub(crate) nyxd_client: NyxdClient,
     pub(crate) nyxd_scraper: NyxdScraper,
+    pub(crate) whitelist: Vec<AccountId>,
 }
 
 impl EpochSigning {
@@ -116,14 +117,29 @@ impl EpochSigning {
             else {
                 continue;
             };
-            total_vp += vp;
+
+            let cons_address = &validator.consensus_address;
+            // if this validator is NOT whitelisted, do not increase the total VP
+            let whitelisted = if let Ok(parsed) = cons_address.parse() {
+                if self.whitelist.contains(&parsed) {
+                    debug!("{cons_address} is on the whitelist");
+                    total_vp += vp;
+                    true
+                } else {
+                    warn!("{cons_address} is not a valid consensus address");
+                    false
+                }
+            } else {
+                debug!("{cons_address} is not on the whitelist");
+                false
+            };
 
             let signed = self
                 .nyxd_scraper
                 .storage
                 .get_signed_between_times(&validator.consensus_address, epoch_start, epoch_end)
                 .await?;
-            signed_in_epoch.insert(validator, RawValidatorResult::new(signed, vp));
+            signed_in_epoch.insert(validator, RawValidatorResult::new(signed, vp, whitelisted));
         }
 
         let total = self

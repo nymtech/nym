@@ -566,8 +566,6 @@ pub(crate) mod tests {
             .build()
             .await;
 
-        let key_size = controller.dkg_client.get_contract_state().await?.key_size;
-
         let res = controller.dealing_exchange(epoch, true).await;
         assert!(res.is_ok());
 

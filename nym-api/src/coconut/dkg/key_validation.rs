@@ -146,13 +146,17 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             let owner = contract_share.owner.clone();
             debug!("verifying vk share from {owner}");
 
-            // TODO: if this is our share, obviously vote for yes
-
             // there's no point in checking anything if there doesn't exist an associated multisig proposal
             let Some(proposal_id) = proposals.get(&owner) else {
                 warn!("there does not seem to exist proposal for share validation from {owner}");
                 continue;
             };
+
+            // if this is our share, obviously vote for yes without spending time on verification
+            if owner.as_ref() == self.dkg_client.get_address().await.as_ref() {
+                votes.insert(*proposal_id, true);
+                continue;
+            }
 
             let (vote, rejection_reason) = self.verify_share(epoch_id, contract_share).await?;
             if let Some(vote) = vote {

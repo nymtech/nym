@@ -20,325 +20,83 @@ pub(crate) mod state;
 
 #[cfg(test)]
 mod tests {
-    #[tokio::test]
-    #[ignore] // expensive test
-    async fn reshare_preserves_keys() {
-        todo!()
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
-        // for controller in clients_and_states.iter_mut() {
-        //     controller.state.set_was_in_progress();
-        // }
-        //
-        // let mut vks = vec![];
-        // let mut indices = vec![];
-        // for controller in clients_and_states.iter() {
-        //     let vk = controller
-        //         .state
-        //         .coconut_keypair()
-        //         .await
-        //         .as_ref()
-        //         .unwrap()
-        //         .keys
-        //         .verification_key()
-        //         .clone();
-        //     let index = controller.state.node_index().unwrap();
-        //     vks.push(vk);
-        //     indices.push(index);
-        // }
-        // let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
-        //
-        // let new_dkg_client = DkgClient::new(
-        //     DummyClient::new(
-        //         AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
-        //     )
-        //     .with_dealer_details(&db.dealer_details_db)
-        //     .with_dealings(&db.dealings_db)
-        //     .with_proposal_db(&db.proposal_db)
-        //     .with_verification_share(&db.verification_share_db)
-        //     .with_threshold(&db.threshold_db)
-        //     .with_initial_dealers_db(&db.initial_dealers_db),
-        // );
-        // let keypair = DkgKeyPair::new(dkg::params(), OsRng);
-        // let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-        // let state = State::new(
-        //     PathBuf::default(),
-        //     PersistentState::default(),
-        //     Url::parse("localhost:8000").unwrap(),
-        //     keypair,
-        //     *identity_keypair.public_key(),
-        //     KeyPair::new(),
-        // );
-        //
-        // for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
-        //     *active = false;
-        // }
-        //
-        // *db.dealings_db.write().unwrap() = Default::default();
-        // *db.verification_share_db.write().unwrap() = Default::default();
-        // let mut initial_dealers = vec![];
-        // for controller in clients_and_states.iter() {
-        //     let client_address =
-        //         Addr::unchecked(controller.dkg_client.get_address().await.as_ref());
-        //     initial_dealers.push(client_address);
-        // }
-        // *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
-        //     initial_dealers,
-        //     initial_height: 1,
-        // });
-        // *clients_and_states.first_mut().unwrap() = DkgController::test_mock(new_dkg_client, state);
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     controller.public_key_submission(0, true).await.unwrap();
-        //     controller.dealing_exchange(0, true).await.unwrap();
-        // }
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     let random_file: usize = OsRng.gen();
-        //     let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
-        //     verification_key_submission(
-        //         &controller.dkg_client,
-        //         &mut controller.state,
-        //         0,
-        //         &keypath,
-        //         true,
-        //     )
-        //     .await
-        //     .unwrap();
-        //     std::fs::remove_file(keypath).unwrap();
-        // }
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_validation(&controller.dkg_client, &mut controller.state, true)
-        //         .await
-        //         .unwrap();
-        // }
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_finalization(&controller.dkg_client, &mut controller.state, true)
-        //         .await
-        //         .unwrap();
-        // }
-        // assert!(db
-        //     .proposal_db
-        //     .read()
-        //     .unwrap()
-        //     .values()
-        //     .all(|proposal| { proposal.status == Status::Executed }));
-        //
-        // let mut vks = vec![];
-        // let mut indices = vec![];
-        // for controller in clients_and_states.iter() {
-        //     let vk = controller
-        //         .state
-        //         .coconut_keypair()
-        //         .await
-        //         .as_ref()
-        //         .unwrap()
-        //         .keys
-        //         .verification_key()
-        //         .clone();
-        //     let index = controller.state.node_index().unwrap();
-        //     vks.push(vk);
-        //     indices.push(index);
-        // }
-        // let reshared_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
-        // assert_eq!(initial_master_vk, reshared_master_vk);
-    }
+    use crate::coconut::tests::helpers::{
+        derive_keypairs, exchange_dealings, finalize, init_chain, initialise_controller,
+        initialise_dkg, submit_public_keys, validate_keys,
+    };
+    use nym_coconut::aggregate_verification_keys;
 
     #[tokio::test]
     #[ignore] // expensive test
-    async fn reshare_after_reset() {
-        todo!()
-        // let db = MockContractDb::new();
-        // let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
-        // for controller in clients_and_states.iter_mut() {
-        //     controller.state.set_was_in_progress();
-        // }
-        //
-        // let new_dkg_client = DkgClient::new(
-        //     DummyClient::new(
-        //         AccountId::from_str("n1vxkywf9g4cg0k2dehanzwzz64jw782qm0kuynf").unwrap(),
-        //     )
-        //     .with_dealer_details(&db.dealer_details_db)
-        //     .with_dealings(&db.dealings_db)
-        //     .with_proposal_db(&db.proposal_db)
-        //     .with_verification_share(&db.verification_share_db)
-        //     .with_threshold(&db.threshold_db)
-        //     .with_initial_dealers_db(&db.initial_dealers_db),
-        // );
-        // let keypair = DkgKeyPair::new(dkg::params(), OsRng);
-        // let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-        // let state = State::new(
-        //     PathBuf::default(),
-        //     PersistentState::default(),
-        //     Url::parse("localhost:8000").unwrap(),
-        //     keypair,
-        //     *identity_keypair.public_key(),
-        //     KeyPair::new(),
-        // );
-        // let new_dkg_client2 = DkgClient::new(
-        //     DummyClient::new(
-        //         AccountId::from_str("n1sqkxzh7nl6kgndr4ew9795t2nkwmd8tpql67q7").unwrap(),
-        //     )
-        //     .with_dealer_details(&db.dealer_details_db)
-        //     .with_dealings(&db.dealings_db)
-        //     .with_proposal_db(&db.proposal_db)
-        //     .with_verification_share(&db.verification_share_db)
-        //     .with_threshold(&db.threshold_db)
-        //     .with_initial_dealers_db(&db.initial_dealers_db),
-        // );
-        // let keypair = DkgKeyPair::new(dkg::params(), OsRng);
-        // let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-        // let state2 = State::new(
-        //     PathBuf::default(),
-        //     PersistentState::default(),
-        //     Url::parse("localhost:8000").unwrap(),
-        //     keypair,
-        //     *identity_keypair.public_key(),
-        //     KeyPair::new(),
-        // );
-        //
-        // for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
-        //     *active = false;
-        // }
-        //
-        // *db.dealings_db.write().unwrap() = Default::default();
-        // *db.verification_share_db.write().unwrap() = Default::default();
-        // clients_and_states.pop().unwrap();
-        // let controller2 = clients_and_states.pop().unwrap();
-        // clients_and_states.push(DkgController::test_mock(new_dkg_client, state));
-        // clients_and_states.push(DkgController::test_mock(new_dkg_client2, state2));
-        //
-        // // DKG in reset mode
-        // for controller in clients_and_states.iter_mut() {
-        //     controller.public_key_submission(0, false).await.unwrap();
-        // }
-        // for controller in clients_and_states.iter_mut() {
-        //     controller.dealing_exchange(0, false).await.unwrap();
-        // }
-        // for controller in clients_and_states.iter_mut() {
-        //     let random_file: usize = OsRng.gen();
-        //     let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
-        //     verification_key_submission(
-        //         &controller.dkg_client,
-        //         &mut controller.state,
-        //         0,
-        //         &keypath,
-        //         false,
-        //     )
-        //     .await
-        //     .unwrap();
-        //     std::fs::remove_file(keypath).unwrap();
-        // }
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_validation(&controller.dkg_client, &mut controller.state, false)
-        //         .await
-        //         .unwrap();
-        // }
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_finalization(&controller.dkg_client, &mut controller.state, false)
-        //         .await
-        //         .unwrap();
-        // }
-        // assert!(db
-        //     .proposal_db
-        //     .read()
-        //     .unwrap()
-        //     .values()
-        //     .all(|proposal| { proposal.status == Status::Executed }));
-        // for controller in clients_and_states.iter_mut() {
-        //     controller.state.set_was_in_progress();
-        // }
-        //
-        // // DKG in reshare mode
-        // let mut vks = vec![];
-        // let mut indices = vec![];
-        // for controller in clients_and_states.iter() {
-        //     let vk = controller
-        //         .state
-        //         .coconut_keypair()
-        //         .await
-        //         .as_ref()
-        //         .unwrap()
-        //         .keys
-        //         .verification_key()
-        //         .clone();
-        //     let index = controller.state.node_index().unwrap();
-        //     vks.push(vk);
-        //     indices.push(index);
-        // }
-        // let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
-        //
-        // for (_, active) in db.dealer_details_db.write().unwrap().values_mut() {
-        //     *active = false;
-        // }
-        // *db.dealings_db.write().unwrap() = Default::default();
-        // *db.verification_share_db.write().unwrap() = Default::default();
-        // let mut initial_dealers = vec![];
-        // for controller in clients_and_states.iter() {
-        //     let client_address =
-        //         Addr::unchecked(controller.dkg_client.get_address().await.as_ref());
-        //     initial_dealers.push(client_address);
-        // }
-        // *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
-        //     initial_dealers,
-        //     initial_height: 1,
-        // });
-        // *clients_and_states.last_mut().unwrap() = controller2;
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     controller.public_key_submission(0, true).await.unwrap();
-        //     controller.dealing_exchange(0, true).await.unwrap();
-        // }
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     let random_file: usize = OsRng.gen();
-        //     let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
-        //     verification_key_submission(
-        //         &controller.dkg_client,
-        //         &mut controller.state,
-        //         0,
-        //         &keypath,
-        //         true,
-        //     )
-        //     .await
-        //     .unwrap();
-        //     std::fs::remove_file(keypath).unwrap();
-        // }
-        //
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_validation(&controller.dkg_client, &mut controller.state, true)
-        //         .await
-        //         .unwrap();
-        // }
-        // for controller in clients_and_states.iter_mut() {
-        //     verification_key_finalization(&controller.dkg_client, &mut controller.state, true)
-        //         .await
-        //         .unwrap();
-        // }
-        // // assert!(db
-        // //     .proposal_db
-        // //     .read()
-        // //     .unwrap()
-        // //     .values()
-        // //     .all(|proposal| { proposal.status == Status::Executed }));
-        //
-        // let mut vks = vec![];
-        // let mut indices = vec![];
-        // for controller in clients_and_states.iter() {
-        //     let vk = controller
-        //         .state
-        //         .coconut_keypair()
-        //         .await
-        //         .as_ref()
-        //         .unwrap()
-        //         .keys
-        //         .verification_key()
-        //         .clone();
-        //     let index = controller.state.node_index().unwrap();
-        //     vks.push(vk);
-        //     indices.push(index);
-        // }
-        // let reshared_master_vk = aggregate_verification_keys(&vks, Some(&indices)).unwrap();
-        // assert_eq!(initial_master_vk, reshared_master_vk);
+    async fn reshare_preserves_master_key() -> anyhow::Result<()> {
+        let validators = 4;
+        let chain = init_chain();
+
+        let mut controllers = vec![];
+        for i in 0..validators {
+            controllers.push(initialise_controller(chain.clone(), i).await)
+        }
+
+        let chain = controllers[0].chain_state.clone();
+        let epoch = chain.lock().unwrap().dkg_contract.epoch.epoch_id;
+
+        // EPOCH 0 DKG
+        initialise_dkg(&mut controllers, false).await;
+        submit_public_keys(&mut controllers, false).await;
+        exchange_dealings(&mut controllers, false).await;
+        derive_keypairs(&mut controllers, false).await;
+        validate_keys(&mut controllers, false).await;
+        finalize(&mut controllers).await;
+
+        // get the master key
+        let mut vks = vec![];
+        let mut indices = vec![];
+        for controller in controllers.iter() {
+            let vk = controller.unchecked_coconut_vk().await;
+            let index = controller.state.assigned_index(epoch)?;
+            vks.push(vk);
+            indices.push(index);
+        }
+        let initial_first_key = vks[0].clone();
+        let initial_master_vk = aggregate_verification_keys(&vks, Some(&indices))?;
+
+        let new_controller = initialise_controller(chain.clone(), validators).await;
+        controllers.push(new_controller);
+
+        chain.lock().unwrap().advance_epoch_in_reshare_mode();
+
+        let next_epoch = epoch + 1;
+        // sanity check
+        assert_eq!(
+            next_epoch,
+            chain.lock().unwrap().dkg_contract.epoch.epoch_id
+        );
+
+        // EPOCH 1 DKG (resharing)
+        submit_public_keys(&mut controllers, true).await;
+        exchange_dealings(&mut controllers, true).await;
+        derive_keypairs(&mut controllers, true).await;
+        validate_keys(&mut controllers, true).await;
+        finalize(&mut controllers).await;
+
+        let mut vks = vec![];
+        let mut indices = vec![];
+        for controller in controllers.iter() {
+            let vk = controller.unchecked_coconut_vk().await;
+            let index = controller.state.assigned_index(next_epoch)?;
+            vks.push(vk);
+            indices.push(index);
+        }
+
+        let updated_first_key = vks[0].clone();
+        let reshared_master_vk = aggregate_verification_keys(&vks, Some(&indices))?;
+
+        // individual keys changed
+        assert_ne!(initial_first_key, updated_first_key);
+
+        // but master didn't
+        assert_eq!(initial_master_vk, reshared_master_vk);
+
+        Ok(())
     }
 }

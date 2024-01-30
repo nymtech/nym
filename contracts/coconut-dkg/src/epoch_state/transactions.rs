@@ -156,6 +156,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             // ... in reshare mode
             if INITIAL_REPLACEMENT_DATA.may_load(deps.storage)?.is_some() {
                 INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
+                    // TODO: FIXME: for second reshare the added set of dealers won't be allowed to participate
                     data.initial_height = env.block.height;
                     Ok(data)
                 })?;

@@ -9,6 +9,7 @@ use crate::coconut::dkg::state::State;
 use crate::coconut::keys::KeyPair;
 use crate::coconut::tests::{DummyClient, SharedFakeChain};
 use cosmwasm_std::Addr;
+use nym_coconut::VerificationKey;
 use nym_coconut_dkg_common::types::{DealerDetails, EpochId, InitialReplacementData};
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
@@ -176,27 +177,26 @@ impl TestingDkgControllerBuilder {
             self_dealer.address.to_string().parse().unwrap(),
             chain_state.clone(),
         );
+
         // insert initial data into the chain state
-
-        let mut state_guard = chain_state.lock().unwrap();
-        if let Some(threshold) = self.threshold {
-            state_guard.dkg_contract.threshold = Some(threshold)
+        {
+            let mut state_guard = chain_state.lock().unwrap();
+            if let Some(threshold) = self.threshold {
+                state_guard.dkg_contract.threshold = Some(threshold)
+            }
+            for dealer in self.dealers {
+                state_guard
+                    .dkg_contract
+                    .dealers
+                    .insert(dealer.assigned_index, dealer);
+            }
+            if let Some(epoch_id) = self.epoch_id {
+                state_guard.dkg_contract.epoch.epoch_id = epoch_id;
+            }
+            if let Some(initial_dealers) = self.initial_dealers {
+                state_guard.dkg_contract.initial_dealers = Some(initial_dealers)
+            }
         }
-        for dealer in self.dealers {
-            state_guard
-                .dkg_contract
-                .dealers
-                .insert(dealer.assigned_index, dealer);
-        }
-        if let Some(epoch_id) = self.epoch_id {
-            state_guard.dkg_contract.epoch.epoch_id = epoch_id;
-        }
-        if let Some(initial_dealers) = self.initial_dealers {
-            state_guard.dkg_contract.initial_dealers = Some(initial_dealers)
-        }
-
-        let epoch = state_guard.dkg_contract.epoch.epoch_id;
-        drop(state_guard);
 
         let dummy_client = DkgClient::new(dummy_client);
         let tmp_dir = tempdir().unwrap();
@@ -225,6 +225,7 @@ impl TestingDkgControllerBuilder {
             keypair,
         );
 
+        let epoch = chain_state.lock().unwrap().dkg_contract.epoch.epoch_id;
         if had_dealer_info {
             // if we had dealer info it means we must have gone through key registration
             state.maybe_init_dkg_state(epoch);
@@ -258,17 +259,23 @@ pub(crate) struct TestingDkgController {
 }
 
 impl TestingDkgController {
-    pub(crate) fn reset_epoch_state(&mut self, epoch_id: EpochId) {
-        let state = self.state.dkg_state_mut(epoch_id).unwrap();
-        *state = Default::default()
-    }
-
     pub async fn address(&self) -> AccountId {
         self.dkg_client.get_address().await
     }
 
     pub async fn cw_address(&self) -> Addr {
         Addr::unchecked(self.address().await.as_ref())
+    }
+
+    pub(crate) async fn unchecked_coconut_vk(&self) -> VerificationKey {
+        self.state
+            .unchecked_coconut_keypair()
+            .await
+            .as_ref()
+            .unwrap()
+            .keys
+            .verification_key()
+            .clone()
     }
 }
 

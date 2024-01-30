@@ -94,7 +94,7 @@ impl<'a> HttpApiBuilder<'a> {
                 self.sphinx_keypair.public_key(),
                 self.identity_keypair,
             )?,
-            NoiseInformation { supported: true }, //this field somes with Noise support, so we can hardcode it (to ultimately remove it once it's granted)
+            NoiseInformation { supported: false }, //this field comes with Noise support, but with PR chain, the actual support might come later
         )
         .with_mixnode(load_mixnode_details(self.mixnode_config)?)
         .with_landing_page_assets(self.mixnode_config.http.landing_page_assets_path.as_ref());

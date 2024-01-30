@@ -396,7 +396,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
 // NOTE: the following tests currently do NOT cover all cases
 // I've (@JS) only updated old, existing, tests. nothing more
-
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -406,13 +405,11 @@ pub(crate) mod tests {
         dealers_fixtures, test_rng, TestingDkgControllerBuilder,
     };
     use crate::coconut::tests::helpers::unchecked_decode_bte_key;
-    use nym_bin_common::logging::setup_tracing_logger;
     use nym_coconut::{ttp_keygen, Parameters};
     use nym_coconut_dkg_common::types::InitialReplacementData;
     use nym_dkg::bte::PublicKeyWithProof;
 
     #[tokio::test]
-    #[ignore] // expensive test
     async fn exchange_dealing() -> anyhow::Result<()> {
         let mut rng = test_rng([69u8; 32]);
         let dealers = dealers_fixtures(&mut rng, 4);
@@ -493,7 +490,6 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // expensive test
     async fn invalid_bte_proof_dealing_posted() -> anyhow::Result<()> {
         let mut rng = test_rng([69u8; 32]);
         let mut dealers = dealers_fixtures(&mut rng, 4);
@@ -548,7 +544,6 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // expensive test
     async fn resharing_outside_initial_set() -> anyhow::Result<()> {
         let mut rng = test_rng([69u8; 32]);
         let dealers = dealers_fixtures(&mut rng, 4);
@@ -608,7 +603,6 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // expensive test
     async fn resharing_inside_initial_set() -> anyhow::Result<()> {
         let mut rng = test_rng([69u8; 32]);
         let dealers = dealers_fixtures(&mut rng, 4);

@@ -40,7 +40,7 @@ pub enum DerivationFailure {
     MismatchedPartialKey,
 }
 
-#[derive(Debug, Clone, Error, Serialize, Deserialize)]
+#[derive(Debug, Clone, Error, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum DealerRejectionReason {
     #[error("no dealings were provided")]

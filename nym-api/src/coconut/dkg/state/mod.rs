@@ -173,6 +173,7 @@ impl State {
             .collect())
     }
 
+    /// Filters out DKG participants based on whether they submitted valid public key
     pub fn valid_epoch_receivers_keys(
         &self,
         epoch_id: EpochId,

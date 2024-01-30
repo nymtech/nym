@@ -10,6 +10,6 @@ pub mod error;
 mod ip_packet_router;
 mod mixnet_client;
 mod mixnet_listener;
-mod request_filter;
+pub mod request_filter;
 mod tun_listener;
 mod util;

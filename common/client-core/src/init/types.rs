@@ -178,7 +178,7 @@ impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     /// Uniformly choose a random remote gateway.
     UniformRemote { must_use_tls: bool },

@@ -186,6 +186,37 @@ impl NymTopology {
         None
     }
 
+    pub fn find_node_key_by_mix_host(
+        &self,
+        mix_host: SocketAddr,
+    ) -> Result<Option<String>, NymTopologyError> {
+        for node in self.described_nodes.iter() {
+            let sphinx_key = match node {
+                DescribedNymNode::Gateway(g) => &g.bond.gateway.sphinx_key,
+                DescribedNymNode::Mixnode(m) => &m.bond.mix_node.sphinx_key,
+            };
+            if let Some(description) = match node {
+                DescribedNymNode::Gateway(g) => &g.self_described,
+                DescribedNymNode::Mixnode(m) => &m.self_described,
+            } {
+                if description
+                    .host_information
+                    .ip_address
+                    .contains(&mix_host.ip())
+                {
+                    //we have our node
+                    if description.noise_information.supported {
+                        return Ok(Some(sphinx_key.to_string()));
+                    } else {
+                        return Ok(None);
+                    }
+                }
+            }
+        }
+        //didn't find that node
+        Err(NymTopologyError::NoMixnodesAvailable)
+    }
+
     pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::Node> {
         self.gateways
             .iter()

@@ -63,6 +63,7 @@ nym-topology-control = { path = "../common/topology-control" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 cpu-cycles = { path = "../cpu-cycles", optional = true }
+nym-noise = { path = "../common/nymnoise" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = [

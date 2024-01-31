@@ -3,6 +3,7 @@ use std::{
     net::{IpAddr, SocketAddr},
 };
 
+use bytes::{Buf, Bytes, BytesMut};
 use futures::StreamExt;
 use nym_ip_packet_requests::{
     DynamicConnectFailureReason, IpPacketRequest, IpPacketRequestData, IpPacketResponse,
@@ -13,6 +14,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncWriteExt;
+use tokio_util::codec::{Decoder, Encoder};
 
 use crate::{
     config::Config,
@@ -25,6 +27,68 @@ use crate::{
         parse_ip::{parse_packet, ParsedPacket},
     },
 };
+
+// Tokio codec for bundling multiple IP packets into one buffer that is at most 1500 bytes long.
+// These packets are separated by a 2 byte length prefix.
+struct BundledIpPacketCodec {
+    buffer: BytesMut,
+}
+
+impl BundledIpPacketCodec {
+    fn new() -> Self {
+        BundledIpPacketCodec {
+            buffer: BytesMut::new(),
+        }
+    }
+}
+
+impl Encoder<Bytes> for BundledIpPacketCodec {
+    type Error = IpPacketRouterError;
+
+    fn encode(&mut self, packet: Bytes, dst: &mut BytesMut) -> Result<()> {
+        let packet_size = packet.len();
+
+        if self.buffer.len() + packet_size + 2 > 1500 {
+            // If the packet doesn't fit in the buffer, send the buffer and then add it to the buffer
+            dst.extend_from_slice(&self.buffer);
+            self.buffer = BytesMut::new();
+        }
+
+        // Add the packet to the buffer
+        self.buffer
+            .extend_from_slice(&(packet_size as u16).to_be_bytes());
+        self.buffer.extend_from_slice(&packet);
+
+        Ok(())
+    }
+}
+
+impl Decoder for BundledIpPacketCodec {
+    type Item = Bytes;
+    type Error = IpPacketRouterError;
+
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>> {
+        if src.len() < 2 {
+            // Not enough bytes to read the length prefix
+            return Ok(None);
+        }
+
+        let packet_size = u16::from_be_bytes([src[0], src[1]]) as usize;
+
+        if src.len() < packet_size + 2 {
+            // Not enough bytes to read the packet
+            return Ok(None);
+        }
+
+        // Remove the length prefix
+        src.advance(2);
+
+        // Read the packet
+        let packet = src.split_to(packet_size);
+
+        Ok(Some(packet.freeze()))
+    }
+}
 
 #[cfg(target_os = "linux")]
 pub(crate) struct MixnetListener {
@@ -298,6 +362,20 @@ impl MixnetListener {
     ) -> Result<Option<IpPacketResponse>> {
         log::trace!("Received data request");
 
+        let mut codec = BundledIpPacketCodec::new();
+        // convert from Bytes to BytesMut
+        let mut bytes = BytesMut::new();
+        bytes.extend_from_slice(&data_request.ip_packet);
+        // let mut bytes = BytesMut::new(data_request.ip_packet.clone());
+        while let Ok(Some(p)) = codec.decode(&mut bytes) {
+            if let Err(err) = self.handle_packet(&p).await {
+                log::error!("mixnet_listener: failed to handle packet: {err}");
+            }
+        }
+        Ok(None)
+    }
+
+    async fn handle_packet(&mut self, ip_packet: &Bytes) -> Result<Option<IpPacketRouterError>> {
         // We don't forward packets that we are not able to parse. BUT, there might be a good
         // reason to still forward them.
         //
@@ -310,7 +388,8 @@ impl MixnetListener {
             src_addr,
             dst_addr,
             dst,
-        } = parse_packet(&data_request.ip_packet)?;
+        } = parse_packet(&ip_packet)?;
+        // } = parse_packet(&data_request.ip_packet)?;
 
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
         log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
@@ -331,7 +410,8 @@ impl MixnetListener {
         }
 
         // TODO: consider changing from Vec<u8> to bytes::Bytes?
-        let packet = data_request.ip_packet;
+        // let packet = data_request.ip_packet;
+        let packet = ip_packet;
         self.tun_writer
             .write_all(&packet)
             .await

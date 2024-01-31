@@ -22,6 +22,17 @@ lazy_static! {
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
 }
 
+#[derive(Debug)]
+pub enum StatusCode {
+    NoError = 0,
+    ClientInitError = -1,
+    ClientUninitialisedError = -2,
+    SelfAddrError = -3,
+    SendMsgError = -4,
+    ReplyError = -5,
+    ListenError = -6,
+}
+
 pub type CStringCallback = extern "C" fn(*const c_char);
 pub type CMessageCallback = extern "C" fn(ReceivedMessage);
 

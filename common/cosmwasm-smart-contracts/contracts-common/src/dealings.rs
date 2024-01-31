@@ -10,8 +10,8 @@ use std::ops::Deref;
 // currently set to 128 bytes
 pub const MAX_DISPLAY_SIZE: usize = 128;
 
-// TODO: if we are to use this for different types, it might make sense to introduce something like
-// CommitmentTypeId field on the below for distinguishing different ones. it would somehow become part of the trait
+// helps to transfer bytes between contract boundary to decrease amount of data sent accross
+// after it's put to `Binary`
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, JsonSchema)]
 pub struct ContractSafeBytes(pub Vec<u8>);
 

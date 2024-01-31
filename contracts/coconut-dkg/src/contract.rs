@@ -6,7 +6,7 @@ use crate::dealers::queries::{
 };
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::{query_dealing, query_dealing_status, query_dealings_paged};
-use crate::dealings::transactions::try_commit_dealings;
+use crate::dealings::transactions::try_commit_dealings_chunk;
 use crate::epoch_state::queries::{
     query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
 };
@@ -101,7 +101,7 @@ pub fn execute(
             resharing,
         ),
         ExecuteMsg::CommitDealing { dealing, resharing } => {
-            try_commit_dealings(deps, info, dealing, resharing)
+            try_commit_dealings_chunk(deps, info, dealing, resharing)
         }
         ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
             try_commit_verification_key_share(deps, env, info, share, resharing)

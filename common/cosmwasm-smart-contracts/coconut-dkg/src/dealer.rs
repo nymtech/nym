@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{
-    ContractDealing, DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, NodeIndex,
-    PartialContractDealing,
+    DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, NodeIndex, PartialContractDealing,
+    PartialContractDealingData,
 };
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
@@ -77,7 +77,7 @@ pub struct DealingResponse {
 
     pub dealing_index: DealingIndex,
 
-    pub dealing: Option<ContractDealing>,
+    pub dealing: Option<PartialContractDealingData>,
 }
 
 #[cw_serde]

@@ -3,6 +3,9 @@
 
 ## Useage (WIP)
 ```
+# install uniffi-bindgen-go - make sure to use the same version as uniffirs that is in Cargo.toml
+cargo install ... 
+
 # if unset run from projroot 
 RUST_BINARIES=target/release
 echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'${RUST_BINARIES} >> ~/.zshrc

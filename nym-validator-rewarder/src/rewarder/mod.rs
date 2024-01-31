@@ -209,6 +209,11 @@ impl Rewarder {
         &self,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Hash, NymRewarderError> {
+        if self.config.block_signing.monitor_only {
+            info!("skipping sending rewards, monitoring mode only");
+            return Ok(Hash::Sha256([0u8; 32]));
+        }
+
         info!("sending rewards");
         self.nyxd_client
             .send_rewards(self.current_epoch, amounts)

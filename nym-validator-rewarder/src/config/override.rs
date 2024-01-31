@@ -14,6 +14,10 @@ impl ConfigOverride for ConfigOverridableArgs {
             config.block_signing.enabled = false
         }
 
+        if self.block_signing_monitoring_only {
+            config.block_signing.monitor_only = true
+        }
+
         if self.disable_credential_issuance_rewarding {
             config.issuance_monitor.enabled = false
         }

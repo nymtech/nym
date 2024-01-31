@@ -37,6 +37,7 @@
         - [United States](legal/united-states.md)
 - [Community Counsel](legal/community-counsel.md)
     - [Landing Pages](legal/landing-pages.md)
+- [How to Add Info](legal/add-content.md)
 
 ---
 # Misc.

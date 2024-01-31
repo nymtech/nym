@@ -1,0 +1,29 @@
+[package]
+name = "nym-go-ffi" #"goffitest"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+name = "nym_go_ffi" #"go_ffi"
+
+[dependencies]
+# Bindgen
+uniffi = { version = "0.25.2", features = ["cli"] }
+# Nym clients, addressing, packet format, common tools (logging), ffi shared
+nym-bin-common = { git = "https://github.com/nymtech/nym", branch = "master" }
+nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
+nym-ffi-shared = { path = "../shared" }
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+lazy_static = "1.4.0"
+# error handling
+anyhow = "1.0.79"
+
+[build-dependencies]
+uniffi = { version = "0.25.2", features = ["build" ] }
+uniffi_build = { version = "0.25.2", features=["builtin-bindgen"] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"

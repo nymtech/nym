@@ -15,7 +15,6 @@ nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
 nym-bin-common = { git = "https://github.com/nymtech/nym", branch = "master" }
 nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym", branch = "master" }
 nym-ffi-shared = { path = "../shared" }
-# static var macro
 lazy_static = "1.4.0"
 # error handling
 anyhow = "1.0.75"

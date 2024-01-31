@@ -1,0 +1,4 @@
+namespace bindings {
+  void init_logging();
+  i8 init_ephemeral();
+};

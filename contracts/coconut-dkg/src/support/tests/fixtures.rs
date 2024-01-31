@@ -24,10 +24,11 @@ pub fn dealing_bytes_fixture() -> ContractSafeBytes {
 }
 
 pub fn partial_dealing_fixture() -> PartialContractDealing {
-    PartialContractDealing {
-        index: 0,
-        data: ContractSafeBytes(vec![1, 2, 3]),
-    }
+    todo!()
+    // PartialContractDealing {
+    //     dealing_index: 0,
+    //     data: ContractSafeBytes(vec![1, 2, 3]),
+    // }
 }
 
 pub fn dealer_details_fixture(assigned_index: u64) -> DealerDetails {

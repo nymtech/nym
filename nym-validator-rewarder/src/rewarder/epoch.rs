@@ -24,7 +24,8 @@ impl Epoch {
             .add(HOUR)
             .replace_nanosecond(0)?
             .replace_microsecond(0)?
-            .replace_second(0)?;
+            .replace_second(0)?
+            .replace_minute(0)?;
 
         Ok(Epoch {
             id: 0,

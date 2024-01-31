@@ -1,7 +1,6 @@
 package bindings
 
 // #include <bindings.h>
-// #cgo LDFLAGS: -L../../target/release -lnym_go_ffi
 import "C"
 
 import (

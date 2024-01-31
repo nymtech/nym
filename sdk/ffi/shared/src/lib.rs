@@ -25,7 +25,7 @@ lazy_static! {
 pub type CStringCallback = extern "C" fn(*const c_char);
 pub type CMessageCallback = extern "C" fn(ReceivedMessage);
 
-// FFI-sanitised way of sending back a ReconstructedMessage to C
+// FFI-sanitised ReconstructedMessage
 #[repr(C)]
 pub struct ReceivedMessage {
     message: *const u8,

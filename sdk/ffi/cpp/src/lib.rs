@@ -15,14 +15,6 @@ pub enum StatusCode {
     ListenError = -6,
 }
 
-// FFI-sanitised way of sending back a ReconstructedMessage to C
-#[repr(C)]
-pub struct ReceivedMessage {
-    message: *const u8,
-    size: usize,
-    sender_tag: *const c_char,
-}
-
 #[no_mangle]
 pub extern "C" fn init_logging() {
     nym_bin_common::logging::setup_logging();

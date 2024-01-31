@@ -32,10 +32,13 @@
 # Legal Forum
 
 - [Exit Gateway](legal/exit-gateway.md)
-    - [Switzerland](legal/swiss.md)
-    - [United States](legal/united-states.md)
+    - [Jurisdictions](legal/jurisdictions.md)
+        - [Switzerland](legal/swiss.md)
+        - [United States](legal/united-states.md)
+- [Community Counsel](legal/community-counsel.md)
+    - [Landing Pages](legal/landing-pages.md)
 
---- 
+---
 # Misc.
 - [Code of Conduct](coc.md)
 - [Licensing](licensing.md)

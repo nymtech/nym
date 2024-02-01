@@ -32,10 +32,10 @@
 # Legal Forum
 
 - [Exit Gateway](legal/exit-gateway.md)
+- [Community Counsel](legal/community-counsel.md)
     - [Jurisdictions](legal/jurisdictions.md)
         - [Switzerland](legal/swiss.md)
         - [United States](legal/united-states.md)
-- [Community Counsel](legal/community-counsel.md)
     - [Landing Pages](legal/landing-pages.md)
 - [How to Add Info](legal/add-content.md)
 

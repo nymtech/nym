@@ -33,8 +33,35 @@ pub enum StatusCode {
     ListenError = -6,
 }
 
-pub type CStringCallback = extern "C" fn(*const c_char);
-pub type CMessageCallback = extern "C" fn(ReceivedMessage);
+// pub type CStringCallback = extern "C" fn(*const c_char);
+#[repr(C)]
+pub struct CStringCallback {
+   callback: extern "C" fn(*const c_char)
+}
+
+impl CStringCallback {
+    pub fn new(callback: extern "C" fn(*const c_char)) -> Self {
+        CStringCallback { callback }
+    }
+    pub fn trigger(&self, char: *const c_char) {
+        (self.callback)(char);
+    }
+}
+
+// pub type CMessageCallback = extern "C" fn(ReceivedMessage);
+#[repr(C)]
+pub struct CMessageCallback {
+    callback: extern "C" fn(ReceivedMessage)
+}
+
+impl CMessageCallback {
+    pub fn new(callback: extern "C" fn(ReceivedMessage)) -> Self {
+        CMessageCallback { callback }
+    }
+    pub fn trigger(&self, message: ReceivedMessage) {
+        (self.callback)(message)
+    }
+}
 
 // FFI-sanitised ReconstructedMessage
 #[repr(C)]
@@ -72,8 +99,11 @@ pub fn get_self_address_internal(callback: CStringCallback) -> anyhow::Result<()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
     // get address as cstring
     let c_string = CString::new(nym_client.nym_address().to_string())?;
+
+    // callback(c_string.as_ptr()); // old use
+    let call = CStringCallback::new(callback.callback);
     // as_ptr() keeps ownership in rust unlike into_raw() so no need to free it
-    callback(c_string.as_ptr());
+    call.trigger(c_string.as_ptr());
     Ok(())
 }
 
@@ -172,7 +202,9 @@ pub fn listen_for_incoming_internal(callback: CMessageCallback) -> anyhow::Resul
             size: message_length,
             sender_tag: sender_ptr,
         };
-        callback(rec_for_c);
+        // callback(rec_for_c); // old use
+        let call = CMessageCallback::new(callback.callback);
+        call.trigger(rec_for_c);
         Ok::<(), anyhow::Error>(())
     })?;
     Ok(())

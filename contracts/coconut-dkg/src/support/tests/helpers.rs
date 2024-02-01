@@ -9,8 +9,9 @@ use cosmwasm_std::{
     QuerierResult, SystemResult, WasmQuery,
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
+use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
 use nym_coconut_dkg_common::msg::InstantiateMsg;
-use nym_coconut_dkg_common::types::{DealerDetails, DEFAULT_DEALINGS};
+use nym_coconut_dkg_common::types::DealerDetails;
 use std::sync::Mutex;
 
 use super::fixtures::TEST_MIX_DENOM;

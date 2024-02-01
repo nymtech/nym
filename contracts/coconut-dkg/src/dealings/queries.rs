@@ -1,17 +1,33 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealings::storage;
-use crate::dealings::storage::StoredDealing;
+use crate::dealings::storage::{StoredDealing, DEALINGS_METADATA};
 use cosmwasm_std::{Deps, StdResult};
-use cw_storage_plus::Bound;
-use nym_coconut_dkg_common::dealer::{
-    DealingResponse, DealingStatusResponse, PagedDealingsResponse,
+use nym_coconut_dkg_common::dealing::{
+    DealingChunkResponse, DealingChunkStatusResponse, DealingMetadataResponse,
+    DealingStatusResponse,
 };
-use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
 
-// this does almost the same as query_dealing but doesn't return the actual dealing to make it easier on the validator
-// so it wouldn't need to deal with the deserialization
+/// Get the metadata associated with the particular dealing
+pub fn query_dealing_metadata(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
+    dealer: String,
+    dealing_index: DealingIndex,
+) -> StdResult<DealingMetadataResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let metadata = DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
+
+    Ok(DealingMetadataResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        metadata,
+    })
+}
+
+/// Get the status of particular dealing, i.e. whether it has been fully submitted.
 pub fn query_dealing_status(
     deps: Deps<'_>,
     epoch_id: EpochId,
@@ -19,61 +35,70 @@ pub fn query_dealing_status(
     dealing_index: DealingIndex,
 ) -> StdResult<DealingStatusResponse> {
     let dealer = deps.api.addr_validate(&dealer)?;
-    let dealing_submitted = StoredDealing::exists(deps.storage, epoch_id, &dealer, dealing_index);
+    let metadata = DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
+
+    let full_dealing_submitted = if let Some(metadata) = metadata {
+        metadata.is_complete()
+    } else {
+        false
+    };
 
     Ok(DealingStatusResponse {
         epoch_id,
         dealer,
         dealing_index,
-        dealing_submitted,
+        full_dealing_submitted,
     })
 }
 
-pub fn query_dealing(
+/// Get the status of particular chunk, i.e. whether (and when) it has been fully submitted.
+pub fn query_dealing_chunk_status(
     deps: Deps<'_>,
     epoch_id: EpochId,
     dealer: String,
     dealing_index: DealingIndex,
-) -> StdResult<DealingResponse> {
-    todo!()
-    // let dealer = deps.api.addr_validate(&dealer)?;
-    // let dealing = StoredDealing::read(deps.storage, epoch_id, &dealer, dealing_index);
-    //
-    // Ok(DealingResponse {
-    //     epoch_id,
-    //     dealer,
-    //     dealing_index,
-    //     dealing,
-    // })
+    chunk_index: ChunkIndex,
+) -> StdResult<DealingChunkStatusResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let metadata = DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
+
+    let submission_height = if let Some(metadata) = metadata {
+        if let Some(chunk) = metadata.submitted_chunks.get(&chunk_index) {
+            chunk.submission_height
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok(DealingChunkStatusResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        chunk_index,
+        submission_height,
+    })
 }
 
-pub fn query_dealings_paged(
+/// Get the particular chunk of the dealing.
+pub fn query_dealing_chunk(
     deps: Deps<'_>,
     epoch_id: EpochId,
     dealer: String,
-    start_after: Option<DealingIndex>,
-    limit: Option<u32>,
-) -> StdResult<PagedDealingsResponse> {
-    todo!()
-    // let limit = limit
-    //     .unwrap_or(storage::DEALINGS_PAGE_DEFAULT_LIMIT)
-    //     .min(storage::DEALINGS_PAGE_MAX_LIMIT);
-    //
-    // let dealer = deps.api.addr_validate(&dealer)?;
-    // let start = start_after.map(Bound::exclusive);
-    //
-    // let dealings = StoredDealing::prefix_range(deps.storage, (epoch_id, &dealer), start)
-    //     .take(limit as usize)
-    //     .collect::<StdResult<Vec<_>>>()?;
-    //
-    // let start_next_after = dealings.last().map(|dealing| dealing.dealing_index);
-    //
-    // Ok(PagedDealingsResponse::new(
-    //     epoch_id,
-    //     dealer,
-    //     dealings,
-    //     start_next_after,
-    // ))
+    dealing_index: DealingIndex,
+    chunk_index: ChunkIndex,
+) -> StdResult<DealingChunkResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let chunk = StoredDealing::read(deps.storage, epoch_id, &dealer, dealing_index, chunk_index);
+
+    Ok(DealingChunkResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        chunk_index,
+        chunk,
+    })
 }
 
 // #[cfg(test)]

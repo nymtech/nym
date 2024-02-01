@@ -1,9 +1,10 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::dealer::DealerDetails;
-use nym_coconut_dkg_common::types::{ContractSafeBytes, PartialContractDealing};
+use nym_coconut_dkg_common::dealing::PartialContractDealing;
+use nym_coconut_dkg_common::types::ContractSafeBytes;
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
 
 pub const TEST_MIX_DENOM: &str = "unym";
@@ -24,11 +25,11 @@ pub fn dealing_bytes_fixture() -> ContractSafeBytes {
 }
 
 pub fn partial_dealing_fixture() -> PartialContractDealing {
-    todo!()
-    // PartialContractDealing {
-    //     dealing_index: 0,
-    //     data: ContractSafeBytes(vec![1, 2, 3]),
-    // }
+    PartialContractDealing {
+        chunk_index: 0,
+        dealing_index: 0,
+        data: ContractSafeBytes(vec![1, 2, 3]),
+    }
 }
 
 pub fn dealer_details_fixture(assigned_index: u64) -> DealerDetails {

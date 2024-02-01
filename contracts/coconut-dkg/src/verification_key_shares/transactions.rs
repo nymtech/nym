@@ -8,7 +8,7 @@ use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::{MULTISIG, STATE};
 use crate::verification_key_shares::storage::vk_shares;
-use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use nym_coconut_dkg_common::types::EpochState;
 use nym_coconut_dkg_common::verification_key::{
     to_cosmos_msg, ContractVKShare, VerificationKeyShare,
@@ -66,9 +66,11 @@ pub fn try_commit_verification_key_share(
 pub fn try_verify_verification_key_share(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    owner: Addr,
+    owner: String,
     resharing: bool,
 ) -> Result<Response, ContractError> {
+    let owner = deps.api.addr_validate(&owner)?;
+
     check_epoch_state(
         deps.storage,
         EpochState::VerificationKeyFinalization { resharing },
@@ -96,6 +98,7 @@ mod tests {
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT};
     use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::Addr;
     use cw_controllers::AdminError;
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::{EpochState, TimeConfiguration};
@@ -233,7 +236,7 @@ mod tests {
         try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
 
         let info = mock_info("requester", &[]);
-        let owner = Addr::unchecked("owner");
+        let owner = "owner".to_string();
         let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
 
         let ret =
@@ -291,7 +294,7 @@ mod tests {
         let mut env = mock_env();
         try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
 
-        let owner = Addr::unchecked("owner");
+        let owner = "owner".to_string();
         let info = mock_info(owner.as_ref(), &[]);
         let share = "share".to_string();
         let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
@@ -309,14 +312,18 @@ mod tests {
         advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         let dealer_details = DealerDetails {
-            address: owner.clone(),
+            address: Addr::unchecked(&owner),
             bte_public_key_with_proof: String::new(),
             ed25519_identity: String::new(),
             announce_address: String::new(),
             assigned_index: 1,
         };
         dealers_storage::current_dealers()
-            .save(deps.as_mut().storage, &owner, &dealer_details)
+            .save(
+                deps.as_mut().storage,
+                &Addr::unchecked(&owner),
+                &dealer_details,
+            )
             .unwrap();
         try_commit_verification_key_share(deps.as_mut(), env.clone(), info, share, false).unwrap();
 

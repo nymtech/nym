@@ -1,9 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// due to the macro expansion of rather old rocket macros...
-#![allow(unused_imports)]
-
 use crate::network::models::{ContractInformation, NetworkDetails};
 use crate::nym_contract_cache::cache::NymContractCache;
 use nym_contracts_common::ContractBuildInformation;

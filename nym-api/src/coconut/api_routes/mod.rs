@@ -1,9 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// due to the macro expansion of rather old rocket macros...
-#![allow(unused_imports)]
-
 use crate::coconut::api_routes::helpers::build_credentials_response;
 use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::{accepted_vote_err, blind_sign};

@@ -1,10 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{
-    DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, NodeIndex, PartialContractDealing,
-    PartialContractDealingData,
-};
+use crate::types::{EncodedBTEPublicKeyWithProof, NodeIndex};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 
@@ -64,56 +61,6 @@ impl PagedDealerResponse {
         PagedDealerResponse {
             dealers,
             per_page,
-            start_next_after,
-        }
-    }
-}
-
-#[cw_serde]
-pub struct DealingResponse {
-    pub epoch_id: EpochId,
-
-    pub dealer: Addr,
-
-    pub dealing_index: DealingIndex,
-
-    pub dealing: Option<PartialContractDealingData>,
-}
-
-#[cw_serde]
-pub struct DealingStatusResponse {
-    pub epoch_id: EpochId,
-
-    pub dealer: Addr,
-
-    pub dealing_index: DealingIndex,
-
-    pub dealing_submitted: bool,
-}
-
-#[cw_serde]
-pub struct PagedDealingsResponse {
-    pub epoch_id: EpochId,
-
-    pub dealer: Addr,
-
-    pub dealings: Vec<PartialContractDealing>,
-
-    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
-    pub start_next_after: Option<DealingIndex>,
-}
-
-impl PagedDealingsResponse {
-    pub fn new(
-        epoch_id: EpochId,
-        dealer: Addr,
-        dealings: Vec<PartialContractDealing>,
-        start_next_after: Option<DealingIndex>,
-    ) -> Self {
-        PagedDealingsResponse {
-            epoch_id,
-            dealer,
-            dealings,
             start_next_after,
         }
     }

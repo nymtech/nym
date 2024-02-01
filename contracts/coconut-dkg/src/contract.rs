@@ -5,8 +5,10 @@ use crate::dealers::queries::{
     query_current_dealers_paged, query_dealer_details, query_past_dealers_paged,
 };
 use crate::dealers::transactions::try_add_dealer;
-use crate::dealings::queries::{query_dealing, query_dealing_status, query_dealings_paged};
-use crate::dealings::transactions::try_commit_dealings_chunk;
+use crate::dealings::queries::{
+    query_dealing_chunk, query_dealing_chunk_status, query_dealing_metadata, query_dealing_status,
+};
+use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
 use crate::epoch_state::queries::{
     query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
 };
@@ -100,8 +102,13 @@ pub fn execute(
             announce_address,
             resharing,
         ),
-        ExecuteMsg::CommitDealing { dealing, resharing } => {
-            try_commit_dealings_chunk(deps, info, dealing, resharing)
+        ExecuteMsg::CommitDealingsMetadata {
+            dealing_index,
+            chunks,
+            resharing,
+        } => try_submit_dealings_metadata(deps, info, dealing_index, chunks, resharing),
+        ExecuteMsg::CommitDealingsChunk { chunk, resharing } => {
+            try_commit_dealings_chunk(deps, env, info, chunk, resharing)
         }
         ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
             try_commit_verification_key_share(deps, env, info, share, resharing)
@@ -132,6 +139,16 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetPastDealers { limit, start_after } => {
             to_binary(&query_past_dealers_paged(deps, start_after, limit)?)?
         }
+        QueryMsg::GetDealingsMetadata {
+            epoch_id,
+            dealer,
+            dealing_index,
+        } => to_binary(&query_dealing_metadata(
+            deps,
+            epoch_id,
+            dealer,
+            dealing_index,
+        )?)?,
         QueryMsg::GetDealingStatus {
             epoch_id,
             dealer,
@@ -142,22 +159,29 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             dealer,
             dealing_index,
         )?)?,
-        QueryMsg::GetDealing {
+        QueryMsg::GetDealingChunkStatus {
             epoch_id,
             dealer,
             dealing_index,
-        } => to_binary(&query_dealing(deps, epoch_id, dealer, dealing_index)?)?,
-        QueryMsg::GetDealings {
-            epoch_id,
-            dealer,
-            limit,
-            start_after,
-        } => to_binary(&query_dealings_paged(
+            chunk_index,
+        } => to_binary(&query_dealing_chunk_status(
             deps,
             epoch_id,
             dealer,
-            start_after,
-            limit,
+            dealing_index,
+            chunk_index,
+        )?)?,
+        QueryMsg::GetDealingChunk {
+            epoch_id,
+            dealer,
+            dealing_index,
+            chunk_index,
+        } => to_binary(&query_dealing_chunk(
+            deps,
+            epoch_id,
+            dealer,
+            dealing_index,
+            chunk_index,
         )?)?,
         QueryMsg::GetVerificationKey { owner, epoch_id } => {
             to_binary(&query_vk_share(deps, owner, epoch_id)?)?
@@ -207,8 +231,9 @@ mod tests {
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
+    use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
     use nym_coconut_dkg_common::msg::ExecuteMsg::{InitiateDkg, RegisterDealer};
-    use nym_coconut_dkg_common::types::{NodeIndex, DEFAULT_DEALINGS};
+    use nym_coconut_dkg_common::types::NodeIndex;
     use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
     fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {

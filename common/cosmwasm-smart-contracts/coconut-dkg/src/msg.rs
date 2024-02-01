@@ -1,23 +1,24 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::dealing::{DealingChunkInfo, PartialContractDealing};
 use crate::types::{
-    DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, PartialContractDealing, TimeConfiguration,
+    ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration,
 };
 use crate::verification_key::VerificationKeyShare;
+use contracts_common::IdentityKey;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
 
 #[cfg(feature = "schema")]
 use crate::{
-    dealer::{
-        DealerDetailsResponse, DealingResponse, DealingStatusResponse, PagedDealerResponse,
-        PagedDealingsResponse,
+    dealer::{DealerDetailsResponse, PagedDealerResponse},
+    dealing::{
+        DealingChunkResponse, DealingChunkStatusResponse, DealingMetadataResponse,
+        DealingStatusResponse,
     },
     types::{Epoch, InitialReplacementData, State},
     verification_key::{PagedVKSharesResponse, VkShareResponse},
 };
-use contracts_common::IdentityKey;
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
 
@@ -44,8 +45,14 @@ pub enum ExecuteMsg {
         resharing: bool,
     },
 
-    CommitDealing {
-        dealing: PartialContractDealing,
+    CommitDealingsMetadata {
+        dealing_index: DealingIndex,
+        chunks: Vec<DealingChunkInfo>,
+        resharing: bool,
+    },
+
+    CommitDealingsChunk {
+        chunk: PartialContractDealing,
         resharing: bool,
     },
 
@@ -55,8 +62,7 @@ pub enum ExecuteMsg {
     },
 
     VerifyVerificationKeyShare {
-        // TODO: this should be using a String...
-        owner: Addr,
+        owner: String,
         resharing: bool,
     },
 
@@ -95,6 +101,13 @@ pub enum QueryMsg {
         start_after: Option<String>,
     },
 
+    #[cfg_attr(feature = "schema", returns(DealingMetadataResponse))]
+    GetDealingsMetadata {
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    },
+
     #[cfg_attr(feature = "schema", returns(DealingStatusResponse))]
     GetDealingStatus {
         epoch_id: EpochId,
@@ -102,19 +115,20 @@ pub enum QueryMsg {
         dealing_index: DealingIndex,
     },
 
-    #[cfg_attr(feature = "schema", returns(DealingResponse))]
-    GetDealing {
+    #[cfg_attr(feature = "schema", returns(DealingChunkStatusResponse))]
+    GetDealingChunkStatus {
         epoch_id: EpochId,
         dealer: String,
         dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
     },
 
-    #[cfg_attr(feature = "schema", returns(PagedDealingsResponse))]
-    GetDealings {
+    #[cfg_attr(feature = "schema", returns(DealingChunkResponse))]
+    GetDealingChunk {
         epoch_id: EpochId,
         dealer: String,
-        limit: Option<u32>,
-        start_after: Option<DealingIndex>,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
     },
 
     #[cfg_attr(feature = "schema", returns(VkShareResponse))]

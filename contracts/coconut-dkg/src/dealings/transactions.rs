@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage as dealers_storage;
@@ -10,9 +10,10 @@ use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, Storage};
-use nym_coconut_dkg_common::types::{
-    DealingMetadata, EpochState, PartialContractDealing, MAX_DEALING_CHUNKS,
+use nym_coconut_dkg_common::dealing::{
+    DealingChunkInfo, DealingMetadata, PartialContractDealing, MAX_DEALING_CHUNKS,
 };
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochState};
 
 // make sure the epoch is in the dealing exchange and the message sender is a valid dealer for this epoch
 fn ensure_permission(
@@ -43,7 +44,8 @@ fn ensure_permission(
 pub fn try_submit_dealings_metadata(
     deps: DepsMut,
     info: MessageInfo,
-    metadata: DealingMetadata,
+    dealing_index: DealingIndex,
+    chunks: Vec<DealingChunkInfo>,
     resharing: bool,
 ) -> Result<Response, ContractError> {
     ensure_permission(deps.storage, &info.sender, resharing)?;
@@ -52,85 +54,80 @@ pub fn try_submit_dealings_metadata(
     let epoch = CURRENT_EPOCH.load(deps.storage)?;
 
     // don't allow overwriting existing metadata
-    if metadata_exists(
-        deps.storage,
-        epoch.epoch_id,
-        &info.sender,
-        metadata.dealing_index,
-    ) {
+    if metadata_exists(deps.storage, epoch.epoch_id, &info.sender, dealing_index) {
         return Err(ContractError::MetadataAlreadyExists {
             epoch_id: epoch.epoch_id,
             dealer: info.sender,
-            dealing_index: metadata.dealing_index,
-        });
-    }
-
-    // make sure the metadata is not empty
-    if metadata.submitted_chunks.is_empty() {
-        return Err(ContractError::EmptyMetadata {
-            epoch_id: epoch.epoch_id,
-            dealer: info.sender,
-            dealing_index: metadata.dealing_index,
-        });
-    }
-
-    // make sure the dealing has non-zero size
-    if metadata.total_size() == 0 {
-        return Err(ContractError::EmptyMetadata {
-            epoch_id: epoch.epoch_id,
-            dealer: info.sender,
-            dealing_index: metadata.dealing_index,
+            dealing_index,
         });
     }
 
     // make sure the dealing index is in the allowed range
     // note: dealing indexing starts from 0
-    if metadata.dealing_index >= state.key_size {
+    if dealing_index >= state.key_size {
         return Err(ContractError::DealingOutOfRange {
             epoch_id: epoch.epoch_id,
             dealer: info.sender,
-            index: metadata.dealing_index,
+            index: dealing_index,
             key_size: state.key_size,
         });
     }
 
-    let chunks = metadata.submitted_chunks.len();
+    // make sure the metadata is not empty
+    if chunks.is_empty() {
+        return Err(ContractError::EmptyMetadata {
+            epoch_id: epoch.epoch_id,
+            dealer: info.sender,
+            dealing_index,
+        });
+    }
+
+    // make sure the chunks are non empty
+    if chunks.iter().any(|c| c.size == 0) {
+        return Err(ContractError::EmptyMetadata {
+            epoch_id: epoch.epoch_id,
+            dealer: info.sender,
+            dealing_index,
+        });
+    }
 
     // make sure the number of dealing chunks is in the allowed range
     // to prevent somebody splitting their dealings into 10B chunks
-    if chunks > MAX_DEALING_CHUNKS {
+    if chunks.len() > MAX_DEALING_CHUNKS {
         return Err(ContractError::TooFragmentedMetadata {
             epoch_id: epoch.epoch_id,
             dealer: info.sender,
-            dealing_index: metadata.dealing_index,
-            chunks,
+            dealing_index,
+            chunks: chunks.len(),
         });
     }
 
     // make sure all chunks, but the last one, have the same size
-    // SAFETY: we checked for whether `metadata.submitted_chunks` is empty and returned an error in that case
+    // SAFETY: we checked for whether `chunks` is empty and returned an error in that case
     #[allow(clippy::unwrap_used)]
-    let first_chunk_size = metadata.submitted_chunks.first_key_value().unwrap().1.size;
+    let first_chunk_size = chunks.first().unwrap().size;
 
-    for (&chunk_index, chunk_info) in metadata.submitted_chunks.iter().take(chunks - 1) {
+    for (chunk_index, chunk_info) in chunks.iter().enumerate().take(chunks.len() - 1) {
         if chunk_info.size != first_chunk_size {
             return Err(ContractError::UnevenChunkSplit {
                 epoch_id: epoch.epoch_id,
                 dealer: info.sender,
-                dealing_index: metadata.dealing_index,
-                chunk_index,
+                dealing_index,
+                chunk_index: chunk_index as ChunkIndex,
                 first_chunk_size,
                 size: chunk_info.size,
             });
         }
     }
 
-    // finally, store the metadata
+    // finally, construct and store the metadata
+    let metadata = DealingMetadata::new(dealing_index, chunks);
+
     store_metadata(
         deps.storage,
         epoch.epoch_id,
         &info.sender,
-        metadata.dealing_index,
+        dealing_index,
         &metadata,
     )?;
 
@@ -141,7 +138,7 @@ pub fn try_commit_dealings_chunk(
     deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
-    dealing: PartialContractDealing,
+    chunk: PartialContractDealing,
     resharing: bool,
 ) -> Result<Response, ContractError> {
     ensure_permission(deps.storage, &info.sender, resharing)?;
@@ -153,16 +150,16 @@ pub fn try_commit_dealings_chunk(
         deps.storage,
         epoch.epoch_id,
         &info.sender,
-        dealing.dealing_index,
+        chunk.dealing_index,
     )?;
 
     // check if the received chunk is within the declared range
-    let Some(submission_status) = metadata.submitted_chunks.get_mut(&dealing.chunk_index) else {
+    let Some(submission_status) = metadata.submitted_chunks.get_mut(&chunk.chunk_index) else {
         return Err(ContractError::DealingChunkNotInMetadata {
             epoch_id: epoch.epoch_id,
             dealer: info.sender,
-            dealing_index: dealing.dealing_index,
-            chunk_index: dealing.chunk_index,
+            dealing_index: chunk.dealing_index,
+            chunk_index: chunk.chunk_index,
         });
     };
 
@@ -171,8 +168,8 @@ pub fn try_commit_dealings_chunk(
         return Err(ContractError::DealingChunkAlreadyCommitted {
             epoch_id: epoch.epoch_id,
             dealer: info.sender,
-            dealing_index: dealing.dealing_index,
-            chunk_index: dealing.chunk_index,
+            dealing_index: chunk.dealing_index,
+            chunk_index: chunk.chunk_index,
             block_height: submission_height,
         });
     }
@@ -183,12 +180,12 @@ pub fn try_commit_dealings_chunk(
         deps.storage,
         epoch.epoch_id,
         &info.sender,
-        dealing.dealing_index,
+        chunk.dealing_index,
         &metadata,
     )?;
 
     // store the dealing
-    StoredDealing::save(deps.storage, epoch.epoch_id, &info.sender, dealing);
+    StoredDealing::save(deps.storage, epoch.epoch_id, &info.sender, chunk);
 
     Ok(Response::new())
 }
@@ -205,7 +202,7 @@ pub(crate) mod tests {
     use cosmwasm_std::Addr;
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::{
-        ContractSafeBytes, InitialReplacementData, TimeConfiguration, DEFAULT_DEALINGS,
+        ContractSafeBytes, InitialReplacementData, TimeConfiguration,
     };
 
     #[test]

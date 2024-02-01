@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
-use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -21,102 +20,6 @@ pub type DealingIndex = u32;
 // accidental misuses
 pub type ChunkIndex = u16;
 pub type PartialContractDealingData = ContractSafeBytes;
-
-/// Defines the maximum size of a dealing chunk. Currently set to 2kB
-pub const MAX_DEALING_CHUNK_SIZE: usize = 2048;
-
-/// Defines the maximum size of a full dealing.
-/// Currently set to 100kB (which is enough for a dealing created for 100 parties)
-pub const MAX_DEALING_SIZE: usize = 102400;
-
-pub const MAX_DEALING_CHUNKS: usize = MAX_DEALING_SIZE / MAX_DEALING_CHUNK_SIZE;
-
-// 2 public attributes, 2 private attributes, 1 fixed for coconut credential
-pub const DEFAULT_DEALINGS: usize = 2 + 2 + 1;
-
-#[cw_serde]
-pub struct SubmittedChunk {
-    pub size: usize,
-
-    // this field is updated by the contract itself to indicate when this particular chunk has been received
-    pub submission_height: Option<u64>,
-}
-
-impl SubmittedChunk {
-    pub fn new(size: usize) -> Self {
-        SubmittedChunk {
-            size,
-            submission_height: None,
-        }
-    }
-}
-
-#[cw_serde]
-pub struct DealingMetadata {
-    pub dealing_index: DealingIndex,
-
-    pub submitted_chunks: BTreeMap<ChunkIndex, SubmittedChunk>,
-}
-
-impl DealingMetadata {
-    pub fn new(dealing_index: DealingIndex, dealing_len: usize, chunk_size: usize) -> Self {
-        let (full_chunks, overflow) = (dealing_len / chunk_size, dealing_len % chunk_size);
-
-        let mut submitted_chunks = BTreeMap::new();
-        for id in 0..full_chunks {
-            submitted_chunks.insert(id as ChunkIndex, SubmittedChunk::new(chunk_size));
-        }
-
-        if overflow != 0 {
-            submitted_chunks.insert(full_chunks as ChunkIndex, SubmittedChunk::new(overflow));
-        }
-
-        DealingMetadata {
-            dealing_index,
-            submitted_chunks,
-        }
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.submitted_chunks
-            .values()
-            .all(|c| c.submission_height.is_some())
-    }
-
-    pub fn total_size(&self) -> usize {
-        self.submitted_chunks.values().map(|c| c.size).sum()
-    }
-}
-
-#[cw_serde]
-pub struct PartialContractDealing {
-    pub dealing_index: DealingIndex,
-    pub chunk_index: ChunkIndex,
-    pub data: PartialContractDealingData,
-}
-
-impl PartialContractDealing {
-    pub fn new(
-        dealing_index: DealingIndex,
-        chunk_index: ChunkIndex,
-        data: PartialContractDealingData,
-    ) -> Self {
-        PartialContractDealing {
-            dealing_index,
-            chunk_index,
-            data,
-        }
-    }
-}
-
-// impl From<(DealingIndex, ContractDealing)> for PartialContractDealing {
-//     fn from(value: (DealingIndex, ContractDealing)) -> Self {
-//         PartialContractDealing {
-//             dealing_index: value.0,
-//             data: value.1,
-//         }
-//     }
-// }
 
 #[cw_serde]
 pub struct InitialReplacementData {
@@ -348,39 +251,5 @@ impl EpochState {
 
     pub fn is_final(&self) -> bool {
         *self == EpochState::InProgress
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn dealing_metadata() {
-        const CHUNK_SIZE: usize = 512;
-
-        let test_cases = [
-            (CHUNK_SIZE - 10, CHUNK_SIZE, 1),
-            (CHUNK_SIZE, CHUNK_SIZE, 1),
-            (CHUNK_SIZE + 10, CHUNK_SIZE, 2),
-            (CHUNK_SIZE * 2, CHUNK_SIZE, 2),
-            (CHUNK_SIZE * 2 + 1, CHUNK_SIZE, 3),
-            (CHUNK_SIZE * 10 + 42, CHUNK_SIZE, 11),
-        ];
-
-        for (dealing_len, chunk_size, expected_chunks) in test_cases {
-            let meta = DealingMetadata::new(42, dealing_len, chunk_size);
-            assert_eq!(expected_chunks, meta.submitted_chunks.len());
-            assert_eq!(dealing_len, meta.total_size());
-
-            let mut expected_last = dealing_len % chunk_size;
-            if expected_last == 0 {
-                expected_last = chunk_size;
-            }
-            assert_eq!(
-                meta.submitted_chunks.last_key_value().unwrap().1.size,
-                expected_last
-            );
-        }
     }
 }

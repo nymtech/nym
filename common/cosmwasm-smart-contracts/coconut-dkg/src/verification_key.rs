@@ -43,7 +43,10 @@ pub fn to_cosmos_msg(
     multisig_addr: String,
     expiration_time: Timestamp,
 ) -> StdResult<CosmosMsg> {
-    let verify_vk_share_req = ExecuteMsg::VerifyVerificationKeyShare { owner, resharing };
+    let verify_vk_share_req = ExecuteMsg::VerifyVerificationKeyShare {
+        owner: owner.to_string(),
+        resharing,
+    };
     let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: coconut_dkg_addr,
         msg: to_binary(&verify_vk_share_req)?,
@@ -67,7 +70,7 @@ pub fn to_cosmos_msg(
 // DKG SAFETY:
 // each legit verification proposal will only contain a single execute msg,
 // if they have more than one, we can safely ignore it
-pub fn owner_from_cosmos_msgs(msgs: &[CosmosMsg]) -> Option<Addr> {
+pub fn owner_from_cosmos_msgs(msgs: &[CosmosMsg]) -> Option<String> {
     if msgs.len() != 1 {
         return None;
     }

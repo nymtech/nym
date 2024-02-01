@@ -3,7 +3,8 @@
 
 use cosmwasm_std::{Addr, StdError};
 use cw_controllers::AdminError;
-use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId, MAX_DEALING_CHUNKS};
+use nym_coconut_dkg_common::dealing::MAX_DEALING_CHUNKS;
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.

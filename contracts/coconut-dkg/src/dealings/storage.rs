@@ -1,21 +1,18 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
 use cosmwasm_std::{Addr, Order, Record, StdResult, Storage};
 use cw_storage_plus::{Bound, Key, KeyDeserialize, Map, Path, Prefix, Prefixer, PrimaryKey};
+use nym_coconut_dkg_common::dealing::{DealingMetadata, PartialContractDealing};
 use nym_coconut_dkg_common::types::{
-    ChunkIndex, ContractSafeBytes, DealingIndex, DealingMetadata, EpochId, PartialContractDealing,
-    PartialContractDealingData,
+    ChunkIndex, ContractSafeBytes, DealingIndex, EpochId, PartialContractDealingData,
 };
-
-pub(crate) const DEALINGS_PAGE_MAX_LIMIT: u32 = 2;
-pub(crate) const DEALINGS_PAGE_DEFAULT_LIMIT: u32 = 1;
 
 type Dealer<'a> = &'a Addr;
 
 /// Metadata for a dealing for given `EpochId`, submitted by particular `Dealer` for given `DealingIndex`.
-const DEALINGS_METADATA: Map<(EpochId, Dealer, DealingIndex), DealingMetadata> =
+pub(crate) const DEALINGS_METADATA: Map<(EpochId, Dealer, DealingIndex), DealingMetadata> =
     Map::new("dealings_metadata");
 
 pub(crate) fn metadata_exists(
@@ -61,7 +58,7 @@ pub(crate) fn store_metadata(
     Ok(DEALINGS_METADATA.save(storage, (epoch_id, dealer, dealing_index), metadata)?)
 }
 
-// dealings are stored in a multilevel map with the following hierarchy:
+// dealings data is stored in a multilevel map with the following hierarchy:
 //  - epoch-id:
 //      - issuer-address:
 //          - dealing id:
@@ -69,7 +66,6 @@ pub(crate) fn store_metadata(
 //                  - dealing content
 // NOTE: we're storing raw bytes bypassing serialization, so we can't use the `Map` type,
 // thus make sure you always use the below methods for using the storage!
-
 pub(crate) struct StoredDealing;
 
 impl StoredDealing {
@@ -77,13 +73,12 @@ impl StoredDealing {
 
     fn deserialize_dealing_record(
         kv: Record,
-    ) -> StdResult<(DealingIndex, PartialContractDealingData)> {
-        todo!()
-        // let (k, v) = kv;
-        // let index = <DealingIndex as KeyDeserialize>::from_vec(k)?;
-        // let data = ContractSafeBytes(v);
-        //
-        // Ok((index, data))
+    ) -> StdResult<(ChunkIndex, PartialContractDealingData)> {
+        let (k, v) = kv;
+        let index = <ChunkIndex as KeyDeserialize>::from_vec(k)?;
+        let data = ContractSafeBytes(v);
+
+        Ok((index, data))
     }
 
     fn storage_key(
@@ -102,25 +97,37 @@ impl StoredDealing {
         )
     }
 
-    // fn prefix(prefix: (EpochId, Dealer)) -> Prefix<DealingIndex, ContractSafeBytes, DealingIndex> {
-    //     todo!()
-    //     // Prefix::with_deserialization_functions(
-    //     //     Self::NAMESPACE,
-    //     //     &prefix.prefix(),
-    //     //     &[],
-    //     //     // explicitly panic to make sure we're never attempting to call an unexpected deserializer on our data
-    //     //     |_, _, kv| Self::deserialize_dealing_record(kv),
-    //     //     |_, _, _| panic!("attempted to call custom de_fn_v"),
-    //     // )
-    // }
+    fn prefix(
+        prefix: (EpochId, Dealer, DealingIndex),
+    ) -> Prefix<ChunkIndex, PartialContractDealingData, ChunkIndex> {
+        Prefix::with_deserialization_functions(
+            Self::NAMESPACE,
+            &prefix.prefix(),
+            &[],
+            // explicitly panic to make sure we're never attempting to call an unexpected deserializer on our data
+            |_, _, kv| Self::deserialize_dealing_record(kv),
+            |_, _, _| panic!("attempted to call custom de_fn_v"),
+        )
+    }
 
     pub(crate) fn exists(
         storage: &dyn Storage,
         epoch_id: EpochId,
         dealer: &Addr,
         dealing_index: DealingIndex,
-    ) -> bool {
-        todo!()
+        chunk_index: ChunkIndex,
+    ) -> StdResult<bool> {
+        // whenever the dealing is saved, the metadata is appropriately updated
+        // reading metadata is way cheaper than the dealing chunk itself
+        let Some(metadata) =
+            DEALINGS_METADATA.may_load(storage, (epoch_id, dealer, dealing_index))?
+        else {
+            return Ok(false);
+        };
+        let Some(chunk_info) = metadata.submitted_chunks.get(&chunk_index) else {
+            return Ok(false);
+        };
+        Ok(chunk_info.submission_height.is_some())
         // StoredDealing::storage_key(epoch_id, dealer, dealing_index).has(storage)
     }
 
@@ -128,12 +135,16 @@ impl StoredDealing {
         storage: &mut dyn Storage,
         epoch_id: EpochId,
         dealer: Dealer,
-        dealing: PartialContractDealing,
+        dealng_chunk: PartialContractDealing,
     ) {
         // NOTE: we're storing bytes directly here!
-        let storage_key =
-            Self::storage_key(epoch_id, dealer, dealing.dealing_index, dealing.chunk_index);
-        storage.set(&storage_key, dealing.data.as_slice());
+        let storage_key = Self::storage_key(
+            epoch_id,
+            dealer,
+            dealng_chunk.dealing_index,
+            dealng_chunk.chunk_index,
+        );
+        storage.set(&storage_key, dealng_chunk.data.as_slice());
     }
 
     pub(crate) fn read(
@@ -147,209 +158,264 @@ impl StoredDealing {
         storage.get(&storage_key).map(ContractSafeBytes)
     }
 
-    // pub(crate) fn prefix_range<'a>(
-    //     storage: &'a dyn Storage,
-    //     prefix: (EpochId, Dealer),
-    //     start: Option<Bound<DealingIndex>>,
-    // ) -> impl Iterator<Item = StdResult<PartialContractDealing>> + 'a {
-    //     vec![].into_iter()
-    //     // todo!()
-    //     // Self::prefix(prefix)
-    //     //     .range(storage, start, None, Order::Ascending)
-    //     //     .map(|maybe_record| maybe_record.map(Into::into))
-    // }
+    pub(crate) fn prefix_range<'a>(
+        storage: &'a dyn Storage,
+        prefix: (EpochId, Dealer, DealingIndex),
+        start: Option<Bound<ChunkIndex>>,
+    ) -> impl Iterator<Item = StdResult<PartialContractDealing>> + 'a {
+        let dealing_index = prefix.2;
+        Self::prefix(prefix)
+            .range(storage, start, None, Order::Ascending)
+            .map(move |maybe_record| {
+                maybe_record.map(|(chunk_index, data)| PartialContractDealing {
+                    dealing_index,
+                    chunk_index,
+                    data,
+                })
+            })
+    }
 
     // iterate over all values, only to be used in tests due to the amount of data being returned
     #[cfg(test)]
+    #[allow(clippy::type_complexity)]
     pub(crate) fn unchecked_all_entries(
         storage: &dyn Storage,
-    ) -> Vec<((EpochId, Addr, DealingIndex), PartialContractDealingData)> {
-        todo!()
-        // type StorageKey<'a> = (EpochId, Dealer<'a>, DealingIndex);
-        //
-        // let empty_prefix: Prefix<StorageKey, ContractDealing, StorageKey> =
-        //     Prefix::with_deserialization_functions(
-        //         Self::NAMESPACE,
-        //         &[],
-        //         &[],
-        //         |_, _, kv| StorageKey::from_vec(kv.0).map(|kt| (kt, ContractSafeBytes(kv.1))),
-        //         |_, _, _| unimplemented!(),
-        //     );
-        //
-        // empty_prefix
-        //     .range(storage, None, None, Order::Ascending)
-        //     .collect::<StdResult<_>>()
-        //     .unwrap()
+    ) -> Vec<(
+        (EpochId, Addr, (DealingIndex, ChunkIndex)),
+        PartialContractDealingData,
+    )> {
+        type StorageKey<'a> = (EpochId, Dealer<'a>, (DealingIndex, ChunkIndex));
+
+        let empty_prefix: Prefix<StorageKey, PartialContractDealingData, StorageKey> =
+            Prefix::with_deserialization_functions(
+                Self::NAMESPACE,
+                &[],
+                &[],
+                |_, _, kv| StorageKey::from_vec(kv.0).map(|kt| (kt, ContractSafeBytes(kv.1))),
+                |_, _, _| unimplemented!(),
+            );
+
+        empty_prefix
+            .range(storage, None, None, Order::Ascending)
+            .collect::<StdResult<_>>()
+            .unwrap()
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::support::tests::helpers::init_contract;
-//     use std::collections::HashMap;
-//
-//     fn dealing_data(
-//         epoch_id: EpochId,
-//         dealer: Dealer,
-//         dealing_index: DealingIndex,
-//     ) -> PartialContractDealingData {
-//         ContractSafeBytes(
-//             format!("{epoch_id},{dealer},{dealing_index}")
-//                 .as_bytes()
-//                 .to_vec(),
-//         )
-//     }
-//
-//     #[test]
-//     fn saving_dealing() {
-//         let mut deps = init_contract();
-//
-//         // make sure to check all combinations of epoch id, dealer address and dealing index to ensure nothing overlaps
-//         let epochs = [54, 423, 754];
-//         let dealers = [
-//             Addr::unchecked("dealer1"),
-//             Addr::unchecked("dealer2"),
-//             Addr::unchecked("dealer3"),
-//             Addr::unchecked("dealer4"),
-//             Addr::unchecked("dealer5"),
-//         ];
-//         let dealing_indices = [0, 1, 2, 3, 4, 5, 6, 7];
-//
-//         for epoch_id in &epochs {
-//             for dealer in &dealers {
-//                 for dealing_index in &dealing_indices {
-//                     assert!(!StoredDealing::exists(
-//                         &deps.storage,
-//                         *epoch_id,
-//                         dealer,
-//                         *dealing_index
-//                     ));
-//
-//                     StoredDealing::save(
-//                         deps.as_mut().storage,
-//                         *epoch_id,
-//                         dealer,
-//                         PartialContractDealing {
-//                             dealing_index: *dealing_index,
-//                             data: dealing_data(*epoch_id, dealer, *dealing_index),
-//                         },
-//                     )
-//                 }
-//             }
-//         }
-//
-//         let all: HashMap<_, _> = StoredDealing::unchecked_all_entries(&deps.storage)
-//             .into_iter()
-//             .collect();
-//         assert_eq!(
-//             all.len(),
-//             epochs.len() * dealers.len() * dealing_indices.len()
-//         );
-//
-//         for epoch_id in &epochs {
-//             for dealer in &dealers {
-//                 for dealing_index in &dealing_indices {
-//                     assert!(StoredDealing::exists(
-//                         &deps.storage,
-//                         *epoch_id,
-//                         dealer,
-//                         *dealing_index
-//                     ));
-//
-//                     let content =
-//                         StoredDealing::read(&deps.storage, *epoch_id, dealer, *dealing_index)
-//                             .unwrap();
-//                     let expected = dealing_data(*epoch_id, dealer, *dealing_index);
-//                     assert_eq!(expected, content);
-//                     assert_eq!(
-//                         &expected,
-//                         all.get(&(*epoch_id, dealer.clone(), *dealing_index))
-//                             .unwrap()
-//                     );
-//                 }
-//             }
-//         }
-//     }
-//
-//     #[test]
-//     fn iterating_over_dealings() {
-//         let mut deps = init_contract();
-//
-//         let epochs = [54, 423, 754];
-//         let dealers = [
-//             Addr::unchecked("dealer1"),
-//             Addr::unchecked("dealer2"),
-//             Addr::unchecked("dealer3"),
-//             Addr::unchecked("dealer4"),
-//             Addr::unchecked("dealer5"),
-//         ];
-//         let dealing_indices = [0, 1, 2, 3, 4, 5, 6, 7];
-//
-//         for epoch_id in &epochs {
-//             for dealer in &dealers {
-//                 for dealing_index in &dealing_indices {
-//                     StoredDealing::save(
-//                         deps.as_mut().storage,
-//                         *epoch_id,
-//                         dealer,
-//                         PartialContractDealing {
-//                             dealing_index: *dealing_index,
-//                             data: dealing_data(*epoch_id, dealer, *dealing_index),
-//                         },
-//                     )
-//                 }
-//             }
-//         }
-//
-//         // remember, we're not testing the iterator implementation
-//
-//         // nothing under epoch 0
-//         let dealings =
-//             StoredDealing::prefix_range(&deps.storage, (0, &dealers[0]), None).collect::<Vec<_>>();
-//         assert!(dealings.is_empty());
-//
-//         // nothing for dealer "foo"
-//         let foo = Addr::unchecked("foo");
-//         let dealings =
-//             StoredDealing::prefix_range(&deps.storage, (epochs[0], &foo), None).collect::<Vec<_>>();
-//         assert!(dealings.is_empty());
-//
-//         let all = StoredDealing::prefix_range(&deps.storage, (epochs[0], &dealers[0]), None)
-//             .collect::<Vec<_>>();
-//         assert_eq!(all.len(), dealing_indices.len());
-//
-//         for (i, dealing) in all.iter().enumerate() {
-//             let expected = dealing_data(epochs[0], &dealers[0], dealing_indices[i]);
-//             assert_eq!(expected, dealing.as_ref().unwrap().data);
-//             assert_eq!(dealing_indices[i], dealing.as_ref().unwrap().dealing_index);
-//         }
-//
-//         // for sanity sake, check another dealer with different epoch
-//         let all_other = StoredDealing::prefix_range(&deps.storage, (epochs[2], &dealers[3]), None)
-//             .collect::<Vec<_>>();
-//         assert_eq!(all_other.len(), dealing_indices.len());
-//
-//         for (i, dealing) in all_other.iter().enumerate() {
-//             let expected = dealing_data(epochs[2], &dealers[3], dealing_indices[i]);
-//             assert_eq!(expected, dealing.as_ref().unwrap().data);
-//             assert_eq!(dealing_indices[i], dealing.as_ref().unwrap().dealing_index);
-//         }
-//
-//         let without_first = StoredDealing::prefix_range(
-//             &deps.storage,
-//             (epochs[0], &dealers[0]),
-//             Some(Bound::exclusive(dealing_indices[0])),
-//         )
-//         .collect::<Vec<_>>();
-//         assert_eq!(&all[1..], without_first);
-//
-//         let mid = StoredDealing::prefix_range(
-//             &deps.storage,
-//             (epochs[0], &dealers[0]),
-//             Some(Bound::inclusive(dealing_indices[3])),
-//         )
-//         .collect::<Vec<_>>();
-//         assert_eq!(&all[3..], mid);
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::tests::helpers::init_contract;
+    use std::collections::HashMap;
+
+    fn dealing_data(
+        epoch_id: EpochId,
+        dealer: Dealer,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) -> PartialContractDealingData {
+        ContractSafeBytes(
+            format!("{epoch_id},{dealer},{dealing_index},{chunk_index}")
+                .as_bytes()
+                .to_vec(),
+        )
+    }
+
+    #[test]
+    fn saving_dealing_chunks() {
+        let mut deps = init_contract();
+
+        fn exists_in_storage(
+            storage: &dyn Storage,
+            epoch_id: EpochId,
+            dealer: Dealer,
+            dealing_index: DealingIndex,
+            chunk_index: ChunkIndex,
+        ) -> bool {
+            StoredDealing::storage_key(epoch_id, dealer, dealing_index, chunk_index).has(storage)
+        }
+
+        // make sure to check all combinations of epoch id, dealer address and dealing index to ensure nothing overlaps
+        let epochs = [54, 423, 754];
+        let dealers = [
+            Addr::unchecked("dealer1"),
+            Addr::unchecked("dealer2"),
+            Addr::unchecked("dealer3"),
+            Addr::unchecked("dealer4"),
+            Addr::unchecked("dealer5"),
+        ];
+        let dealing_indices = [0, 1, 2, 3, 4, 5, 6, 7];
+        let chunk_indices = [0, 1, 2, 3, 4];
+
+        for epoch_id in &epochs {
+            for dealer in &dealers {
+                for dealing_index in &dealing_indices {
+                    for chunk_index in &chunk_indices {
+                        assert!(!exists_in_storage(
+                            &deps.storage,
+                            *epoch_id,
+                            dealer,
+                            *dealing_index,
+                            *chunk_index
+                        ));
+
+                        StoredDealing::save(
+                            deps.as_mut().storage,
+                            *epoch_id,
+                            dealer,
+                            PartialContractDealing {
+                                dealing_index: *dealing_index,
+                                chunk_index: *chunk_index,
+                                data: dealing_data(*epoch_id, dealer, *dealing_index, *chunk_index),
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        let all: HashMap<_, _> = StoredDealing::unchecked_all_entries(&deps.storage)
+            .into_iter()
+            .collect();
+        assert_eq!(
+            all.len(),
+            epochs.len() * dealers.len() * dealing_indices.len() * chunk_indices.len()
+        );
+
+        for epoch_id in &epochs {
+            for dealer in &dealers {
+                for dealing_index in &dealing_indices {
+                    for chunk_index in &chunk_indices {
+                        assert!(exists_in_storage(
+                            &deps.storage,
+                            *epoch_id,
+                            dealer,
+                            *dealing_index,
+                            *chunk_index
+                        ));
+
+                        let content = StoredDealing::read(
+                            &deps.storage,
+                            *epoch_id,
+                            dealer,
+                            *dealing_index,
+                            *chunk_index,
+                        )
+                        .unwrap();
+                        let expected =
+                            dealing_data(*epoch_id, dealer, *dealing_index, *chunk_index);
+                        assert_eq!(expected, content);
+                        assert_eq!(
+                            &expected,
+                            all.get(&(*epoch_id, dealer.clone(), (*dealing_index, *chunk_index)))
+                                .unwrap()
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn iterating_over_dealing_chunks() {
+        let mut deps = init_contract();
+
+        let epochs = [54, 423, 754];
+        let dealers = [
+            Addr::unchecked("dealer1"),
+            Addr::unchecked("dealer2"),
+            Addr::unchecked("dealer3"),
+            Addr::unchecked("dealer4"),
+            Addr::unchecked("dealer5"),
+        ];
+        let dealing_indices = [0, 1, 2, 3, 4, 5, 6, 7];
+        let chunk_indices = [0, 1, 2, 3, 4];
+
+        for epoch_id in &epochs {
+            for dealer in &dealers {
+                for dealing_index in &dealing_indices {
+                    for chunk_index in &chunk_indices {
+                        StoredDealing::save(
+                            deps.as_mut().storage,
+                            *epoch_id,
+                            dealer,
+                            PartialContractDealing {
+                                dealing_index: *dealing_index,
+                                chunk_index: *chunk_index,
+                                data: dealing_data(*epoch_id, dealer, *dealing_index, *chunk_index),
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        // remember, we're not testing the iterator implementation
+
+        // nothing under epoch 0
+        let dealings =
+            StoredDealing::prefix_range(&deps.storage, (0, &dealers[0], dealing_indices[0]), None)
+                .collect::<Vec<_>>();
+        assert!(dealings.is_empty());
+
+        // nothing for dealer "foo"
+        let foo = Addr::unchecked("foo");
+        let dealings =
+            StoredDealing::prefix_range(&deps.storage, (epochs[0], &foo, dealing_indices[0]), None)
+                .collect::<Vec<_>>();
+        assert!(dealings.is_empty());
+
+        // nothing for dealing index 99
+        let dealings =
+            StoredDealing::prefix_range(&deps.storage, (epochs[0], &dealers[0], 99), None)
+                .collect::<Vec<_>>();
+        assert!(dealings.is_empty());
+
+        let all = StoredDealing::prefix_range(
+            &deps.storage,
+            (epochs[0], &dealers[0], dealing_indices[0]),
+            None,
+        )
+        .collect::<Vec<_>>();
+        assert_eq!(all.len(), chunk_indices.len());
+
+        for (i, dealing) in all.iter().enumerate() {
+            let expected =
+                dealing_data(epochs[0], &dealers[0], dealing_indices[0], chunk_indices[i]);
+            assert_eq!(expected, dealing.as_ref().unwrap().data);
+            assert_eq!(chunk_indices[i], dealing.as_ref().unwrap().chunk_index);
+        }
+
+        // for sanity sake, check another dealer with different epoch and different dealing index
+        let all_other = StoredDealing::prefix_range(
+            &deps.storage,
+            (epochs[2], &dealers[3], dealing_indices[4]),
+            None,
+        )
+        .collect::<Vec<_>>();
+        assert_eq!(all_other.len(), chunk_indices.len());
+
+        for (i, dealing) in all_other.iter().enumerate() {
+            let expected =
+                dealing_data(epochs[2], &dealers[3], dealing_indices[4], chunk_indices[i]);
+            assert_eq!(expected, dealing.as_ref().unwrap().data);
+            assert_eq!(chunk_indices[i], dealing.as_ref().unwrap().chunk_index);
+        }
+
+        let without_first = StoredDealing::prefix_range(
+            &deps.storage,
+            (epochs[0], &dealers[0], dealing_indices[0]),
+            Some(Bound::exclusive(chunk_indices[0])),
+        )
+        .collect::<Vec<_>>();
+        assert_eq!(&all[1..], without_first);
+
+        let mid = StoredDealing::prefix_range(
+            &deps.storage,
+            (epochs[0], &dealers[0], dealing_indices[0]),
+            Some(Bound::inclusive(chunk_indices[3])),
+        )
+        .collect::<Vec<_>>();
+        assert_eq!(&all[3..], mid);
+    }
+}

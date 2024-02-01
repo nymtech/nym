@@ -7,6 +7,7 @@
 cargo install ... 
 
 # if unset run from projroot 
+# this will b set in a script as well when not WIP 
 RUST_BINARIES=target/release
 echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'${RUST_BINARIES} >> ~/.zshrc
 source ~/.zshrc

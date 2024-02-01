@@ -10,6 +10,9 @@ struct SettingsFlowCoordinator<Content: View>: View {
     }
 
     @ViewBuilder private func linkDestination(link: SettingsLink) -> some View {
-        EmptyView()
+        switch link {
+        case .theme:
+            SettingsThemeView()
+        }
     }
 }

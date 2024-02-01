@@ -11,19 +11,33 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "AppSettings",
+            targets: ["AppSettings"]
+        ),
+        .library(
+            name: "AppVersionProvider",
+            targets: ["AppVersionProvider"]
+        ),
+        .library(
             name: "Tunnels",
             targets: ["Tunnels"]
         )
     ],
     targets: [
         .target(
+            name: "AppSettings",
+            dependencies: [],
+            path: "Sources/Services/AppSettings"
+        ),
+        .target(
+            name: "AppVersionProvider",
+            dependencies: [],
+            path: "Sources/Services/AppVersionProvider"
+        ),
+        .target(
             name: "Tunnels",
             dependencies: [],
             path: "Sources/Services/Tunnels"
-        ),
-        .testTarget(
-            name: "TunnelsTests",
-            dependencies: ["Tunnels"]
         )
     ]
 )

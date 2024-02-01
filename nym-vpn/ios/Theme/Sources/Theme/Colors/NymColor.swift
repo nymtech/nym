@@ -33,4 +33,8 @@ public struct NymColor {
 
     // MARK: - Primary -
     public static let primaryOrange = Color(.primaryOrange)
+
+    // MARK: - Settings -
+    public static let settingsSeparator = Color(.settingsSeparator)
+    public static let settingsVersion = Color(.settingsVersion)
 }

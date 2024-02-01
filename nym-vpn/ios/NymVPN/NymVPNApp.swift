@@ -1,6 +1,7 @@
 import SwiftUI
 import Home
 import Theme
+import AppSettings
 import Tunnels
 
 @main
@@ -14,6 +15,8 @@ struct NymVPNApp: App {
             NavigationStack {
                 HomeView()
             }
+            .preferredColorScheme(AppSettings.shared.currentTheme.colorScheme)
+            .environmentObject(AppSettings.shared)
             .environmentObject(TunnelsManager.shared)
         }
     }

@@ -12,6 +12,8 @@
 		D954C0BC2B51C1CA00C6BAAC /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D954C0BB2B51C1CA00C6BAAC /* PacketTunnelProvider.swift */; };
 		D954C0C12B51C1CA00C6BAAC /* NymMixnetTunnel.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D954C0B82B51C1CA00C6BAAC /* NymMixnetTunnel.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D96740232B56A67A001F6891 /* Tunnels in Frameworks */ = {isa = PBXBuildFile; productRef = D96740222B56A67A001F6891 /* Tunnels */; };
+		D968BDC92B6AEA9D003F42E5 /* AppSettings in Frameworks */ = {isa = PBXBuildFile; productRef = D968BDC82B6AEA9D003F42E5 /* AppSettings */; };
+		D968BDCB2B6BC98E003F42E5 /* AppVersionProvider in Frameworks */ = {isa = PBXBuildFile; productRef = D968BDCA2B6BC98E003F42E5 /* AppVersionProvider */; };
 		D99A147A2B357E9900F2728B /* NymVPNApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99A14792B357E9900F2728B /* NymVPNApp.swift */; };
 		D99A148A2B35A73F00F2728B /* Home in Frameworks */ = {isa = PBXBuildFile; productRef = D99A14892B35A73F00F2728B /* Home */; };
 		D99A148C2B35A74200F2728B /* Theme in Frameworks */ = {isa = PBXBuildFile; productRef = D99A148B2B35A74200F2728B /* Theme */; };
@@ -68,8 +70,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D968BDCB2B6BC98E003F42E5 /* AppVersionProvider in Frameworks */,
 				D96740232B56A67A001F6891 /* Tunnels in Frameworks */,
 				D9F699E02B4C1862005576A9 /* Settings in Frameworks */,
+				D968BDC92B6AEA9D003F42E5 /* AppSettings in Frameworks */,
 				D99A148C2B35A74200F2728B /* Theme in Frameworks */,
 				D99A148A2B35A73F00F2728B /* Home in Frameworks */,
 			);
@@ -175,6 +179,8 @@
 				D99A148B2B35A74200F2728B /* Theme */,
 				D9F699DF2B4C1862005576A9 /* Settings */,
 				D96740222B56A67A001F6891 /* Tunnels */,
+				D968BDC82B6AEA9D003F42E5 /* AppSettings */,
+				D968BDCA2B6BC98E003F42E5 /* AppVersionProvider */,
 			);
 			productName = NymVPN;
 			productReference = D99A14762B357E9900F2728B /* NymVPN.app */;
@@ -582,6 +588,14 @@
 		D96740222B56A67A001F6891 /* Tunnels */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Tunnels;
+		};
+		D968BDC82B6AEA9D003F42E5 /* AppSettings */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AppSettings;
+		};
+		D968BDCA2B6BC98E003F42E5 /* AppVersionProvider */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AppVersionProvider;
 		};
 		D99A14892B35A73F00F2728B /* Home */ = {
 			isa = XCSwiftPackageProductDependency;

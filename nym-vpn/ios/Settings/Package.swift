@@ -15,9 +15,19 @@ let package = Package(
             targets: ["Settings"]
         )
     ],
+    dependencies: [
+//        .package(name: "AppVersionProvider", path: "../Services"),
+//        .package(name: "AppSettings", path: "../Services"),
+        .package(path: "../UIComponents")
+    ],
     targets: [
         .target(
-            name: "Settings"
+            name: "Settings",
+            dependencies: [
+//                "AppVersionProvider",
+//                "AppSettings",
+                "UIComponents"
+            ]
         ),
         .testTarget(
             name: "SettingsTests",

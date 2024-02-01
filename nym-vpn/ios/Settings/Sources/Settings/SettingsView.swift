@@ -1,4 +1,6 @@
 import SwiftUI
+import Theme
+import UIComponents
 
 public struct SettingsView: View {
     @StateObject var viewModel: SettingsViewModel
@@ -15,6 +17,36 @@ public struct SettingsView: View {
 private extension SettingsView {
     @ViewBuilder
     func content() -> some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            navbar()
+            settingsList()
+            Spacer()
+        }
+        .navigationBarBackButtonHidden(true)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(edges: [.bottom])
+        .background {
+            NymColor.background
+                .ignoresSafeArea()
+        }
+    }
+
+    @ViewBuilder
+    func navbar() -> some View {
+        CustomNavBar(
+            title: viewModel.settingsTitle,
+            leftButton: CustomNavBarButton(type: .back, action: { viewModel.navigateHome() })
+        )
+    }
+
+    @ViewBuilder
+    func settingsList() -> some View {
+        SettingsList(
+            viewModel:
+                SettingsListViewModel(
+                    sections: viewModel.settingsConfig.sections,
+                    appVersion: viewModel.appVersion()
+                )
+        )
     }
 }

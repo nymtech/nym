@@ -22,7 +22,10 @@ let package = Package(
     targets: [
         .target(
             name: "Home",
-            dependencies: ["UIComponents", "Settings"],
+            dependencies: [
+                "UIComponents",
+                "Settings"
+            ],
             path: "Sources"
         ),
         .testTarget(

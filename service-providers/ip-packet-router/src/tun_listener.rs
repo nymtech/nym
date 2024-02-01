@@ -1,10 +1,12 @@
-use bytes::{Bytes, BytesMut, Buf};
+use std::time::Duration;
+
+use bytes::{Buf, Bytes, BytesMut};
 use nym_ip_packet_requests::IpPacketResponse;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_task::TaskClient;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
-use tokio_util::codec::{Encoder, Decoder};
+use tokio_util::codec::{Decoder, Encoder};
 
 use crate::{
     error::{IpPacketRouterError, Result},
@@ -23,7 +25,45 @@ pub(crate) struct TunListener {
 
 #[cfg(target_os = "linux")]
 impl TunListener {
-    async fn handle_packet(&mut self, buf: &[u8], len: usize, bundled_packet_codec: &mut mixnet_listener::BundledIpPacketCodec) -> Result<()> {
+    async fn flush_current_bundled_packets_and_send(
+        &mut self,
+        bundled_packet_codec: &mut mixnet_listener::BundledIpPacketCodec,
+        bundle_timer: &mut tokio::time::Interval,
+    ) -> Result<()> {
+        let mut bundled_packets = bundled_packet_codec.flush_current_buffer();
+        if !bundled_packets.is_empty() {
+            // TEMPORARY
+            let Some(connect_client) = self.connected_clients.get_first() else {
+                return Ok(());
+            };
+            let mixnet_listener::ConnectedClient {
+                nym_address,
+                mix_hops,
+                ..
+            } = connect_client;
+
+            let response_packet = IpPacketResponse::new_ip_packet(bundled_packets)
+                .to_bytes()
+                .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket {
+                    source: err,
+                })?;
+            let input_message = create_input_message(*nym_address, response_packet, *mix_hops);
+
+            self.mixnet_client_sender
+                .send(input_message)
+                .await
+                .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })?;
+        }
+        Ok(())
+    }
+
+    async fn handle_packet(
+        &mut self,
+        buf: &[u8],
+        len: usize,
+        bundled_packet_codec: &mut mixnet_listener::BundledIpPacketCodec,
+        bundle_timer: &mut tokio::time::Interval,
+    ) -> Result<()> {
         let Some(dst_addr) = parse_dst_addr(&buf[..len]) else {
             log::warn!("Failed to parse packet");
             return Ok(());
@@ -37,14 +77,22 @@ impl TunListener {
         {
             let packet = buf[..len].to_vec();
 
+            // If we are the first packet, start the timer
+            if bundled_packet_codec.is_empty() {
+                bundle_timer.reset();
+            }
+
             // Bunch together
             let packet_bytes = Bytes::from(packet);
             let mut bundled_packets = BytesMut::new();
-            bundled_packet_codec.encode(packet_bytes, &mut bundled_packets).unwrap();
+            bundled_packet_codec
+                .encode(packet_bytes, &mut bundled_packets)
+                .unwrap();
             if bundled_packets.is_empty() {
                 return Ok(());
             }
             let bundled_packets = bundled_packets.freeze();
+            bundle_timer.reset();
 
             // let response_packet = IpPacketResponse::new_ip_packet(packet.into())
             let response_packet = IpPacketResponse::new_ip_packet(bundled_packets)
@@ -69,6 +117,8 @@ impl TunListener {
         let mut buf = [0u8; 65535];
 
         let mut bundled_packet_codec = mixnet_listener::BundledIpPacketCodec::new();
+        // tokio timer for flushing the buffer
+        let mut bundle_timer = tokio::time::interval(Duration::from_millis(100));
 
         while !self.task_client.is_shutdown() {
             tokio::select! {
@@ -83,9 +133,14 @@ impl TunListener {
                         break;
                     },
                 },
+                _ = bundle_timer.tick() => {
+                    if let Err(err) = self.flush_current_bundled_packets_and_send(&mut bundled_packet_codec, &mut bundle_timer).await {
+                        log::error!("tun: failed to flush and send bundled packets: {err}");
+                    }
+                },
                 len = self.tun_reader.read(&mut buf) => match len {
                     Ok(len) => {
-                        if let Err(err) = self.handle_packet(&buf, len, &mut bundled_packet_codec).await {
+                        if let Err(err) = self.handle_packet(&buf, len, &mut bundled_packet_codec, &mut bundle_timer).await {
                             log::error!("tun: failed to handle packet: {err}");
                         }
                     },

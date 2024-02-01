@@ -40,6 +40,18 @@ impl BundledIpPacketCodec {
             buffer: BytesMut::new(),
         }
     }
+
+    pub fn flush_current_buffer(&mut self) -> Bytes {
+        let mut buffer_so_far = BytesMut::new();
+        // TODO: is it possible to move the buffer instead of copying it?
+        buffer_so_far.extend_from_slice(&self.buffer);
+        self.buffer = BytesMut::new();
+        buffer_so_far.freeze()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
 }
 
 impl Encoder<Bytes> for BundledIpPacketCodec {
@@ -138,6 +150,11 @@ impl ConnectedClientsListener {
                 self.clients.remove(&ip);
             }
         }
+    }
+
+    // TEMP
+    pub(crate) fn get_first(&self) -> Option<&ConnectedClient> {
+        self.clients.values().next()
     }
 }
 

@@ -53,6 +53,6 @@ git push origin operators/legal-forum/<MY_BRANCH_NAME>
 7. Open the git generated link in your browser, fill the description and click on `Create a Pull Request` button
 ```sh
 # the url will look like this
- https://github.com/nymtech/nym/pull/new/<MY_BRANCH_NAME>
+ https://github.com/nymtech/nym/pull/new/operators/legal-forum/<MY_BRANCH_NAME>
 ```
 8. Notify others in the [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) about the PR.

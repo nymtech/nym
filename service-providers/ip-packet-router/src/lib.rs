@@ -9,7 +9,7 @@ mod constants;
 pub mod error;
 mod ip_packet_router;
 mod mixnet_client;
-mod mixnet_listener;
+pub mod mixnet_listener;
 pub mod request_filter;
 mod tun_listener;
 mod util;

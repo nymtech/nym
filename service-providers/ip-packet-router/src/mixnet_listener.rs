@@ -30,12 +30,12 @@ use crate::{
 
 // Tokio codec for bundling multiple IP packets into one buffer that is at most 1500 bytes long.
 // These packets are separated by a 2 byte length prefix.
-struct BundledIpPacketCodec {
+pub struct BundledIpPacketCodec {
     buffer: BytesMut,
 }
 
 impl BundledIpPacketCodec {
-    fn new() -> Self {
+    pub fn new() -> Self {
         BundledIpPacketCodec {
             buffer: BytesMut::new(),
         }

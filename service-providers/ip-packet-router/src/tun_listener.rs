@@ -23,7 +23,7 @@ pub(crate) struct TunListener {
 
 #[cfg(target_os = "linux")]
 impl TunListener {
-    async fn handle_packet(&mut self, buf: &[u8], len: usize) -> Result<()> {
+    async fn handle_packet(&mut self, buf: &[u8], len: usize, bundled_packet_codec: &mut mixnet_listener::BundledIpPacketCodec) -> Result<()> {
         let Some(dst_addr) = parse_dst_addr(&buf[..len]) else {
             log::warn!("Failed to parse packet");
             return Ok(());
@@ -36,7 +36,18 @@ impl TunListener {
         }) = self.connected_clients.get(&dst_addr)
         {
             let packet = buf[..len].to_vec();
-            let response_packet = IpPacketResponse::new_ip_packet(packet.into())
+
+            // Bunch together
+            let packet_bytes = Bytes::from(packet);
+            let mut bundled_packets = BytesMut::new();
+            bundled_packet_codec.encode(packet_bytes, &mut bundled_packets).unwrap();
+            if bundled_packets.is_empty() {
+                return Ok(());
+            }
+            let bundled_packets = bundled_packets.freeze();
+
+            // let response_packet = IpPacketResponse::new_ip_packet(packet.into())
+            let response_packet = IpPacketResponse::new_ip_packet(bundled_packets)
                 .to_bytes()
                 .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket {
                     source: err,
@@ -56,6 +67,9 @@ impl TunListener {
 
     async fn run(mut self) -> Result<()> {
         let mut buf = [0u8; 65535];
+
+        let mut bundled_packet_codec = mixnet_listener::BundledIpPacketCodec::new();
+
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 _ = self.task_client.recv() => {
@@ -71,7 +85,7 @@ impl TunListener {
                 },
                 len = self.tun_reader.read(&mut buf) => match len {
                     Ok(len) => {
-                        if let Err(err) = self.handle_packet(&buf, len).await {
+                        if let Err(err) = self.handle_packet(&buf, len, &mut bundled_packet_codec).await {
                             log::error!("tun: failed to handle packet: {err}");
                         }
                     },

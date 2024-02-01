@@ -1,10 +1,15 @@
 import SwiftUI
-import UIComponents
+import AppSettings
+import Modifiers
 import Theme
+import UIComponents
 
 public struct HomeView: View {
-    @ObservedObject private var viewModel = HomeViewModel(selectedNetwork: .mixnet)
-    public init() {}
+    @ObservedObject private var viewModel: HomeViewModel
+
+    public init(viewModel: HomeViewModel) {
+        self.viewModel = viewModel
+    }
 
     public var body: some View {
         HomeFlowCoordinator(state: viewModel, content: content)
@@ -23,6 +28,7 @@ private extension HomeView {
             connectionSection()
             connectButton()
         }
+        .appearanceUpdate()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             NymColor.background
@@ -34,8 +40,7 @@ private extension HomeView {
     func navbar() -> some View {
         CustomNavBar(
             title: "NymVPN".localizedString,
-            rightButton: CustomNavBarButton(type: .settings, action: { print("settings")
-                viewModel.navigateToSettings() })
+            rightButton: CustomNavBarButton(type: .settings, action: { viewModel.navigateToSettings() })
         )
         Spacer()
             .frame(height: 50)

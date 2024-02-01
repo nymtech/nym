@@ -34,6 +34,9 @@ public struct SettingsListItem: View {
             )
         )
         .padding(.horizontal, 16)
+        .onTapGesture {
+            viewModel.action()
+        }
     }
 }
 

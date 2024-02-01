@@ -1,9 +1,11 @@
 import SwiftUI
-import Theme
+import AppSettings
+import Modifiers
 import UIComponents
+import Theme
 
 public struct SettingsView: View {
-    @StateObject var viewModel: SettingsViewModel
+    @StateObject private var viewModel: SettingsViewModel
 
     public init(viewModel: SettingsViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -22,6 +24,7 @@ private extension SettingsView {
             settingsList()
             Spacer()
         }
+        .appearanceUpdate()
         .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ignoresSafeArea(edges: [.bottom])
@@ -44,7 +47,7 @@ private extension SettingsView {
         SettingsList(
             viewModel:
                 SettingsListViewModel(
-                    sections: viewModel.settingsConfig.sections,
+                    sections: viewModel.sections,
                     appVersion: viewModel.appVersion()
                 )
         )

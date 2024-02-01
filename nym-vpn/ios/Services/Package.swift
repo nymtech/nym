@@ -19,6 +19,10 @@ let package = Package(
             targets: ["AppVersionProvider"]
         ),
         .library(
+            name: "Modifiers",
+            targets: ["Modifiers"]
+        ),
+        .library(
             name: "Tunnels",
             targets: ["Tunnels"]
         )
@@ -33,6 +37,13 @@ let package = Package(
             name: "AppVersionProvider",
             dependencies: [],
             path: "Sources/Services/AppVersionProvider"
+        ),
+        .target(
+            name: "Modifiers",
+            dependencies: [
+                "AppSettings"
+            ],
+            path: "Sources/Services/Modifiers"
         ),
         .target(
             name: "Tunnels",

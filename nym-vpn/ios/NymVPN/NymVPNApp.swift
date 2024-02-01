@@ -6,6 +6,7 @@ import Tunnels
 
 @main
 struct NymVPNApp: App {
+
     init() {
         setup()
     }
@@ -13,9 +14,8 @@ struct NymVPNApp: App {
     var body: some Scene {
         WindowGroup {
             NavigationStack {
-                HomeView()
+                HomeView(viewModel: HomeViewModel(selectedNetwork: .mixnet))
             }
-            .preferredColorScheme(AppSettings.shared.currentTheme.colorScheme)
             .environmentObject(AppSettings.shared)
             .environmentObject(TunnelsManager.shared)
         }

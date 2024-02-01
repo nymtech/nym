@@ -67,6 +67,28 @@
         }
       }
     },
+    "automaticThemeSubtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use device theme"
+          }
+        }
+      }
+    },
+    "automaticThemeTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic"
+          }
+        }
+      }
+    },
     "connect" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -107,6 +129,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connect to"
+          }
+        }
+      }
+    },
+    "darkThemeTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark theme"
           }
         }
       }
@@ -239,6 +272,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Legal"
+          }
+        }
+      }
+    },
+    "lightThemeTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light theme"
           }
         }
       }

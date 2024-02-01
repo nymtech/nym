@@ -16,16 +16,12 @@ let package = Package(
         )
     ],
     dependencies: [
-//        .package(name: "AppVersionProvider", path: "../Services"),
-//        .package(name: "AppSettings", path: "../Services"),
         .package(path: "../UIComponents")
     ],
     targets: [
         .target(
             name: "Settings",
             dependencies: [
-//                "AppVersionProvider",
-//                "AppSettings",
                 "UIComponents"
             ]
         ),

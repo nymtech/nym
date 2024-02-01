@@ -1,10 +1,10 @@
 import SwiftUI
 import Theme
 
-public struct NetworkButton: View {
-    private let viewModel: NetworkButtonViewModel
+public struct SettingButton: View {
+    private let viewModel: SettingButtonViewModel
 
-    public init(viewModel: NetworkButtonViewModel) {
+    public init(viewModel: SettingButtonViewModel) {
         self.viewModel = viewModel
     }
 
@@ -15,17 +15,15 @@ public struct NetworkButton: View {
                     .foregroundStyle(viewModel.selectionImageColor)
                     .padding(.leading, 16)
 
-                Image(viewModel.type.imageName, bundle: .module)
-                    .foregroundStyle(NymColor.sysOnSurface)
-                    .padding(.leading, 8)
-
                 VStack(alignment: .leading) {
-                    Text(viewModel.type.title)
+                    Text(viewModel.title)
                         .foregroundStyle(NymColor.sysOnSurface)
                         .textStyle(.Body.Large.primary)
-                    Text(viewModel.type.subtitle)
-                        .foregroundStyle(NymColor.sysOutline)
-                        .textStyle(.Body.Medium.primary)
+                    if let subtitle = viewModel.subtitle {
+                        Text(subtitle)
+                            .foregroundStyle(NymColor.sysOutline)
+                            .textStyle(.Body.Medium.primary)
+                    }
                 }
                 .padding(.leading, 8)
                 Spacer()

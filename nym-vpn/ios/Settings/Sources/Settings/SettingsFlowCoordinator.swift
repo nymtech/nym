@@ -1,4 +1,5 @@
 import SwiftUI
+import AppSettings
 
 struct SettingsFlowCoordinator<Content: View>: View {
     @ObservedObject var state: SettingsFlowState
@@ -12,7 +13,7 @@ struct SettingsFlowCoordinator<Content: View>: View {
     @ViewBuilder private func linkDestination(link: SettingsLink) -> some View {
         switch link {
         case .theme:
-            SettingsThemeView()
+            AppearanceView(viewModel: AppearanceViewModel(path: $state.path, appSettings: AppSettings.shared))
         }
     }
 }

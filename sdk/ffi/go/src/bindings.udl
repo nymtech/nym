@@ -7,6 +7,5 @@ typedef extern CMessageCallback;
 namespace bindings {
   void init_logging();
   i8 init_ephemeral();
-  // I think i need to impl UniffiCustomTypeConverter for CString types? https://mozilla.github.io/uniffi-rs/udl/custom_types.html#custom-types-in-the-scaffolding-code
-  // i8 get_self_address(CStringCallback)
+//  i8 get_self_address();
 };

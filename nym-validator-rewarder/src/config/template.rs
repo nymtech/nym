@@ -38,8 +38,11 @@ credential_verification = {{ rewarding.ratios.credential_verification }}
     
     
 [block_signing]
-# Specifies whether credential issuance for block signing is enabled.
+# Specifies whether rewarding for block signing is enabled.
 enabled = {{ block_signing.enabled }}
+
+# Specifies whether to only monitor and not send rewards.
+monitor_only = {{ block_signing.monitor_only }}
 
 # List of validators that will receive rewards for block signing.
 # If not on the list, the validator will be treated as if it had 0 voting power.

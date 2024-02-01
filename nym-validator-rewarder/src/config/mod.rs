@@ -240,8 +240,11 @@ pub struct NyxdScraper {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BlockSigning {
-    /// Specifies whether credential issuance for block signing is enabled.
+    /// Specifies whether rewards for block signing is enabled.
     pub enabled: bool,
+
+    /// Specifies whether to only monitor and not send rewards.
+    pub monitor_only: bool,
 
     /// List of validators that will receive rewards for block signing.
     /// If not on the list, the validator will be treated as if it had 0 voting power.
@@ -252,6 +255,7 @@ impl Default for BlockSigning {
     fn default() -> Self {
         BlockSigning {
             enabled: true,
+            monitor_only: false,
             whitelist: vec![],
         }
     }

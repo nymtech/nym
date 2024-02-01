@@ -7,17 +7,18 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
+use nym_coconut_dkg_common::types::ChunkIndex;
 use serde::Deserialize;
 
 pub use nym_coconut_dkg_common::{
-    dealer::{
-        DealerDetailsResponse, DealingResponse, DealingStatusResponse, PagedDealerResponse,
-        PagedDealingsResponse,
+    dealer::{DealerDetailsResponse, PagedDealerResponse},
+    dealing::{
+        DealingChunkResponse, DealingChunkStatusResponse, DealingMetadataResponse,
+        DealingStatusResponse,
     },
     msg::QueryMsg as DkgQueryMsg,
     types::{
-        DealerDetails, DealingIndex, Epoch, EpochId, EpochState, InitialReplacementData,
-        PartialContractDealing, State,
+        DealerDetails, DealingIndex, Epoch, EpochId, EpochState, InitialReplacementData, State,
     },
     verification_key::{ContractVKShare, PagedVKSharesResponse, VkShareResponse},
 };
@@ -77,6 +78,21 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
+    async fn get_dealings_metadata(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> Result<DealingMetadataResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealingsMetadata {
+            epoch_id,
+            dealer,
+            dealing_index,
+        };
+
+        self.query_dkg_contract(request).await
+    }
+
     async fn get_dealing_status(
         &self,
         epoch_id: EpochId,
@@ -92,34 +108,37 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
-    async fn get_dealing(
+    async fn get_dealing_chunk_status(
         &self,
         epoch_id: EpochId,
         dealer: String,
         dealing_index: DealingIndex,
-    ) -> Result<DealingResponse, NyxdError> {
-        let request = DkgQueryMsg::GetDealing {
+        chunk_index: ChunkIndex,
+    ) -> Result<DealingStatusResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealingChunkStatus {
             epoch_id,
             dealer,
             dealing_index,
+            chunk_index,
         };
 
         self.query_dkg_contract(request).await
     }
 
-    async fn get_dealer_dealings_paged(
+    async fn get_dealing_chunk(
         &self,
         epoch_id: EpochId,
-        dealer: &str,
-        start_after: Option<DealingIndex>,
-        limit: Option<u32>,
-    ) -> Result<PagedDealingsResponse, NyxdError> {
-        let request = DkgQueryMsg::GetDealings {
+        dealer: String,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) -> Result<DealingChunkResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealingChunk {
             epoch_id,
-            dealer: dealer.to_string(),
-            limit,
-            start_after,
+            dealer,
+            dealing_index,
+            chunk_index,
         };
+
         self.query_dkg_contract(request).await
     }
 
@@ -163,14 +182,6 @@ pub trait PagedDkgQueryClient: DkgQueryClient {
 
     async fn get_all_past_dealers(&self) -> Result<Vec<DealerDetails>, NyxdError> {
         collect_paged!(self, get_past_dealers_paged, dealers)
-    }
-
-    async fn get_all_dealer_dealings(
-        &self,
-        epoch_id: EpochId,
-        dealer: &str,
-    ) -> Result<Vec<PartialContractDealing>, NyxdError> {
-        collect_paged!(self, get_dealer_dealings_paged, dealings, epoch_id, dealer)
     }
 
     async fn get_all_verification_key_shares(
@@ -236,18 +247,28 @@ mod tests {
             } => client
                 .get_dealing_status(epoch_id, dealer, dealing_index)
                 .ignore(),
-            DkgQueryMsg::GetDealing {
+            DkgQueryMsg::GetDealingsMetadata {
                 epoch_id,
                 dealer,
                 dealing_index,
-            } => client.get_dealing(epoch_id, dealer, dealing_index).ignore(),
-            DkgQueryMsg::GetDealings {
+            } => client
+                .get_dealings_metadata(epoch_id, dealer, dealing_index)
+                .ignore(),
+            DkgQueryMsg::GetDealingChunkStatus {
                 epoch_id,
                 dealer,
-                limit,
-                start_after,
+                dealing_index,
+                chunk_index,
             } => client
-                .get_dealer_dealings_paged(epoch_id, &dealer, limit, start_after)
+                .get_dealing_chunk_status(epoch_id, dealer, dealing_index, chunk_index)
+                .ignore(),
+            DkgQueryMsg::GetDealingChunk {
+                epoch_id,
+                dealer,
+                dealing_index,
+                chunk_index,
+            } => client
+                .get_dealing_chunk(epoch_id, dealer, dealing_index, chunk_index)
                 .ignore(),
             DkgQueryMsg::GetVerificationKey { epoch_id, owner } => {
                 client.get_vk_share(epoch_id, owner).ignore()

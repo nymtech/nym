@@ -8,9 +8,9 @@ use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use cosmwasm_std::Addr;
+use nym_coconut_dkg_common::dealing::{DealingChunkInfo, PartialContractDealing};
 use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
-use nym_coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, PartialContractDealing};
+use nym_coconut_dkg_common::types::{DealingIndex, EncodedBTEPublicKeyWithProof};
 use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
 use nym_contracts_common::IdentityKey;
 
@@ -65,15 +65,32 @@ pub trait DkgSigningClient {
             .await
     }
 
-    async fn submit_dealing_bytes(
+    async fn submit_dealing_metadata(
         &self,
-        dealing: PartialContractDealing,
+        dealing_index: DealingIndex,
+        chunks: Vec<DealingChunkInfo>,
         resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitDealing { dealing, resharing };
+        let req = DkgExecuteMsg::CommitDealingsMetadata {
+            dealing_index,
+            chunks,
+            resharing,
+        };
 
-        self.execute_dkg_contract(fee, req, "dealing commitment".to_string(), vec![])
+        self.execute_dkg_contract(fee, req, "dealing metadata commitment".to_string(), vec![])
+            .await
+    }
+
+    async fn submit_dealing_chunk(
+        &self,
+        chunk: PartialContractDealing,
+        resharing: bool,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::CommitDealingsChunk { chunk, resharing };
+
+        self.execute_dkg_contract(fee, req, "dealing chunk commitment".to_string(), vec![])
             .await
     }
 
@@ -100,9 +117,10 @@ pub trait DkgSigningClient {
         resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        // the call to unchecked is fine as we're converting from pre-validated `AccountId`
-        let owner = Addr::unchecked(owner.to_string());
-        let req = DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing };
+        let req = DkgExecuteMsg::VerifyVerificationKeyShare {
+            owner: owner.to_string(),
+            resharing,
+        };
 
         self.execute_dkg_contract(
             fee,
@@ -167,18 +185,21 @@ mod tests {
                     None,
                 )
                 .ignore(),
-            DkgExecuteMsg::CommitDealing { dealing, resharing } => client
-                .submit_dealing_bytes(dealing, resharing, None)
+            DkgExecuteMsg::CommitDealingsMetadata {
+                dealing_index,
+                chunks,
+                resharing,
+            } => client
+                .submit_dealing_metadata(dealing_index, chunks, resharing, None)
                 .ignore(),
+            DkgExecuteMsg::CommitDealingsChunk { chunk, resharing } => {
+                client.submit_dealing_chunk(chunk, resharing, None).ignore()
+            }
             DkgExecuteMsg::CommitVerificationKeyShare { share, resharing } => client
                 .submit_verification_key_share(share, resharing, None)
                 .ignore(),
             DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => client
-                .verify_verification_key_share(
-                    &owner.into_string().parse().unwrap(),
-                    resharing,
-                    None,
-                )
+                .verify_verification_key_share(&owner.parse().unwrap(), resharing, None)
                 .ignore(),
             DkgExecuteMsg::SurpassedThreshold {} => client.surpass_threshold(None).ignore(),
             DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),

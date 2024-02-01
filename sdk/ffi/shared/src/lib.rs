@@ -33,7 +33,6 @@ pub enum StatusCode {
     ListenError = -6,
 }
 
-// pub type CStringCallback = extern "C" fn(*const c_char);
 #[repr(C)]
 pub struct CStringCallback {
    callback: extern "C" fn(*const c_char)
@@ -48,7 +47,6 @@ impl CStringCallback {
     }
 }
 
-// pub type CMessageCallback = extern "C" fn(ReceivedMessage);
 #[repr(C)]
 pub struct CMessageCallback {
     callback: extern "C" fn(ReceivedMessage)
@@ -100,7 +98,6 @@ pub fn get_self_address_internal(callback: CStringCallback) -> anyhow::Result<()
     // get address as cstring
     let c_string = CString::new(nym_client.nym_address().to_string())?;
 
-    // callback(c_string.as_ptr()); // old use
     let call = CStringCallback::new(callback.callback);
     // as_ptr() keeps ownership in rust unlike into_raw() so no need to free it
     call.trigger(c_string.as_ptr());
@@ -202,7 +199,6 @@ pub fn listen_for_incoming_internal(callback: CMessageCallback) -> anyhow::Resul
             size: message_length,
             sender_tag: sender_ptr,
         };
-        // callback(rec_for_c); // old use
         let call = CMessageCallback::new(callback.callback);
         call.trigger(rec_for_c);
         Ok::<(), anyhow::Error>(())

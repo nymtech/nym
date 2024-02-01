@@ -16,3 +16,4 @@ These are some findings from our legal team as an example:
 - [United States](united-states.md)
 
 > Nym Node operators are invited to add their legal findings directly through [pull requests](add-content.md).
+

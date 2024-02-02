@@ -306,6 +306,7 @@ impl TryFrom<&[u8]> for RequestInfo {
             v_bytes,
             CompactEcashError::Deserialization("Failed to deserialize v".to_string()),
         )?;
+        j += v_len;
 
         let exp_date_bytes = bytes[j..j + exp_date_len].try_into().unwrap();
         let exp_date = try_deserialize_scalar(

@@ -206,7 +206,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                 // because we have already committed to dealings of particular size
                 // yet we don't have relevant chunks after chunking
                 let chunk = chunks
-                    .remove(&chunk_index)
+                    .remove(chunk_index)
                     .expect("chunking specification has changed mid-exchange!");
                 debug!("[dealing {dealing_index}]: resubmitting chunk index {chunk_index}");
                 self.dkg_client
@@ -547,14 +547,10 @@ pub(crate) mod tests {
             .get(self_dealer.address.as_str())
             .unwrap();
 
-        for submitted_dealing in submitted_dealings {
-            let dealing = Dealing::try_from_bytes(submitted_dealing.data.as_slice())?;
-            assert_eq!(
-                generated_dealings
-                    .get(&submitted_dealing.dealing_index)
-                    .unwrap(),
-                &dealing
-            )
+        for (dealing_index, submitted_info) in submitted_dealings {
+            let dealing = Dealing::try_from_bytes(&submitted_info.unchecked_rebuild())?;
+
+            assert_eq!(generated_dealings.get(dealing_index).unwrap(), &dealing)
         }
 
         Ok(())

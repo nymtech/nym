@@ -730,9 +730,10 @@ pub(crate) mod tests {
             .entry(epoch)
             .and_modify(|epoch_dealings| {
                 let validator_dealings = epoch_dealings.get_mut(&address.to_string()).unwrap();
-                let mut last = validator_dealings.pop().unwrap();
-                last.data.0.pop();
-                validator_dealings.push(last);
+                let mut first = validator_dealings.remove(&0).unwrap();
+                let first_chunk = first.chunks.get_mut(&0).unwrap();
+                first_chunk.0.pop().unwrap();
+                validator_dealings.insert(0, first);
             });
 
         for controller in controllers.iter_mut() {
@@ -822,8 +823,10 @@ pub(crate) mod tests {
             .entry(epoch)
             .and_modify(|epoch_dealings| {
                 let validator_dealings = epoch_dealings.get_mut(&address.to_string()).unwrap();
-                validator_dealings.iter_mut().for_each(|dealing| {
-                    dealing.data.0.pop();
+                validator_dealings.values_mut().for_each(|dealing| {
+                    dealing.chunks.values_mut().for_each(|chunk| {
+                        chunk.0.pop();
+                    })
                 });
             });
 
@@ -879,14 +882,15 @@ pub(crate) mod tests {
             .entry(epoch)
             .and_modify(|epoch_dealings| {
                 let validator_dealings = epoch_dealings.get_mut(&address.to_string()).unwrap();
-                let mut last = validator_dealings.pop().unwrap();
-                let value = last.data.0.pop().unwrap();
+                let chunks = &mut validator_dealings.get_mut(&0).unwrap().chunks;
+                let mut last_entry = chunks.last_entry().unwrap();
+                let last = last_entry.get_mut();
+                let value = last.0.pop().unwrap();
                 if value == 42 {
-                    last.data.0.push(43);
+                    last.0.push(43);
                 } else {
-                    last.data.0.push(42);
+                    last.0.push(42);
                 }
-                validator_dealings.push(last);
             });
 
         for controller in controllers.iter_mut() {
@@ -964,9 +968,10 @@ pub(crate) mod tests {
             .entry(epoch)
             .and_modify(|epoch_dealings| {
                 let validator_dealings = epoch_dealings.get_mut(&address.to_string()).unwrap();
-                let mut last = validator_dealings.pop().unwrap();
-                last.data.0.pop();
-                validator_dealings.push(last);
+                let mut first = validator_dealings.remove(&0).unwrap();
+                let first_chunk = first.chunks.get_mut(&0).unwrap();
+                first_chunk.0.pop().unwrap();
+                validator_dealings.insert(0, first);
             });
 
         for controller in controllers.iter_mut().skip(1) {

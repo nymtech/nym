@@ -211,10 +211,17 @@ pub struct ErrorResponse {
     pub reply: ErrorResponseReply,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
 pub enum ErrorResponseReply {
+    #[error("{msg}")]
+    Generic { msg: String },
+    #[error(
+        "version mismatch: response is v{request_version} and response is v{response_version}"
+    )]
     VersionMismatch {
         request_version: u8,
         response_version: u8,
     },
+    #[error("destination failed exit policy filter check")]
+    ExitPolicyFilterCheckFailed { dst: String },
 }

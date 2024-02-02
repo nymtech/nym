@@ -5,8 +5,8 @@ use std::{
 
 use futures::StreamExt;
 use nym_ip_packet_requests::{
-    DynamicConnectFailureReason, IpPacketRequest, IpPacketRequestData, IpPacketResponse,
-    StaticConnectFailureReason,
+    request::{IpPacketRequest, IpPacketRequestData},
+    response::{DynamicConnectFailureReason, IpPacketResponse, StaticConnectFailureReason},
 };
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
@@ -182,7 +182,7 @@ pub(crate) struct ConnectedClient {
 impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
-        connect_request: nym_ip_packet_requests::StaticConnectRequest,
+        connect_request: nym_ip_packet_requests::request::StaticConnectRequest,
     ) -> Result<Option<IpPacketResponse>> {
         log::info!(
             "Received static connect request from {sender_address}",
@@ -244,7 +244,7 @@ impl MixnetListener {
 
     async fn on_dynamic_connect_request(
         &mut self,
-        connect_request: nym_ip_packet_requests::DynamicConnectRequest,
+        connect_request: nym_ip_packet_requests::request::DynamicConnectRequest,
     ) -> Result<Option<IpPacketResponse>> {
         log::info!(
             "Received dynamic connect request from {sender_address}",
@@ -294,7 +294,7 @@ impl MixnetListener {
 
     async fn on_data_request(
         &mut self,
-        data_request: nym_ip_packet_requests::DataRequest,
+        data_request: nym_ip_packet_requests::request::DataRequest,
     ) -> Result<Option<IpPacketResponse>> {
         log::trace!("Received data request");
 

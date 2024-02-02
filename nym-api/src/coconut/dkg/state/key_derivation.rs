@@ -61,7 +61,7 @@ pub enum DealerRejectionReason {
         err_msg: String,
     },
 
-    #[error("the dealing at index {index} is [cryptographically] valid: {err_msg}")]
+    #[error("the dealing at index {index} is [cryptographically] invalid: {err_msg}")]
     InvalidDealing {
         index: DealingIndex,
         err_msg: String,

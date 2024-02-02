@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealings::storage::{StoredDealing, DEALINGS_METADATA};
+use crate::state::storage::STATE;
 use cosmwasm_std::{Deps, StdResult};
 use nym_coconut_dkg_common::dealing::{
-    DealingChunkResponse, DealingChunkStatusResponse, DealingMetadataResponse,
-    DealingStatusResponse,
+    DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
+    DealingMetadataResponse, DealingStatus, DealingStatusResponse,
 };
 use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
+use std::collections::BTreeMap;
 
 /// Get the metadata associated with the particular dealing
 pub fn query_dealing_metadata(
@@ -27,6 +29,34 @@ pub fn query_dealing_metadata(
     })
 }
 
+/// Get the status of all dealings of particular dealer for given epoch.
+pub fn query_dealer_dealings_status(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
+    dealer: String,
+) -> StdResult<DealerDealingsStatusResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let state = STATE.load(deps.storage)?;
+
+    let mut dealing_submission_status: BTreeMap<DealingIndex, DealingStatus> = BTreeMap::new();
+
+    // Since our key size is in single digit range, querying all of this at once on chain is fine
+    for dealing_index in 0..state.key_size {
+        let metadata =
+            DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
+        dealing_submission_status.insert(dealing_index, metadata.into());
+    }
+
+    Ok(DealerDealingsStatusResponse {
+        epoch_id,
+        dealer,
+        all_dealings_fully_submitted: dealing_submission_status
+            .values()
+            .all(|d| d.fully_submitted),
+        dealing_submission_status,
+    })
+}
+
 /// Get the status of particular dealing, i.e. whether it has been fully submitted.
 pub fn query_dealing_status(
     deps: Deps<'_>,
@@ -37,17 +67,11 @@ pub fn query_dealing_status(
     let dealer = deps.api.addr_validate(&dealer)?;
     let metadata = DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
 
-    let full_dealing_submitted = if let Some(metadata) = metadata {
-        metadata.is_complete()
-    } else {
-        false
-    };
-
     Ok(DealingStatusResponse {
         epoch_id,
         dealer,
         dealing_index,
-        full_dealing_submitted,
+        status: metadata.into(),
     })
 }
 
@@ -62,22 +86,18 @@ pub fn query_dealing_chunk_status(
     let dealer = deps.api.addr_validate(&dealer)?;
     let metadata = DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
 
-    let submission_height = if let Some(metadata) = metadata {
-        if let Some(chunk) = metadata.submitted_chunks.get(&chunk_index) {
-            chunk.submission_height
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let status = metadata
+        .as_ref()
+        .and_then(|m| m.submitted_chunks.get(&chunk_index))
+        .map(|&c| c.status)
+        .unwrap_or_default();
 
     Ok(DealingChunkStatusResponse {
         epoch_id,
         dealer,
         dealing_index,
         chunk_index,
-        submission_height,
+        status,
     })
 }
 

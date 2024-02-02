@@ -12,7 +12,7 @@ use cosmwasm_std::Addr;
 use log::debug;
 use nym_coconut::{check_vk_pairing, Base58, SecretKey, VerificationKey};
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
-use nym_coconut_dkg_common::types::{DealingIndex, EpochId, NodeIndex, PartialContractDealing};
+use nym_coconut_dkg_common::types::{DealingIndex, EpochId, NodeIndex};
 use nym_coconut_interface::KeyPair as CoconutKeyPair;
 use nym_dkg::{
     bte::{self, decrypt_share},
@@ -21,7 +21,6 @@ use nym_dkg::{
 use nym_validator_client::nyxd::cosmwasm_client::logs::{find_attribute, Log};
 use nym_validator_client::nyxd::Hash;
 use rand::{CryptoRng, RngCore};
-use rocket::form::validate::Contains;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use thiserror::Error;
@@ -75,7 +74,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         epoch_id: EpochId,
         dealer: &Addr,
         epoch_receivers: &BTreeMap<NodeIndex, bte::PublicKey>,
-        raw_dealings: Vec<PartialContractDealing>,
+        raw_dealings: HashMap<DealingIndex, Vec<u8>>,
         prior_public_key: Option<VerificationKey>,
     ) -> Result<Result<Vec<(DealingIndex, Dealing)>, DealerRejectionReason>, KeyDerivationError>
     {
@@ -105,11 +104,9 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
         let mut temp_verified = Vec::with_capacity(raw_dealings.len());
         // make sure ALL of them verify correctly, we can't have a situation where dealing 2 is valid but dealing 3 is not
-        for raw_dealing in raw_dealings {
-            let index = raw_dealing.index;
-
+        for (index, data) in raw_dealings {
             // recover the actual dealing from its submitted bytes representation
-            let dealing = match Dealing::try_from_bytes(&raw_dealing.data) {
+            let dealing = match Dealing::try_from_bytes(&data) {
                 Ok(dealing) => dealing,
                 Err(err) => {
                     warn!("failed to recover dealing {index} from {dealer}: {err}");
@@ -184,6 +181,63 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         ))
     }
 
+    async fn get_raw_dealings(
+        &self,
+        epoch_id: EpochId,
+        dealer: &Addr,
+        resharing: bool,
+        initial_dealers: &[Addr],
+    ) -> Result<Result<HashMap<DealingIndex, Vec<u8>>, DealerRejectionReason>, KeyDerivationError>
+    {
+        let dealing_statuses = self
+            .dkg_client
+            .get_dealings_statuses(epoch_id, dealer.to_string())
+            .await?;
+
+        let submitted = dealing_statuses.full_dealings();
+
+        // no point in making any queries if the dealer hasn't submitted ALL expected dealings
+        if !dealing_statuses.all_dealings_fully_submitted {
+            // the dealer only submitted some subset of dealings
+            if submitted > 0 {
+                return Ok(Err(
+                    DealerRejectionReason::InsufficientNumberOfDealingsProvided {
+                        got: submitted,
+                        expected: dealing_statuses.dealing_submission_status.len(),
+                    },
+                ));
+            }
+
+            // we might be in resharing mode and this dealer was not in "initial" set.
+            // in that case we don't expect any dealings
+            if resharing && !initial_dealers.contains(&dealer) {
+                return Ok(Ok(HashMap::new()));
+            }
+            return Ok(Err(DealerRejectionReason::NoDealingsProvided));
+        }
+
+        // TODO: introduce caching here in case we crash or chain times out because those queries are EXPENSIVE
+
+        // rebuild the dealings
+        let mut raw_dealings = HashMap::new();
+        for (dealing_index, info) in dealing_statuses.dealing_submission_status {
+            let mut raw_dealing = Vec::new();
+
+            // note: we're iterating over a BTreeMap and so all chunk indices are guaranteed to be ordered
+            for chunk_index in info.chunk_submission_status.into_keys() {
+                let mut chunk_data = self
+                    .dkg_client
+                    .get_dealing_chunk(epoch_id, dealer.as_str(), dealing_index, chunk_index)
+                    .await?;
+                raw_dealing.append(&mut chunk_data);
+            }
+
+            raw_dealings.insert(dealing_index, raw_dealing);
+        }
+
+        Ok(Ok(raw_dealings))
+    }
+
     /// Attempt to retrieve valid dealings submitted this epoch.
     ///
     /// For each dealer that submitted a valid public key, query its dealings.
@@ -194,8 +248,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         epoch_id: EpochId,
         resharing: bool,
     ) -> Result<BTreeMap<DealingIndex, BTreeMap<NodeIndex, Dealing>>, KeyDerivationError> {
-        let expected_key_size = self.dkg_client.get_contract_state().await?.key_size;
-
         let mut valid_dealings: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
 
         // given at MOST we'll have like 50 entries here, iterating over entire vector for lookup is fine
@@ -211,32 +263,19 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             // note: if we're in resharing mode, the contract itself will forbid submission of dealings from
             // parties that were not "initial" dealers, so we don't have to worry about it
 
-            // TODO: introduce caching here in case we crash because those queries are EXPENSIVE
-            let raw_dealings = self
-                .dkg_client
-                .get_dealings(epoch_id, dealer.to_string())
-                .await?;
-
-            if raw_dealings.is_empty() {
-                // we might be in resharing mode and this dealer was not in "initial" set.
-                // in that case we don't expect any dealings
-                if resharing && !initial_dealers.contains(&dealer) {
+            let raw_dealings = match self
+                .get_raw_dealings(epoch_id, &dealer, resharing, &initial_dealers)
+                .await?
+            {
+                Ok(dealings) => dealings,
+                Err(rejection) => {
+                    self.blacklist_dealer(epoch_id, dealer, rejection)?;
                     continue;
                 }
-                self.blacklist_dealer(epoch_id, dealer, DealerRejectionReason::NoDealingsProvided)?;
-                continue;
-            }
+            };
 
-            // no point in verifying any dealings if we don't have all of them
-            if raw_dealings.len() != expected_key_size as usize {
-                self.blacklist_dealer(
-                    epoch_id,
-                    dealer,
-                    DealerRejectionReason::InsufficientNumberOfDealingsProvided {
-                        got: raw_dealings.len(),
-                        expected: expected_key_size as usize,
-                    },
-                )?;
+            // nothing to do
+            if raw_dealings.is_empty() {
                 continue;
             }
 
@@ -449,9 +488,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // submitted proposals and find the one with our address
         self.get_validation_proposals()
             .await?
-            .get(&Addr::unchecked(
-                self.dkg_client.get_address().await.as_ref(),
-            ))
+            .get(self.dkg_client.get_address().await.as_ref())
             .copied()
             .ok_or(KeyDerivationError::UnrecoverableProposalId)
     }

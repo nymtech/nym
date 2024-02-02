@@ -13,8 +13,8 @@ use cosmwasm_schema::cw_serde;
 use crate::{
     dealer::{DealerDetailsResponse, PagedDealerResponse},
     dealing::{
-        DealingChunkResponse, DealingChunkStatusResponse, DealingMetadataResponse,
-        DealingStatusResponse,
+        DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
+        DealingMetadataResponse, DealingStatusResponse,
     },
     types::{Epoch, InitialReplacementData, State},
     verification_key::{PagedVKSharesResponse, VkShareResponse},
@@ -107,6 +107,9 @@ pub enum QueryMsg {
         dealer: String,
         dealing_index: DealingIndex,
     },
+
+    #[cfg_attr(feature = "schema", returns(DealerDealingsStatusResponse))]
+    GetDealerDealingsStatus { epoch_id: EpochId, dealer: String },
 
     #[cfg_attr(feature = "schema", returns(DealingStatusResponse))]
     GetDealingStatus {

@@ -4,7 +4,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 // some sane upper-bound size on byte sizes
 // currently set to 128 bytes
@@ -20,6 +20,12 @@ impl Deref for ContractSafeBytes {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for ContractSafeBytes {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

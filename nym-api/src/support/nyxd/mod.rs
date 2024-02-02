@@ -9,10 +9,13 @@ use async_trait::async_trait;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use nym_coconut_dkg_common::dealer::DealingStatusResponse;
+use nym_coconut_dkg_common::dealing::{
+    DealerDealingsStatusResponse, DealingChunkInfo, DealingMetadata, DealingStatusResponse,
+    PartialContractDealing,
+};
 use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
 use nym_coconut_dkg_common::types::{
-    DealingIndex, InitialReplacementData, PartialContractDealing, State,
+    ChunkIndex, DealingIndex, InitialReplacementData, PartialContractDealingData, State,
 };
 use nym_coconut_dkg_common::{
     dealer::{DealerDetails, DealerDetailsResponse},
@@ -424,6 +427,17 @@ impl crate::coconut::client::Client for Client {
         Ok(nyxd_query!(self, get_dealer_details(self_address).await?))
     }
 
+    async fn get_dealer_dealings_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> crate::coconut::error::Result<DealerDealingsStatusResponse> {
+        Ok(nyxd_query!(
+            self,
+            get_dealer_dealings_status(epoch_id, dealer).await?
+        ))
+    }
+
     async fn get_dealing_status(
         &self,
         epoch_id: EpochId,
@@ -440,14 +454,32 @@ impl crate::coconut::client::Client for Client {
         Ok(nyxd_query!(self, get_all_current_dealers().await?))
     }
 
-    async fn get_dealings(
+    async fn get_dealing_metadata(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> crate::coconut::error::Result<Option<DealingMetadata>> {
+        Ok(nyxd_query!(
+            self,
+            get_dealings_metadata(epoch_id, dealer, dealing_index)
+                .await?
+                .metadata
+        ))
+    }
+
+    async fn get_dealing_chunk(
         &self,
         epoch_id: EpochId,
         dealer: &str,
-    ) -> crate::coconut::error::Result<Vec<PartialContractDealing>> {
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) -> crate::coconut::error::Result<Option<PartialContractDealingData>> {
         Ok(nyxd_query!(
             self,
-            get_all_dealer_dealings(epoch_id, dealer).await?
+            get_dealing_chunk(epoch_id, dealer.to_string(), dealing_index, chunk_index)
+                .await?
+                .chunk
         ))
     }
 
@@ -502,14 +534,26 @@ impl crate::coconut::client::Client for Client {
         ))
     }
 
-    async fn submit_dealing(
+    async fn submit_dealing_metadata(
         &self,
-        dealing: PartialContractDealing,
+        dealing_index: DealingIndex,
+        chunks: Vec<DealingChunkInfo>,
+        resharing: bool,
+    ) -> crate::coconut::error::Result<ExecuteResult> {
+        Ok(nyxd_signing!(
+            self,
+            submit_dealing_metadata(dealing_index, chunks, resharing, None).await?
+        ))
+    }
+
+    async fn submit_dealing_chunk(
+        &self,
+        chunk: PartialContractDealing,
         resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(nyxd_signing!(
             self,
-            submit_dealing_bytes(dealing, resharing, None).await?
+            submit_dealing_chunk(chunk, resharing, None).await?
         ))
     }
 

@@ -653,7 +653,7 @@ impl super::client::Client for DummyClient {
             epoch_id,
             dealer: Addr::unchecked(dealer),
             dealing_index,
-            dealing_submitted: dealings.get(dealing_index as usize).is_some(),
+            full_dealing_submitted: dealings.get(dealing_index as usize).is_some(),
         })
     }
 

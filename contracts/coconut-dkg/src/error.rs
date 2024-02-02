@@ -84,7 +84,7 @@ pub enum ContractError {
         chunks: usize,
     },
 
-    #[error("")]
+    #[error("the declared chunk split for epoch {epoch_id} from dealer {dealer} for dealing index {dealing_index} is uneven. first chunk has size of {first_chunk_size} while chunk at index {chunk_index} has {size}")]
     UnevenChunkSplit {
         epoch_id: EpochId,
         dealer: Addr,
@@ -92,6 +92,16 @@ pub enum ContractError {
         chunk_index: ChunkIndex,
         first_chunk_size: usize,
         size: usize,
+    },
+
+    #[error("the received chunk for epoch {epoch_id} from dealer {dealer} at dealing index {dealing_index} at chunk index {chunk_index} has inconsistent length. the metadata contains length of {metadata_length} while the received data is {received} bytes long")]
+    InconsistentChunkLength {
+        epoch_id: EpochId,
+        dealer: Addr,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+        metadata_length: usize,
+        received: usize,
     },
 
     #[error("dealer {dealer} has attempted to commit dealing metadata for epoch {epoch_id} for dealing index {dealing_index} zero chunks")]

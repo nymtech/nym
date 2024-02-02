@@ -1,8 +1,8 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::NymApiStorageError;
-use nym_coconut_dkg_common::types::EpochId;
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
@@ -141,9 +141,12 @@ pub enum CoconutError {
     #[error("the proposal id value for epoch {epoch_id} is not available")]
     UnavailableProposalId { epoch_id: EpochId },
 
-    #[error("insufficient number of dealings provided to derive the key")]
-    InsufficientDealings {
-        // TODO: details
+    #[error("could not find dealing chunk {chunk_index} for dealing {dealing_index} from dealer {dealer} for epoch {epoch_id} on the chain!")]
+    MissingDealingChunk {
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
     },
 }
 

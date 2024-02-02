@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::client::Client;
@@ -6,9 +6,12 @@ use crate::coconut::error::CoconutError;
 use cw3::{ProposalResponse, Status, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse};
+use nym_coconut_dkg_common::dealing::{
+    DealerDealingsStatusResponse, DealingChunkInfo, PartialContractDealing,
+};
 use nym_coconut_dkg_common::types::{
-    DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, NodeIndex,
-    PartialContractDealing, State as ContractState,
+    ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData,
+    NodeIndex, PartialContractDealingData, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_contracts_common::IdentityKey;
@@ -75,25 +78,32 @@ impl DkgClient {
         self.inner.get_current_dealers().await
     }
 
-    pub(crate) async fn get_dealing_status(
-        &self,
-        epoch_id: EpochId,
-        dealing_index: DealingIndex,
-    ) -> Result<bool, CoconutError> {
-        let address = self.inner.address().await.to_string();
-
-        self.inner
-            .get_dealing_status(epoch_id, address, dealing_index)
-            .await
-            .map(|r| r.dealing_submitted)
-    }
-
-    pub(crate) async fn get_dealings(
+    pub(crate) async fn get_dealings_statuses(
         &self,
         epoch_id: EpochId,
         dealer: String,
-    ) -> Result<Vec<PartialContractDealing>, CoconutError> {
-        self.inner.get_dealings(epoch_id, &dealer).await
+    ) -> Result<DealerDealingsStatusResponse, CoconutError> {
+        self.inner
+            .get_dealer_dealings_status(epoch_id, dealer)
+            .await
+    }
+
+    pub(crate) async fn get_dealing_chunk(
+        &self,
+        epoch_id: EpochId,
+        dealer: &str,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) -> Result<PartialContractDealingData, CoconutError> {
+        self.inner
+            .get_dealing_chunk(epoch_id, dealer, dealing_index, chunk_index)
+            .await?
+            .ok_or(CoconutError::MissingDealingChunk {
+                epoch_id,
+                dealer: dealer.to_string(),
+                dealing_index,
+                chunk_index,
+            })
     }
 
     pub(crate) async fn get_verification_key_share<S: Into<String>>(
@@ -165,12 +175,24 @@ impl DkgClient {
         Ok(node_index)
     }
 
-    pub(crate) async fn submit_dealing(
+    pub(crate) async fn submit_dealing_metadata(
         &self,
-        dealing: PartialContractDealing,
+        dealing_index: DealingIndex,
+        chunks: Vec<DealingChunkInfo>,
         resharing: bool,
     ) -> Result<(), CoconutError> {
-        self.inner.submit_dealing(dealing, resharing).await?;
+        self.inner
+            .submit_dealing_metadata(dealing_index, chunks, resharing)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn submit_dealing_chunk(
+        &self,
+        chunk: PartialContractDealing,
+        resharing: bool,
+    ) -> Result<(), CoconutError> {
+        self.inner.submit_dealing_chunk(chunk, resharing).await?;
         Ok(())
     }
 

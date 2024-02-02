@@ -6,7 +6,8 @@ use crate::dealers::queries::{
 };
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::{
-    query_dealing_chunk, query_dealing_chunk_status, query_dealing_metadata, query_dealing_status,
+    query_dealer_dealings_status, query_dealing_chunk, query_dealing_chunk_status,
+    query_dealing_metadata, query_dealing_status,
 };
 use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
 use crate::epoch_state::queries::{
@@ -149,6 +150,9 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             dealer,
             dealing_index,
         )?)?,
+        QueryMsg::GetDealerDealingsStatus { epoch_id, dealer } => {
+            to_binary(&query_dealer_dealings_status(deps, epoch_id, dealer)?)?
+        }
         QueryMsg::GetDealingStatus {
             epoch_id,
             dealer,

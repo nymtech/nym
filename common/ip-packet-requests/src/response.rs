@@ -71,11 +71,31 @@ impl IpPacketResponse {
         }
     }
 
+    pub fn new_version_mismatch(
+        request_id: u64,
+        reply_to: Recipient,
+        request_version: u8,
+        our_version: u8,
+    ) -> Self {
+        Self {
+            version: CURRENT_VERSION,
+            data: IpPacketResponseData::Error(ErrorResponse {
+                request_id,
+                reply_to,
+                reply: ErrorResponseReply::VersionMismatch {
+                    request_version,
+                    response_version: our_version,
+                },
+            }),
+        }
+    }
+
     pub fn id(&self) -> Option<u64> {
         match &self.data {
             IpPacketResponseData::StaticConnect(response) => Some(response.request_id),
             IpPacketResponseData::DynamicConnect(response) => Some(response.request_id),
             IpPacketResponseData::Data(_) => None,
+            IpPacketResponseData::Error(response) => Some(response.request_id),
         }
     }
 
@@ -84,6 +104,7 @@ impl IpPacketResponse {
             IpPacketResponseData::StaticConnect(response) => Some(&response.reply_to),
             IpPacketResponseData::DynamicConnect(response) => Some(&response.reply_to),
             IpPacketResponseData::Data(_) => None,
+            IpPacketResponseData::Error(response) => Some(&response.reply_to),
         }
     }
 
@@ -106,6 +127,7 @@ pub enum IpPacketResponseData {
     StaticConnect(StaticConnectResponse),
     DynamicConnect(DynamicConnectResponse),
     Data(DataResponse),
+    Error(ErrorResponse),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -180,4 +202,19 @@ pub enum DynamicConnectFailureReason {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataResponse {
     pub ip_packet: bytes::Bytes,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ErrorResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
+    pub reply: ErrorResponseReply,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ErrorResponseReply {
+    VersionMismatch {
+        request_version: u8,
+        response_version: u8,
+    },
 }

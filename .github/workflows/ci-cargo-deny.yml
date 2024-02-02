@@ -1,5 +1,8 @@
 name: ci-cargo-deny
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
+  pull_request:
+
 jobs:
   cargo-deny:
     runs-on: ubuntu-22.04
@@ -7,10 +10,7 @@ jobs:
       matrix:
         checks:
           # - advisories
-          - licenses
-          - bans sources
-
-    continue-on-error: ${{ matrix.checks == 'licenses' }}
+          - licenses bans sources
 
     steps:
     - uses: actions/checkout@v3

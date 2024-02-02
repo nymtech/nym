@@ -13,8 +13,8 @@ use serde::Deserialize;
 pub use nym_coconut_dkg_common::{
     dealer::{DealerDetailsResponse, PagedDealerResponse},
     dealing::{
-        DealingChunkResponse, DealingChunkStatusResponse, DealingMetadataResponse,
-        DealingStatusResponse,
+        DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
+        DealingMetadataResponse, DealingStatusResponse,
     },
     msg::QueryMsg as DkgQueryMsg,
     types::{
@@ -93,6 +93,16 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
+    async fn get_dealer_dealings_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<DealerDealingsStatusResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealerDealingsStatus { epoch_id, dealer };
+
+        self.query_dkg_contract(request).await
+    }
+
     async fn get_dealing_status(
         &self,
         epoch_id: EpochId,
@@ -114,7 +124,7 @@ pub trait DkgQueryClient {
         dealer: String,
         dealing_index: DealingIndex,
         chunk_index: ChunkIndex,
-    ) -> Result<DealingStatusResponse, NyxdError> {
+    ) -> Result<DealingChunkStatusResponse, NyxdError> {
         let request = DkgQueryMsg::GetDealingChunkStatus {
             epoch_id,
             dealer,
@@ -217,6 +227,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_coconut_dkg_common::msg::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -254,6 +265,9 @@ mod tests {
             } => client
                 .get_dealings_metadata(epoch_id, dealer, dealing_index)
                 .ignore(),
+            QueryMsg::GetDealerDealingsStatus { epoch_id, dealer } => {
+                client.get_dealer_dealings_status(epoch_id, dealer).ignore()
+            }
             DkgQueryMsg::GetDealingChunkStatus {
                 epoch_id,
                 dealer,

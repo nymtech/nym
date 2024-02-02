@@ -7,12 +7,11 @@ use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::KeyPairWithEpoch;
 use log::debug;
-use nym_coconut_dkg_common::types::{
-    ContractDealing, DealingIndex, EpochId, PartialContractDealing,
-};
+use nym_coconut_dkg_common::dealing::{chunk_dealing, DealingChunkInfo, MAX_DEALING_CHUNK_SIZE};
+use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
 use nym_dkg::{Dealing, Scalar};
 use rand::{CryptoRng, RngCore};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -63,6 +62,8 @@ pub enum DealingGenerationError {
 }
 
 impl<R: RngCore + CryptoRng> DkgController<R> {
+    const DEALING_CHUNK_SIZE: usize = MAX_DEALING_CHUNK_SIZE;
+
     async fn generate_dealings(
         &mut self,
         epoch_id: EpochId,
@@ -153,28 +154,100 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         resharing: bool,
     ) -> Result<(), DealingGenerationError> {
         let dealing_state = self.state.dealing_exchange_state(epoch_id)?;
+        let address = self.dkg_client.get_address().await.to_string();
 
+        let status = self
+            .dkg_client
+            .get_dealings_statuses(epoch_id, address)
+            .await?;
+
+        if status.all_dealings_fully_submitted {
+            warn!("we have actually submitted all dealings for epoch {epoch_id}, but somehow haven't finalized the state!");
+            return Ok(());
+        }
+
+        // check which dealing is actually present on the chain (some might have gotten stuck in the mempool for quite a while)
         for (dealing_index, dealing) in &dealing_state.generated_dealings {
-            // check which dealing is actually present on the chain (some might have gotten stuck in the mempool for quite a while)
-            let dealing_submitted = self
-                .dkg_client
-                .get_dealing_status(epoch_id, *dealing_index)
-                .await?;
+            // check the dealing
+            let Some(dealing_status) = status.dealing_submission_status.get(dealing_index) else {
+                // we should NEVER see this error
+                error!("we have generated a dealing for index {dealing_index} but the contract does not require its submission!");
+                continue;
+            };
 
-            if dealing_submitted {
-                warn!("we have already submitted dealing {dealing_index} before - we probably crashed or the chain timed out!");
+            if !dealing_status.has_metadata {
+                // if the metadata doesn't exist on the chain, we haven't submitted anything - treat it as fresh submission
+                self.submit_fresh_dealing(*dealing_index, dealing, resharing)
+                    .await?;
                 continue;
             }
-            warn!(
-                "we have already generated dealing {dealing_index} before, but failed to submit it"
-            );
-            let contract_dealing =
-                PartialContractDealing::new(*dealing_index, ContractDealing::from(dealing));
+
+            if dealing_status.fully_submitted {
+                warn!("we have already submitted the full dealing {dealing_index} before - we probably crashed or the chain timed out!");
+                continue;
+            }
+
+            let mut needs_resubmission = HashSet::new();
+            for (chunk_id, chunk_status) in &dealing_status.chunk_submission_status {
+                if !chunk_status.submitted() {
+                    needs_resubmission.insert(chunk_id);
+                } else {
+                    warn!("[dealing {dealing_index}]: we have already submitted chunk at index {chunk_id} before - we probably crashed or the chain timed out!");
+                }
+            }
+
+            warn!("[dealing {dealing_index}]: the following chunks need to be resubmitted: {needs_resubmission:?}");
+
+            // perform the chunking (again)
+            let mut chunks =
+                chunk_dealing(*dealing_index, dealing.to_bytes(), Self::DEALING_CHUNK_SIZE);
+            for chunk_index in needs_resubmission {
+                // this is a hard failure, panic level, actually.
+                // because we have already committed to dealings of particular size
+                // yet we don't have relevant chunks after chunking
+                let chunk = chunks
+                    .remove(&chunk_index)
+                    .expect("chunking specification has changed mid-exchange!");
+                debug!("[dealing {dealing_index}]: resubmitting chunk index {chunk_index}");
+                self.dkg_client
+                    .submit_dealing_chunk(chunk, resharing)
+                    .await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn submit_fresh_dealing(
+        &self,
+        dealing_index: DealingIndex,
+        dealing: &Dealing,
+        resharing: bool,
+    ) -> Result<(), DealingGenerationError> {
+        let bytes = dealing.to_bytes();
+
+        // construct metadata
+        let chunk_info = DealingChunkInfo::construct(bytes.len(), Self::DEALING_CHUNK_SIZE);
+
+        let total_chunks = chunk_info.len();
+        debug!("dealing at index {dealing_index} has been chunked into {total_chunks} pieces",);
+
+        // submit the metadata
+        self.dkg_client
+            .submit_dealing_metadata(dealing_index, chunk_info, resharing)
+            .await?;
+
+        // actually chunk the dealing and submit the chunks
+        let chunks = chunk_dealing(dealing_index, bytes, Self::DEALING_CHUNK_SIZE);
+
+        for (chunk_index, chunk) in chunks {
+            let human_index = chunk_index + 1;
+            debug!("[dealing {dealing_index}]: submitting chunk index {chunk_index} ({human_index}/{total_chunks})");
 
             self.dkg_client
-                .submit_dealing(contract_dealing, resharing)
+                .submit_dealing_chunk(chunk, resharing)
                 .await?;
         }
+
         Ok(())
     }
 
@@ -376,15 +449,11 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             self.state.persist()?;
         }
 
-        for (i, (dealing_index, dealing)) in dealings.iter().enumerate() {
+        for (i, (&dealing_index, dealing)) in dealings.iter().enumerate() {
             let i = i + 1;
             debug!("submitting dealing index {dealing_index} ({i}/{total})");
 
-            let contract_dealing =
-                PartialContractDealing::new(*dealing_index, ContractDealing::from(dealing));
-
-            self.dkg_client
-                .submit_dealing(contract_dealing, resharing)
+            self.submit_fresh_dealing(dealing_index, dealing, resharing)
                 .await?;
         }
 
@@ -481,7 +550,9 @@ pub(crate) mod tests {
         for submitted_dealing in submitted_dealings {
             let dealing = Dealing::try_from_bytes(submitted_dealing.data.as_slice())?;
             assert_eq!(
-                generated_dealings.get(&submitted_dealing.index).unwrap(),
+                generated_dealings
+                    .get(&submitted_dealing.dealing_index)
+                    .unwrap(),
                 &dealing
             )
         }

@@ -3,7 +3,6 @@
 
 use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::error::CoconutError;
-use cosmwasm_std::Addr;
 use cw3::{ProposalResponse, Status};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use nym_validator_client::nyxd::AccountId;
@@ -15,7 +14,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &self,
         dkg_contract: &AccountId,
         proposal: &ProposalResponse,
-    ) -> Option<(Addr, u64)> {
+    ) -> Option<(String, u64)> {
         // make sure the proposal we're checking is:
         // - still open (not point in voting for anything that has already expired)
         // - was proposed by the DKG contract - so that we'd ignore anything from malicious dealers
@@ -30,7 +29,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
     pub(crate) async fn get_validation_proposals(
         &self,
-    ) -> Result<HashMap<Addr, u64>, CoconutError> {
+    ) -> Result<HashMap<String, u64>, CoconutError> {
         let dkg_contract = self.dkg_client.dkg_contract_address().await?;
 
         // FUTURE OPTIMIZATION: don't query for ALL proposals. say if we're in epoch 50,

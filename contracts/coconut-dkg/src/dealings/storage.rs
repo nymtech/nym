@@ -127,7 +127,7 @@ impl StoredDealing {
         let Some(chunk_info) = metadata.submitted_chunks.get(&chunk_index) else {
             return Ok(false);
         };
-        Ok(chunk_info.submission_height.is_some())
+        Ok(chunk_info.status.submitted())
         // StoredDealing::storage_key(epoch_id, dealer, dealing_index).has(storage)
     }
 

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ChunkIndex, DealingIndex, EpochId, PartialContractDealingData};
+use contracts_common::dealings::ContractSafeBytes;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Defines the maximum size of a dealing chunk. Currently set to 2kB
 pub const MAX_DEALING_CHUNK_SIZE: usize = 2048;
@@ -18,7 +19,26 @@ pub const MAX_DEALING_CHUNKS: usize = MAX_DEALING_SIZE / MAX_DEALING_CHUNK_SIZE;
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
 pub const DEFAULT_DEALINGS: usize = 2 + 2 + 1;
 
+pub fn chunk_dealing(
+    dealing_index: DealingIndex,
+    dealing_bytes: Vec<u8>,
+    chunk_size: usize,
+) -> HashMap<ChunkIndex, PartialContractDealing> {
+    let mut chunks = HashMap::new();
+    for (chunk_index, chunk) in dealing_bytes.chunks(chunk_size).enumerate() {
+        let chunk = PartialContractDealing {
+            dealing_index,
+            chunk_index: chunk_index as ChunkIndex,
+            data: ContractSafeBytes(chunk.to_vec()),
+        };
+        chunks.insert(chunk_index as ChunkIndex, chunk);
+    }
+
+    chunks
+}
+
 #[cw_serde]
+#[derive(Copy)]
 pub struct DealingChunkInfo {
     pub size: usize,
 }
@@ -45,11 +65,24 @@ impl DealingChunkInfo {
 }
 
 #[cw_serde]
+#[derive(Copy)]
 pub struct SubmittedChunk {
     pub info: DealingChunkInfo,
 
+    pub status: ChunkSubmissionStatus,
+}
+
+#[cw_serde]
+#[derive(Default, Copy)]
+pub struct ChunkSubmissionStatus {
     // this field is updated by the contract itself to indicate when this particular chunk has been received
     pub submission_height: Option<u64>,
+}
+
+impl ChunkSubmissionStatus {
+    pub fn submitted(&self) -> bool {
+        self.submission_height.is_some()
+    }
 }
 
 impl From<DealingChunkInfo> for SubmittedChunk {
@@ -62,8 +95,12 @@ impl SubmittedChunk {
     pub fn new(info: DealingChunkInfo) -> Self {
         SubmittedChunk {
             info,
-            submission_height: None,
+            status: Default::default(),
         }
+    }
+
+    pub fn submitted(&self) -> bool {
+        self.status.submitted()
     }
 }
 
@@ -87,13 +124,18 @@ impl DealingMetadata {
     }
 
     pub fn is_complete(&self) -> bool {
-        self.submitted_chunks
-            .values()
-            .all(|c| c.submission_height.is_some())
+        self.submitted_chunks.values().all(|c| c.submitted())
     }
 
     pub fn total_size(&self) -> usize {
         self.submitted_chunks.values().map(|c| c.info.size).sum()
+    }
+
+    pub fn submission_statuses(&self) -> BTreeMap<ChunkIndex, ChunkSubmissionStatus> {
+        self.submitted_chunks
+            .iter()
+            .map(|(id, c)| (*id, c.status))
+            .collect()
     }
 }
 
@@ -152,7 +194,7 @@ pub struct DealingChunkStatusResponse {
 
     pub chunk_index: ChunkIndex,
 
-    pub submission_height: Option<u64>,
+    pub status: ChunkSubmissionStatus,
 }
 
 #[cw_serde]
@@ -163,7 +205,51 @@ pub struct DealingStatusResponse {
 
     pub dealing_index: DealingIndex,
 
-    pub full_dealing_submitted: bool,
+    pub status: DealingStatus,
+}
+
+#[cw_serde]
+pub struct DealingStatus {
+    pub has_metadata: bool,
+
+    pub fully_submitted: bool,
+
+    pub chunk_submission_status: BTreeMap<ChunkIndex, ChunkSubmissionStatus>,
+}
+
+impl From<Option<DealingMetadata>> for DealingStatus {
+    fn from(metadata: Option<DealingMetadata>) -> Self {
+        DealingStatus {
+            has_metadata: metadata.is_some(),
+            fully_submitted: metadata
+                .as_ref()
+                .map(|m| m.is_complete())
+                .unwrap_or_default(),
+            chunk_submission_status: metadata
+                .map(|m| m.submission_statuses())
+                .unwrap_or_default(),
+        }
+    }
+}
+
+#[cw_serde]
+pub struct DealerDealingsStatusResponse {
+    pub epoch_id: EpochId,
+
+    pub dealer: Addr,
+
+    pub all_dealings_fully_submitted: bool,
+
+    pub dealing_submission_status: BTreeMap<DealingIndex, DealingStatus>,
+}
+
+impl DealerDealingsStatusResponse {
+    pub fn full_dealings(&self) -> usize {
+        self.dealing_submission_status
+            .values()
+            .filter(|s| s.fully_submitted)
+            .count()
+    }
 }
 
 #[cfg(test)]

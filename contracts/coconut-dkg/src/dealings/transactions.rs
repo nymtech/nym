@@ -164,7 +164,7 @@ pub fn try_commit_dealings_chunk(
     };
 
     // check if this dealer has already committed this particular dealing chunk
-    if let Some(submission_height) = submission_status.submission_height {
+    if let Some(submission_height) = submission_status.status.submission_height {
         return Err(ContractError::DealingChunkAlreadyCommitted {
             epoch_id: epoch.epoch_id,
             dealer: info.sender,
@@ -174,8 +174,20 @@ pub fn try_commit_dealings_chunk(
         });
     }
 
+    // check if the received chunk has the specified size
+    if submission_status.info.size != chunk.data.len() {
+        return Err(ContractError::InconsistentChunkLength {
+            epoch_id: epoch.epoch_id,
+            dealer: info.sender,
+            dealing_index: chunk.dealing_index,
+            chunk_index: chunk.chunk_index,
+            metadata_length: submission_status.info.size,
+            received: chunk.data.len(),
+        });
+    }
+
     // update the metadata
-    submission_status.submission_height = Some(env.block.height);
+    submission_status.status.submission_height = Some(env.block.height);
     store_metadata(
         deps.storage,
         epoch.epoch_id,

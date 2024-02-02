@@ -147,7 +147,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             debug!("verifying vk share from {owner}");
 
             // there's no point in checking anything if there doesn't exist an associated multisig proposal
-            let Some(proposal_id) = proposals.get(&owner) else {
+            let Some(proposal_id) = proposals.get(owner.as_ref()) else {
                 warn!("there does not seem to exist proposal for share validation from {owner}");
                 continue;
             };

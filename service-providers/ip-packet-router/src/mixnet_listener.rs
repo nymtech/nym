@@ -6,7 +6,10 @@ use std::{
 use futures::StreamExt;
 use nym_ip_packet_requests::{
     request::{IpPacketRequest, IpPacketRequestData},
-    response::{DynamicConnectFailureReason, IpPacketResponse, StaticConnectFailureReason},
+    response::{
+        DynamicConnectFailureReason, ErrorResponseReply, IpPacketResponse,
+        StaticConnectFailureReason,
+    },
 };
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
@@ -96,13 +99,17 @@ impl ConnectedClients {
         self.clients.contains_key(ip)
     }
 
+    fn get_client_from_ip_mut(&mut self, ip: &IpAddr) -> Option<&mut ConnectedClient> {
+        self.clients.get_mut(ip)
+    }
+
     fn is_nym_address_connected(&self, nym_address: &Recipient) -> bool {
         self.clients
             .values()
             .any(|client| client.nym_address == *nym_address)
     }
 
-    fn get_ip(&self, nym_address: &Recipient) -> Option<IpAddr> {
+    fn lookup_ip_from_nym_address(&self, nym_address: &Recipient) -> Option<IpAddr> {
         self.clients.iter().find_map(|(ip, client)| {
             if client.nym_address == *nym_address {
                 Some(*ip)
@@ -112,7 +119,7 @@ impl ConnectedClients {
         })
     }
 
-    fn get_client_by_nym_address(&self, nym_address: &Recipient) -> Option<&ConnectedClient> {
+    fn lookup_client_from_nym_address(&self, nym_address: &Recipient) -> Option<&ConnectedClient> {
         self.clients
             .values()
             .find(|client| client.nym_address == *nym_address)
@@ -176,6 +183,12 @@ pub(crate) struct ConnectedClient {
     pub(crate) nym_address: Recipient,
     pub(crate) mix_hops: Option<u8>,
     pub(crate) last_activity: std::time::Instant,
+}
+
+impl ConnectedClient {
+    fn update_activity(&mut self) {
+        self.last_activity = std::time::Instant::now();
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -260,7 +273,7 @@ impl MixnetListener {
         // TODO: this is problematic. Until we sign connect requests this means you can spam people
         // with return traffic
 
-        if let Some(existing_ip) = self.connected_clients.get_ip(&reply_to) {
+        if let Some(existing_ip) = self.connected_clients.lookup_ip_from_nym_address(&reply_to) {
             log::info!("Found existing client for nym address");
             if self
                 .connected_clients
@@ -315,30 +328,60 @@ impl MixnetListener {
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
         log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
 
-        // Check if there is a connected client for this src_addr. If there is, update the last activity time
-        // for the client. If there isn't, drop the packet.
-        if self.connected_clients.update_activity(&src_addr).is_err() {
+        if let Some(connected_client) = self.connected_clients.get_client_from_ip_mut(&src_addr) {
+            // Keep track of activity so we can disconnect inactive clients
+            connected_client.update_activity();
+
+            // For packets without a port, use 0.
+            let dst = dst.unwrap_or_else(|| SocketAddr::new(dst_addr, 0));
+
+            // Filter check
+            if self.request_filter.check_address(&dst).await {
+                // Forward the packet to the TUN device where it will be routed out to the internet
+                self.tun_writer
+                    .write_all(&data_request.ip_packet)
+                    .await
+                    .map_err(|_| IpPacketRouterError::FailedToWritePacketToTun)?;
+                Ok(None)
+            } else {
+                log::info!("Denied filter check: {dst}");
+                Ok(Some(IpPacketResponse::new_data_error_response(
+                    connected_client.nym_address,
+                    ErrorResponseReply::ExitPolicyFilterCheckFailed {
+                        dst: dst.to_string(),
+                    },
+                )))
+            }
+        } else {
+            // If the client is not connected, just drop the packet silently
             log::info!("Dropping packet: no connected client for {src_addr}");
-            return Ok(None);
+            Ok(None)
         }
-
-        // Filter check
-        let dst = dst.unwrap_or_else(|| SocketAddr::new(dst_addr, 0));
-        if !self.request_filter.check_address(&dst).await {
-            log::info!("Denied filter check: {dst}");
-            // TODO: we could consider sending back a response here
-            return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
-        }
-
-        // TODO: consider changing from Vec<u8> to bytes::Bytes?
-        let packet = data_request.ip_packet;
-        self.tun_writer
-            .write_all(&packet)
-            .await
-            .map_err(|_| IpPacketRouterError::FailedToWritePacketToTun)?;
-
-        Ok(None)
     }
+
+    fn on_version_mismatch(
+        &self,
+        version: u8,
+        reconstructed: &ReconstructedMessage,
+    ) -> Result<Option<IpPacketResponse>> {
+        // If it's possible to parse, do so and return back a response, otherwise just drop
+        let (id, recipient) = IpPacketRequest::from_reconstructed_message(reconstructed)
+            .ok()
+            .and_then(|request| {
+                request
+                    .recipient()
+                    .map(|recipient| (request.id().unwrap_or(0), *recipient))
+            })
+            .ok_or(IpPacketRouterError::InvalidPacketVersion(version))?;
+
+        Ok(Some(IpPacketResponse::new_version_mismatch(
+            id,
+            recipient,
+            version,
+            nym_ip_packet_requests::CURRENT_VERSION,
+        )))
+    }
+
     async fn on_reconstructed_message(
         &mut self,
         reconstructed: ReconstructedMessage,
@@ -353,8 +396,8 @@ impl MixnetListener {
             // The idea is that in the future we can add logic here to parse older versions to stay
             // backwards compatible.
             if *version != nym_ip_packet_requests::CURRENT_VERSION {
-                log::warn!("Received packet with invalid version");
-                return Err(IpPacketRouterError::InvalidPacketVersion(*version));
+                log::info!("Received packet with invalid version: v{version}");
+                return self.on_version_mismatch(*version, &reconstructed);
             }
         }
 
@@ -388,7 +431,7 @@ impl MixnetListener {
         // We could avoid this lookup if we check this when we create the response.
         let mix_hops = self
             .connected_clients
-            .get_client_by_nym_address(recipient)
+            .lookup_client_from_nym_address(recipient)
             .and_then(|c| c.mix_hops);
 
         let input_message = create_input_message(*recipient, response_packet, mix_hops);

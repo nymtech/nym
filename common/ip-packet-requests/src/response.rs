@@ -90,6 +90,17 @@ impl IpPacketResponse {
         }
     }
 
+    pub fn new_data_error_response(reply_to: Recipient, reply: ErrorResponseReply) -> Self {
+        Self {
+            version: CURRENT_VERSION,
+            data: IpPacketResponseData::Error(ErrorResponse {
+                request_id: 0,
+                reply_to,
+                reply,
+            }),
+        }
+    }
+
     pub fn id(&self) -> Option<u64> {
         match &self.data {
             IpPacketResponseData::StaticConnect(response) => Some(response.request_id),

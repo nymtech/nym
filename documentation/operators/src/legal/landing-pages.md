@@ -257,4 +257,78 @@ specified IP:port combination. Please be considerate when using these options.</
 </html>
 ```
 
+If you're reversing the default 8080 endpoint you may set the landing page accordingly and may resolve it to
+https://nym-exit.yourdomain.org or https://nym-readme.yourdomain.org.
 
+The following assumes that you're owning a domain and that you've already set the Let's Encrypt certificates on your hosting, and you've copied those on your Gateway, i.e. copy the two Let's Encript pem files on your Gateway's home folder.
+Else you may obtain a Let's Encrpyt certificate using a -[-certonly procedure](https://eff-certbot.readthedocs.io/en/latest/using.html#getting-certificates-and-choosing-plugins).
+
+```
+sudo apt install nginx
+```
+If you're running your Gateway (you should...) exposing only the needed ports as listed [here](https://nymtech.net/operators/nodes/maintenance.html?highlight=port#ports), you need to add the Nginx service to your ufw configuration:
+```
+sudo ufw app list
+sudo ufw allow 'Nginx Full'
+sudo ufw reload
+```
+Disable the default Nginx landing page and configure the reverse proxy, changing the nym-exit.yourdomain.org occurrencies and the PATHs accordingly.
+```
+sudo systemctl status nginx
+sudo unlink /etc/nginx/sites-enabled/default
+sudo systemctl restart nginx
+```
+Add your endpoint configuration to Nginx:
+```
+sudo nano /etc/nginx/sites-available/nym-exit.yourdomain.org
+```
+by addng and modifying the following 
+```
+server {
+  listen 443 ssl http2;
+  listen [::]:443 ssl http2;
+
+  server_name nym-exit.yourdomain.org;
+
+  ssl_certificate <PATH TO>/fullchain.pem;
+  ssl_certificate_key <PATH TO>/privkey.pem;
+
+  access_log /var/log/nginx/access.log;
+  error_log /var/log/nginx/error.log;
+
+  location / {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}
+
+server {
+  listen 80;
+  listen [::]:80;
+  
+  if ($host = nym-exit.yourdomain.org) {
+    return 301 https://$host$request_uri;
+  }
+
+  server_name yourdomain.org www.yourdomain.org;
+
+  return 301 https://yourdomain.org$request_uri;
+}
+```
+
+```
+sudo ln -s /etc/nginx/sites-available/nym-gateway.avril14th.org /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+Modify and copy then the landing page snippet shown above on your Gateway and point the service to it:
+```
+nano ${HOME}/.nym/gateways/avril14th02/config/config.toml
+```
+change the PATH_TO to point to your file
+```
+landing_page_assets_path = '<PATH TO>nym_exit_landing_page_avril14th.html'```
+```
+Restart your Gatewy service.

@@ -104,7 +104,7 @@ members = [
     "nym-outfox",
     "nym-validator-rewarder",
     "tools/internal/ssl-inject",
-    "tools/internal/sdk-version-bump",
+    # "tools/internal/sdk-version-bump",
     "tools/nym-cli",
     "tools/nym-nr-query",
     "tools/nymvisor",

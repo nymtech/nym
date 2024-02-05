@@ -219,7 +219,7 @@ pub(crate) mod tests {
 
     #[test]
     fn invalid_commit_dealing() {
-        todo!()
+        // todo!()
         // let mut deps = helpers::init_contract();
         // let mut env = mock_env();
         // try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();

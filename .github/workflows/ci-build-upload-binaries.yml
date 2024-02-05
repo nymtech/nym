@@ -61,7 +61,7 @@ jobs:
 
       - name: Build deb packages
         shell: bash
-        run: scripts/ppa.sh ${{ secrets.PPA_SIGNING_KEY }}
+        run: make deb
 
       - name: Prepare build output
         shell: bash
@@ -77,7 +77,7 @@ jobs:
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
-          cp ppa/debian/* $OUTPUT_DIR
+          cp target/debian/*.deb $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true

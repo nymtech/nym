@@ -3,10 +3,11 @@
 
 use clap::Parser;
 use log::{debug, info};
+use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
 use std::str::FromStr;
 
 use nym_coconut_dkg_common::msg::InstantiateMsg;
-use nym_coconut_dkg_common::types::{TimeConfiguration, DEFAULT_DEALINGS};
+use nym_coconut_dkg_common::types::TimeConfiguration;
 use nym_validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]

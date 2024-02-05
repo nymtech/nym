@@ -10,6 +10,8 @@ use std::mem::forget;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
+uniffi::setup_scaffolding!();
+
 // NYM_CLIENT: Static reference (only init-ed once) to:
 //     - Arc: share ownership
 //     - Mutex: thread-safe way to share data between threads
@@ -35,7 +37,6 @@ pub enum StatusCode {
 // impl UniffiCustomTypeConverter trait used by uniffi-bindgen-go
 // in go FFI repo
 #[repr(C)]
-#[uniffi::export]
 pub struct CStringCallback {
    pub callback: extern "C" fn(*const c_char)
 }
@@ -48,6 +49,20 @@ impl CStringCallback {
         (self.callback)(char);
     }
 }
+
+impl UniffiCustomTypeConverter for CStringCallback {
+    type Builtin = extern "C" fn(*const c_char);
+
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
+        Ok(CStringCallback{
+            callback: val
+        })
+    }
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.callback
+    }
+}
+
 
 #[repr(C)]
 pub struct CMessageCallback {

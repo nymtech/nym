@@ -1,6 +1,9 @@
 [External="nym_ffi_shared"]
 typedef extern CStringCallback;
 
+[External="std::ffi"]
+typedef extern c_char;
+
 namespace bindings {
   void init_logging();
   i8 init_ephemeral();

@@ -2,27 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::ffi::{c_char, CString};
-use nym_ffi_shared::{
-    CStringCallback,
-    CMessageCallback,
-    init_ephemeral_internal,
-    get_self_address_internal
-};
+use nym_ffi_shared;
+use nym_ffi_shared::CStringCallback;
 uniffi::include_scaffolding!("bindings");
-
-
-impl UniffiCustomTypeConverter for CStringCallback {
-    type Builtin = extern "C" fn(*const c_char);
-
-    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
-        Ok(CStringCallback{
-            callback: val
-        })
-    }
-    fn from_custom(obj: Self) -> Self::Builtin {
-        obj.callback
-    }
-}
 
 #[no_mangle]
 pub extern "C" fn init_logging() {

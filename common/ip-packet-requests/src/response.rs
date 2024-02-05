@@ -233,6 +233,6 @@ pub enum ErrorResponseReply {
         request_version: u8,
         response_version: u8,
     },
-    #[error("destination failed exit policy filter check")]
+    #[error("destination failed exit policy filter check: {dst}")]
     ExitPolicyFilterCheckFailed { dst: String },
 }

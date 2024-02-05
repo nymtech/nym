@@ -118,7 +118,7 @@ impl TunListener {
 
         let mut bundled_packet_codec = mixnet_listener::BundledIpPacketCodec::new();
         // tokio timer for flushing the buffer
-        let mut bundle_timer = tokio::time::interval(Duration::from_millis(100));
+        let mut bundle_timer = tokio::time::interval(Duration::from_millis(20));
 
         while !self.task_client.is_shutdown() {
             tokio::select! {

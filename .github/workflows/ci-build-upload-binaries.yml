@@ -77,7 +77,7 @@ jobs:
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
-          cp target/debian/* $OUTPUT_DIR
+          cp target/debian/*.deb $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use cosmwasm_std::{Addr, Order, Record, StdResult, Storage};
-use cw_storage_plus::{Bound, Key, KeyDeserialize, Map, Path, Prefix, Prefixer, PrimaryKey};
+use cosmwasm_std::{Addr, Storage};
+use cw_storage_plus::{Key, Map, Path, PrimaryKey};
 use nym_coconut_dkg_common::dealing::{DealingMetadata, PartialContractDealing};
 use nym_coconut_dkg_common::types::{
     ChunkIndex, ContractSafeBytes, DealingIndex, EpochId, PartialContractDealingData,
@@ -22,15 +22,6 @@ pub(crate) fn metadata_exists(
     dealing_index: DealingIndex,
 ) -> bool {
     DEALINGS_METADATA.has(storage, (epoch_id, dealer, dealing_index))
-}
-
-pub(crate) fn may_read_metadata(
-    storage: &dyn Storage,
-    epoch_id: EpochId,
-    dealer: Dealer,
-    dealing_index: DealingIndex,
-) -> Result<Option<DealingMetadata>, ContractError> {
-    Ok(DEALINGS_METADATA.may_load(storage, (epoch_id, dealer, dealing_index))?)
 }
 
 pub(crate) fn must_read_metadata(
@@ -71,14 +62,52 @@ pub(crate) struct StoredDealing;
 impl StoredDealing {
     const NAMESPACE: &'static [u8] = b"dealing";
 
+    // prefix-range related should we need it
+    #[cfg(test)]
     fn deserialize_dealing_record(
-        kv: Record,
-    ) -> StdResult<(ChunkIndex, PartialContractDealingData)> {
+        kv: cosmwasm_std::Record,
+    ) -> cosmwasm_std::StdResult<(ChunkIndex, PartialContractDealingData)> {
         let (k, v) = kv;
-        let index = <ChunkIndex as KeyDeserialize>::from_vec(k)?;
+        let index = <ChunkIndex as cw_storage_plus::KeyDeserialize>::from_vec(k)?;
         let data = ContractSafeBytes(v);
 
         Ok((index, data))
+    }
+
+    // prefix-range related should we need it
+    #[cfg(test)]
+    fn prefix(
+        prefix: (EpochId, Dealer, DealingIndex),
+    ) -> cw_storage_plus::Prefix<ChunkIndex, PartialContractDealingData, ChunkIndex> {
+        use cw_storage_plus::Prefixer;
+
+        cw_storage_plus::Prefix::with_deserialization_functions(
+            Self::NAMESPACE,
+            &prefix.prefix(),
+            &[],
+            // explicitly panic to make sure we're never attempting to call an unexpected deserializer on our data
+            |_, _, kv| Self::deserialize_dealing_record(kv),
+            |_, _, _| panic!("attempted to call custom de_fn_v"),
+        )
+    }
+
+    // prefix-range related should we need it
+    #[cfg(test)]
+    pub(crate) fn prefix_range<'a>(
+        storage: &'a dyn Storage,
+        prefix: (EpochId, Dealer, DealingIndex),
+        start: Option<cw_storage_plus::Bound<ChunkIndex>>,
+    ) -> impl Iterator<Item = cosmwasm_std::StdResult<PartialContractDealing>> + 'a {
+        let dealing_index = prefix.2;
+        Self::prefix(prefix)
+            .range(storage, start, None, cosmwasm_std::Order::Ascending)
+            .map(move |maybe_record| {
+                maybe_record.map(|(chunk_index, data)| PartialContractDealing {
+                    dealing_index,
+                    chunk_index,
+                    data,
+                })
+            })
     }
 
     fn storage_key(
@@ -97,39 +126,26 @@ impl StoredDealing {
         )
     }
 
-    fn prefix(
-        prefix: (EpochId, Dealer, DealingIndex),
-    ) -> Prefix<ChunkIndex, PartialContractDealingData, ChunkIndex> {
-        Prefix::with_deserialization_functions(
-            Self::NAMESPACE,
-            &prefix.prefix(),
-            &[],
-            // explicitly panic to make sure we're never attempting to call an unexpected deserializer on our data
-            |_, _, kv| Self::deserialize_dealing_record(kv),
-            |_, _, _| panic!("attempted to call custom de_fn_v"),
-        )
-    }
-
-    pub(crate) fn exists(
-        storage: &dyn Storage,
-        epoch_id: EpochId,
-        dealer: &Addr,
-        dealing_index: DealingIndex,
-        chunk_index: ChunkIndex,
-    ) -> StdResult<bool> {
-        // whenever the dealing is saved, the metadata is appropriately updated
-        // reading metadata is way cheaper than the dealing chunk itself
-        let Some(metadata) =
-            DEALINGS_METADATA.may_load(storage, (epoch_id, dealer, dealing_index))?
-        else {
-            return Ok(false);
-        };
-        let Some(chunk_info) = metadata.submitted_chunks.get(&chunk_index) else {
-            return Ok(false);
-        };
-        Ok(chunk_info.status.submitted())
-        // StoredDealing::storage_key(epoch_id, dealer, dealing_index).has(storage)
-    }
+    // pub(crate) fn exists(
+    //     storage: &dyn Storage,
+    //     epoch_id: EpochId,
+    //     dealer: &Addr,
+    //     dealing_index: DealingIndex,
+    //     chunk_index: ChunkIndex,
+    // ) -> StdResult<bool> {
+    //     // whenever the dealing is saved, the metadata is appropriately updated
+    //     // reading metadata is way cheaper than the dealing chunk itself
+    //     let Some(metadata) =
+    //         DEALINGS_METADATA.may_load(storage, (epoch_id, dealer, dealing_index))?
+    //     else {
+    //         return Ok(false);
+    //     };
+    //     let Some(chunk_info) = metadata.submitted_chunks.get(&chunk_index) else {
+    //         return Ok(false);
+    //     };
+    //     Ok(chunk_info.status.submitted())
+    //     // StoredDealing::storage_key(epoch_id, dealer, dealing_index).has(storage)
+    // }
 
     pub(crate) fn save(
         storage: &mut dyn Storage,
@@ -158,23 +174,6 @@ impl StoredDealing {
         storage.get(&storage_key).map(ContractSafeBytes)
     }
 
-    pub(crate) fn prefix_range<'a>(
-        storage: &'a dyn Storage,
-        prefix: (EpochId, Dealer, DealingIndex),
-        start: Option<Bound<ChunkIndex>>,
-    ) -> impl Iterator<Item = StdResult<PartialContractDealing>> + 'a {
-        let dealing_index = prefix.2;
-        Self::prefix(prefix)
-            .range(storage, start, None, Order::Ascending)
-            .map(move |maybe_record| {
-                maybe_record.map(|(chunk_index, data)| PartialContractDealing {
-                    dealing_index,
-                    chunk_index,
-                    data,
-                })
-            })
-    }
-
     // iterate over all values, only to be used in tests due to the amount of data being returned
     #[cfg(test)]
     #[allow(clippy::type_complexity)]
@@ -184,20 +183,25 @@ impl StoredDealing {
         (EpochId, Addr, (DealingIndex, ChunkIndex)),
         PartialContractDealingData,
     )> {
+        use cw_storage_plus::KeyDeserialize;
+
         type StorageKey<'a> = (EpochId, Dealer<'a>, (DealingIndex, ChunkIndex));
 
-        let empty_prefix: Prefix<StorageKey, PartialContractDealingData, StorageKey> =
-            Prefix::with_deserialization_functions(
-                Self::NAMESPACE,
-                &[],
-                &[],
-                |_, _, kv| StorageKey::from_vec(kv.0).map(|kt| (kt, ContractSafeBytes(kv.1))),
-                |_, _, _| unimplemented!(),
-            );
+        let empty_prefix: cw_storage_plus::Prefix<
+            StorageKey,
+            PartialContractDealingData,
+            StorageKey,
+        > = cw_storage_plus::Prefix::with_deserialization_functions(
+            Self::NAMESPACE,
+            &[],
+            &[],
+            |_, _, kv| StorageKey::from_vec(kv.0).map(|kt| (kt, ContractSafeBytes(kv.1))),
+            |_, _, _| unimplemented!(),
+        );
 
         empty_prefix
-            .range(storage, None, None, Order::Ascending)
-            .collect::<StdResult<_>>()
+            .range(storage, None, None, cosmwasm_std::Order::Ascending)
+            .collect::<cosmwasm_std::StdResult<_>>()
             .unwrap()
     }
 }
@@ -206,6 +210,7 @@ impl StoredDealing {
 mod tests {
     use super::*;
     use crate::support::tests::helpers::init_contract;
+    use cw_storage_plus::Bound;
     use std::collections::HashMap;
 
     fn dealing_data(

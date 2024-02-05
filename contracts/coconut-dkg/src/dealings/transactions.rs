@@ -207,7 +207,9 @@ pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::storage::CURRENT_EPOCH;
     use crate::epoch_state::transactions::{advance_epoch_state, try_initiate_dkg};
-    use crate::support::tests::fixtures::{dealer_details_fixture, partial_dealing_fixture};
+    use crate::support::tests::fixtures::{
+        dealer_details_fixture, dealing_metadata_fixture, partial_dealing_fixture,
+    };
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{mock_env, mock_info};
@@ -218,129 +220,185 @@ pub(crate) mod tests {
     };
 
     #[test]
-    fn invalid_commit_dealing() {
-        // todo!()
-        // let mut deps = helpers::init_contract();
-        // let mut env = mock_env();
-        // try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+    fn invalid_commit_dealing_chunk() {
+        let mut deps = helpers::init_contract();
+        let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
+        let owner = Addr::unchecked("owner1");
+        let info = mock_info(owner.as_str(), &[]);
+        let dealing = partial_dealing_fixture();
+
+        let ret = try_commit_dealings_chunk(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            dealing.clone(),
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::IncorrectEpochState {
+                current_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
+                expected_state: EpochState::DealingExchange { resharing: false }.to_string()
+            }
+        );
+
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
+        add_fixture_dealer(deps.as_mut());
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+
+        let ret = try_commit_dealings_chunk(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            dealing.clone(),
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(ret, ContractError::NotADealer);
+
+        let dealer_details = DealerDetails {
+            address: owner.clone(),
+            bte_public_key_with_proof: String::new(),
+            ed25519_identity: String::new(),
+            announce_address: String::new(),
+            assigned_index: 1,
+        };
+        dealers_storage::current_dealers()
+            .save(deps.as_mut().storage, &owner, &dealer_details)
+            .unwrap();
+
+        // assume we're in resharing mode
+        CURRENT_EPOCH
+            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
+                epoch.state = EpochState::DealingExchange { resharing: true };
+                Ok(epoch)
+            })
+            .unwrap();
+        INITIAL_REPLACEMENT_DATA
+            .save(
+                deps.as_mut().storage,
+                &InitialReplacementData {
+                    initial_dealers: vec![],
+                    initial_height: 1,
+                },
+            )
+            .unwrap();
+        let ret = try_commit_dealings_chunk(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            dealing.clone(),
+            true,
+        )
+        .unwrap_err();
+        assert_eq!(ret, ContractError::NotAnInitialDealer);
+
+        INITIAL_REPLACEMENT_DATA
+            .update::<_, ContractError>(deps.as_mut().storage, |mut data| {
+                data.initial_dealers = vec![dealer_details_fixture(1).address];
+                Ok(data)
+            })
+            .unwrap();
+
+        // back to 'normal' mode
+        CURRENT_EPOCH
+            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
+                epoch.state = EpochState::DealingExchange { resharing: false };
+                Ok(epoch)
+            })
+            .unwrap();
+
+        // TODO: test case: no metadata
         //
-        // let owner = Addr::unchecked("owner1");
-        // let info = mock_info(owner.as_str(), &[]);
-        // let dealing = partial_dealing_fixture();
         //
-        // let ret =
-        //     try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false).unwrap_err();
-        // assert_eq!(
-        //     ret,
-        //     ContractError::IncorrectEpochState {
-        //         current_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
-        //         expected_state: EpochState::DealingExchange { resharing: false }.to_string()
-        //     }
-        // );
-        //
-        // env.block.time = env
-        //     .block
-        //     .time
-        //     .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
-        // add_fixture_dealer(deps.as_mut());
-        // advance_epoch_state(deps.as_mut(), env).unwrap();
-        //
-        // let ret =
-        //     try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false).unwrap_err();
-        // assert_eq!(ret, ContractError::NotADealer);
-        //
-        // let dealer_details = DealerDetails {
-        //     address: owner.clone(),
-        //     bte_public_key_with_proof: String::new(),
-        //     ed25519_identity: String::new(),
-        //     announce_address: String::new(),
-        //     assigned_index: 1,
-        // };
-        // dealers_storage::current_dealers()
-        //     .save(deps.as_mut().storage, &owner, &dealer_details)
-        //     .unwrap();
-        //
-        // // assume we're in resharing mode
-        // CURRENT_EPOCH
-        //     .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
-        //         epoch.state = EpochState::DealingExchange { resharing: true };
-        //         Ok(epoch)
-        //     })
-        //     .unwrap();
-        // INITIAL_REPLACEMENT_DATA
-        //     .save(
-        //         deps.as_mut().storage,
-        //         &InitialReplacementData {
-        //             initial_dealers: vec![],
-        //             initial_height: 1,
-        //         },
-        //     )
-        //     .unwrap();
-        // let ret =
-        //     try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), true).unwrap_err();
-        // assert_eq!(ret, ContractError::NotAnInitialDealer);
-        //
-        // INITIAL_REPLACEMENT_DATA
-        //     .update::<_, ContractError>(deps.as_mut().storage, |mut data| {
-        //         data.initial_dealers = vec![dealer_details_fixture(1).address];
-        //         Ok(data)
-        //     })
-        //     .unwrap();
-        //
-        // // back to 'normal' mode
-        // CURRENT_EPOCH
-        //     .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
-        //         epoch.state = EpochState::DealingExchange { resharing: false };
-        //         Ok(epoch)
-        //     })
-        //     .unwrap();
-        //
-        // // dealing out of range
-        // let ret = try_commit_dealings(
-        //     deps.as_mut(),
-        //     info.clone(),
-        //     PartialContractDealing {
-        //         dealing_index: 42,
-        //         data: ContractSafeBytes(vec![1, 2, 3]),
-        //     },
-        //     false,
-        // )
-        // .unwrap_err();
-        // assert_eq!(
-        //     ret,
-        //     ContractError::DealingOutOfRange {
-        //         epoch_id: 0,
-        //         dealer: info.sender.clone(),
-        //         index: 42,
-        //         key_size: DEFAULT_DEALINGS as u32,
-        //     }
-        // );
-        //
-        // // 'good' dealing
-        // let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false);
-        // assert!(ret.is_ok());
-        //
-        // // duplicate dealing
-        // let ret =
-        //     try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false).unwrap_err();
-        // assert_eq!(
-        //     ret,
-        //     ContractError::DealingAlreadyCommitted {
-        //         epoch_id: 0,
-        //         dealer: info.sender.clone(),
-        //         index: 0,
-        //     }
-        // );
-        //
-        // // same index, but next epoch
-        // CURRENT_EPOCH
-        //     .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
-        //         epoch.epoch_id += 1;
-        //         Ok(epoch)
-        //     })
-        //     .unwrap();
-        //
-        // let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false);
-        // assert!(ret.is_ok());
+
+        // add dealing metadata
+        try_submit_dealings_metadata(
+            deps.as_mut(),
+            info.clone(),
+            0,
+            dealing_metadata_fixture(),
+            false,
+        )
+        .unwrap();
+
+        // dealing chunk out of range
+        let ret = try_commit_dealings_chunk(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            PartialContractDealing {
+                dealing_index: 0,
+                chunk_index: 42,
+                data: ContractSafeBytes(vec![1, 2, 3]),
+            },
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::DealingChunkNotInMetadata {
+                epoch_id: 0,
+                dealer: info.sender.clone(),
+                dealing_index: 0,
+                chunk_index: 42,
+            }
+        );
+
+        // 'good' dealing
+        let ret = try_commit_dealings_chunk(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            dealing.clone(),
+            false,
+        );
+        assert!(ret.is_ok());
+
+        // duplicate dealing
+        let ret = try_commit_dealings_chunk(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            dealing.clone(),
+            false,
+        )
+        .unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::DealingChunkAlreadyCommitted {
+                epoch_id: 0,
+                dealer: info.sender.clone(),
+                dealing_index: 0,
+                chunk_index: 0,
+                block_height: env.block.height,
+            }
+        );
+
+        // same index, but next epoch
+        CURRENT_EPOCH
+            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
+                epoch.epoch_id += 1;
+                Ok(epoch)
+            })
+            .unwrap();
+
+        try_submit_dealings_metadata(
+            deps.as_mut(),
+            info.clone(),
+            0,
+            dealing_metadata_fixture(),
+            false,
+        )
+        .unwrap();
+
+        let ret = try_commit_dealings_chunk(deps.as_mut(), env, info, dealing.clone(), false);
+        assert!(ret.is_ok());
     }
 }

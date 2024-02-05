@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use schemars::JsonSchema;
@@ -32,6 +32,12 @@ impl DerefMut for ContractSafeBytes {
 impl From<Vec<u8>> for ContractSafeBytes {
     fn from(value: Vec<u8>) -> Self {
         ContractSafeBytes(value)
+    }
+}
+
+impl<'a> From<&'a [u8]> for ContractSafeBytes {
+    fn from(value: &'a [u8]) -> Self {
+        value.to_vec().into()
     }
 }
 

@@ -210,7 +210,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
             // we might be in resharing mode and this dealer was not in "initial" set.
             // in that case we don't expect any dealings
-            if resharing && !initial_dealers.contains(&dealer) {
+            if resharing && !initial_dealers.contains(dealer) {
                 return Ok(Ok(HashMap::new()));
             }
             return Ok(Err(DealerRejectionReason::NoDealingsProvided));

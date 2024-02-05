@@ -1,11 +1,8 @@
 [External="nym_ffi_shared"]
 typedef extern CStringCallback;
 
-[External="nym_ffi_shared"]
-typedef extern CMessageCallback;
-
 namespace bindings {
   void init_logging();
   i8 init_ephemeral();
-//  i8 get_self_address();
+  i8 get_self_address(CStringCallback callback);
 };

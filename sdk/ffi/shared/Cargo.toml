@@ -17,4 +17,11 @@ lazy_static = "1.4.0"
 anyhow = "1.0.75"
 # base58 en/decoding
 bs58 = "0.5.0"
+# UDL test
+uniffi = { version = "0.25.2", features = ["cli"] }
+
+[build-dependencies]
+uniffi = { version = "0.25.2", features = ["build" ] }
+uniffi_build = { version = "0.25.2", features=["builtin-bindgen"] }
+
 

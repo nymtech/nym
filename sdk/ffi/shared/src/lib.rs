@@ -10,13 +10,11 @@ use std::mem::forget;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
-/*
-NYM_CLIENT: Static reference (only init-ed once) to:
-    - Arc: share ownership
-    - Mutex: thread-safe way to share data between threads
-    - Option: init-ed or not
-RUNTIME: Tokio runtime: no need to pass back to C and deal with raw pointers as it was previously
- */
+// NYM_CLIENT: Static reference (only init-ed once) to:
+//     - Arc: share ownership
+//     - Mutex: thread-safe way to share data between threads
+//     - Option: init-ed or not
+// RUNTIME: Tokio runtime: no need to pass back to C and deal with raw pointers as it was previously
 lazy_static! {
     static ref NYM_CLIENT: Arc<Mutex<Option<MixnetClient>>> = Arc::new(Mutex::new(None));
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
@@ -33,9 +31,13 @@ pub enum StatusCode {
     ListenError = -6,
 }
 
+// callbacks have to be implemented as structs so that they can
+// impl UniffiCustomTypeConverter trait used by uniffi-bindgen-go
+// in go FFI repo
 #[repr(C)]
+#[uniffi::export]
 pub struct CStringCallback {
-   callback: extern "C" fn(*const c_char)
+   pub callback: extern "C" fn(*const c_char)
 }
 
 impl CStringCallback {
@@ -49,7 +51,7 @@ impl CStringCallback {
 
 #[repr(C)]
 pub struct CMessageCallback {
-    callback: extern "C" fn(ReceivedMessage)
+    pub callback: extern "C" fn(ReceivedMessage)
 }
 
 impl CMessageCallback {

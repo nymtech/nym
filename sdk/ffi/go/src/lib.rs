@@ -1,30 +1,49 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ffi::{c_char};
-use nym_ffi_shared;
+use std::ffi::{c_char, CString};
+use nym_ffi_shared::{
+    CStringCallback,
+    CMessageCallback,
+    init_ephemeral_internal,
+    get_self_address_internal
+};
 uniffi::include_scaffolding!("bindings");
+
+
+impl UniffiCustomTypeConverter for CStringCallback {
+    type Builtin = extern "C" fn(*const c_char);
+
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
+        Ok(CStringCallback{
+            callback: val
+        })
+    }
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.callback
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn init_logging() {
     nym_bin_common::logging::setup_logging();
 }
 
-// #[no_mangle]
-// pub extern "C" fn init_ephemeral() -> i8 {
-//     match nym_ffi_shared::init_ephemeral_internal() {
-//         Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
-//         Err(_) => nym_ffi_shared::StatusCode::ClientInitError as i8,
-//     }
-// }
-//
-// #[no_mangle]
-// pub extern "C" fn get_self_address(callback: nym_ffi_shared::CStringCallback) -> i8 {
-//     match nym_ffi_shared::get_self_address_internal(callback) {
-//         Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
-//         Err(_) => nym_ffi_shared::StatusCode::SelfAddrError as i8,
-//     }
-// }
+#[no_mangle]
+pub extern "C" fn init_ephemeral() -> i8 {
+    match nym_ffi_shared::init_ephemeral_internal() {
+        Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
+        Err(_) => nym_ffi_shared::StatusCode::ClientInitError as i8,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn get_self_address(callback: nym_ffi_shared::CStringCallback) -> i8 {
+    match nym_ffi_shared::get_self_address_internal(callback) {
+        Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
+        Err(_) => nym_ffi_shared::StatusCode::SelfAddrError as i8,
+    }
+}
 
 // #[no_mangle]
 // pub extern "C" fn send_message(recipient: *const c_char, message: *const c_char) -> i8 {

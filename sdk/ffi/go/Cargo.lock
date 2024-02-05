@@ -2825,6 +2825,8 @@ dependencies = [
  "nym-sdk",
  "nym-sphinx-anonymous-replies",
  "tokio",
+ "uniffi",
+ "uniffi_build",
 ]
 
 [[package]]

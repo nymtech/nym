@@ -7488,7 +7488,7 @@ dependencies = [
 
 [[package]]
 name = "nym-topology-control"
-version = "1.1.15"
+version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",

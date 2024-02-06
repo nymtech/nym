@@ -1,7 +1,7 @@
 pub mod request;
 pub mod response;
 
-pub const CURRENT_VERSION: u8 = 1;
+pub const CURRENT_VERSION: u8 = 2;
 
 fn make_bincode_serializer() -> impl bincode::Options {
     use bincode::Options;

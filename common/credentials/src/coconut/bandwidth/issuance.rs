@@ -4,15 +4,12 @@
 use crate::coconut::bandwidth::freepass::FreePassIssuanceData;
 use crate::coconut::bandwidth::issued::IssuedBandwidthCredential;
 use crate::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
-use crate::coconut::bandwidth::{
-    bandwidth_voucher_params, CredentialSigningData, CredentialSpendingData, CredentialType,
-};
-use crate::coconut::utils::scalar_serde_helper;
+use crate::coconut::bandwidth::{bandwidth_voucher_params, CredentialSigningData, CredentialType};
+use crate::coconut::utils::{make_bincode_serializer, scalar_serde_helper};
 use crate::error::Error;
 use nym_coconut_interface::{
-    aggregate_signature_shares, hash_to_scalar, prepare_blind_sign, prove_bandwidth_credential,
-    Attribute, Parameters, PrivateAttribute, PublicAttribute, Signature, SignatureShare,
-    VerificationKey,
+    aggregate_signature_shares, hash_to_scalar, prepare_blind_sign, Attribute, Parameters,
+    PrivateAttribute, PublicAttribute, Signature, SignatureShare, VerificationKey,
 };
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_validator_client::nyxd::{Coin, Hash};
@@ -240,12 +237,15 @@ impl IssuanceBandwidthCredential {
     }
 
     // TODO: is that actually needed?
-    pub fn to_bytes(&self) -> Vec<u8> {
-        todo!()
+    pub fn to_recovery_bytes(&self) -> Vec<u8> {
+        use bincode::Options;
+        // safety: our data format is stable and thus the serialization should not fail
+        make_bincode_serializer().serialize(self).unwrap()
     }
 
     // TODO: is that actually needed?
-    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        todo!()
+    pub fn try_from_recovered_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        use bincode::Options;
+        Ok(make_bincode_serializer().deserialize(bytes)?)
     }
 }

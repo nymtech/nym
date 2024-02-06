@@ -34,7 +34,7 @@ impl RecoveryStorage {
             if let Ok(mut file) = File::open(&path) {
                 let mut buff = Vec::new();
                 if file.read_to_end(&mut buff).is_ok() {
-                    match IssuanceBandwidthCredential::try_from_bytes(&buff) {
+                    match IssuanceBandwidthCredential::try_from_recovered_bytes(&buff) {
                         Ok(voucher) => vouchers.push(voucher),
                         Err(err) => {
                             error!("failed to parse the voucher at {}: {err}", path.display())

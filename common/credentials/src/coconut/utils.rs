@@ -5,8 +5,7 @@ use crate::coconut::bandwidth::IssuanceBandwidthCredential;
 use crate::error::Error;
 use log::{debug, warn};
 use nym_coconut_interface::{
-    aggregate_verification_keys, prove_bandwidth_credential, Attribute, Credential, Parameters,
-    Signature, SignatureShare, VerificationKey,
+    aggregate_verification_keys, Signature, SignatureShare, VerificationKey,
 };
 use nym_validator_client::client::CoconutApiClient;
 
@@ -95,4 +94,11 @@ pub(crate) mod scalar_serde_helper {
             "did not construct a valid bls12-381 scalar out of the provided bytes",
         ))
     }
+}
+
+pub(crate) fn make_bincode_serializer() -> impl bincode::Options {
+    use bincode::Options;
+    bincode::DefaultOptions::new()
+        .with_big_endian()
+        .with_varint_encoding()
 }

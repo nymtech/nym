@@ -9,8 +9,8 @@ use crate::coconut::bandwidth::voucher::BandwidthVoucherIssuedData;
 use crate::coconut::bandwidth::{bandwidth_voucher_params, CredentialSpendingData, CredentialType};
 use crate::error::Error;
 use nym_coconut_interface::{
-    prove_bandwidth_credential, Attribute, Parameters, PrivateAttribute, PublicAttribute,
-    Signature, VerificationKey,
+    prove_bandwidth_credential, Parameters, PrivateAttribute, PublicAttribute, Signature,
+    VerificationKey,
 };
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};

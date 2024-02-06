@@ -49,7 +49,7 @@ extra-watch-dirs = []             # directories to watch for triggering builds
 ##########
 
 [output.html]
-theme         = "theme" # this is the default if not explicitly set
+#theme         = "theme" # this is the default if not explicitly set
 default-theme = "coal"
 preferred-dark-theme = "coal"
 curly-quotes = true
@@ -74,7 +74,7 @@ level = 0        # the depth to start folding
 editable = false         # allows editing the source code
 copyable = true          # include the copy button for copying code snippets
 copy-js = true           # includes the JavaScript for the code editor
-line-numbers = false     # displays line numbers for editable code
+line-numbers = true      # displays line numbers for editable code
 runnable = true          # displays a run button for rust code
 
 # options for the built in text search

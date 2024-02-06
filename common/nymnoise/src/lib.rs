@@ -54,13 +54,11 @@ pub async fn upgrade_noise_initiator_with_topology(
     local_private_key: &[u8],
 ) -> Result<Connection, NoiseError> {
     //Get init material
-    let responder_addr = match conn.peer_addr() {
-        Ok(addr) => addr,
-        Err(err) => {
-            error!("Unable to extract peer address from connection - {err}");
-            return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
-        }
-    };
+    let responder_addr = conn.peer_addr().map_err(|err| {
+        error!("Unable to extract peer address from connection - {err}");
+        Error::Prereq(Prerequisite::RemotePublicKey)
+    })?;
+
     let remote_pub_key = match topology.find_node_key_by_mix_host(responder_addr) {
         Ok(Some(key)) => encryption::PublicKey::from_base58_string(key)?.to_bytes(),
         Ok(None) => {

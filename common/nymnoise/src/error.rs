@@ -13,6 +13,7 @@ pub enum NoiseError {
 
     #[error("encountered a Noise Protocol error - {0}")]
     ProtocolError(Error),
+
     #[error("encountered an IO error - {0}")]
     IoError(#[from] io::Error),
 

@@ -223,12 +223,9 @@ impl<St: Storage> ConnectionHandler<St> {
         debug!("Starting connection handler for {:?}", remote);
         shutdown.mark_as_success();
 
-        let topology_ref = match self.topology_access.current_topology().await {
-            Some(topology) => topology,
-            None => {
-                error!("Cannot perform Noise handshake to {remote}, due to topology error");
-                return;
-            }
+        let Some(topology) = self.topology_access.current_topology().await else {
+            error!("Cannot perform Noise handshake to {remote}, due to topology error");
+            return;
         };
 
         let epoch_id = match self.api_client.get_current_epoch_id().await {
@@ -242,7 +239,7 @@ impl<St: Storage> ConnectionHandler<St> {
         let noise_stream = match upgrade_noise_responder_with_topology(
             conn,
             Default::default(),
-            &topology_ref,
+            &topology,
             epoch_id,
             &self.local_identity.public_key().to_bytes(),
             &self.local_identity.private_key().to_bytes(),

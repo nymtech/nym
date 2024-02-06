@@ -32,3 +32,11 @@ nym-network-defaults = { path = "../network-defaults" }
 version = "0.1.11"
 features = ["time"]
 
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
+workspace = true
+features = ["tokio"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.gloo-timers]
+version = "0.2.4"
+features = ["futures"]

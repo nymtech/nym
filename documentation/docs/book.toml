@@ -13,6 +13,16 @@ edition = "2018"
 # PREPROCESSORS #
 #################
 
+#[preprocessor.theme]
+#sidebar-width             = "280px"
+#content-max-width         = "75%"
+#content-main-margin-left  = "5%"
+#content-main-margin-right = "5%"
+#root-font-size            = "80%"
+#sidebar-font-size         = "0.85em"
+## if true, never read and touch the files in theme dir
+#turn-off = true
+
 [preprocessor.admonish]
 command = "mdbook-admonish"
 assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`

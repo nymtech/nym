@@ -135,8 +135,8 @@ impl Client {
                             Default::default(),
                             &topology,
                             epoch_id,
-                            &local_identity.public_key().to_bytes(),
-                            &local_identity.private_key().to_bytes(),
+                            local_identity.public_key(),
+                            local_identity.private_key(),
                         )
                         .await
                         {

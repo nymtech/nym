@@ -11,6 +11,19 @@ pub extern "C" fn init_logging() {
     nym_bin_common::logging::setup_logging();
 }
 
+impl UniffiCustomTypeConverter for CStringCallback {
+    type Builtin = extern "C" fn(*const c_char);
+
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
+        Ok(CStringCallback{
+            callback: val
+        })
+    }
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.callback
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn init_ephemeral() -> i8 {
     match nym_ffi_shared::init_ephemeral_internal() {

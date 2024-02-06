@@ -1,10 +1,10 @@
 [package]
 name = "nym-topology-control"
-version = "1.1.15"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
-edition = "2021"
-rust-version = "1.66"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
 license.workspace = true
+repository.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

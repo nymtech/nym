@@ -53,16 +53,12 @@ theme         = "nym_themes"
 default-theme = "coal"
 preferred-dark-theme = "coal"
 curly-quotes = true
-# mathjax-support = false # useful if we want to pull equations in
 copy-fonts = true
 no-section-label = false
 additional-css = ["./nym_themes/custom.css", "./mdbook-admonish.css"]
 additional-js  = []
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"
-# edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"
-# site-url = "/docs/"
-# cname = "nymtech.net"
 input-404 = "not-found.md"
 
 [output.html.fold]

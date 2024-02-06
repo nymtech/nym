@@ -1,6 +1,7 @@
 :root {
   --mono-font: Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono", monospace;
 }
+
 .coal {
   --sidebar-active: #fb6e4e;
 

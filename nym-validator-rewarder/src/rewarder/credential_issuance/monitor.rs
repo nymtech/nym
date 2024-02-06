@@ -1,4 +1,4 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config;
@@ -11,24 +11,17 @@ use crate::rewarder::nyxd_client::NyxdClient;
 use bip39::rand::prelude::SliceRandom;
 use bip39::rand::thread_rng;
 use nym_coconut::{
-    hash_to_scalar, verify_partial_blind_signature, Base58, G1Projective, Parameters,
-    VerificationKey,
+    hash_to_scalar, verify_partial_blind_signature, Base58, G1Projective, VerificationKey,
 };
 use nym_coconut_dkg_common::types::EpochId;
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::bandwidth_voucher_params;
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::{IssuedCredential, IssuedCredentialBody, NymApiClientExt};
 use nym_validator_client::nyxd::Hash;
 use std::cmp::max;
 use std::collections::HashMap;
-use std::sync::OnceLock;
 use tokio::time::interval;
 use tracing::{debug, error, info, instrument, trace, warn};
-
-pub(crate) fn bandwidth_voucher_params() -> &'static Parameters {
-    static BANDWIDTH_CREDENTIAL_PARAMS: OnceLock<Parameters> = OnceLock::new();
-    BANDWIDTH_CREDENTIAL_PARAMS.get_or_init(BandwidthVoucher::default_parameters)
-}
 
 pub struct CredentialIssuanceMonitor {
     nyxd_client: NyxdClient,

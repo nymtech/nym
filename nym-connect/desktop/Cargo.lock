@@ -3929,7 +3929,9 @@ dependencies = [
  "nym-coconut-interface",
  "nym-crypto",
  "nym-validator-client",
+ "serde",
  "thiserror",
+ "time",
  "zeroize",
 ]
 

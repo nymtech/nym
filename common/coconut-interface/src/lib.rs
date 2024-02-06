@@ -1,12 +1,11 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod error;
-
+use error::CoconutInterfaceError;
 use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 
-use error::CoconutInterfaceError;
+pub mod error;
 
 // We list these explicity instead of glob export due to shadowing warnings with the pub tests
 // module.
@@ -14,7 +13,8 @@ pub use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar,
     prepare_blind_sign, prove_bandwidth_credential, Attribute, Base58, BlindSignRequest,
     BlindedSignature, Bytable, CoconutError, KeyPair, Parameters, PrivateAttribute,
-    PublicAttribute, SecretKey, Signature, SignatureShare, Theta, VerificationKey,
+    PublicAttribute, SecretKey, Signature, SignatureShare, VerificationKey,
+    VerifyCredentialRequest,
 };
 
 #[derive(Debug, Serialize, Deserialize, Getters, CopyGetters, Clone, PartialEq, Eq)]
@@ -23,7 +23,7 @@ pub struct Credential {
     n_params: u32,
 
     #[getset(get = "pub")]
-    theta: Theta,
+    theta: VerifyCredentialRequest,
 
     voucher_value: u64,
 
@@ -32,10 +32,11 @@ pub struct Credential {
     #[getset(get = "pub")]
     epoch_id: u64,
 }
+
 impl Credential {
     pub fn new(
         n_params: u32,
-        theta: Theta,
+        theta: VerifyCredentialRequest,
         voucher_value: u64,
         voucher_info: String,
         epoch_id: u64,
@@ -114,7 +115,7 @@ impl Credential {
                 "To few bytes in credential",
             )));
         }
-        let theta = Theta::from_bytes(&bytes[12..12 + theta_len as usize])
+        let theta = VerifyCredentialRequest::from_bytes(&bytes[12..12 + theta_len as usize])
             .map_err(|e| CoconutError::Deserialization(e.to_string()))?;
         eight_byte.copy_from_slice(&bytes[12 + theta_len as usize..20 + theta_len as usize]);
         let voucher_value = u64::from_be_bytes(eight_byte);

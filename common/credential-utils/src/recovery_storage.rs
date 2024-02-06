@@ -3,7 +3,7 @@
 
 use crate::errors::Result;
 use log::error;
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
 use std::fs::{create_dir_all, read_dir, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -18,7 +18,7 @@ impl RecoveryStorage {
         Ok(Self { recovery_dir })
     }
 
-    pub fn unconsumed_vouchers(&self) -> Result<Vec<BandwidthVoucher>> {
+    pub fn unconsumed_vouchers(&self) -> Result<Vec<IssuanceBandwidthCredential>> {
         let entries = read_dir(&self.recovery_dir)?;
 
         let mut paths = vec![];
@@ -34,7 +34,7 @@ impl RecoveryStorage {
             if let Ok(mut file) = File::open(&path) {
                 let mut buff = Vec::new();
                 if file.read_to_end(&mut buff).is_ok() {
-                    match BandwidthVoucher::try_from_bytes(&buff) {
+                    match IssuanceBandwidthCredential::try_from_bytes(&buff) {
                         Ok(voucher) => vouchers.push(voucher),
                         Err(err) => {
                             error!("failed to parse the voucher at {}: {err}", path.display())
@@ -47,14 +47,15 @@ impl RecoveryStorage {
         Ok(vouchers)
     }
 
-    pub fn insert_voucher(&self, voucher: &BandwidthVoucher) -> Result<PathBuf> {
-        let file_name = voucher.tx_hash().to_string();
-        let file_path = self.recovery_dir.join(file_name);
-        let mut file = File::create(&file_path)?;
-        let buff = voucher.to_bytes();
-        file.write_all(&buff)?;
-
-        Ok(file_path)
+    pub fn insert_voucher(&self, voucher: &IssuanceBandwidthCredential) -> Result<PathBuf> {
+        todo!()
+        // let file_name = voucher.tx_hash().to_string();
+        // let file_path = self.recovery_dir.join(file_name);
+        // let mut file = File::create(&file_path)?;
+        // let buff = voucher.to_bytes();
+        // file.write_all(&buff)?;
+        //
+        // Ok(file_path)
     }
 
     pub fn remove_voucher(&self, file_name: String) -> Result<()> {

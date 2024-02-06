@@ -61,14 +61,14 @@ where
             .await
             .map_err(|reason| Error::UnconvertedDeposit {
                 reason,
-                voucher_blob: state.voucher.to_bytes(),
+                voucher_blob: state.voucher.to_recovery_bytes(),
             })
     }
 
     /// In case of an error in the mid of the acquire process, this function should be used for
     /// later retries to recover the bandwidth credential, either immediately or after some time.
     pub async fn recover(&self, voucher_blob: &VoucherBlob) -> Result<()> {
-        let voucher = IssuanceBandwidthCredential::try_from_bytes(voucher_blob)
+        let voucher = IssuanceBandwidthCredential::try_from_recovered_bytes(voucher_blob)
             .map_err(|_| Error::InvalidVoucherBlob)?;
         let state = State::new(voucher);
         nym_bandwidth_controller::acquire::get_credential(&state, &self.client, self.storage)

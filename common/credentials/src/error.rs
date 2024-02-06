@@ -12,6 +12,9 @@ pub enum Error {
     #[error("IO error")]
     IOError(#[from] std::io::Error),
 
+    #[error("failed to (de)serialize credential structure: {0}")]
+    SerializationFailure(#[from] bincode::Error),
+
     #[error("The detailed description is yet to be determined")]
     BandwidthCredentialError,
 

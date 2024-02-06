@@ -175,14 +175,14 @@ pub fn try_commit_dealings_chunk(
     }
 
     // check if the received chunk has the specified size
-    if submission_status.info.size != chunk.data.len() {
+    if submission_status.info.size != chunk.data.len() as u64 {
         return Err(ContractError::InconsistentChunkLength {
             epoch_id: epoch.epoch_id,
             dealer: info.sender,
             dealing_index: chunk.dealing_index,
             chunk_index: chunk.chunk_index,
             metadata_length: submission_status.info.size,
-            received: chunk.data.len(),
+            received: chunk.data.len() as u64,
         });
     }
 

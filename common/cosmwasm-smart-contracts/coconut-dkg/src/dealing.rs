@@ -40,12 +40,12 @@ pub fn chunk_dealing(
 #[cw_serde]
 #[derive(Copy)]
 pub struct DealingChunkInfo {
-    pub size: usize,
+    pub size: u64,
 }
 
 impl DealingChunkInfo {
     pub fn new(size: usize) -> Self {
-        DealingChunkInfo { size }
+        DealingChunkInfo { size: size as u64 }
     }
 
     pub fn construct(dealing_len: usize, chunk_size: usize) -> Vec<Self> {
@@ -128,7 +128,10 @@ impl DealingMetadata {
     }
 
     pub fn total_size(&self) -> usize {
-        self.submitted_chunks.values().map(|c| c.info.size).sum()
+        self.submitted_chunks
+            .values()
+            .map(|c| c.info.size as usize)
+            .sum()
     }
 
     pub fn submission_statuses(&self) -> BTreeMap<ChunkIndex, ChunkSubmissionStatus> {
@@ -272,13 +275,16 @@ mod tests {
         for (dealing_len, chunk_size, expected_chunks) in test_cases {
             let chunks = DealingChunkInfo::construct(dealing_len, chunk_size);
             assert_eq!(expected_chunks, chunks.len());
-            assert_eq!(dealing_len, chunks.iter().map(|c| c.size).sum::<usize>());
+            assert_eq!(
+                dealing_len as u64,
+                chunks.iter().map(|c| c.size).sum::<u64>()
+            );
 
             let mut expected_last = dealing_len % chunk_size;
             if expected_last == 0 {
                 expected_last = chunk_size;
             }
-            assert_eq!(chunks.last().unwrap().size, expected_last);
+            assert_eq!(chunks.last().unwrap().size, expected_last as u64);
         }
     }
 }

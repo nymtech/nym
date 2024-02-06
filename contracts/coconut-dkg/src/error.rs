@@ -90,8 +90,8 @@ pub enum ContractError {
         dealer: Addr,
         dealing_index: DealingIndex,
         chunk_index: ChunkIndex,
-        first_chunk_size: usize,
-        size: usize,
+        first_chunk_size: u64,
+        size: u64,
     },
 
     #[error("the received chunk for epoch {epoch_id} from dealer {dealer} at dealing index {dealing_index} at chunk index {chunk_index} has inconsistent length. the metadata contains length of {metadata_length} while the received data is {received} bytes long")]
@@ -100,8 +100,8 @@ pub enum ContractError {
         dealer: Addr,
         dealing_index: DealingIndex,
         chunk_index: ChunkIndex,
-        metadata_length: usize,
-        received: usize,
+        metadata_length: u64,
+        received: u64,
     },
 
     #[error("dealer {dealer} has attempted to commit dealing metadata for epoch {epoch_id} for dealing index {dealing_index} zero chunks")]

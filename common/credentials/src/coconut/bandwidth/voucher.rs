@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::bandwidth::CredentialSigningData;
+use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_coconut_interface::{
@@ -34,7 +35,7 @@ impl BandwidthVoucherIssuedData {
     }
 }
 
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
 pub struct BandwidthVoucherIssuanceData {
     /// the plain value (e.g., bandwidth) encoded in this voucher
     // note: for legacy reasons we're only using the value of the coin and ignoring the denom
@@ -42,6 +43,7 @@ pub struct BandwidthVoucherIssuanceData {
     value: Coin,
 
     // note: as mentioned above, we're only hashing the value of the coin!
+    #[serde(with = "scalar_serde_helper")]
     value_prehashed: PublicAttribute,
 
     /// the hash of the deposit transaction

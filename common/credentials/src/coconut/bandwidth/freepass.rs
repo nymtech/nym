@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::coconut::utils::scalar_serde_helper;
 use nym_coconut_interface::{hash_to_scalar, Attribute, PublicAttribute};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, Time};
@@ -29,13 +30,14 @@ impl FreePassIssuedData {
     }
 }
 
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
 pub struct FreePassIssuanceData {
     /// the plain validity value of this credential expressed as unix timestamp
     #[zeroize(skip)]
     expiry_date: OffsetDateTime,
 
     // the expiry date, as unix timestamp, hashed into a scalar
+    #[serde(with = "scalar_serde_helper")]
     expiry_date_prehashed: PublicAttribute,
 }
 

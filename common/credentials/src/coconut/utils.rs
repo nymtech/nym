@@ -75,31 +75,24 @@ pub async fn obtain_aggregate_signature(
     voucher.aggregate_signature_shares(&verification_key, &shares)
 }
 
-// TODO: better type flow
-#[allow(clippy::too_many_arguments)]
-pub fn prepare_credential_for_spending(
-    params: &Parameters,
-    voucher_value: u64,
-    voucher_info: String,
-    serial_number: &Attribute,
-    binding_number: &Attribute,
-    epoch_id: u64,
-    signature: &Signature,
-    verification_key: &VerificationKey,
-) -> Result<Credential, Error> {
-    let theta = prove_bandwidth_credential(
-        params,
-        verification_key,
-        signature,
-        serial_number,
-        binding_number,
-    )?;
+pub(crate) mod scalar_serde_helper {
+    use bls12_381::Scalar;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use zeroize::Zeroizing;
 
-    Ok(Credential::new(
-        IssuanceBandwidthCredential::ENCODED_ATTRIBUTES,
-        theta,
-        voucher_value,
-        voucher_info,
-        epoch_id,
-    ))
+    pub fn serialize<S: Serializer>(scalar: &Scalar, serializer: S) -> Result<S::Ok, S::Error> {
+        scalar.to_bytes().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Scalar, D::Error> {
+        let b = <[u8; 32]>::deserialize(deserializer)?;
+
+        // make sure the bytes get zeroed
+        let bytes = Zeroizing::new(b);
+
+        let maybe_scalar: Option<Scalar> = Scalar::from_bytes(&bytes).into();
+        maybe_scalar.ok_or(serde::de::Error::custom(
+            "did not construct a valid bls12-381 scalar out of the provided bytes",
+        ))
+    }
 }

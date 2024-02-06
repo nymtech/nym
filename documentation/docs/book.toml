@@ -13,36 +13,6 @@ edition = "2018"
 # PREPROCESSORS #
 #################
 
-# Note if changing these fields:
-# - make sure you aren't running `mdbook serve`
-# - change value of `turn-off = true` to `false`. This is set to `true` usually to avoid a known constant-reload bug with `mdbook serve` and this preprocessor
-# - delete `./theme/` dir
-# - change the preprocessor values that you want to edit
-# - run `mdbook build`: this will rebuild the `./theme` directory
-# - change value of `turn-off` back to `true`
-[preprocessor.theme]
-pagetoc        = true
-# some variables related (defined in theme/css/variables.css)
-pagetoc-width            = "13%"
-content-max-width        = "70%" # 82
-pagetoc-fontsize         = "14.5px"
-sidebar-width            = "300px"
-menu-bar-height          = "40px" # memu-bar = the bar on the top
-page-padding             = "20px"
-mobile-content-max-width = "98%"
-
-# layout
-content-padding           = "0 10px"
-content-main-margin-left  = "10%"
-content-main-margin-right = "10%"
-nav-chapters-max-width    = "auto"
-nav-chapters-min-width    = "auto"
-chapter-line-height       = "2em"
-section-line-height       = "1.5em"
-
-# if true, never read and touch the files in theme dir: this is used to stop the looping reload issue referred to in the readme
-turn-off = true
-
 [preprocessor.admonish]
 command = "mdbook-admonish"
 assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
@@ -86,8 +56,8 @@ curly-quotes = true
 # mathjax-support = false # useful if we want to pull equations in
 copy-fonts = true
 no-section-label = false
-additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "./custom.css", "./mdbook-admonish.css"]
-additional-js  = ["theme/pagetoc.js"]
+additional-css = ["././mdbook-admonish.css", "./custom.css", "./mdbook-admonish.css"]
+additional-js  = []
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"
 # edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"

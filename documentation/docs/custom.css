@@ -2,17 +2,16 @@
   --mono-font: Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono", monospace;
 }
 .coal {
-  --bg: #121726;
-  --fg: #f2f2f2;
-
-  --sidebar-bg: #121726;
-  --sidebar-fg: #f2f2f2;
   --sidebar-active: #fb6e4e;
 
-  --icons: #f2f2f2;
   --icons-hover: #fb6e4e;
 
   --links: #fb6e4e;
+
+  ::selection {
+    color: #121726;
+    background-color: #fb6e4e;
+  }
 }
 
 .light {

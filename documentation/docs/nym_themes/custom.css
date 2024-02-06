@@ -13,16 +13,11 @@
 }
 
 .light {
-  --bg: #D3D3D3;
-  --fg: #121726;
-  --sidebar-bg: #D3D3D3;
-  --sidebar-fg: #121726;
   --sidebar-active: #fb6e4e;
-  --icons: #121726;
   --icons-hover: #fb6e4e;
   --links: #fb6e4e;
   ::selection {
-    color: #f4f6f8;
+    color: #121726;
     background-color: #fb6e4e;
   }
 }

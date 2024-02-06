@@ -123,8 +123,8 @@ impl ConnectionHandler {
             Default::default(),
             &topology,
             epoch_id,
-            &self.local_identity.public_key().to_bytes(),
-            &self.local_identity.private_key().to_bytes(),
+            self.local_identity.public_key(),
+            self.local_identity.private_key(),
         )
         .await
         {

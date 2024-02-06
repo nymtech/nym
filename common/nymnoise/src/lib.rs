@@ -18,25 +18,27 @@ pub mod stream;
 pub async fn upgrade_noise_initiator(
     conn: TcpStream,
     pattern: NoisePattern,
-    local_public_key: Option<&[u8]>,
-    local_private_key: &[u8],
-    remote_pub_key: &[u8],
+    local_public_key: Option<&encryption::PublicKey>,
+    local_private_key: &encryption::PrivateKey,
+    remote_pub_key: &encryption::PublicKey,
     epoch: u32,
 ) -> Result<Connection, NoiseError> {
     trace!("Perform Noise Handshake, initiator side");
 
     //In case the local key cannot be known by the remote party, e.g. in a client-gateway connection
     let secret = [
-        local_public_key.unwrap_or(&[]),
-        remote_pub_key,
-        &epoch.to_be_bytes(),
+        local_public_key
+            .map(|k| k.to_bytes().to_vec())
+            .unwrap_or_default(),
+        remote_pub_key.to_bytes().to_vec(),
+        epoch.to_be_bytes().to_vec(),
     ]
     .concat();
     let secret_hash = Sha256::digest(secret);
 
     let handshake = Builder::new(pattern.as_str().parse()?)
-        .local_private_key(local_private_key)
-        .remote_public_key(remote_pub_key)
+        .local_private_key(&local_private_key.to_bytes())
+        .remote_public_key(&remote_pub_key.to_bytes())
         .psk(pattern.psk_position(), &secret_hash)
         .build_initiator()?;
 
@@ -50,8 +52,8 @@ pub async fn upgrade_noise_initiator_with_topology(
     pattern: NoisePattern,
     topology: &NymTopology,
     epoch: u32,
-    local_public_key: &[u8],
-    local_private_key: &[u8],
+    local_public_key: &encryption::PublicKey,
+    local_private_key: &encryption::PrivateKey,
 ) -> Result<Connection, NoiseError> {
     //Get init material
     let responder_addr = conn.peer_addr().map_err(|err| {
@@ -60,7 +62,7 @@ pub async fn upgrade_noise_initiator_with_topology(
     })?;
 
     let remote_pub_key = match topology.find_node_key_by_mix_host(responder_addr) {
-        Ok(Some(key)) => encryption::PublicKey::from_base58_string(key)?.to_bytes(),
+        Ok(Some(key)) => encryption::PublicKey::from_base58_string(key)?,
         Ok(None) => {
             warn!(
                 "{:?} can't speak Noise yet, falling back to TCP",
@@ -91,24 +93,26 @@ pub async fn upgrade_noise_initiator_with_topology(
 pub async fn upgrade_noise_responder(
     conn: TcpStream,
     pattern: NoisePattern,
-    local_public_key: &[u8],
-    local_private_key: &[u8],
-    remote_pub_key: Option<&[u8]>,
+    local_public_key: &encryption::PublicKey,
+    local_private_key: &encryption::PrivateKey,
+    remote_pub_key: Option<&encryption::PublicKey>,
     epoch: u32,
 ) -> Result<Connection, NoiseError> {
     trace!("Perform Noise Handshake, responder side");
 
     //If the remote_key cannot be kwnown, e.g. in a client-gateway connection
     let secret = [
-        remote_pub_key.unwrap_or(&[]),
-        local_public_key,
-        &epoch.to_be_bytes(),
+        remote_pub_key
+            .map(|k| k.to_bytes().to_vec())
+            .unwrap_or_default(),
+        local_public_key.to_bytes().to_vec(),
+        epoch.to_be_bytes().to_vec(),
     ]
     .concat();
     let secret_hash = Sha256::digest(secret);
 
     let handshake = Builder::new(pattern.as_str().parse()?)
-        .local_private_key(local_private_key)
+        .local_private_key(&local_private_key.to_bytes())
         .psk(pattern.psk_position(), &secret_hash)
         .build_responder()?;
 
@@ -122,8 +126,8 @@ pub async fn upgrade_noise_responder_with_topology(
     pattern: NoisePattern,
     topology: &NymTopology,
     epoch: u32,
-    local_public_key: &[u8],
-    local_private_key: &[u8],
+    local_public_key: &encryption::PublicKey,
+    local_private_key: &encryption::PrivateKey,
 ) -> Result<Connection, NoiseError> {
     //Get init material
     let initiator_addr = match conn.peer_addr() {
@@ -136,7 +140,7 @@ pub async fn upgrade_noise_responder_with_topology(
 
     //SW : for private gateway, we could try to perform the handshake without that key?
     let remote_pub_key = match topology.find_node_key_by_mix_host(initiator_addr) {
-        Ok(Some(key)) => encryption::PublicKey::from_base58_string(key)?.to_bytes(),
+        Ok(Some(key)) => encryption::PublicKey::from_base58_string(key)?,
         Ok(None) => {
             warn!(
                 "{:?} can't speak Noise yet, falling back to TCP",

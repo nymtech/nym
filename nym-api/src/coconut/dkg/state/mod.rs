@@ -356,7 +356,7 @@ impl State {
     }
 
     pub async fn coconut_keypair_is_some(&self) -> bool {
-        self.coconut_keypair.get().await.is_some()
+        self.coconut_keypair.read_keys().await.is_some()
     }
 
     pub async fn take_coconut_keypair(&self) -> Option<KeyPairWithEpoch> {

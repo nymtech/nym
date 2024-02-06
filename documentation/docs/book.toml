@@ -13,15 +13,15 @@ edition = "2018"
 # PREPROCESSORS #
 #################
 
-#[preprocessor.theme]
-#sidebar-width             = "280px"
-#content-max-width         = "75%"
-#content-main-margin-left  = "5%"
-#content-main-margin-right = "5%"
-#root-font-size            = "80%"
+[preprocessor.theme]
+sidebar-width             = "280px"
+content-max-width         = "80%"
+content-main-margin-left  = "5%"
+content-main-margin-right = "5%"
+root-font-size            = "70%"
 #sidebar-font-size         = "0.85em"
-## if true, never read and touch the files in theme dir
-#turn-off = true
+# DO NOT CHANGE or you might overwrite the custom hbs headers
+turn-off = true
 
 [preprocessor.admonish]
 command = "mdbook-admonish"

@@ -530,7 +530,7 @@ impl crate::coconut::client::Client for Client {
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(nyxd_signing!(
             self,
-            register_dealer(bte_key, announce_address, identity_key, resharing, None).await?
+            register_dealer(bte_key, identity_key, announce_address, resharing, None).await?
         ))
     }
 

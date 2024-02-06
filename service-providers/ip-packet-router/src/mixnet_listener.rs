@@ -142,6 +142,8 @@ impl ConnectedClientsListener {
                         nym_address,
                         mix_hops,
                         last_activity: std::time::Instant::now(),
+                        close_tx,
+                        tun_tx,
                     },
                 );
             }
@@ -257,6 +259,10 @@ pub(crate) struct ConnectedClient {
     pub(crate) nym_address: Recipient,
     pub(crate) mix_hops: Option<u8>,
     pub(crate) last_activity: std::time::Instant,
+    // Send to connected clients listener to stop
+    pub(crate) close_tx: tokio::sync::oneshot::Sender<()>,
+    // Forward to the connected clients listener packets that we have read from the TUN
+    pub(crate) tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
 }
 
 #[cfg(target_os = "linux")]
@@ -365,6 +371,21 @@ impl MixnetListener {
                 DynamicConnectFailureReason::NoAvailableIp,
             )));
         };
+
+        // Spawn ConnectedClientHandler
+        let (close_tx, close_rx) = tokio::sync::oneshot::channel();
+        let (tun_tx, mut tun_rx) = tokio::sync::mpsc::unbounded_channel();
+        let connected_client_handler = crate::tun_listener::ConnectedClientHandler::new(
+            new_ip,
+            reply_to,
+            self.tun_writer.clone(),
+            tun_rx,
+            close_rx,
+        );
+        // Where should close_tx be stored? It's the mixnet_listener that should send close message
+        // to the connected client handler
+        // The tun_tx needs to be sent to the tun_listener somehow. Probably through the
+        // ConnectedClientsListener
 
         self.connected_clients
             .connect(new_ip, reply_to, reply_to_hops);

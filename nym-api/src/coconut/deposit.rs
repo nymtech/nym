@@ -7,13 +7,16 @@ use nym_coconut_bandwidth_contract_common::events::{
     COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY,
     DEPOSIT_INFO, DEPOSIT_VALUE,
 };
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
+use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::helpers::find_tx_attribute;
 use nym_validator_client::nyxd::TxResponse;
 
 pub async fn validate_deposit_tx(request: &BlindSignRequestBody, tx: TxResponse) -> Result<()> {
-    if request.public_attributes_plain.len() != BandwidthVoucher::PUBLIC_ATTRIBUTES as usize {
+    if request.public_attributes_plain.len()
+        != IssuanceBandwidthCredential::PUBLIC_ATTRIBUTES as usize
+    {
         return Err(CoconutError::InconsistentPublicAttributes);
     }
 
@@ -58,8 +61,10 @@ pub async fn validate_deposit_tx(request: &BlindSignRequestBody, tx: TxResponse)
 
     // verify signature
     let x25519 = identity::PublicKey::from_base58_string(x25519_raw)?;
-    let plaintext =
-        BandwidthVoucher::signable_plaintext(&request.inner_sign_request, request.tx_hash);
+    let plaintext = BandwidthVoucherIssuanceData::request_plaintext(
+        &request.inner_sign_request,
+        request.tx_hash,
+    );
     x25519.verify(plaintext, &request.signature)?;
 
     Ok(())

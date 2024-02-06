@@ -1,4 +1,4 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::api_routes::helpers::build_credentials_response;
@@ -17,7 +17,7 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
 use nym_validator_client::nyxd::Coin;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
@@ -36,7 +36,7 @@ pub async fn post_blind_sign(
     // early check: does the request have the expected number of public attributes?
     debug!("performing basic request validation");
     if blind_sign_request_body.public_attributes_plain.len()
-        != BandwidthVoucher::PUBLIC_ATTRIBUTES as usize
+        != IssuanceBandwidthCredential::PUBLIC_ATTRIBUTES as usize
     {
         return Err(CoconutError::InconsistentPublicAttributes);
     }

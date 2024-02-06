@@ -10,23 +10,13 @@ use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::coconut::helpers::issued_credential_plaintext;
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_coconut::Parameters;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_interface::{BlindedSignature, VerificationKey};
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::{Hash, TxResponse};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
-// keep it as a global static due to relatively high cost of computing the curve points;
-// plus we expect all clients to use the same set of parameters
-//
-// future note: once we allow for credentials with variable number of attributes, just create Parameters(max_allowed_attributes)
-// and take as many hs elements as required (since they will match for all variants)
-pub(crate) fn bandwidth_voucher_params() -> &'static Parameters {
-    static BANDWIDTH_CREDENTIAL_PARAMS: OnceLock<Parameters> = OnceLock::new();
-    BANDWIDTH_CREDENTIAL_PARAMS.get_or_init(BandwidthVoucher::default_parameters)
-}
+pub use nym_credentials::coconut::bandwidth::bandwidth_voucher_params;
 
 pub struct State {
     pub(crate) client: Arc<dyn LocalClient + Send + Sync>,

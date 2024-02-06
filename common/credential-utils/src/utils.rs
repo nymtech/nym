@@ -126,24 +126,25 @@ pub async fn recover_credentials<C>(
 where
     C: DkgQueryClient + Send + Sync,
 {
-    let mut recovered_amount: u128 = 0;
-    for voucher in recovery_storage.unconsumed_vouchers()? {
-        let voucher_value = voucher.get_voucher_value();
-        recovered_amount += voucher_value.parse::<u128>()?;
-
-        let state = State::new(voucher);
-        let voucher = state.voucher.tx_hash();
-        if let Err(e) =
-            nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
-        {
-            error!("Could not recover deposit {voucher} due to {e}, try again later",)
-        } else {
-            info!("Converted deposit {voucher} to a credential, removing recovery data for it",);
-            if let Err(e) = recovery_storage.remove_voucher(voucher.to_string()) {
-                warn!("Could not remove recovery data: {e}");
-            }
-        }
-    }
-
-    Ok(recovered_amount)
+    todo!()
+    // let mut recovered_amount: u128 = 0;
+    // for voucher in recovery_storage.unconsumed_vouchers()? {
+    //     let voucher_value = voucher.get_voucher_value();
+    //     recovered_amount += voucher_value.parse::<u128>()?;
+    //
+    //     let state = State::new(voucher);
+    //     let voucher = state.voucher.tx_hash();
+    //     if let Err(e) =
+    //         nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
+    //     {
+    //         error!("Could not recover deposit {voucher} due to {e}, try again later",)
+    //     } else {
+    //         info!("Converted deposit {voucher} to a credential, removing recovery data for it",);
+    //         if let Err(e) = recovery_storage.remove_voucher(voucher.to_string()) {
+    //             warn!("Could not remove recovery data: {e}");
+    //         }
+    //     }
+    // }
+    //
+    // Ok(recovered_amount)
 }

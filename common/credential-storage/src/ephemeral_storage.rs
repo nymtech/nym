@@ -3,7 +3,7 @@
 
 use crate::backends::memory::CoconutCredentialManager;
 use crate::error::StorageError;
-use crate::models::CoconutCredential;
+use crate::models::{CoconutCredential, StoredIssuedCredential};
 use crate::storage::Storage;
 use async_trait::async_trait;
 
@@ -58,6 +58,12 @@ impl Storage for EphemeralStorage {
             .ok_or(StorageError::NoCredential)?;
 
         Ok(credential)
+    }
+
+    async fn get_next_unspent_credential(
+        &self,
+    ) -> Result<StoredIssuedCredential, Self::StorageError> {
+        todo!()
     }
 
     async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError> {

@@ -5,7 +5,7 @@ use crate::backends::sqlite::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::storage::Storage;
 
-use crate::models::CoconutCredential;
+use crate::models::{CoconutCredential, StoredIssuedCredential};
 use async_trait::async_trait;
 use log::{debug, error};
 use sqlx::ConnectOptions;
@@ -89,6 +89,12 @@ impl Storage for PersistentStorage {
             .ok_or(StorageError::NoCredential)?;
 
         Ok(credential)
+    }
+
+    async fn get_next_unspent_credential(
+        &self,
+    ) -> Result<StoredIssuedCredential, Self::StorageError> {
+        todo!()
     }
 
     async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError> {

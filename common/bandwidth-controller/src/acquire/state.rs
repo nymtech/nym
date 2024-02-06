@@ -1,19 +1,14 @@
-// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_coconut_interface::Parameters;
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
 
 pub struct State {
-    pub voucher: BandwidthVoucher,
-    pub params: Parameters,
+    pub voucher: IssuanceBandwidthCredential,
 }
 
 impl State {
-    pub fn new(voucher: BandwidthVoucher) -> Self {
-        State {
-            voucher,
-            params: BandwidthVoucher::default_parameters(),
-        }
+    pub fn new(voucher: IssuanceBandwidthCredential) -> Self {
+        State { voucher }
     }
 }

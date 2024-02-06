@@ -1,11 +1,11 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::spawn_future;
-pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
+pub use accessor::{TopologyAccessor, TopologyReadPermit};
 use futures::StreamExt;
 use log::*;
 use nym_sphinx::addressing::nodes::NodeIdentity;
+use nym_task::spawn;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
@@ -142,7 +142,7 @@ impl TopologyRefresher {
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
-        spawn_future(async move {
+        spawn(async move {
             debug!("Started TopologyRefresher with graceful shutdown support");
 
             #[cfg(not(target_arch = "wasm32"))]

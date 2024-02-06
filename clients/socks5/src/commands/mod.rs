@@ -17,11 +17,11 @@ use nym_client_core::client::base_client::storage::gateway_details::{
     OnDiskGatewayDetails, PersistedGatewayDetails,
 };
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
-use nym_client_core::config::{GatewayEndpointConfig, GroupBy, TopologyStructure};
+use nym_client_core::config::{GatewayEndpointConfig, TopologyStructure};
 use nym_client_core::error::ClientCoreError;
 use nym_config::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
+use nym_topology_control::geo_aware_provider::{CountryGroup, GroupBy};
 use std::error::Error;
 use std::net::IpAddr;
 

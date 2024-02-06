@@ -6240,6 +6240,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
+ "nym-topology-control",
  "nym-validator-client",
  "rand 0.7.3",
  "reqwest",
@@ -6547,7 +6548,6 @@ dependencies = [
  "log",
  "nym-api-requests",
  "nym-bin-common",
- "nym-client-core",
  "nym-coconut-interface",
  "nym-config",
  "nym-credentials",
@@ -6564,6 +6564,7 @@ dependencies = [
  "nym-statistics-common",
  "nym-task",
  "nym-topology",
+ "nym-topology-control",
  "nym-types",
  "nym-validator-client",
  "nym-wireguard",
@@ -6754,7 +6755,6 @@ dependencies = [
  "lazy_static",
  "log",
  "nym-bin-common",
- "nym-client-core",
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
@@ -6768,6 +6768,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-task",
  "nym-topology",
+ "nym-topology-control",
  "nym-types",
  "nym-validator-client",
  "opentelemetry",
@@ -7106,6 +7107,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
+ "nym-topology-control",
  "nym-validator-client",
  "parking_lot 0.12.1",
  "pretty_env_logger",
@@ -7171,6 +7173,7 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-sphinx",
  "nym-topology",
+ "nym-topology-control",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -7481,6 +7484,27 @@ dependencies = [
  "tsify",
  "wasm-bindgen",
  "wasm-utils",
+]
+
+[[package]]
+name = "nym-topology-control"
+version = "1.1.15"
+dependencies = [
+ "async-trait",
+ "futures",
+ "log",
+ "nym-explorer-client",
+ "nym-network-defaults",
+ "nym-sphinx",
+ "nym-task",
+ "nym-topology",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "tap",
+ "tokio",
+ "tokio-stream",
+ "url",
 ]
 
 [[package]]

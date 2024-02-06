@@ -34,6 +34,7 @@ nym-sphinx = { path = "../../common/nymsphinx" }
 nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-pemstore = { path = "../../common/pemstore" }
 nym-topology = { path = "../../common/topology" }
+nym-topology-control = { path = "../../common/topology-control" }
 nym-socks5-client-core = { path = "../../common/socks5-client-core" }
 
 [features]

@@ -161,6 +161,41 @@
                             <i class="fa fa-search"></i>
                         </button>
                         {{/if}}
+
+                        <!-- CUSTOM -->
+<!--                        TODO style -->
+                        <select id="dropdown-menu">
+                            <option value="">SDKS</option>
+                            <option value="https://nymtech.net/docs/sdk/rust/rust.html">Rust</option>
+                            <option value="https://sdk.nymtech.net">Typescript</option>
+                        </select>
+
+                        <select id="dropdown-menu2">
+                            <option value="">Doc Sites</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/docs/introduction.html">Network Docs</option>
+                            <option value="https://https://nymtech.net/operators">Operator Docs</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+
+                        <script>
+                            document.getElementById('dropdown-menu2').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        <!-- END CUSTOM -->
+
                     </div>
 
                     <h1 class="menu-title">{{ book_title }}</h1>
@@ -337,6 +372,7 @@
         </script>
         {{/if}}
         {{/if}}
+
 
     </div>
     </body>

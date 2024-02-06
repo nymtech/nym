@@ -17,7 +17,6 @@ use crate::{
     client::{
         inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
         real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors,
-        topology_control::TopologyAccessor,
     },
     spawn_future,
 };
@@ -28,6 +27,7 @@ use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
+use nym_topology_control::TopologyAccessor;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 

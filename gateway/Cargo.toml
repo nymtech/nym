@@ -78,7 +78,7 @@ nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
-nym-client-core = { path = "../common/client-core"}
+nym-topology-control = { path = "../common/topology-control" }
 nym-topology = { path = "../common/topology" }
 
 nym-wireguard = { path = "../common/wireguard", optional = true }

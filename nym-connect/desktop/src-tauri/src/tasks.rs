@@ -7,10 +7,10 @@ use nym_client_core::{
     config::TopologyStructure,
     error::ClientCoreStatusMessage,
 };
-use nym_topology_control::geo_aware_provider::GroupBy;
 use nym_socks5_client_core::{NymClient as Socks5NymClient, Socks5ControlMessageSender};
 use nym_sphinx::params::PacketSize;
 use nym_task::manager::TaskStatus;
+use nym_topology_control::geo_aware_provider::GroupBy;
 use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;

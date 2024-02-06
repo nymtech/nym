@@ -1,12 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "DealingStatusResponse",
+  "title": "DealingMetadataResponse",
   "type": "object",
   "required": [
     "dealer",
     "dealing_index",
-    "epoch_id",
-    "status"
+    "epoch_id"
   ],
   "properties": {
     "dealer": {
@@ -22,8 +21,15 @@
       "format": "uint64",
       "minimum": 0.0
     },
-    "status": {
-      "$ref": "#/definitions/DealingStatus"
+    "metadata": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DealingMetadata"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -46,25 +52,53 @@
       },
       "additionalProperties": false
     },
-    "DealingStatus": {
+    "DealingChunkInfo": {
       "type": "object",
       "required": [
-        "chunk_submission_status",
-        "fully_submitted",
-        "has_metadata"
+        "size"
       ],
       "properties": {
-        "chunk_submission_status": {
+        "size": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "DealingMetadata": {
+      "type": "object",
+      "required": [
+        "dealing_index",
+        "submitted_chunks"
+      ],
+      "properties": {
+        "dealing_index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "submitted_chunks": {
           "type": "object",
           "additionalProperties": {
-            "$ref": "#/definitions/ChunkSubmissionStatus"
+            "$ref": "#/definitions/SubmittedChunk"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "SubmittedChunk": {
+      "type": "object",
+      "required": [
+        "info",
+        "status"
+      ],
+      "properties": {
+        "info": {
+          "$ref": "#/definitions/DealingChunkInfo"
         },
-        "fully_submitted": {
-          "type": "boolean"
-        },
-        "has_metadata": {
-          "type": "boolean"
+        "status": {
+          "$ref": "#/definitions/ChunkSubmissionStatus"
         }
       },
       "additionalProperties": false

@@ -136,6 +136,66 @@
     {
       "type": "object",
       "required": [
+        "get_dealings_metadata"
+      ],
+      "properties": {
+        "get_dealings_metadata": {
+          "type": "object",
+          "required": [
+            "dealer",
+            "dealing_index",
+            "epoch_id"
+          ],
+          "properties": {
+            "dealer": {
+              "type": "string"
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_dealer_dealings_status"
+      ],
+      "properties": {
+        "get_dealer_dealings_status": {
+          "type": "object",
+          "required": [
+            "dealer",
+            "epoch_id"
+          ],
+          "properties": {
+            "dealer": {
+              "type": "string"
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_dealing_status"
       ],
       "properties": {
@@ -169,17 +229,23 @@
     {
       "type": "object",
       "required": [
-        "get_dealing"
+        "get_dealing_chunk_status"
       ],
       "properties": {
-        "get_dealing": {
+        "get_dealing_chunk_status": {
           "type": "object",
           "required": [
+            "chunk_index",
             "dealer",
             "dealing_index",
             "epoch_id"
           ],
           "properties": {
+            "chunk_index": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
             "dealer": {
               "type": "string"
             },
@@ -202,38 +268,34 @@
     {
       "type": "object",
       "required": [
-        "get_dealings"
+        "get_dealing_chunk"
       ],
       "properties": {
-        "get_dealings": {
+        "get_dealing_chunk": {
           "type": "object",
           "required": [
+            "chunk_index",
             "dealer",
+            "dealing_index",
             "epoch_id"
           ],
           "properties": {
+            "chunk_index": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
             "dealer": {
               "type": "string"
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
             },
             "epoch_id": {
               "type": "integer",
               "format": "uint64",
-              "minimum": 0.0
-            },
-            "limit": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "start_after": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
               "minimum": 0.0
             }
           },

@@ -1,14 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "DealingStatusResponse",
+  "title": "DealingChunkStatusResponse",
   "type": "object",
   "required": [
+    "chunk_index",
     "dealer",
     "dealing_index",
     "epoch_id",
     "status"
   ],
   "properties": {
+    "chunk_index": {
+      "type": "integer",
+      "format": "uint16",
+      "minimum": 0.0
+    },
     "dealer": {
       "$ref": "#/definitions/Addr"
     },
@@ -23,7 +29,7 @@
       "minimum": 0.0
     },
     "status": {
-      "$ref": "#/definitions/DealingStatus"
+      "$ref": "#/definitions/ChunkSubmissionStatus"
     }
   },
   "additionalProperties": false,
@@ -42,29 +48,6 @@
           ],
           "format": "uint64",
           "minimum": 0.0
-        }
-      },
-      "additionalProperties": false
-    },
-    "DealingStatus": {
-      "type": "object",
-      "required": [
-        "chunk_submission_status",
-        "fully_submitted",
-        "has_metadata"
-      ],
-      "properties": {
-        "chunk_submission_status": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/ChunkSubmissionStatus"
-          }
-        },
-        "fully_submitted": {
-          "type": "boolean"
-        },
-        "has_metadata": {
-          "type": "boolean"
         }
       },
       "additionalProperties": false

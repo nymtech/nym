@@ -1,29 +1,30 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "DealingStatusResponse",
+  "title": "DealerDealingsStatusResponse",
   "type": "object",
   "required": [
+    "all_dealings_fully_submitted",
     "dealer",
-    "dealing_index",
-    "epoch_id",
-    "status"
+    "dealing_submission_status",
+    "epoch_id"
   ],
   "properties": {
+    "all_dealings_fully_submitted": {
+      "type": "boolean"
+    },
     "dealer": {
       "$ref": "#/definitions/Addr"
     },
-    "dealing_index": {
-      "type": "integer",
-      "format": "uint32",
-      "minimum": 0.0
+    "dealing_submission_status": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/DealingStatus"
+      }
     },
     "epoch_id": {
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
-    },
-    "status": {
-      "$ref": "#/definitions/DealingStatus"
     }
   },
   "additionalProperties": false,

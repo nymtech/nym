@@ -132,7 +132,7 @@ Save, exit and restart your Gateway. Now you are an operator of post-smooshed Ex
 
 In case you already added Network Requester functionality to your Gateway as described above but haven't enabled the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) there is an easy tweak to do so and turn your node into [Nym Exit Gateway](../faq/smoosh-faq.md#what-are-the-changes).
 
-Open the config file stored at `.nym/gateways/<ID>/config/network_requester_config.tom` and set:
+Open the config file stored at `.nym/gateways/<ID>/config/network_requester_config.toml` and set:
 ```sh
 use_deprecated_allow_list = false
 ```

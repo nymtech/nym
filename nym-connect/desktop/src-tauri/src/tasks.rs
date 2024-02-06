@@ -4,9 +4,10 @@ use nym_client_core::{
     client::base_client::storage::{
         gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
     },
-    config::{GroupBy, TopologyStructure},
+    config::TopologyStructure,
     error::ClientCoreStatusMessage,
 };
+use nym_topology_control::geo_aware_provider::GroupBy;
 use nym_socks5_client_core::{NymClient as Socks5NymClient, Socks5ControlMessageSender};
 use nym_sphinx::params::PacketSize;
 use nym_task::manager::TaskStatus;

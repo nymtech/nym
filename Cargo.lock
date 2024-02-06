@@ -7492,6 +7492,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "gloo-timers",
  "log",
  "nym-explorer-client",
  "nym-network-defaults",
@@ -7505,6 +7506,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "url",
+ "wasmtimer",
 ]
 
 [[package]]

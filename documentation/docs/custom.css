@@ -15,17 +15,17 @@
 }
 
 .light {
-  --bg: #f4f6f8;
-  --fg: #121726;
-
-  --sidebar-bg: #f4f6f8;
-  --sidebar-fg: #121726;
   --sidebar-active: #fb6e4e;
 
   --icons: #121726;
   --icons-hover: #fb6e4e;
 
   --links: #fb6e4e;
+
+  ::selection {
+    color: #f4f6f8;
+    background-color: #fb6e4e;
+  }
 }
 
 footer {

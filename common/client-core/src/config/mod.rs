@@ -1,14 +1,12 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{client::topology_control::geo_aware_provider::CountryGroup, error::ClientCoreError};
+use crate::error::ClientCoreError;
 use nym_config::defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::GatewayConfig;
-use nym_sphinx::{
-    addressing::clients::Recipient,
-    params::{PacketSize, PacketType},
-};
+use nym_sphinx::params::{PacketSize, PacketType};
+use nym_topology_control::geo_aware_provider::GroupBy;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
@@ -539,22 +537,6 @@ pub enum TopologyStructure {
     #[default]
     NymApi,
     GeoAware(GroupBy),
-}
-
-#[allow(clippy::large_enum_variant)]
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum GroupBy {
-    CountryGroup(CountryGroup),
-    NymAddress(Recipient),
-}
-
-impl std::fmt::Display for GroupBy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GroupBy::CountryGroup(group) => write!(f, "group: {}", group),
-            GroupBy::NymAddress(address) => write!(f, "address: {}", address),
-        }
-    }
 }
 
 impl Default for Topology {

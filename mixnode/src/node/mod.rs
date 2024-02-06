@@ -15,14 +15,14 @@ use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSende
 use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
-use nym_client_core::client::topology_control::accessor::TopologyAccessor;
-use nym_client_core::client::topology_control::nym_api_provider::NymApiTopologyProvider;
-use nym_client_core::client::topology_control::TopologyRefresher;
-use nym_client_core::client::topology_control::TopologyRefresherConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
+use nym_topology_control::accessor::TopologyAccessor;
+use nym_topology_control::nym_api_provider::NymApiTopologyProvider;
+use nym_topology_control::TopologyRefresher;
+use nym_topology_control::TopologyRefresherConfig;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;

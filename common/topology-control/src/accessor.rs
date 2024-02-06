@@ -49,7 +49,7 @@ impl<'a> Deref for TopologyReadPermit<'a> {
 impl<'a> TopologyReadPermit<'a> {
     /// Using provided topology read permit, tries to get an immutable reference to the underlying
     /// topology. For obvious reasons the lifetime of the topology reference is bound to the permit.
-    pub(crate) fn try_get_valid_topology_ref(
+    pub fn try_get_valid_topology_ref(
         &'a self,
         ack_recipient: &Recipient,
         packet_recipient: Option<&Recipient>,

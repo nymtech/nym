@@ -3,7 +3,6 @@
 
 use super::packet_statistics_control::PacketStatisticsReporter;
 use super::received_buffer::ReceivedBufferMessage;
-use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
@@ -21,10 +20,6 @@ use crate::client::replies::reply_controller;
 use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyControllerSender};
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
-};
-use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
-use crate::client::topology_control::{
-    TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
@@ -50,6 +45,9 @@ use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, 
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
+use nym_topology_control::geo_aware_provider::GeoAwareTopologyProvider;
+use nym_topology_control::nym_api_provider::NymApiTopologyProvider;
+use nym_topology_control::{TopologyAccessor, TopologyRefresher, TopologyRefresherConfig};
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::fmt::Debug;
 use std::path::Path;

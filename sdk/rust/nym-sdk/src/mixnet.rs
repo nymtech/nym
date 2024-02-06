@@ -54,9 +54,8 @@ pub use nym_client_core::{
             fs_backend::Backend as ReplyStorage, CombinedReplyStorage, Empty as EmptyReplyStorage,
             ReplyStorageBackend,
         },
-        topology_control::geo_aware_provider::{CountryGroup, GeoAwareTopologyProvider},
     },
-    config::{GatewayEndpointConfig, GroupBy},
+    config::GatewayEndpointConfig,
 };
 pub use nym_credential_storage::{
     ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage, models::CoconutCredential,
@@ -73,6 +72,9 @@ pub use nym_sphinx::{
     receiver::ReconstructedMessage,
 };
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
+pub use nym_topology_control::geo_aware_provider::{
+    CountryGroup, GeoAwareTopologyProvider, GroupBy,
+};
 pub use paths::StoragePaths;
 pub use socks5_client::Socks5MixnetClient;
 pub use traits::MixnetMessageSender;

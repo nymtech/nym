@@ -49,14 +49,14 @@ extra-watch-dirs = []             # directories to watch for triggering builds
 ##########
 
 [output.html]
-#theme         = "theme" # this is the default if not explicitly set
+theme         = "nym_themes"
 default-theme = "coal"
 preferred-dark-theme = "coal"
 curly-quotes = true
 # mathjax-support = false # useful if we want to pull equations in
 copy-fonts = true
 no-section-label = false
-additional-css = ["././mdbook-admonish.css", "./custom.css", "./mdbook-admonish.css"]
+additional-css = ["./nym_themes/custom.css", "./mdbook-admonish.css"]
 additional-js  = []
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"

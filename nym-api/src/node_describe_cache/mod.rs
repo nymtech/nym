@@ -183,11 +183,7 @@ async fn get_gateway_description(
         None
     };
 
-    let noise_info = if let Ok(noise_info) = client.get_noise_information().await {
-        noise_info
-    } else {
-        Default::default()
-    };
+    let noise_info = client.get_noise_information().await.unwrap_or_default();
 
     let description = NymNodeDescription {
         host_information: host_info.data,

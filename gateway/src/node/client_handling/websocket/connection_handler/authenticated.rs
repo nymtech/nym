@@ -53,9 +53,6 @@ pub(crate) enum RequestHandlingError {
     #[error("The received request is not valid in the current context")]
     IllegalRequest,
 
-    #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
-    UnsupportedBandwidthValue(u64),
-
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
 
@@ -85,9 +82,6 @@ pub(crate) enum RequestHandlingError {
 
     #[error("failed to recover bandwidth value: {0}")]
     BandwidthRecoveryFailure(#[from] BandwidthError),
-
-    #[error("free pass credentials haven't been implemented yet")]
-    UnimplementedFreePass,
 }
 
 impl RequestHandlingError {
@@ -250,6 +244,7 @@ where
             unimplemented!()
         };
 
+        // this will extract token amounts out of bandwidth vouchers and validate expiry of free passes
         let bandwidth = Bandwidth::try_from_raw_value(bandwidth_attribute, credential.data.typ)?;
 
         let params = bandwidth_credential_params();
@@ -273,8 +268,8 @@ where
                     .await?;
             }
             CredentialType::FreePass => {
-                error!("unimplemented handling of free pass credential");
-                return Err(RequestHandlingError::UnimplementedFreePass);
+                // no need to do anything special here, we already extracted the bandwidth amount and checked expiry
+                info!("received a free pass credential");
             }
         }
 

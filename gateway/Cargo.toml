@@ -55,6 +55,7 @@ tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = { version = "0.20.1" }
 tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true, features = ["serde"] }
+time = { workspace = true }
 zeroize = { workspace = true }
 
 # internal

@@ -457,6 +457,9 @@ pub const ETH_ERC20_APPROVE_FUNCTION_NAME: &str = "approve";
 /// How much bandwidth (in bytes) one token can buy
 pub const BYTES_PER_UTOKEN: u64 = 1024;
 
+/// How much bandwidth (in bytes) one freepass provides
+pub const BYTES_PER_FREEPASS: u64 = 1024 * 1024 * 1024; // 1GB
+
 /// Threshold for claiming more bandwidth: 1 MB
 pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
 /// How many ERC20 tokens should be burned to buy bandwidth

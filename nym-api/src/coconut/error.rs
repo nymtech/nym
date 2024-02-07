@@ -3,6 +3,7 @@
 
 use crate::node_status_api::models::NymApiStorageError;
 use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
+use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
@@ -14,6 +15,7 @@ use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
 use rocket::{response, Request, Response};
 use std::io::Cursor;
+use std::num::ParseIntError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, CoconutError>;
@@ -22,6 +24,20 @@ pub type Result<T> = std::result::Result<T, CoconutError>;
 pub enum CoconutError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
+
+    #[error("the received bandwidth voucher did not contain deposit value")]
+    MissingBandwidthValue,
+
+    #[error(
+        "the received bandwidth credential is not a bandwidth voucher. the encoded type is: {typ}"
+    )]
+    NotABandwidthVoucher { typ: CredentialType },
+
+    #[error("failed to parse the bandwidth voucher value: {source}")]
+    VoucherValueParsingFailure {
+        #[source]
+        source: ParseIntError,
+    },
 
     #[error("coconut api query failure: {0}")]
     CoconutApiError(#[from] CoconutApiError),

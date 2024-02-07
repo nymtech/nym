@@ -5,7 +5,7 @@ use crate::coconut::helpers::issued_credential_plaintext;
 use cosmrs::AccountId;
 use nym_credentials_interface::{
     hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, Bytable, CoconutError,
-    CredentialSpendingData, Signature, VerificationKey,
+    CredentialSpendingData, VerificationKey,
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};

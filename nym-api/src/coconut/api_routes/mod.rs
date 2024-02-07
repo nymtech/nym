@@ -100,9 +100,15 @@ pub async fn verify_bandwidth_credential(
     let theta = &credential_data.verify_credential_request;
 
     let voucher_value: u64 = if credential_data.typ.is_voucher() {
-        todo!()
+        credential_data
+            .get_bandwidth_attribute()
+            .ok_or(CoconutError::MissingBandwidthValue)?
+            .parse()
+            .map_err(|source| CoconutError::VoucherValueParsingFailure { source })?
     } else {
-        todo!("return error here")
+        return Err(CoconutError::NotABandwidthVoucher {
+            typ: credential_data.typ,
+        });
     };
 
     // TODO: introduce a check to make sure we haven't already voted for this proposal to prevent DDOS

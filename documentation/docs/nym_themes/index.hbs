@@ -48,10 +48,10 @@
         <link rel="stylesheet" href="{{ ../path_to_root }}{{ this }}">
         {{/each}}
 
-        {{#if mathjax_support}}
-        <!-- MathJax -->
-        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
-        {{/if}}
+<!--        {{#if mathjax_support}}-->
+<!--        &lt;!&ndash; MathJax &ndash;&gt;-->
+<!--        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>-->
+<!--        {{/if}}-->
     </head>
     <body class="sidebar-visible no-js">
     <div id="body-container">
@@ -150,7 +150,6 @@
                             <i class="fa fa-bars"></i>
                         </label>
 
-                        <!-- TODO remove weird padding here -->
                         <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
                             <i class="fa fa-paint-brush"></i>
                         </button>
@@ -162,21 +161,22 @@
                         <!-- CUSTOM -->
                         <!-- TODO style everything -->
                         <select id="dropdown-menu" class="icon-button">
-                            <option value="">Developers</option>
+                            <option value="">Developer Docs</option>
                             <option value="https://nymtech.net/developers">Dev Portal</option>
                             <option value="https://nymtech.net/docs/sdk/rust/rust.html">Rust SDK</option>
                             <option value="https://sdk.nymtech.net">Typescript SDK</option>
                         </select>
 
+
                         <select id="dropdown-menu2" class="icon-button">
-                            <option value="">Guides</option>
+                            <option value="">Setup Guides</option>
                             <option value="">NymVPN</option>
                             <option value="https://nymtech.net/operators">Operators</option>
                         </select>
 
-<!--                        TODO make orange only on hover -->
+                        <!-- TODO make orange only on hover -->
                         <div class="icon-button">
-                            <a href="https://nymtech.net/docs">Protocol</a>
+                            <a href="https://nymtech.net/docs">Network Docs</a>
                         </div>
 
                         <script>
@@ -200,7 +200,7 @@
 
                     </div>
 
-                    <h1 class="menu-title">{{ book_title }}</h1>
+                    <h1 class="menu-title"> {{ book_title }}</h1>
 
                     <div class="right-buttons">
                         {{#if search_enabled}}

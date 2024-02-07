@@ -19,15 +19,13 @@ content-max-width         = "70%"
 content-main-margin-left  = "5%"
 content-main-margin-right = "5%"
 root-font-size            = "70%"
-#sidebar-font-size         = "0.85em"
-# DO NOT CHANGE or you might overwrite the custom hbs headers
+# DO NOT CHANGE or you might overwrite the custom hbs file
 turn-off = true
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
 assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
 
-# variables preprocessor: import variables into files
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
@@ -37,8 +35,7 @@ wallet_release_version = "1.2.8"
 command = "mdbook-last-changed"
 renderer = ["html"]
 
-# used for grabbing output of binary commands for automation
-# https://github.com/FauconFan/mdbook-cmdrun
+# used for grabbing output of binary commands for automation https://github.com/FauconFan/mdbook-cmdrun
 [preprocessor.cmdrun]
 
 # more pre-processor plugins to look into from https://github.com/rust-lang/mdBook/wiki/Third-party-plugins & https://lib.rs/keywords/mdbook-preprocessor

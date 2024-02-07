@@ -145,7 +145,9 @@ pub(crate) mod tests {
 
                 let mut chunk_infos = Vec::new();
                 for (chunk_index, chunk) in chunks.enumerate() {
-                    chunk_infos.push(DealingChunkInfo { size: chunk.len() });
+                    chunk_infos.push(DealingChunkInfo {
+                        size: chunk.len() as u64,
+                    });
                     StoredDealing::save(
                         deps.storage,
                         epoch,

@@ -36,7 +36,7 @@ pub fn partial_dealing_fixture() -> PartialContractDealing {
 pub fn dealing_metadata_fixture() -> Vec<DealingChunkInfo> {
     let chunk_fixture = partial_dealing_fixture();
     vec![DealingChunkInfo {
-        size: chunk_fixture.data.len(),
+        size: chunk_fixture.data.len() as u64,
     }]
 }
 

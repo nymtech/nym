@@ -160,24 +160,20 @@
                         </ul>
 
                         <!-- CUSTOM -->
-                        <!-- TODO style everything -->
+                        <!-- TODO style when open -->
                         <select id="dropdown-menu" class="icon-button">
-                            <option value="">Developers</option>
-                            <option value="https://nymtech.net/developers">Dev Portal</option>
-                            <option value="https://nymtech.net/docs/sdk/rust/rust.html">Rust SDK</option>
-                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">SDKS</option>
+                            <option value="https://nymtech.net/docs/sdk/rust/rust.html">Rust</option>
+                            <option value="https://sdk.nymtech.net">Typescript</option>
                         </select>
 
+                        <!-- TODO style when open -->
                         <select id="dropdown-menu2" class="icon-button">
-                            <option value="">Guides</option>
-                            <option value="">NymVPN</option>
-                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="">Doc Sites</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/docs/introduction.html">Network Docs</option>
+                            <option value="https://https://nymtech.net/operators">Operator Docs</option>
                         </select>
-
-<!--                        TODO make orange only on hover -->
-                        <div class="icon-button">
-                            <a href="https://nymtech.net/docs">Protocol</a>
-                        </div>
 
                         <script>
                             document.getElementById('dropdown-menu').addEventListener('change', function() {

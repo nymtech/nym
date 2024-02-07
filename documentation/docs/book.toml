@@ -15,7 +15,7 @@ edition = "2018"
 
 [preprocessor.theme]
 sidebar-width             = "280px"
-content-max-width         = "80%"
+content-max-width         = "70%"
 content-main-margin-left  = "5%"
 content-main-margin-right = "5%"
 root-font-size            = "70%"

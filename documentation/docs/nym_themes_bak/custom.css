@@ -3,14 +3,13 @@
 }
 
 .coal {
-  --fg: #f2f2f2;
-  --sidebar-fg: #f2f2f2;
   --sidebar-active: #fb6e4e;
   --icons-hover: #fb6e4e;
   --links: #fb6e4e;
   ::selection {
     color: #121726;
     background-color: #c5573d;
+    /*#fb6e4e;*/
   }
 }
 
@@ -19,8 +18,9 @@
   --icons-hover: #fb6e4e;
   --links: #fb6e4e;
   ::selection {
-    color:#f2f2f2;
+    color: #121726;
     background-color: #c5573d;
+    /*#fb6e4e;*/
   }
 }
 

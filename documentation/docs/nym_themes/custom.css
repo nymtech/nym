@@ -12,6 +12,9 @@
     color: #121726;
     background-color: #c5573d;
   }
+  select option {
+    background-color: #121726;
+  }
 }
 
 .light {
@@ -29,6 +32,7 @@
   position: absolute;
   left: 50%;
 }
+.menu-bar .a:hover,
 
 /*necessary because of ^*/
 .right-buttons {
@@ -39,6 +43,8 @@
 select {
   font-size: 16px;
 }
+
+
 
 footer {
   font-size: 0.8em;

@@ -445,15 +445,15 @@ impl Storage for InMemStorage {
 
     async fn insert_spent_credential(
         &self,
-        blinded_serial_number: BlindedSerialNumber,
-        client_address: DestinationAddressBytes,
+        _blinded_serial_number: BlindedSerialNumber,
+        _client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
         todo!()
     }
 
     async fn contains_credential(
         &self,
-        blinded_serial_number: &BlindedSerialNumber,
+        _blinded_serial_number: &BlindedSerialNumber,
     ) -> Result<bool, StorageError> {
         todo!()
     }

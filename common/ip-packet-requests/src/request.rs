@@ -60,6 +60,20 @@ impl IpPacketRequest {
         )
     }
 
+    pub fn new_disconnect_request(reply_to: Recipient) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                version: CURRENT_VERSION,
+                data: IpPacketRequestData::Disconnect(DisconnectRequest {
+                    request_id,
+                    reply_to,
+                }),
+            },
+            request_id,
+        )
+    }
+
     pub fn new_ip_packet(ip_packet: bytes::Bytes) -> Self {
         Self {
             version: CURRENT_VERSION,
@@ -71,6 +85,7 @@ impl IpPacketRequest {
         match &self.data {
             IpPacketRequestData::StaticConnect(request) => Some(request.request_id),
             IpPacketRequestData::DynamicConnect(request) => Some(request.request_id),
+            IpPacketRequestData::Disconnect(request) => Some(request.request_id),
             IpPacketRequestData::Data(_) => None,
         }
     }
@@ -79,6 +94,7 @@ impl IpPacketRequest {
         match &self.data {
             IpPacketRequestData::StaticConnect(request) => Some(&request.reply_to),
             IpPacketRequestData::DynamicConnect(request) => Some(&request.reply_to),
+            IpPacketRequestData::Disconnect(request) => Some(&request.reply_to),
             IpPacketRequestData::Data(_) => None,
         }
     }
@@ -101,6 +117,7 @@ impl IpPacketRequest {
 pub enum IpPacketRequestData {
     StaticConnect(StaticConnectRequest),
     DynamicConnect(DynamicConnectRequest),
+    Disconnect(DisconnectRequest),
     Data(DataRequest),
 }
 
@@ -129,6 +146,13 @@ pub struct DynamicConnectRequest {
     // The average delay at each mix node, in milliseconds. Currently this is not supported by the
     // ip packet router.
     pub reply_to_avg_mix_delays: Option<f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct DisconnectRequest {
+    pub request_id: u64,
+    // The nym-address the response should be sent back to
+    pub reply_to: Recipient,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

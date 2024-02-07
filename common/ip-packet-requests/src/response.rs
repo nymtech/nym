@@ -105,6 +105,7 @@ impl IpPacketResponse {
         match &self.data {
             IpPacketResponseData::StaticConnect(response) => Some(response.request_id),
             IpPacketResponseData::DynamicConnect(response) => Some(response.request_id),
+            IpPacketResponseData::Disconnect(response) => Some(response.request_id),
             IpPacketResponseData::Data(_) => None,
             IpPacketResponseData::Error(response) => Some(response.request_id),
         }
@@ -114,6 +115,7 @@ impl IpPacketResponse {
         match &self.data {
             IpPacketResponseData::StaticConnect(response) => Some(&response.reply_to),
             IpPacketResponseData::DynamicConnect(response) => Some(&response.reply_to),
+            IpPacketResponseData::Disconnect(response) => Some(&response.reply_to),
             IpPacketResponseData::Data(_) => None,
             IpPacketResponseData::Error(response) => Some(&response.reply_to),
         }
@@ -137,6 +139,7 @@ impl IpPacketResponse {
 pub enum IpPacketResponseData {
     StaticConnect(StaticConnectResponse),
     DynamicConnect(DynamicConnectResponse),
+    Disconnect(DisconnectResponse),
     Data(DataResponse),
     Error(ErrorResponse),
 }
@@ -206,6 +209,27 @@ pub enum DynamicConnectFailureReason {
     RequestedNymAddressAlreadyInUse,
     #[error("no available ip address")]
     NoAvailableIp,
+    #[error("{0}")]
+    Other(String),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DisconnectResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
+    pub reply: DisconnectResponseReply,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum DisconnectResponseReply {
+    Success,
+    Failure(DisconnectFailureReason),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
+pub enum DisconnectFailureReason {
+    #[error("requested nym-address is not currently connected")]
+    RequestedNymAddressNotConnected,
     #[error("{0}")]
     Other(String),
 }

@@ -305,6 +305,14 @@ impl MixnetListener {
         )))
     }
 
+    fn on_disconnect_request(
+        &self,
+        _disconnect_request: nym_ip_packet_requests::request::DisconnectRequest,
+    ) -> Result<Option<IpPacketResponse>> {
+        log::info!("Received disconnect request: not implemented, dropping");
+        Ok(None)
+    }
+
     async fn on_data_request(
         &mut self,
         data_request: nym_ip_packet_requests::request::DataRequest,
@@ -410,6 +418,9 @@ impl MixnetListener {
             }
             IpPacketRequestData::DynamicConnect(connect_request) => {
                 self.on_dynamic_connect_request(connect_request).await
+            }
+            IpPacketRequestData::Disconnect(disconnect_request) => {
+                self.on_disconnect_request(disconnect_request)
             }
             IpPacketRequestData::Data(data_request) => self.on_data_request(data_request).await,
         }

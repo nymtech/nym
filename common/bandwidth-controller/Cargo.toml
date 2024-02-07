@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 bip39 = { workspace = true }
+log = { workspace = true }
 rand = "0.7.3"
 thiserror = { workspace = true }
 url = { workspace = true }

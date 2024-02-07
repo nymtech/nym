@@ -9,6 +9,7 @@ pub use types::*;
 
 pub mod authentication;
 pub mod iv;
+mod models;
 pub mod registration;
 pub mod types;
 

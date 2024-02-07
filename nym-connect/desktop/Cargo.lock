@@ -3702,6 +3702,7 @@ name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
  "bip39",
+ "log",
  "nym-coconut-interface",
  "nym-credential-storage",
  "nym-credentials",
@@ -3922,6 +3923,7 @@ dependencies = [
 name = "nym-credentials"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "bls12_381",
  "cosmrs",
  "log",
@@ -4032,8 +4034,8 @@ dependencies = [
  "gloo-utils",
  "log",
  "nym-bandwidth-controller",
- "nym-coconut-interface",
  "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
  "nym-network-defaults",

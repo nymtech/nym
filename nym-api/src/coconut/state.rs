@@ -16,7 +16,7 @@ use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::{Hash, TxResponse};
 use std::sync::Arc;
 
-pub use nym_credentials::coconut::bandwidth::bandwidth_voucher_params;
+pub use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
 
 pub struct State {
     pub(crate) client: Arc<dyn LocalClient + Send + Sync>,

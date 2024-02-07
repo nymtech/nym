@@ -1,4 +1,4 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::GatewayClientError;
@@ -12,9 +12,9 @@ use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
-use nym_coconut_interface::Credential;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
+use nym_credentials::CredentialSpendingData;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use nym_gateway_requests::iv::IV;
@@ -23,6 +23,7 @@ use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, 
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
+use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
@@ -515,13 +516,15 @@ impl<C, St> GatewayClient<C, St> {
 
     async fn claim_coconut_bandwidth(
         &mut self,
-        credential: Credential,
+        credential: CredentialSpendingData,
+        epoch_id: EpochId,
     ) -> Result<(), GatewayClientError> {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
         let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential(
-            &credential,
+            credential,
+            epoch_id,
             self.shared_key.as_ref().unwrap(),
             iv,
         )
@@ -567,18 +570,19 @@ impl<C, St> GatewayClient<C, St> {
             return self.try_claim_testnet_bandwidth().await;
         }
 
-        let (credential, credential_id) = self
+        let prepared_credential = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
             .prepare_coconut_credential()
             .await?;
 
-        self.claim_coconut_bandwidth(credential).await?;
+        self.claim_coconut_bandwidth(prepared_credential.data, prepared_credential.epoch_id)
+            .await?;
         self.bandwidth_controller
             .as_ref()
             .unwrap()
-            .consume_credential(credential_id)
+            .consume_credential(prepared_credential.credential_id)
             .await?;
 
         Ok(())

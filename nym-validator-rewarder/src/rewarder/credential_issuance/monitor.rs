@@ -14,7 +14,7 @@ use nym_coconut::{
     hash_to_scalar, verify_partial_blind_signature, Base58, G1Projective, VerificationKey,
 };
 use nym_coconut_dkg_common::types::EpochId;
-use nym_credentials::coconut::bandwidth::bandwidth_voucher_params;
+use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::{IssuedCredential, IssuedCredentialBody, NymApiClientExt};
 use nym_validator_client::nyxd::Hash;
@@ -154,7 +154,7 @@ impl CredentialIssuanceMonitor {
 
         // actually do verify the credential now
         if !verify_partial_blind_signature(
-            bandwidth_voucher_params(),
+            bandwidth_credential_params(),
             &public_attribute_commitments,
             &attributes_refs,
             &credential.blinded_partial_credential,

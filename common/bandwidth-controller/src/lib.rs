@@ -3,16 +3,16 @@
 
 use crate::error::BandwidthControllerError;
 use crate::utils::stored_credential_to_issued_bandwidth;
+use log::{error, warn};
+use nym_coconut_interface::VerificationKey;
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
+use nym_credentials::coconut::bandwidth::CredentialSpendingData;
+use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
 use nym_validator_client::coconut::all_coconut_api_clients;
+use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::str::FromStr;
-use zeroize::Zeroizing;
-use {
-    nym_coconut_interface::Base58,
-    nym_credentials::coconut::utils::obtain_aggregate_verification_key,
-};
 
 pub mod acquire;
 pub mod error;
@@ -21,6 +21,18 @@ mod utils;
 pub struct BandwidthController<C, St> {
     storage: St,
     client: C,
+}
+
+pub struct PreparedCredential {
+    /// The cryptographic material required for spending the underlying credential.
+    pub data: CredentialSpendingData,
+
+    /// The (DKG) epoch id under which the credential has been issued so that the verifier
+    /// could use correct verification key for validation.
+    pub epoch_id: EpochId,
+
+    /// The database id of the stored credential.
+    pub credential_id: i64,
 }
 
 impl<C, St: Storage> BandwidthController<C, St> {
@@ -32,9 +44,21 @@ impl<C, St: Storage> BandwidthController<C, St> {
         &self.storage
     }
 
+    async fn get_aggregate_verification_key(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<VerificationKey, BandwidthControllerError>
+    where
+        C: DkgQueryClient + Sync + Send,
+        <St as Storage>::StorageError: Send + Sync + 'static,
+    {
+        let coconut_api_clients = all_coconut_api_clients(&self.client, epoch_id).await?;
+        Ok(obtain_aggregate_verification_key(&coconut_api_clients).await?)
+    }
+
     pub async fn prepare_coconut_credential(
         &self,
-    ) -> Result<(nym_coconut_interface::Credential, i64), BandwidthControllerError>
+    ) -> Result<PreparedCredential, BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
@@ -47,29 +71,28 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
         let epoch_id = u64::from_str(&retrieved_credential.epoch_id)
             .map_err(|_| StorageError::InconsistentData)?;
+        let credential_id = retrieved_credential.id;
 
         let issued_bandwidth = stored_credential_to_issued_bandwidth(retrieved_credential)?;
 
-        let coconut_api_clients = all_coconut_api_clients(&self.client, epoch_id).await?;
-        let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
+        let verification_key = match self.get_aggregate_verification_key(epoch_id).await {
+            Ok(key) => key,
+            Err(err) => {
+                warn!("failed to obtain master verification key: {err}. Putting the credential back into the database");
+
+                // TODO: ERROR RECOVERY:
+                error!("unimplemented: putting the credential back into the database");
+                return Err(err);
+            }
+        };
 
         let spend_request = issued_bandwidth.prepare_for_spending(&verification_key)?;
 
-        todo!()
-
-        // // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
-        // Ok((
-        //     prepare_for_spending(
-        //         voucher_value,
-        //         voucher_info,
-        //         &serial_number,
-        //         &binding_number,
-        //         epoch_id,
-        //         &signature,
-        //         &verification_key,
-        //     )?,
-        //     bandwidth_credential.id,
-        // ))
+        Ok(PreparedCredential {
+            data: spend_request,
+            epoch_id,
+            credential_id,
+        })
     }
 
     pub async fn consume_credential(&self, id: i64) -> Result<(), BandwidthControllerError>
@@ -88,7 +111,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 impl<C, St> Clone for BandwidthController<C, St>
 where
     C: Clone,
-    St: Storage + Clone,
+    St: Clone,
 {
     fn clone(&self) -> Self {
         BandwidthController {

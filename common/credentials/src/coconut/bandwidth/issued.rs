@@ -6,7 +6,9 @@ use crate::coconut::bandwidth::issuance::{
     BandwidthCredentialIssuanceDataVariant, IssuanceBandwidthCredential,
 };
 use crate::coconut::bandwidth::voucher::BandwidthVoucherIssuedData;
-use crate::coconut::bandwidth::{bandwidth_voucher_params, CredentialSpendingData, CredentialType};
+use crate::coconut::bandwidth::{
+    bandwidth_credential_params, CredentialSpendingData, CredentialType,
+};
 use crate::error::Error;
 use nym_coconut_interface::{
     prove_bandwidth_credential, Parameters, PrivateAttribute, PublicAttribute, Signature,
@@ -122,7 +124,7 @@ impl IssuedBandwidthCredential {
         &self,
         verification_key: &VerificationKey,
     ) -> Result<CredentialSpendingData, Error> {
-        let params = bandwidth_voucher_params();
+        let params = bandwidth_credential_params();
 
         let verify_credential_request = prove_bandwidth_credential(
             params,
@@ -133,8 +135,10 @@ impl IssuedBandwidthCredential {
         )?;
 
         Ok(CredentialSpendingData {
+            embedded_private_attributes: IssuanceBandwidthCredential::PRIVATE_ATTRIBUTES as usize,
             verify_credential_request,
             public_attributes_plain: self.get_plain_public_attributes(),
+            typ: self.typ(),
         })
     }
 }

@@ -3694,6 +3694,7 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "getset",
+ "nym-coconut",
  "nym-coconut-interface",
  "nym-crypto",
  "nym-mixnet-contract-common",

@@ -3098,6 +3098,7 @@ dependencies = [
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "getset",
+ "nym-coconut",
  "nym-coconut-interface",
  "nym-crypto",
  "nym-mixnet-contract-common",

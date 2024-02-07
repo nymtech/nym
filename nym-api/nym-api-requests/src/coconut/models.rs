@@ -1,11 +1,11 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::helpers::issued_credential_plaintext;
 use cosmrs::AccountId;
-use nym_coconut_interface::{
-    error::CoconutInterfaceError, hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature,
-    Bytable, Credential, VerificationKey,
+use nym_coconut::{
+    hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, Bytable, CoconutError,
+    Signature, VerificationKey,
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
@@ -14,21 +14,30 @@ use tendermint::hash::Hash;
 
 #[derive(Serialize, Deserialize)]
 pub struct VerifyCredentialBody {
-    pub credential: Credential,
+    /// The cryptographic material required for spending the underlying credential.
+    pub credential_data: (),
 
+    /// The (DKG) epoch id under which the credential has been issued so that the verifier
+    /// could use correct verification key for validation.
+    pub epoch_id: u64,
+
+    /// Multisig proposal for releasing funds for the provided bandwidth credential
     pub proposal_id: u64,
 
+    /// Cosmos address of the spender of the credential
     pub gateway_cosmos_addr: AccountId,
 }
 
 impl VerifyCredentialBody {
     pub fn new(
-        credential: Credential,
+        credential_data: (),
+        epoch_id: u64,
         proposal_id: u64,
         gateway_cosmos_addr: AccountId,
     ) -> VerifyCredentialBody {
         VerifyCredentialBody {
-            credential,
+            credential_data,
+            epoch_id,
             proposal_id,
             gateway_cosmos_addr,
         }
@@ -115,7 +124,7 @@ impl BlindedSignatureResponse {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CoconutInterfaceError> {
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CoconutError> {
         let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
@@ -124,7 +133,7 @@ impl BlindedSignatureResponse {
         self.blinded_signature.to_byte_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutInterfaceError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutError> {
         Ok(BlindedSignatureResponse {
             blinded_signature: BlindedSignature::from_bytes(bytes)?,
         })

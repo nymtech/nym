@@ -11,4 +11,4 @@ getset = "0.1.1"
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
-nym-coconut = {path = "../nymcoconut" }
+nym-coconut = { path = "../nymcoconut" }

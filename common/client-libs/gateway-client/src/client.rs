@@ -574,7 +574,7 @@ impl<C, St> GatewayClient<C, St> {
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_coconut_credential()
+            .prepare_bandwidth_credential()
             .await?;
 
         self.claim_coconut_bandwidth(prepared_credential.data, prepared_credential.epoch_id)

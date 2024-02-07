@@ -19,8 +19,11 @@ use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
+use nym_coconut_interface::CoconutError;
+use nym_credentials::coconut::bandwidth::CredentialType;
 use std::{convert::TryFrom, process, time::Duration};
 
+use crate::node::client_handling::bandwidth::BandwidthError;
 use crate::node::{
     client_handling::{
         bandwidth::Bandwidth,
@@ -76,11 +79,20 @@ pub(crate) enum RequestHandlingError {
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
+    #[error("coconut failure: {0}")]
+    CoconutError(#[from] CoconutError),
+
     #[error("coconut api query failure: {0}")]
     CoconutApiError(#[from] CoconutApiError),
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] nym_credentials::error::Error),
+
+    #[error("failed to recover bandwidth value: {0}")]
+    BandwidthRecoveryFailure(#[from] BandwidthError),
+
+    #[error("free pass credentials haven't been implemented yet")]
+    UnimplementedFreePass,
 }
 
 impl RequestHandlingError {
@@ -177,10 +189,10 @@ where
     /// # Arguments
     ///
     /// * `amount`: amount to increase the available bandwidth by.
-    async fn increase_bandwidth(&self, amount: i64) -> Result<(), RequestHandlingError> {
+    async fn increase_bandwidth(&self, bandwidth: Bandwidth) -> Result<(), RequestHandlingError> {
         self.inner
             .storage
-            .increase_bandwidth(self.client.address, amount)
+            .increase_bandwidth(self.client.address, bandwidth.value() as i64)
             .await?;
         Ok(())
     }
@@ -232,40 +244,45 @@ where
         let aggregated_verification_key = self
             .inner
             .coconut_verifier
-            .verification_key(*credential.epoch_id())
+            .verification_key(credential.epoch_id)
             .await?;
 
-        if !credential.verify(&aggregated_verification_key) {
+        if !credential.data.validate_type_attribute() {
+            unimplemented!()
+        }
+
+        let Some(bandwidth_attribute) = credential.data.get_bandwidth_attribute() else {
+            unimplemented!()
+        };
+
+        let bandwidth = Bandwidth::try_from_raw_value(bandwidth_attribute, credential.data.typ)?;
+
+        if !credential.data.verify(&aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
                 String::from("credential failed to verify on gateway"),
             ));
         }
 
-        let api_clients = self
-            .inner
-            .coconut_verifier
-            .api_clients(*credential.epoch_id())
-            .await?;
+        match credential.data.typ {
+            CredentialType::Voucher => {
+                let api_clients = self
+                    .inner
+                    .coconut_verifier
+                    .api_clients(credential.epoch_id)
+                    .await?;
 
-        self.inner
-            .coconut_verifier
-            .release_funds(&api_clients, &credential)
-            .await?;
-
-        let bandwidth = Bandwidth::from(credential);
-        let bandwidth_value = bandwidth.value();
-
-        if bandwidth_value > i64::MAX as u64 {
-            // note that this would have represented more than 1 exabyte,
-            // which is like 125,000 worth of hard drives so I don't think we have
-            // to worry about it for now...
-            warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
-            return Err(RequestHandlingError::UnsupportedBandwidthValue(
-                bandwidth_value,
-            ));
+                self.inner
+                    .coconut_verifier
+                    .release_bandwidth_voucher_funds(&api_clients, credential)
+                    .await?;
+            }
+            CredentialType::FreePass => {
+                error!("unimplemented handling of free pass credential");
+                return Err(RequestHandlingError::UnimplementedFreePass);
+            }
         }
 
-        self.increase_bandwidth(bandwidth_value as i64).await?;
+        self.increase_bandwidth(bandwidth).await?;
         let available_total = self.get_available_bandwidth().await?;
 
         Ok(ServerResponse::Bandwidth { available_total })

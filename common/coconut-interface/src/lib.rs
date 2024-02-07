@@ -11,12 +11,14 @@ pub mod error;
 // module.
 pub use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar,
-    prepare_blind_sign, prove_bandwidth_credential, Attribute, Base58, BlindSignRequest,
-    BlindedSignature, Bytable, CoconutError, KeyPair, Parameters, PrivateAttribute,
-    PublicAttribute, SecretKey, Signature, SignatureShare, VerificationKey,
+    prepare_blind_sign, prove_bandwidth_credential, verify_credential, Attribute, Base58,
+    BlindSignRequest, BlindedSignature, Bytable, CoconutError, KeyPair, Parameters,
+    PrivateAttribute, PublicAttribute, SecretKey, Signature, SignatureShare, VerificationKey,
     VerifyCredentialRequest,
 };
 
+// TODO: maybe just remove this sucker?
+#[deprecated]
 #[derive(Debug, Serialize, Deserialize, Getters, CopyGetters, Clone, PartialEq, Eq)]
 pub struct Credential {
     #[getset(get = "pub")]

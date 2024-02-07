@@ -4,8 +4,10 @@
 use crate::coconut::bandwidth::freepass::FreePassIssuanceData;
 use crate::coconut::bandwidth::issued::IssuedBandwidthCredential;
 use crate::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
-use crate::coconut::bandwidth::{bandwidth_voucher_params, CredentialSigningData, CredentialType};
-use crate::coconut::utils::{make_bincode_serializer, scalar_serde_helper};
+use crate::coconut::bandwidth::{
+    bandwidth_credential_params, CredentialSigningData, CredentialType,
+};
+use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
 use nym_coconut_interface::{
     aggregate_signature_shares, hash_to_scalar, prepare_blind_sign, Attribute, Parameters,
@@ -89,9 +91,6 @@ impl IssuanceBandwidthCredential {
     pub const PRIVATE_ATTRIBUTES: u32 = 2;
     pub const ENCODED_ATTRIBUTES: u32 = Self::PUBLIC_ATTRIBUTES + Self::PRIVATE_ATTRIBUTES;
 
-    // just keep this value on hand for any possible future changes so that we could preserve backwards compatibility
-    pub const ENCODING_VERSION: u8 = 1;
-
     pub fn default_parameters() -> Parameters {
         // safety: the unwrap is fine here as Self::ENCODED_ATTRIBUTES is non-zero
         Parameters::new(Self::ENCODED_ATTRIBUTES).unwrap()
@@ -101,7 +100,7 @@ impl IssuanceBandwidthCredential {
         let variant_data = variant_data.into();
         let type_prehashed = hash_to_scalar(variant_data.info().to_string());
 
-        let params = bandwidth_voucher_params();
+        let params = bandwidth_credential_params();
         let serial_number = params.random_scalar();
         let binding_number = params.random_scalar();
 
@@ -151,7 +150,7 @@ impl IssuanceBandwidthCredential {
     }
 
     pub fn prepare_for_signing(&self) -> CredentialSigningData {
-        let params = bandwidth_voucher_params();
+        let params = bandwidth_credential_params();
 
         // safety: the creation of the request can only fail if one provided invalid parameters
         // and we created then specific to this type of the credential so the unwrap is fine
@@ -166,6 +165,7 @@ impl IssuanceBandwidthCredential {
             pedersen_commitments_openings,
             blind_sign_request,
             public_attributes_plain: self.get_plain_public_attributes(),
+            typ: self.typ(),
         }
     }
 
@@ -192,7 +192,7 @@ impl IssuanceBandwidthCredential {
         let public_attributes = self.get_public_attributes();
         let private_attributes = self.get_private_attributes();
 
-        let params = bandwidth_voucher_params();
+        let params = bandwidth_credential_params();
         let unblinded_signature = blinded_signature.unblind_and_verify(
             params,
             validator_vk,
@@ -213,7 +213,7 @@ impl IssuanceBandwidthCredential {
         let public_attributes = self.get_public_attributes();
         let private_attributes = self.get_private_attributes();
 
-        let params = bandwidth_voucher_params();
+        let params = bandwidth_credential_params();
 
         let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
         attributes.extend_from_slice(&private_attributes);
@@ -240,12 +240,19 @@ impl IssuanceBandwidthCredential {
     pub fn to_recovery_bytes(&self) -> Vec<u8> {
         use bincode::Options;
         // safety: our data format is stable and thus the serialization should not fail
-        make_bincode_serializer().serialize(self).unwrap()
+        make_recovery_bincode_serializer().serialize(self).unwrap()
     }
 
     // TODO: is that actually needed?
     pub fn try_from_recovered_bytes(bytes: &[u8]) -> Result<Self, Error> {
         use bincode::Options;
-        Ok(make_bincode_serializer().deserialize(bytes)?)
+        Ok(make_recovery_bincode_serializer().deserialize(bytes)?)
     }
+}
+
+fn make_recovery_bincode_serializer() -> impl bincode::Options {
+    use bincode::Options;
+    bincode::DefaultOptions::new()
+        .with_big_endian()
+        .with_varint_encoding()
 }

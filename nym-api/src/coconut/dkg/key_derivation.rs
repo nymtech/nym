@@ -7,7 +7,7 @@ use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::dkg::state::key_derivation::{DealerRejectionReason, DerivationFailure};
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::KeyPairWithEpoch;
-use crate::coconut::state::bandwidth_voucher_params;
+use crate::coconut::state::bandwidth_credential_params;
 use cosmwasm_std::Addr;
 use log::debug;
 use nym_coconut::{check_vk_pairing, Base58, SecretKey, VerificationKey};
@@ -425,7 +425,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // we know we had a non-empty map of dealings and thus, at the very least, we must have derived a single secret
         // (i.e. the x-element)
         let sk = SecretKey::create_from_raw(derived_x.unwrap(), derived_secrets);
-        let derived_vk = sk.verification_key(bandwidth_voucher_params());
+        let derived_vk = sk.verification_key(bandwidth_credential_params());
 
         // make the key we derived out of the decrypted shares matches the partial key
         // (cryptographically there shouldn't be any reason for the mismatch,
@@ -436,7 +436,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             .derived_partials_for(receiver_index)
             .ok_or(KeyDerivationError::NoSelfPartialKey { receiver_index })?;
 
-        if !check_vk_pairing(bandwidth_voucher_params(), &derived_partial, &derived_vk) {
+        if !check_vk_pairing(bandwidth_credential_params(), &derived_partial, &derived_vk) {
             // can't do anything, we got all dealings, we derived all keys, but somehow they don't match
             error!("our derived key does not match the expected partials!");
             return Ok(Err(DerivationFailure::MismatchedPartialKey));

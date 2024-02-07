@@ -2,9 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub trait NymCredential {
-    fn prove_credential(&self);
-
-    // pub attr
-    // hashed
-    // private
+    fn prove_credential(&self) -> Result<(), ()>;
 }

@@ -4,6 +4,7 @@
 use super::authenticated::RequestHandlingError;
 use log::*;
 use nym_coconut_interface::{Credential, VerificationKey};
+use nym_gateway_requests::models::CredentialSpendingWithEpoch;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::MultisigQueryClient;
@@ -151,21 +152,31 @@ impl CoconutVerifier {
         Ok(all_coconut_api_clients(self.nyxd_client.read().await.deref(), epoch_id).await?)
     }
 
-    pub async fn release_funds(
+    pub async fn release_bandwidth_voucher_funds(
         &self,
         api_clients: &[CoconutApiClient],
-        credential: &Credential,
+        credential: CredentialSpendingWithEpoch,
     ) -> Result<(), RequestHandlingError> {
+        if !credential.data.typ.is_voucher() {
+            unimplemented!()
+        }
+
+        // safety: the voucher funds are released after the credential has already been verified locally
+        // and the underlying bandwidth value has been extracted, so the below MUST succeed
+        let voucher_amount = credential.unchecked_voucher_value() as u128;
+
+        let blinded_serial_number = credential
+            .data
+            .verify_credential_request
+            .blinded_serial_number_bs58();
+
         let res = self
             .nyxd_client
             .write()
             .await
             .spend_credential(
-                Coin::new(
-                    credential.voucher_value().into(),
-                    self.mix_denom_base.clone(),
-                ),
-                credential.blinded_serial_number(),
+                Coin::new(voucher_amount, &self.mix_denom_base),
+                blinded_serial_number,
                 self.address.to_string(),
                 None,
             )
@@ -186,27 +197,28 @@ impl CoconutVerifier {
             .await
             .query_proposal(proposal_id)
             .await?;
-        if !credential.has_blinded_serial_number(&proposal.description)? {
+        if !credential.matches_blinded_serial_number(&proposal.description)? {
             return Err(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal has different serial number"),
             });
         }
 
         let req = nym_api_requests::coconut::VerifyCredentialBody::new(
-            credential.clone(),
+            credential,
             proposal_id,
             self.address.clone(),
         );
         for client in api_clients {
             let ret = client.api_client.verify_bandwidth_credential(&req).await;
+            let client_url = client.api_client.nym_api.current_url();
             match ret {
                 Ok(res) => {
                     if !res.verification_result {
-                        debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.api_client.nym_api.current_url());
+                        warn!("Validator at {client_url} didn't accept the credential. It will probably vote No on the spending proposal");
                     }
                 }
-                Err(e) => {
-                    warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api.current_url(), e);
+                Err(err) => {
+                    warn!("Validator at {client_url} could not be reached. There might be a problem with the coconut endpoint: {err}");
                 }
             }
         }

@@ -56,7 +56,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         Ok(obtain_aggregate_verification_key(&coconut_api_clients).await?)
     }
 
-    pub async fn prepare_coconut_credential(
+    pub async fn prepare_bandwidth_credential(
         &self,
     ) -> Result<PreparedCredential, BandwidthControllerError>
     where

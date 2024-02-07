@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::GatewayRequestsError;
+use nym_coconut_interface::CoconutError;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,23 @@ pub struct CredentialSpendingWithEpoch {
 impl CredentialSpendingWithEpoch {
     pub fn new(data: CredentialSpendingData, epoch_id: u64) -> Self {
         CredentialSpendingWithEpoch { data, epoch_id }
+    }
+
+    pub fn matches_blinded_serial_number(
+        &self,
+        blinded_serial_number_bs58: &str,
+    ) -> Result<bool, CoconutError> {
+        self.data
+            .verify_credential_request
+            .has_blinded_serial_number(blinded_serial_number_bs58)
+    }
+
+    pub fn unchecked_voucher_value(&self) -> u64 {
+        self.data
+            .get_bandwidth_attribute()
+            .expect("failed to extract bandwidth attribute")
+            .parse()
+            .expect("failed to parse voucher value")
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

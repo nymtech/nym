@@ -27,7 +27,7 @@ pub fn bandwidth_credential_params() -> &'static Parameters {
     BANDWIDTH_CREDENTIAL_PARAMS.get_or_init(IssuanceBandwidthCredential::default_parameters)
 }
 
-#[derive(Zeroize, ZeroizeOnDrop, Clone, Debug, Serialize, Deserialize)]
+#[derive(Zeroize, Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum CredentialType {
     Voucher,
     FreePass,
@@ -36,6 +36,10 @@ pub enum CredentialType {
 impl CredentialType {
     pub fn is_free_pass(&self) -> bool {
         matches!(self, CredentialType::FreePass)
+    }
+
+    pub fn is_voucher(&self) -> bool {
+        matches!(self, CredentialType::Voucher)
     }
 }
 
@@ -50,24 +54,24 @@ impl Display for CredentialType {
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
-    pub(crate) pedersen_commitments_openings: Vec<Scalar>,
+    pub pedersen_commitments_openings: Vec<Scalar>,
 
-    pub(crate) blind_sign_request: BlindSignRequest,
+    pub blind_sign_request: BlindSignRequest,
 
-    pub(crate) public_attributes_plain: Vec<String>,
+    pub public_attributes_plain: Vec<String>,
 
-    pub(crate) typ: CredentialType,
+    pub typ: CredentialType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CredentialSpendingData {
-    pub(crate) embedded_private_attributes: usize,
+    pub embedded_private_attributes: usize,
 
-    pub(crate) verify_credential_request: VerifyCredentialRequest,
+    pub verify_credential_request: VerifyCredentialRequest,
 
-    pub(crate) public_attributes_plain: Vec<String>,
+    pub public_attributes_plain: Vec<String>,
 
-    pub(crate) typ: CredentialType,
+    pub typ: CredentialType,
 }
 
 impl CredentialSpendingData {
@@ -89,5 +93,22 @@ impl CredentialSpendingData {
             &self.verify_credential_request,
             &public_attributes,
         )
+    }
+
+    pub fn validate_type_attribute(&self) -> bool {
+        // the first attribute is variant specific bandwidth encoding, the second one should be the type
+        let Some(type_plain) = self.public_attributes_plain.get(1) else {
+            return false;
+        };
+
+        match self.typ {
+            CredentialType::Voucher => type_plain == VOUCHER_INFO_TYPE,
+            CredentialType::FreePass => type_plain == FREE_PASS_INFO_TYPE,
+        }
+    }
+
+    pub fn get_bandwidth_attribute(&self) -> Option<&String> {
+        // the first attribute is variant specific bandwidth encoding, the second one should be the type
+        self.public_attributes_plain.first()
     }
 }

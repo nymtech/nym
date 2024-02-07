@@ -959,6 +959,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
 
 [[package]]
+name = "const-str"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aca749d3d3f5b87a0d6100509879f9cf486ab510803a4a4e1001da1ff61c2bd6"
+
+[[package]]
 name = "constant_time_eq"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3688,6 +3694,7 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "getset",
+ "nym-coconut",
  "nym-coconut-interface",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -3723,6 +3730,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "clap_complete_fig",
+ "const-str",
  "log",
  "pretty_env_logger",
  "schemars",
@@ -3763,6 +3771,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
+ "si-scale",
  "sqlx",
  "tap",
  "thiserror",
@@ -4142,6 +4151,7 @@ dependencies = [
  "cfg-if",
  "dotenvy",
  "hex-literal",
+ "log",
  "once_cell",
  "schemars",
  "serde",
@@ -6224,6 +6234,12 @@ checksum = "900fba806f70c630b0a382d0d825e17a0f19fcd059a2ade1ff237bcddf446b31"
 dependencies = [
  "lazy_static",
 ]
+
+[[package]]
+name = "si-scale"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44beb68bf488343b13ddbd74d1d5d5e6559a58b6dfaee74eb8d5ed4f7ed7666f"
 
 [[package]]
 name = "signal-hook"

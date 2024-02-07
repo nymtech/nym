@@ -229,26 +229,11 @@ where
             iv,
         )?;
 
-        // Get the latest coconut signers and their VK
-        let credential_api_clients = self
+        let aggregated_verification_key = self
             .inner
             .coconut_verifier
-            .all_coconut_api_clients(*credential.epoch_id())
+            .verification_key(*credential.epoch_id())
             .await?;
-        let current_api_clients = self
-            .inner
-            .coconut_verifier
-            .all_current_coconut_api_clients()
-            .await?;
-        if credential_api_clients.is_empty() || current_api_clients.is_empty() {
-            return Err(RequestHandlingError::NotEnoughNymAPIs {
-                received: 0,
-                needed: 1,
-            });
-        }
-
-        let aggregated_verification_key =
-            nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
         if !credential.verify(&aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
@@ -256,9 +241,15 @@ where
             ));
         }
 
+        let api_clients = self
+            .inner
+            .coconut_verifier
+            .api_clients(*credential.epoch_id())
+            .await?;
+
         self.inner
             .coconut_verifier
-            .release_funds(current_api_clients, &credential)
+            .release_funds(&api_clients, &credential)
             .await?;
 
         let bandwidth = Bandwidth::from(credential);

@@ -226,4 +226,8 @@ impl EpochState {
     pub fn is_final(&self) -> bool {
         *self == EpochState::InProgress
     }
+
+    pub fn is_in_progress(&self) -> bool {
+        matches!(self, EpochState::InProgress)
+    }
 }

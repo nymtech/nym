@@ -290,7 +290,7 @@
         "properties": {
           "size": {
             "type": "integer",
-            "format": "uint",
+            "format": "uint64",
             "minimum": 0.0
           }
         },
@@ -1410,7 +1410,7 @@
           "properties": {
             "size": {
               "type": "integer",
-              "format": "uint",
+              "format": "uint64",
               "minimum": 0.0
             }
           },

@@ -50,7 +50,6 @@ assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
 wallet_release_version = "1.2.8"
-
 # nym-vpn related variables
 nym_vpn_latest_binary_url = "https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.3"
 nym_vpn_form_url = "https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2"

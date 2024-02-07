@@ -62,9 +62,9 @@ nym-node = { path = "../nym-node" }
 
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
-nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-config = { path = "../common/config" }
 nym-credentials = { path = "../common/credentials" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-crypto = { path = "../common/crypto" }
 nym-gateway-requests = { path = "gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }

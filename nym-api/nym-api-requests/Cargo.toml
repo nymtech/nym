@@ -16,9 +16,7 @@ serde = { workspace = true, features = ["derive"] }
 ts-rs = { workspace = true, optional = true }
 tendermint = { workspace = true }
 
-nym-coconut = { path = "../../common/nymcoconut" }
-nym-coconut-interface = { path = "../../common/coconut-interface" }
-#nym-credentials = { path = "../../common/credentials" }
+nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"]}
 
 nym-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }

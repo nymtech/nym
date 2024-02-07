@@ -33,7 +33,7 @@ tokio = { workspace = true, features = ["sync", "time"] }
 futures = { workspace = true }
 openssl = { version = "^0.10.55", features = ["vendored"], optional = true }
 
-nym-coconut-interface = { path = "../../coconut-interface" }
+nym-coconut = { path = "../../nymcoconut" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 

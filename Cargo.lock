@@ -6045,7 +6045,6 @@ dependencies = [
  "nym-coconut",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
- "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-credential-storage",
@@ -6103,7 +6102,7 @@ dependencies = [
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "getset",
- "nym-coconut-interface",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-node-requests",
@@ -6119,9 +6118,10 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "log",
- "nym-coconut-interface",
+ "nym-coconut",
  "nym-credential-storage",
  "nym-credentials",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-network-defaults",
  "nym-validator-client",
@@ -6259,7 +6259,6 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-client-websocket-requests",
- "nym-coconut-interface",
  "nym-config",
  "nym-credential-storage",
  "nym-credentials",
@@ -6413,17 +6412,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-coconut-interface"
-version = "0.1.0"
-dependencies = [
- "bs58 0.4.0",
- "getset",
- "nym-coconut",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-config"
 version = "0.1.0"
 dependencies = [
@@ -6467,6 +6455,7 @@ dependencies = [
  "log",
  "nym-bandwidth-controller",
  "nym-client-core",
+ "nym-coconut",
  "nym-config",
  "nym-credential-storage",
  "nym-credentials",
@@ -6484,7 +6473,7 @@ dependencies = [
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "log",
  "nym-api-requests",
- "nym-coconut-interface",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-validator-client",
  "rand 0.7.3",
@@ -6492,6 +6481,15 @@ dependencies = [
  "thiserror",
  "time",
  "zeroize",
+]
+
+[[package]]
+name = "nym-credentials-interface"
+version = "0.1.0"
+dependencies = [
+ "bls12_381",
+ "nym-coconut",
+ "serde",
 ]
 
 [[package]]
@@ -6621,9 +6619,9 @@ dependencies = [
  "log",
  "nym-api-requests",
  "nym-bin-common",
- "nym-coconut-interface",
  "nym-config",
  "nym-credentials",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-gateway-requests",
  "nym-ip-packet-router",
@@ -6697,8 +6695,8 @@ dependencies = [
  "futures",
  "generic-array 0.14.7",
  "log",
- "nym-coconut-interface",
  "nym-credentials",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
@@ -7239,7 +7237,6 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-client-core",
- "nym-coconut-interface",
  "nym-config",
  "nym-credential-storage",
  "nym-credentials",
@@ -7586,7 +7583,6 @@ dependencies = [
  "hmac 0.12.1",
  "itertools 0.11.0",
  "log",
- "nym-coconut-interface",
  "nym-config",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -7628,9 +7624,9 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "nym-api-requests",
+ "nym-coconut",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
- "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-ephemera-common",

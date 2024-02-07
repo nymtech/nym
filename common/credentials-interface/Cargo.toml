@@ -1,0 +1,17 @@
+[package]
+name = "nym-credentials-interface"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bls12_381 = { workspace = true, default-features = false }
+serde = { workspace = true, features = ["derive"] }
+
+nym-coconut = { path = "../nymcoconut" }

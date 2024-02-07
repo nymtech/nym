@@ -4,8 +4,8 @@
 use crate::coconut::error::Result;
 use crate::nyxd;
 use crate::support::nyxd::ClientInner;
+use nym_coconut::VerificationKey;
 use nym_coconut_dkg_common::types::{Epoch, EpochId};
-use nym_coconut_interface::VerificationKey;
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;

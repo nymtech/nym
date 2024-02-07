@@ -4,11 +4,11 @@
 use crate::error::BandwidthControllerError;
 use crate::utils::stored_credential_to_issued_bandwidth;
 use log::{error, warn};
-use nym_coconut_interface::VerificationKey;
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
+use nym_credentials_interface::VerificationKey;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;

@@ -3,9 +3,9 @@
 
 use crate::coconut::helpers::issued_credential_plaintext;
 use cosmrs::AccountId;
-use nym_coconut::{
+use nym_credentials_interface::{
     hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, Bytable, CoconutError,
-    Signature, VerificationKey,
+    CredentialSpendingData, Signature, VerificationKey,
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use tendermint::hash::Hash;
 #[derive(Serialize, Deserialize)]
 pub struct VerifyCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
-    pub credential_data: (),
+    pub credential_data: CredentialSpendingData,
 
     /// The (DKG) epoch id under which the credential has been issued so that the verifier
     /// could use correct verification key for validation.
@@ -30,7 +30,7 @@ pub struct VerifyCredentialBody {
 
 impl VerifyCredentialBody {
     pub fn new(
-        credential_data: (),
+        credential_data: CredentialSpendingData,
         epoch_id: u64,
         proposal_id: u64,
         gateway_cosmos_addr: AccountId,
@@ -100,7 +100,7 @@ impl BlindSignRequestBody {
     }
 
     pub fn encode_commitments(&self) -> Vec<String> {
-        use nym_coconut_interface::Base58;
+        use nym_credentials_interface::Base58;
 
         self.inner_sign_request
             .get_private_attributes_pedersen_commitments()

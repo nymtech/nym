@@ -79,7 +79,6 @@ ephemera = { path = "../ephemera" }
 nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
 nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
-nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-ephemera-common = { path = "../common/cosmwasm-smart-contracts/ephemera" }
 nym-config = { path = "../common/config" }
 cosmwasm-std = { workspace = true }

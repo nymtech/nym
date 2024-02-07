@@ -25,8 +25,8 @@ nym-crypto = { path = "../../common/crypto"  }
 nym-pemstore = { path = "../../common/pemstore" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 
-nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-credentials = { path = "../../common/credentials" }
+nym-credentials-interface = { path = "../../common/credentials-interface" }
 
 [dependencies.tungstenite]
 workspace = true

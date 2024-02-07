@@ -5,7 +5,7 @@ use crate::coconut::bandwidth::CredentialSigningData;
 use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_coconut_interface::{
+use nym_credentials_interface::{
     hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, PublicAttribute,
 };
 use nym_crypto::asymmetric::{encryption, identity};

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::GatewayRequestsError;
-use nym_coconut_interface::CoconutError;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
+use nym_credentials_interface::CoconutError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]

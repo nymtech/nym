@@ -3,7 +3,7 @@
 
 use super::authenticated::RequestHandlingError;
 use log::*;
-use nym_coconut_interface::{Credential, VerificationKey};
+use nym_credentials_interface::VerificationKey;
 use nym_gateway_requests::models::CredentialSpendingWithEpoch;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
@@ -204,7 +204,8 @@ impl CoconutVerifier {
         }
 
         let req = nym_api_requests::coconut::VerifyCredentialBody::new(
-            credential,
+            credential.data,
+            credential.epoch_id,
             proposal_id,
             self.address.clone(),
         );

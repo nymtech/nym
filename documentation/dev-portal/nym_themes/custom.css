@@ -3,13 +3,17 @@
 }
 
 .coal {
+  --fg: #f2f2f2;
+  --sidebar-fg: #f2f2f2;
   --sidebar-active: #fb6e4e;
   --icons-hover: #fb6e4e;
   --links: #fb6e4e;
   ::selection {
     color: #121726;
     background-color: #c5573d;
-    /*#fb6e4e;*/
+  }
+  select option {
+    background-color: #121726;
   }
 }
 
@@ -18,10 +22,27 @@
   --icons-hover: #fb6e4e;
   --links: #fb6e4e;
   ::selection {
-    color: #121726;
+    color:#f2f2f2;
     background-color: #c5573d;
-    /*#fb6e4e;*/
   }
+}
+
+/*properly centering the title given the additional header items*/
+.menu-title {
+  position: absolute;
+  left: 50%;
+}
+
+.menu-bar .a:hover,
+
+/*necessary because of ^*/
+.right-buttons {
+  position: absolute;
+  right: 0;
+}
+
+select {
+  font-size: 16px;
 }
 
 footer {
@@ -30,3 +51,4 @@ footer {
   border-top: 1px solid black;
   padding: 5px 0;
 }
+

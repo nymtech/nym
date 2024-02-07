@@ -98,6 +98,8 @@ a > .hljs {
 }
 
 .menu-title {
+    position: absolute;
+    left: 50%;
     display: inline-block;
     font-weight: 200;
     font-size: 2.4rem;

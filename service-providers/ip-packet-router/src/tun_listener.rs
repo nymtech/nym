@@ -33,7 +33,7 @@ impl ConnectedClientHandler {
     pub(crate) fn new(
         nym_address: Recipient,
         mix_hops: Option<u8>,
-        tun_rx: tokio::sync::mpsc::Receiver<Vec<u8>>,
+        tun_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         close_rx: tokio::sync::oneshot::Receiver<()>,
     ) -> Self {
@@ -116,7 +116,7 @@ impl ConnectedClientHandler {
         loop {
             tokio::select! {
                 _ = &mut self.close_rx => {
-                    log::trace!("ConnectedClientHandler: received shutdown");
+                    log::warn!("ConnectedClientHandler: received shutdown");
                     break;
                 },
                 _ = self.codec_timer.tick() => {
@@ -138,6 +138,7 @@ impl ConnectedClientHandler {
             }
         }
 
+        log::warn!("ConnectedClientHandler: exiting");
         Ok(())
     }
 
@@ -205,16 +206,16 @@ impl TunListener {
             return Ok(());
         };
 
-        if let Some(mixnet_listener::ConnectedClient {
+        if let Some(mixnet_listener::ConnectedClientMirror {
             nym_address,
             mix_hops,
-            tun_tx,
-            ..
+            last_activity: _last_activity,
+            forward_from_tun_tx,
         }) = self.connected_clients.get(&dst_addr)
         {
             let packet = buf[..len].to_vec();
 
-            tun_tx.send(packet).unwrap();
+            forward_from_tun_tx.send(packet).unwrap();
 
             // // If we are the first packet, start the timer
             // if bundled_packet_codec.is_empty() {

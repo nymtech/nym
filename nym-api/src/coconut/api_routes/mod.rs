@@ -17,7 +17,9 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
-use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
+use nym_credentials::coconut::bandwidth::{
+    bandwidth_credential_params, IssuanceBandwidthCredential,
+};
 use nym_validator_client::nyxd::Coin;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
@@ -93,15 +95,22 @@ pub async fn verify_bandwidth_credential(
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
     let proposal_id = verify_credential_body.proposal_id;
-    let proposal = state.client.get_proposal(proposal_id).await?;
+    let epoch_id = verify_credential_body.epoch_id;
+    let credential_data = &verify_credential_body.credential_data;
+    let theta = &credential_data.verify_credential_request;
+
+    let voucher_value: u64 = if credential_data.typ.is_voucher() {
+        todo!()
+    } else {
+        todo!("return error here")
+    };
 
     // TODO: introduce a check to make sure we haven't already voted for this proposal to prevent DDOS
 
+    let proposal = state.client.get_proposal(proposal_id).await?;
+
     // Proposal description is the blinded serial number
-    if !verify_credential_body
-        .credential
-        .has_blinded_serial_number(&proposal.description)?
-    {
+    if !theta.has_blinded_serial_number(&proposal.description)? {
         return Err(CoconutError::IncorrectProposal {
             reason: String::from("incorrect blinded serial number in description"),
         });
@@ -113,7 +122,7 @@ pub async fn verify_bandwidth_credential(
     // Credential has not been spent before, and is on its way of being spent
     let credential_status = state
         .client
-        .get_spent_credential(verify_credential_body.credential.blinded_serial_number())
+        .get_spent_credential(theta.blinded_serial_number_bs58())
         .await?
         .spend_credential
         .ok_or(CoconutError::InvalidCredentialStatus {
@@ -125,16 +134,12 @@ pub async fn verify_bandwidth_credential(
             status: format!("{:?}", credential_status),
         });
     }
-    let verification_key = state
-        .verification_key(*verify_credential_body.credential.epoch_id())
-        .await?;
-    let mut vote_yes = verify_credential_body.credential.verify(&verification_key);
+    let verification_key = state.verification_key(epoch_id).await?;
+    let params = bandwidth_credential_params();
+    let mut vote_yes = credential_data.verify(params, &verification_key);
 
     vote_yes &= Coin::from(proposed_release_funds)
-        == Coin::new(
-            verify_credential_body.credential.voucher_value() as u128,
-            state.mix_denom.clone(),
-        );
+        == Coin::new(voucher_value as u128, state.mix_denom.clone());
 
     // Vote yes or no on the proposal based on the verification result
     let ret = state

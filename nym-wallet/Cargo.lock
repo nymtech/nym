@@ -3098,8 +3098,7 @@ dependencies = [
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "getset",
- "nym-coconut",
- "nym-coconut-interface",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-node-requests",
@@ -3168,17 +3167,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-coconut-interface"
-version = "0.1.0"
-dependencies = [
- "bs58 0.4.0",
- "getset",
- "nym-coconut",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-config"
 version = "0.1.0"
 dependencies = [
@@ -3201,6 +3189,15 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+]
+
+[[package]]
+name = "nym-credentials-interface"
+version = "0.1.0"
+dependencies = [
+ "bls12_381",
+ "nym-coconut",
+ "serde",
 ]
 
 [[package]]
@@ -3401,7 +3398,6 @@ dependencies = [
  "hmac 0.12.1",
  "itertools 0.11.0",
  "log",
- "nym-coconut-interface",
  "nym-config",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -3442,9 +3438,9 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "nym-api-requests",
+ "nym-coconut",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
- "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-ephemera-common",
@@ -3546,7 +3542,6 @@ dependencies = [
  "itertools 0.10.5",
  "k256 0.13.1",
  "log",
- "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",

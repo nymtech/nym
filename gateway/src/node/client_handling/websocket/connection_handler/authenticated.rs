@@ -1,28 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use futures::{
-    future::{FusedFuture, OptionFuture},
-    FutureExt, StreamExt,
-};
-use log::*;
-use nym_gateway_requests::{
-    iv::{IVConversionError, IV},
-    types::{BinaryRequest, ServerResponse},
-    ClientControlRequest, GatewayRequestsError,
-};
-use nym_sphinx::forwarding::packet::MixPacket;
-use nym_task::TaskClient;
-use nym_validator_client::coconut::CoconutApiError;
-use rand::{CryptoRng, Rng};
-use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-
-use nym_coconut_interface::CoconutError;
-use nym_credentials::coconut::bandwidth::CredentialType;
-use std::{convert::TryFrom, process, time::Duration};
-
 use crate::node::client_handling::bandwidth::BandwidthError;
 use crate::node::{
     client_handling::{
@@ -37,6 +15,26 @@ use crate::node::{
     },
     storage::{error::StorageError, Storage},
 };
+use futures::{
+    future::{FusedFuture, OptionFuture},
+    FutureExt, StreamExt,
+};
+use log::*;
+use nym_credentials::coconut::bandwidth::{bandwidth_credential_params, CredentialType};
+use nym_credentials_interface::CoconutError;
+use nym_gateway_requests::{
+    iv::{IVConversionError, IV},
+    types::{BinaryRequest, ServerResponse},
+    ClientControlRequest, GatewayRequestsError,
+};
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_task::TaskClient;
+use nym_validator_client::coconut::CoconutApiError;
+use rand::{CryptoRng, Rng};
+use std::{convert::TryFrom, process, time::Duration};
+use thiserror::Error;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
 #[derive(Debug, Error)]
 pub(crate) enum RequestHandlingError {
@@ -75,9 +73,6 @@ pub(crate) enum RequestHandlingError {
 
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
-
-    #[error("Coconut interface error - {0}")]
-    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("coconut failure: {0}")]
     CoconutError(#[from] CoconutError),
@@ -257,7 +252,8 @@ where
 
         let bandwidth = Bandwidth::try_from_raw_value(bandwidth_attribute, credential.data.typ)?;
 
-        if !credential.data.verify(&aggregated_verification_key) {
+        let params = bandwidth_credential_params();
+        if !credential.data.verify(params, &aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
                 String::from("credential failed to verify on gateway"),
             ));

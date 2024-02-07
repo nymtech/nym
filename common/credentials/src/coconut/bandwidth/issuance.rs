@@ -9,7 +9,7 @@ use crate::coconut::bandwidth::{
 };
 use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
-use nym_coconut_interface::{
+use nym_credentials_interface::{
     aggregate_signature_shares, hash_to_scalar, prepare_blind_sign, Attribute, Parameters,
     PrivateAttribute, PublicAttribute, Signature, SignatureShare, VerificationKey,
 };

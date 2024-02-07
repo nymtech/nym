@@ -18,12 +18,12 @@ pub struct KeyPair {
 
 #[derive(Debug)]
 pub struct KeyPairWithEpoch {
-    pub(crate) keys: nym_coconut_interface::KeyPair,
+    pub(crate) keys: nym_coconut::KeyPair,
     pub(crate) issued_for_epoch: EpochId,
 }
 
 impl KeyPairWithEpoch {
-    pub(crate) fn new(keys: nym_coconut_interface::KeyPair, issued_for_epoch: EpochId) -> Self {
+    pub(crate) fn new(keys: nym_coconut::KeyPair, issued_for_epoch: EpochId) -> Self {
         KeyPairWithEpoch {
             keys,
             issued_for_epoch,

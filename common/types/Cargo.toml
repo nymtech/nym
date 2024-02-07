@@ -31,7 +31,6 @@ nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-config = { path = "../../common/config" }
-nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 
 [dev-dependencies]

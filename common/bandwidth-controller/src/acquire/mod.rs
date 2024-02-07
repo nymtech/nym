@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-use nym_coconut_interface::Base58;
+use nym_coconut::Base58;
 use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::{IssuanceBandwidthCredential, VOUCHER_INFO_TYPE};
+use nym_credentials::coconut::bandwidth::{CredentialType, IssuanceBandwidthCredential};
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_validator_client::coconut::all_coconut_api_clients;
@@ -27,7 +27,7 @@ where
     let tx_hash = client
         .deposit(
             amount.clone(),
-            VOUCHER_INFO_TYPE.to_string(),
+            CredentialType::Voucher.to_string(),
             signing_key.public_key().to_base58_string(),
             encryption_key.public_key().to_base58_string(),
             None,
@@ -73,7 +73,7 @@ where
     storage
         .insert_coconut_credential(
             voucher_value,
-            VOUCHER_INFO_TYPE.to_string(),
+            CredentialType::Voucher.to_string(),
             state.voucher.get_private_attributes()[0].to_bs58(),
             state.voucher.get_private_attributes()[1].to_bs58(),
             signature.to_bs58(),

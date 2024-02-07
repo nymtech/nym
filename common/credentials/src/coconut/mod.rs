@@ -2,5 +2,4 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod bandwidth;
-pub mod credential;
 pub mod utils;

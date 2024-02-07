@@ -87,9 +87,6 @@ pub enum CoconutError {
     #[error("public attributes in request differ from the ones in deposit: Expected {0}, got {1}")]
     DifferentPublicAttributes(String, String),
 
-    #[error("error in coconut interface: {0}")]
-    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
-
     #[error("storage error: {0}")]
     StorageError(#[from] NymApiStorageError),
 

@@ -28,7 +28,7 @@ pub(crate) fn blind_sign(
     let public_attributes = request.public_attributes_hashed();
     let attributes_ref = public_attributes.iter().collect::<Vec<_>>();
 
-    Ok(nym_coconut_interface::blind_sign(
+    Ok(nym_coconut::blind_sign(
         bandwidth_credential_params(),
         signing_key,
         &request.inner_sign_request,

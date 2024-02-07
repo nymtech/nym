@@ -4,7 +4,7 @@
 use crate::coconut::bandwidth::IssuanceBandwidthCredential;
 use crate::error::Error;
 use log::{debug, warn};
-use nym_coconut_interface::{
+use nym_credentials_interface::{
     aggregate_verification_keys, Signature, SignatureShare, VerificationKey,
 };
 use nym_validator_client::client::CoconutApiClient;

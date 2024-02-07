@@ -10,7 +10,7 @@ use crate::coconut::bandwidth::{
     bandwidth_credential_params, CredentialSpendingData, CredentialType,
 };
 use crate::error::Error;
-use nym_coconut_interface::{
+use nym_credentials_interface::{
     prove_bandwidth_credential, Parameters, PrivateAttribute, PublicAttribute, Signature,
     VerificationKey,
 };

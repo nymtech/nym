@@ -10,10 +10,10 @@ use crate::coconut::keys::KeyPairWithEpoch;
 use crate::coconut::state::bandwidth_credential_params;
 use cosmwasm_std::Addr;
 use log::debug;
+use nym_coconut::KeyPair as CoconutKeyPair;
 use nym_coconut::{check_vk_pairing, Base58, SecretKey, VerificationKey};
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId, NodeIndex};
-use nym_coconut_interface::KeyPair as CoconutKeyPair;
 use nym_dkg::{
     bte::{self, decrypt_share},
     combine_shares, try_recover_verification_keys, Dealing,

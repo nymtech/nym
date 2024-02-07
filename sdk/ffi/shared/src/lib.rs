@@ -9,6 +9,7 @@ use std::ffi::{c_char, CStr, CString};
 use std::mem::forget;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
+uniffi::setup_scaffolding!();
 
 // NYM_CLIENT: Static reference (only init-ed once) to:
 //     - Arc: share ownership
@@ -33,12 +34,15 @@ pub enum StatusCode {
 
 // callbacks have to be implemented as structs so that they can
 // impl UniffiCustomTypeConverter trait used by uniffi-bindgen-go
+#[derive(uniffi::Object)]
 #[repr(C)]
 pub struct CStringCallback {
    pub callback: extern "C" fn(*const c_char)
 }
 
+#[uniffi::export]
 impl CStringCallback {
+    #[uniffi::constructor]
     pub fn new(callback: extern "C" fn(*const c_char)) -> Self {
         CStringCallback { callback }
     }

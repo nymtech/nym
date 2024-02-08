@@ -45,7 +45,7 @@ impl Bandwidth {
         Bandwidth { value }
     }
 
-    pub fn try_from_raw_value(value: &String, typ: CredentialType) -> Result<Self, BandwidthError> {
+    pub fn try_from_raw_value(value: &str, typ: CredentialType) -> Result<Self, BandwidthError> {
         let bandwidth_value =
             match typ {
                 CredentialType::Voucher => {

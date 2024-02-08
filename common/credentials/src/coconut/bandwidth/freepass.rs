@@ -30,7 +30,7 @@ impl FreePassIssuedData {
     }
 }
 
-#[derive(Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
+#[derive(Zeroize, Serialize, Deserialize)]
 pub struct FreePassIssuanceData {
     /// the plain validity value of this credential expressed as unix timestamp
     #[zeroize(skip)]

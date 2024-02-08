@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-use nym_credential_storage::models::StoredIssuedCredential;
+use nym_credential_storage::models::{StorableIssuedCredential, StoredIssuedCredential};
 use nym_credentials::coconut::bandwidth::IssuedBandwidthCredential;
 use nym_validator_client::nym_api::EpochId;
 

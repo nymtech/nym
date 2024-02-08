@@ -5343,6 +5343,7 @@ dependencies = [
  "sqlx",
  "thiserror",
  "tokio",
+ "zeroize",
 ]
 
 [[package]]
@@ -5543,6 +5544,7 @@ dependencies = [
  "sqlx",
  "subtle-encoding",
  "thiserror",
+ "time",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",

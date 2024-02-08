@@ -1,7 +1,7 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::CoconutCredential;
+use crate::models::StoredIssuedCredential;
 
 #[derive(Clone)]
 pub struct CoconutCredentialManager {
@@ -18,43 +18,29 @@ impl CoconutCredentialManager {
         CoconutCredentialManager { connection_pool }
     }
 
-    /// Inserts provided signature into the database.
-    ///
-    /// # Arguments
-    ///
-    /// * `voucher_value`: Plaintext bandwidth value of the credential.
-    /// * `voucher_info`: Plaintext information of the credential.
-    /// * `serial_number`: Base58 representation of the serial number attribute.
-    /// * `binding_number`: Base58 representation of the binding number attribute.
-    /// * `signature`: Coconut credential in the form of a signature.
-    pub async fn insert_coconut_credential(
+    pub async fn insert_issued_credential(
         &self,
-        voucher_value: String,
-        voucher_info: String,
-        serial_number: String,
-        binding_number: String,
-        signature: String,
-        epoch_id: String,
+        credential_type: String,
+        serialization_revision: u8,
+        credential_data: &[u8],
+        epoch_id: u32,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO coconut_credentials(voucher_value, voucher_info, serial_number, binding_number, signature, epoch_id, consumed) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            voucher_value, voucher_info, serial_number, binding_number, signature, epoch_id, false
-        )
-        .execute(&self.connection_pool)
-        .await?;
+            r#"
+                INSERT INTO coconut_credentials(serialization_revision, credential_type, credential_data, epoch_id, consumed)
+                VALUES (?, ?, ?, ?, false)
+            "#,
+            serialization_revision, credential_type, credential_data, epoch_id
+        ).execute(&self.connection_pool).await?;
         Ok(())
     }
 
-    /// Tries to retrieve one of the stored, unused credentials.
-    pub async fn get_next_coconut_credential(
+    pub async fn get_next_unspent_credential(
         &self,
-    ) -> Result<Option<CoconutCredential>, sqlx::Error> {
-        sqlx::query_as!(
-            CoconutCredential,
-            "SELECT * FROM coconut_credentials WHERE NOT consumed"
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
+    ) -> Result<Option<StoredIssuedCredential>, sqlx::Error> {
+        sqlx::query_as("SELECT * FROM coconut_credentials WHERE NOT consumed LIMIT 1")
+            .fetch_optional(&self.connection_pool)
+            .await
     }
 
     /// Consumes in the database the specified credential.

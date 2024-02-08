@@ -14,6 +14,7 @@ use nym_ip_packet_requests::{
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
+use tap::TapFallible;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncWriteExt;
 
@@ -85,6 +86,7 @@ impl ConnectedClients {
         mix_hops: Option<u8>,
         forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
         close_tx: tokio::sync::oneshot::Sender<()>,
+        finished_rx: tokio::sync::oneshot::Receiver<()>,
     ) {
         // The map of connected clients that the mixnet listener keeps track of. It monitors
         // activity and disconnects clients that have been inactive for too long.
@@ -95,6 +97,7 @@ impl ConnectedClients {
                 mix_hops,
                 last_activity: std::time::Instant::now(),
                 close_tx: Some(close_tx),
+                finished_rx,
             },
         );
         // Send the connected client info to the tun listener, which will use it to forward packets
@@ -102,11 +105,12 @@ impl ConnectedClients {
         self.connected_client_tx
             .send(ConnectedClientEvent::Connect(Box::new(ConnectEvent {
                 ip,
-                nym_address,
-                mix_hops,
                 forward_from_tun_tx,
             })))
-            .unwrap();
+            .tap_err(|err| {
+                log::error!("Failed to send connected client event: {err}");
+            })
+            .ok();
     }
 
     fn update_activity(&mut self, ip: &IpAddr) -> Result<()> {
@@ -115,6 +119,30 @@ impl ConnectedClients {
             Ok(())
         } else {
             Err(IpPacketRouterError::FailedToUpdateClientActivity)
+        }
+    }
+
+    fn disconnect_stopped_client_handlers(&mut self) {
+        let stopped_clients: Vec<IpAddr> = self
+            .clients
+            .iter_mut()
+            .filter_map(|(ip, client)| {
+                if client.finished_rx.try_recv().is_ok() {
+                    Some(*ip)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for ip in stopped_clients {
+            log::info!("Removing stopped client: {ip}");
+            self.clients.remove(&ip);
+            self.connected_client_tx
+                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(ip)))
+                .tap_err(|err| {
+                    log::error!("Failed to send disconnect event: {err}");
+                })
+                .ok();
         }
     }
 
@@ -136,7 +164,10 @@ impl ConnectedClients {
             self.clients.remove(&ip);
             self.connected_client_tx
                 .send(ConnectedClientEvent::Disconnect(DisconnectEvent(ip)))
-                .unwrap();
+                .tap_err(|err| {
+                    log::error!("Failed to send disconnect event: {err}");
+                })
+                .ok();
         }
     }
 
@@ -159,6 +190,9 @@ pub(crate) struct ConnectedClient {
     // Send to connected clients listener to stop. This is option only because we need to take
     // ownership of it when the client is dropped.
     pub(crate) close_tx: Option<tokio::sync::oneshot::Sender<()>>,
+
+    // Receive event when the client listener for that client stopped
+    pub(crate) finished_rx: tokio::sync::oneshot::Receiver<()>,
 }
 
 impl ConnectedClient {
@@ -242,8 +276,8 @@ impl MixnetListener {
                 log::info!("Connecting a new client");
 
                 // Spawn the ConnectedClientHandler for the new client
-                let (forward_from_tun_tx, close_tx) =
-                    connected_client_handler::ConnectedClientHandler::launch(
+                let (forward_from_tun_tx, close_tx, finished_rx) =
+                    connected_client_handler::ConnectedClientHandler::start(
                         reply_to,
                         reply_to_hops,
                         self.mixnet_client.split_sender(),
@@ -256,6 +290,7 @@ impl MixnetListener {
                     reply_to_hops,
                     forward_from_tun_tx,
                     close_tx,
+                    finished_rx,
                 );
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
@@ -324,8 +359,8 @@ impl MixnetListener {
         };
 
         // Spawn the ConnectedClientHandler for the new client
-        let (forward_from_tun_tx, close_tx) =
-            connected_client_handler::ConnectedClientHandler::launch(
+        let (forward_from_tun_tx, close_tx, finished_rx) =
+            connected_client_handler::ConnectedClientHandler::start(
                 reply_to,
                 reply_to_hops,
                 self.mixnet_client.split_sender(),
@@ -338,6 +373,7 @@ impl MixnetListener {
             reply_to_hops,
             forward_from_tun_tx,
             close_tx,
+            finished_rx,
         );
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
@@ -501,6 +537,7 @@ impl MixnetListener {
                     log::debug!("IpPacketRouter [main loop]: received shutdown");
                 },
                 _ = disconnect_timer.tick() => {
+                    self.connected_clients.disconnect_stopped_client_handlers();
                     self.connected_clients.disconnect_inactive_clients();
                 },
                 msg = self.mixnet_client.next() => {
@@ -541,7 +578,5 @@ pub(crate) struct DisconnectEvent(pub(crate) IpAddr);
 
 pub(crate) struct ConnectEvent {
     pub(crate) ip: IpAddr,
-    pub(crate) nym_address: Recipient,
-    pub(crate) mix_hops: Option<u8>,
     pub(crate) forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
 }

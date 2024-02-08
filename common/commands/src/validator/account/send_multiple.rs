@@ -80,7 +80,7 @@ pub async fn send_multiple(args: Args, client: &SigningClient) {
     let multiple_sends: Vec<(AccountId, Vec<Coin>)> = rows
         .rows
         .iter()
-        .map(|row| (row.address.clone(), vec![row.amount.clone().into()]))
+        .map(|row| (row.address.clone(), vec![row.amount.clone()]))
         .collect();
 
     let res = client

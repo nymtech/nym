@@ -68,8 +68,7 @@ impl ConnectedClientHandler {
         loop {
             tokio::select! {
                 _ = &mut self.close_rx => {
-                    // WIP(JON): downgrade to trace once confirmed to work
-                    log::warn!("ConnectedClientHandler: received shutdown");
+                    log::trace!("ConnectedClientHandler: received shutdown");
                     break;
                 },
                 packet = self.forward_from_tun_rx.recv() => match packet {
@@ -86,8 +85,7 @@ impl ConnectedClientHandler {
             }
         }
 
-        // WIP(JON): downgrade to debug once confirmed to work
-        log::warn!("ConnectedClientHandler: exiting");
+        log::debug!("ConnectedClientHandler: exiting");
         Ok(())
     }
 }

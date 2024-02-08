@@ -169,11 +169,9 @@ impl ConnectedClient {
 
 impl Drop for ConnectedClient {
     fn drop(&mut self) {
-        // WIP(JON): downgrade to trace once confirmed to work
-        log::info!("Dropping connected client: {}", self.nym_address);
+        log::info!("Dropping client: {}", self.nym_address);
         if let Some(close_tx) = self.close_tx.take() {
-            // WIP(JON): downgrade to trace once confirmed to work
-            log::info!("Sending close signal to connected client handler");
+            log::trace!("Sending close signal to connected client handler");
             close_tx.send(()).unwrap();
         }
     }

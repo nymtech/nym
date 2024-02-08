@@ -68,6 +68,10 @@ int8_t uniffiForeignExecutorCallbackbindings(uint64_t, uint32_t, RustTaskCallbac
 
 void uniffiFutureContinuationCallbackbindings(void*, int8_t);
 
+RustBuffer uniffi_nym_go_ffi_fn_func_get_self_address(
+	RustCallStatus* out_status
+);
+
 int8_t uniffi_nym_go_ffi_fn_func_init_ephemeral(
 	RustCallStatus* out_status
 );
@@ -372,6 +376,10 @@ void ffi_nym_go_ffi_rust_future_free_void(
 
 void ffi_nym_go_ffi_rust_future_complete_void(
 	void* handle,
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_get_self_address(
 	RustCallStatus* out_status
 );
 

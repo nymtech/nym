@@ -9,9 +9,9 @@ UDL_PATH="./src/bindings.udl"
 # build rust
 cargo build $MODE
 # build go bindings
-printf "building go bindings... \n"
+printf "building go bindings \n"
 uniffi-bindgen-go $UDL_PATH --out-dir $GO_DIR
-printf "...bindings built \n\n"
+printf "bindings built \n\n"
 
 # something not right with these - having to add it manually to bindings.go for the moment 
 #pushd $GO_DIR/bindings

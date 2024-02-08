@@ -3,25 +3,29 @@
 
 use std::ffi::{c_char, CString};
 use nym_ffi_shared;
-use nym_ffi_shared::CStringCallback;
+use thiserror;
+// use nym_ffi_shared::CStringCallback;
 uniffi::include_scaffolding!("bindings");
+
+#[derive(Debug, thiserror::Error)]
+enum GoWrapError {
+    #[error("Couldn't init client")]
+    ClientInitError{},
+    #[error("Client is uninitialised: init client first")]
+    ClientUninitialisedError{},
+    #[error("Error getting self address")]
+    SelfAddrError{},
+    #[error("Error sending message")]
+    SendMsgError{},
+    #[error("Error sending reply")]
+    ReplyError{},
+    #[error("Could not start listening")]
+    ListenError{},
+}
 
 #[no_mangle]
 pub extern "C" fn init_logging() {
     nym_bin_common::logging::setup_logging();
-}
-
-impl UniffiCustomTypeConverter for CStringCallback {
-    type Builtin = extern "C" fn(*const c_char);
-
-    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
-        Ok(CStringCallback{
-            callback: val
-        })
-    }
-    fn from_custom(obj: Self) -> Self::Builtin {
-        obj.callback
-    }
 }
 
 #[no_mangle]
@@ -33,10 +37,10 @@ pub extern "C" fn init_ephemeral() -> i8 {
 }
 
 #[no_mangle]
-pub extern "C" fn get_self_address(callback: nym_ffi_shared::CStringCallback) -> i8 {
-    match nym_ffi_shared::get_self_address_internal(callback) {
-        Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
-        Err(_) => nym_ffi_shared::StatusCode::SelfAddrError as i8,
+pub extern "C" fn get_self_address() -> Result<String, GoWrapError> {
+    match nym_ffi_shared::get_self_address_internal() {
+        Ok(nym_ffi_shared::AddrResponse{ addr, .. }) => Ok(String::from(addr)),
+        Err(_) => Err(GoWrapError::SelfAddrError {})
     }
 }
 

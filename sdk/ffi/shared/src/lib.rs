@@ -5,10 +5,12 @@ use anyhow::{anyhow, bail};
 use lazy_static::lazy_static;
 use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, ReconstructedMessage};
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, c_int, CStr, CString};
 use std::mem::forget;
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
+
+// no longer necessary?
 uniffi::setup_scaffolding!();
 
 // NYM_CLIENT: Static reference (only init-ed once) to:
@@ -21,6 +23,7 @@ lazy_static! {
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
 }
 
+// TODO move to the C specific bindings
 #[derive(Debug)]
 pub enum StatusCode {
     NoError = 0,
@@ -34,15 +37,14 @@ pub enum StatusCode {
 
 // callbacks have to be implemented as structs so that they can
 // impl UniffiCustomTypeConverter trait used by uniffi-bindgen-go
-#[derive(uniffi::Object)]
+// TODO move to the C specific bindings
 #[repr(C)]
 pub struct CStringCallback {
    pub callback: extern "C" fn(*const c_char)
 }
 
-#[uniffi::export]
+// TODO move to the C specific bindings
 impl CStringCallback {
-    #[uniffi::constructor]
     pub fn new(callback: extern "C" fn(*const c_char)) -> Self {
         CStringCallback { callback }
     }
@@ -51,11 +53,13 @@ impl CStringCallback {
     }
 }
 
+// TODO move to the C specific bindings
 #[repr(C)]
 pub struct CMessageCallback {
     pub callback: extern "C" fn(ReceivedMessage)
 }
 
+// TODO move to the C specific bindings
 impl CMessageCallback {
     pub fn new(callback: extern "C" fn(ReceivedMessage)) -> Self {
         CMessageCallback { callback }
@@ -65,12 +69,26 @@ impl CMessageCallback {
     }
 }
 
+
+// TODO move to the C specific bindings... probably
 // FFI-sanitised ReconstructedMessage
 #[repr(C)]
 pub struct ReceivedMessage {
     message: *const u8,
     size: usize,
     sender_tag: *const c_char,
+}
+
+// TEST to see if we can get rid of callbacks
+// TODO I think need to implement this new_type() as well?
+// https://mozilla.github.io/uniffi-rs/proc_macro/index.html#the-unifficustom_type-and-unifficustom_newtype-macros
+//
+// actually i dont think this is necessary any more?
+#[repr(C)]
+#[derive(uniffi::Object)]
+pub struct AddrResponse {
+    pub addr: String,
+    pub return_code: c_int
 }
 
 pub fn init_ephemeral_internal() -> anyhow::Result<(), anyhow::Error> {
@@ -91,7 +109,7 @@ pub fn init_ephemeral_internal() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
-pub fn get_self_address_internal(callback: CStringCallback) -> anyhow::Result<(), anyhow::Error> {
+pub fn get_self_address_internal(/*callback: CStringCallback*/) -> anyhow::Result<AddrResponse, anyhow::Error> {
     let client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if client.is_none() {
         bail!("Client is not yet initialised");
@@ -99,13 +117,20 @@ pub fn get_self_address_internal(callback: CStringCallback) -> anyhow::Result<()
     let nym_client = client
         .as_ref()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
-    // get address as cstring
-    let c_string = CString::new(nym_client.nym_address().to_string())?;
 
-    let call = CStringCallback::new(callback.callback);
+    // move this to the c-specific code
     // as_ptr() keeps ownership in rust unlike into_raw() so no need to free it
-    call.trigger(c_string.as_ptr());
-    Ok(())
+    // let c_string = CString::new(nym_client.nym_address().to_string())?.as_ptr();
+
+    // let call = CStringCallback::new(callback.callback);
+    // call.trigger(c_string.as_ptr());
+    // debug printing when working on move from callbacks -> return types
+    // println!("{c_string:?}");
+
+    Ok(AddrResponse{
+        addr: nym_client.nym_address().to_string(), // c_string.as_ptr(),
+        return_code: 0,
+    })
 }
 
 pub fn send_message_internal(

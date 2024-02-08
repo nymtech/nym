@@ -345,6 +345,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_get_self_address(uniffiStatus)
+		})
+		if checksum != 51546 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_get_self_address: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_init_ephemeral(uniffiStatus)
 		})
 		if checksum != 1836 {
@@ -436,6 +445,87 @@ func (FfiConverterString) Write(writer io.Writer, value string) {
 type FfiDestroyerString struct{}
 
 func (FfiDestroyerString) Destroy(_ string) {}
+
+type GoWrapError struct {
+	err error
+}
+
+func (err GoWrapError) Error() string {
+	return fmt.Sprintf("GoWrapError: %s", err.err.Error())
+}
+
+func (err GoWrapError) Unwrap() error {
+	return err.err
+}
+
+// Err* are used for checking error type with `errors.Is`
+var ErrGoWrapErrorSelfAddrError = fmt.Errorf("GoWrapErrorSelfAddrError")
+
+// Variant structs
+type GoWrapErrorSelfAddrError struct {
+	message string
+}
+
+func NewGoWrapErrorSelfAddrError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorSelfAddrError{},
+	}
+}
+
+func (err GoWrapErrorSelfAddrError) Error() string {
+	return fmt.Sprintf("SelfAddrError: %s", err.message)
+}
+
+func (self GoWrapErrorSelfAddrError) Is(target error) bool {
+	return target == ErrGoWrapErrorSelfAddrError
+}
+
+type FfiConverterTypeGoWrapError struct{}
+
+var FfiConverterTypeGoWrapErrorINSTANCE = FfiConverterTypeGoWrapError{}
+
+func (c FfiConverterTypeGoWrapError) Lift(eb RustBufferI) error {
+	return LiftFromRustBuffer[error](c, eb)
+}
+
+func (c FfiConverterTypeGoWrapError) Lower(value *GoWrapError) RustBuffer {
+	return LowerIntoRustBuffer[*GoWrapError](c, value)
+}
+
+func (c FfiConverterTypeGoWrapError) Read(reader io.Reader) error {
+	errorID := readUint32(reader)
+
+	message := FfiConverterStringINSTANCE.Read(reader)
+	switch errorID {
+	case 1:
+		return &GoWrapError{&GoWrapErrorSelfAddrError{message}}
+	default:
+		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeGoWrapError.Read()", errorID))
+	}
+
+}
+
+func (c FfiConverterTypeGoWrapError) Write(writer io.Writer, value *GoWrapError) {
+	switch variantValue := value.err.(type) {
+	case *GoWrapErrorSelfAddrError:
+		writeInt32(writer, 1)
+	default:
+		_ = variantValue
+		panic(fmt.Sprintf("invalid error value `%v` in FfiConverterTypeGoWrapError.Write", value))
+	}
+}
+
+func GetSelfAddress() (string, error) {
+	_uniffiRV, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+		return C.uniffi_nym_go_ffi_fn_func_get_self_address(_uniffiStatus)
+	})
+	if _uniffiErr != nil {
+		var _uniffiDefaultValue string
+		return _uniffiDefaultValue, _uniffiErr
+	} else {
+		return FfiConverterStringINSTANCE.Lift(_uniffiRV), _uniffiErr
+	}
+}
 
 func InitEphemeral() int8 {
 	return FfiConverterInt8INSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {

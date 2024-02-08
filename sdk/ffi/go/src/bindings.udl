@@ -1,11 +1,11 @@
-[External="nym_ffi_shared"]
-typedef extern CStringCallback;
-
-[External="std::ffi"]
-typedef extern c_char;
+[Error]
+enum GoWrapError {
+  "SelfAddrError",
+};
 
 namespace bindings {
   void init_logging();
   i8 init_ephemeral();
-  i8 get_self_address(CStringCallback callback);
+  [Throws=GoWrapError]
+  string get_self_address();
 };

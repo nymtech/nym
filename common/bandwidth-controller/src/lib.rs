@@ -1,10 +1,9 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
 use crate::utils::stored_credential_to_issued_bandwidth;
 use log::{error, warn};
-use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
@@ -12,7 +11,6 @@ use nym_credentials_interface::VerificationKey;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use std::str::FromStr;
 
 pub mod acquire;
 pub mod error;
@@ -69,8 +67,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
 
-        let epoch_id = u64::from_str(&retrieved_credential.epoch_id)
-            .map_err(|_| StorageError::InconsistentData)?;
+        let epoch_id = retrieved_credential.epoch_id as EpochId;
         let credential_id = retrieved_credential.id;
 
         let issued_bandwidth = stored_credential_to_issued_bandwidth(retrieved_credential)?;

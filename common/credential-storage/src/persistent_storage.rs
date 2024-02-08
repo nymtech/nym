@@ -5,7 +5,7 @@ use crate::backends::sqlite::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::storage::Storage;
 
-use crate::models::{CoconutCredential, StoredIssuedCredential};
+use crate::models::{StorableIssuedCredential, StoredIssuedCredential};
 use async_trait::async_trait;
 use log::{debug, error};
 use sqlx::ConnectOptions;
@@ -58,43 +58,32 @@ impl PersistentStorage {
 impl Storage for PersistentStorage {
     type StorageError = StorageError;
 
-    async fn insert_coconut_credential(
+    async fn insert_issued_credential<'a>(
         &self,
-        voucher_value: String,
-        voucher_info: String,
-        serial_number: String,
-        binding_number: String,
-        signature: String,
-        epoch_id: String,
-    ) -> Result<(), StorageError> {
+        bandwidth_credential: StorableIssuedCredential<'a>,
+    ) -> Result<(), Self::StorageError> {
         self.coconut_credential_manager
-            .insert_coconut_credential(
-                voucher_value,
-                voucher_info,
-                serial_number,
-                binding_number,
-                signature,
-                epoch_id,
+            .insert_issued_credential(
+                bandwidth_credential.credential_type,
+                bandwidth_credential.serialization_revision,
+                bandwidth_credential.credential_data,
+                bandwidth_credential.epoch_id,
             )
             .await?;
 
         Ok(())
     }
 
-    async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError> {
+    async fn get_next_unspent_credential(
+        &self,
+    ) -> Result<StoredIssuedCredential, Self::StorageError> {
         let credential = self
             .coconut_credential_manager
-            .get_next_coconut_credential()
+            .get_next_unspent_credential()
             .await?
             .ok_or(StorageError::NoCredential)?;
 
         Ok(credential)
-    }
-
-    async fn get_next_unspent_credential(
-        &self,
-    ) -> Result<StoredIssuedCredential, Self::StorageError> {
-        todo!()
     }
 
     async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError> {

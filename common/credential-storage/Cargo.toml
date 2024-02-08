@@ -11,7 +11,9 @@ async-trait = { workspace = true }
 
 log = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1.24.1", features = ["sync"]}
+tokio = { workspace = true, features = ["sync"]}
+zeroize = { workspace = true, features = ["zeroize_derive"] }
+
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true

@@ -57,7 +57,7 @@ where
     pub async fn acquire(&self, amount: u128) -> Result<()> {
         let amount = Coin::new(amount, &self.network_details.chain_details.mix_denom.base);
         let state = nym_bandwidth_controller::acquire::deposit(&self.client, amount).await?;
-        nym_bandwidth_controller::acquire::get_credential(&state, &self.client, self.storage)
+        nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, &self.client, self.storage)
             .await
             .map_err(|reason| Error::UnconvertedDeposit {
                 reason,
@@ -71,8 +71,12 @@ where
         let voucher = IssuanceBandwidthCredential::try_from_recovered_bytes(voucher_blob)
             .map_err(|_| Error::InvalidVoucherBlob)?;
         let state = State::new(voucher);
-        nym_bandwidth_controller::acquire::get_credential(&state, &self.client, self.storage)
-            .await?;
+        nym_bandwidth_controller::acquire::get_bandwidth_voucher(
+            &state,
+            &self.client,
+            self.storage,
+        )
+        .await?;
 
         Ok(())
     }

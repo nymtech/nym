@@ -238,8 +238,16 @@ impl IssuanceBandwidthCredential {
             .map_err(Error::SignatureAggregationError)
     }
 
+    // also drops self after the conversion
     pub fn into_issued_credential(
         self,
+        aggregate_signature: Signature,
+    ) -> IssuedBandwidthCredential {
+        self.to_issued_credential(aggregate_signature)
+    }
+
+    pub fn to_issued_credential(
+        &self,
         aggregate_signature: Signature,
     ) -> IssuedBandwidthCredential {
         IssuedBandwidthCredential::new(

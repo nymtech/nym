@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-use nym_coconut::Base58;
+use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::{CredentialType, IssuanceBandwidthCredential};
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
@@ -13,6 +13,7 @@ use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::Coin;
 use rand::rngs::OsRng;
 use state::State;
+use zeroize::Zeroizing;
 
 pub mod state;
 
@@ -43,7 +44,7 @@ where
     Ok(state)
 }
 
-pub async fn get_credential<C, St>(
+pub async fn get_bandwidth_voucher<C, St>(
     state: &State,
     client: &C,
     storage: &St,
@@ -54,7 +55,7 @@ where
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
     // temporary
-    assert!(!state.voucher.typ().is_free_pass());
+    assert!(state.voucher.typ().is_voucher());
 
     let epoch_id = client.get_current_epoch().await?.epoch_id;
     let threshold = client
@@ -66,19 +67,21 @@ where
 
     let signature =
         obtain_aggregate_signature(&state.voucher, &coconut_api_clients, threshold).await?;
+    let issued = state.voucher.to_issued_credential(signature);
 
-    // we asserted the that the bandwidth credential we obtained is **NOT** the free pass
-    // so the first public attribute must be the value
-    let voucher_value = state.voucher.get_plain_public_attributes()[0].clone();
+    // make sure the data gets zeroized after persisting it
+    let credential_data = Zeroizing::new(issued.pack_v1());
+    let storable = StorableIssuedCredential {
+        serialization_revision: issued.current_serialization_revision(),
+        credential_data: credential_data.as_ref(),
+        credential_type: issued.typ().to_string(),
+        epoch_id: epoch_id
+            .try_into()
+            .expect("our epoch is has run over u32::MAX!"),
+    };
+
     storage
-        .insert_coconut_credential(
-            voucher_value,
-            CredentialType::Voucher.to_string(),
-            state.voucher.get_private_attributes()[0].to_bs58(),
-            state.voucher.get_private_attributes()[1].to_bs58(),
-            signature.to_bs58(),
-            epoch_id.to_string(),
-        )
+        .insert_issued_credential(storable)
         .await
         .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))
 }

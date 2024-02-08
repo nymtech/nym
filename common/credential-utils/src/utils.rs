@@ -44,7 +44,7 @@ where
 
     let state = nym_bandwidth_controller::acquire::deposit(client, amount.clone()).await?;
 
-    if nym_bandwidth_controller::acquire::get_credential(&state, client, persistent_storage)
+    if nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, client, persistent_storage)
         .await
         .is_err()
     {
@@ -142,7 +142,8 @@ where
         let state = State::new(voucher);
 
         if let Err(e) =
-            nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
+            nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, client, shared_storage)
+                .await
         {
             error!("Could not recover deposit {voucher_name} due to {e}, try again later",)
         } else {

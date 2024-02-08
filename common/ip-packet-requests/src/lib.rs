@@ -1,6 +1,6 @@
+pub mod codec;
 pub mod request;
 pub mod response;
-pub mod codec;
 
 pub const CURRENT_VERSION: u8 = 2;
 

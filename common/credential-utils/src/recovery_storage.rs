@@ -8,6 +8,8 @@ use std::fs::{create_dir_all, read_dir, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
+pub const DUMPED_VOUCHER_EXTENSION: &str = "credentialrecovery";
+
 pub struct RecoveryStorage {
     recovery_dir: PathBuf,
 }
@@ -24,8 +26,10 @@ impl RecoveryStorage {
         let mut paths = vec![];
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() {
-                paths.push(path)
+            if let Some(extension) = path.extension() {
+                if extension == DUMPED_VOUCHER_EXTENSION {
+                    paths.push(path)
+                }
             }
         }
 
@@ -47,15 +51,20 @@ impl RecoveryStorage {
         Ok(vouchers)
     }
 
+    pub fn voucher_filename(voucher: &IssuanceBandwidthCredential) -> String {
+        let prefix = voucher.typ().to_string();
+        let suffix = voucher.blinded_g1_serial_number_bs58();
+        format!("{prefix}-{suffix}.{DUMPED_VOUCHER_EXTENSION}")
+    }
+
     pub fn insert_voucher(&self, voucher: &IssuanceBandwidthCredential) -> Result<PathBuf> {
-        todo!()
-        // let file_name = voucher.tx_hash().to_string();
-        // let file_path = self.recovery_dir.join(file_name);
-        // let mut file = File::create(&file_path)?;
-        // let buff = voucher.to_bytes();
-        // file.write_all(&buff)?;
-        //
-        // Ok(file_path)
+        let file_name = Self::voucher_filename(voucher);
+        let file_path = self.recovery_dir.join(file_name);
+        let mut file = File::create(&file_path)?;
+        let buff = voucher.to_recovery_bytes();
+        file.write_all(&buff)?;
+
+        Ok(file_path)
     }
 
     pub fn remove_voucher(&self, file_name: String) -> Result<()> {

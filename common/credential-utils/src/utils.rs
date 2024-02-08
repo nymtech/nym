@@ -5,6 +5,7 @@ use nym_bandwidth_controller::acquire::state::State;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
+use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_validator_client::nyxd::contract_traits::{
     dkg_query_client::EpochState, CoconutBandwidthSigningClient, DkgQueryClient,
 };
@@ -126,25 +127,33 @@ pub async fn recover_credentials<C>(
 where
     C: DkgQueryClient + Send + Sync,
 {
-    todo!()
-    // let mut recovered_amount: u128 = 0;
-    // for voucher in recovery_storage.unconsumed_vouchers()? {
-    //     let voucher_value = voucher.get_voucher_value();
-    //     recovered_amount += voucher_value.parse::<u128>()?;
-    //
-    //     let state = State::new(voucher);
-    //     let voucher = state.voucher.tx_hash();
-    //     if let Err(e) =
-    //         nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
-    //     {
-    //         error!("Could not recover deposit {voucher} due to {e}, try again later",)
-    //     } else {
-    //         info!("Converted deposit {voucher} to a credential, removing recovery data for it",);
-    //         if let Err(e) = recovery_storage.remove_voucher(voucher.to_string()) {
-    //             warn!("Could not remove recovery data: {e}");
-    //         }
-    //     }
-    // }
-    //
-    // Ok(recovered_amount)
+    let mut recovered_amount: u128 = 0;
+    for voucher in recovery_storage.unconsumed_vouchers()? {
+        let voucher_value = match voucher.typ() {
+            CredentialType::Voucher => voucher.get_bandwidth_attribute(),
+            CredentialType::FreePass => {
+                error!("unimplemented recovery of free pass credentials");
+                continue;
+            }
+        };
+        recovered_amount += voucher_value.parse::<u128>()?;
+
+        let voucher_name = RecoveryStorage::voucher_filename(&voucher);
+        let state = State::new(voucher);
+
+        if let Err(e) =
+            nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
+        {
+            error!("Could not recover deposit {voucher_name} due to {e}, try again later",)
+        } else {
+            info!(
+                "Converted deposit {voucher_name} to a credential, removing recovery data for it",
+            );
+            if let Err(err) = recovery_storage.remove_voucher(voucher_name) {
+                warn!("Could not remove recovery data: {err}");
+            }
+        }
+    }
+
+    Ok(recovered_amount)
 }

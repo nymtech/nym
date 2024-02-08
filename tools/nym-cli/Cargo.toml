@@ -12,6 +12,7 @@ clap = { workspace = true, features = ["derive"] }
 clap_complete = "4.0"
 clap_complete_fig = "4.0"
 dotenvy = { workspace = true }
+inquire = "0.6.2"
 log = { workspace = true }
 pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }

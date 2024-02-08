@@ -13,5 +13,6 @@ license.workspace = true
 [dependencies]
 bls12_381 = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
 
 nym-coconut = { path = "../nymcoconut" }

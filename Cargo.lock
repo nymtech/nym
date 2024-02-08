@@ -6491,6 +6491,7 @@ dependencies = [
  "bls12_381",
  "nym-coconut",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

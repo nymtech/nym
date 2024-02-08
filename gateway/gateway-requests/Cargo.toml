@@ -32,3 +32,4 @@ nym-credentials-interface = { path = "../../common/credentials-interface" }
 workspace = true
 default-features = false
 
+

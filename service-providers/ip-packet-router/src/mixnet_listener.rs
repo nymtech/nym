@@ -213,7 +213,7 @@ impl Drop for ConnectedClient {
         log::info!("Dropping client: {}", self.nym_address);
         if let Some(close_tx) = self.close_tx.take() {
             log::trace!("Sending close signal to connected client handler");
-            close_tx.send(()).unwrap();
+            close_tx.send(()).ok();
         }
     }
 }
@@ -416,7 +416,7 @@ impl MixnetListener {
         } = parse_packet(&data_request.ip_packet)?;
 
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
-        log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
+        log::debug!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
 
         if let Some(connected_client) = self.connected_clients.get_client_from_ip_mut(&src_addr) {
             // Keep track of activity so we can disconnect inactive clients

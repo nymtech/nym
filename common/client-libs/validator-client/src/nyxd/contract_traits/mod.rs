@@ -8,26 +8,26 @@ use std::str::FromStr;
 // TODO: all of those could/should be derived via a macro
 
 // query clients
-mod coconut_bandwidth_query_client;
-mod dkg_query_client;
-mod ephemera_query_client;
-mod group_query_client;
-mod mixnet_query_client;
-mod multisig_query_client;
-mod name_service_query_client;
-mod sp_directory_query_client;
-mod vesting_query_client;
+pub mod coconut_bandwidth_query_client;
+pub mod dkg_query_client;
+pub mod ephemera_query_client;
+pub mod group_query_client;
+pub mod mixnet_query_client;
+pub mod multisig_query_client;
+pub mod name_service_query_client;
+pub mod sp_directory_query_client;
+pub mod vesting_query_client;
 
 // signing clients
-mod coconut_bandwidth_signing_client;
-mod dkg_signing_client;
-mod ephemera_signing_client;
-mod group_signing_client;
-mod mixnet_signing_client;
-mod multisig_signing_client;
-mod name_service_signing_client;
-mod sp_directory_signing_client;
-mod vesting_signing_client;
+pub mod coconut_bandwidth_signing_client;
+pub mod dkg_signing_client;
+pub mod ephemera_signing_client;
+pub mod group_signing_client;
+pub mod mixnet_signing_client;
+pub mod multisig_signing_client;
+pub mod name_service_signing_client;
+pub mod sp_directory_signing_client;
+pub mod vesting_signing_client;
 
 // re-export query traits
 pub use coconut_bandwidth_query_client::{

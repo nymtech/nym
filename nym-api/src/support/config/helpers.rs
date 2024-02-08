@@ -1,22 +1,26 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::dkg::controller::keys::init_bte_keypair;
 use crate::support::config;
 use crate::support::config::{
     default_config_directory, default_data_directory, upgrade_helpers, Config,
 };
 use anyhow::{Context, Result};
 use nym_crypto::asymmetric::identity;
-use rand_07::rngs::OsRng;
+use rand::rngs::OsRng;
+use rand_07::rngs::OsRng as OsRng07;
 use std::{fs, io};
 
+// TODO: once we upgrade ed25519 library, we could use the same rand library and use proper
+// <R: RngCore + CryptoRng> bound
 fn init_identity_keys(config: &config::NymApiPaths) -> Result<()> {
     let keypaths = nym_pemstore::KeyPairPath::new(
         &config.private_identity_key_file,
         &config.public_identity_key_file,
     );
 
-    let mut rng = OsRng;
+    let mut rng = OsRng07;
     let keypair = identity::KeyPair::new(&mut rng);
     nym_pemstore::store_keypair(&keypair, &keypaths)
         .context("failed to store identity keys of the nym api")?;
@@ -38,7 +42,8 @@ pub(crate) fn initialise_new(id: &str) -> Result<Config> {
     init_identity_keys(&config.base.storage_paths)?;
 
     // create DKG BTE keys
-    crate::coconut::dkg::controller::init_keypair(&config.coconut_signer)?;
+    let mut rng = OsRng;
+    init_bte_keypair(&mut rng, &config.coconut_signer)?;
     Ok(config)
 }
 

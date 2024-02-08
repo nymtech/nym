@@ -27,22 +27,29 @@ pub(crate) fn query_initial_dealers(
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
-    use crate::support::tests::helpers::init_contract;
-    use cosmwasm_std::testing::mock_env;
+    use crate::epoch_state::transactions::try_initiate_dkg;
+    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
+    use cosmwasm_std::testing::{mock_env, mock_info};
     use nym_coconut_dkg_common::types::{EpochState, TimeConfiguration};
 
     #[test]
     fn query_state() {
         let mut deps = init_contract();
         let epoch = query_current_epoch(deps.as_mut().storage).unwrap();
+        assert_eq!(epoch.state, EpochState::WaitingInitialisation);
+        assert_eq!(epoch.finish_timestamp, None);
+
+        let env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
+        let epoch = query_current_epoch(deps.as_mut().storage).unwrap();
         assert_eq!(
             epoch.state,
             EpochState::PublicKeySubmission { resharing: false }
         );
         assert_eq!(
-            epoch.finish_timestamp,
-            mock_env()
-                .block
+            epoch.finish_timestamp.unwrap(),
+            env.block
                 .time
                 .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs)
         );

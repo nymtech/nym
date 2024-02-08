@@ -5,7 +5,9 @@ use nym_bandwidth_controller::acquire::state::State;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_validator_client::nyxd::contract_traits::{CoconutBandwidthSigningClient, DkgQueryClient};
+use nym_validator_client::nyxd::contract_traits::{
+    dkg_query_client::EpochState, CoconutBandwidthSigningClient, DkgQueryClient,
+};
 use nym_validator_client::nyxd::Coin;
 use std::path::PathBuf;
 use std::process::exit;
@@ -87,21 +89,29 @@ where
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("the system clock is set to 01/01/1970 (or earlier)")
             .as_secs();
+
         if epoch.state.is_final() {
-            if current_timestamp_secs + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds() {
-                info!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
-                exit(0);
+            if let Some(finish_timestamp) = epoch.finish_timestamp {
+                if current_timestamp_secs + SAFETY_BUFFER_SECS >= finish_timestamp.seconds() {
+                    info!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
+                    exit(0);
+                }
             }
 
             break;
-        } else {
+        } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
             // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries
-            let secs_until_final = epoch
-                .final_timestamp_secs()
-                .saturating_sub(current_timestamp_secs)
-                + 1;
+            let secs_until_final = final_timestamp.saturating_sub(current_timestamp_secs) + 1;
             info!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
             tokio::time::sleep(Duration::from_secs(secs_until_final)).await;
+        } else if matches!(epoch.state, EpochState::WaitingInitialisation) {
+            info!("dkg hasn't been initialised yet and it is not known when it will be. Going to check again later");
+            tokio::time::sleep(Duration::from_secs(60 * 5)).await;
+        } else {
+            // this should never be the case since the only case where final timestamp is unknown is when it's waiting for initialisation,
+            // but let's guard ourselves against future changes
+            info!("it is unknown when coconut will be come available. Going to check again later");
+            tokio::time::sleep(Duration::from_secs(60 * 5)).await;
         }
     }
 

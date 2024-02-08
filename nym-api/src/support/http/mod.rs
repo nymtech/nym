@@ -29,7 +29,7 @@ pub(crate) async fn setup_rocket(
     network_details: NetworkDetails,
     _nyxd_client: nyxd::Client,
     identity_keypair: identity::KeyPair,
-    coconut_keypair: coconut::keypair::KeyPair,
+    coconut_keypair: coconut::keys::KeyPair,
 ) -> anyhow::Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
     let mut rocket = rocket::build();

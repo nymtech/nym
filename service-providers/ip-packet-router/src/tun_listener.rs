@@ -1,4 +1,4 @@
-use nym_ip_packet_requests::response::IpPacketResponse;
+use nym_ip_packet_requests::IpPacketResponse;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_task::TaskClient;
 #[cfg(target_os = "linux")]

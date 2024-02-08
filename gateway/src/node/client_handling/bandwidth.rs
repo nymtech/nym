@@ -16,13 +16,13 @@ pub enum BandwidthError {
     #[error("the provided free pass has already expired (expiry was on {expiry_date})")]
     ExpiredFreePass { expiry_date: OffsetDateTime },
 
-    #[error("failed to pass the bandwidth voucher value: {source}")]
+    #[error("failed to parse the bandwidth voucher value: {source}")]
     VoucherValueParsingFailure {
         #[source]
         source: ParseIntError,
     },
 
-    #[error("failed to pass the free pass expiry date: {source}")]
+    #[error("failed to parse the free pass expiry date: {source}")]
     ExpiryDateParsingFailure {
         #[source]
         source: ParseIntError,

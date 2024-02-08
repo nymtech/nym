@@ -15,7 +15,10 @@ pub mod types;
 
 /// Defines the current version of the communication protocol between gateway and clients.
 /// It has to be incremented for any breaking change.
-pub const PROTOCOL_VERSION: u8 = 1;
+// history:
+// 1 - initial release
+// 2 - changes to client credentials structure
+pub const PROTOCOL_VERSION: u8 = 2;
 
 pub type GatewayMac = HmacOutput<GatewayIntegrityHmacAlgorithm>;
 

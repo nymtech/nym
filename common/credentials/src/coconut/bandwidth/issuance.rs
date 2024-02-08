@@ -127,6 +127,10 @@ impl IssuanceBandwidthCredential {
         ))
     }
 
+    pub fn new_freepass(expiry_date: Option<OffsetDateTime>) -> Self {
+        Self::new(FreePassIssuanceData::new(expiry_date))
+    }
+
     pub fn blind_serial_number_in_g1subgroup(&self) -> G1Projective {
         bandwidth_credential_params().gen1() * self.serial_number
     }
@@ -135,10 +139,6 @@ impl IssuanceBandwidthCredential {
         use nym_credentials_interface::Base58;
 
         self.blind_serial_number_in_g1subgroup().to_bs58()
-    }
-
-    pub fn new_freepass(expiry_date: Option<OffsetDateTime>) -> Self {
-        Self::new(FreePassIssuanceData::new(expiry_date))
     }
 
     pub fn typ(&self) -> CredentialType {

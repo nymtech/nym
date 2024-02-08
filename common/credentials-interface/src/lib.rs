@@ -4,9 +4,11 @@
 use bls12_381::Scalar;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+use thiserror::Error;
 
 pub use nym_coconut::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar, keygen,
     prepare_blind_sign, prove_bandwidth_credential, verify_credential, Attribute, Base58,
     BlindSignRequest, BlindedSignature, Bytable, CoconutError, KeyPair, Parameters,
     PrivateAttribute, PublicAttribute, SecretKey, Signature, SignatureShare, VerificationKey,
@@ -20,10 +22,28 @@ pub const FREE_PASS_INFO_TYPE: &str = "FreeBandwidthPass";
 //     fn prove_credential(&self) -> Result<(), ()>;
 // }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Debug, Error)]
+#[error("{0} is not a valid credential type")]
+pub struct UnknownCredentialType(String);
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum CredentialType {
     Voucher,
     FreePass,
+}
+
+impl FromStr for CredentialType {
+    type Err = UnknownCredentialType;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == VOUCHER_INFO_TYPE {
+            Ok(CredentialType::Voucher)
+        } else if s == FREE_PASS_INFO_TYPE {
+            Ok(CredentialType::FreePass)
+        } else {
+            Err(UnknownCredentialType(s.to_string()))
+        }
+    }
 }
 
 impl CredentialType {
@@ -63,7 +83,7 @@ pub struct CredentialSigningData {
     pub typ: CredentialType,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CredentialSpendingData {
     pub embedded_private_attributes: usize,
 

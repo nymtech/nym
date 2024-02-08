@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
@@ -8,6 +8,7 @@ use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, PROTOCOL_VERSION};
 use log::error;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
+use nym_credentials_interface::{CoconutError, UnknownCredentialType};
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use nym_crypto::symmetric::stream_cipher;
@@ -18,6 +19,7 @@ use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorit
 use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
+use std::string::FromUtf8Error;
 use thiserror::Error;
 use tungstenite::protocol::Message;
 
@@ -102,6 +104,18 @@ pub enum GatewayRequestsError {
         #[from]
         source: MixPacketFormattingError,
     },
+
+    #[error("failed to deserialize provided credential: EOF")]
+    CredentialDeserializationFailureEOF,
+
+    #[error("failed to deserialize provided credential: malformed string: {0}")]
+    CredentialDeserializationFailureMalformedString(#[from] FromUtf8Error),
+
+    #[error("failed to deserialize provided credential: {0}")]
+    CredentialDeserializationFailureUnknownType(#[from] UnknownCredentialType),
+
+    #[error("failed to deserialize provided credential: malformed verify request: {0}")]
+    CredentialDeserializationFailureMalformedTheta(CoconutError),
 }
 
 #[derive(Serialize, Deserialize, Debug)]

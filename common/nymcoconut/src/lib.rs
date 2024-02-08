@@ -14,6 +14,7 @@ pub use scheme::issuance::blind_sign;
 pub use scheme::issuance::prepare_blind_sign;
 pub use scheme::issuance::verify_partial_blind_signature;
 pub use scheme::issuance::BlindSignRequest;
+pub use scheme::keygen::keygen;
 pub use scheme::keygen::ttp_keygen;
 pub use scheme::keygen::KeyPair;
 pub use scheme::keygen::SecretKey;

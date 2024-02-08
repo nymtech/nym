@@ -45,4 +45,7 @@ pub enum BandwidthControllerError {
 
     #[error("Threshold not set yet")]
     NoThreshold,
+
+    #[error("can't handle recovering storage with revision {stored}. {expected} was expected")]
+    UnsupportedCredentialStorageRevision { stored: u8, expected: u8 },
 }

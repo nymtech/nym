@@ -1,22 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use chrono::{DateTime, Utc};
 use clap::Parser;
 use comfy_table::Table;
 use cosmrs::rpc::endpoint::tx::Response;
-use cosmwasm_std::{Coin as CosmWasmCoin, Uint128};
-use log::{error, info, warn};
-use serde_json::json;
-use std::ops::MulAssign;
-use std::str::FromStr;
-use std::time::SystemTime;
-use std::{fs, io::Write};
-
+use log::{error, info};
 use nym_validator_client::nyxd::{AccountId, Coin};
-
+use serde_json::json;
+use std::str::FromStr;
+use std::{fs, io::Write};
 use crate::context::SigningClient;
-use crate::utils::pretty_cosmwasm_coin;
+use crate::utils::pretty_coin;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -62,10 +56,7 @@ pub async fn send_multiple(args: Args, client: &SigningClient) {
     table.set_header(vec!["Address", "Amount"]);
 
     for row in rows.rows.iter() {
-        table.add_row(vec![
-            row.address.to_string(),
-            pretty_cosmwasm_coin(&row.amount),
-        ]);
+        table.add_row(vec![row.address.to_string(), pretty_coin(&row.amount)]);
     }
 
     println!("{table}");
@@ -130,9 +121,8 @@ fn write_output_file(
         .append(true)
         .open(output_filename)?;
 
-    let now = SystemTime::now();
-    let now: DateTime<Utc> = now.into();
-    let now = now.to_rfc3339();
+    let now = time::OffsetDateTime::now_utc();
+    let now = now.format(&time::format_description::well_known::Rfc3339)?;
 
     let data = rows
         .rows
@@ -152,8 +142,9 @@ fn write_output_file(
 #[derive(Debug)]
 pub struct InputFileRow {
     pub address: AccountId,
-    pub amount: CosmWasmCoin,
+    pub amount: Coin,
 }
+
 pub struct InputFileReader {
     pub rows: Vec<InputFileRow>,
 }
@@ -165,39 +156,31 @@ impl InputFileReader {
 
         let lines: Vec<String> = file_contents.lines().map(String::from).collect();
         for line in lines {
-            let tokens: Vec<_> = line.split(&[',']).filter(|k| !k.is_empty()).collect();
+            let tokens: Vec<_> = line.split(',').collect();
             if tokens.len() < 3 {
-                warn!(
+                return Err(anyhow::anyhow!(
                     "'{}' does not have enough columns, expecting <address>,<amount>,<denom>",
                     line
-                );
-                continue;
+                ));
             }
-
+            
             // try parse amount to u128
-            let amount = Uint128::from_str(tokens[1]);
-            if amount.is_err() {
-                warn!("'{}' has an invalid amount", line);
-                continue;
-            }
-            let mut amount = amount.unwrap();
-            let mut denom: String = tokens[2].into();
+            let amount = u128::from_str(tokens[1])
+                .map_err(|_| anyhow::anyhow!("'{}' has an invalid amount", line))?;
+
+            let denom: String = tokens[2].into();
 
             // multiply when a whole token amount, e.g. 50nym (50.123456nym is not allowed, that must be input as 50123456unym)
-            if !denom.starts_with('u') {
-                amount.mul_assign(Uint128::new(1_000_000u128));
-                denom = format!("u{}", denom);
-            }
+            let (amount, denom) = if !denom.starts_with('u') {
+                (amount * 1_000_000u128, format!("u{}", denom))
+            } else {
+                (amount, denom)
+            };
 
-            let amount = CosmWasmCoin::new(amount.into(), denom);
+            let address = AccountId::from_str(tokens[0])
+                .map_err(|e| anyhow::anyhow!("'{}' has an invalid address: {}", line, e))?;
 
-            // try parse address
-            let address = AccountId::from_str(tokens[0]);
-            if let Err(e) = address {
-                warn!("'{}' has an invalid address: {}", line, e);
-                continue;
-            }
-            let address = address.unwrap();
+            let amount = Coin { amount, denom };
 
             rows.push(InputFileRow { address, amount })
         }

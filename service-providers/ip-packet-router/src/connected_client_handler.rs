@@ -11,7 +11,7 @@ use crate::{
     util::create_message::create_input_message,
 };
 
-const ACTIVITY_TIMEOUT_SEC: u64 = 15 * 60;
+const ACTIVITY_TIMEOUT_SEC: u64 = 10 * 60;
 
 // Data flow
 // Out: mixnet_listener -> decode -> handle_packet -> write_to_tun
@@ -25,7 +25,6 @@ pub(crate) struct ConnectedClientHandler {
     forward_from_tun_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
     mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     close_rx: tokio::sync::oneshot::Receiver<()>,
-    finished_tx: Option<tokio::sync::oneshot::Sender<()>>,
     activity_timeout: tokio::time::Interval,
 }
 
@@ -37,11 +36,14 @@ impl ConnectedClientHandler {
     ) -> (
         tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
         tokio::sync::oneshot::Sender<()>,
-        tokio::sync::oneshot::Receiver<()>,
+        tokio::task::JoinHandle<()>,
     ) {
         let (close_tx, close_rx) = tokio::sync::oneshot::channel();
-        let (finished_tx, finished_rx) = tokio::sync::oneshot::channel();
         let (forward_from_tun_tx, forward_from_tun_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        // Reset so that we don't get the first tick immediately
+        let mut activity_timeout = tokio::time::interval(Duration::from_secs(ACTIVITY_TIMEOUT_SEC));
+        activity_timeout.reset();
 
         let connected_client_handler = ConnectedClientHandler {
             nym_address: reply_to,
@@ -49,17 +51,16 @@ impl ConnectedClientHandler {
             forward_from_tun_rx,
             mixnet_client_sender,
             close_rx,
-            finished_tx: Some(finished_tx),
-            activity_timeout: tokio::time::interval(Duration::from_secs(ACTIVITY_TIMEOUT_SEC)),
+            activity_timeout,
         };
 
-        tokio::spawn(async move {
+        let handle = tokio::spawn(async move {
             if let Err(err) = connected_client_handler.run().await {
                 log::error!("connected client handler has failed: {err}")
             }
         });
 
-        (forward_from_tun_tx, close_tx, finished_rx)
+        (forward_from_tun_tx, close_tx, handle)
     }
 
     async fn handle_packet(&mut self, packet: Vec<u8>) -> Result<()> {
@@ -102,14 +103,5 @@ impl ConnectedClientHandler {
 
         log::info!("ConnectedClientHandler: exiting");
         Ok(())
-    }
-}
-
-impl Drop for ConnectedClientHandler {
-    fn drop(&mut self) {
-        log::info!("ConnectedClientHandler: dropping");
-        if let Some(finished_tx) = self.finished_tx.take() {
-            let _ = finished_tx.send(());
-        }
     }
 }

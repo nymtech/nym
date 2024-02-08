@@ -19,9 +19,11 @@ use tokio::io::AsyncWriteExt;
 
 use crate::{
     config::Config,
+    connected_client_handler,
     constants::{CLIENT_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL},
     error::{IpPacketRouterError, Result},
     request_filter::{self},
+    tun_listener,
     util::generate_new_ip,
     util::{
         create_message::create_input_message,
@@ -44,54 +46,15 @@ pub(crate) struct ConnectedClients {
     connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
 }
 
-pub(crate) struct ConnectedClientsListener {
-    clients: HashMap<IpAddr, ConnectedClient>,
-    pub(crate) connected_client_rx: tokio::sync::mpsc::UnboundedReceiver<ConnectedClientEvent>,
-}
-
-impl ConnectedClientsListener {
-    pub(crate) fn get(&self, ip: &IpAddr) -> Option<&ConnectedClient> {
-        self.clients.get(ip)
-    }
-
-    pub(crate) fn update(&mut self, event: ConnectedClientEvent) {
-        match event {
-            ConnectedClientEvent::Connect(connected_event) => {
-                let ConnectEvent {
-                    ip,
-                    nym_address,
-                    mix_hops,
-                } = *connected_event;
-                log::trace!("Connect client: {ip}");
-                self.clients.insert(
-                    ip,
-                    ConnectedClient {
-                        nym_address,
-                        mix_hops,
-                        last_activity: std::time::Instant::now(),
-                    },
-                );
-            }
-            ConnectedClientEvent::Disconnect(DisconnectEvent(ip)) => {
-                log::trace!("Disconnect client: {ip}");
-                self.clients.remove(&ip);
-            }
-        }
-    }
-}
-
 impl ConnectedClients {
-    pub(crate) fn new() -> (Self, ConnectedClientsListener) {
+    pub(crate) fn new() -> (Self, tun_listener::ConnectedClientsListener) {
         let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::unbounded_channel();
         (
             Self {
                 clients: Default::default(),
                 connected_client_tx,
             },
-            ConnectedClientsListener {
-                clients: Default::default(),
-                connected_client_rx,
-            },
+            tun_listener::ConnectedClientsListener::new(connected_client_rx),
         )
     }
 
@@ -125,20 +88,33 @@ impl ConnectedClients {
             .find(|client| client.nym_address == *nym_address)
     }
 
-    fn connect(&mut self, ip: IpAddr, nym_address: Recipient, mix_hops: Option<u8>) {
+    fn connect(
+        &mut self,
+        ip: IpAddr,
+        nym_address: Recipient,
+        mix_hops: Option<u8>,
+        forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
+        close_tx: tokio::sync::oneshot::Sender<()>,
+    ) {
+        // The map of connected clients that the mixnet listener keeps track of. It monitors
+        // activity and disconnects clients that have been inactive for too long.
         self.clients.insert(
             ip,
             ConnectedClient {
                 nym_address,
                 mix_hops,
                 last_activity: std::time::Instant::now(),
+                close_tx: Some(close_tx),
             },
         );
+        // Send the connected client info to the tun listener, which will use it to forward packets
+        // to the connected client handler.
         self.connected_client_tx
             .send(ConnectedClientEvent::Connect(Box::new(ConnectEvent {
                 ip,
                 nym_address,
                 mix_hops,
+                forward_from_tun_tx,
             })))
             .unwrap();
     }
@@ -183,6 +159,19 @@ pub(crate) struct ConnectedClient {
     pub(crate) nym_address: Recipient,
     pub(crate) mix_hops: Option<u8>,
     pub(crate) last_activity: std::time::Instant,
+    // Send to connected clients listener to stop
+    // This is inside an Option only because we want to send in Drop
+    pub(crate) close_tx: Option<tokio::sync::oneshot::Sender<()>>,
+}
+
+impl Drop for ConnectedClient {
+    fn drop(&mut self) {
+        log::info!("Dropping connected client: {}", self.nym_address);
+        if let Some(close_tx) = self.close_tx.take() {
+            log::info!("Sending close signal to connected client handler");
+            close_tx.send(()).unwrap();
+        }
+    }
 }
 
 impl ConnectedClient {
@@ -230,8 +219,28 @@ impl MixnetListener {
             }
             (false, false) => {
                 log::info!("Connecting a new client");
-                self.connected_clients
-                    .connect(requested_ip, reply_to, reply_to_hops);
+
+                // Start the ConnectedClientHandler for the new client
+                let (close_tx, close_rx) = tokio::sync::oneshot::channel();
+                let (forward_from_tun_tx, forward_from_tun_rx) =
+                    tokio::sync::mpsc::unbounded_channel();
+                let connected_client_handler =
+                    connected_client_handler::ConnectedClientHandler::new(
+                        reply_to,
+                        reply_to_hops,
+                        forward_from_tun_rx,
+                        self.mixnet_client.split_sender(),
+                        close_rx,
+                    );
+                connected_client_handler.start();
+
+                self.connected_clients.connect(
+                    requested_ip,
+                    reply_to,
+                    reply_to_hops,
+                    forward_from_tun_tx,
+                    close_tx,
+                );
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
                 )))
@@ -298,8 +307,25 @@ impl MixnetListener {
             )));
         };
 
-        self.connected_clients
-            .connect(new_ip, reply_to, reply_to_hops);
+        // Start the ConnectedClientHandler for the new client
+        let (close_tx, close_rx) = tokio::sync::oneshot::channel();
+        let (forward_from_tun_tx, forward_from_tun_rx) = tokio::sync::mpsc::unbounded_channel();
+        let connected_client_handler = connected_client_handler::ConnectedClientHandler::new(
+            reply_to,
+            reply_to_hops,
+            forward_from_tun_rx,
+            self.mixnet_client.split_sender(),
+            close_rx,
+        );
+        connected_client_handler.start();
+
+        self.connected_clients.connect(
+            new_ip,
+            reply_to,
+            reply_to_hops,
+            forward_from_tun_tx,
+            close_tx,
+        );
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
         )))
@@ -504,4 +530,5 @@ pub(crate) struct ConnectEvent {
     pub(crate) ip: IpAddr,
     pub(crate) nym_address: Recipient,
     pub(crate) mix_hops: Option<u8>,
+    pub(crate) forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
 }

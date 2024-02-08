@@ -1,5 +1,7 @@
+use std::{collections::HashMap, net::IpAddr};
+
 use nym_ip_packet_requests::response::IpPacketResponse;
-use nym_sdk::mixnet::MixnetMessageSender;
+use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 use nym_task::TaskClient;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
@@ -10,13 +12,73 @@ use crate::{
     util::{create_message::create_input_message, parse_ip::parse_dst_addr},
 };
 
+pub(crate) struct ConnectedClientMirror {
+    pub(crate) nym_address: Recipient,
+    pub(crate) mix_hops: Option<u8>,
+    pub(crate) last_activity: std::time::Instant,
+    // Forward packets we read from the TUN device to the connected clients listener
+    pub(crate) forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
+}
+
+pub(crate) struct ConnectedClientsListener {
+    clients: HashMap<IpAddr, ConnectedClientMirror>,
+    connected_client_rx:
+        tokio::sync::mpsc::UnboundedReceiver<mixnet_listener::ConnectedClientEvent>,
+}
+
+impl ConnectedClientsListener {
+    pub(crate) fn new(
+        connected_client_rx: tokio::sync::mpsc::UnboundedReceiver<
+            mixnet_listener::ConnectedClientEvent,
+        >,
+    ) -> Self {
+        ConnectedClientsListener {
+            clients: HashMap::new(),
+            connected_client_rx,
+        }
+    }
+
+    pub(crate) fn get(&self, ip: &IpAddr) -> Option<&ConnectedClientMirror> {
+        self.clients.get(ip)
+    }
+
+    pub(crate) fn update(&mut self, event: mixnet_listener::ConnectedClientEvent) {
+        match event {
+            mixnet_listener::ConnectedClientEvent::Connect(connected_event) => {
+                let mixnet_listener::ConnectEvent {
+                    ip,
+                    nym_address,
+                    mix_hops,
+                    forward_from_tun_tx,
+                } = *connected_event;
+                log::trace!("Connect client: {ip}");
+                self.clients.insert(
+                    ip,
+                    ConnectedClientMirror {
+                        nym_address,
+                        mix_hops,
+                        last_activity: std::time::Instant::now(),
+                        forward_from_tun_tx,
+                    },
+                );
+            }
+            mixnet_listener::ConnectedClientEvent::Disconnect(
+                mixnet_listener::DisconnectEvent(ip),
+            ) => {
+                log::trace!("Disconnect client: {ip}");
+                self.clients.remove(&ip);
+            }
+        }
+    }
+}
+
 // Reads packet from TUN and writes to mixnet client
 #[cfg(target_os = "linux")]
 pub(crate) struct TunListener {
     pub(crate) tun_reader: tokio::io::ReadHalf<tokio_tun::Tun>,
     pub(crate) mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     pub(crate) task_client: TaskClient,
-    pub(crate) connected_clients: mixnet_listener::ConnectedClientsListener,
+    pub(crate) connected_clients: ConnectedClientsListener,
 }
 
 #[cfg(target_os = "linux")]
@@ -27,24 +89,27 @@ impl TunListener {
             return Ok(());
         };
 
-        if let Some(mixnet_listener::ConnectedClient {
+        if let Some(ConnectedClientMirror {
             nym_address,
             mix_hops,
-            ..
+            last_activity,
+            forward_from_tun_tx,
         }) = self.connected_clients.get(&dst_addr)
         {
             let packet = buf[..len].to_vec();
-            let response_packet = IpPacketResponse::new_ip_packet(packet.into())
-                .to_bytes()
-                .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket {
-                    source: err,
-                })?;
-            let input_message = create_input_message(*nym_address, response_packet, *mix_hops);
+            forward_from_tun_tx.send(packet).unwrap();
 
-            self.mixnet_client_sender
-                .send(input_message)
-                .await
-                .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })?;
+            // let response_packet = IpPacketResponse::new_ip_packet(packet.into())
+            //     .to_bytes()
+            //     .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket {
+            //         source: err,
+            //     })?;
+            // let input_message = create_input_message(*nym_address, response_packet, *mix_hops);
+            //
+            // self.mixnet_client_sender
+            //     .send(input_message)
+            //     .await
+            //     .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })?;
         } else {
             log::info!("No registered nym-address for packet - dropping");
         }

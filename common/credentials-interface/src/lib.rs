@@ -83,7 +83,7 @@ pub struct CredentialSigningData {
     pub typ: CredentialType,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct CredentialSpendingData {
     pub embedded_private_attributes: usize,
 

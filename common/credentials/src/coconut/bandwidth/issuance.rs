@@ -65,6 +65,13 @@ impl BandwidthCredentialIssuanceDataVariant {
             }
         }
     }
+
+    pub fn voucher_data(&self) -> Option<&BandwidthVoucherIssuanceData> {
+        match self {
+            BandwidthCredentialIssuanceDataVariant::Voucher(voucher) => Some(voucher),
+            _ => None,
+        }
+    }
 }
 
 // all types of bandwidth credentials contain serial number and binding number
@@ -114,7 +121,7 @@ impl IssuanceBandwidthCredential {
     }
 
     pub fn new_voucher(
-        value: Coin,
+        value: impl Into<Coin>,
         deposit_tx_hash: Hash,
         signing_key: identity::PrivateKey,
         unused_ed25519: encryption::PrivateKey,
@@ -135,6 +142,7 @@ impl IssuanceBandwidthCredential {
         bandwidth_credential_params().gen1() * self.serial_number
     }
 
+    // NOT TO BE CONFUSED WITH BLINDED SERIAL NUMBER IN CREDENTIAL ITSELF
     pub fn blinded_g1_serial_number_bs58(&self) -> String {
         use nym_credentials_interface::Base58;
 
@@ -158,6 +166,10 @@ impl IssuanceBandwidthCredential {
             self.variant_data.public_value_plain(),
             self.typ().to_string(),
         ]
+    }
+
+    pub fn get_variant_data(&self) -> &BandwidthCredentialIssuanceDataVariant {
+        &self.variant_data
     }
 
     pub fn get_bandwidth_attribute(&self) -> String {

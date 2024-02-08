@@ -79,11 +79,11 @@ impl ConnectedClientHandler {
         loop {
             tokio::select! {
                 _ = &mut self.close_rx => {
-                    log::trace!("ConnectedClientHandler: received shutdown");
+                    log::info!("ConnectedClientHandler: received shutdown");
                     break;
                 },
                 _ = self.activity_timeout.tick() => {
-                    log::debug!("ConnectedClientHandler: activity timeout reached for {}", self.nym_address);
+                    log::info!("ConnectedClientHandler: activity timeout reached for {}", self.nym_address);
                     break;
                 }
                 packet = self.forward_from_tun_rx.recv() => match packet {
@@ -93,21 +93,21 @@ impl ConnectedClientHandler {
                         }
                     },
                     None => {
-                        log::debug!("connected client handler: tun channel closed");
+                        log::info!("connected client handler: tun channel closed");
                         break;
                     }
                 },
             }
         }
 
-        log::debug!("ConnectedClientHandler: exiting");
+        log::info!("ConnectedClientHandler: exiting");
         Ok(())
     }
 }
 
 impl Drop for ConnectedClientHandler {
     fn drop(&mut self) {
-        log::trace!("ConnectedClientHandler: dropping");
+        log::info!("ConnectedClientHandler: dropping");
         if let Some(finished_tx) = self.finished_tx.take() {
             let _ = finished_tx.send(());
         }

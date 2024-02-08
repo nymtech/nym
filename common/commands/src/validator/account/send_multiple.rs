@@ -1,6 +1,8 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::context::SigningClient;
+use crate::utils::pretty_coin;
 use clap::Parser;
 use comfy_table::Table;
 use cosmrs::rpc::endpoint::tx::Response;
@@ -9,8 +11,6 @@ use nym_validator_client::nyxd::{AccountId, Coin};
 use serde_json::json;
 use std::str::FromStr;
 use std::{fs, io::Write};
-use crate::context::SigningClient;
-use crate::utils::pretty_coin;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -163,7 +163,6 @@ impl InputFileReader {
                     line
                 ));
             }
-            
             // try parse amount to u128
             let amount = u128::from_str(tokens[1])
                 .map_err(|_| anyhow::anyhow!("'{}' has an invalid amount", line))?;

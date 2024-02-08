@@ -20,15 +20,16 @@ cosmwasm-std = { workspace = true }
 cosmwasm-storage = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
+cw2 = { workspace = true }
 cw4 = { workspace = true }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+semver = { workspace = true, default-features = false }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
 cw4-group = { path = "../multisig/cw4-group" }
 nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
-lazy_static = "1.4"
 rusty-fork = "0.3"
 
 [features]

@@ -42,12 +42,18 @@ impl CachedEpoch {
 
     async fn update(&mut self, epoch: Epoch) -> Result<()> {
         let now = OffsetDateTime::now_utc();
-        let state_end =
-            OffsetDateTime::from_unix_timestamp(epoch.finish_timestamp.seconds() as i64).unwrap();
-        let until_epoch_state_end = state_end - now;
 
-        // make it valid until the next epoch transition or next 5min, whichever is smaller
-        self.valid_until = now + min(until_epoch_state_end, 5 * time::Duration::MINUTE);
+        let validity_duration = if let Some(epoch_finish) = epoch.finish_timestamp {
+            let state_end =
+                OffsetDateTime::from_unix_timestamp(epoch_finish.seconds() as i64).unwrap();
+            let until_epoch_state_end = state_end - now;
+            // make it valid until the next epoch transition or next 5min, whichever is smaller
+            min(until_epoch_state_end, 5 * time::Duration::MINUTE)
+        } else {
+            5 * time::Duration::MINUTE
+        };
+
+        self.valid_until = now + validity_duration;
         self.current_epoch_id = epoch.epoch_id;
 
         Ok(())

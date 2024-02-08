@@ -5,7 +5,7 @@ use crate::dealers::storage as dealers_storage;
 use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
-use crate::state::STATE;
+use crate::state::storage::STATE;
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 use nym_coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 
@@ -34,10 +34,13 @@ fn verify_dealer(deps: DepsMut<'_>, dealer: &Addr, resharing: bool) -> Result<()
     Ok(())
 }
 
+// future optimisation:
+// for a recurring dealer just let it refresh the keys without having to do all the storage operations
 pub fn try_add_dealer(
     mut deps: DepsMut<'_>,
     info: MessageInfo,
     bte_key_with_proof: EncodedBTEPublicKeyWithProof,
+    identity_key: String,
     announce_address: String,
     resharing: bool,
 ) -> Result<Response, ContractError> {
@@ -65,6 +68,7 @@ pub fn try_add_dealer(
     let dealer_details = DealerDetails {
         address: info.sender.clone(),
         bte_public_key_with_proof: bte_key_with_proof,
+        ed25519_identity: identity_key,
         announce_address,
         assigned_index: node_index,
     };
@@ -77,10 +81,10 @@ pub fn try_add_dealer(
 pub(crate) mod tests {
     use super::*;
     use crate::dealers::storage::current_dealers;
-    use crate::epoch_state::transactions::advance_epoch_state;
+    use crate::epoch_state::transactions::{advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_fixture_dealer, GROUP_MEMBERS};
+    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS, GROUP_MEMBERS};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw4::Member;
     use nym_coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
@@ -137,10 +141,13 @@ pub(crate) mod tests {
     #[test]
     fn invalid_state() {
         let mut deps = helpers::init_contract();
-        let owner = Addr::unchecked("owner");
         let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
+        let owner = Addr::unchecked("owner");
         let info = mock_info(owner.as_str(), &[]);
         let bte_key_with_proof = String::from("bte_key_with_proof");
+        let identity = String::from("identity");
         let announce_address = String::from("localhost:8000");
 
         env.block.time = env
@@ -155,6 +162,7 @@ pub(crate) mod tests {
             deps.as_mut(),
             info,
             bte_key_with_proof,
+            identity,
             announce_address,
             false,
         )
@@ -163,7 +171,7 @@ pub(crate) mod tests {
             ret,
             ContractError::IncorrectEpochState {
                 current_state: EpochState::DealingExchange { resharing: false }.to_string(),
-                expected_state: EpochState::default().to_string(),
+                expected_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
             }
         );
     }

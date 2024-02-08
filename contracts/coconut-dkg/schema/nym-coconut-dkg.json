@@ -8,12 +8,19 @@
     "type": "object",
     "required": [
       "group_addr",
+      "key_size",
       "mix_denom",
       "multisig_addr"
     ],
     "properties": {
       "group_addr": {
         "type": "string"
+      },
+      "key_size": {
+        "description": "Specifies the number of elements in the derived keys",
+        "type": "integer",
+        "format": "uint32",
+        "minimum": 0.0
       },
       "mix_denom": {
         "type": "string"
@@ -87,6 +94,19 @@
       {
         "type": "object",
         "required": [
+          "initiate_dkg"
+        ],
+        "properties": {
+          "initiate_dkg": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
           "register_dealer"
         ],
         "properties": {
@@ -95,6 +115,7 @@
             "required": [
               "announce_address",
               "bte_key_with_proof",
+              "identity_key",
               "resharing"
             ],
             "properties": {
@@ -102,6 +123,9 @@
                 "type": "string"
               },
               "bte_key_with_proof": {
+                "type": "string"
+              },
+              "identity_key": {
                 "type": "string"
               },
               "resharing": {
@@ -116,18 +140,52 @@
       {
         "type": "object",
         "required": [
-          "commit_dealing"
+          "commit_dealings_metadata"
         ],
         "properties": {
-          "commit_dealing": {
+          "commit_dealings_metadata": {
             "type": "object",
             "required": [
-              "dealing_bytes",
+              "chunks",
+              "dealing_index",
               "resharing"
             ],
             "properties": {
-              "dealing_bytes": {
-                "$ref": "#/definitions/ContractSafeBytes"
+              "chunks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/DealingChunkInfo"
+                }
+              },
+              "dealing_index": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "resharing": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "commit_dealings_chunk"
+        ],
+        "properties": {
+          "commit_dealings_chunk": {
+            "type": "object",
+            "required": [
+              "chunk",
+              "resharing"
+            ],
+            "properties": {
+              "chunk": {
+                "$ref": "#/definitions/PartialContractDealing"
               },
               "resharing": {
                 "type": "boolean"
@@ -177,7 +235,7 @@
             ],
             "properties": {
               "owner": {
-                "$ref": "#/definitions/Addr"
+                "type": "string"
               },
               "resharing": {
                 "type": "boolean"
@@ -216,10 +274,6 @@
       }
     ],
     "definitions": {
-      "Addr": {
-        "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-        "type": "string"
-      },
       "ContractSafeBytes": {
         "type": "array",
         "items": {
@@ -227,6 +281,44 @@
           "format": "uint8",
           "minimum": 0.0
         }
+      },
+      "DealingChunkInfo": {
+        "type": "object",
+        "required": [
+          "size"
+        ],
+        "properties": {
+          "size": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      },
+      "PartialContractDealing": {
+        "type": "object",
+        "required": [
+          "chunk_index",
+          "data",
+          "dealing_index"
+        ],
+        "properties": {
+          "chunk_index": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "data": {
+            "$ref": "#/definitions/ContractSafeBytes"
+          },
+          "dealing_index": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
       }
     }
   },
@@ -234,6 +326,19 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "QueryMsg",
     "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "get_state"
+        ],
+        "properties": {
+          "get_state": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
       {
         "type": "object",
         "required": [
@@ -355,33 +460,194 @@
       {
         "type": "object",
         "required": [
-          "get_dealing"
+          "get_dealings_metadata"
         ],
         "properties": {
-          "get_dealing": {
+          "get_dealings_metadata": {
             "type": "object",
             "required": [
-              "idx"
+              "dealer",
+              "dealing_index",
+              "epoch_id"
             ],
             "properties": {
-              "idx": {
+              "dealer": {
+                "type": "string"
+              },
+              "dealing_index": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_dealer_dealings_status"
+        ],
+        "properties": {
+          "get_dealer_dealings_status": {
+            "type": "object",
+            "required": [
+              "dealer",
+              "epoch_id"
+            ],
+            "properties": {
+              "dealer": {
+                "type": "string"
+              },
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_dealing_status"
+        ],
+        "properties": {
+          "get_dealing_status": {
+            "type": "object",
+            "required": [
+              "dealer",
+              "dealing_index",
+              "epoch_id"
+            ],
+            "properties": {
+              "dealer": {
+                "type": "string"
+              },
+              "dealing_index": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_dealing_chunk_status"
+        ],
+        "properties": {
+          "get_dealing_chunk_status": {
+            "type": "object",
+            "required": [
+              "chunk_index",
+              "dealer",
+              "dealing_index",
+              "epoch_id"
+            ],
+            "properties": {
+              "chunk_index": {
+                "type": "integer",
+                "format": "uint16",
+                "minimum": 0.0
+              },
+              "dealer": {
+                "type": "string"
+              },
+              "dealing_index": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_dealing_chunk"
+        ],
+        "properties": {
+          "get_dealing_chunk": {
+            "type": "object",
+            "required": [
+              "chunk_index",
+              "dealer",
+              "dealing_index",
+              "epoch_id"
+            ],
+            "properties": {
+              "chunk_index": {
+                "type": "integer",
+                "format": "uint16",
+                "minimum": 0.0
+              },
+              "dealer": {
+                "type": "string"
+              },
+              "dealing_index": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_verification_key"
+        ],
+        "properties": {
+          "get_verification_key": {
+            "type": "object",
+            "required": [
+              "epoch_id",
+              "owner"
+            ],
+            "properties": {
+              "epoch_id": {
                 "type": "integer",
                 "format": "uint64",
                 "minimum": 0.0
               },
-              "limit": {
-                "type": [
-                  "integer",
-                  "null"
-                ],
-                "format": "uint32",
-                "minimum": 0.0
-              },
-              "start_after": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+              "owner": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -425,6 +691,20 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Gets the stored contract version information that's required by the CW2 spec interface for migrations.",
+        "type": "object",
+        "required": [
+          "get_cw2_contract_version"
+        ],
+        "properties": {
+          "get_cw2_contract_version": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ]
   },
@@ -436,6 +716,26 @@
   },
   "sudo": null,
   "responses": {
+    "get_c_w2_contract_version": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContractVersion",
+      "type": "object",
+      "required": [
+        "contract",
+        "version"
+      ],
+      "properties": {
+        "contract": {
+          "description": "contract is the crate name of the implementing contract, eg. `crate:cw20-base` we will use other prefixes for other languages, and their standard global namespacing",
+          "type": "string"
+        },
+        "version": {
+          "description": "version is any string that this implementation knows. It may be simple counter \"1\", \"2\". or semantic version on release tags \"v0.7.0\", or some custom feature flag list. the only code that needs to understand the version parsing is code that knows how to migrate from the given contract (and is tied to it's implementation somehow)",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "get_current_dealers": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedDealerResponse",
@@ -480,7 +780,8 @@
             "address",
             "announce_address",
             "assigned_index",
-            "bte_public_key_with_proof"
+            "bte_public_key_with_proof",
+            "ed25519_identity"
           ],
           "properties": {
             "address": {
@@ -496,6 +797,9 @@
             },
             "bte_public_key_with_proof": {
               "type": "string"
+            },
+            "ed25519_identity": {
+              "type": "string"
             }
           },
           "additionalProperties": false
@@ -508,7 +812,6 @@
       "type": "object",
       "required": [
         "epoch_id",
-        "finish_timestamp",
         "state",
         "time_configuration"
       ],
@@ -519,7 +822,14 @@
           "minimum": 0.0
         },
         "finish_timestamp": {
-          "$ref": "#/definitions/Timestamp"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "state": {
           "$ref": "#/definitions/EpochState"
@@ -535,6 +845,7 @@
             {
               "type": "string",
               "enum": [
+                "waiting_initialisation",
                 "in_progress"
               ]
             },
@@ -710,6 +1021,80 @@
       "format": "uint64",
       "minimum": 0.0
     },
+    "get_dealer_dealings_status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DealerDealingsStatusResponse",
+      "type": "object",
+      "required": [
+        "all_dealings_fully_submitted",
+        "dealer",
+        "dealing_submission_status",
+        "epoch_id"
+      ],
+      "properties": {
+        "all_dealings_fully_submitted": {
+          "type": "boolean"
+        },
+        "dealer": {
+          "$ref": "#/definitions/Addr"
+        },
+        "dealing_submission_status": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/DealingStatus"
+          }
+        },
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "ChunkSubmissionStatus": {
+          "type": "object",
+          "properties": {
+            "submission_height": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "DealingStatus": {
+          "type": "object",
+          "required": [
+            "chunk_submission_status",
+            "fully_submitted",
+            "has_metadata"
+          ],
+          "properties": {
+            "chunk_submission_status": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/ChunkSubmissionStatus"
+              }
+            },
+            "fully_submitted": {
+              "type": "boolean"
+            },
+            "has_metadata": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
     "get_dealer_details": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "DealerDetailsResponse",
@@ -744,7 +1129,8 @@
             "address",
             "announce_address",
             "assigned_index",
-            "bte_public_key_with_proof"
+            "bte_public_key_with_proof",
+            "ed25519_identity"
           ],
           "properties": {
             "address": {
@@ -760,6 +1146,9 @@
             },
             "bte_public_key_with_proof": {
               "type": "string"
+            },
+            "ed25519_identity": {
+              "type": "string"
             }
           },
           "additionalProperties": false
@@ -774,31 +1163,218 @@
         }
       }
     },
-    "get_dealing": {
+    "get_dealing_chunk": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PagedDealingsResponse",
+      "title": "DealingChunkResponse",
       "type": "object",
       "required": [
-        "dealings",
-        "per_page"
+        "chunk_index",
+        "dealer",
+        "dealing_index",
+        "epoch_id"
       ],
       "properties": {
-        "dealings": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/ContractDealing"
-          }
-        },
-        "per_page": {
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0.0
-        },
-        "start_next_after": {
-          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+        "chunk": {
           "anyOf": [
             {
-              "$ref": "#/definitions/Addr"
+              "$ref": "#/definitions/ContractSafeBytes"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "chunk_index": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "dealer": {
+          "$ref": "#/definitions/Addr"
+        },
+        "dealing_index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "ContractSafeBytes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "minimum": 0.0
+          }
+        }
+      }
+    },
+    "get_dealing_chunk_status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DealingChunkStatusResponse",
+      "type": "object",
+      "required": [
+        "chunk_index",
+        "dealer",
+        "dealing_index",
+        "epoch_id",
+        "status"
+      ],
+      "properties": {
+        "chunk_index": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "dealer": {
+          "$ref": "#/definitions/Addr"
+        },
+        "dealing_index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "status": {
+          "$ref": "#/definitions/ChunkSubmissionStatus"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "ChunkSubmissionStatus": {
+          "type": "object",
+          "properties": {
+            "submission_height": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_dealing_status": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DealingStatusResponse",
+      "type": "object",
+      "required": [
+        "dealer",
+        "dealing_index",
+        "epoch_id",
+        "status"
+      ],
+      "properties": {
+        "dealer": {
+          "$ref": "#/definitions/Addr"
+        },
+        "dealing_index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "status": {
+          "$ref": "#/definitions/DealingStatus"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "ChunkSubmissionStatus": {
+          "type": "object",
+          "properties": {
+            "submission_height": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "DealingStatus": {
+          "type": "object",
+          "required": [
+            "chunk_submission_status",
+            "fully_submitted",
+            "has_metadata"
+          ],
+          "properties": {
+            "chunk_submission_status": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/ChunkSubmissionStatus"
+              }
+            },
+            "fully_submitted": {
+              "type": "boolean"
+            },
+            "has_metadata": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_dealings_metadata": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DealingMetadataResponse",
+      "type": "object",
+      "required": [
+        "dealer",
+        "dealing_index",
+        "epoch_id"
+      ],
+      "properties": {
+        "dealer": {
+          "$ref": "#/definitions/Addr"
+        },
+        "dealing_index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DealingMetadata"
             },
             {
               "type": "null"
@@ -812,29 +1388,70 @@
           "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
           "type": "string"
         },
-        "ContractDealing": {
+        "ChunkSubmissionStatus": {
           "type": "object",
-          "required": [
-            "dealer",
-            "dealing"
-          ],
           "properties": {
-            "dealer": {
-              "$ref": "#/definitions/Addr"
-            },
-            "dealing": {
-              "$ref": "#/definitions/ContractSafeBytes"
+            "submission_height": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
             }
           },
           "additionalProperties": false
         },
-        "ContractSafeBytes": {
-          "type": "array",
-          "items": {
-            "type": "integer",
-            "format": "uint8",
-            "minimum": 0.0
-          }
+        "DealingChunkInfo": {
+          "type": "object",
+          "required": [
+            "size"
+          ],
+          "properties": {
+            "size": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "DealingMetadata": {
+          "type": "object",
+          "required": [
+            "dealing_index",
+            "submitted_chunks"
+          ],
+          "properties": {
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "submitted_chunks": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/SubmittedChunk"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "SubmittedChunk": {
+          "type": "object",
+          "required": [
+            "info",
+            "status"
+          ],
+          "properties": {
+            "info": {
+              "$ref": "#/definitions/DealingChunkInfo"
+            },
+            "status": {
+              "$ref": "#/definitions/ChunkSubmissionStatus"
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -921,7 +1538,8 @@
             "address",
             "announce_address",
             "assigned_index",
-            "bte_public_key_with_proof"
+            "bte_public_key_with_proof",
+            "ed25519_identity"
           ],
           "properties": {
             "address": {
@@ -937,6 +1555,124 @@
             },
             "bte_public_key_with_proof": {
               "type": "string"
+            },
+            "ed25519_identity": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_state": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "State",
+      "type": "object",
+      "required": [
+        "group_addr",
+        "key_size",
+        "mix_denom",
+        "multisig_addr"
+      ],
+      "properties": {
+        "group_addr": {
+          "$ref": "#/definitions/Cw4Contract"
+        },
+        "key_size": {
+          "description": "Specifies the number of elements in the derived keys",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "mix_denom": {
+          "type": "string"
+        },
+        "multisig_addr": {
+          "$ref": "#/definitions/Addr"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Cw4Contract": {
+          "description": "Cw4Contract is a wrapper around Addr that provides a lot of helpers for working with cw4 contracts\n\nIf you wish to persist this, convert to Cw4CanonicalContract via .canonical()",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
+        }
+      }
+    },
+    "get_verification_key": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VkShareResponse",
+      "type": "object",
+      "required": [
+        "epoch_id",
+        "owner"
+      ],
+      "properties": {
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "owner": {
+          "$ref": "#/definitions/Addr"
+        },
+        "share": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ContractVKShare"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "ContractVKShare": {
+          "type": "object",
+          "required": [
+            "announce_address",
+            "epoch_id",
+            "node_index",
+            "owner",
+            "share",
+            "verified"
+          ],
+          "properties": {
+            "announce_address": {
+              "type": "string"
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "node_index": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "owner": {
+              "$ref": "#/definitions/Addr"
+            },
+            "share": {
+              "type": "string"
+            },
+            "verified": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false

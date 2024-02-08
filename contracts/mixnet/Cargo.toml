@@ -41,7 +41,7 @@ bs58 = "0.4.0"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
 time = { version = "0.3", features = ["macros"] }
-semver = { version = "1.0.16", default-features = false }
+semver = { workspace = true, default-features = false }
 
 [dev-dependencies]
 rand_chacha = "0.2"

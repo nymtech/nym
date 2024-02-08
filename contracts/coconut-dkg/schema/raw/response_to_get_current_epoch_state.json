@@ -4,7 +4,6 @@
   "type": "object",
   "required": [
     "epoch_id",
-    "finish_timestamp",
     "state",
     "time_configuration"
   ],
@@ -15,7 +14,14 @@
       "minimum": 0.0
     },
     "finish_timestamp": {
-      "$ref": "#/definitions/Timestamp"
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Timestamp"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "state": {
       "$ref": "#/definitions/EpochState"
@@ -31,6 +37,7 @@
         {
           "type": "string",
           "enum": [
+            "waiting_initialisation",
             "in_progress"
           ]
         },

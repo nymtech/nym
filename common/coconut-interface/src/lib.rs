@@ -14,7 +14,8 @@ pub use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar,
     prepare_blind_sign, prove_bandwidth_credential, Attribute, Base58, BlindSignRequest,
     BlindedSerialNumber, BlindedSignature, Bytable, CoconutError, KeyPair, Parameters,
-    PrivateAttribute, PublicAttribute, SecretKey, Signature, SignatureShare, Theta, VerificationKey,
+    PrivateAttribute, PublicAttribute, SecretKey, Signature, SignatureShare, Theta,
+    VerificationKey,
 };
 
 #[derive(Debug, Serialize, Deserialize, Getters, CopyGetters, Clone, PartialEq, Eq)]

@@ -33,8 +33,11 @@ use crate::{
 };
 
 pub(crate) struct ConnectedClients {
+    // The set of connected clients
     clients: HashMap<IpAddr, ConnectedClient>,
-    connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
+
+    // Notify the tun listener when a new client connects or disconnects
+    tun_listener_connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
 }
 
 impl ConnectedClients {
@@ -43,7 +46,7 @@ impl ConnectedClients {
         (
             Self {
                 clients: Default::default(),
-                connected_client_tx,
+                tun_listener_connected_client_tx: connected_client_tx,
             },
             tun_listener::ConnectedClientsListener::new(connected_client_rx),
         )
@@ -102,7 +105,7 @@ impl ConnectedClients {
         );
         // Send the connected client info to the tun listener, which will use it to forward packets
         // to the connected client handler.
-        self.connected_client_tx
+        self.tun_listener_connected_client_tx
             .send(ConnectedClientEvent::Connect(Box::new(ConnectEvent {
                 ip,
                 forward_from_tun_tx,
@@ -122,23 +125,39 @@ impl ConnectedClients {
         }
     }
 
-    fn disconnect_stopped_client_handlers(&mut self) {
-        let stopped_clients: Vec<IpAddr> = self
-            .clients
+    fn get_stopped_client_handlers(&mut self) -> Vec<(IpAddr, Recipient)> {
+        self.clients
             .iter_mut()
             .filter_map(|(ip, client)| {
                 if client.finished_rx.try_recv().is_ok() {
-                    Some(*ip)
+                    Some((*ip, client.nym_address))
                 } else {
                     None
                 }
             })
-            .collect();
-        for ip in stopped_clients {
+            .collect()
+    }
+
+    fn get_inactive_clients(&mut self) -> Vec<(IpAddr, Recipient)> {
+        let now = std::time::Instant::now();
+        self.clients
+            .iter()
+            .filter_map(|(ip, client)| {
+                if now.duration_since(client.last_activity) > CLIENT_INACTIVITY_TIMEOUT {
+                    Some((*ip, client.nym_address))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn disconnect_stopped_client_handlers(&mut self, stopped_clients: Vec<(IpAddr, Recipient)>) {
+        for (ip, _) in &stopped_clients {
             log::info!("Removing stopped client: {ip}");
-            self.clients.remove(&ip);
-            self.connected_client_tx
-                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(ip)))
+            self.clients.remove(ip);
+            self.tun_listener_connected_client_tx
+                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(*ip)))
                 .tap_err(|err| {
                     log::error!("Failed to send disconnect event: {err}");
                 })
@@ -146,24 +165,12 @@ impl ConnectedClients {
         }
     }
 
-    fn disconnect_inactive_clients(&mut self) {
-        let now = std::time::Instant::now();
-        let inactive_clients: Vec<IpAddr> = self
-            .clients
-            .iter()
-            .filter_map(|(ip, client)| {
-                if now.duration_since(client.last_activity) > CLIENT_INACTIVITY_TIMEOUT {
-                    Some(*ip)
-                } else {
-                    None
-                }
-            })
-            .collect();
-        for ip in inactive_clients {
+    fn disconnect_inactive_clients(&mut self, inactive_clients: Vec<(IpAddr, Recipient)>) {
+        for (ip, _) in &inactive_clients {
             log::info!("Disconnect inactive client: {ip}");
-            self.clients.remove(&ip);
-            self.connected_client_tx
-                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(ip)))
+            self.clients.remove(ip);
+            self.tun_listener_connected_client_tx
+                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(*ip)))
                 .tap_err(|err| {
                     log::error!("Failed to send disconnect event: {err}");
                 })
@@ -501,6 +508,24 @@ impl MixnetListener {
         }
     }
 
+    fn handle_disconnect_timer(&mut self) {
+        let stopped_clients = self.connected_clients.get_stopped_client_handlers();
+        let inactive_clients = self.connected_clients.get_inactive_clients();
+
+        // TODO: Send disconnect responses to all disconnected clients
+        //for (ip, nym_address) in stopped_clients.iter().chain(disconnected_clients.iter()) {
+        //    let response = IpPacketResponse::new_unrequested_disconnect(...)
+        //    if let Err(err) = self.handle_response(response).await {
+        //        log::error!("Failed to send disconnect response: {err}");
+        //    }
+        //}
+
+        self.connected_clients
+            .disconnect_stopped_client_handlers(stopped_clients);
+        self.connected_clients
+            .disconnect_inactive_clients(inactive_clients);
+    }
+
     // When an incoming mixnet message triggers a response that we send back, such as during
     // connect handshake.
     async fn handle_response(&self, response: IpPacketResponse) -> Result<()> {
@@ -537,8 +562,7 @@ impl MixnetListener {
                     log::debug!("IpPacketRouter [main loop]: received shutdown");
                 },
                 _ = disconnect_timer.tick() => {
-                    self.connected_clients.disconnect_stopped_client_handlers();
-                    self.connected_clients.disconnect_inactive_clients();
+                    self.handle_disconnect_timer();
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {

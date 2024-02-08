@@ -64,6 +64,48 @@ impl IpPacketResponse {
         }
     }
 
+    pub fn new_disconnect_success(request_id: u64, reply_to: Recipient) -> Self {
+        Self {
+            version: CURRENT_VERSION,
+            data: IpPacketResponseData::Disconnect(DisconnectResponse {
+                request_id,
+                reply_to,
+                reply: DisconnectResponseReply::Success,
+            }),
+        }
+    }
+
+    pub fn new_disconnect_failure(
+        request_id: u64,
+        reply_to: Recipient,
+        reason: DisconnectFailureReason,
+    ) -> Self {
+        Self {
+            version: CURRENT_VERSION,
+            data: IpPacketResponseData::Disconnect(DisconnectResponse {
+                request_id,
+                reply_to,
+                reply: DisconnectResponseReply::Failure(reason),
+            }),
+        }
+    }
+
+    // TODO
+    // pub fn new_unrequested_disconnect(
+    //     request_id: u64,
+    //     reply_to: Recipient,
+    //     reason: UnrequestedDisconnectReason,
+    // ) -> Self {
+    //     Self {
+    //         version: CURRENT_VERSION,
+    //         data: IpPacketResponseData::Disconnect(DisconnectResponse {
+    //             request_id: 0,
+    //             reply_to: Recipient::new(),
+    //             reply: DisconnectResponseReply::Failure(DisconnectFailureReason::Unrequested),
+    //         }),
+    //     }
+    // }
+
     pub fn new_ip_packet(ip_packet: bytes::Bytes) -> Self {
         Self {
             version: CURRENT_VERSION,

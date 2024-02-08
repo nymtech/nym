@@ -1,15 +1,12 @@
-use std::{collections::HashMap, net::IpAddr};
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
 
 use nym_ip_packet_requests::response::IpPacketResponse;
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
-use nym_task::TaskClient;
-#[cfg(target_os = "linux")]
-use tokio::io::AsyncReadExt;
 
 use crate::{
     error::{IpPacketRouterError, Result},
-    mixnet_listener::{self},
-    util::{create_message::create_input_message, parse_ip::parse_dst_addr},
+    util::create_message::create_input_message,
 };
 
 // Data flow
@@ -21,26 +18,38 @@ use crate::{
 pub(crate) struct ConnectedClientHandler {
     nym_address: Recipient,
     mix_hops: Option<u8>,
-    tun_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
+    forward_from_tun_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
     mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     close_rx: tokio::sync::oneshot::Receiver<()>,
 }
 
 impl ConnectedClientHandler {
-    pub(crate) fn new(
-        nym_address: Recipient,
-        mix_hops: Option<u8>,
-        tun_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
+    pub(crate) fn launch(
+        reply_to: Recipient,
+        reply_to_hops: Option<u8>,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
-        close_rx: tokio::sync::oneshot::Receiver<()>,
-    ) -> Self {
-        ConnectedClientHandler {
-            nym_address,
-            mix_hops,
-            tun_rx,
+    ) -> (
+        tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
+        tokio::sync::oneshot::Sender<()>,
+    ) {
+        let (close_tx, close_rx) = tokio::sync::oneshot::channel();
+        let (forward_from_tun_tx, forward_from_tun_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let connected_client_handler = ConnectedClientHandler {
+            nym_address: reply_to,
+            mix_hops: reply_to_hops,
+            forward_from_tun_rx,
             mixnet_client_sender,
             close_rx,
-        }
+        };
+
+        tokio::spawn(async move {
+            if let Err(err) = connected_client_handler.run().await {
+                log::error!("connected client handler has failed: {err}")
+            }
+        });
+
+        (forward_from_tun_tx, close_tx)
     }
 
     async fn handle_packet(&mut self, packet: Vec<u8>) -> Result<()> {
@@ -52,41 +61,33 @@ impl ConnectedClientHandler {
         self.mixnet_client_sender
             .send(input_message)
             .await
-            .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })?;
-
-        Ok(())
+            .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })
     }
 
     async fn run(mut self) -> Result<()> {
         loop {
             tokio::select! {
                 _ = &mut self.close_rx => {
+                    // WIP(JON): downgrade to trace once confirmed to work
                     log::warn!("ConnectedClientHandler: received shutdown");
                     break;
                 },
-                packet = self.tun_rx.recv() => match packet {
+                packet = self.forward_from_tun_rx.recv() => match packet {
                     Some(packet) => {
                         if let Err(err) = self.handle_packet(packet).await {
                             log::error!("connected client handler: failed to handle packet: {err}");
                         }
                     },
                     None => {
-                        log::error!("connected client handler: tun channel closed");
+                        log::debug!("connected client handler: tun channel closed");
                         break;
                     }
                 }
             }
         }
 
+        // WIP(JON): downgrade to debug once confirmed to work
         log::warn!("ConnectedClientHandler: exiting");
         Ok(())
-    }
-
-    pub(crate) fn start(self) {
-        tokio::spawn(async move {
-            if let Err(err) = self.run().await {
-                log::error!("connected client handler has failed: {err}")
-            }
-        });
     }
 }

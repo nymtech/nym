@@ -31,16 +31,6 @@ use crate::{
     },
 };
 
-#[cfg(target_os = "linux")]
-pub(crate) struct MixnetListener {
-    pub(crate) _config: Config,
-    pub(crate) request_filter: request_filter::RequestFilter,
-    pub(crate) tun_writer: tokio::io::WriteHalf<tokio_tun::Tun>,
-    pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
-    pub(crate) task_handle: TaskHandle,
-    pub(crate) connected_clients: ConnectedClients,
-}
-
 pub(crate) struct ConnectedClients {
     clients: HashMap<IpAddr, ConnectedClient>,
     connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
@@ -156,22 +146,19 @@ impl ConnectedClients {
 }
 
 pub(crate) struct ConnectedClient {
+    // The nym address of the connected client that we are communicating with on the other side of
+    // the mixnet
     pub(crate) nym_address: Recipient,
-    pub(crate) mix_hops: Option<u8>,
-    pub(crate) last_activity: std::time::Instant,
-    // Send to connected clients listener to stop
-    // This is inside an Option only because we want to send in Drop
-    pub(crate) close_tx: Option<tokio::sync::oneshot::Sender<()>>,
-}
 
-impl Drop for ConnectedClient {
-    fn drop(&mut self) {
-        log::info!("Dropping connected client: {}", self.nym_address);
-        if let Some(close_tx) = self.close_tx.take() {
-            log::info!("Sending close signal to connected client handler");
-            close_tx.send(()).unwrap();
-        }
-    }
+    // Number of mix node hops that the client has requested to use
+    pub(crate) mix_hops: Option<u8>,
+
+    // Keep track of last activity so we can disconnect inactive clients
+    pub(crate) last_activity: std::time::Instant,
+
+    // Send to connected clients listener to stop. This is option only because we need to take
+    // ownership of it when the client is dropped.
+    pub(crate) close_tx: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl ConnectedClient {
@@ -180,8 +167,44 @@ impl ConnectedClient {
     }
 }
 
+impl Drop for ConnectedClient {
+    fn drop(&mut self) {
+        // WIP(JON): downgrade to trace once confirmed to work
+        log::info!("Dropping connected client: {}", self.nym_address);
+        if let Some(close_tx) = self.close_tx.take() {
+            // WIP(JON): downgrade to trace once confirmed to work
+            log::info!("Sending close signal to connected client handler");
+            close_tx.send(()).unwrap();
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) struct MixnetListener {
+    // The configuration for the mixnet listener
+    pub(crate) _config: Config,
+
+    // The request filter that we use to check if a packet should be forwarded
+    pub(crate) request_filter: request_filter::RequestFilter,
+
+    // The TUN device that we use to send and receive packets from the internet
+    pub(crate) tun_writer: tokio::io::WriteHalf<tokio_tun::Tun>,
+
+    // The mixnet client that we use to send and receive packets from the mixnet
+    pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
+
+    // The task handle for the main loop
+    pub(crate) task_handle: TaskHandle,
+
+    // The map of connected clients that the mixnet listener keeps track of. It monitors
+    // activity and disconnects clients that have been inactive for too long.
+    pub(crate) connected_clients: ConnectedClients,
+}
+
 #[cfg(target_os = "linux")]
 impl MixnetListener {
+    // Receving a static connect request from a client with an IP provided that we assign to them,
+    // if it's available. If it's not available, we send a failure response.
     async fn on_static_connect_request(
         &mut self,
         connect_request: nym_ip_packet_requests::request::StaticConnectRequest,
@@ -220,20 +243,15 @@ impl MixnetListener {
             (false, false) => {
                 log::info!("Connecting a new client");
 
-                // Start the ConnectedClientHandler for the new client
-                let (close_tx, close_rx) = tokio::sync::oneshot::channel();
-                let (forward_from_tun_tx, forward_from_tun_rx) =
-                    tokio::sync::mpsc::unbounded_channel();
-                let connected_client_handler =
-                    connected_client_handler::ConnectedClientHandler::new(
+                // Spawn the ConnectedClientHandler for the new client
+                let (forward_from_tun_tx, close_tx) =
+                    connected_client_handler::ConnectedClientHandler::launch(
                         reply_to,
                         reply_to_hops,
-                        forward_from_tun_rx,
                         self.mixnet_client.split_sender(),
-                        close_rx,
                     );
-                connected_client_handler.start();
 
+                // Register the new client in the set of connected clients
                 self.connected_clients.connect(
                     requested_ip,
                     reply_to,
@@ -307,18 +325,15 @@ impl MixnetListener {
             )));
         };
 
-        // Start the ConnectedClientHandler for the new client
-        let (close_tx, close_rx) = tokio::sync::oneshot::channel();
-        let (forward_from_tun_tx, forward_from_tun_rx) = tokio::sync::mpsc::unbounded_channel();
-        let connected_client_handler = connected_client_handler::ConnectedClientHandler::new(
-            reply_to,
-            reply_to_hops,
-            forward_from_tun_rx,
-            self.mixnet_client.split_sender(),
-            close_rx,
-        );
-        connected_client_handler.start();
+        // Spawn the ConnectedClientHandler for the new client
+        let (forward_from_tun_tx, close_tx) =
+            connected_client_handler::ConnectedClientHandler::launch(
+                reply_to,
+                reply_to_hops,
+                self.mixnet_client.split_sender(),
+            );
 
+        // Register the new client in the set of connected clients
         self.connected_clients.connect(
             new_ip,
             reply_to,

@@ -23,7 +23,7 @@ use nym_coconut_dkg_common::{
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
-use nym_contracts_common::dealings::ContractSafeBytes;
+
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;

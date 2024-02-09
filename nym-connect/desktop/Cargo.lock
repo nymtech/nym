@@ -1729,6 +1729,7 @@ dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.5",
  "rfc6979 0.4.0",
+ "serdect",
  "signature 2.1.0",
  "spki 0.7.2",
 ]
@@ -1837,6 +1838,7 @@ dependencies = [
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
  "sec1 0.7.3",
+ "serdect",
  "subtle 2.4.1",
  "zeroize",
 ]
@@ -3693,6 +3695,7 @@ dependencies = [
  "bs58 0.4.0",
  "cosmrs",
  "cosmwasm-std",
+ "ecdsa 0.16.8",
  "getset",
  "nym-credentials-interface",
  "nym-crypto",
@@ -5834,6 +5837,7 @@ dependencies = [
  "der 0.7.8",
  "generic-array 0.14.7",
  "pkcs8 0.10.2",
+ "serdect",
  "subtle 2.4.1",
  "zeroize",
 ]
@@ -6157,6 +6161,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.28",
+]
+
+[[package]]
+name = "serdect"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a84f14a19e9a014bb9f4512488d9829a68e04ecabffb0f9904cd1ace94598177"
+dependencies = [
+ "base16ct 0.2.0",
+ "serde",
 ]
 
 [[package]]

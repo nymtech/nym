@@ -93,7 +93,9 @@ impl TunListener {
                     ));
             }
         } else {
-            log::info!("No registered client for packet with destination {dst_addr} - dropping");
+            log::info!(
+                "dropping packet from network: no registered client for destination: {dst_addr}"
+            );
         }
 
         Ok(())

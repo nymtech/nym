@@ -21,7 +21,7 @@ use tokio::io::AsyncWriteExt;
 use crate::{
     config::Config,
     connected_client_handler,
-    constants::{CLIENT_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL},
+    constants::{CLIENT_MIXNET_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL},
     error::{IpPacketRouterError, Result},
     request_filter::{self},
     tun_listener,
@@ -144,7 +144,7 @@ impl ConnectedClients {
         self.clients
             .iter()
             .filter_map(|(ip, client)| {
-                if now.duration_since(client.last_activity) > CLIENT_INACTIVITY_TIMEOUT {
+                if now.duration_since(client.last_activity) > CLIENT_MIXNET_INACTIVITY_TIMEOUT {
                     Some((*ip, client.nym_address))
                 } else {
                     None
@@ -155,7 +155,7 @@ impl ConnectedClients {
 
     fn disconnect_stopped_client_handlers(&mut self, stopped_clients: Vec<(IpAddr, Recipient)>) {
         for (ip, _) in &stopped_clients {
-            log::info!("Removing stopped client: {ip}");
+            log::info!("Disconnect stopped client: {ip}");
             self.clients.remove(ip);
             self.tun_listener_connected_client_tx
                 .send(ConnectedClientEvent::Disconnect(DisconnectEvent(*ip)))
@@ -211,9 +211,8 @@ impl ConnectedClient {
 
 impl Drop for ConnectedClient {
     fn drop(&mut self) {
-        log::info!("Dropping client: {}", self.nym_address);
+        log::debug!("signal to close client: {}", self.nym_address);
         if let Some(close_tx) = self.close_tx.take() {
-            log::trace!("Sending close signal to connected client handler");
             close_tx.send(()).ok();
         }
     }
@@ -445,7 +444,7 @@ impl MixnetListener {
             }
         } else {
             // If the client is not connected, just drop the packet silently
-            log::info!("Dropping packet: no connected client for {src_addr}");
+            log::info!("dropping packet from mixnet: no registered client for packet with source: {src_addr}");
             Ok(None)
         }
     }
@@ -531,7 +530,7 @@ impl MixnetListener {
     // connect handshake.
     async fn handle_response(&self, response: IpPacketResponse) -> Result<()> {
         let Some(recipient) = response.recipient() else {
-            log::error!("no recipient in response packet, this should NOT happen!");
+            log::error!("No recipient in response packet, this should NOT happen!");
             return Err(IpPacketRouterError::NoRecipientInResponse);
         };
 

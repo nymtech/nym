@@ -1,17 +1,14 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::time::Duration;
-
 use nym_ip_packet_requests::response::IpPacketResponse;
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 
 use crate::{
+    constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
     error::{IpPacketRouterError, Result},
     util::create_message::create_input_message,
 };
-
-const ACTIVITY_TIMEOUT_SEC: u64 = 10 * 60;
 
 // Data flow
 // Out: mixnet_listener -> decode -> handle_packet -> write_to_tun
@@ -42,7 +39,7 @@ impl ConnectedClientHandler {
         let (forward_from_tun_tx, forward_from_tun_rx) = tokio::sync::mpsc::unbounded_channel();
 
         // Reset so that we don't get the first tick immediately
-        let mut activity_timeout = tokio::time::interval(Duration::from_secs(ACTIVITY_TIMEOUT_SEC));
+        let mut activity_timeout = tokio::time::interval(CLIENT_HANDLER_ACTIVITY_TIMEOUT);
         activity_timeout.reset();
 
         let connected_client_handler = ConnectedClientHandler {
@@ -80,28 +77,28 @@ impl ConnectedClientHandler {
         loop {
             tokio::select! {
                 _ = &mut self.close_rx => {
-                    log::info!("ConnectedClientHandler: received shutdown");
+                    log::info!("client handler stopping: received close: {}", self.nym_address);
                     break;
                 },
                 _ = self.activity_timeout.tick() => {
-                    log::info!("ConnectedClientHandler: activity timeout reached for {}", self.nym_address);
+                    log::info!("client handler stopping: activity timeout: {}", self.nym_address);
                     break;
                 }
                 packet = self.forward_from_tun_rx.recv() => match packet {
                     Some(packet) => {
                         if let Err(err) = self.handle_packet(packet).await {
-                            log::error!("connected client handler: failed to handle packet: {err}");
+                            log::error!("client handler: failed to handle packet: {err}");
                         }
                     },
                     None => {
-                        log::info!("connected client handler: tun channel closed");
+                        log::info!("client handler stopping: tun channel closed");
                         break;
                     }
                 },
             }
         }
 
-        log::info!("ConnectedClientHandler: exiting");
+        log::debug!("ConnectedClientHandler: exiting");
         Ok(())
     }
 }

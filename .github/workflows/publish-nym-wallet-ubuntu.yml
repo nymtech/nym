@@ -1,4 +1,4 @@
-name: Publish Nym Wallet (Ubuntu)
+name: publish-nym-wallet-ubuntu
 on:
   workflow_dispatch:
   release:

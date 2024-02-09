@@ -1,4 +1,4 @@
-name: Publish Nym Connect - desktop (Ubuntu)
+name: publish-nym-connect-ubuntu
 on:
   workflow_dispatch:
   release:

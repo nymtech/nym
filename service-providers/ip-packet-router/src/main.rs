@@ -3,6 +3,8 @@ mod cli;
 #[cfg(target_os = "linux")]
 mod config;
 #[cfg(target_os = "linux")]
+mod connected_client_handler;
+#[cfg(target_os = "linux")]
 mod constants;
 #[cfg(target_os = "linux")]
 mod error;

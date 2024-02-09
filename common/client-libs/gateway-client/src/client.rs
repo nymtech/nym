@@ -19,7 +19,7 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use nym_gateway_requests::iv::IV;
 use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
-use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
+use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, CURRENT_PROTOCOL_VERSION};
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
@@ -80,6 +80,9 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
 
+    // currently unused (but populated)
+    negotiated_protocol: Option<u8>,
+
     /// Listen to shutdown messages.
     shutdown: TaskClient,
 }
@@ -109,6 +112,7 @@ impl<C, St> GatewayClient<C, St> {
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            negotiated_protocol: None,
             shutdown,
         }
     }
@@ -384,10 +388,10 @@ impl<C, St> GatewayClient<C, St> {
                 // note: in +1.2.0 we will have to return a hard error here
                 Ok(())
             }
-            Some(v) if v > PROTOCOL_VERSION => {
+            Some(v) if v > CURRENT_PROTOCOL_VERSION => {
                 let err = GatewayClientError::IncompatibleProtocol {
                     gateway: Some(v),
-                    current: PROTOCOL_VERSION,
+                    current: CURRENT_PROTOCOL_VERSION,
                 };
                 error!("{err}");
                 Err(err)
@@ -440,6 +444,10 @@ impl<C, St> GatewayClient<C, St> {
         if self.authenticated {
             self.shared_key = Some(Arc::new(shared_key));
         }
+
+        // populate the negotiated protocol for future uses
+        self.negotiated_protocol = gateway_protocol;
+        
         Ok(())
     }
 

@@ -169,10 +169,10 @@ impl CoconutStorageExt for NymApiStorage {
     }
 
     async fn get_current_freepass_nonce(&self) -> Result<u32, NymApiStorageError> {
-        todo!()
+        Ok(self.manager.get_current_freepass_nonce().await?)
     }
 
     async fn update_and_validate_freepass_nonce(&self, new: u32) -> Result<(), NymApiStorageError> {
-        todo!()
+        Ok(self.manager.update_and_validate_freepass_nonce(new).await?)
     }
 }

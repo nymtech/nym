@@ -384,7 +384,7 @@ impl<C, St> GatewayClient<C, St> {
                 // note: in +1.2.0 we will have to return a hard error here
                 Ok(())
             }
-            Some(v) if v != PROTOCOL_VERSION => {
+            Some(v) if v > PROTOCOL_VERSION => {
                 let err = GatewayClientError::IncompatibleProtocol {
                     gateway: Some(v),
                     current: PROTOCOL_VERSION,
@@ -394,7 +394,7 @@ impl<C, St> GatewayClient<C, St> {
             }
 
             Some(_) => {
-                info!("the gateway is using exactly the same protocol version as we are. We're good to continue!");
+                info!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
                 Ok(())
             }
         }
@@ -522,7 +522,7 @@ impl<C, St> GatewayClient<C, St> {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
-        let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential(
+        let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential_v2(
             credential,
             epoch_id,
             self.shared_key.as_ref().unwrap(),

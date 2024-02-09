@@ -5,6 +5,19 @@
     {
       "type": "object",
       "required": [
+        "get_state"
+      ],
+      "properties": {
+        "get_state": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_current_epoch_state"
       ],
       "properties": {
@@ -123,33 +136,194 @@
     {
       "type": "object",
       "required": [
-        "get_dealing"
+        "get_dealings_metadata"
       ],
       "properties": {
-        "get_dealing": {
+        "get_dealings_metadata": {
           "type": "object",
           "required": [
-            "idx"
+            "dealer",
+            "dealing_index",
+            "epoch_id"
           ],
           "properties": {
-            "idx": {
+            "dealer": {
+              "type": "string"
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_dealer_dealings_status"
+      ],
+      "properties": {
+        "get_dealer_dealings_status": {
+          "type": "object",
+          "required": [
+            "dealer",
+            "epoch_id"
+          ],
+          "properties": {
+            "dealer": {
+              "type": "string"
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_dealing_status"
+      ],
+      "properties": {
+        "get_dealing_status": {
+          "type": "object",
+          "required": [
+            "dealer",
+            "dealing_index",
+            "epoch_id"
+          ],
+          "properties": {
+            "dealer": {
+              "type": "string"
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_dealing_chunk_status"
+      ],
+      "properties": {
+        "get_dealing_chunk_status": {
+          "type": "object",
+          "required": [
+            "chunk_index",
+            "dealer",
+            "dealing_index",
+            "epoch_id"
+          ],
+          "properties": {
+            "chunk_index": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "dealer": {
+              "type": "string"
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_dealing_chunk"
+      ],
+      "properties": {
+        "get_dealing_chunk": {
+          "type": "object",
+          "required": [
+            "chunk_index",
+            "dealer",
+            "dealing_index",
+            "epoch_id"
+          ],
+          "properties": {
+            "chunk_index": {
+              "type": "integer",
+              "format": "uint16",
+              "minimum": 0.0
+            },
+            "dealer": {
+              "type": "string"
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_verification_key"
+      ],
+      "properties": {
+        "get_verification_key": {
+          "type": "object",
+          "required": [
+            "epoch_id",
+            "owner"
+          ],
+          "properties": {
+            "epoch_id": {
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
-            "limit": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "start_after": {
-              "type": [
-                "string",
-                "null"
-              ]
+            "owner": {
+              "type": "string"
             }
           },
           "additionalProperties": false
@@ -189,6 +363,20 @@
               ]
             }
           },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the stored contract version information that's required by the CW2 spec interface for migrations.",
+      "type": "object",
+      "required": [
+        "get_cw2_contract_version"
+      ],
+      "properties": {
+        "get_cw2_contract_version": {
+          "type": "object",
           "additionalProperties": false
         }
       },

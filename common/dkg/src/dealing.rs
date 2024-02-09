@@ -82,8 +82,7 @@ impl RecoveredVerificationKeys {
     }
 }
 
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dealing {
     pub public_coefficients: PublicCoefficients,
     pub ciphertexts: Ciphertexts,
@@ -321,9 +320,17 @@ impl<'a> TryFrom<&'a nym_contracts_common::dealings::ContractSafeBytes> for Deal
     }
 }
 
-// this assumes all dealings have been verified
+/// Attempt to run the `VkCombine` algorithm to obtain the public master verification key, `VK`
+/// alongside shares of the verification key, `shvk_{1}`, `shvk_{2}`, ... `svhk_{n}`, where n is the number of receivers.
+///
+/// # Arguments
+///
+/// * `dealings`: map of dealer indices to dealings they generated
+/// * `threshold`: explicit threshold value of the associated dealings
+/// * `receivers`:map of receiver indices to their public keys
+// note: this function assumes all dealings have already been verified
 pub fn try_recover_verification_keys(
-    dealings: &[Dealing],
+    dealings: &BTreeMap<NodeIndex, Dealing>,
     threshold: Threshold,
     receivers: &BTreeMap<NodeIndex, PublicKey>,
 ) -> Result<RecoveredVerificationKeys, DkgError> {
@@ -331,24 +338,31 @@ pub fn try_recover_verification_keys(
         return Err(DkgError::NoDealingsAvailable);
     }
 
-    let threshold_usize = threshold as usize;
+    let threshold = threshold as usize;
+
+    if dealings.len() < threshold {
+        return Err(DkgError::NotEnoughDealingsAvailable {
+            available: dealings.len(),
+            required: threshold,
+        });
+    }
 
     if !dealings
-        .iter()
-        .all(|dealing| dealing.public_coefficients.size() == threshold_usize)
+        .values()
+        .all(|dealing| dealing.public_coefficients.size() == threshold)
     {
         return Err(DkgError::MismatchedDealings);
     }
 
-    let indices = receivers.keys().collect::<Vec<_>>();
+    let dealer_indices = dealings.keys().collect::<Vec<_>>();
 
     // Compute A0, ..., A_{t-1}
-    let mut interpolated_coefficients = Vec::with_capacity(threshold_usize);
-    for k in 0..threshold_usize {
-        let mut samples = Vec::with_capacity(indices.len());
-        for (j, dealing) in dealings.iter().enumerate() {
+    let mut interpolated_coefficients = Vec::with_capacity(threshold);
+    for k in 0..threshold {
+        let mut samples = Vec::with_capacity(dealer_indices.len());
+        for (dealer_index, dealing) in dealings.iter() {
             samples.push((
-                Scalar::from(*indices[j]),
+                Scalar::from(*dealer_index),
                 *dealing.public_coefficients.nth(k),
             ))
         }
@@ -365,7 +379,7 @@ pub fn try_recover_verification_keys(
     // shvk_j = A0^{j^0} * A1^{j^1} * ... * A_{t-1}^{j^{t-1}}
     let verification_key_shares = receivers
         .keys()
-        .map(|index| interpolated_coefficients.evaluate_at(&Scalar::from(*index)))
+        .map(|receiver_index| interpolated_coefficients.evaluate_at(&Scalar::from(*receiver_index)))
         .collect();
 
     Ok(RecoveredVerificationKeys {
@@ -457,14 +471,17 @@ mod tests {
         let dealings = node_indices
             .iter()
             .map(|&dealer_index| {
-                Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
+                (
+                    dealer_index,
+                    Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0,
+                )
             })
-            .collect::<Vec<_>>();
+            .collect::<BTreeMap<_, _>>();
 
         let mut derived_secrets = Vec::new();
-        for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
+        for (i, (ref dk, _)) in full_keys.iter().enumerate() {
             let shares = dealings
-                .iter()
+                .values()
                 .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
                 .collect();
             derived_secrets.push(
@@ -513,14 +530,77 @@ mod tests {
         let dealings = node_indices
             .iter()
             .map(|&dealer_index| {
-                Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
+                (
+                    dealer_index,
+                    Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0,
+                )
             })
-            .collect::<Vec<_>>();
+            .collect::<BTreeMap<_, _>>();
 
         let RecoveredVerificationKeys {
             recovered_master,
             recovered_partials,
         } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+
+        assert!(verify_verification_keys(
+            &recovered_master,
+            &recovered_partials,
+            &receivers,
+            threshold
+        )
+        .is_ok())
+    }
+
+    #[test]
+    #[ignore] // expensive test
+    fn verifying_partial_verification_keys_with_different_dealers_and_receivers() {
+        let dummy_seed = [42u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+        let params = setup();
+
+        let dealer_indices = [1, 2, 3, 8];
+        let receiver_indices = [3, 4, 5, 6, 7];
+        let threshold = 3;
+
+        let mut receivers = BTreeMap::new();
+        let mut full_keys = Vec::new();
+        for index in &receiver_indices {
+            let (dk, pk) = keygen(&params, &mut rng);
+            receivers.insert(*index, *pk.public_key());
+            full_keys.push((dk, pk))
+        }
+
+        let dealings = dealer_indices
+            .iter()
+            .map(|&dealer_index| {
+                (
+                    dealer_index,
+                    Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0,
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+
+        let RecoveredVerificationKeys {
+            recovered_master,
+            recovered_partials,
+        } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+
+        let g2 = G2Projective::generator();
+
+        let mut derived_secrets = Vec::new();
+        for (i, (dk, _)) in full_keys.iter().enumerate() {
+            let shares = dealings
+                .values()
+                .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+                .collect();
+
+            let recovered_secret = combine_shares(shares, &dealer_indices).unwrap();
+
+            // make sure it matches the associated vk
+            assert_eq!(recovered_partials[i], g2 * recovered_secret);
+
+            derived_secrets.push(recovered_secret)
+        }
 
         assert!(verify_verification_keys(
             &recovered_master,

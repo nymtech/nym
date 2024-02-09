@@ -10,6 +10,8 @@ license.workspace = true
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw-utils = { workspace = true }
+cw2 = { workspace = true }
+cw4 = { workspace = true }
 
 contracts-common = { path = "../contracts-common", package = "nym-contracts-common" }
 nym-multisig-contract-common = { path = "../multisig-contract" }

@@ -1,195 +1,230 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealings::storage;
-use crate::dealings::storage::DEALINGS_BYTES;
-use cosmwasm_std::{Deps, Order, StdResult};
-use cw_storage_plus::Bound;
-use nym_coconut_dkg_common::dealer::{ContractDealing, PagedDealingsResponse};
-use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
+use crate::dealings::storage::{StoredDealing, DEALINGS_METADATA};
+use crate::state::storage::STATE;
+use cosmwasm_std::{Deps, StdResult};
+use nym_coconut_dkg_common::dealing::{
+    DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
+    DealingMetadataResponse, DealingStatus, DealingStatusResponse,
+};
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
+use std::collections::BTreeMap;
 
-pub fn query_dealings_paged(
+/// Get the metadata associated with the particular dealing
+pub fn query_dealing_metadata(
     deps: Deps<'_>,
-    idx: u64,
-    start_after: Option<String>,
-    limit: Option<u32>,
-) -> StdResult<PagedDealingsResponse> {
-    let limit = limit
-        .unwrap_or(storage::DEALINGS_PAGE_DEFAULT_LIMIT)
-        .min(storage::DEALINGS_PAGE_MAX_LIMIT) as usize;
+    epoch_id: EpochId,
+    dealer: String,
+    dealing_index: DealingIndex,
+) -> StdResult<DealingMetadataResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let metadata = DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
 
-    let idx = idx as usize;
-    if idx >= TOTAL_DEALINGS {
-        return Ok(PagedDealingsResponse::new(vec![], limit, None));
+    Ok(DealingMetadataResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        metadata,
+    })
+}
+
+/// Get the status of all dealings of particular dealer for given epoch.
+pub fn query_dealer_dealings_status(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
+    dealer: String,
+) -> StdResult<DealerDealingsStatusResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let state = STATE.load(deps.storage)?;
+
+    let mut dealing_submission_status: BTreeMap<DealingIndex, DealingStatus> = BTreeMap::new();
+
+    // Since our key size is in single digit range, querying all of this at once on chain is fine
+    for dealing_index in 0..state.key_size {
+        let metadata =
+            DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
+        dealing_submission_status.insert(dealing_index, metadata.into());
     }
 
-    let addr = start_after
-        .map(|addr| deps.api.addr_validate(&addr))
-        .transpose()?;
+    Ok(DealerDealingsStatusResponse {
+        epoch_id,
+        dealer,
+        all_dealings_fully_submitted: dealing_submission_status
+            .values()
+            .all(|d| d.fully_submitted),
+        dealing_submission_status,
+    })
+}
 
-    let start = addr.as_ref().map(Bound::exclusive);
+/// Get the status of particular dealing, i.e. whether it has been fully submitted.
+pub fn query_dealing_status(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
+    dealer: String,
+    dealing_index: DealingIndex,
+) -> StdResult<DealingStatusResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let metadata = DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
 
-    let dealings = DEALINGS_BYTES[idx]
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|res| res.map(|(dealer, dealing)| ContractDealing::new(dealing, dealer)))
-        .collect::<StdResult<Vec<_>>>()?;
+    Ok(DealingStatusResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        status: metadata.into(),
+    })
+}
 
-    let start_next_after = dealings.last().map(|dealing| dealing.dealer.clone());
+/// Get the status of particular chunk, i.e. whether (and when) it has been fully submitted.
+pub fn query_dealing_chunk_status(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
+    dealer: String,
+    dealing_index: DealingIndex,
+    chunk_index: ChunkIndex,
+) -> StdResult<DealingChunkStatusResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let metadata = DEALINGS_METADATA.may_load(deps.storage, (epoch_id, &dealer, dealing_index))?;
 
-    Ok(PagedDealingsResponse::new(
-        dealings,
-        limit,
-        start_next_after,
-    ))
+    let status = metadata
+        .as_ref()
+        .and_then(|m| m.submitted_chunks.get(&chunk_index))
+        .map(|&c| c.status)
+        .unwrap_or_default();
+
+    Ok(DealingChunkStatusResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        chunk_index,
+        status,
+    })
+}
+
+/// Get the particular chunk of the dealing.
+pub fn query_dealing_chunk(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
+    dealer: String,
+    dealing_index: DealingIndex,
+    chunk_index: ChunkIndex,
+) -> StdResult<DealingChunkResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let chunk = StoredDealing::read(deps.storage, epoch_id, &dealer, dealing_index, chunk_index);
+
+    Ok(DealingChunkResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        chunk_index,
+        chunk,
+    })
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::dealings::storage::{DEALINGS_PAGE_DEFAULT_LIMIT, DEALINGS_PAGE_MAX_LIMIT};
-    use crate::support::tests::fixtures::dealing_bytes_fixture;
+    use crate::support::tests::fixtures::{dealing_bytes_fixture, partial_dealing_fixture};
     use crate::support::tests::helpers::init_contract;
     use cosmwasm_std::{Addr, DepsMut};
+    use nym_coconut_dkg_common::dealing::{DealingChunkInfo, PartialContractDealing};
 
-    fn fill_dealings(deps: DepsMut<'_>, size: usize) {
-        for n in 0..size {
-            let dealing_share = dealing_bytes_fixture();
-            let sender = Addr::unchecked(format!("owner{}", n));
-            (0..TOTAL_DEALINGS).for_each(|idx| {
-                DEALINGS_BYTES[idx]
-                    .save(deps.storage, &sender, &dealing_share)
-                    .unwrap();
-            });
+    #[allow(unused)]
+    fn fill_dealings(
+        deps: DepsMut<'_>,
+        epoch: EpochId,
+        dealers: usize,
+        key_size: u32,
+        chunks: u16,
+    ) {
+        for i in 0..dealers {
+            let dealer = Addr::unchecked(format!("dealer{i}"));
+            for dealing_index in 0..key_size {
+                let data = dealing_bytes_fixture();
+                let chunks = data.0.chunks(data.len() / chunks as usize);
+
+                let mut chunk_infos = Vec::new();
+                for (chunk_index, chunk) in chunks.enumerate() {
+                    chunk_infos.push(DealingChunkInfo {
+                        size: chunk.len() as u64,
+                    });
+                    StoredDealing::save(
+                        deps.storage,
+                        epoch,
+                        &dealer,
+                        PartialContractDealing {
+                            dealing_index,
+                            chunk_index: chunk_index as ChunkIndex,
+                            data: chunk.into(),
+                        },
+                    )
+                }
+            }
         }
     }
 
     #[test]
-    fn empty_on_bad_idx() {
+    fn test_query_dealing_chunk() {
         let mut deps = init_contract();
-        fill_dealings(deps.as_mut(), 1000);
 
-        for idx in TOTAL_DEALINGS as u64..100 * TOTAL_DEALINGS as u64 {
-            let page1 = query_dealings_paged(deps.as_ref(), idx, None, None).unwrap();
-            assert_eq!(0, page1.dealings.len() as u32);
-        }
+        let bad_address = "FOOMP".to_string();
+        assert!(query_dealing_chunk(deps.as_ref(), 0, bad_address, 0, 0).is_err());
+
+        let empty = query_dealing_chunk(deps.as_ref(), 0, "foo".to_string(), 0, 0).unwrap();
+        assert_eq!(empty.epoch_id, 0);
+        assert_eq!(empty.dealing_index, 0);
+        assert_eq!(empty.chunk_index, 0);
+        assert_eq!(empty.dealer, Addr::unchecked("foo"));
+        assert!(empty.chunk.is_none());
+
+        // insert the dealing chunk
+        let dealing = partial_dealing_fixture();
+        StoredDealing::save(
+            deps.as_mut().storage,
+            0,
+            &Addr::unchecked("foo"),
+            dealing.clone(),
+        );
+
+        let retrieved = query_dealing_chunk(deps.as_ref(), 0, "foo".to_string(), 0, 0).unwrap();
+        assert_eq!(retrieved.epoch_id, 0);
+        assert_eq!(retrieved.dealing_index, dealing.dealing_index);
+        assert_eq!(retrieved.chunk_index, dealing.chunk_index);
+        assert_eq!(retrieved.dealer, Addr::unchecked("foo"));
+        assert_eq!(retrieved.chunk.unwrap(), dealing.data);
     }
 
     #[test]
-    fn dealings_empty_on_init() {
+    fn test_query_dealing_status() {
         let deps = init_contract();
-        for idx in 0..TOTAL_DEALINGS as u64 {
-            let response = query_dealings_paged(deps.as_ref(), idx, None, Option::from(2)).unwrap();
-            assert_eq!(0, response.dealings.len());
-        }
-    }
 
-    #[test]
-    fn dealings_paged_retrieval_obeys_limits() {
-        let mut deps = init_contract();
-        let limit = 2;
-        fill_dealings(deps.as_mut(), 1000);
+        let bad_address = "FOOMP".to_string();
+        assert!(query_dealing_status(deps.as_ref(), 0, bad_address, 0).is_err());
 
-        for idx in 0..TOTAL_DEALINGS as u64 {
-            let page1 =
-                query_dealings_paged(deps.as_ref(), idx, None, Option::from(limit)).unwrap();
-            assert_eq!(limit, page1.dealings.len() as u32);
-        }
-    }
+        let empty = query_dealing_status(deps.as_ref(), 0, "foo".to_string(), 0).unwrap();
+        assert_eq!(empty.epoch_id, 0);
+        assert_eq!(empty.dealing_index, 0);
+        assert_eq!(empty.dealer, Addr::unchecked("foo"));
+        assert!(!empty.status.fully_submitted);
+        assert!(!empty.status.has_metadata);
+        assert!(empty.status.chunk_submission_status.is_empty());
 
-    #[test]
-    fn dealings_paged_retrieval_has_default_limit() {
-        let mut deps = init_contract();
-        fill_dealings(deps.as_mut(), 1000);
+        // insert the metadata
+        //
 
-        for idx in 0..TOTAL_DEALINGS as u64 {
-            // query without explicitly setting a limit
-            let page1 = query_dealings_paged(deps.as_ref(), idx, None, None).unwrap();
-
-            assert_eq!(DEALINGS_PAGE_DEFAULT_LIMIT, page1.dealings.len() as u32);
-        }
-    }
-
-    #[test]
-    fn dealings_paged_retrieval_has_max_limit() {
-        let mut deps = init_contract();
-        fill_dealings(deps.as_mut(), 1000);
-
-        // query with a crazily high limit in an attempt to use too many resources
-        let crazy_limit = 1000 * DEALINGS_PAGE_MAX_LIMIT;
-        for idx in 0..TOTAL_DEALINGS as u64 {
-            let page1 =
-                query_dealings_paged(deps.as_ref(), idx, None, Option::from(crazy_limit)).unwrap();
-
-            // we default to a decent sized upper bound instead
-            let expected_limit = DEALINGS_PAGE_MAX_LIMIT;
-            assert_eq!(expected_limit, page1.dealings.len() as u32);
-        }
-    }
-
-    #[test]
-    fn dealings_pagination_works() {
-        let mut deps = init_contract();
-
-        fill_dealings(deps.as_mut(), 1);
-
-        let per_page = 2;
-
-        for idx in 0..TOTAL_DEALINGS as u64 {
-            let page1 =
-                query_dealings_paged(deps.as_ref(), idx, None, Option::from(per_page)).unwrap();
-
-            // page should have 1 result on it
-            assert_eq!(1, page1.dealings.len());
-        }
-
-        // save another
-        fill_dealings(deps.as_mut(), 2);
-
-        for idx in 0..TOTAL_DEALINGS as u64 {
-            // page1 should have 2 results on it
-            let page1 =
-                query_dealings_paged(deps.as_ref(), idx, None, Option::from(per_page)).unwrap();
-            assert_eq!(2, page1.dealings.len());
-        }
-
-        fill_dealings(deps.as_mut(), 3);
-
-        for idx in 0..TOTAL_DEALINGS as u64 {
-            // page1 still has 2 results
-            let page1 =
-                query_dealings_paged(deps.as_ref(), idx, None, Option::from(per_page)).unwrap();
-            assert_eq!(2, page1.dealings.len());
-
-            // retrieving the next page should start after the last key on this page
-            let start_after = page1.start_next_after.unwrap();
-            let page2 = query_dealings_paged(
-                deps.as_ref(),
-                idx,
-                Option::from(start_after.to_string()),
-                Option::from(per_page),
-            )
-            .unwrap();
-
-            assert_eq!(1, page2.dealings.len());
-        }
-
-        fill_dealings(deps.as_mut(), 4);
-
-        for idx in 0..TOTAL_DEALINGS as u64 {
-            let page1 =
-                query_dealings_paged(deps.as_ref(), idx, None, Option::from(per_page)).unwrap();
-            let start_after = page1.start_next_after.unwrap();
-            let page2 = query_dealings_paged(
-                deps.as_ref(),
-                idx,
-                Option::from(start_after.to_string()),
-                Option::from(per_page),
-            )
-            .unwrap();
-
-            // now we have 2 pages, with 2 results on the second page
-            assert_eq!(2, page2.dealings.len());
-        }
+        // // insert the dealing
+        // let dealing = partial_dealing_fixture();
+        // StoredDealing::save(
+        //     deps.as_mut().storage,
+        //     0,
+        //     &Addr::unchecked("foo"),
+        //     dealing.clone(),
+        // );
+        //
+        // let retrieved = query_dealing_status(deps.as_ref(), 0, "foo".to_string(), 0).unwrap();
+        // assert_eq!(retrieved.epoch_id, 0);
+        // assert_eq!(retrieved.dealing_index, dealing.dealing_index);
+        // assert_eq!(retrieved.dealer, Addr::unchecked("foo"));
+        // assert!(retrieved.dealing_submitted)
     }
 }

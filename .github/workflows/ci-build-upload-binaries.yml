@@ -2,6 +2,17 @@ name: ci-build-upload-binaries
 
 on:
   workflow_dispatch:
+    inputs:
+      add_tokio_unstable:
+        description: 'True to add RUSTFLAGS="--cfg tokio_unstable"'
+        required: true
+        default: false
+        type: boolean
+      enable_wireguard:
+        description: 'Add --features wireguard'
+        required: true
+        default: false
+        type: boolean
   pull_request:
     paths:
       - "clients/**"
@@ -10,12 +21,13 @@ on:
       - "gateway/**"
       - "integrations/**"
       - "mixnode/**"
+      - "nym-api/**"
+      - "nym-node/**"
+      - "nym-outfox/**"
+      - "nym-validator-rewarder/**"
       - "sdk/rust/nym-sdk/**"
       - "service-providers/**"
-      - "nym-api/**"
-      - "nym-outfox/**"
-      - "tools/nym-cli/**"
-      - "tools/ts-rs-cli/**"
+      - "tools/**"
 
 jobs:
   publish-nym:
@@ -42,6 +54,16 @@ jobs:
       - name: Install Dependencies (Linux)
         run: sudo apt update && sudo apt install libudev-dev
 
+      - name: Sets env vars for tokio if set in manual dispatch inputs
+        run: |
+          echo 'RUSTFLAGS="--cfg tokio_unstable"' >> $GITHUB_ENV
+        if: github.event_name == 'workflow_dispatch' && inputs.add_tokio_unstable == true
+
+      - name: Set CARGO_FEATURES
+        run: |
+          echo 'CARGO_FEATURES=--features wireguard' >> $GITHUB_ENV
+        if: github.event_name == 'workflow_dispatch' && inputs.enable_wireguard == true
+
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
@@ -51,7 +73,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release
+          args: --workspace --release ${{ env.CARGO_FEATURES }}
 
       - name: Install cargo-deb
         uses: actions-rs/cargo@v1
@@ -63,7 +85,28 @@ jobs:
         shell: bash
         run: make deb
 
+      # If this was a manual workflow_dispatch, publish binaries.
+
+      - name: Upload Artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v3
+        with:
+          name: nym-binaries-artifacts
+          path: |
+            target/release/nym-client
+            target/release/nym-gateway
+            target/release/nym-mixnode
+            target/release/nym-socks5-client
+            target/release/nym-api
+            target/release/nym-network-requester
+            target/release/nym-network-statistics
+            target/release/nym-cli
+          retention-days: 30
+
+      # If this was a pull_request, upload to build server
+
       - name: Prepare build output
+        if: github.event_name == 'pull_request'
         shell: bash
         env:
           OUTPUT_DIR: ci-builds/${{ github.ref_name }}
@@ -80,6 +123,7 @@ jobs:
           cp target/debian/*.deb $OUTPUT_DIR
 
       - name: Deploy branch to CI www
+        if: github.event_name == 'pull_request'
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:

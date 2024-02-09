@@ -1,17 +1,16 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage::{current_dealers, past_dealers};
-use crate::dealings::storage::DEALINGS_BYTES;
 use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRESHOLD};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
-use crate::state::STATE;
+use crate::state::storage::{DKG_ADMIN, STATE};
 use crate::verification_key_shares::storage::verified_dealers;
-use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, Response, Storage};
+use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Order, Response, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
 
-fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
+fn reset_dkg_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     THRESHOLD.remove(storage);
     let dealers: Vec<_> = current_dealers()
         .keys(storage, None, None, Order::Ascending)
@@ -19,15 +18,6 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
 
     for dealer_addr in dealers {
         let details = current_dealers().load(storage, &dealer_addr)?;
-        for dealings in DEALINGS_BYTES {
-            let dealing_keys: Vec<_> = dealings
-                .keys(storage, None, None, Order::Ascending)
-                .flatten()
-                .collect();
-            for key in dealing_keys {
-                dealings.remove(storage, &key);
-            }
-        }
         current_dealers().remove(storage, &dealer_addr)?;
         past_dealers().save(storage, &dealer_addr, &details)?;
     }
@@ -80,18 +70,43 @@ fn replacement_threshold_surpassed(deps: &DepsMut<'_>) -> Result<bool, ContractE
     Ok(removed_dealer_count >= replacement_threshold)
 }
 
-pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
+pub(crate) fn try_initiate_dkg(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    // only the admin is allowed to kick start the process
+    DKG_ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+
     let epoch = CURRENT_EPOCH.load(deps.storage)?;
-    if epoch.finish_timestamp > env.block.time {
-        return Err(ContractError::EarlyEpochStateAdvancement(
-            epoch
-                .finish_timestamp
-                .minus_seconds(env.block.time.seconds())
-                .seconds(),
-        ));
+    if !matches!(epoch.state, EpochState::WaitingInitialisation) {
+        return Err(ContractError::AlreadyInitialised);
     }
 
+    // the first exchange won't involve resharing
+    let initial_state = EpochState::PublicKeySubmission { resharing: false };
+    let initial_epoch = Epoch::new(initial_state, 0, epoch.time_configuration, env.block.time);
+    CURRENT_EPOCH.save(deps.storage, &initial_epoch)?;
+
+    Ok(Response::default())
+}
+
+pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
     let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+    if current_epoch.state == EpochState::WaitingInitialisation {
+        return Err(ContractError::WaitingInitialisation);
+    }
+
+    if let Some(finish_timestamp) = current_epoch.finish_timestamp {
+        if finish_timestamp > env.block.time {
+            return Err(ContractError::EarlyEpochStateAdvancement(
+                finish_timestamp
+                    .minus_seconds(env.block.time.seconds())
+                    .seconds(),
+            ));
+        }
+    }
+
     let next_epoch = if let Some(state) = current_epoch.state.next() {
         // We are during DKG process
         let mut new_state = state;
@@ -123,6 +138,8 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
     } else if dealers_eq_members(&deps)? {
         // The dealer set hasn't changed, so we only extend the finish timestamp
         // The epoch remains the same, as we use it as key for storing VKs
+
+        // TODO: change that behaviour in the following PR
         Epoch::new(
             current_epoch.state,
             current_epoch.epoch_id,
@@ -139,6 +156,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             // ... in reshare mode
             if INITIAL_REPLACEMENT_DATA.may_load(deps.storage)?.is_some() {
                 INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
+                    // TODO: FIXME: for second reshare the added set of dealers won't be allowed to participate
                     data.initial_height = env.block.height;
                     Ok(data)
                 })?;
@@ -152,7 +170,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
 
             EpochState::PublicKeySubmission { resharing: true }
         };
-        reset_epoch_state(deps.storage)?;
+        reset_dkg_state(deps.storage)?;
         Epoch::new(
             state,
             current_epoch.epoch_id + 1,
@@ -174,7 +192,7 @@ pub(crate) fn try_surpassed_threshold(
     let threshold = THRESHOLD.load(deps.storage)?;
     let dealers = verified_dealers(deps.storage)?;
     if dealers_still_active(&deps.as_ref(), dealers.into_iter())? < threshold as usize {
-        reset_epoch_state(deps.storage)?;
+        reset_dkg_state(deps.storage)?;
         CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |epoch| {
             Ok(Epoch::new(
                 EpochState::default(),
@@ -193,20 +211,19 @@ pub(crate) mod tests {
     use super::*;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::support::tests::fixtures::{dealer_details_fixture, vk_share_fixture};
-    use crate::support::tests::helpers::{init_contract, GROUP_MEMBERS};
+    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS, GROUP_MEMBERS};
     use crate::verification_key_shares::storage::vk_shares;
-    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
     use cw4::Member;
-    use nym_coconut_dkg_common::types::{
-        ContractSafeBytes, DealerDetails, EpochState, TimeConfiguration,
-    };
+    use cw_controllers::AdminError;
+    use nym_coconut_dkg_common::types::{DealerDetails, EpochState, TimeConfiguration};
     use rusty_fork::rusty_fork_test;
 
     // Because of the global variable handling group, we need individual process for each test
 
     rusty_fork_test! {
-        // Using values from the DKG document
+    // Using values from the DKG document
         #[test]
         fn threshold_surpassed() {
             let mut deps = init_contract();
@@ -217,14 +234,18 @@ pub(crate) mod tests {
 
             for n in [10, 25, 50, 100] {
                 let dealers: Vec<_> = (0..n).map(dealer_details_fixture).collect();
-                let shares: Vec<_> = (0..n).map(|idx| vk_share_fixture(&format!("owner{}", idx), 0)).collect();
+                let shares: Vec<_> = (0..n)
+                    .map(|idx| vk_share_fixture(&format!("owner{}", idx), 0))
+                    .collect();
                 let initial_dealers = dealers.iter().map(|d| d.address.clone()).collect();
                 let data = InitialReplacementData {
                     initial_dealers,
                     initial_height: 1,
                 };
                 for share in shares {
-                    vk_shares().save(deps.as_mut().storage, (&share.owner, 0), &share).unwrap();
+                    vk_shares()
+                        .save(deps.as_mut().storage, (&share.owner, 0), &share)
+                        .unwrap();
                 }
                 for f in [two_thirds, three_fourths, ninty_pc] {
                     let threshold = f(n);
@@ -361,7 +382,8 @@ pub(crate) mod tests {
         fn advance_state() {
             let mut deps = init_contract();
             let mut env = mock_env();
-            {
+
+               {
                 let mut group = GROUP_MEMBERS.lock().unwrap();
 
                 group.push((
@@ -394,13 +416,21 @@ pub(crate) mod tests {
                 ));
             }
 
+            // can't advance the state if dkg hasn't been initiated
+            assert_eq!(
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                ContractError::WaitingInitialisation
+            );
+
+            try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
             assert_eq!(
                 epoch.state,
                 EpochState::PublicKeySubmission { resharing: false }
             );
             assert_eq!(
-                epoch.finish_timestamp,
+                epoch.finish_timestamp.unwrap(),
                 env.block
                     .time
                     .plus_seconds(epoch.time_configuration.public_key_submission_time_secs)
@@ -424,7 +454,8 @@ pub(crate) mod tests {
             );
 
             // setup dealer details
-            let all_shares: [_; 4] = std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
+            let all_shares: [_; 4] =
+                std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
             for share in all_shares.iter() {
                 vk_shares()
                     .save(deps.as_mut().storage, (&share.owner, 0), share)
@@ -441,7 +472,10 @@ pub(crate) mod tests {
                 .may_load(&deps.storage)
                 .unwrap()
                 .is_none());
-            env.block.time = env.block.time.plus_seconds(epoch.time_configuration.public_key_submission_time_secs);
+            env.block.time = env
+                .block
+                .time
+                .plus_seconds(epoch.time_configuration.public_key_submission_time_secs);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
             assert_eq!(
@@ -449,7 +483,7 @@ pub(crate) mod tests {
                 EpochState::DealingExchange { resharing: false }
             );
             assert_eq!(
-                epoch.finish_timestamp,
+                epoch.finish_timestamp.unwrap(),
                 env.block
                     .time
                     .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs)
@@ -472,7 +506,7 @@ pub(crate) mod tests {
                 EpochState::VerificationKeySubmission { resharing: false }
             );
             assert_eq!(
-                epoch.finish_timestamp,
+                epoch.finish_timestamp.unwrap(),
                 env.block.time.plus_seconds(
                     epoch
                         .time_configuration
@@ -499,7 +533,7 @@ pub(crate) mod tests {
                 EpochState::VerificationKeyValidation { resharing: false }
             );
             assert_eq!(
-                epoch.finish_timestamp,
+                epoch.finish_timestamp.unwrap(),
                 env.block.time.plus_seconds(
                     epoch
                         .time_configuration
@@ -526,7 +560,7 @@ pub(crate) mod tests {
                 EpochState::VerificationKeyFinalization { resharing: false }
             );
             assert_eq!(
-                epoch.finish_timestamp,
+                epoch.finish_timestamp.unwrap(),
                 env.block.time.plus_seconds(
                     epoch
                         .time_configuration
@@ -548,7 +582,7 @@ pub(crate) mod tests {
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
             assert_eq!(epoch.state, EpochState::InProgress);
             assert_eq!(
-                epoch.finish_timestamp,
+                epoch.finish_timestamp.unwrap(),
                 env.block
                     .time
                     .plus_seconds(epoch.time_configuration.in_progress_time_secs)
@@ -614,7 +648,9 @@ pub(crate) mod tests {
 
             let all_details: [_; 4] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 2));
             for details in all_details.iter() {
-                past_dealers().remove(deps.as_mut().storage, &details.address).unwrap();
+                past_dealers()
+                    .remove(deps.as_mut().storage, &details.address)
+                    .unwrap();
                 current_dealers()
                     .save(deps.as_mut().storage, &details.address, details)
                     .unwrap();
@@ -622,9 +658,15 @@ pub(crate) mod tests {
             for times in [
                 epoch.time_configuration.public_key_submission_time_secs,
                 epoch.time_configuration.dealing_exchange_time_secs,
-                epoch.time_configuration.verification_key_submission_time_secs,
-                epoch.time_configuration.verification_key_validation_time_secs,
-                epoch.time_configuration.verification_key_finalization_time_secs,
+                epoch
+                    .time_configuration
+                    .verification_key_submission_time_secs,
+                epoch
+                    .time_configuration
+                    .verification_key_validation_time_secs,
+                epoch
+                    .time_configuration
+                    .verification_key_finalization_time_secs,
             ] {
                 env.block.time = env.block.time.plus_seconds(times);
                 advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
@@ -634,7 +676,7 @@ pub(crate) mod tests {
                 let mut share = vk_share_fixture(&format!("owner{}", i + 1), 1);
                 share.verified = i % 2 == 0;
                 share
-                });
+            });
             for share in all_shares.iter() {
                 vk_shares()
                     .save(deps.as_mut().storage, (&share.owner, 0), share)
@@ -670,6 +712,8 @@ pub(crate) mod tests {
         fn surpass_threshold() {
             let mut deps = init_contract();
             let mut env = mock_env();
+            try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
             let time_configuration = TimeConfiguration::default();
             {
                 let mut group = GROUP_MEMBERS.lock().unwrap();
@@ -701,13 +745,13 @@ pub(crate) mod tests {
             assert_eq!(
                 ret,
                 ContractError::IncorrectEpochState {
-                    current_state: EpochState::default().to_string(),
+                    current_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
                     expected_state: EpochState::InProgress.to_string()
                 }
             );
 
-
-            let all_shares: [_; 3] = std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
+            let all_shares: [_; 3] =
+                std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
             for share in all_shares.iter() {
                 vk_shares()
                     .save(deps.as_mut().storage, (&share.owner, 0), share)
@@ -719,7 +763,8 @@ pub(crate) mod tests {
                     .save(deps.as_mut().storage, &details.address, details)
                     .unwrap();
             }
-            let all_shares: [_; 3] = std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
+            let all_shares: [_; 3] =
+                std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
             for share in all_shares.iter() {
                 vk_shares()
                     .save(deps.as_mut().storage, (&share.owner, share.epoch_id), share)
@@ -779,6 +824,46 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn initialising_dkg() {
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        let initial_epoch_info = CURRENT_EPOCH.load(&deps.storage).unwrap();
+        assert!(initial_epoch_info.finish_timestamp.is_none());
+
+        // can only be executed by the admin
+        let res = try_initiate_dkg(deps.as_mut(), env.clone(), mock_info("not an admin", &[]))
+            .unwrap_err();
+        assert_eq!(ContractError::Admin(AdminError::NotAdmin {}), res);
+
+        let res = try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[]));
+        assert!(res.is_ok());
+
+        // can't be initialised more than once
+        let res = try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[]))
+            .unwrap_err();
+        assert_eq!(ContractError::AlreadyInitialised, res);
+
+        // sets the correct epoch data
+        let epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
+        assert_eq!(epoch.epoch_id, 0);
+        assert_eq!(
+            epoch.state,
+            EpochState::PublicKeySubmission { resharing: false }
+        );
+        assert_eq!(
+            epoch.time_configuration,
+            initial_epoch_info.time_configuration
+        );
+        assert_eq!(
+            epoch.finish_timestamp.unwrap(),
+            env.block
+                .time
+                .plus_seconds(epoch.time_configuration.public_key_submission_time_secs)
+        );
+    }
+
+    #[test]
     fn reset_state() {
         let mut deps = init_contract();
         let all_details: [_; 100] = std::array::from_fn(|i| dealer_details_fixture(i as u64));
@@ -788,27 +873,12 @@ pub(crate) mod tests {
             current_dealers()
                 .save(deps.as_mut().storage, &details.address, details)
                 .unwrap();
-            for dealings in DEALINGS_BYTES {
-                dealings
-                    .save(
-                        deps.as_mut().storage,
-                        &details.address,
-                        &ContractSafeBytes(vec![1, 2, 3]),
-                    )
-                    .unwrap();
-            }
         }
 
-        reset_epoch_state(deps.as_mut().storage).unwrap();
+        reset_dkg_state(deps.as_mut().storage).unwrap();
 
         assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
         for details in all_details {
-            for dealings in DEALINGS_BYTES {
-                assert!(dealings
-                    .may_load(&deps.storage, &details.address)
-                    .unwrap()
-                    .is_none());
-            }
             assert!(current_dealers()
                 .may_load(deps.as_mut().storage, &details.address)
                 .unwrap()
@@ -826,6 +896,7 @@ pub(crate) mod tests {
     fn verify_threshold() {
         let mut deps = init_contract();
         let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
 
         assert!(THRESHOLD.may_load(deps.as_mut().storage).unwrap().is_none());
 
@@ -838,6 +909,7 @@ pub(crate) mod tests {
                     &DealerDetails {
                         address: address.clone(),
                         bte_public_key_with_proof: "bte_public_key_with_proof".to_string(),
+                        ed25519_identity: "identity".to_string(),
                         announce_address: "127.0.0.1".to_string(),
                         assigned_index: i,
                     },

@@ -1,61 +1,44 @@
 [book]
-title = "Nym Operators Guide"
-authors = ["Max Hampshire", "serinko"]
-description = "Guides to setup Nym infrastructure"
+title = "Nym Docs"
+authors = ["Max Hampshire, Serinko, Alexia Lorenza Martinel"]
+description = "Nym technical documentation"
 language = "en"
-multilingual = false # for the moment - ideally work on chinese, brazillian, spanish next
+multilingual = false # for the moment - ideally work on chinese, brazillian portugese, spanish next
 src = "src"
+
+[rust]
+edition = "2018"
 
 #################
 # PREPROCESSORS #
 #################
 
-# Note if changing these fields:
-# - make sure you aren't running `mdbook serve`
-# - change value of `turn-off = true` to `false`. This is set to `true` usually to avoid a known constant-reload bug with `mdbook serve` and this preprocessor
-# - delete `./theme/` dir
-# - change the preprocessor values that you want to edit
-# - run `mdbook build`: this will rebuild the `./theme` directory
-# - change value of `turn-off` back to `true`
 [preprocessor.theme]
-pagetoc = true
-# some variables related (defined in theme/css/variables.css)
-pagetoc-width            = "13%"
-content-max-width        = "70%" # 82
-pagetoc-fontsize         = "14.5px"
-sidebar-width            = "300px"
-menu-bar-height          = "40px" # memu-bar = the bar on the top
-page-padding             = "20px"
-mobile-content-max-width = "98%"
-
-# layout
-content-padding           = "0 10px"
-content-main-margin-left  = "10%"
-content-main-margin-right = "10%"
-nav-chapters-max-width    = "auto"
-nav-chapters-min-width    = "auto"
-chapter-line-height       = "2em"
-section-line-height       = "1.5em"
-
-# if true, never read and touch the files in theme dir: this is used to stop the looping reload issue referred to in the readme
+sidebar-width             = "280px"
+content-max-width         = "70%"
+content-main-margin-left  = "5%"
+content-main-margin-right = "5%"
+root-font-size            = "70%"
+# DO NOT CHANGE or you might overwrite the custom hbs file
 turn-off = true
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
 assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
 
-# variables preprocessor: import variables into files
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
 wallet_release_version = "1.2.8"
+# nym-vpn related variables
+nym_vpn_latest_binary_url = "https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.3"
+nym_vpn_form_url = "https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"
 renderer = ["html"]
 
-# used for grabbing output of binary commands for automation
-# https://github.com/FauconFan/mdbook-cmdrun
+# used for grabbing output of binary commands for automation https://github.com/FauconFan/mdbook-cmdrun
 [preprocessor.cmdrun]
 
 # more pre-processor plugins to look into from https://github.com/rust-lang/mdBook/wiki/Third-party-plugins & https://lib.rs/keywords/mdbook-preprocessor
@@ -76,20 +59,16 @@ extra-watch-dirs = []             # directories to watch for triggering builds
 ##########
 
 [output.html]
-theme         = "theme" # this is the default if not explicitly set
+theme         = "nym_themes"
 default-theme = "coal"
 preferred-dark-theme = "coal"
 curly-quotes = true
-# mathjax-support = false # useful if we want to pull equations in
 copy-fonts = true
 no-section-label = false
-additional-css = ["theme/pagetoc.css", "./custom.css", "./mdbook-admonish.css"]
-additional-js  = ["theme/pagetoc.js"]
+additional-css = ["./nym_themes/custom.css", "./nym_themes/mdbook-admonish.css", "./nym_themes/pagetoc.css"]
+additional-js  = ["./nym_themes/pagetoc.js"]
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"
-# edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"
-site-url = "/operators/"
-# cname = "nymtech.net"
 input-404 = "not-found.md"
 
 [output.html.fold]
@@ -101,7 +80,7 @@ level = 0        # the depth to start folding
 editable = false         # allows editing the source code
 copyable = true          # include the copy button for copying code snippets
 copy-js = true           # includes the JavaScript for the code editor
-line-numbers = false     # displays line numbers for editable code
+line-numbers = true      # displays line numbers for editable code
 runnable = true          # displays a run button for rust code
 
 # options for the built in text search

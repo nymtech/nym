@@ -1,20 +1,26 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::queries::{
     query_current_dealers_paged, query_dealer_details, query_past_dealers_paged,
 };
 use crate::dealers::transactions::try_add_dealer;
-use crate::dealings::queries::query_dealings_paged;
-use crate::dealings::transactions::try_commit_dealings;
+use crate::dealings::queries::{
+    query_dealer_dealings_status, query_dealing_chunk, query_dealing_chunk_status,
+    query_dealing_metadata, query_dealing_status,
+};
+use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
 use crate::epoch_state::queries::{
     query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
 };
 use crate::epoch_state::storage::CURRENT_EPOCH;
-use crate::epoch_state::transactions::{advance_epoch_state, try_surpassed_threshold};
+use crate::epoch_state::transactions::{
+    advance_epoch_state, try_initiate_dkg, try_surpassed_threshold,
+};
 use crate::error::ContractError;
-use crate::state::{State, MULTISIG, STATE};
-use crate::verification_key_shares::queries::query_vk_shares_paged;
+use crate::state::queries::query_state;
+use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
+use crate::verification_key_shares::queries::{query_vk_share, query_vk_shares_paged};
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
 use cosmwasm_std::{
@@ -22,7 +28,11 @@ use cosmwasm_std::{
 };
 use cw4::Cw4Contract;
 use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use nym_coconut_dkg_common::types::{Epoch, EpochState};
+use nym_coconut_dkg_common::types::{Epoch, EpochState, State};
+use semver::Version;
+
+const CONTRACT_NAME: &str = "crate:nym-coconut-dkg";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Instantiate the contract.
 ///
@@ -33,13 +43,15 @@ use nym_coconut_dkg_common::types::{Epoch, EpochState};
 pub fn instantiate(
     mut deps: DepsMut<'_>,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
     MULTISIG.set(deps.branch(), Some(multisig_addr.clone()))?;
 
-    let group_addr = Cw4Contract(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
+    DKG_ADMIN.set(deps.branch(), Some(info.sender))?;
+
+    let group_addr = Cw4Contract::new(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
         ContractError::InvalidGroup {
             addr: msg.group_addr.clone(),
         }
@@ -49,18 +61,21 @@ pub fn instantiate(
         group_addr,
         multisig_addr,
         mix_denom: msg.mix_denom,
+        key_size: msg.key_size,
     };
     STATE.save(deps.storage, &state)?;
 
     CURRENT_EPOCH.save(
         deps.storage,
         &Epoch::new(
-            EpochState::default(),
+            EpochState::WaitingInitialisation,
             0,
             msg.time_configuration.unwrap_or_default(),
             env.block.time,
         ),
     )?;
+
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::default())
 }
@@ -74,15 +89,28 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::InitiateDkg {} => try_initiate_dkg(deps, env, info),
         ExecuteMsg::RegisterDealer {
             bte_key_with_proof,
+            identity_key,
             announce_address,
             resharing,
-        } => try_add_dealer(deps, info, bte_key_with_proof, announce_address, resharing),
-        ExecuteMsg::CommitDealing {
-            dealing_bytes,
+        } => try_add_dealer(
+            deps,
+            info,
+            bte_key_with_proof,
+            identity_key,
+            announce_address,
             resharing,
-        } => try_commit_dealings(deps, info, dealing_bytes, resharing),
+        ),
+        ExecuteMsg::CommitDealingsMetadata {
+            dealing_index,
+            chunks,
+            resharing,
+        } => try_submit_dealings_metadata(deps, info, dealing_index, chunks, resharing),
+        ExecuteMsg::CommitDealingsChunk { chunk, resharing } => {
+            try_commit_dealings_chunk(deps, env, info, chunk, resharing)
+        }
         ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
             try_commit_verification_key_share(deps, env, info, share, resharing)
         }
@@ -97,6 +125,7 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
+        QueryMsg::GetState {} => to_binary(&query_state(deps.storage)?)?,
         QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch(deps.storage)?)?,
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
@@ -111,24 +140,90 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetPastDealers { limit, start_after } => {
             to_binary(&query_past_dealers_paged(deps, start_after, limit)?)?
         }
-        QueryMsg::GetDealing {
-            idx,
-            limit,
-            start_after,
-        } => to_binary(&query_dealings_paged(deps, idx, start_after, limit)?)?,
+        QueryMsg::GetDealingsMetadata {
+            epoch_id,
+            dealer,
+            dealing_index,
+        } => to_binary(&query_dealing_metadata(
+            deps,
+            epoch_id,
+            dealer,
+            dealing_index,
+        )?)?,
+        QueryMsg::GetDealerDealingsStatus { epoch_id, dealer } => {
+            to_binary(&query_dealer_dealings_status(deps, epoch_id, dealer)?)?
+        }
+        QueryMsg::GetDealingStatus {
+            epoch_id,
+            dealer,
+            dealing_index,
+        } => to_binary(&query_dealing_status(
+            deps,
+            epoch_id,
+            dealer,
+            dealing_index,
+        )?)?,
+        QueryMsg::GetDealingChunkStatus {
+            epoch_id,
+            dealer,
+            dealing_index,
+            chunk_index,
+        } => to_binary(&query_dealing_chunk_status(
+            deps,
+            epoch_id,
+            dealer,
+            dealing_index,
+            chunk_index,
+        )?)?,
+        QueryMsg::GetDealingChunk {
+            epoch_id,
+            dealer,
+            dealing_index,
+            chunk_index,
+        } => to_binary(&query_dealing_chunk(
+            deps,
+            epoch_id,
+            dealer,
+            dealing_index,
+            chunk_index,
+        )?)?,
+        QueryMsg::GetVerificationKey { owner, epoch_id } => {
+            to_binary(&query_vk_share(deps, owner, epoch_id)?)?
+        }
         QueryMsg::GetVerificationKeys {
             epoch_id,
             limit,
             start_after,
         } => to_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?)?,
     };
 
     Ok(response)
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    Ok(Default::default())
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    fn parse_semver(raw: &str) -> Result<Version, ContractError> {
+        raw.parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: CONTRACT_VERSION.to_string(),
+                error_message: error.to_string(),
+            })
+    }
+
+    // Note: don't remove this particular bit of code as we have to ALWAYS check whether we have to
+    // update the stored version
+    let build_version: Version = parse_semver(CONTRACT_VERSION)?;
+    let stored_version: Version = parse_semver(&cw2::get_contract_version(deps.storage)?.version)?;
+
+    if stored_version < build_version {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        // If state structure changed in any contract version in the way migration is needed, it
+        // should occur here, for example anything from `crate::queued_migrations::`
+    }
+
+    Ok(Response::new())
 }
 
 #[cfg(test)]
@@ -140,7 +235,8 @@ mod tests {
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
-    use nym_coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
+    use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
+    use nym_coconut_dkg_common::msg::ExecuteMsg::{InitiateDkg, RegisterDealer};
     use nym_coconut_dkg_common::types::NodeIndex;
     use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
@@ -178,6 +274,7 @@ mod tests {
             multisig_addr: MULTISIG_CONTRACT.to_string(),
             time_configuration: None,
             mix_denom: TEST_MIX_DENOM.to_string(),
+            key_size: DEFAULT_DEALINGS as u32,
         };
         app.instantiate_contract(
             coconut_dkg_code_id,
@@ -213,6 +310,7 @@ mod tests {
             multisig_addr: "multisig_addr".to_string(),
             time_configuration: None,
             mix_denom: "nym".to_string(),
+            key_size: 5,
         };
         let info = mock_info("creator", &[]);
 
@@ -235,6 +333,14 @@ mod tests {
         });
         let coconut_dkg_contract_addr = instantiate_with_group(&mut app, &members);
 
+        app.execute_contract(
+            Addr::unchecked(ADMIN_ADDRESS),
+            coconut_dkg_contract_addr.clone(),
+            &InitiateDkg {},
+            &[],
+        )
+        .unwrap();
+
         for (idx, member) in members.iter().enumerate() {
             let res = app
                 .execute_contract(
@@ -242,6 +348,7 @@ mod tests {
                     coconut_dkg_contract_addr.clone(),
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
+                        identity_key: "identity".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
                         resharing: false,
                     },
@@ -256,6 +363,7 @@ mod tests {
                     coconut_dkg_contract_addr.clone(),
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
+                        identity_key: "identity".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
                         resharing: false,
                     },
@@ -272,6 +380,7 @@ mod tests {
                 coconut_dkg_contract_addr,
                 &RegisterDealer {
                     bte_key_with_proof: "bte_key_with_proof".to_string(),
+                    identity_key: "identity".to_string(),
                     announce_address: "127.0.0.1:8000".to_string(),
                     resharing: false,
                 },

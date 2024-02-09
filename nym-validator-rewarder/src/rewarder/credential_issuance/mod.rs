@@ -8,6 +8,7 @@ use crate::rewarder::credential_issuance::types::{CredentialIssuanceResults, Mon
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use nym_task::TaskClient;
+use nym_validator_client::nyxd::AccountId;
 use tracing::info;
 
 mod monitor;
@@ -21,9 +22,11 @@ impl CredentialIssuance {
     pub(crate) async fn new(
         epoch: Epoch,
         nyxd_client: &NyxdClient,
+        whitelist: &[AccountId],
     ) -> Result<Self, NymRewarderError> {
         Ok(CredentialIssuance {
-            monitoring_results: MonitoringResults::new_initial(epoch, nyxd_client).await?,
+            monitoring_results: MonitoringResults::new_initial(epoch, nyxd_client, whitelist)
+                .await?,
         })
     }
 

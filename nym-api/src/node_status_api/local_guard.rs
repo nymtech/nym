@@ -36,7 +36,7 @@ impl<'r> FromRequest<'r> for LocalRequest {
                 "Received a request from {:?} for a local-only route",
                 request.client_ip()
             );
-            Outcome::Failure((Status::Unauthorized, NonLocalRequestError))
+            Outcome::Error((Status::Unauthorized, NonLocalRequestError))
         }
     }
 }

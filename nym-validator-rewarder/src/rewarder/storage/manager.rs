@@ -74,6 +74,7 @@ impl StorageManager {
         epoch: i64,
         consensus_address: String,
         operator_account: String,
+        whitelisted: bool,
         amount: String,
         voting_power: i64,
         voting_power_share: String,
@@ -86,16 +87,18 @@ impl StorageManager {
                     rewarding_epoch_id,
                     validator_consensus_address,
                     operator_account,
+                    whitelisted,
                     amount,
                     voting_power,
                     voting_power_share,
                     signed_blocks,
                     signed_blocks_percent
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             epoch,
             consensus_address,
             operator_account,
+            whitelisted,
             amount,
             voting_power,
             voting_power_share,
@@ -144,6 +147,7 @@ impl StorageManager {
         &self,
         epoch: i64,
         operator_account: String,
+        whitelisted: bool,
         amount: String,
         api_endpoint: String,
         issued_partial_credentials: u32,
@@ -155,15 +159,17 @@ impl StorageManager {
                 INSERT INTO credential_issuance_reward (
                     rewarding_epoch_id,
                     operator_account,
+                    whitelisted,
                     amount,
                     api_endpoint,
                     issued_partial_credentials,
                     issued_credentials_share,
                     validated_issued_credentials
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             epoch,
             operator_account,
+            whitelisted,
             amount,
             api_endpoint,
             issued_partial_credentials,

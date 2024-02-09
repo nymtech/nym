@@ -240,6 +240,7 @@ pub(crate) fn override_network_requester_config(
     )
 }
 
+// NOTE: make sure this is in sync with service-providers/ip-packet-router/src/cli/mod.rs::override_config
 pub(crate) fn override_ip_packet_router_config(
     mut cfg: nym_ip_packet_router::Config,
     opts: Option<OverrideIpPacketRouterConfig>,

@@ -1,4 +1,4 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::CoconutError;
@@ -6,13 +6,19 @@ use crate::epoch_operations::MixnodeWithPerformance;
 use crate::support::config::Config;
 use anyhow::Result;
 use async_trait::async_trait;
-use cw3::ProposalResponse;
+use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_dkg_common::dealing::{
+    DealerDealingsStatusResponse, DealingChunkInfo, DealingMetadata, DealingStatusResponse,
+    PartialContractDealing,
+};
 use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use nym_coconut_dkg_common::types::InitialReplacementData;
+use nym_coconut_dkg_common::types::{
+    ChunkIndex, DealingIndex, InitialReplacementData, PartialContractDealingData, State,
+};
 use nym_coconut_dkg_common::{
-    dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
+    dealer::{DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
@@ -341,6 +347,15 @@ impl crate::coconut::client::Client for Client {
         self.client_address().await
     }
 
+    async fn dkg_contract_address(&self) -> Result<AccountId, CoconutError> {
+        nyxd_query!(
+            self,
+            dkg_contract_address()
+                .cloned()
+                .ok_or_else(|| NyxdError::unavailable_contract_address("dkg contract").into())
+        )
+    }
+
     async fn get_tx(&self, tx_hash: Hash) -> crate::coconut::error::Result<nyxd::TxResponse> {
         nyxd_query!(self, get_tx(tx_hash).await).map_err(|source| {
             CoconutError::TxRetrievalFailure {
@@ -361,6 +376,14 @@ impl crate::coconut::client::Client for Client {
         Ok(nyxd_query!(self, get_all_proposals().await?))
     }
 
+    async fn get_vote(
+        &self,
+        proposal_id: u64,
+        voter: String,
+    ) -> crate::coconut::error::Result<VoteResponse> {
+        Ok(nyxd_query!(self, query_vote(proposal_id, voter).await?))
+    }
+
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,
@@ -369,6 +392,10 @@ impl crate::coconut::client::Client for Client {
             self,
             get_spent_credential(blinded_serial_number).await?
         ))
+    }
+
+    async fn contract_state(&self) -> crate::coconut::error::Result<State> {
+        Ok(nyxd_query!(self, get_state().await?))
     }
 
     async fn get_current_epoch(&self) -> crate::coconut::error::Result<Epoch> {
@@ -398,21 +425,74 @@ impl crate::coconut::client::Client for Client {
         Ok(nyxd_query!(self, get_dealer_details(self_address).await?))
     }
 
+    async fn get_dealer_dealings_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> crate::coconut::error::Result<DealerDealingsStatusResponse> {
+        Ok(nyxd_query!(
+            self,
+            get_dealer_dealings_status(epoch_id, dealer).await?
+        ))
+    }
+
+    async fn get_dealing_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> crate::coconut::error::Result<DealingStatusResponse> {
+        Ok(nyxd_query!(
+            self,
+            get_dealing_status(epoch_id, dealer, dealing_index).await?
+        ))
+    }
+
     async fn get_current_dealers(&self) -> crate::coconut::error::Result<Vec<DealerDetails>> {
         Ok(nyxd_query!(self, get_all_current_dealers().await?))
     }
 
-    async fn get_dealings(
+    async fn get_dealing_metadata(
         &self,
-        idx: usize,
-    ) -> crate::coconut::error::Result<Vec<ContractDealing>> {
-        Ok(nyxd_query!(self, get_all_epoch_dealings(idx as u64).await?))
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> crate::coconut::error::Result<Option<DealingMetadata>> {
+        Ok(nyxd_query!(
+            self,
+            get_dealings_metadata(epoch_id, dealer, dealing_index)
+                .await?
+                .metadata
+        ))
+    }
+
+    async fn get_dealing_chunk(
+        &self,
+        epoch_id: EpochId,
+        dealer: &str,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) -> crate::coconut::error::Result<Option<PartialContractDealingData>> {
+        Ok(nyxd_query!(
+            self,
+            get_dealing_chunk(epoch_id, dealer.to_string(), dealing_index, chunk_index)
+                .await?
+                .chunk
+        ))
+    }
+
+    async fn get_verification_key_share(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<Option<ContractVKShare>, CoconutError> {
+        Ok(nyxd_query!(self, get_vk_share(epoch_id, dealer).await?).share)
     }
 
     async fn get_verification_key_shares(
         &self,
         epoch_id: EpochId,
-    ) -> crate::coconut::error::Result<Vec<ContractVKShare>> {
+    ) -> Result<Vec<ContractVKShare>, CoconutError> {
         Ok(nyxd_query!(
             self,
             get_all_verification_key_shares(epoch_id).await?
@@ -442,23 +522,36 @@ impl crate::coconut::client::Client for Client {
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(nyxd_signing!(
             self,
-            register_dealer(bte_key, announce_address, resharing, None).await?
+            register_dealer(bte_key, identity_key, announce_address, resharing, None).await?
         ))
     }
 
-    async fn submit_dealing(
+    async fn submit_dealing_metadata(
         &self,
-        dealing_bytes: ContractSafeBytes,
+        dealing_index: DealingIndex,
+        chunks: Vec<DealingChunkInfo>,
+        resharing: bool,
+    ) -> crate::coconut::error::Result<ExecuteResult> {
+        Ok(nyxd_signing!(
+            self,
+            submit_dealing_metadata(dealing_index, chunks, resharing, None).await?
+        ))
+    }
+
+    async fn submit_dealing_chunk(
+        &self,
+        chunk: PartialContractDealing,
         resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(nyxd_signing!(
             self,
-            submit_dealing_bytes(dealing_bytes, resharing, None).await?
+            submit_dealing_chunk(chunk, resharing, None).await?
         ))
     }
 

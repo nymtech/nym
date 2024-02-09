@@ -235,12 +235,15 @@ impl CredentialIssuanceMonitor {
         let api_client = api_client(&issuer)?;
 
         let epoch_credentials = api_client.epoch_credentials(epoch_id).await?;
+        let whitelisted = self.config.whitelist.contains(&issuer.operator_account);
+
         let Some(first_id) = epoch_credentials.first_epoch_credential_id else {
             // no point in doing anything more - if they haven't issued anything, there's nothing to verify
             debug!("no credentials issued this epoch",);
             return Ok(RawOperatorResult::new_empty(
                 issuer.operator_account,
                 issuer.api_runner,
+                whitelisted,
             ));
         };
         trace!("issued credentials: {epoch_credentials:?}");
@@ -283,6 +286,7 @@ impl CredentialIssuanceMonitor {
         Ok(RawOperatorResult {
             operator_account: issuer.operator_account,
             api_runner: issuer.api_runner,
+            whitelisted,
             issued_credentials: epoch_credentials.total_issued,
             validated_credentials: sampled,
         })

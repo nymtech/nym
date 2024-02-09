@@ -9,7 +9,7 @@ use cosmwasm_std::{
     QuerierResult, SystemResult, WasmQuery,
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
-use lazy_static::lazy_static;
+use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
 use nym_coconut_dkg_common::msg::InstantiateMsg;
 use nym_coconut_dkg_common::types::DealerDetails;
 use std::sync::Mutex;
@@ -20,9 +20,7 @@ pub const ADMIN_ADDRESS: &str = "admin address";
 pub const GROUP_CONTRACT: &str = "group contract address";
 pub const MULTISIG_CONTRACT: &str = "multisig contract address";
 
-lazy_static! {
-    pub static ref GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(vec![]);
-}
+pub(crate) static GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(Vec::new());
 
 pub fn add_fixture_dealer(deps: DepsMut<'_>) {
     let owner = Addr::unchecked("owner");
@@ -33,6 +31,7 @@ pub fn add_fixture_dealer(deps: DepsMut<'_>) {
             &DealerDetails {
                 address: owner.clone(),
                 bte_public_key_with_proof: String::new(),
+                ed25519_identity: String::new(),
                 announce_address: String::new(),
                 assigned_index: 100,
             },
@@ -87,6 +86,7 @@ pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> 
         multisig_addr: String::from(MULTISIG_CONTRACT),
         time_configuration: None,
         mix_denom: TEST_MIX_DENOM.to_string(),
+        key_size: DEFAULT_DEALINGS as u32,
     };
     let env = mock_env();
     let info = mock_info(ADMIN_ADDRESS, &[]);

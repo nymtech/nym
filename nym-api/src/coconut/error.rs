@@ -1,12 +1,8 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use rocket::http::{ContentType, Status};
-use rocket::response::Responder;
-use rocket::{response, Request, Response};
-use std::io::Cursor;
-use thiserror::Error;
-
+use crate::node_status_api::models::NymApiStorageError;
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
@@ -14,8 +10,11 @@ use nym_crypto::asymmetric::{
 use nym_dkg::error::DkgError;
 use nym_validator_client::coconut::CoconutApiError;
 use nym_validator_client::nyxd::error::{NyxdError, TendermintError};
-
-use crate::node_status_api::models::NymApiStorageError;
+use rocket::http::{ContentType, Status};
+use rocket::response::Responder;
+use rocket::{response, Request, Response};
+use std::io::Cursor;
+use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, CoconutError>;
 
@@ -124,6 +123,31 @@ pub enum CoconutError {
     // I guess we should make this one a bit more detailed
     #[error("the provided query arguments were invalid")]
     InvalidQueryArguments,
+
+    #[error("the internal dkg state for epoch {epoch_id} is missing - we might have joined mid exchange")]
+    MissingDkgState { epoch_id: EpochId },
+
+    #[error(
+        "the node index value for epoch {epoch_id} is not available - are you sure we are a dealer?"
+    )]
+    UnavailableAssignedIndex { epoch_id: EpochId },
+
+    #[error("the receiver index value for epoch {epoch_id} is not available - are you sure we are a receiver?")]
+    UnavailableReceiverIndex { epoch_id: EpochId },
+
+    #[error("the threshold value for epoch {epoch_id} is not available")]
+    UnavailableThreshold { epoch_id: EpochId },
+
+    #[error("the proposal id value for epoch {epoch_id} is not available")]
+    UnavailableProposalId { epoch_id: EpochId },
+
+    #[error("could not find dealing chunk {chunk_index} for dealing {dealing_index} from dealer {dealer} for epoch {epoch_id} on the chain!")]
+    MissingDealingChunk {
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

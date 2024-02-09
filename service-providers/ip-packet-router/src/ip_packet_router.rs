@@ -12,9 +12,9 @@ use nym_sdk::mixnet::Recipient;
 use nym_task::{TaskClient, TaskHandle};
 
 use crate::{
+    config::Config,
     error::IpPacketRouterError,
     request_filter::{self, RequestFilter},
-    Config,
 };
 
 pub struct OnStartData {
@@ -56,12 +56,14 @@ impl IpPacketRouter {
     }
 
     #[must_use]
+    #[allow(unused)]
     pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
         self.shutdown = Some(shutdown);
         self
     }
 
     #[must_use]
+    #[allow(unused)]
     pub fn with_custom_gateway_transceiver(
         mut self,
         gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
@@ -71,18 +73,21 @@ impl IpPacketRouter {
     }
 
     #[must_use]
+    #[allow(unused)]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
         self
     }
 
     #[must_use]
+    #[allow(unused)]
     pub fn with_on_start(mut self, on_start: oneshot::Sender<OnStartData>) -> Self {
         self.on_start = Some(on_start);
         self
     }
 
     #[must_use]
+    #[allow(unused)]
     pub fn with_custom_topology_provider(
         mut self,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,

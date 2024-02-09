@@ -26,6 +26,7 @@ impl RequestFilter {
         Self::new_exit_policy_filter(config).await
     }
 
+    #[allow(unused)]
     pub fn current_exit_policy_filter(&self) -> Option<&ExitPolicyRequestFilter> {
         match &*self.inner {
             RequestFilterInner::ExitPolicy { policy_filter } => Some(policy_filter),

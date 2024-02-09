@@ -13,9 +13,11 @@ bs58 = "0.4"
 comfy-table = "6.0.0"
 cfg-if = "1.0.0"
 clap = { workspace = true, features = ["derive"] }
+csv = "1.3.0"
 cw-utils = { workspace = true }
 handlebars = "3.0.1"
 humantime-serde = "1.0"
+inquire = "0.6.2"
 k256 = { workspace = true, features = ["ecdsa", "sha256"] }
 log = { workspace = true }
 rand = {version = "0.6", features = ["std"] }

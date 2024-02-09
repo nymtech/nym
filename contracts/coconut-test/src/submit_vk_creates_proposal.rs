@@ -12,7 +12,7 @@ use cw4::Member;
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};
 use nym_coconut_dkg_common::msg::ExecuteMsg::{
-    AdvanceEpochState, CommitVerificationKeyShare, RegisterDealer,
+    AdvanceEpochState, CommitVerificationKeyShare, InitiateDkg, RegisterDealer,
 };
 use nym_coconut_dkg_common::msg::InstantiateMsg as DkgInstantiateMsg;
 use nym_coconut_dkg_common::msg::QueryMsg::GetVerificationKeys;
@@ -75,6 +75,7 @@ fn dkg_proposal() {
         multisig_addr: multisig_contract_addr.to_string(),
         time_configuration: None,
         mix_denom: TEST_COIN_DENOM.to_string(),
+        key_size: 5,
     };
     let coconut_dkg_contract_addr = app
         .instantiate_contract(
@@ -100,10 +101,19 @@ fn dkg_proposal() {
     .unwrap();
 
     app.execute_contract(
+        Addr::unchecked(OWNER),
+        coconut_dkg_contract_addr.clone(),
+        &InitiateDkg {},
+        &[],
+    )
+    .unwrap();
+
+    app.execute_contract(
         Addr::unchecked(MEMBER1),
         coconut_dkg_contract_addr.clone(),
         &RegisterDealer {
             bte_key_with_proof: "bte_key_with_proof".to_string(),
+            identity_key: "identity".to_string(),
             announce_address: "127.0.0.1:8000".to_string(),
             resharing: false,
         },

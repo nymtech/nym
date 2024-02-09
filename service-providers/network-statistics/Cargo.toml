@@ -10,7 +10,7 @@ license.workspace = true
 dirs = "4.0"
 log = { workspace = true }
 pretty_env_logger = "0.4"
-rocket = { version = "0.5.0-rc.2", features = ["json"] }
+rocket = { version = "0.5.0", features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono"]}
 thiserror = { workspace = true }

@@ -1,4 +1,4 @@
-name: Build release of Nym smart contracts
+name: publish-nym-contracts
 on:
   workflow_dispatch:
   release:

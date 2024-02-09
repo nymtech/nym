@@ -1,4 +1,4 @@
-name: Publish Nym Wallet (MacOS)
+name: publish-nym-wallet-macos
 on:
   workflow_dispatch:
   release:

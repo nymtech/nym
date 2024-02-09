@@ -1,4 +1,4 @@
-name: Releases - calculate file hashes
+name: release-calculate-hash
 
 on:
   workflow_call:

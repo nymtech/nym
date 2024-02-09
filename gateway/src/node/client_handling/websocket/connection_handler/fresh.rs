@@ -15,7 +15,7 @@ use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     registration::handshake::{error::HandshakeError, gateway_handshake, SharedKeys},
     types::{ClientControlRequest, ServerResponse},
-    BinaryResponse, PROTOCOL_VERSION,
+    BinaryResponse, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
@@ -95,6 +95,9 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
+
+    // currently unused (but populated)
+    pub(crate) negotiated_protocol: Option<u8>,
 }
 
 impl<R, S, St> FreshHandler<R, S, St>
@@ -126,6 +129,7 @@ where
             local_identity,
             storage,
             coconut_verifier,
+            negotiated_protocol: None,
         }
     }
 
@@ -310,7 +314,7 @@ where
     /// Checks whether the stored shared keys match the received data, i.e. whether the upon decryption
     /// the provided encrypted address matches the expected unencrypted address.
     ///
-    /// Returns the the retrieved shared keys if the check was successful.
+    /// Returns the retrieved shared keys if the check was successful.
     ///
     /// # Arguments
     ///
@@ -355,30 +359,33 @@ where
         }
     }
 
-    fn check_client_protocol(
+    fn negotiate_client_protocol(
         &self,
         client_protocol: Option<u8>,
-    ) -> Result<(), InitialAuthenticationError> {
-        // right now there are no failure cases here, but this might change in the future
-        match client_protocol {
-            None => {
-                warn!("the client we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-                // note: in +1.2.0 we will have to return a hard error here
-                Ok(())
-            }
-            Some(v) if v > PROTOCOL_VERSION => {
-                let err = InitialAuthenticationError::IncompatibleProtocol {
-                    client: Some(v),
-                    current: PROTOCOL_VERSION,
-                };
-                error!("{err}");
-                Err(err)
-            }
+    ) -> Result<u8, InitialAuthenticationError> {
+        let Some(client_protocol_version) = client_protocol else {
+            warn!("the client we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
+            // note: in +1.2.0 we will have to return a hard error here
+            Ok(INITIAL_PROTOCOL_VERSION)
+        };
 
-            Some(_) => {
-                info!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
-                Ok(())
-            }
+        // a v2 gateway will understand v1 requests, but v1 client will not understand v2 responses
+        if client_protocol_version == 1 {
+            return Ok(1);
+        }
+
+        // we can't handle clients with higher protocol than ours
+        // (perhaps we could try to negotiate downgrade on our end? sounds like a nice future improvement)
+        if client_protocol_version <= CURRENT_PROTOCOL_VERSION {
+            info!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
+            Ok(CURRENT_PROTOCOL_VERSION)
+        } else {
+            let err = InitialAuthenticationError::IncompatibleProtocol {
+                client: client_protocol,
+                current: CURRENT_PROTOCOL_VERSION,
+            };
+            error!("{err}");
+            Err(err)
         }
     }
 
@@ -490,7 +497,9 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        self.check_client_protocol(client_protocol_version)?;
+        let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
+        // populate the negotiated protocol for future uses
+        self.negotiated_protocol = Some(negotiated_protocol);
 
         let address = DestinationAddressBytes::try_from_base58_string(address)
             .map_err(|err| InitialAuthenticationError::MalformedClientAddress(err.to_string()))?;
@@ -519,7 +528,7 @@ where
         Ok(InitialAuthResult::new(
             client_details,
             ServerResponse::Authenticate {
-                protocol_version: Some(PROTOCOL_VERSION),
+                protocol_version: Some(negotiated_protocol),
                 status,
                 bandwidth_remaining,
             },
@@ -580,7 +589,9 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        self.check_client_protocol(client_protocol_version)?;
+        let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
+        // populate the negotiated protocol for future uses
+        self.negotiated_protocol = Some(negotiated_protocol);
 
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
@@ -597,7 +608,7 @@ where
         Ok(InitialAuthResult::new(
             Some(client_details),
             ServerResponse::Register {
-                protocol_version: Some(PROTOCOL_VERSION),
+                protocol_version: Some(negotiated_protocol),
                 status,
             },
         ))

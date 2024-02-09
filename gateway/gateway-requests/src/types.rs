@@ -5,7 +5,7 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::models::{CredentialSpendingWithEpoch, OldV1Credential};
 use crate::registration::handshake::SharedKeys;
-use crate::{GatewayMacSize, PROTOCOL_VERSION};
+use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION};
 use log::error;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::{CoconutError, UnknownCredentialType};
@@ -39,7 +39,7 @@ pub enum RegistrationHandshake {
 impl RegistrationHandshake {
     pub fn new_payload(data: Vec<u8>) -> Self {
         RegistrationHandshake::HandshakePayload {
-            protocol_version: Some(PROTOCOL_VERSION),
+            protocol_version: Some(CURRENT_PROTOCOL_VERSION),
             data,
         }
     }
@@ -157,7 +157,7 @@ impl ClientControlRequest {
         iv: IV,
     ) -> Self {
         ClientControlRequest::Authenticate {
-            protocol_version: Some(PROTOCOL_VERSION),
+            protocol_version: Some(CURRENT_PROTOCOL_VERSION),
             address: address.as_base58_string(),
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),

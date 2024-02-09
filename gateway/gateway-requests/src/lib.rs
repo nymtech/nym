@@ -18,7 +18,8 @@ pub mod types;
 // history:
 // 1 - initial release
 // 2 - changes to client credentials structure
-pub const PROTOCOL_VERSION: u8 = 2;
+pub const INITIAL_PROTOCOL_VERSION: u8 = 1;
+pub const CURRENT_PROTOCOL_VERSION: u8 = 2;
 
 pub type GatewayMac = HmacOutput<GatewayIntegrityHmacAlgorithm>;
 

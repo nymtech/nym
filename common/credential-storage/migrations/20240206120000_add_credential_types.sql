@@ -12,6 +12,6 @@ CREATE TABLE coconut_credentials
     serialization_revision INTEGER NOT NULL,
     credential_type        TEXT    NOT NULL,
     credential_data        BLOB    NOT NULL,
-    epoch_id               TEXT    NOT NULL,
+    epoch_id               INTEGER NOT NULL,
     consumed               BOOLEAN NOT NULL
 );

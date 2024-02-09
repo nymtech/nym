@@ -5,7 +5,7 @@ extern crate core;
 
 use clap::Parser;
 use ephemera::cli::init::Cmd;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub(crate) mod application;

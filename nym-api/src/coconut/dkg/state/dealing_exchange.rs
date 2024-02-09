@@ -5,7 +5,7 @@ use super::serde_helpers::generated_dealings;
 use crate::coconut::dkg::state::DkgParticipant;
 use nym_coconut_dkg_common::types::DealingIndex;
 use nym_dkg::{Dealing, NodeIndex};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -5,7 +5,7 @@ use super::serde_helpers::recovered_keys;
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
 use nym_dkg::{G2Projective, NodeIndex, RecoveredVerificationKeys, Threshold};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 

@@ -61,7 +61,7 @@ jobs:
 
       - name: Set CARGO_FEATURES
         run: |
-          echo 'CARGO_FEATURES="--features wireguard"' >> $GITHUB_ENV
+          echo 'CARGO_FEATURES=--features wireguard' >> $GITHUB_ENV
         if: github.event_name == 'workflow_dispatch' && inputs.enable_wireguard == true
 
       - name: Install Rust stable

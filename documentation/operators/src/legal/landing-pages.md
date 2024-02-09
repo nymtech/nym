@@ -10,35 +10,52 @@ Exit Gateway landing page is a great and transparent way to prevent possible tro
 
 ## Avril 14th Exit Gateways
 
-The following snippet it on the 'assets' path under '[http]' section of your config file
+The following snippet needs to modified as described below according to the public identity that you may want to show on this public notice, i.e. your graphics and your email.
+It would allow you to serve it as a landing page resembling the one proposed by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html) but with all the changes needed to adhere to the Nym's operators case.
+
+When done with the customization needs as described below, you'll need to upload the file and reference it as the 'landing_page_assets_path' on the '[http]' section of the config.toml file:
 ```
-landing_page_assets_path = '<path to your custom html file>'
+landing_page_assets_path = '<PATH_TO_YOUR_CUSTOM_FILE>'
 ```
 
-Customize it as follows:
+### HTML file customization
 
-- add your favicon logo:
+- add your favicon logo on the line:
 ```
 <link rel="icon" type="image/png" href="">
 ```
 
-and your header logo
+and your header logo on the line:
 ```
 <img class="logo" src="<FIXME>">
 ```
 
-adding your favicon as base64 encoded image or add it as URl if you're hosting it publicly, i.e.
+by either setting the URl to the image (if you're hosting it publicly, i.e. on your web server)
+```
+href="<PATH_TO_YOUR_PUBLIC_URL>"
+```
+and
+```
+src="<PATH_TO_YOUR_PUBLIC_URL>"
 
-href="path to your public url"
-or
+```
+**or** by adding the image inline as base64 encoded image 
+```
 href="href="data:image/x-icon;base64,AAABAAMA....""
+```
+and
+```
+src="href="data:image/x-icon;base64,AAABAAMA....""
+```
+
 
 - add the email address you're willing to use for being contacted.
 ```
 <a href="mailto:>FIXME>">maintainer</a>
 ```
-If you're running the node within the US, check the sections marked as FIXME, add your DNS name and uncomment those.
 
+- If you're running the node within the US check the sections marked as FIXME, add your DNS name and uncomment those.
+***
 
 ```html
 <!DOCTYPE html>
@@ -256,12 +273,12 @@ specified IP:port combination. Please be considerate when using these options.</
 </body>
 </html>
 ```
-
-If you're reversing the default 8080 endpoint you may set the landing page accordingly and may resolve it to
-https://nym-exit.yourdomain.org or https://nym-readme.yourdomain.org.
+***
+### Reverse proxy
+You may set up a [reverse proxy](https://www.nginx.com/resources/glossary/reverse-proxy-server/) in order to serve this landing page with proper SSL and DNS management, i.e. to resolve it to https://nym-exit.<YOUR_DOMAIN> or https://nym-readme.<YOUR_DOMAIN>.
 
 The following assumes that you're owning a domain and that you've already set the Let's Encrypt certificates on your hosting, and you've copied those on your Gateway, i.e. copy the two Let's Encript pem files on your Gateway's home folder.
-Else you may obtain a Let's Encrpyt certificate using a -[-certonly procedure](https://eff-certbot.readthedocs.io/en/latest/using.html#getting-certificates-and-choosing-plugins).
+Else you may obtain a Let's Encrypt certificate using a -[-certonly procedure](https://eff-certbot.readthedocs.io/en/latest/using.html#getting-certificates-and-choosing-plugins).
 
 ```
 sudo apt install nginx
@@ -272,26 +289,27 @@ sudo ufw app list
 sudo ufw allow 'Nginx Full'
 sudo ufw reload
 ```
-Disable the default Nginx landing page and configure the reverse proxy, changing the nym-exit.yourdomain.org occurrencies and the PATHs accordingly.
+Disable the default Nginx landing page
 ```
 sudo systemctl status nginx
 sudo unlink /etc/nginx/sites-enabled/default
 sudo systemctl restart nginx
 ```
-Add your endpoint configuration to Nginx:
+Add your endpoint configuration to Nginx changing <YOUR_DOMAIN> occurrencies below with your domain name, including the top-level domain, i.e. *avril4th.org*
+
 ```
-sudo nano /etc/nginx/sites-available/nym-exit.yourdomain.org
+sudo nano /etc/nginx/sites-available/nym-exit.<YOUR_DOMAIN>
 ```
-by addng and modifying the following 
+
 ```
 server {
   listen 443 ssl http2;
   listen [::]:443 ssl http2;
 
-  server_name nym-exit.yourdomain.org;
+  server_name nym-exit.<YOUR_DOMAIN>;
 
-  ssl_certificate <PATH TO>/fullchain.pem;
-  ssl_certificate_key <PATH TO>/privkey.pem;
+  ssl_certificate <PATH_TO>/fullchain.pem;
+  ssl_certificate_key <PATH_TO>/privkey.pem;
 
   access_log /var/log/nginx/access.log;
   error_log /var/log/nginx/error.log;
@@ -308,27 +326,42 @@ server {
   listen 80;
   listen [::]:80;
   
-  if ($host = nym-exit.yourdomain.org) {
+  if ($host = nym-exit.<YOUR_DOMAIN>) {
     return 301 https://$host$request_uri;
   }
 
-  server_name yourdomain.org www.yourdomain.org;
+  server_name <YOUR_DOMAIN> www.<YOUR_DOMAIN>;
 
-  return 301 https://yourdomain.org$request_uri;
+  return 301 https://<YOUR_DOMAIN>$request_uri;
 }
 ```
 
 ```
-sudo ln -s /etc/nginx/sites-available/nym-gateway.avril14th.org /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/nym-exit.<YOUR_DOMAIN> /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 ```
-Modify and copy then the landing page snippet shown above on your Gateway and point the service to it:
+
+When done with the customization needs as described below, you'll need to upload the file and reference it as the 'landing_page_assets_path' on the '[http]' section of the config.toml file that you'll find in the .nym folder, 
 ```
-nano ${HOME}/.nym/gateways/avril14th02/config/config.toml
+nano ${HOME}/.nym/gateways/<YOUR_GATEWAY_ID>/config/config.toml
 ```
-change the PATH_TO to point to your file
+change
 ```
-landing_page_assets_path = '<PATH TO>nym_exit_landing_page_avril14th.html'```
+landing_page_assets_path = '<PATH_TO_YOUR_CUSTOM_FILE>'
 ```
-Restart your Gatewy service.
+
+If you're running the Gateway as a service as described [here](https://nymtech.net/operators/nodes/maintenance.html#systemd) and [here](https://nymtech.net/operators/nodes/maintenance.html#following-steps-for-nym-nodes-running-as-systemd-service) you may just restart your service
+```
+service nym-gateway stop
+service nym-gateway start
+```
+and check for the page being served either checking the service logs
+```
+sudo journalctl -u  nym-gateway.service | grep 8080
+```
+where you should read out
+```
+... Started NymNodeHTTPServer on 0.0.0.0:8080
+```
+or just point your browser to the URI which you set above, such as https://nym-exit.<YOUR_DOMAIN>

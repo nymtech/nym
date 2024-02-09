@@ -48,7 +48,6 @@ impl TryFrom<OldV1Credential> for CredentialSpendingWithEpoch {
 }
 
 impl OldV1Credential {
-    #[cfg(test)]
     pub fn as_bytes(&self) -> Vec<u8> {
         let n_params_bytes = self.n_params.to_be_bytes();
         let theta_bytes = self.theta.to_bytes();

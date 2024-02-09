@@ -1,4 +1,4 @@
-name: Publish Nym binaries
+name: publish-nym-binaries
 
 on:
   workflow_dispatch:

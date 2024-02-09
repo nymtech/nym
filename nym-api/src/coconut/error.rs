@@ -3,7 +3,7 @@
 
 use crate::node_status_api::models::NymApiStorageError;
 use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
-use nym_credentials::coconut::bandwidth::CredentialType;
+use nym_credentials::coconut::bandwidth::{CredentialType, UnknownCredentialType};
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
@@ -18,6 +18,8 @@ use rocket::{response, Request, Response};
 use std::io::Cursor;
 use std::num::ParseIntError;
 use thiserror::Error;
+use time::error::ComponentRange;
+use time::OffsetDateTime;
 
 pub type Result<T> = std::result::Result<T, CoconutError>;
 
@@ -49,6 +51,33 @@ pub enum CoconutError {
 
     #[error("only secp256k1 keys are supported for free pass issuance")]
     UnsupportedNonSecp256k1Key,
+
+    #[error("received credential request for an unknown type: {0}")]
+    UnknownCredentialType(#[from] UnknownCredentialType),
+
+    #[error("the provided free pass request had an unexpected number of public attributes. got {got} but expected {expected}")]
+    InvalidFreePassAttributes { got: usize, expected: usize },
+
+    #[error("the provided free pass request had an invalid type attribute (got: '{got}')")]
+    InvalidFreePassTypeAttribute { got: CredentialType },
+
+    #[error("failed to parse the free pass expiry date: {source}")]
+    ExpiryDateParsingFailure {
+        #[source]
+        source: ParseIntError,
+    },
+
+    #[error("failed to parse expiry timestamp into proper datetime: {source}")]
+    InvalidExpiryDate {
+        unix_timestamp: i64,
+        #[source]
+        source: ComponentRange,
+    },
+
+    #[error(
+        "the provided free pass request has too long expiry (expiry is set to on {expiry_date})"
+    )]
+    TooLongFreePass { expiry_date: OffsetDateTime },
 
     #[error("the received bandwidth voucher did not contain deposit value")]
     MissingBandwidthValue,

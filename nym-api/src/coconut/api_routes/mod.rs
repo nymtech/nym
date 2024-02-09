@@ -18,15 +18,55 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
+use nym_credentials::coconut::bandwidth::freepass::MAX_FREE_PASS_VALIDITY;
 use nym_credentials::coconut::bandwidth::{
-    bandwidth_credential_params, IssuanceBandwidthCredential,
+    bandwidth_credential_params, CredentialType, IssuanceBandwidthCredential,
 };
 use nym_validator_client::nyxd::Coin;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::ops::Deref;
+use time::OffsetDateTime;
 
 mod helpers;
+
+fn validate_freepass_public_attributes(res: &FreePassRequest) -> Result<()> {
+    let public_attributes = &res.public_attributes_plain;
+
+    if public_attributes.len() != IssuanceBandwidthCredential::PUBLIC_ATTRIBUTES as usize {
+        return Err(CoconutError::InvalidFreePassAttributes {
+            got: public_attributes.len(),
+            expected: IssuanceBandwidthCredential::PUBLIC_ATTRIBUTES as usize,
+        });
+    }
+
+    // SAFETY: we just ensured correct number of attributes
+    let expiry_raw = public_attributes.first().unwrap();
+    let type_raw = public_attributes.get(1).unwrap();
+
+    let parsed_type = type_raw.parse::<CredentialType>()?;
+    if parsed_type != CredentialType::FreePass {
+        return Err(CoconutError::InvalidFreePassTypeAttribute { got: parsed_type });
+    }
+
+    let expiry_timestamp: i64 = expiry_raw
+        .parse()
+        .map_err(|source| CoconutError::ExpiryDateParsingFailure { source })?;
+
+    let expiry_date = OffsetDateTime::from_unix_timestamp(expiry_timestamp).map_err(|source| {
+        CoconutError::InvalidExpiryDate {
+            unix_timestamp: expiry_timestamp,
+            source,
+        }
+    })?;
+    let now = OffsetDateTime::now_utc();
+
+    if expiry_date > now + MAX_FREE_PASS_VALIDITY {
+        return Err(CoconutError::TooLongFreePass { expiry_date });
+    }
+
+    Ok(())
+}
 
 #[post("/free-pass", data = "<freepass_request_body>")]
 pub async fn post_free_pass(
@@ -35,6 +75,8 @@ pub async fn post_free_pass(
 ) -> Result<Json<BlindedSignatureResponse>> {
     debug!("Received free pass sign request");
     trace!("body: {:?}", freepass_request_body);
+
+    validate_freepass_public_attributes(&freepass_request_body)?;
 
     // grab the admin of the bandwidth contract
     let Some(authorised_admin) = state.get_bandwidth_contract_admin().await? else {

@@ -45,7 +45,7 @@ pub enum CoconutError {
     FreePassSignatureVerificationFailure,
 
     #[error("the provided signing nonce is invalid. the current value is: {current}. got {received} instead")]
-    InvalidNonce { current: u64, received: u64 },
+    InvalidNonce { current: u32, received: u32 },
 
     #[error("only secp256k1 keys are supported for free pass issuance")]
     UnsupportedNonSecp256k1Key,

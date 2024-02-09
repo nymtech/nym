@@ -149,7 +149,7 @@ pub struct FreePassRequest {
 
     // we need to include a nonce here to prevent replay attacks
     // (and not making the nym-api store the serial numbers of all issued credential)
-    pub used_nonce: u64,
+    pub used_nonce: u32,
 
     /// Signature on the nonce
     /// to prove the possession of the cosmos key/address
@@ -163,7 +163,7 @@ impl FreePassRequest {
         self.cosmos_pubkey.into()
     }
 
-    pub fn nonce_plaintext(&self) -> [u8; 8] {
+    pub fn nonce_plaintext(&self) -> [u8; 4] {
         self.used_nonce.to_be_bytes()
     }
 

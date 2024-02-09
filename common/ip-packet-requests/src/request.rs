@@ -121,6 +121,8 @@ pub enum IpPacketRequestData {
     Data(DataRequest),
 }
 
+// A static connect request is when the client provides the internal IP address it will use on the
+// ip packet router.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct StaticConnectRequest {
     pub request_id: u64,
@@ -135,6 +137,8 @@ pub struct StaticConnectRequest {
     pub reply_to_avg_mix_delays: Option<f64>,
 }
 
+// A dynamic connect request is when the client does not provide the internal IP address it will use
+// on the ip packet router, and instead requests one to be assigned to it.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DynamicConnectRequest {
     pub request_id: u64,
@@ -148,6 +152,8 @@ pub struct DynamicConnectRequest {
     pub reply_to_avg_mix_delays: Option<f64>,
 }
 
+// A disconnect request is when the client wants to disconnect from the ip packet router and free
+// up the allocated IP address.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DisconnectRequest {
     pub request_id: u64,
@@ -155,6 +161,7 @@ pub struct DisconnectRequest {
     pub reply_to: Recipient,
 }
 
+// A data request is when the client wants to send an IP packet to a destination.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DataRequest {
     pub ip_packet: bytes::Bytes,

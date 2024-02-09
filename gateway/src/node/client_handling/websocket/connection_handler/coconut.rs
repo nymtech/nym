@@ -6,7 +6,7 @@ use log::*;
 use nym_coconut_interface::{Credential, VerificationKey};
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
-use nym_validator_client::nyxd::contract_traits::MultisigQueryClient;
+use nym_validator_client::nyxd::contract_traits::{MultisigQueryClient, NymContractsProvider};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::{
     nyxd::{
@@ -42,8 +42,33 @@ impl CoconutVerifier {
         let mut master_keys = HashMap::new();
         let mut api_clients = HashMap::new();
 
+        // don't make it a hard failure in case we're running on mainnet (where DKG hasn't been deployed yet)
+        if nyxd_client.dkg_contract_address().is_none() {
+            error!(
+                "DKG contract address is not available - no coconut credentials will be redeemable"
+            );
+            return Ok(CoconutVerifier {
+                address,
+                nyxd_client: RwLock::new(nyxd_client),
+                api_clients: Default::default(),
+                master_keys: Default::default(),
+                mix_denom_base,
+            });
+        }
+
+        let Ok(current_epoch) = nyxd_client.get_current_epoch().await else {
+            // another case of somebody putting a placeholder address that doesn't exist
+            error!("the specified DKG contract address is invalid - no coconut credentials will be redeemable");
+            return Ok(CoconutVerifier {
+                address,
+                nyxd_client: RwLock::new(nyxd_client),
+                api_clients: Default::default(),
+                master_keys: Default::default(),
+                mix_denom_base,
+            });
+        };
+
         // might as well obtain the key for the current epoch, if applicable
-        let current_epoch = nyxd_client.get_current_epoch().await?;
         if current_epoch.state.is_in_progress() {
             // note: even though we're constructing clients here, we will NOT be making any network requests
             let epoch_api_clients =

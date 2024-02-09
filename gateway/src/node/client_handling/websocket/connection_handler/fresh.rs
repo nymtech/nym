@@ -366,7 +366,7 @@ where
         let Some(client_protocol_version) = client_protocol else {
             warn!("the client we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
             // note: in +1.2.0 we will have to return a hard error here
-            return Ok(INITIAL_PROTOCOL_VERSION)
+            return Ok(INITIAL_PROTOCOL_VERSION);
         };
 
         // a v2 gateway will understand v1 requests, but v1 client will not understand v2 responses

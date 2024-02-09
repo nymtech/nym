@@ -127,7 +127,7 @@ jobs:
           cp target/debian/*.deb $OUTPUT_DIR
 
       - name: Deploy branch to CI www
-        if: github.event_name == 'pull_request'
+        # if: github.event_name == 'schedule' || github.event_name == 'pull_request'
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:

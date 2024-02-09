@@ -13,6 +13,8 @@ Exit Gateway landing page is a great and transparent way to prevent possible tro
 The following snippet needs to modified as described below according to the public identity that you may want to show on this public notice, i.e. your graphics and your email.
 It would allow you to serve it as a landing page resembling the one proposed by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html) but with all the changes needed to adhere to the Nym's operators case.
 
+[Avril 14th](https://avril14th.org/) is a team of professionals and optimistic realists eager to contribute to a future of privacy, decentralization and connectivity. 
+
 When done with the customization needs as described below, you'll need to upload the file and reference it as the 'landing_page_assets_path' on the '[http]' section of the config.toml file:
 ```
 landing_page_assets_path = '<PATH_TO_YOUR_CUSTOM_FILE>'

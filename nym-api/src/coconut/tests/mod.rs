@@ -275,6 +275,7 @@ impl FakeMultisigContractState {
 #[derive(Debug)]
 pub(crate) struct FakeBandwidthContractState {
     pub(crate) address: Addr,
+    pub(crate) admin: Option<AccountId>,
     pub(crate) spent_credentials: HashMap<String, SpendCredentialResponse>,
 }
 
@@ -313,6 +314,11 @@ impl Default for FakeChainState {
         let bandwidth_contract =
             Addr::unchecked("n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l");
 
+        let bandwidth_contract_admin =
+            "n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a"
+                .parse()
+                .unwrap();
+
         FakeChainState {
             _counters: Default::default(),
 
@@ -346,6 +352,7 @@ impl Default for FakeChainState {
             },
             bandwidth_contract: FakeBandwidthContractState {
                 address: bandwidth_contract,
+                admin: Some(bandwidth_contract_admin),
                 spent_credentials: Default::default(),
             },
         }
@@ -612,6 +619,10 @@ impl super::client::Client for DummyClient {
         Ok(self.state.lock().unwrap().dkg_contract.address.clone())
     }
 
+    async fn bandwidth_contract_admin(&self) -> Result<Option<AccountId>> {
+        Ok(self.state.lock().unwrap().bandwidth_contract.admin.clone())
+    }
+
     async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse> {
         Ok(self
             .state
@@ -738,6 +749,52 @@ impl super::client::Client for DummyClient {
             .and_then(|dealers| dealers.get(&dealer))
             .cloned();
         Ok(RegisteredDealerDetails { details })
+    }
+
+    async fn get_dealer_dealings_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<DealerDealingsStatusResponse> {
+        let guard = self.state.lock().unwrap();
+        let key_size = guard.dkg_contract.contract_state.key_size;
+
+        let dealer_addr = Addr::unchecked(&dealer);
+
+        let Some(epoch_dealings) = guard.dkg_contract.dealings.get(&epoch_id) else {
+            return Ok(DealerDealingsStatusResponse {
+                epoch_id,
+                dealer: dealer_addr,
+                all_dealings_fully_submitted: false,
+                dealing_submission_status: Default::default(),
+            });
+        };
+
+        let Some(dealer_dealings) = epoch_dealings.get(&dealer) else {
+            return Ok(DealerDealingsStatusResponse {
+                epoch_id,
+                dealer: dealer_addr,
+                all_dealings_fully_submitted: false,
+                dealing_submission_status: Default::default(),
+            });
+        };
+
+        let mut dealing_submission_status: BTreeMap<DealingIndex, DealingStatus> = BTreeMap::new();
+        for dealing_index in 0..key_size {
+            let metadata = dealer_dealings
+                .get(&dealing_index)
+                .map(|d| d.metadata.clone());
+            dealing_submission_status.insert(dealing_index, metadata.into());
+        }
+
+        Ok(DealerDealingsStatusResponse {
+            epoch_id,
+            dealer: Addr::unchecked(&dealer),
+            all_dealings_fully_submitted: dealing_submission_status
+                .values()
+                .all(|d| d.fully_submitted),
+            dealing_submission_status,
+        })
     }
 
     async fn get_dealer_dealings_status(

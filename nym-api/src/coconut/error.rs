@@ -11,6 +11,7 @@ use nym_crypto::asymmetric::{
 use nym_dkg::error::DkgError;
 use nym_validator_client::coconut::CoconutApiError;
 use nym_validator_client::nyxd::error::{NyxdError, TendermintError};
+use nym_validator_client::nyxd::AccountId;
 use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
 use rocket::{response, Request, Response};
@@ -24,6 +25,30 @@ pub type Result<T> = std::result::Result<T, CoconutError>;
 pub enum CoconutError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
+
+    #[error("the address of the bandwidth contract hasn't been set")]
+    MissingBandwidthContractAddress,
+
+    #[error("the current bandwidth contract does not have any admin address set")]
+    MissingBandwidthContractAdmin,
+
+    #[error("failed to derive the admin account from the provided public key: {formatted_source}")]
+    AdminAccountDerivationFailure { formatted_source: String },
+
+    #[error("the requester of the free pass ({requester}) is not authorised. the only allowed account is {authorised_admin}.")]
+    UnauthorisedFreePassAccount {
+        requester: AccountId,
+        authorised_admin: AccountId,
+    },
+
+    #[error("failed to verify signature on the provided free pass request")]
+    FreePassSignatureVerificationFailure,
+
+    #[error("the provided signing nonce is invalid. the current value is: {current}. got {received} instead")]
+    InvalidNonce { current: u64, received: u64 },
+
+    #[error("only secp256k1 keys are supported for free pass issuance")]
+    UnsupportedNonSecp256k1Key,
 
     #[error("the received bandwidth voucher did not contain deposit value")]
     MissingBandwidthValue,

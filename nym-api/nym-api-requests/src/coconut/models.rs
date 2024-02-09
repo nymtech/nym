@@ -140,18 +140,39 @@ impl BlindedSignatureResponse {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FreePassRequest {
     // secp256k1 key associated with the admin account
     pub cosmos_pubkey: cosmrs::crypto::PublicKey,
 
     pub inner_sign_request: BlindSignRequest,
 
-    /// Signature on the inner sign request
+    // we need to include a nonce here to prevent replay attacks
+    // (and not making the nym-api store the serial numbers of all issued credential)
+    pub used_nonce: u64,
+
+    /// Signature on the nonce
     /// to prove the possession of the cosmos key/address
-    pub signature: cosmrs::crypto::secp256k1::Signature,
+    pub nonce_signature: cosmrs::crypto::secp256k1::Signature,
 
     pub public_attributes_plain: Vec<String>,
+}
+
+impl FreePassRequest {
+    pub fn tendermint_pubkey(&self) -> tendermint::PublicKey {
+        self.cosmos_pubkey.into()
+    }
+
+    pub fn nonce_plaintext(&self) -> [u8; 8] {
+        self.used_nonce.to_be_bytes()
+    }
+
+    pub fn public_attributes_hashed(&self) -> Vec<Attribute> {
+        self.public_attributes_plain
+            .iter()
+            .map(hash_to_scalar)
+            .collect()
+    }
 }
 
 #[derive(Serialize, Deserialize)]

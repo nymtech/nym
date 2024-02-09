@@ -358,6 +358,20 @@ impl crate::coconut::client::Client for Client {
         )
     }
 
+    async fn bandwidth_contract_admin(&self) -> crate::coconut::error::Result<Option<AccountId>> {
+        let guard = self.inner.read().await;
+
+        let bandwidth_contract = query_guard!(
+            guard,
+            coconut_bandwidth_contract_address()
+                .ok_or(CoconutError::MissingBandwidthContractAddress)
+        )?;
+
+        let contract = query_guard!(guard, get_contract(bandwidth_contract)).await?;
+
+        Ok(contract.contract_info.admin)
+    }
+
     async fn get_tx(&self, tx_hash: Hash) -> crate::coconut::error::Result<nyxd::TxResponse> {
         nyxd_query!(self, get_tx(tx_hash).await).map_err(|source| {
             CoconutError::TxRetrievalFailure {

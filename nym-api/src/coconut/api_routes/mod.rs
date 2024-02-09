@@ -6,8 +6,9 @@ use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::{accepted_vote_err, blind_sign};
 use crate::coconut::state::State;
 use crate::coconut::storage::CoconutStorageExt;
+use k256::ecdsa::signature::Verifier;
 use nym_api_requests::coconut::models::{
-    CredentialsRequestBody, EpochCredentialsResponse, IssuedCredentialResponse,
+    CredentialsRequestBody, EpochCredentialsResponse, FreePassRequest, IssuedCredentialResponse,
     IssuedCredentialsResponse,
 };
 use nym_api_requests::coconut::{
@@ -23,12 +24,93 @@ use nym_credentials::coconut::bandwidth::{
 use nym_validator_client::nyxd::Coin;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
+use std::ops::Deref;
 
 mod helpers;
 
-pub async fn post_free_pass(state: &RocketState<State>) {
-    // attach secp256k1 pubkey; derive address; check contract admin verify signature
-    todo!()
+#[post("/free-pass", data = "<freepass_request_body>")]
+pub async fn post_free_pass(
+    freepass_request_body: Json<FreePassRequest>,
+    state: &RocketState<State>,
+) -> Result<Json<BlindedSignatureResponse>> {
+    debug!("Received free pass sign request");
+    trace!("body: {:?}", freepass_request_body);
+
+    // grab the admin of the bandwidth contract
+    let Some(authorised_admin) = state.get_bandwidth_contract_admin().await? else {
+        error!("our bandwidth contract does not have an admin set! We won't be able to migrate the contract! We should redeploy it ASAP");
+        return Err(CoconutError::MissingBandwidthContractAdmin);
+    };
+
+    // derive the address out of the provided pubkey
+    let requester = match freepass_request_body
+        .cosmos_pubkey
+        .account_id(authorised_admin.prefix())
+    {
+        Ok(address) => address,
+        Err(err) => {
+            return Err(CoconutError::AdminAccountDerivationFailure {
+                formatted_source: err.to_string(),
+            })
+        }
+    };
+    debug!("derived the following address out of the provided public key: {requester}. Going to check it against the authorised admin ({authorised_admin})");
+
+    if &requester != authorised_admin {
+        return Err(CoconutError::UnauthorisedFreePassAccount {
+            requester,
+            authorised_admin: authorised_admin.clone(),
+        });
+    }
+
+    let current_nonce = state.storage.get_current_freepass_nonce().await?;
+    debug!("the current expected nonce is {current_nonce}");
+
+    if current_nonce != freepass_request_body.used_nonce {
+        return Err(CoconutError::InvalidNonce {
+            current: current_nonce,
+            received: freepass_request_body.used_nonce,
+        });
+    }
+
+    // check if we have the signing key available
+    debug!("checking if we actually have coconut keys derived...");
+    let maybe_keypair_guard = state.coconut_keypair.get().await;
+    let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
+        return Err(CoconutError::KeyPairNotDerivedYet);
+    };
+    let Some(signing_key) = keypair_guard.as_ref() else {
+        return Err(CoconutError::KeyPairNotDerivedYet);
+    };
+
+    let tm_pubkey = freepass_request_body.tendermint_pubkey();
+
+    // currently accounts (excluding validators) don't use ed25519 and are secp256k1-based
+    let Some(secp256k1_pubkey) = tm_pubkey.secp256k1() else {
+        return Err(CoconutError::UnsupportedNonSecp256k1Key);
+    };
+
+    // make sure the signature actually verifies
+    secp256k1_pubkey
+        .verify(
+            &freepass_request_body.nonce_plaintext(),
+            &freepass_request_body.nonce_signature,
+        )
+        .map_err(|_| CoconutError::FreePassSignatureVerificationFailure)?;
+
+    // produce the partial signature
+    debug!("producing the partial credential");
+    let blinded_signature =
+        blind_sign(freepass_request_body.deref(), signing_key.keys.secret_key())?;
+
+    // update the nonce in storage (and also check if a parallel request hasn't updated it; if so we return an error. no race conditions allowed)
+    state
+        .storage
+        .update_and_validate_freepass_nonce(current_nonce + 1)
+        .await?;
+
+    // finally return the credential to the client
+    Ok(Json(BlindedSignatureResponse { blinded_signature }))
 }
 
 #[post("/blind-sign", data = "<blind_sign_request_body>")]
@@ -82,7 +164,10 @@ pub async fn post_blind_sign(
 
     // produce the partial signature
     debug!("producing the partial credential");
-    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.keys.secret_key())?;
+    let blinded_signature = blind_sign(
+        blind_sign_request_body.deref(),
+        signing_key.keys.secret_key(),
+    )?;
 
     // store the information locally
     debug!("storing the issued credential in the database");
@@ -222,4 +307,12 @@ pub async fn issued_credentials(
     };
 
     build_credentials_response(credentials).map(Json)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn foo() {}
 }

@@ -52,6 +52,7 @@ where
             // this format! is so ugly...
             format!("/{NYM_API_VERSION}/{COCONUT_ROUTES}/{BANDWIDTH}"),
             routes![
+                api_routes::post_free_pass,
                 api_routes::post_blind_sign,
                 api_routes::verify_bandwidth_credential,
                 api_routes::epoch_credentials,

@@ -1,4 +1,4 @@
-# NymVPN alpha GUI: Guide for Mac OS
+# NymVPN alpha - Desktop: Guide for Mac OS
 
 ```admonish info
 NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
@@ -39,9 +39,6 @@ mv nym-vpn "$HOME/nym-vpn-latest"
 7. Create the configuration file by opening a text editor and saving the lines below as `config.toml` in the same directory `~/nym-vpn-latest`
 ```toml
 env_config_file = ".env"
-entry_node_location = "DE" # two letters country code
-# You can choose different entry by entering one of the following two letter country codes:
-# DE, UK, FR, IE
 ```
 8. Create testnet configuration file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `.env` in the same directory `~/nym-vpn-latest`
 ```sh
@@ -51,9 +48,9 @@ curl -L "https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env"
 
 **For NymVPN to work, all other VPNs must be switched off!** At this alpha stage of NymVPN, the network connection (wifi) must be reconnected after or in between the testing rounds.
 
-Open terminal in your `~/nym-vpn-latest` directory and run:
+Run:
 ```sh
-sudo ./nym-vpn
+sudo -E $HOME/nym-vpn-latest/nym-vpn
 ```
 
 In case of errors check out the [troubleshooting](troubleshooting.html#installing-gui-on-macos-not-working) section.

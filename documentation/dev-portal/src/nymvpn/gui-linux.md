@@ -1,4 +1,4 @@
-# NymVPN alpha GUI: Guide for GNU/Linux
+# NymVPN alpha - Desktop: Guide for GNU/Linux
 
 <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/908221306?h=404b2bbdc8" style="position:absolute;top:0;left:0;width:100%;height:100%;" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
 
@@ -49,9 +49,6 @@ curl -o $HOME/.config/nym-vpn/sandbox.env -L https://raw.githubusercontent.com/n
 ```toml
 # change <USER> to your username
 env_config_file = "/home/<USER>/.config/nym-vpn/sandbox.env"
-entry_node_location = "DE" # two letters country code
-# You can choose different entry by entering one of the following two letter country codes:
-# DE, UK, FR, IE
 ```
 
 ## Run NymVPN
@@ -64,7 +61,7 @@ Open terminal and run:
 
 ```sh
 # .AppImage must be run from the same directory as the binary
-sudo -E ./nym-vpn_0.0.2_amd64.AppImage
+sudo -E ./nym-vpn_0.033_amd64.AppImage
 
 # .deb installation shall be executable from anywhere as
 sudo -E nym-vpn

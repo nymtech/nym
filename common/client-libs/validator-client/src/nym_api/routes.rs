@@ -15,6 +15,7 @@ pub const REWARDED: &str = "rewarded";
 pub const COCONUT_ROUTES: &str = "coconut";
 pub const BANDWIDTH: &str = "bandwidth";
 
+pub const COCONUT_FREE_PASS: &str = "free-pass";
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
 pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
 pub const COCONUT_EPOCH_CREDENTIALS: &str = "epoch-credentials";

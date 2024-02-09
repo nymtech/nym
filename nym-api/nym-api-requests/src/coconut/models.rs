@@ -141,6 +141,20 @@ impl BlindedSignatureResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct FreePassRequest {
+    // secp256k1 key associated with the admin account
+    pub cosmos_pubkey: cosmrs::crypto::PublicKey,
+
+    pub inner_sign_request: BlindSignRequest,
+
+    /// Signature on the inner sign request
+    /// to prove the possession of the cosmos key/address
+    pub signature: cosmrs::crypto::secp256k1::Signature,
+
+    pub public_attributes_plain: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct VerificationKeyResponse {
     pub key: VerificationKey,
 }

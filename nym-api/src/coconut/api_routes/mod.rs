@@ -26,6 +26,11 @@ use rocket::State as RocketState;
 
 mod helpers;
 
+pub async fn post_free_pass(state: &RocketState<State>) {
+    // attach secp256k1 pubkey; derive address; check contract admin verify signature
+    todo!()
+}
+
 #[post("/blind-sign", data = "<blind_sign_request_body>")]
 //  Until we have serialization and deserialization traits we'll be using a crutch
 pub async fn post_blind_sign(

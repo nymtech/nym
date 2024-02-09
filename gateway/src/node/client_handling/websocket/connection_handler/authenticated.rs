@@ -22,6 +22,7 @@ use futures::{
 use log::*;
 use nym_credentials::coconut::bandwidth::{bandwidth_credential_params, CredentialType};
 use nym_credentials_interface::CoconutError;
+use nym_gateway_requests::models::CredentialSpendingWithEpoch;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     types::{BinaryRequest, ServerResponse},
@@ -82,6 +83,12 @@ pub(crate) enum RequestHandlingError {
 
     #[error("failed to recover bandwidth value: {0}")]
     BandwidthRecoveryFailure(#[from] BandwidthError),
+
+    #[error("the provided credential did not contain a valid type attribute")]
+    InvalidTypeAttribute,
+
+    #[error("the provided credential did not have a bandwidth attribute")]
+    MissingBandwidthAttribute,
 }
 
 impl RequestHandlingError {
@@ -211,25 +218,10 @@ where
         }
     }
 
-    /// Tries to handle the received bandwidth request by checking correctness of the received data
-    /// and if successful, increases client's bandwidth by an appropriate amount.
-    ///
-    /// # Arguments
-    ///
-    /// * `enc_credential`: raw encrypted bandwidth credential to verify.
-    /// * `iv`: fresh iv used for the credential.
-    async fn handle_bandwidth(
+    async fn handle_bandwidth_request(
         &mut self,
-        enc_credential: Vec<u8>,
-        iv: Vec<u8>,
+        credential: CredentialSpendingWithEpoch,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        let iv = IV::try_from_bytes(&iv)?;
-        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential(
-            enc_credential,
-            &self.client.shared_keys,
-            iv,
-        )?;
-
         let aggregated_verification_key = self
             .inner
             .coconut_verifier
@@ -237,11 +229,11 @@ where
             .await?;
 
         if !credential.data.validate_type_attribute() {
-            unimplemented!()
+            return Err(RequestHandlingError::InvalidTypeAttribute);
         }
 
         let Some(bandwidth_attribute) = credential.data.get_bandwidth_attribute() else {
-            unimplemented!()
+            return Err(RequestHandlingError::MissingBandwidthAttribute);
         };
 
         // this will extract token amounts out of bandwidth vouchers and validate expiry of free passes
@@ -277,6 +269,43 @@ where
         let available_total = self.get_available_bandwidth().await?;
 
         Ok(ServerResponse::Bandwidth { available_total })
+    }
+
+    async fn handle_bandwidth_v1(
+        &mut self,
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        let iv = IV::try_from_bytes(&iv)?;
+        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential_v1(
+            enc_credential,
+            &self.client.shared_keys,
+            iv,
+        )?;
+
+        self.handle_bandwidth_request(credential.try_into()?).await
+    }
+
+    /// Tries to handle the received bandwidth request by checking correctness of the received data
+    /// and if successful, increases client's bandwidth by an appropriate amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `enc_credential`: raw encrypted bandwidth credential to verify.
+    /// * `iv`: fresh iv used for the credential.
+    async fn handle_bandwidth_v2(
+        &mut self,
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        let iv = IV::try_from_bytes(&iv)?;
+        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential_v2(
+            enc_credential,
+            &self.client.shared_keys,
+            iv,
+        )?;
+
+        self.handle_bandwidth_request(credential).await
     }
 
     async fn handle_claim_testnet_bandwidth(
@@ -357,7 +386,11 @@ where
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
                 ClientControlRequest::BandwidthCredential { enc_credential, iv } => self
-                    .handle_bandwidth(enc_credential, iv)
+                    .handle_bandwidth_v1(enc_credential, iv)
+                    .await
+                    .into_ws_message(),
+                ClientControlRequest::BandwidthCredentialV2 { enc_credential, iv } => self
+                    .handle_bandwidth_v2(enc_credential, iv)
                     .await
                     .into_ws_message(),
                 ClientControlRequest::ClaimFreeTestnetBandwidth => self

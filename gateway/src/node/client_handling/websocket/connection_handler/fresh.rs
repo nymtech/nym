@@ -366,7 +366,7 @@ where
                 // note: in +1.2.0 we will have to return a hard error here
                 Ok(())
             }
-            Some(v) if v != PROTOCOL_VERSION => {
+            Some(v) if v > PROTOCOL_VERSION => {
                 let err = InitialAuthenticationError::IncompatibleProtocol {
                     client: Some(v),
                     current: PROTOCOL_VERSION,
@@ -376,7 +376,7 @@ where
             }
 
             Some(_) => {
-                info!("the client is using exactly the same protocol version as we are. We're good to continue!");
+                info!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
                 Ok(())
             }
         }

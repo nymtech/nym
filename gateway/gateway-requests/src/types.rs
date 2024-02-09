@@ -3,7 +3,7 @@
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
-use crate::models::CredentialSpendingWithEpoch;
+use crate::models::{CredentialSpendingWithEpoch, OldV1Credential};
 use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, PROTOCOL_VERSION};
 use log::error;
@@ -116,6 +116,9 @@ pub enum GatewayRequestsError {
 
     #[error("failed to deserialize provided credential: malformed verify request: {0}")]
     CredentialDeserializationFailureMalformedTheta(CoconutError),
+
+    #[error("the provided [v1] credential has invalid number of parameters - {0}")]
+    InvalidNumberOfEmbededParameters(u32),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -140,6 +143,10 @@ pub enum ClientControlRequest {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
+    BandwidthCredentialV2 {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
     ClaimFreeTestnetBandwidth,
 }
 
@@ -157,7 +164,31 @@ impl ClientControlRequest {
         }
     }
 
-    pub fn new_enc_coconut_bandwidth_credential(
+    pub fn new_enc_coconut_bandwidth_credential_v1(
+        credential: &OldV1Credential,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Self {
+        let serialized_credential = credential.as_bytes();
+        let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
+
+        ClientControlRequest::BandwidthCredential {
+            enc_credential,
+            iv: iv.to_bytes(),
+        }
+    }
+
+    pub fn try_from_enc_coconut_bandwidth_credential_v1(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Result<OldV1Credential, GatewayRequestsError> {
+        let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        OldV1Credential::from_bytes(&credential_bytes)
+            .map_err(|_| GatewayRequestsError::MalformedEncryption)
+    }
+
+    pub fn new_enc_coconut_bandwidth_credential_v2(
         credential: CredentialSpendingData,
         epoch_id: u64,
         shared_key: &SharedKeys,
@@ -167,13 +198,13 @@ impl ClientControlRequest {
         let serialized_credential = cred.to_bytes();
         let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-        ClientControlRequest::BandwidthCredential {
+        ClientControlRequest::BandwidthCredentialV2 {
             enc_credential,
             iv: iv.to_bytes(),
         }
     }
 
-    pub fn try_from_enc_coconut_bandwidth_credential(
+    pub fn try_from_enc_coconut_bandwidth_credential_v2(
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
         iv: IV,

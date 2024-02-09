@@ -6203,7 +6203,6 @@ dependencies = [
  "bip39",
  "bs58 0.4.0",
  "cfg-if",
- "chrono",
  "clap 4.4.7",
  "comfy-table",
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",

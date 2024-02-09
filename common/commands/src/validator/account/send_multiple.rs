@@ -203,10 +203,10 @@ mod test_multiple_send_input_csv {
 
         println!("{:?}", input_csv.rows);
 
-        assert_eq!(50_000_000u128, input_csv.rows[0].amount.amount.into());
-        assert_eq!(50u128, input_csv.rows[1].amount.amount.into());
-        assert_eq!(50_000_000u128, input_csv.rows[2].amount.amount.into());
-        assert_eq!(50u128, input_csv.rows[3].amount.amount.into());
+        assert_eq!(50_000_000u128, input_csv.rows[0].amount.amount);
+        assert_eq!(50u128, input_csv.rows[1].amount.amount);
+        assert_eq!(50_000_000u128, input_csv.rows[2].amount.amount);
+        assert_eq!(50u128, input_csv.rows[3].amount.amount);
 
         assert_eq!("unym", input_csv.rows[0].amount.denom);
         assert_eq!("unym", input_csv.rows[1].amount.denom);

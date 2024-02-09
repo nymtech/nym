@@ -13,6 +13,8 @@ on:
         required: true
         default: false
         type: boolean
+  schedule:
+    - cron: '14 0 * * *'
   pull_request:
     paths:
       - "clients/**"
@@ -62,7 +64,9 @@ jobs:
       - name: Set CARGO_FEATURES
         run: |
           echo 'CARGO_FEATURES=--features wireguard' >> $GITHUB_ENV
-        if: github.event_name == 'workflow_dispatch' && inputs.enable_wireguard == true
+        if: >
+          github.event_name == 'schedule' ||
+          (github.event_name == 'workflow_dispatch' && inputs.enable_wireguard == true)
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -103,10 +107,10 @@ jobs:
             target/release/nym-cli
           retention-days: 30
 
-      # If this was a pull_request, upload to build server
+      # If this was a pull_request or nightly, upload to build server
 
       - name: Prepare build output
-        if: github.event_name == 'pull_request'
+        # if: github.event_name == 'schedule' || github.event_name == 'pull_request'
         shell: bash
         env:
           OUTPUT_DIR: ci-builds/${{ github.ref_name }}

@@ -831,6 +831,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            negotiated_protocol: None,
             shutdown,
         }
     }
@@ -862,6 +863,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             should_reconnect_on_failure: self.should_reconnect_on_failure,
             reconnection_attempts: self.reconnection_attempts,
             reconnection_backoff: self.reconnection_backoff,
+            negotiated_protocol: self.negotiated_protocol,
             shutdown,
         }
     }

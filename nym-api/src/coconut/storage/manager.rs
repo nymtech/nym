@@ -4,6 +4,7 @@
 use crate::coconut::storage::models::{EpochCredentials, IssuedCredential};
 use crate::support::storage::manager::StorageManager;
 use nym_coconut_dkg_common::types::EpochId;
+use thiserror::Error;
 
 #[async_trait]
 pub trait CoconutStorageManagerExt {
@@ -120,6 +121,17 @@ pub trait CoconutStorageManagerExt {
         start_after: i64,
         limit: u32,
     ) -> Result<Vec<IssuedCredential>, sqlx::Error>;
+
+    /// Attempts to retrieve the current value of the freepass nonce.
+    async fn get_current_freepass_nonce(&self) -> Result<u32, sqlx::Error>;
+
+    /// Attempt to update the currently stored nonce to the provided value whilst ensuring
+    /// it's strictly equal the current value plus 1
+    ///
+    /// # Arguments
+    ///
+    /// * `new`: the new value of the free pass nonce
+    async fn update_and_validate_freepass_nonce(&self, new: u32) -> Result<(), sqlx::Error>;
 }
 
 #[async_trait]
@@ -378,4 +390,49 @@ impl CoconutStorageManagerExt for StorageManager {
             .fetch_all(&self.connection_pool)
             .await
     }
+
+    /// Attempts to retrieve the current value of the freepass nonce.
+    async fn get_current_freepass_nonce(&self) -> Result<u32, sqlx::Error> {
+        sqlx::query!("SELECT current_nonce as 'current_nonce: u32' FROM issued_freepass")
+            .fetch_one(&self.connection_pool)
+            .await
+            .map(|row| row.current_nonce)
+    }
+
+    /// Attempt to update the currently stored nonce to the provided value whilst ensuring
+    /// it's strictly equal the current value plus 1
+    ///
+    /// # Arguments
+    ///
+    /// * `new`: the new value of the free pass nonce
+    async fn update_and_validate_freepass_nonce(&self, new: u32) -> Result<(), sqlx::Error> {
+        let mut tx = self.connection_pool.begin().await?;
+
+        let currently_stored =
+            sqlx::query!("SELECT current_nonce as 'current_nonce: u32' FROM issued_freepass")
+                .fetch_one(&mut tx)
+                .await?
+                .current_nonce;
+
+        if currently_stored + 1 != new {
+            // this is not the best error but I really don't want to be creating a new enum
+            return Err(sqlx::Error::Decode(Box::new(UnexpectedNonce {
+                current: currently_stored,
+                got: new,
+            })));
+        }
+
+        sqlx::query!("UPDATE issued_freepass SET current_nonce = ?", new)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("tried to store an invalid nonce. the received value is {got} while current is {current}. expected {current} + 1")]
+pub struct UnexpectedNonce {
+    current: u32,
+    got: u32,
 }

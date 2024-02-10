@@ -262,6 +262,8 @@ impl MixnetListener {
         let requested_ip = connect_request.ip;
         let reply_to = connect_request.reply_to;
         let reply_to_hops = connect_request.reply_to_hops;
+        // TODO: add to connect request
+        let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
         // TODO: ignoring reply_to_avg_mix_delays for now
 
         // Check that the IP is available in the set of connected clients
@@ -292,6 +294,7 @@ impl MixnetListener {
                     connected_client_handler::ConnectedClientHandler::start(
                         reply_to,
                         reply_to_hops,
+                        buffer_timeout,
                         self.mixnet_client.split_sender(),
                     );
 
@@ -339,6 +342,8 @@ impl MixnetListener {
         let request_id = connect_request.request_id;
         let reply_to = connect_request.reply_to;
         let reply_to_hops = connect_request.reply_to_hops;
+        // TODO: add to connect request
+        let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
         // TODO: ignoring reply_to_avg_mix_delays for now
 
         // Check if it's the same client connecting again, then we just reuse the same IP
@@ -375,6 +380,7 @@ impl MixnetListener {
             connected_client_handler::ConnectedClientHandler::start(
                 reply_to,
                 reply_to_hops,
+                buffer_timeout,
                 self.mixnet_client.split_sender(),
             );
 
@@ -456,7 +462,6 @@ impl MixnetListener {
         data_request: nym_ip_packet_requests::request::DataRequest,
     ) -> Result<Vec<PacketHandleResult>> {
         let mut responses = Vec::new();
-        // TODO: set timeout per connected client
         let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
         let mut bytes = BytesMut::new();
         bytes.extend_from_slice(&data_request.ip_packets);

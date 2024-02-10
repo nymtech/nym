@@ -90,21 +90,18 @@ impl IpPacketResponse {
         }
     }
 
-    // TODO
-    // pub fn new_unrequested_disconnect(
-    //     request_id: u64,
-    //     reply_to: Recipient,
-    //     reason: UnrequestedDisconnectReason,
-    // ) -> Self {
-    //     Self {
-    //         version: CURRENT_VERSION,
-    //         data: IpPacketResponseData::Disconnect(DisconnectResponse {
-    //             request_id: 0,
-    //             reply_to: Recipient::new(),
-    //             reply: DisconnectResponseReply::Failure(DisconnectFailureReason::Unrequested),
-    //         }),
-    //     }
-    // }
+    pub fn new_unrequested_disconnect(
+        reply_to: Recipient,
+        reason: UnrequestedDisconnectReason,
+    ) -> Self {
+        Self {
+            version: CURRENT_VERSION,
+            data: IpPacketResponseData::UnrequestedDisconnect(UnrequestedDisconnect {
+                reply_to,
+                reason,
+            }),
+        }
+    }
 
     pub fn new_ip_packet(ip_packet: bytes::Bytes) -> Self {
         Self {
@@ -148,6 +145,7 @@ impl IpPacketResponse {
             IpPacketResponseData::StaticConnect(response) => Some(response.request_id),
             IpPacketResponseData::DynamicConnect(response) => Some(response.request_id),
             IpPacketResponseData::Disconnect(response) => Some(response.request_id),
+            IpPacketResponseData::UnrequestedDisconnect(_) => None,
             IpPacketResponseData::Data(_) => None,
             IpPacketResponseData::Error(response) => Some(response.request_id),
         }
@@ -158,6 +156,7 @@ impl IpPacketResponse {
             IpPacketResponseData::StaticConnect(response) => Some(&response.reply_to),
             IpPacketResponseData::DynamicConnect(response) => Some(&response.reply_to),
             IpPacketResponseData::Disconnect(response) => Some(&response.reply_to),
+            IpPacketResponseData::UnrequestedDisconnect(response) => Some(&response.reply_to),
             IpPacketResponseData::Data(_) => None,
             IpPacketResponseData::Error(response) => Some(&response.reply_to),
         }
@@ -179,10 +178,22 @@ impl IpPacketResponse {
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum IpPacketResponseData {
+    // Response for a static connect request
     StaticConnect(StaticConnectResponse),
+
+    // Response for a dynamic connect request
     DynamicConnect(DynamicConnectResponse),
+
+    // Response for a disconnect initiqated by the client
     Disconnect(DisconnectResponse),
+
+    // Message from the server that the client got disconnected without the client initiating it
+    UnrequestedDisconnect(UnrequestedDisconnect),
+
+    // Response to a data request
     Data(DataResponse),
+
+    // Error response
     Error(ErrorResponse),
 }
 
@@ -272,6 +283,22 @@ pub enum DisconnectResponseReply {
 pub enum DisconnectFailureReason {
     #[error("requested nym-address is not currently connected")]
     RequestedNymAddressNotConnected,
+    #[error("{0}")]
+    Other(String),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UnrequestedDisconnect {
+    pub reply_to: Recipient,
+    pub reason: UnrequestedDisconnectReason,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
+pub enum UnrequestedDisconnectReason {
+    #[error("client mixnet traffic timeout")]
+    ClientMixnetTrafficTimeout,
+    #[error("client tun traffic timeout")]
+    ClientTunTrafficTimeout,
     #[error("{0}")]
     Other(String),
 }

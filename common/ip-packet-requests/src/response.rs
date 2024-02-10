@@ -147,6 +147,7 @@ impl IpPacketResponse {
             IpPacketResponseData::Disconnect(response) => Some(response.request_id),
             IpPacketResponseData::UnrequestedDisconnect(_) => None,
             IpPacketResponseData::Data(_) => None,
+            IpPacketResponseData::Pong(response) => Some(response.request_id),
             IpPacketResponseData::Error(response) => Some(response.request_id),
         }
     }
@@ -158,6 +159,7 @@ impl IpPacketResponse {
             IpPacketResponseData::Disconnect(response) => Some(&response.reply_to),
             IpPacketResponseData::UnrequestedDisconnect(response) => Some(&response.reply_to),
             IpPacketResponseData::Data(_) => None,
+            IpPacketResponseData::Pong(response) => Some(&response.reply_to),
             IpPacketResponseData::Error(response) => Some(&response.reply_to),
         }
     }
@@ -192,6 +194,9 @@ pub enum IpPacketResponseData {
 
     // Response to a data request
     Data(DataResponse),
+
+    // Response to ping request
+    Pong(PongResponse),
 
     // Error response
     Error(ErrorResponse),
@@ -306,6 +311,12 @@ pub enum UnrequestedDisconnectReason {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DataResponse {
     pub ip_packet: bytes::Bytes,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PongResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

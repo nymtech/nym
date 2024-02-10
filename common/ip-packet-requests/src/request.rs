@@ -91,6 +91,7 @@ impl IpPacketRequest {
             IpPacketRequestData::DynamicConnect(request) => Some(request.request_id),
             IpPacketRequestData::Disconnect(request) => Some(request.request_id),
             IpPacketRequestData::Data(_) => None,
+            IpPacketRequestData::Ping(request) => Some(request.request_id),
         }
     }
 
@@ -100,6 +101,7 @@ impl IpPacketRequest {
             IpPacketRequestData::DynamicConnect(request) => Some(&request.reply_to),
             IpPacketRequestData::Disconnect(request) => Some(&request.reply_to),
             IpPacketRequestData::Data(_) => None,
+            IpPacketRequestData::Ping(request) => Some(&request.reply_to),
         }
     }
 
@@ -123,6 +125,7 @@ pub enum IpPacketRequestData {
     DynamicConnect(DynamicConnectRequest),
     Disconnect(DisconnectRequest),
     Data(DataRequest),
+    Ping(PingRequest),
 }
 
 // A static connect request is when the client provides the internal IP address it will use on the
@@ -184,6 +187,14 @@ pub struct DisconnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DataRequest {
     pub ip_packets: bytes::Bytes,
+}
+
+// A ping request is when the client wants to check if the ip packet router is still alive.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PingRequest {
+    pub request_id: u64,
+    // The nym-address the response should be sent back to
+    pub reply_to: Recipient,
 }
 
 #[cfg(test)]

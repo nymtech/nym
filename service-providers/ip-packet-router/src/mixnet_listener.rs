@@ -529,6 +529,10 @@ impl MixnetListener {
                 Ok(vec![self.on_disconnect_request(disconnect_request)])
             }
             IpPacketRequestData::Data(data_request) => self.on_data_request(data_request).await,
+            IpPacketRequestData::Ping(_) => {
+                log::info!("Received ping request: not implemented, dropping");
+                Ok(vec![])
+            }
         }
     }
 

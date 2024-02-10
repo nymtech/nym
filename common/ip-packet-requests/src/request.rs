@@ -74,10 +74,10 @@ impl IpPacketRequest {
         )
     }
 
-    pub fn new_ip_packet(ip_packet: bytes::Bytes) -> Self {
+    pub fn new_data_request(ip_packets: bytes::Bytes) -> Self {
         Self {
             version: CURRENT_VERSION,
-            data: IpPacketRequestData::Data(DataRequest { ip_packet }),
+            data: IpPacketRequestData::Data(DataRequest { ip_packets }),
         }
     }
 
@@ -164,7 +164,7 @@ pub struct DisconnectRequest {
 // A data request is when the client wants to send an IP packet to a destination.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DataRequest {
-    pub ip_packet: bytes::Bytes,
+    pub ip_packets: bytes::Bytes,
 }
 
 #[cfg(test)]
@@ -193,7 +193,7 @@ mod tests {
         let data = IpPacketRequest {
             version: 4,
             data: IpPacketRequestData::Data(DataRequest {
-                ip_packet: bytes::Bytes::from(vec![1u8; 32]),
+                ip_packets: bytes::Bytes::from(vec![1u8; 32]),
             }),
         };
         assert_eq!(data.to_bytes().unwrap().len(), 35);
@@ -204,7 +204,7 @@ mod tests {
         let data = IpPacketRequest {
             version: 4,
             data: IpPacketRequestData::Data(DataRequest {
-                ip_packet: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
+                ip_packets: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
             }),
         };
 
@@ -221,7 +221,7 @@ mod tests {
         assert_eq!(
             deserialized.data,
             IpPacketRequestData::Data(DataRequest {
-                ip_packet: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
+                ip_packets: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
             })
         );
     }

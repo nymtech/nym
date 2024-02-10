@@ -3,8 +3,10 @@ use std::{
     net::{IpAddr, SocketAddr},
 };
 
+use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
 use nym_ip_packet_requests::{
+    codec::MultiIpPacketCodec,
     request::{IpPacketRequest, IpPacketRequestData},
     response::{
         DynamicConnectFailureReason, ErrorResponseReply, IpPacketResponse,
@@ -17,6 +19,7 @@ use nym_task::TaskHandle;
 use tap::TapFallible;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncWriteExt;
+use tokio_util::codec::Decoder;
 
 use crate::{
     config::Config,
@@ -218,6 +221,8 @@ impl Drop for ConnectedClient {
     }
 }
 
+type PacketHandleResult = Result<Option<IpPacketResponse>>;
+
 #[cfg(target_os = "linux")]
 pub(crate) struct MixnetListener {
     // The configuration for the mixnet listener
@@ -247,7 +252,7 @@ impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
         connect_request: nym_ip_packet_requests::request::StaticConnectRequest,
-    ) -> Result<Option<IpPacketResponse>> {
+    ) -> PacketHandleResult {
         log::info!(
             "Received static connect request from {sender_address}",
             sender_address = connect_request.reply_to
@@ -325,7 +330,7 @@ impl MixnetListener {
     async fn on_dynamic_connect_request(
         &mut self,
         connect_request: nym_ip_packet_requests::request::DynamicConnectRequest,
-    ) -> Result<Option<IpPacketResponse>> {
+    ) -> PacketHandleResult {
         log::info!(
             "Received dynamic connect request from {sender_address}",
             sender_address = connect_request.reply_to
@@ -390,15 +395,12 @@ impl MixnetListener {
     fn on_disconnect_request(
         &self,
         _disconnect_request: nym_ip_packet_requests::request::DisconnectRequest,
-    ) -> Result<Option<IpPacketResponse>> {
+    ) -> PacketHandleResult {
         log::info!("Received disconnect request: not implemented, dropping");
         Ok(None)
     }
 
-    async fn on_data_request(
-        &mut self,
-        data_request: nym_ip_packet_requests::request::DataRequest,
-    ) -> Result<Option<IpPacketResponse>> {
+    async fn handle_packet(&mut self, ip_packet: &Bytes) -> PacketHandleResult {
         log::trace!("Received data request");
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
@@ -413,7 +415,7 @@ impl MixnetListener {
             src_addr,
             dst_addr,
             dst,
-        } = parse_packet(&data_request.ip_packet)?;
+        } = parse_packet(ip_packet)?;
 
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
         log::debug!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
@@ -429,7 +431,7 @@ impl MixnetListener {
             if self.request_filter.check_address(&dst).await {
                 // Forward the packet to the TUN device where it will be routed out to the internet
                 self.tun_writer
-                    .write_all(&data_request.ip_packet)
+                    .write_all(ip_packet)
                     .await
                     .map_err(|_| IpPacketRouterError::FailedToWritePacketToTun)?;
                 Ok(None)
@@ -449,11 +451,27 @@ impl MixnetListener {
         }
     }
 
+    async fn on_data_request(
+        &mut self,
+        data_request: nym_ip_packet_requests::request::DataRequest,
+    ) -> Result<Vec<PacketHandleResult>> {
+        let mut responses = Vec::new();
+        // TODO: set timeout per connected client
+        let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
+        let mut bytes = BytesMut::new();
+        bytes.extend_from_slice(&data_request.ip_packets);
+        while let Ok(Some(packet)) = decoder.decode(&mut bytes) {
+            let result = self.handle_packet(&packet).await;
+            responses.push(result);
+        }
+        Ok(responses)
+    }
+
     fn on_version_mismatch(
         &self,
         version: u8,
         reconstructed: &ReconstructedMessage,
-    ) -> Result<Option<IpPacketResponse>> {
+    ) -> PacketHandleResult {
         // If it's possible to parse, do so and return back a response, otherwise just drop
         let (id, recipient) = IpPacketRequest::from_reconstructed_message(reconstructed)
             .ok()
@@ -472,10 +490,11 @@ impl MixnetListener {
         )))
     }
 
+    // TODO: add aliases to simplify this return type
     async fn on_reconstructed_message(
         &mut self,
         reconstructed: ReconstructedMessage,
-    ) -> Result<Option<IpPacketResponse>> {
+    ) -> Result<Vec<PacketHandleResult>> {
         log::debug!(
             "Received message with sender_tag: {:?}",
             reconstructed.sender_tag
@@ -487,7 +506,7 @@ impl MixnetListener {
             // backwards compatible.
             if *version != nym_ip_packet_requests::CURRENT_VERSION {
                 log::info!("Received packet with invalid version: v{version}");
-                return self.on_version_mismatch(*version, &reconstructed);
+                return Ok(vec![self.on_version_mismatch(*version, &reconstructed)]);
             }
         }
 
@@ -496,13 +515,13 @@ impl MixnetListener {
 
         match request.data {
             IpPacketRequestData::StaticConnect(connect_request) => {
-                self.on_static_connect_request(connect_request).await
+                Ok(vec![self.on_static_connect_request(connect_request).await])
             }
             IpPacketRequestData::DynamicConnect(connect_request) => {
-                self.on_dynamic_connect_request(connect_request).await
+                Ok(vec![self.on_dynamic_connect_request(connect_request).await])
             }
             IpPacketRequestData::Disconnect(disconnect_request) => {
-                self.on_disconnect_request(disconnect_request)
+                Ok(vec![self.on_disconnect_request(disconnect_request)])
             }
             IpPacketRequestData::Data(data_request) => self.on_data_request(data_request).await,
         }
@@ -567,16 +586,25 @@ impl MixnetListener {
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
                         match self.on_reconstructed_message(msg).await {
-                            Ok(Some(response)) => {
-                                if let Err(err) = self.handle_response(response).await {
-                                    log::error!("Mixnet listener failed to handle response: {err}");
+                            Ok(responses) => {
+                                for response in responses {
+                                    match response {
+                                        Ok(Some(response)) => {
+                                            if let Err(err) = self.handle_response(response).await {
+                                                log::error!("Mixnet listener failed to handle response: {err}");
+                                            }
+                                        },
+                                        Ok(None) => {
+                                            continue;
+                                        },
+                                        Err(err) => {
+                                            log::error!("Error handling mixnet message: {err}");
+                                        }
+                                    }
                                 }
                             },
-                            Ok(None) => {
-                                continue;
-                            },
                             Err(err) => {
-                                log::error!("Error handling mixnet message: {err}");
+                                log::error!("Error handling reconstructed mixnet message: {err}");
                             }
 
                         };

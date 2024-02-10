@@ -23,6 +23,7 @@ impl IpPacketRequest {
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
+        buffer_timeout: Option<u64>,
     ) -> (Self, u64) {
         let request_id = generate_random();
         (
@@ -34,6 +35,7 @@ impl IpPacketRequest {
                     reply_to,
                     reply_to_hops,
                     reply_to_avg_mix_delays,
+                    buffer_timeout,
                 }),
             },
             request_id,
@@ -44,6 +46,7 @@ impl IpPacketRequest {
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
+        buffer_timeout: Option<u64>,
     ) -> (Self, u64) {
         let request_id = generate_random();
         (
@@ -54,6 +57,7 @@ impl IpPacketRequest {
                     reply_to,
                     reply_to_hops,
                     reply_to_avg_mix_delays,
+                    buffer_timeout,
                 }),
             },
             request_id,
@@ -126,15 +130,23 @@ pub enum IpPacketRequestData {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct StaticConnectRequest {
     pub request_id: u64,
+
     pub ip: IpAddr,
+
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+
     // The number of mix node hops that responses should take, in addition to the entry and exit
     // node. Zero means only client -> entry -> exit -> client.
     pub reply_to_hops: Option<u8>,
+
     // The average delay at each mix node, in milliseconds. Currently this is not supported by the
     // ip packet router.
     pub reply_to_avg_mix_delays: Option<f64>,
+
+    // The maximum time in milliseconds the IPR should wait when filling up a mix packet
+    // with ip packets.
+    pub buffer_timeout: Option<u64>,
 }
 
 // A dynamic connect request is when the client does not provide the internal IP address it will use
@@ -142,14 +154,21 @@ pub struct StaticConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DynamicConnectRequest {
     pub request_id: u64,
+
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+
     // The number of mix node hops that responses should take, in addition to the entry and exit
     // node. Zero means only client -> entry -> exit -> client.
     pub reply_to_hops: Option<u8>,
+
     // The average delay at each mix node, in milliseconds. Currently this is not supported by the
     // ip packet router.
     pub reply_to_avg_mix_delays: Option<f64>,
+
+    // The maximum time in milliseconds the IPR should wait when filling up a mix packet
+    // with ip packets.
+    pub buffer_timeout: Option<u64>,
 }
 
 // A disconnect request is when the client wants to disconnect from the ip packet router and free
@@ -182,6 +201,7 @@ mod tests {
                     reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
                     reply_to_hops: None,
                     reply_to_avg_mix_delays: None,
+                    buffer_timeout: None,
                 },
             )
         };

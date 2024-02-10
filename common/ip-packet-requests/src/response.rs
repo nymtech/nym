@@ -148,6 +148,7 @@ impl IpPacketResponse {
             IpPacketResponseData::UnrequestedDisconnect(_) => None,
             IpPacketResponseData::Data(_) => None,
             IpPacketResponseData::Pong(response) => Some(response.request_id),
+            IpPacketResponseData::Health(response) => Some(response.request_id),
             IpPacketResponseData::Error(response) => Some(response.request_id),
         }
     }
@@ -160,6 +161,7 @@ impl IpPacketResponse {
             IpPacketResponseData::UnrequestedDisconnect(response) => Some(&response.reply_to),
             IpPacketResponseData::Data(_) => None,
             IpPacketResponseData::Pong(response) => Some(&response.reply_to),
+            IpPacketResponseData::Health(response) => Some(&response.reply_to),
             IpPacketResponseData::Error(response) => Some(&response.reply_to),
         }
     }
@@ -197,6 +199,9 @@ pub enum IpPacketResponseData {
 
     // Response to ping request
     Pong(PongResponse),
+
+    // Response for a health request
+    Health(HealthResponse),
 
     // Error response
     Error(ErrorResponse),
@@ -317,6 +322,21 @@ pub struct DataResponse {
 pub struct PongResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HealthResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
+    pub reply: HealthResponseReply,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HealthResponseReply {
+    // Return the binary build information of the IPR
+    pub build_info: nym_bin_common::build_information::BinaryBuildInformationOwned,
+    // Return if the IPR has performed a successful routing test.
+    pub routable: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

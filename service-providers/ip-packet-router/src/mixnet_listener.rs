@@ -533,6 +533,10 @@ impl MixnetListener {
                 log::info!("Received ping request: not implemented, dropping");
                 Ok(vec![])
             }
+            IpPacketRequestData::Health(_) => {
+                log::info!("Received health request: not implemented, dropping");
+                Ok(vec![])
+            }
         }
     }
 

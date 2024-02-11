@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use serde::Serialize;
 use si_scale::helpers::bibytes2;
 
 use crate::spawn_future;
@@ -17,7 +18,7 @@ const SNAPSHOT_INTERVAL_MS: u64 = 500;
 // Also, set it larger than the packet report interval so that we don't miss notable singular events
 const RECORDING_WINDOW_MS: u64 = 2300;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Serialize)]
 struct PacketStatistics {
     // Sent
     real_packets_sent: u64,
@@ -147,7 +148,7 @@ impl std::ops::Sub for PacketStatistics {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 struct PacketRates {
     real_packets_sent: f64,
     real_packets_sent_size: f64,

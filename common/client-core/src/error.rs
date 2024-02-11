@@ -165,3 +165,23 @@ pub enum ClientCoreStatusMessage {
     #[error("The connected gateway is very slow, or the connection to it is very slow")]
     GatewayIsVerySlow,
 }
+
+#[derive(thiserror::Error, Debug)]
+pub enum MetricsError {
+    #[error("Prometheus error: {source}")]
+    PrometheusError {
+        #[from]
+        source: prometheus::Error,
+    },
+    #[error("Serde error: {source}")]
+    SerdeJson {
+        #[from]
+        source: serde_json::Error,
+    },
+    #[error(
+        "Associated type does not deserialize into an object, this is not supported at the moment"
+    )]
+    NotAnObject,
+    #[error("Value detected as a number, but it is not a valid number")]
+    NotANumber,
+}

@@ -27,9 +27,12 @@ tap = "1.0.1"
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tungstenite = { workspace = true, default-features = false }
-tokio = { workspace = true, features = ["macros"]}
+tokio = { workspace = true, features = ["macros"] }
 time = "0.3.17"
 zeroize = { workspace = true }
+
+# prometheus
+prometheus = { version = "0.13" }
 
 # internal
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
@@ -91,11 +94,15 @@ tempfile = "3.1.0"
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
 
 [features]
 default = []
 cli = ["clap"]
 fs-surb-storage = ["sqlx"]
 wasm = ["nym-gateway-client/wasm"]
-

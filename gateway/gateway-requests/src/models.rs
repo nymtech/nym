@@ -22,7 +22,7 @@ pub struct OldV1Credential {
 }
 
 // attempt to convert the old request type into the new variant
-impl TryFrom<OldV1Credential> for CredentialSpendingWithEpoch {
+impl TryFrom<OldV1Credential> for CredentialSpendingRequest {
     type Error = GatewayRequestsError;
 
     fn try_from(value: OldV1Credential) -> Result<Self, Self::Error> {
@@ -35,14 +35,14 @@ impl TryFrom<OldV1Credential> for CredentialSpendingWithEpoch {
         let typ = value.voucher_info.parse()?;
         let public_attributes_plain = vec![value.voucher_value.to_string(), value.voucher_info];
 
-        Ok(CredentialSpendingWithEpoch {
+        Ok(CredentialSpendingRequest {
             data: CredentialSpendingData {
                 embedded_private_attributes,
                 verify_credential_request: value.theta,
                 public_attributes_plain,
                 typ,
+                epoch_id: value.epoch_id,
             },
-            epoch_id: value.epoch_id,
         })
     }
 }
@@ -106,13 +106,9 @@ impl OldV1Credential {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CredentialSpendingWithEpoch {
+pub struct CredentialSpendingRequest {
     /// The cryptographic material required for spending the underlying credential.
     pub data: CredentialSpendingData,
-
-    /// The (DKG) epoch id under which the credential has been issued so that the verifier
-    /// could use correct verification key for validation.
-    pub epoch_id: u64,
 }
 
 // just a helper macro for checking required length and advancing the buffer
@@ -132,9 +128,9 @@ macro_rules! ensure_len_and_advance {
     }};
 }
 
-impl CredentialSpendingWithEpoch {
-    pub fn new(data: CredentialSpendingData, epoch_id: u64) -> Self {
-        CredentialSpendingWithEpoch { data, epoch_id }
+impl CredentialSpendingRequest {
+    pub fn new(data: CredentialSpendingData) -> Self {
+        CredentialSpendingRequest { data }
     }
 
     pub fn matches_blinded_serial_number(
@@ -183,7 +179,7 @@ impl CredentialSpendingWithEpoch {
 
         bytes.extend_from_slice(&typ_len);
         bytes.extend_from_slice(typ_bytes);
-        bytes.extend_from_slice(&self.epoch_id.to_be_bytes());
+        bytes.extend_from_slice(&self.data.epoch_id.to_be_bytes());
 
         bytes
     }
@@ -227,14 +223,14 @@ impl CredentialSpendingWithEpoch {
         let epoch_id_bytes = ensure_len_and_advance!(b, 8);
         let epoch_id = u64::from_be_bytes(epoch_id_bytes.try_into().unwrap());
 
-        Ok(CredentialSpendingWithEpoch {
+        Ok(CredentialSpendingRequest {
             data: CredentialSpendingData {
                 embedded_private_attributes,
                 verify_credential_request: theta,
                 public_attributes_plain,
                 typ,
+                epoch_id,
             },
-            epoch_id,
         })
     }
 }
@@ -332,13 +328,10 @@ mod tests {
             .prepare_for_spending(keypair.verification_key())
             .unwrap();
 
-        let with_epoch = CredentialSpendingWithEpoch {
-            data: spending,
-            epoch_id: 42,
-        };
+        let with_epoch = CredentialSpendingRequest { data: spending };
 
         let bytes = with_epoch.to_bytes();
-        let recovered = CredentialSpendingWithEpoch::try_from_bytes(&bytes).unwrap();
+        let recovered = CredentialSpendingRequest::try_from_bytes(&bytes).unwrap();
 
         assert_eq!(with_epoch, recovered);
     }

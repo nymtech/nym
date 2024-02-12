@@ -4,7 +4,7 @@
 use super::authenticated::RequestHandlingError;
 use log::*;
 use nym_credentials_interface::VerificationKey;
-use nym_gateway_requests::models::CredentialSpendingWithEpoch;
+use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{MultisigQueryClient, NymContractsProvider};
@@ -180,7 +180,7 @@ impl CoconutVerifier {
     pub async fn release_bandwidth_voucher_funds(
         &self,
         api_clients: &[CoconutApiClient],
-        credential: CredentialSpendingWithEpoch,
+        credential: CredentialSpendingRequest,
     ) -> Result<(), RequestHandlingError> {
         if !credential.data.typ.is_voucher() {
             unimplemented!()
@@ -230,7 +230,6 @@ impl CoconutVerifier {
 
         let req = nym_api_requests::coconut::VerifyCredentialBody::new(
             credential.data,
-            credential.epoch_id,
             proposal_id,
             self.address.clone(),
         );

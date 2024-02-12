@@ -17,10 +17,6 @@ pub struct VerifyCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
     pub credential_data: CredentialSpendingData,
 
-    /// The (DKG) epoch id under which the credential has been issued so that the verifier
-    /// could use correct verification key for validation.
-    pub epoch_id: u64,
-
     /// Multisig proposal for releasing funds for the provided bandwidth credential
     pub proposal_id: u64,
 
@@ -31,13 +27,11 @@ pub struct VerifyCredentialBody {
 impl VerifyCredentialBody {
     pub fn new(
         credential_data: CredentialSpendingData,
-        epoch_id: u64,
         proposal_id: u64,
         gateway_cosmos_addr: AccountId,
     ) -> VerifyCredentialBody {
         VerifyCredentialBody {
             credential_data,
-            epoch_id,
             proposal_id,
             gateway_cosmos_addr,
         }
@@ -68,7 +62,6 @@ pub struct BlindSignRequestBody {
     /// Signature on the inner sign request and the tx hash
     pub signature: identity::Signature,
 
-    // public_attributes: Vec<String>,
     pub public_attributes_plain: Vec<String>,
 }
 

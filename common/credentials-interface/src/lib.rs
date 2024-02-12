@@ -92,6 +92,9 @@ pub struct CredentialSpendingData {
     pub public_attributes_plain: Vec<String>,
 
     pub typ: CredentialType,
+
+    /// The (DKG) epoch id under which the credential has been issued so that the verifier could use correct verification key for validation.
+    pub epoch_id: u64,
 }
 
 impl CredentialSpendingData {

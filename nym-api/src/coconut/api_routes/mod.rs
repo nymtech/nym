@@ -239,8 +239,8 @@ pub async fn verify_bandwidth_credential(
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
     let proposal_id = verify_credential_body.proposal_id;
-    let epoch_id = verify_credential_body.epoch_id;
     let credential_data = &verify_credential_body.credential_data;
+    let epoch_id = credential_data.epoch_id;
     let theta = &credential_data.verify_credential_request;
 
     let voucher_value: u64 = if credential_data.typ.is_voucher() {

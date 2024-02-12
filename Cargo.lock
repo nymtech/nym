@@ -5241,6 +5241,7 @@ dependencies = [
  "sha2 0.9.9",
  "sqlx",
  "tap",
+ "tempfile",
  "thiserror",
  "time",
  "tokio",

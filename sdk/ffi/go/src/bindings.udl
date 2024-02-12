@@ -10,7 +10,7 @@ enum GoWrapError {
 
 dictionary IncomingMessage {
     string message;
-    string sender;
+    bytes  sender;
 };
 
 namespace bindings {
@@ -22,7 +22,7 @@ namespace bindings {
   [Throws=GoWrapError]
   void send_message(string recipient, string message);
   [Throws=GoWrapError]
-  void reply(string recipient, string message);
+  void reply(bytes recipient, string message);
   [Throws=GoWrapError]
   IncomingMessage listen_for_incoming();
 };

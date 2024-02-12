@@ -56,8 +56,10 @@ fn send_message(recipient: String, message: String) -> Result<(), GoWrapError> {
 }
 
 #[no_mangle]
-fn reply(recipient: String, message: String) -> Result<(), GoWrapError> {
-    let anon_recipient_type: AnonymousSenderTag = AnonymousSenderTag::try_from_base58_string(recipient).expect("could not construct AnonymousSenderTag from supplied value");
+fn reply(recipient: Vec<u8>, message: String) -> Result<(), GoWrapError> {
+    let mut sized_array: [u8; 16] = [0; 16];
+    sized_array.copy_from_slice(&recipient[..16]);
+    let anon_recipient_type: AnonymousSenderTag = AnonymousSenderTag::from_bytes(sized_array);
     match nym_ffi_shared::reply_internal(anon_recipient_type, &message) {
         Ok(_) => Ok(()),
         Err(_) => Err(GoWrapError::ReplyError{}),
@@ -66,7 +68,7 @@ fn reply(recipient: String, message: String) -> Result<(), GoWrapError> {
 
 pub struct IncomingMessage {
     message: String,
-    sender: String
+    sender: Vec<u8>
 }
 
 #[no_mangle]
@@ -75,7 +77,7 @@ fn listen_for_incoming() -> Result<IncomingMessage, GoWrapError> {
         Ok(received) => {
             let message = String::from_utf8_lossy(&received.message).to_string();
             // maybe change this to raw bytes to send over TODO
-            let sender = received.sender_tag.unwrap().to_base58_string();
+            let sender = received.sender_tag.unwrap().to_bytes().to_vec(); //.to_base58_string();
             let incoming = IncomingMessage {
                 message,
                 sender

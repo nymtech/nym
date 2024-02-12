@@ -383,7 +383,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_reply(uniffiStatus)
 		})
-		if checksum != 22969 {
+		if checksum != 50524 {
 			// If this happens try cleaning and rebuilding your project
 			panic("bindings: uniffi_nym_go_ffi_checksum_func_reply: UniFFI API checksum mismatch")
 		}
@@ -449,14 +449,58 @@ type FfiDestroyerString struct{}
 
 func (FfiDestroyerString) Destroy(_ string) {}
 
+type FfiConverterBytes struct{}
+
+var FfiConverterBytesINSTANCE = FfiConverterBytes{}
+
+func (c FfiConverterBytes) Lower(value []byte) RustBuffer {
+	return LowerIntoRustBuffer[[]byte](c, value)
+}
+
+func (c FfiConverterBytes) Write(writer io.Writer, value []byte) {
+	if len(value) > math.MaxInt32 {
+		panic("[]byte is too large to fit into Int32")
+	}
+
+	writeInt32(writer, int32(len(value)))
+	write_length, err := writer.Write(value)
+	if err != nil {
+		panic(err)
+	}
+	if write_length != len(value) {
+		panic(fmt.Errorf("bad write length when writing []byte, expected %d, written %d", len(value), write_length))
+	}
+}
+
+func (c FfiConverterBytes) Lift(rb RustBufferI) []byte {
+	return LiftFromRustBuffer[[]byte](c, rb)
+}
+
+func (c FfiConverterBytes) Read(reader io.Reader) []byte {
+	length := readInt32(reader)
+	buffer := make([]byte, length)
+	read_length, err := reader.Read(buffer)
+	if err != nil {
+		panic(err)
+	}
+	if read_length != int(length) {
+		panic(fmt.Errorf("bad read length when reading []byte, expected %d, read %d", length, read_length))
+	}
+	return buffer
+}
+
+type FfiDestroyerBytes struct{}
+
+func (FfiDestroyerBytes) Destroy(_ []byte) {}
+
 type IncomingMessage struct {
 	Message string
-	Sender  string
+	Sender  []byte
 }
 
 func (r *IncomingMessage) Destroy() {
 	FfiDestroyerString{}.Destroy(r.Message)
-	FfiDestroyerString{}.Destroy(r.Sender)
+	FfiDestroyerBytes{}.Destroy(r.Sender)
 }
 
 type FfiConverterTypeIncomingMessage struct{}
@@ -470,7 +514,7 @@ func (c FfiConverterTypeIncomingMessage) Lift(rb RustBufferI) IncomingMessage {
 func (c FfiConverterTypeIncomingMessage) Read(reader io.Reader) IncomingMessage {
 	return IncomingMessage{
 		FfiConverterStringINSTANCE.Read(reader),
-		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterBytesINSTANCE.Read(reader),
 	}
 }
 
@@ -480,7 +524,7 @@ func (c FfiConverterTypeIncomingMessage) Lower(value IncomingMessage) RustBuffer
 
 func (c FfiConverterTypeIncomingMessage) Write(writer io.Writer, value IncomingMessage) {
 	FfiConverterStringINSTANCE.Write(writer, value.Message)
-	FfiConverterStringINSTANCE.Write(writer, value.Sender)
+	FfiConverterBytesINSTANCE.Write(writer, value.Sender)
 }
 
 type FfiDestroyerTypeIncomingMessage struct{}
@@ -712,9 +756,9 @@ func ListenForIncoming() (IncomingMessage, error) {
 	}
 }
 
-func Reply(recipient string, message string) error {
+func Reply(recipient []byte, message string) error {
 	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_nym_go_ffi_fn_func_reply(FfiConverterStringINSTANCE.Lower(recipient), FfiConverterStringINSTANCE.Lower(message), _uniffiStatus)
+		C.uniffi_nym_go_ffi_fn_func_reply(FfiConverterBytesINSTANCE.Lower(recipient), FfiConverterStringINSTANCE.Lower(message), _uniffiStatus)
 		return false
 	})
 	return _uniffiErr

@@ -104,8 +104,8 @@ int main() {
     return_code = reply_future.get();
     handle(return_code);
 
-    // sleep so that the nym side logging can catch up - in reality you'd have another process running to keep logging
-    // going, so this is only necessary for this reference implementation
+    // sleep so that the client processes can catch up - in reality you'd have another process running to keep logging
+    // going, so this is only necessary for this reference
     std::this_thread::sleep_for(std::chrono::seconds(40));
 
     return 0;

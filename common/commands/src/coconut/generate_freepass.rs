@@ -75,7 +75,7 @@ async fn get_freepass(
             match issuance_pass
                 .obtain_partial_freepass_credential(
                     &client.api_client,
-                    &signing_account,
+                    signing_account,
                     &client.verification_key,
                     signing_data.clone(),
                 )

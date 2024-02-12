@@ -495,7 +495,6 @@ impl MixnetListener {
         )))
     }
 
-    // TODO: add aliases to simplify this return type
     async fn on_reconstructed_message(
         &mut self,
         reconstructed: ReconstructedMessage,
@@ -584,6 +583,26 @@ impl MixnetListener {
             .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })
     }
 
+    // A single incoming request can trigger multiple responses, such as when data requests contain
+    // multiple IP packets.
+    async fn handle_responses(&self, responses: Vec<PacketHandleResult>) {
+        for response in responses {
+            match response {
+                Ok(Some(response)) => {
+                    if let Err(err) = self.handle_response(response).await {
+                        log::error!("Mixnet listener failed to handle response: {err}");
+                    }
+                }
+                Ok(None) => {
+                    continue;
+                }
+                Err(err) => {
+                    log::error!("Error handling mixnet message: {err}");
+                }
+            }
+        }
+    }
+
     pub(crate) async fn run(mut self) -> Result<()> {
         let mut task_client = self.task_handle.fork("main_loop");
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
@@ -599,23 +618,7 @@ impl MixnetListener {
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
                         match self.on_reconstructed_message(msg).await {
-                            Ok(responses) => {
-                                for response in responses {
-                                    match response {
-                                        Ok(Some(response)) => {
-                                            if let Err(err) = self.handle_response(response).await {
-                                                log::error!("Mixnet listener failed to handle response: {err}");
-                                            }
-                                        },
-                                        Ok(None) => {
-                                            continue;
-                                        },
-                                        Err(err) => {
-                                            log::error!("Error handling mixnet message: {err}");
-                                        }
-                                    }
-                                }
-                            },
+                            Ok(responses) => self.handle_responses(responses).await,
                             Err(err) => {
                                 log::error!("Error handling reconstructed mixnet message: {err}");
                             }

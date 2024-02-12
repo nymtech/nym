@@ -58,7 +58,7 @@ pub(crate) fn blind_sign<C: CredentialRequest>(
     Ok(nym_coconut::blind_sign(
         bandwidth_credential_params(),
         signing_key,
-        &request.blind_sign_request(),
+        request.blind_sign_request(),
         &attributes_ref,
     )?)
 }

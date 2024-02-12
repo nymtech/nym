@@ -11,6 +11,7 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_task::TaskClient;
+use std::os::fd::{AsRawFd, RawFd};
 use std::sync::Arc;
 use tungstenite::Message;
 
@@ -38,11 +39,15 @@ type WsConn = JSWebsocket;
 type SplitStreamReceiver = oneshot::Receiver<Result<SplitStream<WsConn>, GatewayClientError>>;
 
 pub(crate) struct PartiallyDelegated {
+    ws_fd: RawFd,
     sink_half: SplitSink<WsConn, Message>,
     delegated_stream: (SplitStreamReceiver, oneshot::Sender<()>),
 }
 
 impl PartiallyDelegated {
+    pub fn ws_fd(&self) -> RawFd {
+        self.ws_fd
+    }
     fn recover_received_plaintexts(ws_msgs: Vec<Message>, shared_key: &SharedKeys) -> Vec<Vec<u8>> {
         let mut plaintexts = Vec::with_capacity(ws_msgs.len());
         for ws_msg in ws_msgs {
@@ -92,6 +97,11 @@ impl PartiallyDelegated {
         let (notify_sender, notify_receiver) = oneshot::channel();
         let (stream_sender, stream_receiver) = oneshot::channel();
 
+        let ws_fd = match conn.get_ref() {
+            MaybeTlsStream::Plain(stream) => stream.as_raw_fd(),
+            MaybeTlsStream::NativeTls(stream) => stream.as_raw_fd(),
+            _ => 0.into(),
+        };
         let (sink, mut stream) = conn.split();
 
         let mixnet_receiver_future = async move {
@@ -141,6 +151,7 @@ impl PartiallyDelegated {
         tokio::spawn(mixnet_receiver_future);
 
         PartiallyDelegated {
+            ws_fd,
             sink_half: sink,
             delegated_stream: (stream_receiver, notify_sender),
         }

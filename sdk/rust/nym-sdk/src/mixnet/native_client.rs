@@ -16,6 +16,7 @@ use nym_task::{
     TaskHandle,
 };
 use nym_topology::NymTopology;
+use std::os::fd::RawFd;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -44,6 +45,8 @@ pub struct MixnetClient {
     pub(crate) task_handle: TaskHandle,
     pub(crate) packet_type: Option<PacketType>,
 
+    pub(crate) gateway_fd: Option<RawFd>,
+
     // internal state used for the `Stream` implementation
     _buffered: Vec<ReconstructedMessage>,
 }
@@ -56,6 +59,7 @@ impl MixnetClient {
         client_state: ClientState,
         reconstructed_receiver: ReconstructedMessagesReceiver,
         task_handle: TaskHandle,
+        gateway_fd: Option<RawFd>,
         packet_type: Option<PacketType>,
     ) -> Self {
         Self {
@@ -65,6 +69,7 @@ impl MixnetClient {
             client_state,
             reconstructed_receiver,
             task_handle,
+            gateway_fd,
             packet_type,
             _buffered: Vec::new(),
         }
@@ -95,6 +100,10 @@ impl MixnetClient {
     /// client identity, the client encryption key, and the gateway identity.
     pub fn nym_address(&self) -> &Recipient {
         &self.nym_address
+    }
+
+    pub fn gateway_fd(&self) -> Option<RawFd> {
+        self.gateway_fd
     }
 
     /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and

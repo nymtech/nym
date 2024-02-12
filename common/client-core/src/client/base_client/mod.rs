@@ -52,6 +52,7 @@ use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::fmt::Debug;
+use std::os::fd::RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use url::Url;
@@ -683,6 +684,7 @@ where
             packet_stats_reporter.clone(),
         );
 
+        let gateway_fd = gateway_transceiver.ws_fd();
         // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
@@ -755,6 +757,7 @@ where
                     received_buffer_request_sender,
                 },
             },
+            gateway_fd,
             client_state: ClientState {
                 shared_lane_queue_lengths,
                 reply_controller_sender,
@@ -770,6 +773,7 @@ pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
+    pub gateway_fd: Option<RawFd>,
 
     pub task_handle: TaskHandle,
 }

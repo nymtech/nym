@@ -26,6 +26,8 @@ use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
+use std::os::fd::AsRawFd;
+use std::os::fd::RawFd;
 use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
@@ -34,6 +36,7 @@ use tungstenite::protocol::Message;
 use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
+use tokio_tungstenite::MaybeTlsStream;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
@@ -144,6 +147,18 @@ impl<C, St> GatewayClient<C, St> {
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_identity
+    }
+
+    pub fn ws_fd(&self) -> Option<RawFd> {
+        match &self.connection {
+            SocketState::Available(conn) => match conn.get_ref() {
+                MaybeTlsStream::Plain(stream) => Some(stream.as_raw_fd()),
+                MaybeTlsStream::NativeTls(stream) => Some(stream.as_raw_fd()),
+                &_ => None,
+            },
+            SocketState::PartiallyDelegated(conn) => Some(conn.ws_fd()),
+            _ => None,
+        }
     }
 
     pub fn remaining_bandwidth(&self) -> i64 {

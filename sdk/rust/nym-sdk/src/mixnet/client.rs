@@ -714,6 +714,7 @@ where
             client_state,
             reconstructed_receiver,
             started_client.task_handle,
+            started_client.gateway_fd,
             None,
         ))
     }

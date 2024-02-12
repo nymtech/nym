@@ -3,7 +3,7 @@
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
-use crate::models::{CredentialSpendingWithEpoch, OldV1Credential};
+use crate::models::{CredentialSpendingRequest, OldV1Credential};
 use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION};
 use log::error;
@@ -190,11 +190,10 @@ impl ClientControlRequest {
 
     pub fn new_enc_coconut_bandwidth_credential_v2(
         credential: CredentialSpendingData,
-        epoch_id: u64,
         shared_key: &SharedKeys,
         iv: IV,
     ) -> Self {
-        let cred = CredentialSpendingWithEpoch::new(credential, epoch_id);
+        let cred = CredentialSpendingRequest::new(credential);
         let serialized_credential = cred.to_bytes();
         let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
@@ -208,9 +207,9 @@ impl ClientControlRequest {
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
         iv: IV,
-    ) -> Result<CredentialSpendingWithEpoch, GatewayRequestsError> {
+    ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
         let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
-        CredentialSpendingWithEpoch::try_from_bytes(&credential_bytes)
+        CredentialSpendingRequest::try_from_bytes(&credential_bytes)
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }

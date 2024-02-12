@@ -25,7 +25,6 @@ use nym_gateway_requests::{
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
-use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
@@ -527,14 +526,12 @@ impl<C, St> GatewayClient<C, St> {
     async fn claim_coconut_bandwidth(
         &mut self,
         credential: CredentialSpendingData,
-        epoch_id: EpochId,
     ) -> Result<(), GatewayClientError> {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
         let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential_v2(
             credential,
-            epoch_id,
             self.shared_key.as_ref().unwrap(),
             iv,
         )
@@ -587,7 +584,7 @@ impl<C, St> GatewayClient<C, St> {
             .prepare_bandwidth_credential()
             .await?;
 
-        self.claim_coconut_bandwidth(prepared_credential.data, prepared_credential.epoch_id)
+        self.claim_coconut_bandwidth(prepared_credential.data)
             .await?;
         self.bandwidth_controller
             .as_ref()

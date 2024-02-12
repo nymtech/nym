@@ -14,9 +14,9 @@ use nym_credentials_interface::prove_bandwidth_credential;
 use nym_credentials_interface::{
     Parameters, PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
+use nym_validator_client::nym_api::EpochId;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use nym_validator_client::nym_api::EpochId;
 
 pub const CURRENT_SERIALIZATION_REVISION: u8 = 1;
 
@@ -92,9 +92,9 @@ pub struct IssuedBandwidthCredential {
     /// type of the bandwdith credential hashed onto a scalar
     #[serde(with = "scalar_serde_helper")]
     type_prehashed: PublicAttribute,
-    
+
     /// Specifies the (DKG) epoch id when this credential has been issued
-    epoch_id: EpochId
+    epoch_id: EpochId,
 }
 
 impl IssuedBandwidthCredential {
@@ -104,7 +104,7 @@ impl IssuedBandwidthCredential {
         signature: Signature,
         variant_data: BandwidthCredentialIssuedDataVariant,
         type_prehashed: PublicAttribute,
-        epoch_id: EpochId
+        epoch_id: EpochId,
     ) -> Self {
         IssuedBandwidthCredential {
             serial_number,
@@ -172,6 +172,7 @@ impl IssuedBandwidthCredential {
             verify_credential_request,
             public_attributes_plain: self.get_plain_public_attributes(),
             typ: self.typ(),
+            epoch_id: self.epoch_id,
         })
     }
 }

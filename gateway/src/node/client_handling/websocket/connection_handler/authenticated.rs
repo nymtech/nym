@@ -22,7 +22,7 @@ use futures::{
 use log::*;
 use nym_credentials::coconut::bandwidth::{bandwidth_credential_params, CredentialType};
 use nym_credentials_interface::CoconutError;
-use nym_gateway_requests::models::CredentialSpendingWithEpoch;
+use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     types::{BinaryRequest, ServerResponse},
@@ -220,12 +220,12 @@ where
 
     async fn handle_bandwidth_request(
         &mut self,
-        credential: CredentialSpendingWithEpoch,
+        credential: CredentialSpendingRequest,
     ) -> Result<ServerResponse, RequestHandlingError> {
         let aggregated_verification_key = self
             .inner
             .coconut_verifier
-            .verification_key(credential.epoch_id)
+            .verification_key(credential.data.epoch_id)
             .await?;
 
         if !credential.data.validate_type_attribute() {
@@ -251,7 +251,7 @@ where
                 let api_clients = self
                     .inner
                     .coconut_verifier
-                    .api_clients(credential.epoch_id)
+                    .api_clients(credential.data.epoch_id)
                     .await?;
 
                 self.inner

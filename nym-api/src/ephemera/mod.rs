@@ -1,11 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// while those files are completely unused now, I'm going to leave them here for future reference once we decide to revive the project to have a starting point
+// but whoever picks it up: you are forbidden from trying to use actix
+
 extern crate core;
 
 use clap::Parser;
 use ephemera::cli::init::Cmd;
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub(crate) mod application;

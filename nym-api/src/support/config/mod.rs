@@ -106,8 +106,6 @@ pub struct Config {
     pub rewarding: Rewarding,
 
     pub coconut_signer: CoconutSigner,
-
-    pub ephemera: Ephemera,
 }
 
 impl NymConfigTemplate for Config {
@@ -127,7 +125,6 @@ impl Config {
             circulating_supply_cacher: Default::default(),
             rewarding: Default::default(),
             coconut_signer: CoconutSigner::new_default(id.as_ref()),
-            ephemera: Ephemera::new_default(id.as_ref()),
         }
     }
 
@@ -140,10 +137,6 @@ impl Config {
 
         if !can_sign && self.coconut_signer.enabled {
             bail!("can't enable coconut signer without providing a mnemonic")
-        }
-
-        if !can_sign && self.ephemera.enabled {
-            bail!("can't enable ephemera without providing a mnemonic")
         }
 
         Ok(())
@@ -223,24 +216,12 @@ impl Config {
         }
     }
 
-    pub fn get_id(&self) -> String {
-        self.base.id.clone()
-    }
-
     pub fn get_nyxd_url(&self) -> Url {
         self.base.local_validator.clone()
     }
 
     pub fn get_mnemonic(&self) -> Option<&bip39::Mnemonic> {
         self.base.mnemonic.as_ref()
-    }
-
-    pub fn get_ephemera_args(&self) -> &crate::ephemera::Args {
-        &self.ephemera.args
-    }
-
-    pub fn get_ephemera_config_path(&self) -> PathBuf {
-        self.ephemera.args.ephemera_config.clone()
     }
 }
 
@@ -555,28 +536,6 @@ impl Default for CoconutSignerDebug {
     fn default() -> Self {
         CoconutSignerDebug {
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
-        }
-    }
-}
-
-#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(default)]
-pub struct Ephemera {
-    pub enabled: bool,
-    args: crate::ephemera::Args,
-}
-
-impl Ephemera {
-    fn new_default(id: &str) -> Self {
-        Ephemera {
-            enabled: false,
-            args: crate::ephemera::Args {
-                ephemera_config: ephemera::configuration::Configuration::ephemera_config_file_home(
-                    Some(id),
-                )
-                .unwrap(),
-                ..Default::default()
-            },
         }
     }
 }

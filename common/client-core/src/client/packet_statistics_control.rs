@@ -266,11 +266,11 @@ impl std::ops::Div<f64> for PacketRates {
 impl PacketRates {
     fn summary(&self) -> String {
         format!(
-            "rx: {}/s (real: {}/s), tx: {}/s (real: {}/s)",
-            bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
+            "down: {}/s, up: {}/s (cover down: {}/s, cover up: {}/s)",
             bibytes2(self.real_packets_received_size),
-            bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
             bibytes2(self.real_packets_sent_size),
+            bibytes2(self.cover_packets_received_size),
+            bibytes2(self.cover_packets_sent_size),
         )
     }
 

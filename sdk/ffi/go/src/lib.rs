@@ -53,14 +53,7 @@ fn send_message(recipient: String, message: String) -> Result<(), GoWrapError> {
     }
 }
 
-// #[no_mangle]
-// pub extern "C" fn send_message(recipient: *const c_char, message: *const c_char) -> i8 {
-//     match nym_ffi_shared::send_message_internal(recipient, message) {
-//         Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
-//         Err(_) => nym_ffi_shared::StatusCode::SendMsgError as i8,
-//     }
-// }
-//
+
 // #[no_mangle]
 // pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> i8 {
 //     match nym_ffi_shared::reply_internal(recipient, message) {

@@ -8,11 +8,7 @@ use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::mem::forget;
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::Receiver;
 use tokio::runtime::Runtime;
-
-// no longer necessary? TODO remove
-uniffi::setup_scaffolding!();
 
 // NYM_CLIENT: Static reference (only init-ed once) to:
 //     - Arc: share ownership
@@ -75,8 +71,8 @@ pub fn send_message_internal(
 }
 
 pub fn reply_internal(
-    recipient: *const c_char,
-    message: *const c_char,
+    recipient: AnonymousSenderTag,
+    message: &str,
 ) -> anyhow::Result<(), anyhow::Error> {
     let client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if client.is_none() {
@@ -86,22 +82,6 @@ pub fn reply_internal(
         .as_ref()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
-    let recipient = unsafe {
-        if recipient.is_null() {
-            bail!("recipient is null");
-        }
-        let r_str = CStr::from_ptr(recipient).to_string_lossy().into_owned();
-        AnonymousSenderTag::try_from_base58_string(r_str)
-            .expect("could not construct AnonymousSenderTag from supplied value")
-    };
-    let message = unsafe {
-        if message.is_null() {
-            bail!("message is null");
-        }
-        let c_str = CStr::from_ptr(message);
-        let r_str = c_str.to_str().unwrap();
-        r_str
-    };
     RUNTIME.block_on(async move {
         nym_client.send_reply(recipient, message).await?;
         Ok::<(), anyhow::Error>(())
@@ -109,35 +89,26 @@ pub fn reply_internal(
     Ok(())
 }
 
-// pub fn listen_for_incoming_internal(/* callback: CMessageCallback */) -> anyhow::Result<(), anyhow::Error> {
-//     let mut binding = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
-//     if binding.is_none() {
-//         bail!("recipient is null");
-//     }
-//     let client = binding
-//         .as_mut()
-//         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
-//
-//     RUNTIME.block_on(async move {
-//         let received = wait_for_non_empty_message(client).await?;
-//         let message_ptr = received.message.as_ptr();
-//         let message_length = received.message.len();
-//         let c_string = CString::new(received.sender_tag.unwrap().to_string())?;
-//         let sender_ptr = c_string.as_ptr();
-//         // stop deallocation when out of scope as passing raw ptr to it elsewhere
-//         forget(received);
-//         let rec_for_c = ReceivedMessage {
-//             message: message_ptr,
-//             size: message_length,
-//             sender_tag: sender_ptr,
-//         };
-//         todo!();
-//         // let call = CMessageCallback::new(callback.callback);
-//         // call.trigger(rec_for_c);
-//         Ok::<(), anyhow::Error>(())
-//     })?;
-//     Ok(())
-// }
+pub fn listen_for_incoming_internal() -> anyhow::Result<(), anyhow::Error> {
+    let mut binding = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
+    if binding.is_none() {
+        bail!("recipient is null");
+    }
+    let client = binding
+        .as_mut()
+        .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
+
+    // TODO return message out of this + entire fn
+    RUNTIME.block_on(async move {
+        let received = wait_for_non_empty_message(client).await?;
+
+        // how to return received out of this? getting const/no-const errors
+
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    Ok(())
+}
 
 pub async fn wait_for_non_empty_message(
     client: &mut MixnetClient,
@@ -146,7 +117,7 @@ pub async fn wait_for_non_empty_message(
         if !new_message.is_empty() {
             return new_message
                 .pop()
-                .ok_or_else(|| anyhow!("could not get client as_ref()"));
+                .ok_or_else(|| anyhow!("could not get non empty message"));
         }
     }
     bail!("(Rust) did not receive any non-empty message")

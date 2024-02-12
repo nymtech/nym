@@ -4,6 +4,7 @@
 use std::ffi::{c_char, c_int, CStr, CString};
 use nym_ffi_shared;
 use anyhow::{anyhow, bail};
+use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 mod types;
 use crate::types::types::{StatusCode, CStringCallback, CMessageCallback};
 
@@ -61,19 +62,55 @@ pub extern "C" fn send_message(recipient: *const c_char, message: *const c_char)
     }
 }
 
-//
-// #[no_mangle]
-// pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> c_int {
-//     match nym_ffi_shared::reply_internal(recipient, message) {
-//         Ok(_) => StatusCode::NoError as c_int,
-//         Err(_) => StatusCode::ReplyError as c_int,
-//     }
-// }
-//
-// #[no_mangle]
-// pub extern "C" fn listen_for_incoming(callback: nym_ffi_shared::CMessageCallback) -> c_int {
-//     match nym_ffi_shared::listen_for_incoming_internal(callback) {
-//         Ok(_) => StatusCode::NoError as c_int,
-//         Err(_) => StatusCode::ListenError as c_int,
-//     }
-// }
+
+#[no_mangle]
+pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> c_int {
+    let recipient = unsafe {
+        if recipient.is_null() {
+            return StatusCode::RecipientNullError as c_int
+        }
+        let r_str = CStr::from_ptr(recipient).to_string_lossy().into_owned();
+        AnonymousSenderTag::try_from_base58_string(r_str)
+            .expect("could not construct AnonymousSenderTag from supplied value")
+    };
+    let message = unsafe {
+        if message.is_null() {
+            return StatusCode::MessageNullError as c_int
+        }
+        let c_str = CStr::from_ptr(message);
+        let r_str = c_str.to_str().unwrap();
+        r_str
+    };
+
+    match nym_ffi_shared::reply_internal(recipient, message) {
+        Ok(_) => StatusCode::NoError as c_int,
+        Err(_) => StatusCode::ReplyError as c_int,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn listen_for_incoming(callback: CMessageCallback) -> c_int {
+    match nym_ffi_shared::listen_for_incoming_internal() {
+        Ok(received) => {
+
+            // TODO once returning message properly from internal fn
+            //
+            // let message_ptr = received.message.as_ptr();
+            // let message_length = received.message.len();
+            // let c_string = CString::new(received.sender_tag.unwrap().to_string())?;
+            // let sender_ptr = c_string.as_ptr();
+            // // stop deallocation when out of scope as passing raw ptr to it elsewhere
+            // forget(received);
+            // let rec_for_c = ReceivedMessage {
+            //     message: message_ptr,
+            //     size: message_length,
+            //     sender_tag: sender_ptr,
+            // };
+            // let call = CMessageCallback::new(callback.callback);
+            // call.trigger(rec_for_c);
+
+            StatusCode::NoError as c_int
+        },
+        Err(_) => StatusCode::ListenError as c_int,
+    }
+}

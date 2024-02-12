@@ -105,6 +105,7 @@ int main() {
     handle(return_code);
 
 */
+
     // sleep so that the nym side logging can catch up - in reality you'd have another process running to keep logging
     // going, so this is only necessary for this reference implementation
     std::this_thread::sleep_for(std::chrono::seconds(40));

@@ -67,6 +67,7 @@ int main() {
     // - execute
     // - get() returned val
     // - handle val
+    // initialise an ephemeral client - aka one without specified keystore
     boost::packaged_task<char> init(boost::bind(init_ephemeral));
     boost::unique_future<char> init_future = init.get_future();
     init();
@@ -77,14 +78,13 @@ int main() {
     return_code = get_self_address(string_callback_function);
     handle(return_code);
 
-    // send a message through the mixnet - in this case to ourselves
+    // send a message through the mixnet - in this case to ourselves using the value from get_self_address
     std::cout << "(c++)  message to send through mixnet: " << message << std::endl;
     boost::packaged_task<char> send(boost::bind(send_message, addr, message));
     boost::unique_future<char> send_future = send.get_future();
     send();
     return_code = send_future.get();
     handle(return_code);
-
 
     // listen out for incoming messages: in the future the client can be split into a listening and a sending client,
     // allowing for this to run as a persistent process in its own thread and not have to block but instead be running
@@ -95,14 +95,14 @@ int main() {
     return_code = listen_future.get();
     handle(return_code);
 
-    // replying to incoming message (from ourselves) with SURBs- note that sending a message to a recipient and
-    // replying to an incoming are different functions
+    // replying to incoming message (from ourselves) with SURBs - note that sending a message to a recipient and
+    // replying to an incoming are different functions: replying relies on parsing the incoming sender_tag on the Rust
+    // side and creating an AnonymousSenderTag type, instead of the Recipient type which relies on a nym address
     boost::packaged_task<char> reply_fn(boost::bind(reply, sender_tag, reply_message));
     boost::unique_future<char> reply_future = reply_fn.get_future();
     reply_fn();
     return_code = reply_future.get();
     handle(return_code);
-
 
     // sleep so that the nym side logging can catch up - in reality you'd have another process running to keep logging
     // going, so this is only necessary for this reference implementation

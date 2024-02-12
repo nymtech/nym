@@ -5,8 +5,9 @@ use std::ffi::{c_char, c_int, CStr, CString};
 use nym_ffi_shared;
 use anyhow::{anyhow, bail};
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
+use std::mem::forget;
 mod types;
-use crate::types::types::{StatusCode, CStringCallback, CMessageCallback};
+use crate::types::types::{StatusCode, CStringCallback, CMessageCallback, ReceivedMessage};
 
 #[no_mangle]
 pub extern "C" fn init_logging() {
@@ -93,21 +94,19 @@ pub extern "C" fn listen_for_incoming(callback: CMessageCallback) -> c_int {
     match nym_ffi_shared::listen_for_incoming_internal() {
         Ok(received) => {
 
-            // TODO once returning message properly from internal fn
-            //
-            // let message_ptr = received.message.as_ptr();
-            // let message_length = received.message.len();
-            // let c_string = CString::new(received.sender_tag.unwrap().to_string())?;
-            // let sender_ptr = c_string.as_ptr();
-            // // stop deallocation when out of scope as passing raw ptr to it elsewhere
-            // forget(received);
-            // let rec_for_c = ReceivedMessage {
-            //     message: message_ptr,
-            //     size: message_length,
-            //     sender_tag: sender_ptr,
-            // };
-            // let call = CMessageCallback::new(callback.callback);
-            // call.trigger(rec_for_c);
+            let message_ptr = received.message.as_ptr();
+            let message_length = received.message.len();
+            let c_string = CString::new(received.sender_tag.unwrap().to_string()).unwrap();
+            let sender_ptr = c_string.as_ptr();
+            // stop deallocation when out of scope as passing raw ptr to it elsewhere
+            forget(received);
+            let rec_for_c = ReceivedMessage {
+                message: message_ptr,
+                size: message_length,
+                sender_tag: sender_ptr,
+            };
+            let call = CMessageCallback::new(callback.callback);
+            call.trigger(rec_for_c);
 
             StatusCode::NoError as c_int
         },

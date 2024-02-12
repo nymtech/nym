@@ -45,9 +45,9 @@ impl CMessageCallback {
 
 #[repr(C)]
 pub struct ReceivedMessage {
-    message: *const u8,
-    size: usize,
-    sender_tag: *const c_char,
+    pub message: *const u8,
+    pub size: usize,
+    pub sender_tag: *const c_char,
 }
 
 // TODO check if necessary

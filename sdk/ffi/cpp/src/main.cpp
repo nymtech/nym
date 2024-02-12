@@ -85,7 +85,6 @@ int main() {
     return_code = send_future.get();
     handle(return_code);
 
-    /*
 
     // listen out for incoming messages: in the future the client can be split into a listening and a sending client,
     // allowing for this to run as a persistent process in its own thread and not have to block but instead be running
@@ -104,7 +103,6 @@ int main() {
     return_code = reply_future.get();
     handle(return_code);
 
-*/
 
     // sleep so that the nym side logging can catch up - in reality you'd have another process running to keep logging
     // going, so this is only necessary for this reference implementation

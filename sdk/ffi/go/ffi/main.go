@@ -21,16 +21,16 @@ func main() {
 	// get our client's address
 	str, err2 := bindings.GetSelfAddress()
 	if err2 != nil {
-		fmt.Println("Error:", err2)
+		fmt.Println("(Go) Error:", err2)
 		return
 	}
-	fmt.Println("response:")
+	fmt.Println("(Go) response:")
 	fmt.Println(str)
 
 	// send a message through the mixnet - in this case to ourselves using the value from GetSelfAddress
 	err3 := bindings.SendMessage(str, "helloworld")
 	if err3 != nil {
-		fmt.Println("Error:", err3)
+		fmt.Println("(Go) Error:", err3)
 		return
 	}
 
@@ -45,10 +45,10 @@ func main() {
 	// }
 	incomingMessage, err4 := bindings.ListenForIncoming()
 	if err4 != nil {
-		fmt.Println("Error:", err4)
+		fmt.Println("(Go) Error:", err4)
 		return
 	}
-	fmt.Println("incoming message: ", incomingMessage.Message, " from: ", incomingMessage.Sender)
+	fmt.Println("(Go) incoming message: ", incomingMessage.Message, " from: ", incomingMessage.Sender)
 
 	// we can just use the byte array we parsed from the incoming message to reply with: this is a
 	// byte representation of the sender_tag used for Single Use Reply Blocks (SURBs)
@@ -60,15 +60,15 @@ func main() {
 	// you will see in the client logs that there are requests for more SURBs that we send to ourselves to
 	// be able to fit the full reply message in there. In a future iteration of this code we can also expose
 	// a send() which allows for developers to dictate the number of SURBs to send along with their outgoing message
-	fmt.Println("replying to received message")
+	fmt.Println("(Go) replying to received message")
 	err5 := bindings.Reply(incomingMessage.Sender, "replyworld")
 	if err5 != nil {
-		fmt.Println("Error:", err5)
+		fmt.Println("(Go) Error:", err5)
 		return
 	}
 
 	// sleep so that the nym client processes can catch up - in reality you'd have another process
 	// running to keep logging going, so this is only necessary for this reference
 	time.Sleep(30 * time.Second)
-	fmt.Println("end go example")
+	fmt.Println("(Go) end go example")
 }

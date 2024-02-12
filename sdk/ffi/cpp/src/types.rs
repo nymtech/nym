@@ -50,11 +50,4 @@ pub struct ReceivedMessage {
     pub sender_tag: *const c_char,
 }
 
-// TODO check if necessary
-#[repr(C)]
-pub struct AddrResponse {
-    pub addr: String,
-    pub return_code: c_int
-}
-
 }

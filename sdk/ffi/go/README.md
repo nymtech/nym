@@ -5,7 +5,7 @@ This repo contains:
 * `lib.rs`: an initial version of bindings for interacting with the Mixnet via the Rust SDK from Go. These are essentially match statemtns wrapping imported functions from the `nym-ffi-shared` lib. 
 * `ffi/`: a directory containing: 
   * the `bindings/` files generated using [`uniffi-bindgen-go`]()
-  * `main.go`: an example of using this library. 
+  * [`main.go`](./ffi/bindings/main.go): an example of using this library. 
 
 The example `main.go` file is a simple example flow of:
 * setting up Nym client logging

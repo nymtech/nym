@@ -111,6 +111,11 @@ impl BlindSignRequestBody {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct FreePassNonceResponse {
+    pub current_nonce: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BlindedSignatureResponse {
     pub blinded_signature: BlindedSignature,
 }
@@ -159,6 +164,22 @@ pub struct FreePassRequest {
 }
 
 impl FreePassRequest {
+    pub fn new(
+        cosmos_pubkey: cosmrs::crypto::PublicKey,
+        inner_sign_request: BlindSignRequest,
+        used_nonce: u32,
+        nonce_signature: cosmrs::crypto::secp256k1::Signature,
+        public_attributes_plain: Vec<String>,
+    ) -> Self {
+        FreePassRequest {
+            cosmos_pubkey,
+            inner_sign_request,
+            used_nonce,
+            nonce_signature,
+            public_attributes_plain,
+        }
+    }
+
     pub fn tendermint_pubkey(&self) -> tendermint::PublicKey {
         self.cosmos_pubkey.into()
     }

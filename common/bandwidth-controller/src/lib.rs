@@ -51,7 +51,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
         let coconut_api_clients = all_coconut_api_clients(&self.client, epoch_id).await?;
-        Ok(obtain_aggregate_verification_key(&coconut_api_clients).await?)
+        Ok(obtain_aggregate_verification_key(&coconut_api_clients)?)
     }
 
     pub async fn prepare_bandwidth_credential(

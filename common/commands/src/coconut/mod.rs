@@ -3,6 +3,7 @@
 
 use clap::{Args, Subcommand};
 
+pub mod generate_freepass;
 pub mod issue_credentials;
 pub mod recover_credentials;
 
@@ -15,6 +16,7 @@ pub struct Coconut {
 
 #[derive(Debug, Subcommand)]
 pub enum CoconutCommands {
+    GenerateFreepass(generate_freepass::Args),
     IssueCredentials(issue_credentials::Args),
     RecoverCredentials(recover_credentials::Args),
 }

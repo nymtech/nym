@@ -11,11 +11,13 @@ use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
 use bls12_381::G1Projective;
 use nym_credentials_interface::{
-    aggregate_signature_shares, hash_to_scalar, prepare_blind_sign, Attribute, Parameters,
-    PrivateAttribute, PublicAttribute, Signature, SignatureShare, VerificationKey,
+    aggregate_signature_shares, hash_to_scalar, prepare_blind_sign, Attribute, BlindedSignature,
+    Parameters, PrivateAttribute, PublicAttribute, Signature, SignatureShare, VerificationKey,
 };
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::{Coin, Hash};
+use nym_validator_client::signing::AccountData;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -196,26 +198,12 @@ impl IssuanceBandwidthCredential {
         }
     }
 
-    pub async fn obtain_partial_credential(
+    pub fn unblind_signature(
         &self,
-        client: &nym_validator_client::client::NymApiClient,
         validator_vk: &VerificationKey,
-        signing_data: impl Into<Option<CredentialSigningData>>,
+        signing_data: &CredentialSigningData,
+        blinded_signature: BlindedSignature,
     ) -> Result<Signature, Error> {
-        // if we provided signing data, do use them, otherwise generate fresh data
-        let signing_data = signing_data
-            .into()
-            .unwrap_or_else(|| self.prepare_for_signing());
-
-        let blinded_signature = match &self.variant_data {
-            BandwidthCredentialIssuanceDataVariant::FreePass(_freepass) => unimplemented!(),
-            BandwidthCredentialIssuanceDataVariant::Voucher(voucher) => {
-                // TODO: the request can be re-used between different apis
-                let request = voucher.create_blind_sign_request_body(&signing_data);
-                voucher.obtain_blinded_credential(client, &request).await?
-            }
-        };
-
         let public_attributes = self.get_public_attributes();
         let private_attributes = self.get_private_attributes();
 
@@ -230,6 +218,52 @@ impl IssuanceBandwidthCredential {
         )?;
 
         Ok(unblinded_signature)
+    }
+
+    pub async fn obtain_partial_freepass_credential(
+        &self,
+        client: &nym_validator_client::client::NymApiClient,
+        account_data: &AccountData,
+        validator_vk: &VerificationKey,
+        signing_data: impl Into<Option<CredentialSigningData>>,
+    ) -> Result<Signature, Error> {
+        // if we provided signing data, do use them, otherwise generate fresh data
+        let signing_data = signing_data
+            .into()
+            .unwrap_or_else(|| self.prepare_for_signing());
+
+        let blinded_signature = match &self.variant_data {
+            BandwidthCredentialIssuanceDataVariant::FreePass(freepass) => {
+                freepass
+                    .request_blinded_credential(&signing_data, account_data, client)
+                    .await?
+            }
+            _ => return Err(Error::NotAFreePass),
+        };
+        self.unblind_signature(validator_vk, &signing_data, blinded_signature)
+    }
+
+    // ideally this would have been generic over credential type, but we really don't need secp256k1 keys for bandwidth vouchers
+    pub async fn obtain_partial_bandwidth_voucher_credential(
+        &self,
+        client: &nym_validator_client::client::NymApiClient,
+        validator_vk: &VerificationKey,
+        signing_data: impl Into<Option<CredentialSigningData>>,
+    ) -> Result<Signature, Error> {
+        // if we provided signing data, do use them, otherwise generate fresh data
+        let signing_data = signing_data
+            .into()
+            .unwrap_or_else(|| self.prepare_for_signing());
+
+        let blinded_signature = match &self.variant_data {
+            BandwidthCredentialIssuanceDataVariant::Voucher(voucher) => {
+                // TODO: the request can be re-used between different apis
+                let request = voucher.create_blind_sign_request_body(&signing_data);
+                voucher.obtain_blinded_credential(client, &request).await?
+            }
+            _ => return Err(Error::NotABandwdithVoucher),
+        };
+        self.unblind_signature(validator_vk, &signing_data, blinded_signature)
     }
 
     pub fn aggregate_signature_shares(
@@ -254,13 +288,15 @@ impl IssuanceBandwidthCredential {
     pub fn into_issued_credential(
         self,
         aggregate_signature: Signature,
+        epoch_id: EpochId,
     ) -> IssuedBandwidthCredential {
-        self.to_issued_credential(aggregate_signature)
+        self.to_issued_credential(aggregate_signature, epoch_id)
     }
 
     pub fn to_issued_credential(
         &self,
         aggregate_signature: Signature,
+        epoch_id: EpochId,
     ) -> IssuedBandwidthCredential {
         IssuedBandwidthCredential::new(
             self.serial_number,
@@ -268,6 +304,7 @@ impl IssuanceBandwidthCredential {
             aggregate_signature,
             (&self.variant_data).into(),
             self.type_prehashed,
+            epoch_id,
         )
     }
 

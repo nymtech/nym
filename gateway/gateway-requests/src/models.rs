@@ -327,7 +327,7 @@ mod tests {
             )
             .unwrap();
 
-        let issued = issuance.into_issued_credential(sig);
+        let issued = issuance.into_issued_credential(sig, 42);
         let spending = issued
             .prepare_for_spending(keypair.verification_key())
             .unwrap();

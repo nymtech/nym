@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::utils::scalar_serde_helper;
-use nym_credentials_interface::{hash_to_scalar, Attribute, PublicAttribute};
+use crate::error::Error;
+use nym_api_requests::coconut::FreePassRequest;
+use nym_credentials_interface::{
+    hash_to_scalar, Attribute, BlindedSignature, CredentialSigningData, PublicAttribute,
+};
+use nym_validator_client::signing::AccountData;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, Time};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -75,5 +80,55 @@ impl FreePassIssuanceData {
 
     pub fn expiry_date_plain(&self) -> String {
         self.expiry_date.unix_timestamp().to_string()
+    }
+
+    pub async fn obtain_free_pass_nonce(
+        &self,
+        client: &nym_validator_client::client::NymApiClient,
+    ) -> Result<u32, Error> {
+        let server_response = client.free_pass_nonce().await?;
+        Ok(server_response.current_nonce)
+    }
+
+    pub fn create_free_pass_request(
+        &self,
+        signing_request: &CredentialSigningData,
+        account_data: &AccountData,
+        issuer_nonce: u32,
+    ) -> Result<FreePassRequest, Error> {
+        let plaintext = issuer_nonce.to_be_bytes();
+        let nonce_signature = account_data
+            .private_key()
+            .sign(&plaintext)
+            .map_err(|_| Error::Secp256k1SignFailure)?;
+
+        Ok(FreePassRequest {
+            cosmos_pubkey: account_data.public_key(),
+            inner_sign_request: signing_request.blind_sign_request.clone(),
+            used_nonce: issuer_nonce,
+            nonce_signature,
+            public_attributes_plain: signing_request.public_attributes_plain.clone(),
+        })
+    }
+
+    pub async fn obtain_blinded_credential(
+        &self,
+        client: &nym_validator_client::client::NymApiClient,
+        request: &FreePassRequest,
+    ) -> Result<BlindedSignature, Error> {
+        let server_response = client.issue_free_pass_credential(request).await?;
+        Ok(server_response.blinded_signature)
+    }
+
+    pub async fn request_blinded_credential(
+        &self,
+        signing_request: &CredentialSigningData,
+        account_data: &AccountData,
+        client: &nym_validator_client::client::NymApiClient,
+    ) -> Result<BlindedSignature, Error> {
+        let signing_nonce = self.obtain_free_pass_nonce(client).await?;
+        let request =
+            self.create_free_pass_request(signing_request, account_data, signing_nonce)?;
+        self.obtain_blinded_credential(client, &request).await
     }
 }

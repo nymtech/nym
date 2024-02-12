@@ -32,6 +32,8 @@ pub mod error;
 pub mod routes;
 
 pub use http_api_client::Client;
+use nym_api_requests::coconut::models::FreePassNonceResponse;
+use nym_api_requests::coconut::FreePassRequest;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -369,6 +371,36 @@ pub trait NymApiClientExt: ApiClient {
                 routes::AVG_UPTIME,
             ],
             NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_FREE_PASS_NONCE,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn free_pass(
+        &self,
+        request: &FreePassRequest,
+    ) -> Result<BlindedSignatureResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_FREE_PASS_NONCE,
+            ],
+            NO_PARAMS,
+            request,
         )
         .await
     }

@@ -89,7 +89,7 @@ impl CoconutVerifier {
                 });
             }
             let aggregated_verification_key =
-                nym_credentials::obtain_aggregate_verification_key(&epoch_api_clients).await?;
+                nym_credentials::obtain_aggregate_verification_key(&epoch_api_clients)?;
 
             api_clients.insert(current_epoch.epoch_id, epoch_api_clients);
             master_keys.insert(current_epoch.epoch_id, aggregated_verification_key);
@@ -155,7 +155,7 @@ impl CoconutVerifier {
         let api_clients = self.api_clients(epoch_id).await?;
 
         let aggregated_verification_key =
-            nym_credentials::obtain_aggregate_verification_key(&api_clients).await?;
+            nym_credentials::obtain_aggregate_verification_key(&api_clients)?;
 
         let mut guard = self.master_keys.write().await;
         guard.insert(epoch_id, aggregated_verification_key);

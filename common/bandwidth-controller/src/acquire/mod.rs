@@ -67,7 +67,7 @@ where
 
     let signature =
         obtain_aggregate_signature(&state.voucher, &coconut_api_clients, threshold).await?;
-    let issued = state.voucher.to_issued_credential(signature);
+    let issued = state.voucher.to_issued_credential(signature, epoch_id);
 
     // make sure the data gets zeroized after persisting it
     let credential_data = Zeroizing::new(issued.pack_v1());

@@ -8,8 +8,8 @@ use crate::coconut::state::State;
 use crate::coconut::storage::CoconutStorageExt;
 use k256::ecdsa::signature::Verifier;
 use nym_api_requests::coconut::models::{
-    CredentialsRequestBody, EpochCredentialsResponse, FreePassRequest, IssuedCredentialResponse,
-    IssuedCredentialsResponse,
+    CredentialsRequestBody, EpochCredentialsResponse, FreePassNonceResponse, FreePassRequest,
+    IssuedCredentialResponse, IssuedCredentialsResponse,
 };
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
@@ -66,6 +66,18 @@ fn validate_freepass_public_attributes(res: &FreePassRequest) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[get("/free-pass-nonce")]
+pub async fn get_current_free_pass_nonce(
+    state: &RocketState<State>,
+) -> Result<Json<FreePassNonceResponse>> {
+    debug!("Received free pass nonce request");
+
+    let current_nonce = state.storage.get_current_freepass_nonce().await?;
+    debug!("the current expected nonce is {current_nonce}");
+
+    Ok(Json(FreePassNonceResponse { current_nonce }))
 }
 
 #[post("/free-pass", data = "<freepass_request_body>")]

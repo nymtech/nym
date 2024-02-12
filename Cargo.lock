@@ -5107,6 +5107,7 @@ dependencies = [
  "cosmwasm-std",
  "csv",
  "cw-utils",
+ "futures",
  "handlebars",
  "humantime-serde",
  "inquire",
@@ -5122,6 +5123,7 @@ dependencies = [
  "nym-credential-storage",
  "nym-credential-utils",
  "nym-credentials",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
@@ -5139,8 +5141,10 @@ dependencies = [
  "tap",
  "thiserror",
  "time",
+ "tokio",
  "toml 0.5.11",
  "url",
+ "zeroize",
 ]
 
 [[package]]

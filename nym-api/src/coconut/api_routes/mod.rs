@@ -350,11 +350,3 @@ pub async fn issued_credentials(
 
     build_credentials_response(credentials).map(Json)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn foo() {}
-}

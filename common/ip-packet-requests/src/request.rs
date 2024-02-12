@@ -23,6 +23,7 @@ impl IpPacketRequest {
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
+        buffer_timeout: Option<u64>,
     ) -> (Self, u64) {
         let request_id = generate_random();
         (
@@ -34,6 +35,7 @@ impl IpPacketRequest {
                     reply_to,
                     reply_to_hops,
                     reply_to_avg_mix_delays,
+                    buffer_timeout,
                 }),
             },
             request_id,
@@ -44,6 +46,7 @@ impl IpPacketRequest {
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
+        buffer_timeout: Option<u64>,
     ) -> (Self, u64) {
         let request_id = generate_random();
         (
@@ -54,6 +57,7 @@ impl IpPacketRequest {
                     reply_to,
                     reply_to_hops,
                     reply_to_avg_mix_delays,
+                    buffer_timeout,
                 }),
             },
             request_id,
@@ -74,10 +78,10 @@ impl IpPacketRequest {
         )
     }
 
-    pub fn new_ip_packet(ip_packet: bytes::Bytes) -> Self {
+    pub fn new_data_request(ip_packets: bytes::Bytes) -> Self {
         Self {
             version: CURRENT_VERSION,
-            data: IpPacketRequestData::Data(DataRequest { ip_packet }),
+            data: IpPacketRequestData::Data(DataRequest { ip_packets }),
         }
     }
 
@@ -87,6 +91,8 @@ impl IpPacketRequest {
             IpPacketRequestData::DynamicConnect(request) => Some(request.request_id),
             IpPacketRequestData::Disconnect(request) => Some(request.request_id),
             IpPacketRequestData::Data(_) => None,
+            IpPacketRequestData::Ping(request) => Some(request.request_id),
+            IpPacketRequestData::Health(request) => Some(request.request_id),
         }
     }
 
@@ -96,6 +102,8 @@ impl IpPacketRequest {
             IpPacketRequestData::DynamicConnect(request) => Some(&request.reply_to),
             IpPacketRequestData::Disconnect(request) => Some(&request.reply_to),
             IpPacketRequestData::Data(_) => None,
+            IpPacketRequestData::Ping(request) => Some(&request.reply_to),
+            IpPacketRequestData::Health(request) => Some(&request.reply_to),
         }
     }
 
@@ -119,6 +127,8 @@ pub enum IpPacketRequestData {
     DynamicConnect(DynamicConnectRequest),
     Disconnect(DisconnectRequest),
     Data(DataRequest),
+    Ping(PingRequest),
+    Health(HealthRequest),
 }
 
 // A static connect request is when the client provides the internal IP address it will use on the
@@ -126,15 +136,23 @@ pub enum IpPacketRequestData {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct StaticConnectRequest {
     pub request_id: u64,
+
     pub ip: IpAddr,
+
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+
     // The number of mix node hops that responses should take, in addition to the entry and exit
     // node. Zero means only client -> entry -> exit -> client.
     pub reply_to_hops: Option<u8>,
+
     // The average delay at each mix node, in milliseconds. Currently this is not supported by the
     // ip packet router.
     pub reply_to_avg_mix_delays: Option<f64>,
+
+    // The maximum time in milliseconds the IPR should wait when filling up a mix packet
+    // with ip packets.
+    pub buffer_timeout: Option<u64>,
 }
 
 // A dynamic connect request is when the client does not provide the internal IP address it will use
@@ -142,14 +160,21 @@ pub struct StaticConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DynamicConnectRequest {
     pub request_id: u64,
+
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+
     // The number of mix node hops that responses should take, in addition to the entry and exit
     // node. Zero means only client -> entry -> exit -> client.
     pub reply_to_hops: Option<u8>,
+
     // The average delay at each mix node, in milliseconds. Currently this is not supported by the
     // ip packet router.
     pub reply_to_avg_mix_delays: Option<f64>,
+
+    // The maximum time in milliseconds the IPR should wait when filling up a mix packet
+    // with ip packets.
+    pub buffer_timeout: Option<u64>,
 }
 
 // A disconnect request is when the client wants to disconnect from the ip packet router and free
@@ -164,7 +189,22 @@ pub struct DisconnectRequest {
 // A data request is when the client wants to send an IP packet to a destination.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DataRequest {
-    pub ip_packet: bytes::Bytes,
+    pub ip_packets: bytes::Bytes,
+}
+
+// A ping request is when the client wants to check if the ip packet router is still alive.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PingRequest {
+    pub request_id: u64,
+    // The nym-address the response should be sent back to
+    pub reply_to: Recipient,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct HealthRequest {
+    pub request_id: u64,
+    // The nym-address the response should be sent back to
+    pub reply_to: Recipient,
 }
 
 #[cfg(test)]
@@ -182,10 +222,11 @@ mod tests {
                     reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
                     reply_to_hops: None,
                     reply_to_avg_mix_delays: None,
+                    buffer_timeout: None,
                 },
             )
         };
-        assert_eq!(connect.to_bytes().unwrap().len(), 107);
+        assert_eq!(connect.to_bytes().unwrap().len(), 108);
     }
 
     #[test]
@@ -193,7 +234,7 @@ mod tests {
         let data = IpPacketRequest {
             version: 4,
             data: IpPacketRequestData::Data(DataRequest {
-                ip_packet: bytes::Bytes::from(vec![1u8; 32]),
+                ip_packets: bytes::Bytes::from(vec![1u8; 32]),
             }),
         };
         assert_eq!(data.to_bytes().unwrap().len(), 35);
@@ -204,7 +245,7 @@ mod tests {
         let data = IpPacketRequest {
             version: 4,
             data: IpPacketRequestData::Data(DataRequest {
-                ip_packet: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
+                ip_packets: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
             }),
         };
 
@@ -221,7 +262,7 @@ mod tests {
         assert_eq!(
             deserialized.data,
             IpPacketRequestData::Data(DataRequest {
-                ip_packet: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
+                ip_packets: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
             })
         );
     }

@@ -1,7 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_ip_packet_requests::response::IpPacketResponse;
+use bytes::Bytes;
+use nym_ip_packet_requests::{codec::MultiIpPacketCodec, response::IpPacketResponse};
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 
 use crate::{
@@ -23,12 +24,14 @@ pub(crate) struct ConnectedClientHandler {
     mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     close_rx: tokio::sync::oneshot::Receiver<()>,
     activity_timeout: tokio::time::Interval,
+    encoder: MultiIpPacketCodec,
 }
 
 impl ConnectedClientHandler {
     pub(crate) fn start(
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
+        buffer_timeout: std::time::Duration,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     ) -> (
         tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
@@ -42,6 +45,8 @@ impl ConnectedClientHandler {
         let mut activity_timeout = tokio::time::interval(CLIENT_HANDLER_ACTIVITY_TIMEOUT);
         activity_timeout.reset();
 
+        let encoder = MultiIpPacketCodec::new(buffer_timeout);
+
         let connected_client_handler = ConnectedClientHandler {
             nym_address: reply_to,
             mix_hops: reply_to_hops,
@@ -49,6 +54,7 @@ impl ConnectedClientHandler {
             mixnet_client_sender,
             close_rx,
             activity_timeout,
+            encoder,
         };
 
         let handle = tokio::spawn(async move {
@@ -60,9 +66,8 @@ impl ConnectedClientHandler {
         (forward_from_tun_tx, close_tx, handle)
     }
 
-    async fn handle_packet(&mut self, packet: Vec<u8>) -> Result<()> {
-        self.activity_timeout.reset();
-        let response_packet = IpPacketResponse::new_ip_packet(packet.into())
+    async fn send_packets_to_mixnet(&mut self, packets: Bytes) -> Result<()> {
+        let response_packet = IpPacketResponse::new_ip_packet(packets)
             .to_bytes()
             .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })?;
         let input_message = create_input_message(self.nym_address, response_packet, self.mix_hops);
@@ -71,6 +76,24 @@ impl ConnectedClientHandler {
             .send(input_message)
             .await
             .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })
+    }
+
+    async fn handle_buffer_timeout(&mut self, packets: Bytes) -> Result<()> {
+        if !packets.is_empty() {
+            self.send_packets_to_mixnet(packets).await
+        } else {
+            Ok(())
+        }
+    }
+
+    async fn handle_packet(&mut self, packet: Vec<u8>) -> Result<()> {
+        self.activity_timeout.reset();
+
+        if let Some(bundled_packets) = self.encoder.append_packet(packet.into()) {
+            self.send_packets_to_mixnet(bundled_packets).await
+        } else {
+            Ok(())
+        }
     }
 
     async fn run(mut self) -> Result<()> {
@@ -83,7 +106,12 @@ impl ConnectedClientHandler {
                 _ = self.activity_timeout.tick() => {
                     log::info!("client handler stopping: activity timeout: {}", self.nym_address);
                     break;
-                }
+                },
+                Some(packets) = self.encoder.buffer_timeout() => {
+                    if let Err(err) = self.handle_buffer_timeout(packets).await {
+                        log::error!("client handler: failed to handle buffer timeout: {err}");
+                    }
+                },
                 packet = self.forward_from_tun_rx.recv() => match packet {
                     Some(packet) => {
                         if let Err(err) = self.handle_packet(packet).await {

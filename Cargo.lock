@@ -6732,6 +6732,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "bytes",
+ "nym-bin-common",
  "nym-sphinx",
  "rand 0.8.5",
  "serde",
@@ -6776,6 +6777,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-tun",
+ "tokio-util",
  "url",
 ]
 

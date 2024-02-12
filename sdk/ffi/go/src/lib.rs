@@ -1,28 +1,24 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-
-
-
-
-use nym_sdk::mixnet::{Recipient};
+use nym_sdk::mixnet::Recipient;
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 uniffi::include_scaffolding!("bindings");
 
 #[derive(Debug, thiserror::Error)]
 enum GoWrapError {
     #[error("Couldn't init client")]
-    ClientInitError{},
+    ClientInitError {},
     #[error("Client is uninitialised: init client first")]
-    ClientUninitialisedError{},
+    ClientUninitialisedError {},
     #[error("Error getting self address")]
-    SelfAddrError{},
+    SelfAddrError {},
     #[error("Error sending message")]
-    SendMsgError{},
+    SendMsgError {},
     #[error("Error sending reply")]
-    ReplyError{},
+    ReplyError {},
     #[error("Could not start listening")]
-    ListenError{},
+    ListenError {},
 }
 
 #[no_mangle]
@@ -34,7 +30,7 @@ fn init_logging() {
 fn init_ephemeral() -> Result<(), GoWrapError> {
     match nym_ffi_shared::init_ephemeral_internal() {
         Ok(_) => Ok(()),
-        Err(_) => Err(GoWrapError::ClientInitError{})
+        Err(_) => Err(GoWrapError::ClientInitError {}),
     }
 }
 
@@ -42,7 +38,7 @@ fn init_ephemeral() -> Result<(), GoWrapError> {
 fn get_self_address() -> Result<String, GoWrapError> {
     match nym_ffi_shared::get_self_address_internal() {
         Ok(addr) => Ok(addr),
-        Err(..) => Err(GoWrapError::SelfAddrError{})
+        Err(..) => Err(GoWrapError::SelfAddrError {}),
     }
 }
 
@@ -51,7 +47,7 @@ fn send_message(recipient: String, message: String) -> Result<(), GoWrapError> {
     let nym_recipient_type = Recipient::try_from_base58_string(recipient).unwrap();
     match nym_ffi_shared::send_message_internal(nym_recipient_type, &message) {
         Ok(_) => Ok(()),
-        Err(_) => Err(GoWrapError::SendMsgError{}),
+        Err(_) => Err(GoWrapError::SendMsgError {}),
     }
 }
 
@@ -62,13 +58,13 @@ fn reply(recipient: Vec<u8>, message: String) -> Result<(), GoWrapError> {
     let anon_recipient_type: AnonymousSenderTag = AnonymousSenderTag::from_bytes(sized_array);
     match nym_ffi_shared::reply_internal(anon_recipient_type, &message) {
         Ok(_) => Ok(()),
-        Err(_) => Err(GoWrapError::ReplyError{}),
+        Err(_) => Err(GoWrapError::ReplyError {}),
     }
 }
 
 pub struct IncomingMessage {
     message: String,
-    sender: Vec<u8>
+    sender: Vec<u8>,
 }
 
 #[no_mangle]
@@ -78,12 +74,9 @@ fn listen_for_incoming() -> Result<IncomingMessage, GoWrapError> {
             let message = String::from_utf8_lossy(&received.message).to_string();
             // maybe change this to raw bytes to send over TODO
             let sender = received.sender_tag.unwrap().to_bytes().to_vec(); //.to_base58_string();
-            let incoming = IncomingMessage {
-                message,
-                sender
-            };
+            let incoming = IncomingMessage { message, sender };
             Ok(incoming)
-        },
-        Err(_) => Err(GoWrapError::ListenError{}),
+        }
+        Err(_) => Err(GoWrapError::ListenError {}),
     }
 }

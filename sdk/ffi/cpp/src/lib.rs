@@ -1,13 +1,13 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ffi::{c_char, c_int, CStr, CString};
 use nym_ffi_shared;
+use std::ffi::{c_char, c_int, CStr, CString};
 
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use std::mem::forget;
 mod types;
-use crate::types::types::{StatusCode, CStringCallback, CMessageCallback, ReceivedMessage};
+use crate::types::types::{CMessageCallback, CStringCallback, ReceivedMessage, StatusCode};
 
 #[no_mangle]
 pub extern "C" fn init_logging() {
@@ -26,22 +26,21 @@ pub extern "C" fn init_ephemeral() -> c_int {
 pub extern "C" fn get_self_address(callback: CStringCallback) -> c_int {
     match nym_ffi_shared::get_self_address_internal(/*callback*/) {
         Ok(addr) => {
-            let c_ptr= CString::new(addr).expect("could not convert Nym address to CString");
+            let c_ptr = CString::new(addr).expect("could not convert Nym address to CString");
             let call = CStringCallback::new(callback.callback);
             // as_ptr() keeps ownership in rust unlike into_raw() so no need to free it
             call.trigger(c_ptr.as_ptr());
             StatusCode::NoError as c_int
-        },
+        }
         Err(_) => StatusCode::SelfAddrError as c_int,
     }
 }
 
 #[no_mangle]
 pub extern "C" fn send_message(recipient: *const c_char, message: *const c_char) -> c_int {
-
     let c_str = unsafe {
         if recipient.is_null() {
-            return StatusCode::RecipientNullError as c_int
+            return StatusCode::RecipientNullError as c_int;
         }
         let c_str = CStr::from_ptr(recipient);
         c_str
@@ -50,7 +49,7 @@ pub extern "C" fn send_message(recipient: *const c_char, message: *const c_char)
     let recipient = r_str.parse().unwrap();
     let c_str = unsafe {
         if message.is_null() {
-            return StatusCode::MessageNullError as c_int
+            return StatusCode::MessageNullError as c_int;
         }
         let c_str = CStr::from_ptr(message);
         c_str
@@ -63,12 +62,11 @@ pub extern "C" fn send_message(recipient: *const c_char, message: *const c_char)
     }
 }
 
-
 #[no_mangle]
 pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> c_int {
     let recipient = unsafe {
         if recipient.is_null() {
-            return StatusCode::RecipientNullError as c_int
+            return StatusCode::RecipientNullError as c_int;
         }
         let r_str = CStr::from_ptr(recipient).to_string_lossy().into_owned();
         AnonymousSenderTag::try_from_base58_string(r_str)
@@ -76,7 +74,7 @@ pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> c_i
     };
     let message = unsafe {
         if message.is_null() {
-            return StatusCode::MessageNullError as c_int
+            return StatusCode::MessageNullError as c_int;
         }
         let c_str = CStr::from_ptr(message);
         let r_str = c_str.to_str().unwrap();
@@ -108,7 +106,7 @@ pub extern "C" fn listen_for_incoming(callback: CMessageCallback) -> c_int {
             call.trigger(rec_for_c);
 
             StatusCode::NoError as c_int
-        },
+        }
         Err(_) => StatusCode::ListenError as c_int,
     }
 }

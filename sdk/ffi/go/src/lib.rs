@@ -1,11 +1,11 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ffi::{c_char, CString};
-use std::mem::forget;
-use nym_ffi_shared;
-use thiserror;
-use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, ReconstructedMessage, Recipient};
+
+
+
+
+use nym_sdk::mixnet::{Recipient};
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 uniffi::include_scaffolding!("bindings");
 
@@ -41,7 +41,7 @@ fn init_ephemeral() -> Result<(), GoWrapError> {
 #[no_mangle]
 fn get_self_address() -> Result<String, GoWrapError> {
     match nym_ffi_shared::get_self_address_internal() {
-        Ok(addr) => Ok(String::from(addr)),
+        Ok(addr) => Ok(addr),
         Err(..) => Err(GoWrapError::SelfAddrError{})
     }
 }

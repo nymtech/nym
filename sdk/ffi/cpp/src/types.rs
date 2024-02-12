@@ -1,6 +1,6 @@
 pub mod types {
 
-use std::ffi::{c_char, c_int, CStr, CString};
+use std::ffi::{c_char};
 
 #[derive(Debug)]
 pub enum StatusCode {

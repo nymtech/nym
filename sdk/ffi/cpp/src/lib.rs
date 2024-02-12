@@ -3,7 +3,7 @@
 
 use std::ffi::{c_char, c_int, CStr, CString};
 use nym_ffi_shared;
-use anyhow::{anyhow, bail};
+
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use std::mem::forget;
 mod types;

@@ -16,7 +16,6 @@ use crate::signing::tx_signer::TxSigner;
 use crate::signing::AccountData;
 use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
 use async_trait::async_trait;
-use cosmrs::cosmwasm;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Raw, SignDoc};
 use cosmwasm_std::Addr;
@@ -40,7 +39,7 @@ pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::{
     bank::MsgSend,
-    bip32,
+    bip32, cosmwasm,
     crypto::PublicKey,
     query::{PageRequest, PageResponse},
     tendermint::{

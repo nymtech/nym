@@ -93,7 +93,6 @@ pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> c_i
 pub extern "C" fn listen_for_incoming(callback: CMessageCallback) -> c_int {
     match nym_ffi_shared::listen_for_incoming_internal() {
         Ok(received) => {
-
             let message_ptr = received.message.as_ptr();
             let message_length = received.message.len();
             let c_string = CString::new(received.sender_tag.unwrap().to_string()).unwrap();

@@ -98,7 +98,6 @@ pub fn listen_for_incoming_internal() -> anyhow::Result<ReconstructedMessage, an
         .as_mut()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
-    // TODO return message out of this + entire fn
     let message = RUNTIME.block_on(async move {
         let received = wait_for_non_empty_message(client).await?;
         Ok::<ReconstructedMessage, anyhow::Error>(ReconstructedMessage {message: received.message, sender_tag: received.sender_tag})

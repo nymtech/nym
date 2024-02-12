@@ -1781,6 +1781,7 @@ mod credential_tests {
         // generate all the credential requests
         let params = bandwidth_credential_params();
         let key_pair = nym_coconut::keygen(params);
+        let epoch = 1;
 
         let voucher_amount = coin(1234, "unym");
         let issuance = voucher_fixture(coin(1234, "unym"), None);
@@ -1805,7 +1806,7 @@ mod credential_tests {
             )
             .unwrap();
 
-        let issued = issuance.into_issued_credential(sig);
+        let issued = issuance.into_issued_credential(sig, epoch);
         let spending = issued
             .prepare_for_spending(key_pair.verification_key())
             .unwrap();
@@ -1818,7 +1819,7 @@ mod credential_tests {
         staged_key_pair
             .set(KeyPairWithEpoch {
                 keys: key_pair,
-                issued_for_epoch: 1,
+                issued_for_epoch: epoch,
             })
             .await;
         staged_key_pair.validate();
@@ -1838,16 +1839,11 @@ mod credential_tests {
             .await
             .expect("valid rocket instance");
 
-        let epoch_id = 69;
         let proposal_id = 42;
         // The address is not used, so we can use a duplicate
         let gateway_cosmos_addr = validator_address.clone();
-        let req = VerifyCredentialBody::new(
-            spending.clone(),
-            epoch_id,
-            proposal_id,
-            gateway_cosmos_addr.clone(),
-        );
+        let req =
+            VerifyCredentialBody::new(spending.clone(), proposal_id, gateway_cosmos_addr.clone());
 
         // Test endpoint with not proposal for the proposal id
         let response = client

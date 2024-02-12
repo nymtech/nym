@@ -8,6 +8,11 @@ enum GoWrapError {
   "ListenError"
 };
 
+dictionary IncomingMessage {
+    string message;
+    string sender;
+};
+
 namespace bindings {
   void init_logging();
   [Throws=GoWrapError]
@@ -16,4 +21,8 @@ namespace bindings {
   string get_self_address();
   [Throws=GoWrapError]
   void send_message(string recipient, string message);
+  [Throws=GoWrapError]
+  void reply(string recipient, string message);
+  [Throws=GoWrapError]
+  IncomingMessage listen_for_incoming();
 };

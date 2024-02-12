@@ -80,6 +80,16 @@ void uniffi_nym_go_ffi_fn_func_init_logging(
 	RustCallStatus* out_status
 );
 
+RustBuffer uniffi_nym_go_ffi_fn_func_listen_for_incoming(
+	RustCallStatus* out_status
+);
+
+void uniffi_nym_go_ffi_fn_func_reply(
+	RustBuffer recipient,
+	RustBuffer message,
+	RustCallStatus* out_status
+);
+
 void uniffi_nym_go_ffi_fn_func_send_message(
 	RustBuffer recipient,
 	RustBuffer message,
@@ -394,6 +404,14 @@ uint16_t uniffi_nym_go_ffi_checksum_func_init_ephemeral(
 );
 
 uint16_t uniffi_nym_go_ffi_checksum_func_init_logging(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_listen_for_incoming(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_reply(
 	RustCallStatus* out_status
 );
 

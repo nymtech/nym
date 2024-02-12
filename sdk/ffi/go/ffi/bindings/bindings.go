@@ -1,6 +1,7 @@
 package bindings
 
 // #include <bindings.h>
+// #cgo LDFLAGS: -L../../target/release -lnym_go_ffi
 import "C"
 
 import (
@@ -371,6 +372,24 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_listen_for_incoming(uniffiStatus)
+		})
+		if checksum != 52894 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_listen_for_incoming: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_reply(uniffiStatus)
+		})
+		if checksum != 22969 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_reply: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_send_message(uniffiStatus)
 		})
 		if checksum != 33425 {
@@ -429,6 +448,46 @@ func (FfiConverterString) Write(writer io.Writer, value string) {
 type FfiDestroyerString struct{}
 
 func (FfiDestroyerString) Destroy(_ string) {}
+
+type IncomingMessage struct {
+	Message string
+	Sender  string
+}
+
+func (r *IncomingMessage) Destroy() {
+	FfiDestroyerString{}.Destroy(r.Message)
+	FfiDestroyerString{}.Destroy(r.Sender)
+}
+
+type FfiConverterTypeIncomingMessage struct{}
+
+var FfiConverterTypeIncomingMessageINSTANCE = FfiConverterTypeIncomingMessage{}
+
+func (c FfiConverterTypeIncomingMessage) Lift(rb RustBufferI) IncomingMessage {
+	return LiftFromRustBuffer[IncomingMessage](c, rb)
+}
+
+func (c FfiConverterTypeIncomingMessage) Read(reader io.Reader) IncomingMessage {
+	return IncomingMessage{
+		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterStringINSTANCE.Read(reader),
+	}
+}
+
+func (c FfiConverterTypeIncomingMessage) Lower(value IncomingMessage) RustBuffer {
+	return LowerIntoRustBuffer[IncomingMessage](c, value)
+}
+
+func (c FfiConverterTypeIncomingMessage) Write(writer io.Writer, value IncomingMessage) {
+	FfiConverterStringINSTANCE.Write(writer, value.Message)
+	FfiConverterStringINSTANCE.Write(writer, value.Sender)
+}
+
+type FfiDestroyerTypeIncomingMessage struct{}
+
+func (_ FfiDestroyerTypeIncomingMessage) Destroy(value IncomingMessage) {
+	value.Destroy()
+}
 
 type GoWrapError struct {
 	err error
@@ -639,6 +698,26 @@ func InitLogging() {
 		C.uniffi_nym_go_ffi_fn_func_init_logging(_uniffiStatus)
 		return false
 	})
+}
+
+func ListenForIncoming() (IncomingMessage, error) {
+	_uniffiRV, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+		return C.uniffi_nym_go_ffi_fn_func_listen_for_incoming(_uniffiStatus)
+	})
+	if _uniffiErr != nil {
+		var _uniffiDefaultValue IncomingMessage
+		return _uniffiDefaultValue, _uniffiErr
+	} else {
+		return FfiConverterTypeIncomingMessageINSTANCE.Lift(_uniffiRV), _uniffiErr
+	}
+}
+
+func Reply(recipient string, message string) error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_reply(FfiConverterStringINSTANCE.Lower(recipient), FfiConverterStringINSTANCE.Lower(message), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
 }
 
 func SendMessage(recipient string, message string) error {

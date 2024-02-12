@@ -13,6 +13,7 @@ uniffi = { version = "0.25.2", features = ["cli"] }
 # Nym clients, addressing, packet format, common tools (logging), ffi shared
 nym-bin-common = { git = "https://github.com/nymtech/nym", branch = "master" }
 nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
+nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym", branch = "master" }
 nym-ffi-shared = { path = "../shared" }
 # Async runtime
 tokio = { version = "1", features = ["full"] }

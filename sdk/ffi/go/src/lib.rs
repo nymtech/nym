@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::ffi::{c_char, CString};
+use std::mem::forget;
 use nym_ffi_shared;
 use thiserror;
 use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, ReconstructedMessage, Recipient};
+use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 uniffi::include_scaffolding!("bindings");
 
 #[derive(Debug, thiserror::Error)]
@@ -53,19 +55,33 @@ fn send_message(recipient: String, message: String) -> Result<(), GoWrapError> {
     }
 }
 
+#[no_mangle]
+fn reply(recipient: String, message: String) -> Result<(), GoWrapError> {
+    let anon_recipient_type: AnonymousSenderTag = AnonymousSenderTag::try_from_base58_string(recipient).expect("could not construct AnonymousSenderTag from supplied value");
+    match nym_ffi_shared::reply_internal(anon_recipient_type, &message) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(GoWrapError::ReplyError{}),
+    }
+}
 
-// #[no_mangle]
-// pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> i8 {
-//     match nym_ffi_shared::reply_internal(recipient, message) {
-//         Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
-//         Err(_) => nym_ffi_shared::StatusCode::ReplyError as i8,
-//     }
-// }
-//
-// #[no_mangle]
-// fn listen_for_incoming(callback: nym_ffi_shared::CMessageCallback) -> i8 {
-//     match nym_ffi_shared::listen_for_incoming_internal(callback) {
-//         Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
-//         Err(_) => nym_ffi_shared::StatusCode::ListenError as i8,
-//     }
-// }
+pub struct IncomingMessage {
+    message: String,
+    sender: String
+}
+
+#[no_mangle]
+fn listen_for_incoming() -> Result<IncomingMessage, GoWrapError> {
+    match nym_ffi_shared::listen_for_incoming_internal() {
+        Ok(received) => {
+            let message = String::from_utf8_lossy(&received.message).to_string();
+            // maybe change this to raw bytes to send over TODO
+            let sender = received.sender_tag.unwrap().to_base58_string();
+            let incoming = IncomingMessage {
+                message,
+                sender
+            };
+            Ok(incoming)
+        },
+        Err(_) => Err(GoWrapError::ListenError{}),
+    }
+}

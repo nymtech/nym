@@ -6,7 +6,8 @@ use std::sync::OnceLock;
 pub use issuance::IssuanceBandwidthCredential;
 pub use issued::IssuedBandwidthCredential;
 pub use nym_credentials_interface::{
-    CredentialSigningData, CredentialSpendingData, CredentialType, Parameters, UnknownCredentialType
+    CredentialSigningData, CredentialSpendingData, CredentialType, Parameters,
+    UnknownCredentialType,
 };
 
 pub mod freepass;

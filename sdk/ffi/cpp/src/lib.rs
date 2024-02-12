@@ -1,8 +1,11 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::ffi::{c_char, c_int};
+use std::ffi::{c_char, c_int, CStr, CString};
 use nym_ffi_shared;
+use anyhow::{anyhow, bail};
+mod types;
+use crate::types::types::{StatusCode, CStringCallback, CMessageCallback};
 
 #[no_mangle]
 pub extern "C" fn init_logging() {
@@ -12,58 +15,65 @@ pub extern "C" fn init_logging() {
 #[no_mangle]
 pub extern "C" fn init_ephemeral() -> c_int {
     match nym_ffi_shared::init_ephemeral_internal() {
-        Ok(_) => nym_ffi_shared::StatusCode::NoError as c_int,
-        Err(_) => nym_ffi_shared::StatusCode::ClientInitError as c_int,
+        Ok(_) => StatusCode::NoError as c_int,
+        Err(_) => StatusCode::ClientInitError as c_int,
     }
 }
 
 #[no_mangle]
-pub extern "C" fn get_self_address(/*callback: nym_ffi_shared::CStringCallback*/) -> c_int {
+pub extern "C" fn get_self_address(callback: CStringCallback) -> c_int {
     match nym_ffi_shared::get_self_address_internal(/*callback*/) {
-        Ok(nym_ffi_shared::AddrResponse {addr,return_code} ) => {
-            todo!()
-            /*
-            TODO in refactor: since you got rid of the callback from the _internal functions
-            there are 2 options:
-                1. convert + call the c callback from here + return c_int as previously
-                2. create and pass back a unison type
-            */
-
+        Ok(addr) => {
+            let c_ptr= CString::new(addr).expect("could not convert Nym address to CString");
+            let call = CStringCallback::new(callback.callback);
             // as_ptr() keeps ownership in rust unlike into_raw() so no need to free it
-            // let c_string = CString::new(nym_client.nym_address().to_string())?.as_ptr();
-
-            // let call = CStringCallback::new(callback.callback);
-            // call.trigger(c_string.as_ptr());
-            // debug printing when working on move from callbacks -> return types
-            // println!("{c_string:?}");
-
-            // and return c_int
-            // nym_ffi_shared::StatusCode::NoError as c_int
+            call.trigger(c_ptr.as_ptr());
+            StatusCode::NoError as c_int
         },
-        Err(_) => nym_ffi_shared::StatusCode::SelfAddrError as c_int,
+        Err(_) => StatusCode::SelfAddrError as c_int,
     }
 }
 
 #[no_mangle]
 pub extern "C" fn send_message(recipient: *const c_char, message: *const c_char) -> c_int {
+
+    let c_str = unsafe {
+        if recipient.is_null() {
+            return StatusCode::RecipientNullError as c_int
+        }
+        let c_str = CStr::from_ptr(recipient);
+        c_str
+    };
+    let r_str = c_str.to_str().unwrap();
+    let recipient = r_str.parse().unwrap();
+    let c_str = unsafe {
+        if message.is_null() {
+            return StatusCode::MessageNullError as c_int
+        }
+        let c_str = CStr::from_ptr(message);
+        c_str
+    };
+    let message = c_str.to_str().unwrap();
+
     match nym_ffi_shared::send_message_internal(recipient, message) {
-        Ok(_) => nym_ffi_shared::StatusCode::NoError as c_int,
-        Err(_) => nym_ffi_shared::StatusCode::SendMsgError as c_int,
+        Ok(_) => StatusCode::NoError as c_int,
+        Err(_) => StatusCode::SendMsgError as c_int,
     }
 }
 
-#[no_mangle]
-pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> c_int {
-    match nym_ffi_shared::reply_internal(recipient, message) {
-        Ok(_) => nym_ffi_shared::StatusCode::NoError as c_int,
-        Err(_) => nym_ffi_shared::StatusCode::ReplyError as c_int,
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn listen_for_incoming(callback: nym_ffi_shared::CMessageCallback) -> c_int {
-    match nym_ffi_shared::listen_for_incoming_internal(callback) {
-        Ok(_) => nym_ffi_shared::StatusCode::NoError as c_int,
-        Err(_) => nym_ffi_shared::StatusCode::ListenError as c_int,
-    }
-}
+//
+// #[no_mangle]
+// pub extern "C" fn reply(recipient: *const c_char, message: *const c_char) -> c_int {
+//     match nym_ffi_shared::reply_internal(recipient, message) {
+//         Ok(_) => StatusCode::NoError as c_int,
+//         Err(_) => StatusCode::ReplyError as c_int,
+//     }
+// }
+//
+// #[no_mangle]
+// pub extern "C" fn listen_for_incoming(callback: nym_ffi_shared::CMessageCallback) -> c_int {
+//     match nym_ffi_shared::listen_for_incoming_internal(callback) {
+//         Ok(_) => StatusCode::NoError as c_int,
+//         Err(_) => StatusCode::ListenError as c_int,
+//     }
+// }

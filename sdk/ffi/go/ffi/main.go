@@ -9,15 +9,26 @@ import (
 func main() {
 	fmt.Println("hello")
 	bindings.InitLogging()
-	bindings.InitEphemeral()
-
-	str, err := bindings.GetSelfAddress()
+	err := bindings.InitEphemeral()
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println(err)
 		return
 	}
-	fmt.Println("response from selfaddr:")
-	fmt.Println("String:", str)
 
+	str, err2 := bindings.GetSelfAddress()
+	if err2 != nil {
+		fmt.Println("Error:", err2)
+		return
+	}
+	fmt.Println("response:")
+	fmt.Println(str)
+
+	err3 := bindings.SendMessage(str, "helloworld")
+	if err3 != nil {
+		fmt.Println("Error:", err3)
+		return
+	}
+
+	fmt.Println("end go")
 	time.Sleep(30 * time.Second)
 }

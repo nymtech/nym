@@ -3,14 +3,15 @@
 
 use anyhow::{anyhow, bail};
 use lazy_static::lazy_static;
-use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, ReconstructedMessage};
+use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, ReconstructedMessage, Recipient};
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::mem::forget;
 use std::sync::{Arc, Mutex};
+use std::sync::mpsc::Receiver;
 use tokio::runtime::Runtime;
 
-// no longer necessary?
+// no longer necessary? TODO remove
 uniffi::setup_scaffolding!();
 
 // NYM_CLIENT: Static reference (only init-ed once) to:
@@ -21,74 +22,6 @@ uniffi::setup_scaffolding!();
 lazy_static! {
     static ref NYM_CLIENT: Arc<Mutex<Option<MixnetClient>>> = Arc::new(Mutex::new(None));
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
-}
-
-// TODO move to the C specific bindings
-#[derive(Debug)]
-pub enum StatusCode {
-    NoError = 0,
-    ClientInitError = -1,
-    ClientUninitialisedError = -2,
-    SelfAddrError = -3,
-    SendMsgError = -4,
-    ReplyError = -5,
-    ListenError = -6,
-}
-
-// callbacks have to be implemented as structs so that they can
-// impl UniffiCustomTypeConverter trait used by uniffi-bindgen-go
-// TODO move to the C specific bindings
-#[repr(C)]
-pub struct CStringCallback {
-   pub callback: extern "C" fn(*const c_char)
-}
-
-// TODO move to the C specific bindings
-impl CStringCallback {
-    pub fn new(callback: extern "C" fn(*const c_char)) -> Self {
-        CStringCallback { callback }
-    }
-    pub fn trigger(&self, char: *const c_char) {
-        (self.callback)(char);
-    }
-}
-
-// TODO move to the C specific bindings
-#[repr(C)]
-pub struct CMessageCallback {
-    pub callback: extern "C" fn(ReceivedMessage)
-}
-
-// TODO move to the C specific bindings
-impl CMessageCallback {
-    pub fn new(callback: extern "C" fn(ReceivedMessage)) -> Self {
-        CMessageCallback { callback }
-    }
-    pub fn trigger(&self, message: ReceivedMessage) {
-        (self.callback)(message)
-    }
-}
-
-
-// TODO move to the C specific bindings... probably
-// FFI-sanitised ReconstructedMessage
-#[repr(C)]
-pub struct ReceivedMessage {
-    message: *const u8,
-    size: usize,
-    sender_tag: *const c_char,
-}
-
-// TEST to see if we can get rid of callbacks
-// TODO I think need to implement this new_type() as well?
-// https://mozilla.github.io/uniffi-rs/proc_macro/index.html#the-unifficustom_type-and-unifficustom_newtype-macros
-//
-// actually i dont think this is necessary any more?
-#[repr(C)]
-#[derive(uniffi::Object)]
-pub struct AddrResponse {
-    pub addr: String,
-    pub return_code: c_int
 }
 
 pub fn init_ephemeral_internal() -> anyhow::Result<(), anyhow::Error> {
@@ -109,7 +42,7 @@ pub fn init_ephemeral_internal() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
-pub fn get_self_address_internal(/*callback: CStringCallback*/) -> anyhow::Result<AddrResponse, anyhow::Error> {
+pub fn get_self_address_internal() -> anyhow::Result<String, anyhow::Error> {
     let client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if client.is_none() {
         bail!("Client is not yet initialised");
@@ -118,24 +51,12 @@ pub fn get_self_address_internal(/*callback: CStringCallback*/) -> anyhow::Resul
         .as_ref()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
-    // move this to the c-specific code
-    // as_ptr() keeps ownership in rust unlike into_raw() so no need to free it
-    // let c_string = CString::new(nym_client.nym_address().to_string())?.as_ptr();
-
-    // let call = CStringCallback::new(callback.callback);
-    // call.trigger(c_string.as_ptr());
-    // debug printing when working on move from callbacks -> return types
-    // println!("{c_string:?}");
-
-    Ok(AddrResponse{
-        addr: nym_client.nym_address().to_string(), // c_string.as_ptr(),
-        return_code: 0,
-    })
+    Ok(nym_client.nym_address().to_string())
 }
 
 pub fn send_message_internal(
-    recipient: *const c_char,
-    message: *const c_char,
+    recipient: Recipient,
+    message: &str,
 ) -> anyhow::Result<(), anyhow::Error> {
     let client = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if client.is_none() {
@@ -144,24 +65,6 @@ pub fn send_message_internal(
     let nym_client = client
         .as_ref()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
-
-    let c_str = unsafe {
-        if recipient.is_null() {
-            bail!("recipient is null");
-        }
-        let c_str = CStr::from_ptr(recipient);
-        c_str
-    };
-    let r_str = c_str.to_str().unwrap();
-    let recipient = r_str.parse().unwrap();
-    let c_str = unsafe {
-        if message.is_null() {
-            bail!("message is null");
-        }
-        let c_str = CStr::from_ptr(message);
-        c_str
-    };
-    let message = c_str.to_str().unwrap();
 
     // send message
     RUNTIME.block_on(async move {
@@ -206,34 +109,35 @@ pub fn reply_internal(
     Ok(())
 }
 
-pub fn listen_for_incoming_internal(callback: CMessageCallback) -> anyhow::Result<(), anyhow::Error> {
-    let mut binding = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
-    if binding.is_none() {
-        bail!("recipient is null");
-    }
-    let client = binding
-        .as_mut()
-        .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
-
-    RUNTIME.block_on(async move {
-        let received = wait_for_non_empty_message(client).await?;
-        let message_ptr = received.message.as_ptr();
-        let message_length = received.message.len();
-        let c_string = CString::new(received.sender_tag.unwrap().to_string())?;
-        let sender_ptr = c_string.as_ptr();
-        // stop deallocation when out of scope as passing raw ptr to it elsewhere
-        forget(received);
-        let rec_for_c = ReceivedMessage {
-            message: message_ptr,
-            size: message_length,
-            sender_tag: sender_ptr,
-        };
-        let call = CMessageCallback::new(callback.callback);
-        call.trigger(rec_for_c);
-        Ok::<(), anyhow::Error>(())
-    })?;
-    Ok(())
-}
+// pub fn listen_for_incoming_internal(/* callback: CMessageCallback */) -> anyhow::Result<(), anyhow::Error> {
+//     let mut binding = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
+//     if binding.is_none() {
+//         bail!("recipient is null");
+//     }
+//     let client = binding
+//         .as_mut()
+//         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
+//
+//     RUNTIME.block_on(async move {
+//         let received = wait_for_non_empty_message(client).await?;
+//         let message_ptr = received.message.as_ptr();
+//         let message_length = received.message.len();
+//         let c_string = CString::new(received.sender_tag.unwrap().to_string())?;
+//         let sender_ptr = c_string.as_ptr();
+//         // stop deallocation when out of scope as passing raw ptr to it elsewhere
+//         forget(received);
+//         let rec_for_c = ReceivedMessage {
+//             message: message_ptr,
+//             size: message_length,
+//             sender_tag: sender_ptr,
+//         };
+//         todo!();
+//         // let call = CMessageCallback::new(callback.callback);
+//         // call.trigger(rec_for_c);
+//         Ok::<(), anyhow::Error>(())
+//     })?;
+//     Ok(())
+// }
 
 pub async fn wait_for_non_empty_message(
     client: &mut MixnetClient,

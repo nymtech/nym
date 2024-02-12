@@ -1,11 +1,19 @@
 [Error]
 enum GoWrapError {
+  "ClientInitError",
+  "ClientUninitialisedError",
   "SelfAddrError",
+  "SendMsgError",
+  "ReplyError",
+  "ListenError"
 };
 
 namespace bindings {
   void init_logging();
-  i8 init_ephemeral();
+  [Throws=GoWrapError]
+  void init_ephemeral();
   [Throws=GoWrapError]
   string get_self_address();
+  [Throws=GoWrapError]
+  void send_message(string recipient, string message);
 };

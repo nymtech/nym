@@ -4,7 +4,7 @@
 use std::ffi::{c_char, CString};
 use nym_ffi_shared;
 use thiserror;
-// use nym_ffi_shared::CStringCallback;
+use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, ReconstructedMessage, Recipient};
 uniffi::include_scaffolding!("bindings");
 
 #[derive(Debug, thiserror::Error)]
@@ -24,23 +24,32 @@ enum GoWrapError {
 }
 
 #[no_mangle]
-pub extern "C" fn init_logging() {
+fn init_logging() {
     nym_bin_common::logging::setup_logging();
 }
 
 #[no_mangle]
-pub extern "C" fn init_ephemeral() -> i8 {
+fn init_ephemeral() -> Result<(), GoWrapError> {
     match nym_ffi_shared::init_ephemeral_internal() {
-        Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
-        Err(_) => nym_ffi_shared::StatusCode::ClientInitError as i8,
+        Ok(_) => Ok(()),
+        Err(_) => Err(GoWrapError::ClientInitError{})
     }
 }
 
 #[no_mangle]
-pub extern "C" fn get_self_address() -> Result<String, GoWrapError> {
+fn get_self_address() -> Result<String, GoWrapError> {
     match nym_ffi_shared::get_self_address_internal() {
-        Ok(nym_ffi_shared::AddrResponse{ addr, .. }) => Ok(String::from(addr)),
-        Err(_) => Err(GoWrapError::SelfAddrError {})
+        Ok(addr) => Ok(String::from(addr)),
+        Err(..) => Err(GoWrapError::SelfAddrError{})
+    }
+}
+
+#[no_mangle]
+fn send_message(recipient: String, message: String) -> Result<(), GoWrapError> {
+    let nym_recipient_type = Recipient::try_from_base58_string(recipient).unwrap();
+    match nym_ffi_shared::send_message_internal(nym_recipient_type, &message) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(GoWrapError::SendMsgError{}),
     }
 }
 
@@ -61,7 +70,7 @@ pub extern "C" fn get_self_address() -> Result<String, GoWrapError> {
 // }
 //
 // #[no_mangle]
-// pub extern "C" fn listen_for_incoming(callback: nym_ffi_shared::CMessageCallback) -> i8 {
+// fn listen_for_incoming(callback: nym_ffi_shared::CMessageCallback) -> i8 {
 //     match nym_ffi_shared::listen_for_incoming_internal(callback) {
 //         Ok(_) => nym_ffi_shared::StatusCode::NoError as i8,
 //         Err(_) => nym_ffi_shared::StatusCode::ListenError as i8,

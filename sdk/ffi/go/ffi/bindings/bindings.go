@@ -1,7 +1,6 @@
 package bindings
 
 // #include <bindings.h>
-// #cgo LDFLAGS: -L../../target/release -lnym_go_ffi
 import "C"
 
 import (
@@ -356,7 +355,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_init_ephemeral(uniffiStatus)
 		})
-		if checksum != 1836 {
+		if checksum != 28391 {
 			// If this happens try cleaning and rebuilding your project
 			panic("bindings: uniffi_nym_go_ffi_checksum_func_init_ephemeral: UniFFI API checksum mismatch")
 		}
@@ -370,31 +369,16 @@ func uniffiCheckChecksums() {
 			panic("bindings: uniffi_nym_go_ffi_checksum_func_init_logging: UniFFI API checksum mismatch")
 		}
 	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_send_message(uniffiStatus)
+		})
+		if checksum != 33425 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_send_message: UniFFI API checksum mismatch")
+		}
+	}
 }
-
-type FfiConverterInt8 struct{}
-
-var FfiConverterInt8INSTANCE = FfiConverterInt8{}
-
-func (FfiConverterInt8) Lower(value int8) C.int8_t {
-	return C.int8_t(value)
-}
-
-func (FfiConverterInt8) Write(writer io.Writer, value int8) {
-	writeInt8(writer, value)
-}
-
-func (FfiConverterInt8) Lift(value C.int8_t) int8 {
-	return int8(value)
-}
-
-func (FfiConverterInt8) Read(reader io.Reader) int8 {
-	return readInt8(reader)
-}
-
-type FfiDestroyerInt8 struct{}
-
-func (FfiDestroyerInt8) Destroy(_ int8) {}
 
 type FfiConverterString struct{}
 
@@ -459,9 +443,50 @@ func (err GoWrapError) Unwrap() error {
 }
 
 // Err* are used for checking error type with `errors.Is`
+var ErrGoWrapErrorClientInitError = fmt.Errorf("GoWrapErrorClientInitError")
+var ErrGoWrapErrorClientUninitialisedError = fmt.Errorf("GoWrapErrorClientUninitialisedError")
 var ErrGoWrapErrorSelfAddrError = fmt.Errorf("GoWrapErrorSelfAddrError")
+var ErrGoWrapErrorSendMsgError = fmt.Errorf("GoWrapErrorSendMsgError")
+var ErrGoWrapErrorReplyError = fmt.Errorf("GoWrapErrorReplyError")
+var ErrGoWrapErrorListenError = fmt.Errorf("GoWrapErrorListenError")
 
 // Variant structs
+type GoWrapErrorClientInitError struct {
+	message string
+}
+
+func NewGoWrapErrorClientInitError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorClientInitError{},
+	}
+}
+
+func (err GoWrapErrorClientInitError) Error() string {
+	return fmt.Sprintf("ClientInitError: %s", err.message)
+}
+
+func (self GoWrapErrorClientInitError) Is(target error) bool {
+	return target == ErrGoWrapErrorClientInitError
+}
+
+type GoWrapErrorClientUninitialisedError struct {
+	message string
+}
+
+func NewGoWrapErrorClientUninitialisedError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorClientUninitialisedError{},
+	}
+}
+
+func (err GoWrapErrorClientUninitialisedError) Error() string {
+	return fmt.Sprintf("ClientUninitialisedError: %s", err.message)
+}
+
+func (self GoWrapErrorClientUninitialisedError) Is(target error) bool {
+	return target == ErrGoWrapErrorClientUninitialisedError
+}
+
 type GoWrapErrorSelfAddrError struct {
 	message string
 }
@@ -478,6 +503,60 @@ func (err GoWrapErrorSelfAddrError) Error() string {
 
 func (self GoWrapErrorSelfAddrError) Is(target error) bool {
 	return target == ErrGoWrapErrorSelfAddrError
+}
+
+type GoWrapErrorSendMsgError struct {
+	message string
+}
+
+func NewGoWrapErrorSendMsgError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorSendMsgError{},
+	}
+}
+
+func (err GoWrapErrorSendMsgError) Error() string {
+	return fmt.Sprintf("SendMsgError: %s", err.message)
+}
+
+func (self GoWrapErrorSendMsgError) Is(target error) bool {
+	return target == ErrGoWrapErrorSendMsgError
+}
+
+type GoWrapErrorReplyError struct {
+	message string
+}
+
+func NewGoWrapErrorReplyError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorReplyError{},
+	}
+}
+
+func (err GoWrapErrorReplyError) Error() string {
+	return fmt.Sprintf("ReplyError: %s", err.message)
+}
+
+func (self GoWrapErrorReplyError) Is(target error) bool {
+	return target == ErrGoWrapErrorReplyError
+}
+
+type GoWrapErrorListenError struct {
+	message string
+}
+
+func NewGoWrapErrorListenError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorListenError{},
+	}
+}
+
+func (err GoWrapErrorListenError) Error() string {
+	return fmt.Sprintf("ListenError: %s", err.message)
+}
+
+func (self GoWrapErrorListenError) Is(target error) bool {
+	return target == ErrGoWrapErrorListenError
 }
 
 type FfiConverterTypeGoWrapError struct{}
@@ -498,7 +577,17 @@ func (c FfiConverterTypeGoWrapError) Read(reader io.Reader) error {
 	message := FfiConverterStringINSTANCE.Read(reader)
 	switch errorID {
 	case 1:
+		return &GoWrapError{&GoWrapErrorClientInitError{message}}
+	case 2:
+		return &GoWrapError{&GoWrapErrorClientUninitialisedError{message}}
+	case 3:
 		return &GoWrapError{&GoWrapErrorSelfAddrError{message}}
+	case 4:
+		return &GoWrapError{&GoWrapErrorSendMsgError{message}}
+	case 5:
+		return &GoWrapError{&GoWrapErrorReplyError{message}}
+	case 6:
+		return &GoWrapError{&GoWrapErrorListenError{message}}
 	default:
 		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeGoWrapError.Read()", errorID))
 	}
@@ -507,8 +596,18 @@ func (c FfiConverterTypeGoWrapError) Read(reader io.Reader) error {
 
 func (c FfiConverterTypeGoWrapError) Write(writer io.Writer, value *GoWrapError) {
 	switch variantValue := value.err.(type) {
-	case *GoWrapErrorSelfAddrError:
+	case *GoWrapErrorClientInitError:
 		writeInt32(writer, 1)
+	case *GoWrapErrorClientUninitialisedError:
+		writeInt32(writer, 2)
+	case *GoWrapErrorSelfAddrError:
+		writeInt32(writer, 3)
+	case *GoWrapErrorSendMsgError:
+		writeInt32(writer, 4)
+	case *GoWrapErrorReplyError:
+		writeInt32(writer, 5)
+	case *GoWrapErrorListenError:
+		writeInt32(writer, 6)
 	default:
 		_ = variantValue
 		panic(fmt.Sprintf("invalid error value `%v` in FfiConverterTypeGoWrapError.Write", value))
@@ -527,10 +626,12 @@ func GetSelfAddress() (string, error) {
 	}
 }
 
-func InitEphemeral() int8 {
-	return FfiConverterInt8INSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_nym_go_ffi_fn_func_init_ephemeral(_uniffiStatus)
-	}))
+func InitEphemeral() error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_init_ephemeral(_uniffiStatus)
+		return false
+	})
+	return _uniffiErr
 }
 
 func InitLogging() {
@@ -538,4 +639,12 @@ func InitLogging() {
 		C.uniffi_nym_go_ffi_fn_func_init_logging(_uniffiStatus)
 		return false
 	})
+}
+
+func SendMessage(recipient string, message string) error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_send_message(FfiConverterStringINSTANCE.Lower(recipient), FfiConverterStringINSTANCE.Lower(message), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
 }

@@ -10,12 +10,12 @@ Exit Gateway landing page is a great and transparent way to prevent possible tro
 
 ## Avril 14th Exit Gateways
 
-The following snippet needs to modified as described below according to the public identity that you may want to show on this public notice, i.e. your graphics and your email.
+The following snippet needs  be modified as described below according to the public identity that you may want to show on this public notice, i.e. your graphics and your email.
 It would allow you to serve it as a landing page resembling the one proposed by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html) but with all the changes needed to adhere to the Nym's operators case.
 
-[Avril 14th](https://avril14th.org/) is a team of professionals and optimistic realists eager to contribute to a future of privacy, decentralization and connectivity. 
+[Avril 14th](https://avril14th.org/) is a team of professionals and optimistic realists eager to contribute to a future of privacy, decentralization and connectivity.
 
-When done with the customization needs as described below, you'll need to upload the file and reference it as the 'landing_page_assets_path' on the '[http]' section of the config.toml file:
+When done with the customization needs as described below, you'll need to upload the file and reference it as the `landing_page_assets_path` on the `[http]` section of the config.toml file:
 ```
 landing_page_assets_path = '<PATH_TO_YOUR_CUSTOM_FILE>'
 ```
@@ -41,7 +41,7 @@ and
 src="<PATH_TO_YOUR_PUBLIC_URL>"
 
 ```
-**or** by adding the image inline as base64 encoded image 
+**or** by adding the image inline as base64 encoded image
 ```
 href="href="data:image/x-icon;base64,AAABAAMA....""
 ```
@@ -128,8 +128,8 @@ white-space: nowrap;
 You are most likely accessing this website because you've had some issue with
 the traffic coming from this IP. This router is part of the <a
 href="https://nymtech.net/">NYM project</a>, which is
-dedicated to <a href="https://nymtech.net/about/mission">create</a> outstanding 
-privacy software that is legally compliant without sacrificing integrity or 
+dedicated to <a href="https://nymtech.net/about/mission">create</a> outstanding
+privacy software that is legally compliant without sacrificing integrity or
 having any backdoors.
 This router IP should be generating no other traffic, unless it has been
 compromised.</p>
@@ -138,7 +138,7 @@ compromised.</p>
 The Nym mixnet is operated by a decentralised community of node operators
 and stakers. The Nym mixnet is trustless, meaning that no parts of the system
 nor its operators have access to information that might compromise the privacy
-of users. Nym software enacts a strict principle of data minimisation and has 
+of users. Nym software enacts a strict principle of data minimisation and has
 no back doors. The Nym mixnet works by encrypting packets in several layers
 and relaying those through a multi-layered network called a mixnet,  eventually
 letting the traffic exit the Nym mixnet through an exit gateway like this one.
@@ -191,9 +191,9 @@ stroke: var(--text-color);
 <a href="https://nymtech.net/about/mixnet">Read more about how Nym works.</a></p>
 
 <p>
-Nym relies on a growing ecosystem of users, developers and researcher partners 
+Nym relies on a growing ecosystem of users, developers and researcher partners
 aligned with the mission to make sure Nym software is running, remains usable
-and solves real problems. While Nym is not designed for malicious computer 
+and solves real problems. While Nym is not designed for malicious computer
 users, it is true that they can use the network for malicious ends. This
 is largely because criminals and hackers have significantly better access to
 privacy and anonymity than do the regular users whom they prey upon. Criminals
@@ -206,8 +206,8 @@ by traditional police work than by extensive monitoring and surveillance anyway.
 <p>
 In terms of applicable law, the best way to understand Nym is to consider it a
 network of routers operating as common carriers, much like the Internet
-backbone. However, unlike the Internet backbone routers, Nym mixnodes do not 
-contain identifiable routing information about the source of a packet and do 
+backbone. However, unlike the Internet backbone routers, Nym mixnodes do not
+contain identifiable routing information about the source of a packet and do
 mix the user internet traffic with that of other users, making communications
 private and protecting not just the user content but the metadata
 (user's IP address, who the user talks to, when, where, from what device and
@@ -258,7 +258,7 @@ which are two established safeguards.
 </p>
 
 <p>
-That being said, if you still have a complaint about the router, you may email the 
+That being said, if you still have a complaint about the router, you may email the
  <a href="mailto:>FIXME>">maintainer</a>. If complaints are related
  to a particular service that is being abused, the maintainer will submit that to the
  NYM Operators Community in order to add it to the Exit Policy cited above.
@@ -270,7 +270,7 @@ You also have the option of blocking this IP address and others on the Nym netwo
  The Nym project provides a <a href="https://explorer.nymtech.net/network-components/gateways">
  web service</a> to fetch a list of all IP addresses of Nym Gateway Exit nodes that allow exiting to a
 specified IP:port combination. Please be considerate when using these options.</p>
- 
+
 </main>
 </body>
 </html>
@@ -327,7 +327,7 @@ server {
 server {
   listen 80;
   listen [::]:80;
-  
+
   if ($host = nym-exit.<YOUR_DOMAIN>) {
     return 301 https://$host$request_uri;
   }
@@ -344,7 +344,7 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
-When done with the customization needs as described below, you'll need to upload the file and reference it as the 'landing_page_assets_path' on the '[http]' section of the config.toml file that you'll find in the .nym folder, 
+When done with the customization needs as described below, you'll need to upload the file and reference it as the 'landing_page_assets_path' on the '[http]' section of the config.toml file that you'll find in the .nym folder,
 ```
 nano ${HOME}/.nym/gateways/<YOUR_GATEWAY_ID>/config/config.toml
 ```

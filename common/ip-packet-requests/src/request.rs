@@ -226,7 +226,7 @@ mod tests {
                 },
             )
         };
-        assert_eq!(connect.to_bytes().unwrap().len(), 107);
+        assert_eq!(connect.to_bytes().unwrap().len(), 108);
     }
 
     #[test]

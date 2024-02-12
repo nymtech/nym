@@ -9,7 +9,7 @@ use nym_credentials_interface::{
 };
 use nym_validator_client::client::CoconutApiClient;
 
-pub async fn obtain_aggregate_verification_key(
+pub fn obtain_aggregate_verification_key(
     api_clients: &[CoconutApiClient],
 ) -> Result<VerificationKey, Error> {
     if api_clients.is_empty() {
@@ -37,7 +37,7 @@ pub async fn obtain_aggregate_signature(
         return Err(Error::NoValidatorsAvailable);
     }
     let mut shares = Vec::with_capacity(coconut_api_clients.len());
-    let verification_key = obtain_aggregate_verification_key(coconut_api_clients).await?;
+    let verification_key = obtain_aggregate_verification_key(coconut_api_clients)?;
 
     let request = voucher.prepare_for_signing();
 
@@ -48,7 +48,7 @@ pub async fn obtain_aggregate_signature(
         );
 
         match voucher
-            .obtain_partial_credential(
+            .obtain_partial_bandwidth_voucher_credential(
                 &coconut_api_client.api_client,
                 &coconut_api_client.verification_key,
                 Some(request.clone()),

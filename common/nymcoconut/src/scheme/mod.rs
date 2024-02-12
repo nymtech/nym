@@ -248,6 +248,15 @@ pub struct SignatureShare {
     index: SignerIndex,
 }
 
+impl From<(Signature, SignerIndex)> for SignatureShare {
+    fn from(value: (Signature, SignerIndex)) -> Self {
+        SignatureShare {
+            signature: value.0,
+            index: value.1,
+        }
+    }
+}
+
 impl SignatureShare {
     pub fn new(signature: Signature, index: SignerIndex) -> Self {
         SignatureShare { signature, index }

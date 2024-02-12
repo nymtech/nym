@@ -110,7 +110,7 @@ impl APICommunicationChannel for QueryCommunicationChannel {
             ClientInner::Signing(client) => all_coconut_api_clients(client, epoch_id).await?,
         };
 
-        let vk = obtain_aggregate_verification_key(&coconut_api_clients).await?;
+        let vk = obtain_aggregate_verification_key(&coconut_api_clients)?;
 
         guard.insert(epoch_id, vk.clone());
 

@@ -20,7 +20,12 @@ The `build.sh` script in the root of the repository speeds up the task of buildi
 * if want to quickly recompile your code run it as-is with `./build.sh`
 * if you want to clean build both the Rust and Go code after removing existing compiled binaries run it with the optional `clean` argument: `./build.sh clean`.
 
-> Make sure to run the script from the root of the project directory.
+> Make sure to run the script from the root of the project directory, and that your LD PATH is set first!
+> ```
+> RUST_BINARIES=target/release
+> echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'${RUST_BINARIES} >> ~/.zshrc
+> source ~/.zshrc
+> ```
 
 This script will:
 * (optionally if called with `clean` argument) remove existing Rust and Go artifacts
@@ -32,31 +37,3 @@ This script will:
 // #cgo LDFLAGS: -L../../target/release -lnym_go_ffi
 ```
 
-
-
-
-
-```
-# install uniffi-bindgen-go - make sure to use the same version as uniffirs that is in Cargo.toml
-cargo install ... 
-
-# if unset run from projroot 
-# this will b set in a script as well when not WIP 
-RUST_BINARIES=target/release
-echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'${RUST_BINARIES} >> ~/.zshrc
-source ~/.zshrc
-
-# (optional) clean everything 
-./clean.sh
-
-# build everything 
-./build.sh 
-
-# manually add the following line under #include math.h` in compiled Go: 
-# this is a temporary hack that will b hidden in build script
-// #cgo LDFLAGS: -L../../target/release -lnym_go_ffi
-
-# run test go file 
-go run ffi/main.go
-```
- 

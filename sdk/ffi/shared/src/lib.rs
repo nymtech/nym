@@ -89,7 +89,7 @@ pub fn reply_internal(
     Ok(())
 }
 
-pub fn listen_for_incoming_internal() -> anyhow::Result<(), anyhow::Error> {
+pub fn listen_for_incoming_internal() -> anyhow::Result<ReconstructedMessage, anyhow::Error> {
     let mut binding = NYM_CLIENT.lock().expect("could not lock NYM_CLIENT");
     if binding.is_none() {
         bail!("recipient is null");
@@ -99,15 +99,12 @@ pub fn listen_for_incoming_internal() -> anyhow::Result<(), anyhow::Error> {
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
     // TODO return message out of this + entire fn
-    RUNTIME.block_on(async move {
+    let message = RUNTIME.block_on(async move {
         let received = wait_for_non_empty_message(client).await?;
-
-        // how to return received out of this? getting const/no-const errors
-
-        Ok::<(), anyhow::Error>(())
+        Ok::<ReconstructedMessage, anyhow::Error>(ReconstructedMessage {message: received.message, sender_tag: received.sender_tag})
     })?;
 
-    Ok(())
+    Ok(message)
 }
 
 pub async fn wait_for_non_empty_message(

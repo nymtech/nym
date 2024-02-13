@@ -5,9 +5,9 @@ This repo contains:
 * `lib.rs`: an initial version of bindings for interacting with the Mixnet via the Rust SDK from Go. These are essentially match statemtns wrapping imported functions from the `nym-ffi-shared` lib. 
 * `ffi/`: a directory containing: 
   * the `bindings/` files generated using [`uniffi-bindgen-go`](https://github.com/NordSecurity/uniffi-bindgen-go)
-  * [`main.go`](./ffi/bindings/main.go): an example of using this library. 
+  * [`example.go`](./example.go): an example of using this library. 
 
-The example `main.go` file is a simple example flow of:
+The `example.go` file is an example flow of:
 * setting up Nym client logging
 * creating an ephemeral Nym client (no key storage / persistent address - this will come in a future iteration)
 * getting its [Nym address](https://nymtech.net/docs/clients/addressing-system.html)
@@ -16,7 +16,7 @@ The example `main.go` file is a simple example flow of:
 * send a reply to yourself using SURBs
 
 ## Useage - Consuming the Library 
-You can import the bindings as normal and interact with them as shown in the [example file](./ffi/main.go). This example imports the bindings from the this repository (hence the `go.mod` and `go.sum` in the crate root) but you can import them remotely as usual. 
+You can import the bindings as normal and interact with them as shown in the [example file](./example.go). This example imports the bindings from the this repository (hence the `go.mod` and `go.sum` in the crate root) but you can import them remotely as usual. 
 
 ## Useage - Developing on the Library  
 If you want to fork and add new features/functions to this library use the following instructions to rebuild the Go bindings. 

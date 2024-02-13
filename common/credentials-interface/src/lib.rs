@@ -129,4 +129,8 @@ impl CredentialSpendingData {
         // the first attribute is variant specific bandwidth encoding, the second one should be the type
         self.public_attributes_plain.first()
     }
+
+    pub fn blinded_serial_number(&self) -> BlindedSerialNumber {
+        self.verify_credential_request.blinded_serial_number()
+    }
 }

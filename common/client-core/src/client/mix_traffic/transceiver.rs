@@ -69,7 +69,7 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
         (**self).gateway_identity()
     }
     fn ws_fd(&self) -> Option<RawFd> {
-        None
+        (**self).ws_fd()
     }
 }
 

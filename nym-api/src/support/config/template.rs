@@ -127,12 +127,4 @@ decryption_key_path = '{{ coconut_signer.storage_paths.decryption_key_path }}'
 # Path to the dkg dealer public key with proof
 public_key_with_proof_path = '{{ coconut_signer.storage_paths.public_key_with_proof_path }}'
 
-[ephemera]
-
-enabled = {{ ephemera.enabled }}
-
-[ephemera.args]
-
-ephemera_config = '{{ ephemera.args.ephemera_config }}'
-
 "#;

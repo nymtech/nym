@@ -9,9 +9,9 @@ import { ModalListItem } from './ModalListItem';
 import { DelegationModalProps } from './DelegationModal';
 import { unymToNym, validateAmount } from '../../utils/currency';
 import { urls } from '../../utils';
+import { NYM_MIXNET_CONTRACT } from '../../api/constants';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
-const MIXNET_CONTRACT_ADDRESS = 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr';
 
 export const DelegateModal: FCWithChildren<{
   mixId: number;
@@ -97,7 +97,7 @@ export const DelegateModal: FCWithChildren<{
       const signerClient = await getSigningCosmWasmClient();
       const tx = await signerClient.execute(
         delgationAddress,
-        MIXNET_CONTRACT_ADDRESS,
+        NYM_MIXNET_CONTRACT,
         {
           delegate_to_mixnode: {
             mix_id: delegationMixId,

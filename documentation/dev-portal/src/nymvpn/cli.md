@@ -16,7 +16,7 @@ We wrote a [script](https://gist.github.com/serinko/d65450653d6bbafacbcee71c9cb8
 
 1. Open a terminal window in a directory where you want the script and NymVPN CLI binary be downloaded and run
 ```sh
-curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/serinko/d65450653d6bbafacbcee71c9cb8fb31/raw/70f01de7b17c8a3fd7ca1b7f6364fd9dc8041a66/execute-nym-vpn-cli-binary.sh
+curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/serinko/d65450653d6bbafacbcee71c9cb8fb31/raw/de2cae9221f0f1ad0f4db48744306c2b32d71b2e/execute-nym-vpn-cli-binary.sh
 ```
 
 2. Make the script executable

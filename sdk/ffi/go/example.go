@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"nymffi/ffi/bindings"
+	"nymffi/go-nym/bindings"
 	"time"
 )
 

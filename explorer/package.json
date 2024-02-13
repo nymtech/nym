@@ -6,6 +6,9 @@
   "scripts": {
     "start": "webpack serve --progress --port 3000",
     "build": "webpack build --progress --config webpack.prod.js",
+    "ci:dev": "echo 'Building CI for branch preview...' && yarn --cwd .. build && cp .env.dev .env && yarn build",
+    "ci:prod": "echo 'Building CI for prod preview...' && yarn --cwd .. build && cp .env.prod .env && yarn build",
+    "ci": "[ \"$CI_PROD\" = true ] && yarn ci:prod || yarn ci:dev",
     "build:serve": "npx serve dist",
     "test": "jest",
     "test:watch": "jest --watch",

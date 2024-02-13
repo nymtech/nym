@@ -248,6 +248,14 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         Ok(())
     }
 
+    fn reduced_tick_rate(&self, tick_duration: time::Duration) -> bool {
+        // make sure to not trigger warnings if say the target rate is 10s, but our last tick took `9s999ms785µs321ns`
+        // check for 95% of polling rate, so in that case if its below 9s500ms
+        let target_nanos = self.polling_rate.as_nanos();
+        let min = time::Duration::nanoseconds(((target_nanos * 95) / 100) as i64);
+        tick_duration < min
+    }
+
     pub(crate) async fn run(mut self, mut shutdown: TaskClient) {
         let mut interval = interval(self.polling_rate);
 
@@ -263,7 +271,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                     let tick_duration = now - last_polled;
                     last_polled = now;
 
-                    if tick_duration < self.polling_rate {
+                    if self.reduced_tick_rate(tick_duration) {
                         warn!("it seems the process is running behind. The current tick rate is lower than the polling rate. rate: {:?}, current tick: {}, previous tick: {}", self.polling_rate, tick_duration, last_tick_duration);
                         last_tick_duration = tick_duration;
                         continue

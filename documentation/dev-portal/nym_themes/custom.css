@@ -32,7 +32,6 @@
   position: absolute;
   left: 50%;
 }
-
 .menu-bar .a:hover,
 
 /*necessary because of ^*/
@@ -45,10 +44,11 @@ select {
   font-size: 16px;
 }
 
+
+
 footer {
   font-size: 0.8em;
   text-align: center;
   border-top: 1px solid black;
   padding: 5px 0;
 }
-

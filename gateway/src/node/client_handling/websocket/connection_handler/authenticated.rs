@@ -57,6 +57,9 @@ pub(crate) enum RequestHandlingError {
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
 
+    #[error("the provided bandwidth credential has already been spent before at this gateway")]
+    BandwidthCredentialAlreadySpent,
+
     #[error("This gateway is only accepting coconut credentials for bandwidth")]
     OnlyCoconutCredentials,
 
@@ -222,6 +225,17 @@ where
         &mut self,
         credential: CredentialSpendingRequest,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        // check if the credential hasn't been spent before
+        let serial_number = credential.data.blinded_serial_number();
+        let already_spent = self
+            .inner
+            .storage
+            .contains_credential(&serial_number)
+            .await?;
+        if already_spent {
+            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
+        }
+
         let aggregated_verification_key = self
             .inner
             .coconut_verifier
@@ -239,6 +253,7 @@ where
         // this will extract token amounts out of bandwidth vouchers and validate expiry of free passes
         let bandwidth = Bandwidth::try_from_raw_value(bandwidth_attribute, credential.data.typ)?;
 
+        // locally verify the credential
         let params = bandwidth_credential_params();
         if !credential.data.verify(params, &aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
@@ -246,7 +261,7 @@ where
             ));
         }
 
-        match credential.data.typ {
+        let was_freepass = match credential.data.typ {
             CredentialType::Voucher => {
                 let api_clients = self
                     .inner
@@ -258,12 +273,28 @@ where
                     .coconut_verifier
                     .release_bandwidth_voucher_funds(&api_clients, credential)
                     .await?;
+                false
             }
             CredentialType::FreePass => {
                 // no need to do anything special here, we already extracted the bandwidth amount and checked expiry
                 info!("received a free pass credential");
+
+                true
             }
-        }
+        };
+
+        // technically this is not atomic, i.e. checking for the spending and then marking as spent,
+        // but because we have the `UNIQUE` constraint on the database table
+        // if somebody attempts to spend the same credential in another, parallel request,
+        // one of them will fail
+        //
+        // mark the credential as spent
+        // TODO: technically this should be done under a storage transaction so that if we experience any
+        // failures later on, it'd get reverted
+        self.inner
+            .storage
+            .insert_spent_credential(serial_number, was_freepass, self.client.address)
+            .await?;
 
         self.increase_bandwidth(bandwidth).await?;
         let available_total = self.get_available_bandwidth().await?;

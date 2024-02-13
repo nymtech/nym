@@ -105,6 +105,10 @@ impl VerifyCredentialRequest {
         VerifyCredentialRequest::try_from(bytes)
     }
 
+    pub fn blinded_serial_number(&self) -> BlindedSerialNumber {
+        self.blinded_serial_number
+    }
+
     pub fn blinded_serial_number_bs58(&self) -> String {
         self.blinded_serial_number.to_bs58()
     }

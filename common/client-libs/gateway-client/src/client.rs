@@ -157,7 +157,10 @@ impl<C, St> GatewayClient<C, St> {
                 &_ => None,
             },
             SocketState::PartiallyDelegated(conn) => Some(conn.ws_fd()),
-            _ => None,
+            _ => {
+                log::warn!("No fd yet");
+                None
+            }
         }
     }
 

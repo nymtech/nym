@@ -126,7 +126,9 @@ impl Rewarder {
             None
         };
 
-        if config.issuance_monitor.enabled || config.block_signing.enabled {
+        if config.issuance_monitor.enabled
+            || (config.block_signing.enabled && !config.block_signing.monitor_only)
+        {
             let balance = nyxd_client
                 .balance(&config.rewarding.epoch_budget.denom)
                 .await?;

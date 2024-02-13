@@ -95,6 +95,10 @@ impl Rewarder {
                 return Err(NymRewarderError::EmptyBlockSigningWhitelist);
             }
 
+            if config.block_signing.monitor_only {
+                info!("the block signing rewarding is running in monitor only mode");
+            }
+
             let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
 
             Some(EpochSigning {

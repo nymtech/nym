@@ -6,11 +6,10 @@ use crate::block_requester::BlockRequester;
 use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
-use crate::scraper::subscriber::{run_websocket_driver, ChainSubscriber};
+use crate::scraper::subscriber::ChainSubscriber;
 use crate::storage::ScraperStorage;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tendermint_rpc::WebSocketClientDriver;
 use tokio::sync::mpsc::{channel, unbounded_channel};
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
@@ -67,20 +66,15 @@ impl NyxdScraperBuilder {
         block_processor.set_tx_modules(self.tx_modules);
         block_processor.set_msg_modules(self.msg_modules);
 
-        let mut chain_subscriber = ChainSubscriber::new(
+        let chain_subscriber = ChainSubscriber::new(
             &scraper.config.websocket_url,
             scraper.cancel_token.clone(),
+            scraper.task_tracker.clone(),
             processing_tx,
         )
         .await?;
-        let ws_driver = chain_subscriber.ws_driver();
 
-        scraper.start_tasks(
-            block_requester,
-            block_processor,
-            chain_subscriber,
-            ws_driver,
-        );
+        scraper.start_tasks(block_requester, block_processor, chain_subscriber);
 
         Ok(scraper)
     }
@@ -141,7 +135,6 @@ impl NyxdScraper {
         mut block_requester: BlockRequester,
         mut block_processor: BlockProcessor,
         mut chain_subscriber: ChainSubscriber,
-        ws_driver: WebSocketClientDriver,
     ) {
         self.task_tracker
             .spawn(async move { block_requester.run().await });
@@ -149,8 +142,7 @@ impl NyxdScraper {
             .spawn(async move { block_processor.run().await });
         self.task_tracker
             .spawn(async move { chain_subscriber.run().await });
-        self.task_tracker
-            .spawn(run_websocket_driver(ws_driver, self.cancel_token.clone()));
+
         self.task_tracker.close();
     }
 
@@ -176,21 +168,16 @@ impl NyxdScraper {
             rpc_client,
         )
         .await?;
-        let mut chain_subscriber = ChainSubscriber::new(
+        let chain_subscriber = ChainSubscriber::new(
             &self.config.websocket_url,
             self.cancel_token.clone(),
+            self.task_tracker.clone(),
             processing_tx,
         )
         .await?;
-        let ws_driver = chain_subscriber.ws_driver();
 
         // spawn them
-        self.start_tasks(
-            block_requester,
-            block_processor,
-            chain_subscriber,
-            ws_driver,
-        );
+        self.start_tasks(block_requester, block_processor, chain_subscriber);
 
         Ok(())
     }

@@ -120,7 +120,7 @@ pub async fn run_websocket_driver(driver: WebSocketClientDriver, cancel: Cancell
                 Ok(_) => info!("our websocket driver has finished execution"),
                 Err(err) => {
                     // TODO: in the future just attempt to reconnect
-                    error!("our websocket driver has errored out: {err}")
+                    error!("our websocket driver has errored out: {err}");
                 }
             }
             cancel.cancel()

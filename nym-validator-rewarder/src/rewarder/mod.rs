@@ -1,4 +1,4 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
@@ -10,13 +10,15 @@ use crate::rewarder::credential_issuance::CredentialIssuance;
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
+use futures::future::{FusedFuture, OptionFuture};
+use futures::FutureExt;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
 use std::ops::Add;
 use tokio::pin;
 use tokio::time::{interval_at, Instant};
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 mod block_signing;
 mod credential_issuance;
@@ -263,10 +265,16 @@ impl Rewarder {
             );
         }
 
-        if let Some(epoch_signing) = &self.epoch_signing {
-            epoch_signing.nyxd_scraper.start().await?;
-            epoch_signing.nyxd_scraper.wait_for_startup_sync().await;
-        }
+        let mut scraper_cancellation: OptionFuture<_> =
+            if let Some(epoch_signing) = &self.epoch_signing {
+                let cancellation_token = epoch_signing.nyxd_scraper.cancel_token();
+                epoch_signing.nyxd_scraper.start().await?;
+                epoch_signing.nyxd_scraper.wait_for_startup_sync().await;
+                Some(Box::pin(async move { cancellation_token.cancelled().await }).fuse())
+            } else {
+                None
+            }
+            .into();
 
         let until_end = self.current_epoch.until_end();
 
@@ -291,6 +299,10 @@ impl Rewarder {
                         error!("runtime interrupt failure: {err}")
                     }
                     break;
+                }
+                _ = &mut scraper_cancellation, if !scraper_cancellation.is_terminated() => {
+                    warn!("the nyxd scraper has been cancelled");
+                    break
                 }
                 _ = epoch_ticker.tick() => self.handle_epoch_end().await
             }

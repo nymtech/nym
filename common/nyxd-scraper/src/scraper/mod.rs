@@ -201,10 +201,18 @@ impl NyxdScraper {
     }
 
     pub async fn stop(self) {
-        info!("stopping the chain scrapper");
+        info!("stopping the chain scraper");
         assert!(self.task_tracker.is_closed());
 
         self.cancel_token.cancel();
         self.task_tracker.wait().await
+    }
+
+    pub fn cancel_token(&self) -> CancellationToken {
+        self.cancel_token.clone()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel_token.is_cancelled()
     }
 }

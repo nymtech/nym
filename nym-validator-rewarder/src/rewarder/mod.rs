@@ -28,10 +28,15 @@ mod nyxd_client;
 mod storage;
 mod tasks;
 
+pub struct RewardingResult {
+    pub total_spent: Coin,
+    pub rewarding_tx: Hash,
+}
+
 pub struct EpochRewards {
     pub epoch: Epoch,
-    pub signing: Option<EpochSigningResults>,
-    pub credentials: Option<CredentialIssuanceResults>,
+    pub signing: Result<Option<EpochSigningResults>, NymRewarderError>,
+    pub credentials: Result<Option<CredentialIssuanceResults>, NymRewarderError>,
 
     pub total_budget: Coin,
     pub signing_budget: Coin,
@@ -39,10 +44,10 @@ pub struct EpochRewards {
 }
 
 impl EpochRewards {
-    pub fn amounts(&self) -> Vec<(AccountId, Vec<Coin>)> {
+    pub fn amounts(&self) -> Result<Vec<(AccountId, Vec<Coin>)>, NymRewarderError> {
         let mut amounts = Vec::new();
 
-        if let Some(signing) = &self.signing {
+        if let Ok(Some(signing)) = &self.signing {
             for (account, signing_amount) in signing.rewarding_amounts(&self.signing_budget) {
                 if signing_amount[0].amount != 0 {
                     amounts.push((account, signing_amount))
@@ -50,7 +55,7 @@ impl EpochRewards {
             }
         }
 
-        if let Some(credentials) = &self.credentials {
+        if let Ok(Some(credentials)) = &self.credentials {
             for (account, credential_amount) in
                 credentials.rewarding_amounts(&self.credentials_budget)
             {
@@ -60,7 +65,7 @@ impl EpochRewards {
             }
         }
 
-        amounts
+        Ok(amounts)
     }
 }
 
@@ -185,7 +190,7 @@ impl Rewarder {
         .transpose()
     }
 
-    async fn determine_epoch_rewards(&mut self) -> Result<EpochRewards, NymRewarderError> {
+    async fn determine_epoch_rewards(&mut self) -> EpochRewards {
         let epoch_budget = self.config.rewarding.epoch_budget.clone();
         let denom = &epoch_budget.denom;
         let signing_budget = Coin::new(
@@ -197,17 +202,17 @@ impl Rewarder {
             denom,
         );
 
-        let signing_rewards = self.calculate_block_signing_rewards().await?;
-        let credential_rewards = self.calculate_credential_rewards().await?;
+        let signing_rewards = self.calculate_block_signing_rewards().await;
+        let credential_rewards = self.calculate_credential_rewards().await;
 
-        Ok(EpochRewards {
+        EpochRewards {
             epoch: self.current_epoch,
             signing: signing_rewards,
             credentials: credential_rewards,
             total_budget: epoch_budget.clone(),
             signing_budget,
             credentials_budget,
-        })
+        }
     }
 
     #[instrument(skip(self))]
@@ -226,33 +231,42 @@ impl Rewarder {
             .await
     }
 
-    async fn handle_epoch_end(&mut self) {
-        info!("handling the epoch end");
-
-        let rewards = match self.determine_epoch_rewards().await {
-            Ok(rewards) => rewards,
-            Err(err) => {
-                error!("failed to determine epoch rewards: {err}");
-                return;
-            }
-        };
-
-        let rewarding_amounts = rewards.amounts();
+    async fn calculate_and_send_epoch_rewards(
+        &mut self,
+        rewards: &EpochRewards,
+    ) -> Result<RewardingResult, NymRewarderError> {
+        let rewarding_amounts = rewards.amounts()?;
         let total_spent = total_spent(
             &rewarding_amounts,
             &self.config.rewarding.epoch_budget.denom,
         );
 
-        let rewarding_result = self.send_rewards(rewarding_amounts).await;
+        let rewarding_tx = self.send_rewards(rewarding_amounts).await?;
+
+        Ok(RewardingResult {
+            total_spent,
+            rewarding_tx,
+        })
+    }
+
+    async fn handle_epoch_end(&mut self) {
+        info!("handling the epoch end");
+        self.current_epoch = self.current_epoch.next();
+
+        let base_rewards = self.determine_epoch_rewards().await;
+
+        let rewarding_result = self
+            .calculate_and_send_epoch_rewards(&base_rewards)
+            .await
+            .inspect_err(|err| error!("failed to determine and send epoch_rewards: {err}"));
+
         if let Err(err) = self
             .storage
-            .save_rewarding_information(rewards, total_spent, rewarding_result)
+            .save_rewarding_information(base_rewards, rewarding_result)
             .await
         {
             error!("failed to persist rewarding information: {err}")
         }
-
-        self.current_epoch = self.current_epoch.next();
     }
 
     pub async fn run(mut self) -> Result<(), NymRewarderError> {

@@ -20,7 +20,7 @@ content-main-margin-left  = "5%"
 content-main-margin-right = "5%"
 root-font-size            = "70%"
 # DO NOT CHANGE or you might overwrite the custom hbs file
-turn-off = true
+turn-off = false
 
 [preprocessor.admonish]
 command = "mdbook-admonish"

@@ -16,6 +16,7 @@ use nym_task::{
     TaskHandle,
 };
 use nym_topology::NymTopology;
+use std::os::fd::RawFd;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -95,6 +96,11 @@ impl MixnetClient {
     /// client identity, the client encryption key, and the gateway identity.
     pub fn nym_address(&self) -> &Recipient {
         &self.nym_address
+    }
+
+    /// Get the file descriptor of the WebSocket connection to the gateway
+    pub fn gateway_ws_fd(&self) -> Option<RawFd> {
+        self.client_state.gateway_ws_fd
     }
 
     /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and

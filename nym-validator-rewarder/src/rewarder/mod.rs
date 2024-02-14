@@ -304,7 +304,8 @@ impl Rewarder {
         let until_end = self.current_epoch.until_end();
 
         info!(
-            "the first epoch will finish in {} secs",
+            "the initial epoch (id: {}) will finish in {} secs",
+            self.current_epoch.id,
             until_end.as_secs()
         );
         let mut epoch_ticker = interval_at(

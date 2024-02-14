@@ -18,7 +18,8 @@ curve25519-dalek = "3.2"
 chacha20poly1305 = "0.10.1"
 getrandom = { workspace = true, features = ["js"] }
 thiserror = { workspace = true }
-sphinx-packet = "0.1.0"
+#sphinx-packet = "0.1.0"
+sphinx-packet = { git = "https://github.com/nymtech/sphinx.git", branch = "simon/replay_tag"}
 rand = "0.7.3"
 log = "0.4"
 

@@ -9,6 +9,7 @@ pub use nym_outfox::{
 // re-exporting types and constants available in sphinx
 #[cfg(feature = "outfox")]
 use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
+use sphinx_packet::header::keys::ReplayTag;
 #[cfg(feature = "sphinx")]
 pub use sphinx_packet::{
     constants::{
@@ -55,6 +56,15 @@ pub enum NymProcessedPacket {
     Sphinx(ProcessedPacket),
     #[cfg(feature = "outfox")]
     Outfox(OutfoxProcessedPacket),
+}
+
+impl NymProcessedPacket {
+    pub fn replay_tag(&self) -> ReplayTag {
+        match self {
+            NymProcessedPacket::Sphinx(sphinx) => sphinx.replay_tag(),
+            NymProcessedPacket::Outfox(_) => todo!(), //SW temporary while I add a replay tag to outfox
+        }
+    }
 }
 
 impl fmt::Debug for NymPacket {

@@ -8,9 +8,10 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-sphinx-packet = { version = "0.1.0", optional = true }
+#sphinx-packet = { version = "0.1.0", optional = true }
 nym-outfox = { path = "../../../nym-outfox", optional = true }
 thiserror = { workspace = true }
+sphinx-packet = { git = "https://github.com/nymtech/sphinx.git", branch = "simon/replay_tag", optional = true}
 
 [features]
 default = ["sphinx"]

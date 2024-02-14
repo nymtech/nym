@@ -14,6 +14,7 @@ edition = "2018"
 #################
 
 [preprocessor.theme]
+pagetoc                   = true
 sidebar-width             = "280px"
 content-max-width         = "70%"
 content-main-margin-left  = "5%"

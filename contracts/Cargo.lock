@@ -178,6 +178,7 @@ dependencies = [
 name = "coconut-test"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-controllers",
@@ -194,8 +195,10 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-group-contract-common",
  "nym-multisig-contract-common",
+ "rand_chacha 0.2.2",
  "schemars",
  "serde",
+ "subtle-encoding",
  "thiserror",
 ]
 

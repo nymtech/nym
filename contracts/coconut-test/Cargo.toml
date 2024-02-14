@@ -20,6 +20,8 @@ cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
 cw-utils = { workspace = true }
 
+subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
+bs58 = "0.4.0"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
@@ -29,6 +31,8 @@ nym-coconut-dkg = { path = "../coconut-dkg" }
 cw-multi-test = { workspace = true }
 cw3-flex-multisig = { path = "../multisig/cw3-flex-multisig" }
 cw4-group = { path = "../multisig/cw4-group" }
+
+rand_chacha = "0.2"
 
 [[test]]
 name = "coconut-test"

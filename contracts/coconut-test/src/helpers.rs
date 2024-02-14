@@ -21,14 +21,6 @@ pub struct MigrateMsg {
     pub coconut_dkg_address: String,
 }
 
-#[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    let mut cfg = CONFIG.load(deps.storage)?;
-    cfg.coconut_bandwidth_addr = deps.api.addr_validate(&msg.coconut_bandwidth_address)?;
-    CONFIG.save(deps.storage, &cfg)?;
-    Ok(Default::default())
-}
-
 pub fn mock_app(init_funds: &[Coin]) -> App {
     AppBuilder::new().build(|router, _, storage| {
         router
@@ -65,7 +57,7 @@ pub fn contract_multisig() -> Box<dyn Contract<Empty>> {
         cw3_flex_multisig::contract::instantiate,
         cw3_flex_multisig::contract::query,
     )
-    .with_migrate(migrate);
+    .with_migrate(cw3_flex_multisig::contract::migrate);
     Box::new(contract)
 }
 

@@ -4,6 +4,23 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.1-marabou] (2024-02-15)
+
+**New Features:**
+- Introduced nymvisor support for nym-api, gateway, and mixnode binaries ([#4158])
+- Revamped nym-api execution with the addition of init and run commands ([#4225])
+
+**Enhancements:**
+- Implemented internal improvements for gateways to optimize internal packet routing
+- Improved routing score calculation
+
+**Bug Fixes:**
+- Resolved various bugs to enhance overall stability
+
+[#4158]: https://github.com/nymtech/nym/pull/4158
+[#4225]: https://github.com/nymtech/nym/pull/4225
+
+
 ## [2023.5-rolo] (2023-11-28)
 
 - Gateway won't open websocket listener until embedded Network Requester becomes available ([#4166])

@@ -1704,6 +1704,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cuckoofilter"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b810a8449931679f64cd7eef1bbd0fa315801b6d5d9cdc1ace2804d6529eee18"
+dependencies = [
+ "byteorder",
+ "fnv",
+ "rand 0.7.3",
+]
+
+[[package]]
 name = "cupid"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2597,6 +2608,23 @@ dependencies = [
  "indenter",
  "once_cell",
 ]
+
+[[package]]
+name = "fastbloom-rs"
+version = "0.5.4"
+source = "git+https://github.com/simonwicky/fastbloom#9733fce76e68f193ce749cc455557b09620abf32"
+dependencies = [
+ "cuckoofilter",
+ "fastmurmur3",
+ "xorfilter-rs",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "fastmurmur3"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d922f481ae01f2a3f1fff7b9e0e789f18f0c755a38ec983a3e6f37762cdcc2a2"
 
 [[package]]
 name = "fastrand"
@@ -5764,6 +5792,7 @@ dependencies = [
  "bytes",
  "cfg-if",
  "cpu-cycles",
+ "fastbloom-rs",
  "futures",
  "humantime-serde",
  "log",
@@ -5928,7 +5957,7 @@ dependencies = [
  "tracing",
  "utoipa",
  "utoipa-swagger-ui",
- "x25519-dalek 2.0.0",
+ "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -6496,7 +6525,7 @@ dependencies = [
  "thiserror",
  "ts-rs",
  "url",
- "x25519-dalek 2.0.0",
+ "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -6628,7 +6657,7 @@ dependencies = [
  "nym-task",
  "nym-wireguard-types",
  "tokio",
- "x25519-dalek 2.0.0",
+ "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -6646,7 +6675,7 @@ dependencies = [
  "sha2 0.10.8",
  "thiserror",
  "utoipa",
- "x25519-dalek 2.0.0",
+ "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -9032,8 +9061,7 @@ dependencies = [
 [[package]]
 name = "sphinx-packet"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc43eda802856ee82a7555c7b75ceb9e07451741c7a2f5f23d036020e01189d4"
+source = "git+https://github.com/nymtech/sphinx.git?branch=simon/replay_tag#91a64ab1aaf3a7bb358af0a5b1a89f0564a03d38"
 dependencies = [
  "aes 0.7.5",
  "arrayref",
@@ -10917,7 +10945,7 @@ dependencies = [
  "tokio",
  "webpki 0.21.4",
  "webrtc-util",
- "x25519-dalek 2.0.0",
+ "x25519-dalek 2.0.1",
  "x509-parser 0.13.2",
 ]
 
@@ -11304,9 +11332,9 @@ dependencies = [
 
 [[package]]
 name = "x25519-dalek"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb66477291e7e8d2b0ff1bcb900bf29489a9692816d79874bea351e7a8b6de96"
+checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
 dependencies = [
  "curve25519-dalek 4.1.1",
  "rand_core 0.6.4",
@@ -11359,6 +11387,18 @@ checksum = "f4686009f71ff3e5c4dbcf1a282d0a44db3f021ba69350cd42086b3e5f1c6985"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "xorfilter-rs"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47f9da296a88b6bc150b896d17770a62d4dc6f63ecf0ed10a9c08a1cb3d12f24"
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "735a71d46c4d68d71d4b24d03fdc2b98e38cea81730595801db779c04fe80d70"
 
 [[package]]
 name = "yamux"

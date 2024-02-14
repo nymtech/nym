@@ -28,4 +28,7 @@ pub enum MixProcessingError {
 
     #[error("failed to process received outfox packet: {0}")]
     OutfoxProcessingError(#[from] OutfoxError),
+
+    #[error("this packet was already processed, it's a replay")]
+    ReplayedPacketDetected,
 }

@@ -227,6 +227,11 @@ impl Rewarder {
             return Ok(Hash::Sha256([0u8; 32]));
         }
 
+        if amounts.is_empty() {
+            warn!("no rewards to send");
+            return Err(NymRewarderError::NoValidatorsToReward);
+        }
+
         info!("sending rewards");
         self.nyxd_client
             .send_rewards(self.current_epoch, amounts)

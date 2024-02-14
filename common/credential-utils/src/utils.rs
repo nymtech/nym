@@ -91,7 +91,7 @@ where
             .as_secs();
 
         if epoch.state.is_final() {
-            if let Some(finish_timestamp) = epoch.finish_timestamp {
+            if let Some(finish_timestamp) = epoch.deadline {
                 if current_timestamp_secs + SAFETY_BUFFER_SECS >= finish_timestamp.seconds() {
                     info!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
                     exit(0);

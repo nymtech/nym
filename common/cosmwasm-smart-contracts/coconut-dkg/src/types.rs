@@ -93,7 +93,9 @@ pub struct Epoch {
     pub state: EpochState,
     pub epoch_id: EpochId,
     pub time_configuration: TimeConfiguration,
-    pub finish_timestamp: Option<Timestamp>,
+
+    #[serde(alias = "finish_timestamp")]
+    pub deadline: Option<Timestamp>,
 }
 
 impl Epoch {
@@ -126,12 +128,12 @@ impl Epoch {
             state,
             epoch_id,
             time_configuration,
-            finish_timestamp: duration.map(|d| current_timestamp.plus_seconds(d)),
+            deadline: duration.map(|d| current_timestamp.plus_seconds(d)),
         }
     }
 
     pub fn final_timestamp_secs(&self) -> Option<u64> {
-        let mut finish = self.finish_timestamp?.seconds();
+        let mut finish = self.deadline?.seconds();
         let time_configuration = self.time_configuration;
         let mut curr_epoch_state = self.state;
         while let Some(state) = curr_epoch_state.next() {

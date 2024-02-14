@@ -81,7 +81,7 @@ pub fn try_add_dealer(
 pub(crate) mod tests {
     use super::*;
     use crate::dealers::storage::current_dealers;
-    use crate::epoch_state::transactions::{advance_epoch_state, try_initiate_dkg};
+    use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS, GROUP_MEMBERS};
@@ -156,7 +156,7 @@ pub(crate) mod tests {
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
 
         add_fixture_dealer(deps.as_mut());
-        advance_epoch_state(deps.as_mut(), env).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env).unwrap();
 
         let ret = try_add_dealer(
             deps.as_mut(),

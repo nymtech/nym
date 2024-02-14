@@ -207,6 +207,20 @@ impl TestSetup {
         self.global_admin.clone()
     }
 
+    pub fn remove_group_member(&mut self, addr: &Addr) {
+        self.app
+            .execute_contract(
+                self.admin(),
+                self.group_contract.addr(),
+                &nym_group_contract_common::msg::ExecuteMsg::UpdateMembers {
+                    remove: vec![addr.to_string()],
+                    add: vec![],
+                },
+                &[],
+            )
+            .unwrap();
+    }
+
     pub fn add_mock_group_member(&mut self, weight: Option<u64>) -> Addr {
         let member_addr = self.random_address();
         let weight = weight.unwrap_or(10);
@@ -245,7 +259,7 @@ impl TestSetup {
 
         self.app.update_block(|block| {
             block.height += 42;
-            if let Some(finish_timestamp) = epoch.finish_timestamp {
+            if let Some(finish_timestamp) = epoch.deadline {
                 block.time = finish_timestamp.plus_seconds(BLOCK_TIME_SECS);
             } else {
                 block.time = block.time.plus_seconds(BLOCK_TIME_SECS)

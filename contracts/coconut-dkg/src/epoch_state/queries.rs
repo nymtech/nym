@@ -37,7 +37,7 @@ pub(crate) mod test {
         let mut deps = init_contract();
         let epoch = query_current_epoch(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::WaitingInitialisation);
-        assert_eq!(epoch.finish_timestamp, None);
+        assert_eq!(epoch.deadline, None);
 
         let env = mock_env();
         try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
@@ -48,7 +48,7 @@ pub(crate) mod test {
             EpochState::PublicKeySubmission { resharing: false }
         );
         assert_eq!(
-            epoch.finish_timestamp.unwrap(),
+            epoch.deadline.unwrap(),
             env.block
                 .time
                 .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs)

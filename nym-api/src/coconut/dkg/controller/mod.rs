@@ -236,7 +236,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
         // add a bit of variance so that all apis wouldn't attempt to trigger it at the same time
         let variance = self.rng.gen_range(0..=60);
-        if let Some(epoch_finish) = epoch.finish_timestamp {
+        if let Some(epoch_finish) = epoch.deadline {
             let now = OffsetDateTime::now_utc();
             if now.unix_timestamp() > epoch_finish.seconds() as i64 + variance {
                 // TODO: make sure to not overload validator in case its running slow

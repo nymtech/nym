@@ -206,7 +206,7 @@ pub fn try_commit_dealings_chunk(
 pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::storage::CURRENT_EPOCH;
-    use crate::epoch_state::transactions::{advance_epoch_state, try_initiate_dkg};
+    use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::fixtures::{
         dealer_details_fixture, dealing_metadata_fixture, partial_dealing_fixture,
     };
@@ -250,7 +250,7 @@ pub(crate) mod tests {
             .time
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
         add_fixture_dealer(deps.as_mut());
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         let ret = try_commit_dealings_chunk(
             deps.as_mut(),

@@ -15,7 +15,7 @@ use crate::epoch_state::queries::{
 };
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::{
-    advance_epoch_state, try_initiate_dkg, try_surpassed_threshold,
+    try_advance_epoch_state, try_initiate_dkg, try_surpassed_threshold,
 };
 use crate::error::ContractError;
 use crate::state::queries::query_state;
@@ -118,7 +118,7 @@ pub fn execute(
             try_verify_verification_key_share(deps, info, owner, resharing)
         }
         ExecuteMsg::SurpassedThreshold {} => try_surpassed_threshold(deps, env),
-        ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
+        ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
     }
 }
 

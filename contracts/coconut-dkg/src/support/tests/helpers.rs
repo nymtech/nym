@@ -20,6 +20,7 @@ pub const ADMIN_ADDRESS: &str = "admin address";
 pub const GROUP_CONTRACT: &str = "group contract address";
 pub const MULTISIG_CONTRACT: &str = "multisig contract address";
 
+// wtf, why is this a thing?
 pub(crate) static GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(Vec::new());
 
 pub fn add_fixture_dealer(deps: DepsMut<'_>) {

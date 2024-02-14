@@ -253,8 +253,6 @@ impl Rewarder {
 
     async fn handle_epoch_end(&mut self) {
         info!("handling the epoch end");
-        self.current_epoch = self.current_epoch.next();
-
         let base_rewards = self.determine_epoch_rewards().await;
 
         let rewarding_result = self
@@ -269,6 +267,8 @@ impl Rewarder {
         {
             error!("failed to persist rewarding information: {err}")
         }
+
+        self.current_epoch = self.current_epoch.next();
     }
 
     pub async fn run(mut self) -> Result<(), NymRewarderError> {

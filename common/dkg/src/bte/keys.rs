@@ -53,8 +53,7 @@ impl PublicKey {
     }
 }
 
-#[derive(Clone, Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublicKeyWithProof {
     pub(crate) key: PublicKey,
     pub(crate) proof: ProofOfDiscreteLog,

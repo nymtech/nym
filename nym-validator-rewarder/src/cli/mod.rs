@@ -54,6 +54,9 @@ pub struct ConfigOverridableArgs {
     pub disable_block_signing_rewarding: bool,
 
     #[clap(long)]
+    pub block_signing_monitoring_only: bool,
+
+    #[clap(long)]
     pub disable_credential_issuance_rewarding: bool,
 
     #[clap(long)]

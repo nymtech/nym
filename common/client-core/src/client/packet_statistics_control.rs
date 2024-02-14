@@ -13,8 +13,9 @@ const PACKET_REPORT_INTERVAL_SECS: u64 = 2;
 const SNAPSHOT_INTERVAL_MS: u64 = 500;
 // When computing rates, we include snapshots that are up to this old. We set it to some odd number
 // a tad larger than an integer number of snapshot intervals, so that we don't have to worry about
-// threshold effects
-const RECORDING_WINDOW_MS: u64 = 1700;
+// threshold effects.
+// Also, set it larger than the packet report interval so that we don't miss notable singular events
+const RECORDING_WINDOW_MS: u64 = 2300;
 
 #[derive(Default, Debug, Clone)]
 struct PacketStatistics {
@@ -265,11 +266,11 @@ impl std::ops::Div<f64> for PacketRates {
 impl PacketRates {
     fn summary(&self) -> String {
         format!(
-            "rx: {}/s (real: {}/s), tx: {}/s (real: {}/s)",
-            bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
+            "down: {}/s, up: {}/s (cover down: {}/s, cover up: {}/s)",
             bibytes2(self.real_packets_received_size),
-            bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
             bibytes2(self.real_packets_sent_size),
+            bibytes2(self.cover_packets_received_size),
+            bibytes2(self.cover_packets_sent_size),
         )
     }
 
@@ -287,6 +288,7 @@ impl PacketRates {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum PacketStatisticsEvent {
     // The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
     RealPacketSent(usize),
@@ -434,10 +436,22 @@ impl PacketStatisticsControl {
         // If we get a burst of retransmissions
         // TODO: consider making this the number of retransmissions since last report instead.
         if latest_rates.retransmissions_queued > 0.0 {
-            log::info!(
-                "retransmissions: {} pkt/s",
+            log::debug!(
+                "retransmissions: {:.2} pkt/s",
                 latest_rates.retransmissions_queued
             );
+
+            // Check what the number of retransmissions was during the recording window
+            if let Some((_, start_stats)) = self.history.front() {
+                let delta = self.stats.clone() - start_stats.clone();
+                log::info!(
+                    "mix packet retransmissions/real mix packets: {}/{}",
+                    delta.retransmissions_queued,
+                    delta.real_packets_queued,
+                );
+            } else {
+                log::warn!("Unable to check retransmissions during recording window");
+            }
         }
 
         // IDEA: if there is a burst of acks, that could indicate tokio task starvation.

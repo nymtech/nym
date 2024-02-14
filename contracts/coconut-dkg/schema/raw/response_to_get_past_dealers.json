@@ -42,7 +42,8 @@
         "address",
         "announce_address",
         "assigned_index",
-        "bte_public_key_with_proof"
+        "bte_public_key_with_proof",
+        "ed25519_identity"
       ],
       "properties": {
         "address": {
@@ -57,6 +58,9 @@
           "minimum": 0.0
         },
         "bte_public_key_with_proof": {
+          "type": "string"
+        },
+        "ed25519_identity": {
           "type": "string"
         }
       },

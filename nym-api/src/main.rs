@@ -4,6 +4,9 @@
 #[macro_use]
 extern crate rocket;
 
+use crate::coconut::dkg::controller::keys::{
+    can_validate_coconut_keys, load_bte_keypair, load_coconut_keypair_if_exists,
+};
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
@@ -13,9 +16,7 @@ use crate::support::cli;
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
-use ::ephemera::configuration::Configuration as EphemeraConfiguration;
 use ::nym_config::defaults::setup_env;
-use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
 use coconut::dkg::controller::DkgController;
@@ -30,7 +31,6 @@ use support::{http, nyxd};
 
 mod circulating_supply_api;
 mod coconut;
-mod ephemera;
 mod epoch_operations;
 pub(crate) mod network;
 mod network_monitor;
@@ -68,8 +68,20 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
-    let coconut_keypair = coconut::keypair::KeyPair::new();
+    let coconut_keypair_wrapper = coconut::keys::KeyPair::new();
+
+    // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
+    if let Some(loaded_keys) = load_coconut_keypair_if_exists(&config.coconut_signer)? {
+        let issued_for = loaded_keys.issued_for_epoch;
+        coconut_keypair_wrapper.set(loaded_keys).await;
+
+        if can_validate_coconut_keys(&nyxd_client, issued_for).await? {
+            coconut_keypair_wrapper.validate()
+        }
+    }
+
     let identity_keypair = config.base.storage_paths.load_identity()?;
+    let identity_public_key = *identity_keypair.public_key();
 
     // let's build our rocket!
     let rocket = http::setup_rocket(
@@ -77,7 +89,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
         network_details,
         nyxd_client.clone(),
         identity_keypair,
-        coconut_keypair.clone(),
+        coconut_keypair_wrapper.clone(),
     )
     .await?;
 
@@ -133,46 +145,22 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
 
     // start dkg task
     if config.coconut_signer.enabled {
+        let dkg_bte_keypair = load_bte_keypair(&config.coconut_signer)?;
+
         DkgController::start(
             &config.coconut_signer,
             nyxd_client.clone(),
-            coconut_keypair,
+            coconut_keypair_wrapper,
+            dkg_bte_keypair,
+            identity_public_key,
             OsRng,
             &shutdown,
-        )
-        .await?;
+        )?;
     }
 
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring if it's enabled
     if config.network_monitor.enabled {
-        let ephemera_config =
-            match EphemeraConfiguration::try_load(config.get_ephemera_config_path()) {
-                Ok(c) => c,
-                Err(_) => {
-                    config
-                        .get_ephemera_args()
-                        .cmd
-                        .clone()
-                        .execute(Some(&config.get_id()));
-                    EphemeraConfiguration::try_load(config.get_ephemera_config_path())
-                        .expect("Config file should be created now")
-                }
-            };
-        let ephemera_reward_manager = if config.ephemera.enabled {
-            Some(
-                ephemera::application::NymApi::run(
-                    config.get_ephemera_args().clone(),
-                    ephemera_config,
-                    nyxd_client.clone(),
-                    &shutdown,
-                )
-                .await?,
-            )
-        } else {
-            None
-        };
-
         // if network monitor is enabled, the storage MUST BE available
         let storage = maybe_storage.unwrap();
 
@@ -190,13 +178,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
         // start 'rewarding' if its enabled
         if config.rewarding.enabled {
             epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-            RewardedSetUpdater::start(
-                ephemera_reward_manager,
-                nyxd_client,
-                nym_contract_cache_state,
-                storage,
-                &shutdown,
-            );
+            RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
         }
     }
 

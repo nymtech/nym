@@ -25,6 +25,7 @@ impl MonitoringResults {
     pub(crate) async fn new_initial(
         initial_epoch: Epoch,
         nyxd_client: &NyxdClient,
+        whitelist: &[AccountId],
     ) -> Result<Self, NymRewarderError> {
         let epoch = nyxd_client.dkg_epoch().await?;
         let issuers = nyxd_client.get_credential_issuers(epoch.epoch_id).await?;
@@ -36,6 +37,7 @@ impl MonitoringResults {
             let mut raw_issuer = RawOperatorIssuing {
                 api_runner: issuer.api_runner.clone(),
                 runner_account: issuer.operator_account.clone(),
+                whitelisted: whitelist.contains(&issuer.operator_account),
                 per_epoch: Default::default(),
             };
 
@@ -132,6 +134,7 @@ impl MonitoringResults {
                 RawOperatorIssuing {
                     api_runner: result.api_runner.clone(),
                     runner_account: result.runner_account.clone(),
+                    whitelisted: result.whitelisted,
                     per_epoch: kept_epoch,
                 },
             );
@@ -157,18 +160,20 @@ pub(crate) struct MonitoringResultsInner {
 
 impl From<MonitoringResultsInner> for CredentialIssuanceResults {
     fn from(value: MonitoringResultsInner) -> Self {
-        let total_issued = value
-            .operators
-            .values()
-            .map(|o| {
-                let operator_issued: u32 = o
+        let mut total_issued = 0;
+
+        for operator in value.operators.values() {
+            // if this validator is NOT whitelisted, do not increase the total issued credentials
+            if operator.whitelisted {
+                let operator_issued: u32 = operator
                     .per_epoch
                     .values()
                     .map(|e| e.issued_since_monitor_started)
                     .sum();
-                operator_issued
-            })
-            .sum();
+
+                total_issued += operator_issued
+            }
+        }
 
         CredentialIssuanceResults {
             total_issued_partial_credentials: total_issued,
@@ -177,7 +182,7 @@ impl From<MonitoringResultsInner> for CredentialIssuanceResults {
                 .operators
                 .into_values()
                 .map(|runner| {
-                    let issued_ratio = if total_issued == 0 {
+                    let issued_ratio = if total_issued == 0 || !runner.whitelisted {
                         Decimal::zero()
                     } else {
                         Decimal::from_ratio(runner.issued_credentials(), total_issued)
@@ -187,6 +192,7 @@ impl From<MonitoringResultsInner> for CredentialIssuanceResults {
                         issued_credentials: runner.issued_credentials(),
                         validated_credentials: runner.validated_credentials(),
                         api_runner: runner.api_runner,
+                        whitelisted: runner.whitelisted,
                         runner_account: runner.runner_account,
                     }
                 })
@@ -212,6 +218,7 @@ impl MonitoringResultsInner {
 pub(crate) struct RawOperatorResult {
     pub(crate) operator_account: AccountId,
     pub(crate) api_runner: String,
+    pub(crate) whitelisted: bool,
 
     // how many credentials the operator claims to have issued in **TOTAL** in this **DKG** epoch
     pub(crate) issued_credentials: u32,
@@ -219,10 +226,15 @@ pub(crate) struct RawOperatorResult {
 }
 
 impl RawOperatorResult {
-    pub(crate) fn new_empty(operator_account: AccountId, api_runner: String) -> RawOperatorResult {
+    pub(crate) fn new_empty(
+        operator_account: AccountId,
+        api_runner: String,
+        whitelisted: bool,
+    ) -> RawOperatorResult {
         RawOperatorResult {
             operator_account,
             api_runner,
+            whitelisted,
             issued_credentials: 0,
             validated_credentials: Default::default(),
         }
@@ -232,6 +244,7 @@ impl RawOperatorResult {
 pub struct RawOperatorIssuing {
     pub api_runner: String,
     pub runner_account: AccountId,
+    pub whitelisted: bool,
 
     pub per_epoch: HashMap<u32, IssuedEpochCredentials>,
 }
@@ -243,6 +256,7 @@ impl RawOperatorIssuing {
         RawOperatorIssuing {
             api_runner: raw_result.api_runner,
             runner_account: raw_result.operator_account,
+            whitelisted: raw_result.whitelisted,
             per_epoch,
         }
     }
@@ -278,6 +292,7 @@ impl IssuedEpochCredentials {
 
 pub struct OperatorIssuing {
     pub api_runner: String,
+    pub whitelisted: bool,
     pub runner_account: AccountId,
 
     pub issued_ratio: Decimal,
@@ -286,10 +301,14 @@ pub struct OperatorIssuing {
 }
 
 impl OperatorIssuing {
-    pub fn reward_amount(&self, signing_budget: &Coin) -> Coin {
-        let amount = Uint128::new(signing_budget.amount) * self.issued_ratio;
+    pub fn reward_amount(&self, issuance_budget: &Coin) -> Coin {
+        if !self.whitelisted {
+            return Coin::new(0, &issuance_budget.denom);
+        }
 
-        Coin::new(amount.u128(), &signing_budget.denom)
+        let amount = Uint128::new(issuance_budget.amount) * self.issued_ratio;
+
+        Coin::new(amount.u128(), &issuance_budget.denom)
     }
 }
 
@@ -305,10 +324,11 @@ impl CredentialIssuanceResults {
             .iter()
             .inspect(|a| {
                 info!(
-                    "operator {} will receive {} at address {} for credential issuance work",
+                    "operator {} will receive {} at address {} for credential issuance work (whitelisted: {})",
                     a.api_runner,
                     a.reward_amount(budget),
                     a.runner_account,
+                    a.whitelisted
                 );
             })
             .map(|v| (v.runner_account.clone(), vec![v.reward_amount(budget)]))

@@ -114,6 +114,7 @@ allow = [
     "CC0-1.0",
     "Unicode-DFS-2016",
     "OpenSSL",
+    "Zlib",
 ]
 # List of explicitly disallowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
@@ -216,6 +217,7 @@ deny = [
     # Wrapper crates can optionally be specified to allow the crate when it
     # is a direct dependency of the otherwise banned crate
     #{ name = "ansi_term", version = "=0.11.0", wrappers = [] },
+    { name = "openssl"},
 ]
 
 # List of features to allow/deny

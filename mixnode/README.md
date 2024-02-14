@@ -35,8 +35,8 @@ By default, the Nym Mixnode will start on port 1789. If desired, you can change 
 ## Install debian
 
 ```bash
-sudo curl -s --compressed "https://nymtech.github.io/nym/nymtech.gpg" | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/nymtech.gpg > /dev/null
-sudo echo "deb [signed-by=/etc/apt/trusted.gpg.d/nymtech.gpg] https://nymtech.github.io/nym/ /" > nymtech.list
+sudo curl -s --compressed "http://apt.nymtech.net.s3-website.eu-central-1.amazonaws.com/nymtech.gpg" | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/nymtech.gpg > /dev/null
+sudo echo "deb [signed-by=/etc/apt/trusted.gpg.d/nymtech.gpg] http://apt.nymtech.net.s3-website.eu-central-1.amazonaws.com/ squeeze main" > /etc/apt/sources.list.d/nymtech.list
 
 sudo apt-get update
 sudo apt-get install nym-mixnode

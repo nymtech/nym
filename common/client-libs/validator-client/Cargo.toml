@@ -31,7 +31,6 @@ log = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["sync", "time"] }
 futures = { workspace = true }
-openssl = { version = "^0.10.55", features = ["vendored"], optional = true }
 
 nym-coconut-interface = { path = "../../coconut-interface" }
 nym-network-defaults = { path = "../../network-defaults" }
@@ -90,7 +89,7 @@ required-features = ["http-client"]
 
 [features]
 default = ["http-client"]
-http-client = ["cosmrs/rpc", "openssl"]
+http-client = ["cosmrs/rpc"]
 generate-ts = []
 contract-testing = ["nym-mixnet-contract-common/contract-testing"]
 

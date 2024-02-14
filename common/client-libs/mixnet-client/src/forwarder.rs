@@ -5,9 +5,9 @@ use crate::client::{Client, Config, SendWithoutResponse};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_crypto::asymmetric::encryption;
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_topology_control::accessor::TopologyAccessor;
 use nym_validator_client::NymApiClient;
 use std::sync::Arc;
 

@@ -1,9 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// due to the macro expansion of rather old rocket macros...
-#![allow(unused_imports)]
-
 use crate::coconut::api_routes::helpers::build_credentials_response;
 use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::{accepted_vote_err, blind_sign};
@@ -58,7 +55,10 @@ pub async fn post_blind_sign(
 
     // check if we have the signing key available
     debug!("checking if we actually have coconut keys derived...");
-    let keypair_guard = state.coconut_keypair.get().await;
+    let maybe_keypair_guard = state.coconut_keypair.get().await;
+    let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
+        return Err(CoconutError::KeyPairNotDerivedYet);
+    };
     let Some(signing_key) = keypair_guard.as_ref() else {
         return Err(CoconutError::KeyPairNotDerivedYet);
     };
@@ -75,7 +75,7 @@ pub async fn post_blind_sign(
 
     // produce the partial signature
     debug!("producing the partial credential");
-    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.secret_key())?;
+    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.keys.secret_key())?;
 
     // store the information locally
     debug!("storing the issued credential in the database");

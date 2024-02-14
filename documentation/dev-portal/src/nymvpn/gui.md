@@ -12,21 +12,21 @@ Follow the simple [automated script](#automated-script-for-gui-installation) bel
 
 ## Automated Script for GUI Installation
 
-We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19) which does download of dependencies and the application, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
+We wrote a [script](https://gist.github.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e) which does download of dependencies and the application, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
 
 1. Open a terminal window in a directory where you want the script and NymVPN binary be downloaded and run
 ```sh
-curl -o nym-vpn-client-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/933962e3e70198ec3d8a1bc5238bbaa20e7f0d52/nym-vpn-client-install-run.sh
+curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e/raw/064c0d42af6a187b4f62998a0c2e6a84c319eeef/nym-vpn-desktop-install-run.sh
 ```
 
 2. Make the script executable
 ```sh
-chmod u+x nym-vpn-client-install-run.sh
+chmod u+x nym-vpn-desktop-install-run.sh
 ```
 
 3. Start the script as root, turn off any VPN and run
 ```sh
-sudo -E ./nym-vpn-client-install-run.sh
+sudo -E ./nym-vpn-desktop-install-run.sh
 ```
 
 4. Follow the prompts in the program

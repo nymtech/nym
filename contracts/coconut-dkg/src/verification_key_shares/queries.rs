@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::verification_key_shares::storage;
@@ -6,7 +6,23 @@ use crate::verification_key_shares::storage::vk_shares;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use nym_coconut_dkg_common::types::EpochId;
-use nym_coconut_dkg_common::verification_key::PagedVKSharesResponse;
+use nym_coconut_dkg_common::verification_key::{PagedVKSharesResponse, VkShareResponse};
+
+// TODO: unit tests
+pub fn query_vk_share(
+    deps: Deps<'_>,
+    owner: String,
+    epoch_id: EpochId,
+) -> StdResult<VkShareResponse> {
+    let owner = deps.api.addr_validate(&owner)?;
+    let share = vk_shares().may_load(deps.storage, (&owner, epoch_id))?;
+
+    Ok(VkShareResponse {
+        owner,
+        epoch_id,
+        share,
+    })
+}
 
 pub fn query_vk_shares_paged(
     deps: Deps<'_>,

@@ -118,24 +118,13 @@ announce_address = '{{ coconut_signer.announce_address }}'
 # Path to a JSON file where state is persisted between different stages of DKG.
 dkg_persistent_state_path = '{{ coconut_signer.storage_paths.dkg_persistent_state_path }}'
 
-# Path to the coconut verification key
-verification_key_path = '{{ coconut_signer.storage_paths.verification_key_path }}'
-
-# Path to the coconut verification key
-secret_key_path = '{{ coconut_signer.storage_paths.secret_key_path }}'
+# Path to the coconut key.
+coconut_key_path = '{{ coconut_signer.storage_paths.coconut_key_path }}'
 
 # Path to the dkg dealer decryption key
 decryption_key_path = '{{ coconut_signer.storage_paths.decryption_key_path }}'
 
 # Path to the dkg dealer public key with proof
 public_key_with_proof_path = '{{ coconut_signer.storage_paths.public_key_with_proof_path }}'
-
-[ephemera]
-
-enabled = {{ ephemera.enabled }}
-
-[ephemera.args]
-
-ephemera_config = '{{ ephemera.args.ephemera_config }}'
 
 "#;

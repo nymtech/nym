@@ -37,12 +37,7 @@ mime = "0.3.17"
 hyper = { workspace = true }
 tower = { version = "0.4.13" }
 tower-http = { version = "0.4.4", features = ["fs"] }
-
-# `actix_extras`? what the hell?
-# hear me out first!
-# we can't use `axum_extras` because of freaking ephemera that depends on `actix_extras`.
-# however, it seems that pulling in `actix_extras` pulls in just enough shared features to improve `IntoParams` for our Query attributes
-utoipa = { workspace = true, features = ["actix_extras"] } # can't use `"axum_extras"` feature because ephemera uses `"actix_extras"` -.-'
+utoipa = { workspace = true, features = ["axum_extras"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 # if we ever wanted redoc/rapidoc bridges:

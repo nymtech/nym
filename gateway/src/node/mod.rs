@@ -521,7 +521,7 @@ impl<St> Gateway<St> {
         let coconut_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
             CoconutVerifier::new(nyxd_client).await
-        };
+        }?;
 
         let topology_provider = Self::setup_topology_provider(self.config.get_nym_api_endpoints());
 

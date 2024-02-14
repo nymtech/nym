@@ -4,7 +4,6 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_crypto::asymmetric::encryption;
 use nym_noise::upgrade_noise_initiator_with_topology;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
@@ -12,6 +11,7 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::NymPacket;
+use nym_topology_control::accessor::TopologyAccessor;
 use nym_validator_client::NymApiClient;
 use std::collections::HashMap;
 use std::io;

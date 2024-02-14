@@ -8,11 +8,11 @@ use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use cosmwasm_std::Addr;
+use nym_coconut_dkg_common::dealing::{DealingChunkInfo, PartialContractDealing};
 use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
-use nym_coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
+use nym_coconut_dkg_common::types::{DealingIndex, EncodedBTEPublicKeyWithProof};
 use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
-use nym_contracts_common::dealings::ContractSafeBytes;
+use nym_contracts_common::IdentityKey;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -24,6 +24,13 @@ pub trait DkgSigningClient {
         memo: String,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError>;
+
+    async fn initiate_dkg(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::InitiateDkg {};
+
+        self.execute_dkg_contract(fee, req, "initiating the DKG".to_string(), vec![])
+            .await
+    }
 
     async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::AdvanceEpochState {};
@@ -42,12 +49,14 @@ pub trait DkgSigningClient {
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::RegisterDealer {
             bte_key_with_proof: bte_key,
+            identity_key,
             announce_address,
             resharing,
         };
@@ -56,18 +65,32 @@ pub trait DkgSigningClient {
             .await
     }
 
-    async fn submit_dealing_bytes(
+    async fn submit_dealing_metadata(
         &self,
-        dealing_bytes: ContractSafeBytes,
+        dealing_index: DealingIndex,
+        chunks: Vec<DealingChunkInfo>,
         resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitDealing {
-            dealing_bytes,
+        let req = DkgExecuteMsg::CommitDealingsMetadata {
+            dealing_index,
+            chunks,
             resharing,
         };
 
-        self.execute_dkg_contract(fee, req, "dealing commitment".to_string(), vec![])
+        self.execute_dkg_contract(fee, req, "dealing metadata commitment".to_string(), vec![])
+            .await
+    }
+
+    async fn submit_dealing_chunk(
+        &self,
+        chunk: PartialContractDealing,
+        resharing: bool,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::CommitDealingsChunk { chunk, resharing };
+
+        self.execute_dkg_contract(fee, req, "dealing chunk commitment".to_string(), vec![])
             .await
     }
 
@@ -94,9 +117,10 @@ pub trait DkgSigningClient {
         resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        // the call to unchecked is fine as we're converting from pre-validated `AccountId`
-        let owner = Addr::unchecked(owner.to_string());
-        let req = DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing };
+        let req = DkgExecuteMsg::VerifyVerificationKeyShare {
+            owner: owner.to_string(),
+            resharing,
+        };
 
         self.execute_dkg_contract(
             fee,
@@ -146,28 +170,36 @@ mod tests {
         msg: DkgExecuteMsg,
     ) {
         match msg {
+            DkgExecuteMsg::InitiateDkg {} => client.initiate_dkg(None).ignore(),
             DkgExecuteMsg::RegisterDealer {
                 bte_key_with_proof,
+                identity_key,
                 announce_address,
                 resharing,
             } => client
-                .register_dealer(bte_key_with_proof, announce_address, resharing, None)
+                .register_dealer(
+                    bte_key_with_proof,
+                    identity_key,
+                    announce_address,
+                    resharing,
+                    None,
+                )
                 .ignore(),
-            DkgExecuteMsg::CommitDealing {
-                dealing_bytes,
+            DkgExecuteMsg::CommitDealingsMetadata {
+                dealing_index,
+                chunks,
                 resharing,
             } => client
-                .submit_dealing_bytes(dealing_bytes, resharing, None)
+                .submit_dealing_metadata(dealing_index, chunks, resharing, None)
                 .ignore(),
+            DkgExecuteMsg::CommitDealingsChunk { chunk, resharing } => {
+                client.submit_dealing_chunk(chunk, resharing, None).ignore()
+            }
             DkgExecuteMsg::CommitVerificationKeyShare { share, resharing } => client
                 .submit_verification_key_share(share, resharing, None)
                 .ignore(),
             DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => client
-                .verify_verification_key_share(
-                    &owner.into_string().parse().unwrap(),
-                    resharing,
-                    None,
-                )
+                .verify_verification_key_share(&owner.parse().unwrap(), resharing, None)
                 .ignore(),
             DkgExecuteMsg::SurpassedThreshold {} => client.surpass_threshold(None).ignore(),
             DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),

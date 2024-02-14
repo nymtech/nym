@@ -151,7 +151,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
         let state = if replacement_threshold_surpassed(&deps)? {
             // ... in reset mode
             INITIAL_REPLACEMENT_DATA.remove(deps.storage);
-            EpochState::default()
+            EpochState::PublicKeySubmission { resharing: false }
         } else {
             // ... in reshare mode
             if INITIAL_REPLACEMENT_DATA.may_load(deps.storage)?.is_some() {

@@ -209,9 +209,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                     .remove(chunk_index)
                     .expect("chunking specification has changed mid-exchange!");
                 debug!("[dealing {dealing_index}]: resubmitting chunk index {chunk_index}");
-                self.dkg_client
-                    .submit_dealing_chunk(chunk, resharing)
-                    .await?;
+                self.dkg_client.submit_dealing_chunk(chunk).await?;
             }
         }
         Ok(())
@@ -243,26 +241,28 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             let human_index = chunk_index + 1;
             debug!("[dealing {dealing_index}]: submitting chunk index {chunk_index} ({human_index}/{total_chunks})");
 
-            self.dkg_client
-                .submit_dealing_chunk(chunk, resharing)
-                .await?;
+            self.dkg_client.submit_dealing_chunk(chunk).await?;
         }
 
         Ok(())
     }
 
     /// Check whether this dealer can participate in the resharing
-    /// by looking into the contract and ensuring it's in the list of initial dealers for this epoch
-    async fn can_reshare(&self) -> Result<bool, DealingGenerationError> {
-        let Some(initial_data) = self.dkg_client.get_initial_dealers().await? else {
-            return Ok(false);
-        };
+    /// by looking into the contract and ensuring it's been a dealer in the previous epoch
+    async fn can_reshare(&self, epoch_id: EpochId) -> Result<bool, DealingGenerationError> {
+        // SAFETY:
+        // it's impossible for the contract to trigger resharing for the 0th epoch
+        // otherwise some serious invariants have been broken
+        #[allow(clippy::expect_used)]
+        let previous_epoch_id = epoch_id
+            .checked_sub(1)
+            .expect("resharing epoch invariant has been broken");
 
         let address = self.dkg_client.get_address().await;
-        Ok(initial_data
-            .initial_dealers
-            .iter()
-            .any(|d| d.as_str() == address.as_ref()))
+        Ok(self
+            .dkg_client
+            .dealer_in_epoch(previous_epoch_id, address.to_string())
+            .await?)
     }
 
     /// Deal with the dealing generation case where the system requests resharing
@@ -274,7 +274,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         old_keypair: KeyPairWithEpoch,
     ) -> Result<(), DealingGenerationError> {
         // make sure we're allowed to participate in resharing
-        if !self.can_reshare().await? {
+        if !self.can_reshare(epoch_id).await? {
             // we have to wait for other dealers to give us the dealings (hopefully)
             warn!("we we have an existing coconut keypair, but we're not allowed to participate in resharing");
             return Ok(());
@@ -427,7 +427,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             // sure, the if statements could be collapsed, but i prefer to explicitly repeat the block for readability
             if resharing {
                 debug!("resharing + no prior key -> nothing to do");
-                if self.can_reshare().await? {
+                if self.can_reshare(epoch_id).await? {
                     warn!("this dealer was expected to participate in resharing but it doesn't have any prior keys to use");
                 }
             } else {
@@ -475,7 +475,6 @@ pub(crate) mod tests {
     };
     use crate::coconut::tests::helpers::unchecked_decode_bte_key;
     use nym_coconut::{ttp_keygen, Parameters};
-    use nym_coconut_dkg_common::types::InitialReplacementData;
     use nym_dkg::bte::PublicKeyWithProof;
 
     #[tokio::test]

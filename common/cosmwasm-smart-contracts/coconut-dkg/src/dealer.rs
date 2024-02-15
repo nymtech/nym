@@ -36,6 +36,11 @@ impl DealerType {
 }
 
 #[cw_serde]
+pub struct RegisteredDealerDetails {
+    pub details: Option<DealerRegistrationDetails>,
+}
+
+#[cw_serde]
 pub struct DealerDetailsResponse {
     pub details: Option<DealerDetails>,
     pub dealer_type: DealerType,

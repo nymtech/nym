@@ -29,7 +29,7 @@ use nym_coconut_dkg_common::dealing::{
 use nym_coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
 use nym_coconut_dkg_common::types::{
     ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, EpochState,
-    InitialReplacementData, PartialContractDealingData, State as ContractState,
+    PartialContractDealingData, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_coconut_interface::VerificationKey;
@@ -135,9 +135,9 @@ impl Dealing {
 pub(crate) struct FakeDkgContractState {
     pub(crate) address: AccountId,
 
-    pub(crate) dealers: HashMap<NodeIndex, DealerDetails>,
-    pub(crate) past_dealers: HashMap<NodeIndex, DealerDetails>,
-    pub(crate) initial_dealers: Option<InitialReplacementData>,
+    // pub(crate) dealers: HashMap<NodeIndex, DealerDetails>,
+    // pub(crate) past_dealers: HashMap<NodeIndex, DealerDetails>,
+    // pub(crate) initial_dealers: Option<InitialReplacementData>,
 
     // map of epoch id -> dealer -> dealings
     pub(crate) dealings: HashMap<EpochId, HashMap<String, HashMap<DealingIndex, Dealing>>>,
@@ -651,16 +651,6 @@ impl super::client::Client for DummyClient {
         Ok(self.state.lock().unwrap().dkg_contract.threshold)
     }
 
-    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>> {
-        Ok(self
-            .state
-            .lock()
-            .unwrap()
-            .dkg_contract
-            .initial_dealers
-            .clone())
-    }
-
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
         let address = self.validator_address.as_ref();
 
@@ -1081,11 +1071,7 @@ impl super::client::Client for DummyClient {
         })
     }
 
-    async fn submit_dealing_chunk(
-        &self,
-        chunk: PartialContractDealing,
-        _resharing: bool,
-    ) -> Result<ExecuteResult> {
+    async fn submit_dealing_chunk(&self, chunk: PartialContractDealing) -> Result<ExecuteResult> {
         let mut guard = self.state.lock().unwrap();
         let current_epoch = guard.dkg_contract.epoch.epoch_id;
         let current_height = guard.block_info.height;

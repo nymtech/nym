@@ -186,7 +186,6 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         epoch_id: EpochId,
         dealer: &Addr,
         resharing: bool,
-        initial_dealers: &[Addr],
     ) -> Result<Result<HashMap<DealingIndex, Vec<u8>>, DealerRejectionReason>, KeyDerivationError>
     {
         let dealing_statuses = self
@@ -208,11 +207,25 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                 ));
             }
 
-            // we might be in resharing mode and this dealer was not in "initial" set.
-            // in that case we don't expect any dealings
-            if resharing && !initial_dealers.contains(dealer) {
-                return Ok(Ok(HashMap::new()));
+            // if we're in the resharing mode and this dealer has not been a dealer in the previous epoch,
+            // we don't expect to have received anything from them
+            if resharing {
+                // SAFETY:
+                // it's impossible for the contract to trigger resharing for the 0th epoch
+                // otherwise some serious invariants have been broken
+                #[allow(clippy::expect_used)]
+                let previous_epoch_id = epoch_id
+                    .checked_sub(1)
+                    .expect("resharing epoch invariant has been broken");
+                if !self
+                    .dkg_client
+                    .dealer_in_epoch(previous_epoch_id, dealer.to_string())
+                    .await?
+                {
+                    return Ok(Ok(HashMap::new()));
+                }
             }
+
             return Ok(Err(DealerRejectionReason::NoDealingsProvided));
         }
 
@@ -251,22 +264,13 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         let mut valid_dealings: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
 
         // given at MOST we'll have like 50 entries here, iterating over entire vector for lookup is fine
-        let initial_dealers = self
-            .dkg_client
-            .get_initial_dealers()
-            .await?
-            .map(|i| i.initial_dealers)
-            .unwrap_or_default();
 
         // for every valid dealer in this epoch, obtain its dealings
         for (dealer, dealer_index) in self.state.valid_epoch_receivers(epoch_id)? {
             // note: if we're in resharing mode, the contract itself will forbid submission of dealings from
-            // parties that were not "initial" dealers, so we don't have to worry about it
+            // parties that were dealers in the previous epoch, so we don't have to worry about it
 
-            let raw_dealings = match self
-                .get_raw_dealings(epoch_id, &dealer, resharing, &initial_dealers)
-                .await?
-            {
+            let raw_dealings = match self.get_raw_dealings(epoch_id, &dealer, resharing).await? {
                 Ok(dealings) => dealings,
                 Err(rejection) => {
                     self.blacklist_dealer(epoch_id, dealer, rejection)?;

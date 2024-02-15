@@ -10,8 +10,8 @@ use nym_coconut_dkg_common::dealing::{
     DealerDealingsStatusResponse, DealingChunkInfo, PartialContractDealing,
 };
 use nym_coconut_dkg_common::types::{
-    ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData,
-    NodeIndex, PartialContractDealingData, State as ContractState,
+    ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, NodeIndex,
+    PartialContractDealingData, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_contracts_common::IdentityKey;
@@ -62,16 +62,21 @@ impl DkgClient {
         self.inner.get_current_epoch_threshold().await
     }
 
-    pub(crate) async fn get_initial_dealers(
-        &self,
-    ) -> Result<Option<InitialReplacementData>, CoconutError> {
-        self.inner.get_initial_dealers().await
-    }
-
     pub(crate) async fn get_self_registered_dealer_details(
         &self,
     ) -> Result<DealerDetailsResponse, CoconutError> {
         self.inner.get_self_registered_dealer_details().await
+    }
+
+    pub(crate) async fn dealer_in_epoch(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<bool, CoconutError> {
+        self.inner
+            .get_registered_dealer_details(epoch_id, dealer)
+            .await
+            .map(|d| d.details.is_some())
     }
 
     pub(crate) async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>, CoconutError> {
@@ -190,9 +195,8 @@ impl DkgClient {
     pub(crate) async fn submit_dealing_chunk(
         &self,
         chunk: PartialContractDealing,
-        resharing: bool,
     ) -> Result<(), CoconutError> {
-        self.inner.submit_dealing_chunk(chunk, resharing).await?;
+        self.inner.submit_dealing_chunk(chunk).await?;
         Ok(())
     }
 

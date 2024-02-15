@@ -3,6 +3,7 @@
 
 use crate::dealers::queries::{
     query_current_dealers_paged, query_dealer_details, query_dealers_indices_paged,
+    query_registered_dealer_details,
 };
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::{
@@ -130,6 +131,14 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
+        QueryMsg::GetRegisteredDealer {
+            dealer_address,
+            epoch_id,
+        } => to_binary(&query_registered_dealer_details(
+            deps,
+            dealer_address,
+            epoch_id,
+        )?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }

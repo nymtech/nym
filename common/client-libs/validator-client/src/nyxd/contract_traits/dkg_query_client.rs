@@ -11,6 +11,7 @@ use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::types::{ChunkIndex, NodeIndex};
 use serde::Deserialize;
 
+use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 pub use nym_coconut_dkg_common::{
     dealer::{DealerDetailsResponse, PagedDealerIndexResponse, PagedDealerResponse},
     dealing::{
@@ -41,6 +42,18 @@ pub trait DkgQueryClient {
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<u64>, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochThreshold {};
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_registered_dealer_details(
+        &self,
+        address: &AccountId,
+        epoch_id: Option<EpochId>,
+    ) -> Result<RegisteredDealerDetails, NyxdError> {
+        let request = DkgQueryMsg::GetRegisteredDealer {
+            dealer_address: address.to_string(),
+            epoch_id,
+        };
         self.query_dkg_contract(request).await
     }
 
@@ -235,6 +248,12 @@ mod tests {
             DkgQueryMsg::GetCurrentEpochThreshold {} => {
                 client.get_current_epoch_threshold().ignore()
             }
+            DkgQueryMsg::GetRegisteredDealer {
+                dealer_address,
+                epoch_id,
+            } => client
+                .get_registered_dealer_details(&dealer_address.parse().unwrap(), epoch_id)
+                .ignore(),
             DkgQueryMsg::GetDealerDetails { dealer_address } => client
                 .get_dealer_details(&dealer_address.parse().unwrap())
                 .ignore(),

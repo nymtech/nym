@@ -14,9 +14,7 @@ use nym_coconut_dkg_common::dealing::{
     PartialContractDealing,
 };
 use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use nym_coconut_dkg_common::types::{
-    ChunkIndex, DealingIndex, InitialReplacementData, PartialContractDealingData, State,
-};
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, PartialContractDealingData, State};
 use nym_coconut_dkg_common::{
     dealer::{DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
@@ -24,6 +22,7 @@ use nym_coconut_dkg_common::{
 };
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
 
+use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
@@ -412,17 +411,26 @@ impl crate::coconut::client::Client for Client {
         Ok(nyxd_query!(self, get_current_epoch_threshold().await?))
     }
 
-    async fn get_initial_dealers(
-        &self,
-    ) -> crate::coconut::error::Result<Option<InitialReplacementData>> {
-        Ok(nyxd_query!(self, get_initial_dealers().await?))
-    }
-
     async fn get_self_registered_dealer_details(
         &self,
     ) -> crate::coconut::error::Result<DealerDetailsResponse> {
         let self_address = &self.address().await;
         Ok(nyxd_query!(self, get_dealer_details(self_address).await?))
+    }
+
+    async fn get_registered_dealer_details(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> crate::coconut::error::Result<RegisteredDealerDetails> {
+        let dealer = dealer
+            .as_str()
+            .parse()
+            .map_err(|_| NyxdError::MalformedAccountAddress(dealer))?;
+        Ok(nyxd_query!(
+            self,
+            get_registered_dealer_details(&dealer, Some(epoch_id)).await?
+        ))
     }
 
     async fn get_dealer_dealings_status(
@@ -547,11 +555,10 @@ impl crate::coconut::client::Client for Client {
     async fn submit_dealing_chunk(
         &self,
         chunk: PartialContractDealing,
-        resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(nyxd_signing!(
             self,
-            submit_dealing_chunk(chunk, resharing, None).await?
+            submit_dealing_chunk(chunk, None).await?
         ))
     }
 

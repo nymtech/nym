@@ -2,15 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage::{
-    self, get_dealer_details, get_dealer_index, DEALERS_INDICES, EPOCH_DEALERS_MAP,
+    self, get_dealer_details, get_dealer_index, get_registration_details, DEALERS_INDICES,
+    EPOCH_DEALERS_MAP,
 };
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 use nym_coconut_dkg_common::dealer::{
     DealerDetailsResponse, DealerType, PagedDealerIndexResponse, PagedDealerResponse,
+    RegisteredDealerDetails,
 };
-use nym_coconut_dkg_common::types::DealerDetails;
+use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
+
+pub fn query_registered_dealer_details(
+    deps: Deps<'_>,
+    dealer_address: String,
+    epoch_id: Option<EpochId>,
+) -> StdResult<RegisteredDealerDetails> {
+    let addr = deps.api.addr_validate(&dealer_address)?;
+
+    let epoch_id = match epoch_id {
+        Some(epoch_id) => epoch_id,
+        None => CURRENT_EPOCH.load(deps.storage)?.epoch_id,
+    };
+
+    Ok(RegisteredDealerDetails {
+        details: get_registration_details(deps.storage, &addr, epoch_id).ok(),
+    })
+}
 
 pub fn query_dealer_details(
     deps: Deps<'_>,

@@ -5,13 +5,15 @@ use crate::coconut::error::Result;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse};
+use nym_coconut_dkg_common::dealer::{
+    DealerDetails, DealerDetailsResponse, RegisteredDealerDetails,
+};
 use nym_coconut_dkg_common::dealing::{
     DealerDealingsStatusResponse, DealingChunkInfo, DealingMetadata, DealingStatusResponse,
     PartialContractDealing,
 };
 use nym_coconut_dkg_common::types::{
-    ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData,
+    ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId,
     PartialContractDealingData, State,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
@@ -47,9 +49,13 @@ pub trait Client {
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>>;
 
-    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>>;
-
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse>;
+
+    async fn get_registered_dealer_details(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<RegisteredDealerDetails>;
 
     async fn get_dealer_dealings_status(
         &self,
@@ -111,11 +117,7 @@ pub trait Client {
         resharing: bool,
     ) -> Result<ExecuteResult>;
 
-    async fn submit_dealing_chunk(
-        &self,
-        chunk: PartialContractDealing,
-        resharing: bool,
-    ) -> Result<ExecuteResult>;
+    async fn submit_dealing_chunk(&self, chunk: PartialContractDealing) -> Result<ExecuteResult>;
 
     async fn submit_verification_key_share(
         &self,

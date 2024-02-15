@@ -286,7 +286,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // it could be outdated and we can't use it for resharing
         let previous = epoch_id.saturating_sub(1);
         if old_keypair.issued_for_epoch != previous {
-            warn!("our existing coconut keypair has been generated for an distant epoch ({} vs expected {previous} for resharing)", old_keypair.issued_for_epoch);
+            warn!("our existing coconut keypair has been generated for a distant epoch ({} vs expected {previous} for resharing)", old_keypair.issued_for_epoch);
             // don't participate in resharing
             return Ok(());
         }
@@ -475,6 +475,7 @@ pub(crate) mod tests {
     };
     use crate::coconut::tests::helpers::unchecked_decode_bte_key;
     use nym_coconut::{ttp_keygen, Parameters};
+    use nym_coconut_dkg_common::types::DealerRegistrationDetails;
     use nym_dkg::bte::PublicKeyWithProof;
 
     #[tokio::test]
@@ -615,7 +616,7 @@ pub(crate) mod tests {
         let dealers = dealers_fixtures(&mut rng, 4);
         let self_dealer = dealers[0].clone();
 
-        let epoch = 0;
+        let epoch = 1;
 
         let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
         let coconut_keypair = KeyPair::new();
@@ -672,18 +673,13 @@ pub(crate) mod tests {
         let dealers = dealers_fixtures(&mut rng, 4);
         let self_dealer = dealers[0].clone();
 
-        let epoch = 0;
+        let epoch = 1;
 
         let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
         let coconut_keypair = KeyPair::new();
         coconut_keypair
-            .set(KeyPairWithEpoch::new(keys.pop().unwrap(), epoch))
+            .set(KeyPairWithEpoch::new(keys.pop().unwrap(), epoch - 1))
             .await;
-
-        let initial_dealers = InitialReplacementData {
-            initial_dealers: vec![self_dealer.address.clone()],
-            initial_height: 100,
-        };
 
         let mut controller = TestingDkgControllerBuilder::default()
             .with_threshold(3)
@@ -691,9 +687,27 @@ pub(crate) mod tests {
             .with_as_dealer(self_dealer.clone())
             .with_keypair(coconut_keypair)
             .with_initial_epoch_id(epoch)
-            .with_initial_dealers(initial_dealers)
             .build()
             .await;
+
+        let chain = controller.chain_state.clone();
+
+        // TODO: put that functionality in the builder
+        chain
+            .lock()
+            .unwrap()
+            .dkg_contract
+            .dealers
+            .entry(epoch - 1)
+            .or_default()
+            .insert(
+                self_dealer.address.to_string(),
+                DealerRegistrationDetails {
+                    bte_public_key_with_proof: self_dealer.bte_public_key_with_proof.clone(),
+                    ed25519_identity: self_dealer.ed25519_identity.clone(),
+                    announce_address: self_dealer.announce_address.clone(),
+                },
+            );
 
         let key_size = controller.dkg_client.get_contract_state().await?.key_size;
 

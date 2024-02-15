@@ -85,10 +85,9 @@ pub trait DkgSigningClient {
     async fn submit_dealing_chunk(
         &self,
         chunk: PartialContractDealing,
-        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitDealingsChunk { chunk, resharing };
+        let req = DkgExecuteMsg::CommitDealingsChunk { chunk };
 
         self.execute_dkg_contract(fee, req, "dealing chunk commitment".to_string(), vec![])
             .await

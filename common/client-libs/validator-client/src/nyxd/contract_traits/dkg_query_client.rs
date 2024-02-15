@@ -7,11 +7,12 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use nym_coconut_dkg_common::types::ChunkIndex;
+use cosmwasm_std::Addr;
+use nym_coconut_dkg_common::types::{ChunkIndex, NodeIndex};
 use serde::Deserialize;
 
 pub use nym_coconut_dkg_common::{
-    dealer::{DealerDetailsResponse, PagedDealerResponse},
+    dealer::{DealerDetailsResponse, PagedDealerIndexResponse, PagedDealerResponse},
     dealing::{
         DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
         DealingMetadataResponse, DealingStatusResponse,
@@ -43,11 +44,6 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
-    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>, NyxdError> {
-        let request = DkgQueryMsg::GetInitialDealers {};
-        self.query_dkg_contract(request).await
-    }
-
     async fn get_dealer_details(
         &self,
         address: &AccountId,
@@ -67,12 +63,12 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
-    async fn get_past_dealers_paged(
+    async fn get_dealer_indices_paged(
         &self,
         start_after: Option<String>,
         limit: Option<u32>,
-    ) -> Result<PagedDealerResponse, NyxdError> {
-        let request = DkgQueryMsg::GetPastDealers { start_after, limit };
+    ) -> Result<PagedDealerIndexResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealerIndices { start_after, limit };
         self.query_dkg_contract(request).await
     }
 
@@ -188,8 +184,8 @@ pub trait PagedDkgQueryClient: DkgQueryClient {
         collect_paged!(self, get_current_dealers_paged, dealers)
     }
 
-    async fn get_all_past_dealers(&self) -> Result<Vec<DealerDetails>, NyxdError> {
-        collect_paged!(self, get_past_dealers_paged, dealers)
+    async fn get_all_dealer_indices(&self) -> Result<Vec<(Addr, NodeIndex)>, NyxdError> {
+        collect_paged!(self, get_dealer_indices_paged, indices)
     }
 
     async fn get_all_verification_key_shares(
@@ -239,15 +235,14 @@ mod tests {
             DkgQueryMsg::GetCurrentEpochThreshold {} => {
                 client.get_current_epoch_threshold().ignore()
             }
-            DkgQueryMsg::GetInitialDealers {} => client.get_initial_dealers().ignore(),
             DkgQueryMsg::GetDealerDetails { dealer_address } => client
                 .get_dealer_details(&dealer_address.parse().unwrap())
                 .ignore(),
             DkgQueryMsg::GetCurrentDealers { limit, start_after } => client
                 .get_current_dealers_paged(start_after, limit)
                 .ignore(),
-            DkgQueryMsg::GetPastDealers { limit, start_after } => {
-                client.get_past_dealers_paged(start_after, limit).ignore()
+            DkgQueryMsg::GetDealerIndices { limit, start_after } => {
+                client.get_dealer_indices_paged(start_after, limit).ignore()
             }
             DkgQueryMsg::GetDealingStatus {
                 epoch_id,

@@ -68,8 +68,6 @@ pub enum ExecuteMsg {
         resharing: bool,
     },
 
-    SurpassedThreshold {},
-
     AdvanceEpochState {},
 
     TriggerReset {},

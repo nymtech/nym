@@ -156,19 +156,6 @@
     {
       "type": "object",
       "required": [
-        "surpassed_threshold"
-      ],
-      "properties": {
-        "surpassed_threshold": {
-          "type": "object",
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "advance_epoch_state"
       ],
       "properties": {

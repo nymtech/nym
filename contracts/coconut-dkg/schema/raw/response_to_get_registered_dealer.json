@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RegisteredDealerDetails",
+  "type": "object",
+  "properties": {
+    "details": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DealerRegistrationDetails"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "DealerRegistrationDetails": {
+      "type": "object",
+      "required": [
+        "announce_address",
+        "bte_public_key_with_proof",
+        "ed25519_identity"
+      ],
+      "properties": {
+        "announce_address": {
+          "type": "string"
+        },
+        "bte_public_key_with_proof": {
+          "type": "string"
+        },
+        "ed25519_identity": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

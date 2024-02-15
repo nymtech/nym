@@ -44,6 +44,35 @@
     {
       "type": "object",
       "required": [
+        "get_registered_dealer"
+      ],
+      "properties": {
+        "get_registered_dealer": {
+          "type": "object",
+          "required": [
+            "dealer_address"
+          ],
+          "properties": {
+            "dealer_address": {
+              "type": "string"
+            },
+            "epoch_id": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_dealer_details"
       ],
       "properties": {

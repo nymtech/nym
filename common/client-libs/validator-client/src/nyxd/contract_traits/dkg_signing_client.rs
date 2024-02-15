@@ -39,13 +39,6 @@ pub trait DkgSigningClient {
             .await
     }
 
-    async fn surpass_threshold(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::SurpassedThreshold {};
-
-        self.execute_dkg_contract(fee, req, "surpass DKG threshold".to_string(), vec![])
-            .await
-    }
-
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
@@ -191,8 +184,8 @@ mod tests {
             } => client
                 .submit_dealing_metadata(dealing_index, chunks, resharing, None)
                 .ignore(),
-            DkgExecuteMsg::CommitDealingsChunk { chunk, resharing } => {
-                client.submit_dealing_chunk(chunk, resharing, None).ignore()
+            DkgExecuteMsg::CommitDealingsChunk { chunk } => {
+                client.submit_dealing_chunk(chunk, None).ignore()
             }
             DkgExecuteMsg::CommitVerificationKeyShare { share, resharing } => client
                 .submit_verification_key_share(share, resharing, None)
@@ -200,7 +193,6 @@ mod tests {
             DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => client
                 .verify_verification_key_share(&owner.parse().unwrap(), resharing, None)
                 .ignore(),
-            DkgExecuteMsg::SurpassedThreshold {} => client.surpass_threshold(None).ignore(),
             DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),
         };
     }

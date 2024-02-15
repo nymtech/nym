@@ -245,19 +245,6 @@
       {
         "type": "object",
         "required": [
-          "surpassed_threshold"
-        ],
-        "properties": {
-          "surpassed_threshold": {
-            "type": "object",
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
           "advance_epoch_state"
         ],
         "properties": {
@@ -382,6 +369,35 @@
         "properties": {
           "get_current_epoch_threshold": {
             "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_registered_dealer"
+        ],
+        "properties": {
+          "get_registered_dealer": {
+            "type": "object",
+            "required": [
+              "dealer_address"
+            ],
+            "properties": {
+              "dealer_address": {
+                "type": "string"
+              },
+              "epoch_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
             "additionalProperties": false
           }
         },
@@ -1588,6 +1604,46 @@
             },
             "status": {
               "$ref": "#/definitions/ChunkSubmissionStatus"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_registered_dealer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "RegisteredDealerDetails",
+      "type": "object",
+      "properties": {
+        "details": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DealerRegistrationDetails"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "DealerRegistrationDetails": {
+          "type": "object",
+          "required": [
+            "announce_address",
+            "bte_public_key_with_proof",
+            "ed25519_identity"
+          ],
+          "properties": {
+            "announce_address": {
+              "type": "string"
+            },
+            "bte_public_key_with_proof": {
+              "type": "string"
+            },
+            "ed25519_identity": {
+              "type": "string"
             }
           },
           "additionalProperties": false

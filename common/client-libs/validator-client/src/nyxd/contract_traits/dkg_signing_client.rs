@@ -122,6 +122,20 @@ pub trait DkgSigningClient {
         )
         .await
     }
+
+    async fn trigger_dkg_reset(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::TriggerReset {};
+
+        self.execute_dkg_contract(fee, req, "trigger DKG reset".to_string(), vec![])
+            .await
+    }
+
+    async fn trigger_dkg_resharing(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::TriggerResharing {};
+
+        self.execute_dkg_contract(fee, req, "trigger DKG resharing".to_string(), vec![])
+            .await
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -194,6 +208,8 @@ mod tests {
                 .verify_verification_key_share(&owner.parse().unwrap(), resharing, None)
                 .ignore(),
             DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),
+            DkgExecuteMsg::TriggerReset {} => client.trigger_dkg_reset(None).ignore(),
+            DkgExecuteMsg::TriggerResharing {} => client.trigger_dkg_resharing(None).ignore(),
         };
     }
 }

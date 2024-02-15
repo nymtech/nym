@@ -1,4 +1,4 @@
-# NymVPN alpha CLI: Guide for MacOS
+h# NymVPN alpha CLI: Guide for MacOS
 
 ```admonish info
 NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
@@ -16,12 +16,18 @@ echo "<SHA_STRING>" | shasum -a 256 -c
 # choose a correct one according to your binary, this is just an example
 echo "96623ccc69bc4cc0e4e3e18528b6dae6be69f645d0a592d926a3158ce2d0c269  nym-vpn-cli_0.1.0_macos_x86_64.zip" | shasum -a 256 -c
 ```
-5. Extract files with `unzip` command or manually as you are used to
-6. Make executable by running:
+3. Extract files:
 ```sh
+tar -xvf <BINARY>
+# for example
+# tar -xvf nym-vpn-cli_0.0.2_macos_aarch64.tar.gz
+```
+4. Make executable by running:
+```sh
+# possibly you may have to cd into a sub-directory
 chmod u+x ./nym-vpn-cli
 ```
-7. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
+5. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
 ```sh
 curl -L "https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env" -o sandbox.env
 ```
@@ -31,7 +37,6 @@ curl -L "https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env"
 **For NymVPN to work, all other VPNs must be switched off!** At this alpha stage of NymVPN, the network connection (wifi) must be reconnected after or in between the testing rounds.
 
 Make sure your terminal is open in the same directory as your `nym-vpn-cli` binary.
-
 
 1. Go to [nymvpn.com/en/alpha](https://nymvpn.com/en/alpha) to get the entire command with all the needed arguments' values and your wireguard private key for testing purposes
 2. Run it as root with `sudo` - the command will look like this with specified arguments:
@@ -55,7 +60,7 @@ sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit
 ./nym-vpn-cli --help
 ```
 ~~~admonish example collapsible=true title="Console output"
-```
+```sh
 Usage: nym-vpn-cli [OPTIONS]
 
 Options:
@@ -89,11 +94,12 @@ Options:
           Enable two-hop mixnet traffic. This means that traffic jumps directly from entry gateway to exit gateway
       --enable-poisson-rate
           Enable Poisson process rate limiting of outbound traffic
+      --disable-background-cover-traffic
+          Disable constant rate background loop cover traffic
   -h, --help
           Print help
   -V, --version
           Print version
-
 ```
 ~~~
 

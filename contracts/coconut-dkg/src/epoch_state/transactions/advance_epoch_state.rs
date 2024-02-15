@@ -73,8 +73,7 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
     }
 
     // update the epoch state
-    let mut next_epoch = current_epoch;
-    next_epoch.state = next_state;
+    let next_epoch = current_epoch.update(next_state, env.block.time);
     CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
 
     Ok(Response::new())

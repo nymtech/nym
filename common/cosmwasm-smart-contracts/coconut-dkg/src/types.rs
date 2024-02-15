@@ -34,6 +34,26 @@ pub struct TimeConfiguration {
     pub in_progress_time_secs: u64,
 }
 
+impl TimeConfiguration {
+    pub fn state_duration(&self, state: EpochState) -> Option<u64> {
+        match state {
+            EpochState::WaitingInitialisation => None,
+            EpochState::PublicKeySubmission { .. } => Some(self.public_key_submission_time_secs),
+            EpochState::DealingExchange { .. } => Some(self.dealing_exchange_time_secs),
+            EpochState::VerificationKeySubmission { .. } => {
+                Some(self.verification_key_submission_time_secs)
+            }
+            EpochState::VerificationKeyValidation { .. } => {
+                Some(self.verification_key_validation_time_secs)
+            }
+            EpochState::VerificationKeyFinalization { .. } => {
+                Some(self.verification_key_finalization_time_secs)
+            }
+            EpochState::InProgress => Some(self.in_progress_time_secs),
+        }
+    }
+}
+
 impl FromStr for TimeConfiguration {
     type Err = String;
 
@@ -116,25 +136,8 @@ impl Epoch {
         time_configuration: TimeConfiguration,
         current_timestamp: Timestamp,
     ) -> Self {
-        let duration = match state {
-            EpochState::WaitingInitialisation => None,
-            EpochState::PublicKeySubmission { .. } => {
-                Some(time_configuration.public_key_submission_time_secs)
-            }
-            EpochState::DealingExchange { .. } => {
-                Some(time_configuration.dealing_exchange_time_secs)
-            }
-            EpochState::VerificationKeySubmission { .. } => {
-                Some(time_configuration.verification_key_submission_time_secs)
-            }
-            EpochState::VerificationKeyValidation { .. } => {
-                Some(time_configuration.verification_key_validation_time_secs)
-            }
-            EpochState::VerificationKeyFinalization { .. } => {
-                Some(time_configuration.verification_key_finalization_time_secs)
-            }
-            EpochState::InProgress => Some(time_configuration.in_progress_time_secs),
-        };
+        let duration = time_configuration.state_duration(state);
+
         Epoch {
             state,
             epoch_id,
@@ -142,6 +145,14 @@ impl Epoch {
             time_configuration,
             deadline: duration.map(|d| current_timestamp.plus_seconds(d)),
         }
+    }
+
+    pub fn update(mut self, next_state: EpochState, current_timestamp: Timestamp) -> Self {
+        self.state = next_state;
+        let duration = self.time_configuration.state_duration(next_state);
+        self.deadline = duration.map(|d| current_timestamp.plus_seconds(d));
+
+        self
     }
 
     pub fn final_timestamp_secs(&self) -> Option<u64> {

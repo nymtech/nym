@@ -137,7 +137,7 @@ pub fn try_commit_dealings_chunk(
     // note: checking permissions is implicit as if the metadata exists,
     // the sender must have been allowed to submit it
 
-    let epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let mut epoch = CURRENT_EPOCH.load(deps.storage)?;
 
     // read meta
     let mut metadata = must_read_metadata(
@@ -192,7 +192,14 @@ pub fn try_commit_dealings_chunk(
 
     // store the dealing
     StoredDealing::save(deps.storage, epoch.epoch_id, &info.sender, chunk);
-
+    
+    // this is less than ideal since we have to iterate through all the chunks, but realistically, 
+    // there won't be a lot of them
+    if metadata.is_complete() {
+        epoch.state_progress.submitted_dealings += 1;
+        CURRENT_EPOCH.save(deps.storage, &epoch)?;
+    }
+    
     Ok(Response::new())
 }
 

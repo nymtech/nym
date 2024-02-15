@@ -25,7 +25,8 @@ pub fn try_commit_verification_key_share(
         deps.storage,
         EpochState::VerificationKeySubmission { resharing },
     )?;
-    let epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    let mut epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let epoch_id = epoch.epoch_id;
 
     let details = get_dealer_details(deps.storage, &info.sender, epoch_id)?;
     if vk_shares()
@@ -58,6 +59,9 @@ pub fn try_commit_verification_key_share(
             .plus_seconds(BLOCK_TIME_FOR_VERIFICATION_SECS),
     )?;
 
+    epoch.state_progress.submitted_key_shares += 1;
+    CURRENT_EPOCH.save(deps.storage, &epoch)?;
+
     Ok(Response::new().add_message(msg))
 }
 
@@ -73,7 +77,9 @@ pub fn try_verify_verification_key_share(
         deps.storage,
         EpochState::VerificationKeyFinalization { resharing },
     )?;
-    let epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    let mut epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let epoch_id = epoch.epoch_id;
+
     MULTISIG.assert_admin(deps.as_ref(), &info.sender)?;
     vk_shares().update(deps.storage, (&owner, epoch_id), |vk_share| {
         vk_share
@@ -85,6 +91,9 @@ pub fn try_verify_verification_key_share(
                 owner: owner.to_string(),
             })
     })?;
+
+    epoch.state_progress.verified_keys += 1;
+    CURRENT_EPOCH.save(deps.storage, &epoch)?;
 
     Ok(Response::default())
 }

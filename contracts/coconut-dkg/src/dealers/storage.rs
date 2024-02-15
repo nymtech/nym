@@ -3,12 +3,15 @@
 
 use crate::error::ContractError;
 use crate::Dealer;
-use cosmwasm_std::{Addr, StdResult, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, UniqueIndex};
+use cosmwasm_std::{StdResult, Storage};
+use cw_storage_plus::{Item, Map};
 use nym_coconut_dkg_common::types::{DealerDetails, DealerRegistrationDetails, EpochId, NodeIndex};
 
-pub(crate) const DEALERS_PAGE_MAX_LIMIT: u32 = 50;
-pub(crate) const DEALERS_PAGE_DEFAULT_LIMIT: u32 = 20;
+pub(crate) const DEALER_INDICES_PAGE_MAX_LIMIT: u32 = 80;
+pub(crate) const DEALER_INDICES_PAGE_DEFAULT_LIMIT: u32 = 40;
+
+pub(crate) const DEALERS_PAGE_MAX_LIMIT: u32 = 25;
+pub(crate) const DEALERS_PAGE_DEFAULT_LIMIT: u32 = 10;
 
 pub(crate) const NODE_INDEX_COUNTER: Item<NodeIndex> = Item::new("node_index_counter");
 

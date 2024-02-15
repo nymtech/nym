@@ -11,7 +11,7 @@ use cosmwasm_schema::cw_serde;
 
 #[cfg(feature = "schema")]
 use crate::{
-    dealer::{DealerDetailsResponse, PagedDealerResponse},
+    dealer::{DealerDetailsResponse, PagedDealerIndexResponse, PagedDealerResponse},
     dealing::{
         DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
         DealingMetadataResponse, DealingStatusResponse,
@@ -86,9 +86,6 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(u64))]
     GetCurrentEpochThreshold {},
 
-    #[cfg_attr(feature = "schema", returns(Option<InitialReplacementData>))]
-    GetInitialDealers {},
-
     #[cfg_attr(feature = "schema", returns(DealerDetailsResponse))]
     GetDealerDetails { dealer_address: String },
 
@@ -98,8 +95,8 @@ pub enum QueryMsg {
         start_after: Option<String>,
     },
 
-    #[cfg_attr(feature = "schema", returns(PagedDealerResponse))]
-    GetPastDealers {
+    #[cfg_attr(feature = "schema", returns(PagedDealerIndexResponse))]
+    GetDealerIndices {
         limit: Option<u32>,
         start_after: Option<String>,
     },

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::queries::{
-    query_current_dealers_paged, query_dealer_details, query_past_dealers_paged,
+    query_current_dealers_paged, query_dealer_details, query_dealers_indices_paged,
 };
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::{
@@ -130,15 +130,14 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
-        QueryMsg::GetInitialDealers {} => todo!(),
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }
         QueryMsg::GetCurrentDealers { limit, start_after } => {
             to_binary(&query_current_dealers_paged(deps, start_after, limit)?)?
         }
-        QueryMsg::GetPastDealers { limit, start_after } => {
-            to_binary(&query_past_dealers_paged(deps, start_after, limit)?)?
+        QueryMsg::GetDealerIndices { limit, start_after } => {
+            to_binary(&query_dealers_indices_paged(deps, start_after, limit)?)?
         }
         QueryMsg::GetDealingsMetadata {
             epoch_id,

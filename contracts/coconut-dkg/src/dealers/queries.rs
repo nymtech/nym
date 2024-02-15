@@ -1,55 +1,66 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealers::storage::{self};
+use crate::dealers::storage::{
+    self, get_dealer_details, get_dealer_index, DEALERS_INDICES, EPOCH_DEALERS_MAP,
+};
+use crate::epoch_state::storage::CURRENT_EPOCH;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
-use nym_coconut_dkg_common::dealer::{DealerDetailsResponse, DealerType, PagedDealerResponse};
-
-// fn query_dealers(
-//     deps: Deps<'_>,
-//     start_after: Option<String>,
-//     limit: Option<u32>,
-//     underlying_map: &IndexedDealersMap<'_>,
-// ) -> StdResult<PagedDealerResponse> {
-//     let limit = limit
-//         .unwrap_or(storage::DEALERS_PAGE_DEFAULT_LIMIT)
-//         .min(storage::DEALERS_PAGE_MAX_LIMIT) as usize;
-//
-//     let addr = start_after
-//         .map(|addr| deps.api.addr_validate(&addr))
-//         .transpose()?;
-//
-//     let start = addr.as_ref().map(Bound::exclusive);
-//
-//     let dealers = underlying_map
-//         .range(deps.storage, start, None, Order::Ascending)
-//         .take(limit)
-//         .map(|res| res.map(|item| item.1))
-//         .collect::<StdResult<Vec<_>>>()?;
-//
-//     let start_next_after = dealers.last().map(|dealer| dealer.address.clone());
-//
-//     Ok(PagedDealerResponse::new(dealers, limit, start_next_after))
-// }
+use nym_coconut_dkg_common::dealer::{
+    DealerDetailsResponse, DealerType, PagedDealerIndexResponse, PagedDealerResponse,
+};
+use nym_coconut_dkg_common::types::DealerDetails;
 
 pub fn query_dealer_details(
     deps: Deps<'_>,
     dealer_address: String,
 ) -> StdResult<DealerDetailsResponse> {
     let addr = deps.api.addr_validate(&dealer_address)?;
+    let current_epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
 
-    todo!()
-    // if let Some(current) = storage::current_dealers().may_load(deps.storage, &addr)? {
-    //     return Ok(DealerDetailsResponse::new(
-    //         Some(current),
-    //         DealerType::Current,
-    //     ));
-    // }
-    // if let Some(past) = storage::past_dealers().may_load(deps.storage, &addr)? {
-    //     return Ok(DealerDetailsResponse::new(Some(past), DealerType::Past));
-    // }
-    // Ok(DealerDetailsResponse::new(None, DealerType::Unknown))
+    // if the address has registration data for the current epoch, it means it's an active dealer
+    if let Ok(dealer_details) = get_dealer_details(deps.storage, &addr, current_epoch_id) {
+        let assigned_index = dealer_details.assigned_index;
+        return Ok(DealerDetailsResponse::new(
+            Some(dealer_details),
+            DealerType::Current { assigned_index },
+        ));
+    }
+
+    // and if has had an assigned index it must have been a dealer at some point in the past
+    if let Ok(assigned_index) = get_dealer_index(deps.storage, &addr, current_epoch_id) {
+        return Ok(DealerDetailsResponse::new(
+            None,
+            DealerType::Past { assigned_index },
+        ));
+    }
+
+    Ok(DealerDetailsResponse::new(None, DealerType::Unknown))
+}
+
+pub fn query_dealers_indices_paged(
+    deps: Deps<'_>,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<PagedDealerIndexResponse> {
+    let limit = limit
+        .unwrap_or(storage::DEALER_INDICES_PAGE_DEFAULT_LIMIT)
+        .min(storage::DEALER_INDICES_PAGE_MAX_LIMIT) as usize;
+    let addr = start_after
+        .map(|addr| deps.api.addr_validate(&addr))
+        .transpose()?;
+
+    let start = addr.as_ref().map(Bound::exclusive);
+
+    let dealers = DEALERS_INDICES
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = dealers.last().map(|dealer| dealer.0.clone());
+
+    Ok(PagedDealerIndexResponse::new(dealers, start_next_after))
 }
 
 pub fn query_current_dealers_paged(
@@ -57,17 +68,42 @@ pub fn query_current_dealers_paged(
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedDealerResponse> {
-    todo!()
-    // query_dealers(deps, start_after, limit, &storage::current_dealers())
-}
+    let limit = limit
+        .unwrap_or(storage::DEALERS_PAGE_DEFAULT_LIMIT)
+        .min(storage::DEALERS_PAGE_MAX_LIMIT) as usize;
+    let addr = start_after
+        .map(|addr| deps.api.addr_validate(&addr))
+        .transpose()?;
 
-pub fn query_past_dealers_paged(
-    deps: Deps<'_>,
-    start_after: Option<String>,
-    limit: Option<u32>,
-) -> StdResult<PagedDealerResponse> {
-    todo!()
-    // query_dealers(deps, start_after, limit, &storage::past_dealers())
+    let start = addr.as_ref().map(Bound::exclusive);
+
+    let current_epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+
+    let dealers = EPOCH_DEALERS_MAP
+        .prefix(current_epoch_id)
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|(address, details)| {
+                // SAFETY: if we have DealerRegistrationDetails saved, it means we MUST also have its node index
+                // otherwise some serious invariants have been broken in the contract, and we're in trouble
+                #[allow(clippy::expect_used)]
+                let assigned_index = get_dealer_index(deps.storage, &address, current_epoch_id)
+                    .expect("could not retrieve dealer index for a registered dealer");
+
+                DealerDetails {
+                    address,
+                    bte_public_key_with_proof: details.bte_public_key_with_proof,
+                    ed25519_identity: details.ed25519_identity,
+                    announce_address: details.announce_address,
+                    assigned_index,
+                }
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+    let start_next_after = dealers.last().map(|dealer| dealer.address.clone());
+
+    Ok(PagedDealerResponse::new(dealers, limit, start_next_after))
 }
 
 #[cfg(test)]

@@ -4,7 +4,7 @@
 use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
 use crate::error::ContractError;
 use crate::state::storage::DKG_ADMIN;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response, Storage};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochState};
 
 pub use advance_epoch_state::try_advance_epoch_state;
@@ -14,16 +14,10 @@ pub mod advance_epoch_state;
 fn reset_dkg_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     THRESHOLD.remove(storage);
 
-    // // TODO: unbounded query. to be removed be preserving dealer details and changing storage structure
-    // let dealers: Vec<_> = current_dealers()
-    //     .keys(storage, None, None, Order::Ascending)
-    //     .collect::<Result<_, _>>()?;
-    //
-    // for dealer_addr in dealers {
-    //     let details = current_dealers().load(storage, &dealer_addr)?;
-    //     current_dealers().remove(storage, &dealer_addr)?;
-    //     past_dealers().save(storage, &dealer_addr, &details)?;
-    // }
+    // dealings are preserved in the storage and saved per epoch, so we don't have to do anything about them
+    // the same is true for dealer details
+    // and epoch progress is reset when new struct is constructed
+
     Ok(())
 }
 
@@ -70,7 +64,6 @@ pub(crate) fn try_trigger_reset(
     );
     CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
 
-    // TODO: remove
     reset_dkg_state(deps.storage)?;
 
     Ok(Response::default())
@@ -98,7 +91,6 @@ pub(crate) fn try_trigger_resharing(
     );
     CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
 
-    // TODO: remove
     reset_dkg_state(deps.storage)?;
 
     Ok(Response::default())

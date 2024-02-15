@@ -42,4 +42,4 @@ sudo -E ~/nym-vpn-latest/nym-vpn_0.0.3_amd64.AppImage
 sudo -E $HOME/nym-vpn-latest/nym-vpn
 ```
 
-In case of errors check out the [troubleshooting](troubleshooting.md#installing-gui-on-macos-not-working) section.
+In case of errors check out the [troubleshooting](troubleshooting.md#running-gui-failed-due-to-toml-parse-error) section.

@@ -16,7 +16,7 @@ We wrote a [script](https://gist.github.com/serinko/d65450653d6bbafacbcee71c9cb8
 
 1. Open a terminal window in a directory where you want the script and NymVPN CLI binary be downloaded and run
 ```sh
-curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/serinko/d65450653d6bbafacbcee71c9cb8fb31/raw/de2cae9221f0f1ad0f4db48744306c2b32d71b2e/execute-nym-vpn-cli-binary.sh
+curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/serinko/d65450653d6bbafacbcee71c9cb8fb31/raw/0cbcdd18f7ee94f559692b936061248ebbbf2773/execute-nym-vpn-cli-binary.sh
 ```
 
 2. Make the script executable
@@ -26,7 +26,7 @@ chmod u+x execute-nym-vpn-cli-binary.sh
 
 3. Start the script, turn off any VPN and run
 ```sh
-sudo ./execute-nym-vpn-cli-binary.sh
+sudo -E ./execute-nym-vpn-cli-binary.sh
 ```
 
 4. Follow the prompts in the program
@@ -37,7 +37,7 @@ sudo ./execute-nym-vpn-cli-binary.sh
     - *Make sure to use two different Gateways for entry and exit!*
     - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`)
     - `enter an exit address:` paste one of the values labeled with a key `"address"` printed above (without `" "`)
-    - `do you want five hop or two hop?`: type `five` or `two
+    - `do you want five hop or two hop?`: type `five` or `two`
     - `enable WireGuard? (yes/no):` if you chose yes, find your private key and wireguard IP [here](https://nymvpn.com/en/alpha)
 
 To run `nym-vpn-cli` again, reconnect your wifi, move to the directory of your CLI binary `cd ~/nym-vpn-cli-dir` and follow the guide for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-mac.md#run-nymvpn). If you find it too difficult, just run this script again - like in step \#3 above.

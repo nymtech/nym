@@ -14,7 +14,7 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_0.1.0_ubuntu-22.04_amd64.zip" | shasum -a 256 -c
+# echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_0.1.0_ubuntu-22.04_amd64.zip" | shasum -a 256 -c
 ```
 1. Extract files:
 ```sh

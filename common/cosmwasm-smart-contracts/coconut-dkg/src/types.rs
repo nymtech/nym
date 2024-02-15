@@ -270,4 +270,8 @@ impl EpochState {
     pub fn is_in_progress(&self) -> bool {
         matches!(self, EpochState::InProgress)
     }
+
+    pub fn is_dealing_exchange(&self) -> bool {
+        matches!(self, EpochState::DealingExchange { .. })
+    }
 }

@@ -22,12 +22,6 @@ pub type ChunkIndex = u16;
 pub type PartialContractDealingData = ContractSafeBytes;
 
 #[cw_serde]
-pub struct InitialReplacementData {
-    pub initial_dealers: Vec<Addr>,
-    pub initial_height: u64,
-}
-
-#[cw_serde]
 #[derive(Copy)]
 pub struct TimeConfiguration {
     // The time sign-up is open for dealers to join

@@ -16,7 +16,7 @@ use crate::{
         DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
         DealingMetadataResponse, DealingStatusResponse,
     },
-    types::{Epoch, InitialReplacementData, State},
+    types::{Epoch, State},
     verification_key::{PagedVKSharesResponse, VkShareResponse},
 };
 #[cfg(feature = "schema")]
@@ -53,7 +53,6 @@ pub enum ExecuteMsg {
 
     CommitDealingsChunk {
         chunk: PartialContractDealing,
-        resharing: bool,
     },
 
     CommitVerificationKeyShare {

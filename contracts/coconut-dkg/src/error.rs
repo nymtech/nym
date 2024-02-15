@@ -45,8 +45,8 @@ pub enum ContractError {
         expected_state: String,
     },
 
-    #[error("This sender is not a dealer for the current epoch")]
-    NotADealer,
+    #[error("This sender is not a dealer for epoch {epoch_id}")]
+    NotADealer { epoch_id: EpochId },
 
     #[error("This sender is not a dealer for the current resharing epoch")]
     NotAnInitialDealer,

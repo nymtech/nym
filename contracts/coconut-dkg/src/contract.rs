@@ -10,13 +10,10 @@ use crate::dealings::queries::{
     query_dealing_metadata, query_dealing_status,
 };
 use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
-use crate::epoch_state::queries::{
-    query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
-};
+use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_threshold};
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::{
-    try_advance_epoch_state, try_initiate_dkg, try_surpassed_threshold, try_trigger_reset,
-    try_trigger_resharing,
+    try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
 };
 use crate::error::ContractError;
 use crate::state::queries::query_state;
@@ -109,8 +106,8 @@ pub fn execute(
             chunks,
             resharing,
         } => try_submit_dealings_metadata(deps, info, dealing_index, chunks, resharing),
-        ExecuteMsg::CommitDealingsChunk { chunk, resharing } => {
-            try_commit_dealings_chunk(deps, env, info, chunk, resharing)
+        ExecuteMsg::CommitDealingsChunk { chunk } => {
+            try_commit_dealings_chunk(deps, env, info, chunk)
         }
         ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
             try_commit_verification_key_share(deps, env, info, share, resharing)
@@ -118,7 +115,7 @@ pub fn execute(
         ExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => {
             try_verify_verification_key_share(deps, info, owner, resharing)
         }
-        ExecuteMsg::SurpassedThreshold {} => try_surpassed_threshold(deps, env),
+        ExecuteMsg::SurpassedThreshold {} => todo!(),
         ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
         ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
         ExecuteMsg::TriggerResharing {} => try_trigger_resharing(deps, env, info),
@@ -133,7 +130,7 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
-        QueryMsg::GetInitialDealers {} => to_binary(&query_initial_dealers(deps.storage)?)?,
+        QueryMsg::GetInitialDealers {} => todo!(),
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }

@@ -1,11 +1,11 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealers::storage as dealers_storage;
+use crate::dealers::storage::ensure_dealer;
 use crate::dealings::storage::{
     metadata_exists, must_read_metadata, store_metadata, StoredDealing,
 };
-use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA};
+use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
@@ -13,31 +13,25 @@ use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, Storage};
 use nym_coconut_dkg_common::dealing::{
     DealingChunkInfo, DealingMetadata, PartialContractDealing, MAX_DEALING_CHUNKS,
 };
-use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochState};
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId, EpochState};
 
 // make sure the epoch is in the dealing exchange and the message sender is a valid dealer for this epoch
 fn ensure_permission(
     storage: &dyn Storage,
     sender: &Addr,
+    current_epoch_id: EpochId,
     resharing: bool,
 ) -> Result<(), ContractError> {
     check_epoch_state(storage, EpochState::DealingExchange { resharing })?;
 
-    // ensure the sender is a dealer
-    if dealers_storage::current_dealers()
-        .may_load(storage, sender)?
-        .is_none()
-    {
-        return Err(ContractError::NotADealer);
+    // ensure the sender is a dealer for this epoch
+    ensure_dealer(storage, sender, current_epoch_id)?;
+
+    // if we're in resharing, make sure this sender has also been a dealer in the previous epoch
+    if resharing {
+        ensure_dealer(storage, sender, current_epoch_id.saturating_sub(1))?;
     }
-    if resharing
-        && !INITIAL_REPLACEMENT_DATA
-            .load(storage)?
-            .initial_dealers
-            .contains(sender)
-    {
-        return Err(ContractError::NotAnInitialDealer);
-    }
+
     Ok(())
 }
 
@@ -48,10 +42,10 @@ pub fn try_submit_dealings_metadata(
     chunks: Vec<DealingChunkInfo>,
     resharing: bool,
 ) -> Result<Response, ContractError> {
-    ensure_permission(deps.storage, &info.sender, resharing)?;
-
-    let state = STATE.load(deps.storage)?;
     let epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let state = STATE.load(deps.storage)?;
+
+    ensure_permission(deps.storage, &info.sender, epoch.epoch_id, resharing)?;
 
     // don't allow overwriting existing metadata
     if metadata_exists(deps.storage, epoch.epoch_id, &info.sender, dealing_index) {
@@ -139,9 +133,9 @@ pub fn try_commit_dealings_chunk(
     env: Env,
     info: MessageInfo,
     chunk: PartialContractDealing,
-    resharing: bool,
 ) -> Result<Response, ContractError> {
-    ensure_permission(deps.storage, &info.sender, resharing)?;
+    // note: checking permissions is implicit as if the metadata exists,
+    // the sender must have been allowed to submit it
 
     let epoch = CURRENT_EPOCH.load(deps.storage)?;
 

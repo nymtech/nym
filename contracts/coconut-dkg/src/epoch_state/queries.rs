@@ -1,10 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRESHOLD};
+use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
 use crate::error::ContractError;
 use cosmwasm_std::Storage;
-use nym_coconut_dkg_common::types::{Epoch, InitialReplacementData};
+use nym_coconut_dkg_common::types::Epoch;
 
 pub(crate) fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
     CURRENT_EPOCH
@@ -16,12 +16,6 @@ pub(crate) fn query_current_epoch_threshold(
     storage: &dyn Storage,
 ) -> Result<Option<u64>, ContractError> {
     Ok(THRESHOLD.may_load(storage)?)
-}
-
-pub(crate) fn query_initial_dealers(
-    storage: &dyn Storage,
-) -> Result<Option<InitialReplacementData>, ContractError> {
-    Ok(INITIAL_REPLACEMENT_DATA.may_load(storage)?)
 }
 
 #[cfg(test)]

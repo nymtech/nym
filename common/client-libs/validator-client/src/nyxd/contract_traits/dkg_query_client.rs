@@ -17,9 +17,7 @@ pub use nym_coconut_dkg_common::{
         DealingMetadataResponse, DealingStatusResponse,
     },
     msg::QueryMsg as DkgQueryMsg,
-    types::{
-        DealerDetails, DealingIndex, Epoch, EpochId, EpochState, InitialReplacementData, State,
-    },
+    types::{DealerDetails, DealingIndex, Epoch, EpochId, EpochState, State},
     verification_key::{ContractVKShare, PagedVKSharesResponse, VkShareResponse},
 };
 

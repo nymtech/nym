@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::BLOCK_TIME_FOR_VERIFICATION_SECS;
-use crate::dealers::storage as dealers_storage;
+use crate::dealers::storage::get_dealer_details;
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
@@ -25,11 +25,9 @@ pub fn try_commit_verification_key_share(
         deps.storage,
         EpochState::VerificationKeySubmission { resharing },
     )?;
-    // ensure the sender is a dealer
-    let details = dealers_storage::current_dealers()
-        .load(deps.storage, &info.sender)
-        .map_err(|_| ContractError::NotADealer)?;
     let epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+
+    let details = get_dealer_details(deps.storage, &info.sender, epoch_id)?;
     if vk_shares()
         .may_load(deps.storage, (&info.sender, epoch_id))?
         .is_some()

@@ -1,34 +1,22 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealers::storage as dealers_storage;
-use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA};
+use crate::dealers::storage::{get_or_assign_index, save_dealer_details_if_not_a_dealer};
+use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
-use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response, StdResult};
-use nym_coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
+use crate::Dealer;
+use cosmwasm_std::{Deps, DepsMut, MessageInfo, Response, StdResult};
+use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
+use nym_coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 
-// currently we only require that
-// a) it's part of the signer group
-// b) it isn't already a dealer
-fn verify_dealer(deps: DepsMut<'_>, dealer: &Addr, resharing: bool) -> Result<(), ContractError> {
-    if dealers_storage::current_dealers()
-        .may_load(deps.storage, dealer)?
-        .is_some()
-    {
-        return Err(ContractError::AlreadyADealer);
-    }
+fn ensure_group_member(deps: Deps, dealer: Dealer) -> Result<(), ContractError> {
     let state = STATE.load(deps.storage)?;
 
-    let height = if resharing {
-        Some(INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_height)
-    } else {
-        None
-    };
     state
         .group_addr
-        .is_voting_member(&deps.querier, dealer, height)?
+        .is_voting_member(&deps.querier, dealer, None)?
         .ok_or(ContractError::Unauthorized {})?;
 
     Ok(())
@@ -37,42 +25,35 @@ fn verify_dealer(deps: DepsMut<'_>, dealer: &Addr, resharing: bool) -> Result<()
 // future optimisation:
 // for a recurring dealer just let it refresh the keys without having to do all the storage operations
 pub fn try_add_dealer(
-    mut deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     info: MessageInfo,
     bte_key_with_proof: EncodedBTEPublicKeyWithProof,
     identity_key: String,
     announce_address: String,
     resharing: bool,
 ) -> Result<Response, ContractError> {
+    let epoch = CURRENT_EPOCH.load(deps.storage)?;
     check_epoch_state(deps.storage, EpochState::PublicKeySubmission { resharing })?;
 
-    verify_dealer(deps.branch(), &info.sender, resharing)?;
+    // make sure this potential dealer actually belong to the group
+    ensure_group_member(deps.as_ref(), &info.sender)?;
 
-    // if it was already a dealer in the past, assign the same node index
-    let node_index = if let Some(prior_details) =
-        dealers_storage::past_dealers().may_load(deps.storage, &info.sender)?
-    {
-        // since this dealer is going to become active now, remove it from the past dealers
-        dealers_storage::past_dealers().replace(
-            deps.storage,
-            &info.sender,
-            None,
-            Some(&prior_details),
-        )?;
-        prior_details.assigned_index
-    } else {
-        dealers_storage::next_node_index(deps.storage)?
-    };
+    let node_index = get_or_assign_index(deps.storage, &info.sender)?;
 
-    // save the dealer into the storage
-    let dealer_details = DealerDetails {
-        address: info.sender.clone(),
+    // save the dealer into the storage (if it hasn't already been saved)
+    let dealer_details = DealerRegistrationDetails {
         bte_public_key_with_proof: bte_key_with_proof,
         ed25519_identity: identity_key,
         announce_address,
-        assigned_index: node_index,
     };
-    dealers_storage::current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
+    save_dealer_details_if_not_a_dealer(
+        deps.storage,
+        &info.sender,
+        epoch.epoch_id,
+        dealer_details,
+    )?;
+
+    // increment the number of registered dealers
     CURRENT_EPOCH.update(deps.storage, |epoch| -> StdResult<_> {
         let mut updated_epoch = epoch;
         updated_epoch.state_progress.registered_dealers += 1;

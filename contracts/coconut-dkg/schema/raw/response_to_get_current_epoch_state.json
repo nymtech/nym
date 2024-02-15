@@ -5,15 +5,11 @@
   "required": [
     "epoch_id",
     "state",
+    "state_progress",
     "time_configuration"
   ],
   "properties": {
-    "epoch_id": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
-    },
-    "finish_timestamp": {
+    "deadline": {
       "anyOf": [
         {
           "$ref": "#/definitions/Timestamp"
@@ -23,8 +19,16 @@
         }
       ]
     },
+    "epoch_id": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
     "state": {
       "$ref": "#/definitions/EpochState"
+    },
+    "state_progress": {
+      "$ref": "#/definitions/StateProgress"
     },
     "time_configuration": {
       "$ref": "#/definitions/TimeConfiguration"
@@ -147,6 +151,38 @@
           "additionalProperties": false
         }
       ]
+    },
+    "StateProgress": {
+      "type": "object",
+      "required": [
+        "registered_dealers",
+        "submitted_dealings",
+        "submitted_key_shares",
+        "verified_keys"
+      ],
+      "properties": {
+        "registered_dealers": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "submitted_dealings": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "submitted_key_shares": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "verified_keys": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     },
     "TimeConfiguration": {
       "type": "object",

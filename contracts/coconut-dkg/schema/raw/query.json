@@ -44,19 +44,6 @@
     {
       "type": "object",
       "required": [
-        "get_initial_dealers"
-      ],
-      "properties": {
-        "get_initial_dealers": {
-          "type": "object",
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "get_dealer_details"
       ],
       "properties": {
@@ -107,10 +94,10 @@
     {
       "type": "object",
       "required": [
-        "get_past_dealers"
+        "get_dealer_indices"
       ],
       "properties": {
-        "get_past_dealers": {
+        "get_dealer_indices": {
           "type": "object",
           "properties": {
             "limit": {

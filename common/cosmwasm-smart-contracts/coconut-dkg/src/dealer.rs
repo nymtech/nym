@@ -15,6 +15,13 @@ pub struct DealerDetails {
 }
 
 #[cw_serde]
+pub struct DealerRegistrationDetails {
+    pub bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
+    pub ed25519_identity: String,
+    pub announce_address: String,
+}
+
+#[cw_serde]
 #[derive(Copy)]
 pub enum DealerType {
     Current,

@@ -1,9 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::Dealer;
 use cosmwasm_std::{Addr, StdResult, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, UniqueIndex};
-use nym_coconut_dkg_common::types::{DealerDetails, NodeIndex};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, UniqueIndex};
+use nym_coconut_dkg_common::types::{DealerDetails, DealerRegistrationDetails, EpochId, NodeIndex};
 
 const CURRENT_DEALERS_PK: &str = "crd";
 const PAST_DEALERS_PK: &str = "ptd";
@@ -13,6 +14,11 @@ pub(crate) const DEALERS_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const DEALERS_PAGE_DEFAULT_LIMIT: u32 = 50;
 
 pub(crate) const NODE_INDEX_COUNTER: Item<NodeIndex> = Item::new("node_index_counter");
+
+// TODO:
+pub(crate) const DEALERS_INDICES: Map<Dealer, NodeIndex> = Map::new("dealer_index");
+pub(crate) const EPOCH_DEALERS_MAP: Map<(EpochId, Dealer), DealerRegistrationDetails> =
+    Map::new("epoch_dealers");
 
 pub(crate) type IndexedDealersMap<'a> = IndexedMap<'a, &'a Addr, DealerDetails, DealersIndex<'a>>;
 

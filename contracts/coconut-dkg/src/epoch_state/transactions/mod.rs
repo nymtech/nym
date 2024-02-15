@@ -8,6 +8,7 @@ use crate::error::ContractError;
 use crate::state::storage::{DKG_ADMIN, STATE};
 use crate::verification_key_shares::storage::verified_dealers;
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, MessageInfo, Order, Response, Storage};
+use cw4::Member;
 use nym_coconut_dkg_common::types::{Epoch, EpochState};
 
 pub use advance_epoch_state::try_advance_epoch_state;
@@ -16,6 +17,8 @@ pub mod advance_epoch_state;
 
 fn reset_dkg_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     THRESHOLD.remove(storage);
+
+    // TODO: unbounded query. to be removed be preserving dealer details and changing storage structure
     let dealers: Vec<_> = current_dealers()
         .keys(storage, None, None, Order::Ascending)
         .collect::<Result<_, _>>()?;
@@ -46,6 +49,7 @@ fn dealers_still_active(
     Ok(still_active)
 }
 
+#[deprecated]
 fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
     let verified_dealers = verified_dealers(deps.storage)?;
     let all_dealers = verified_dealers.len();
@@ -114,6 +118,62 @@ pub(crate) fn try_surpassed_threshold(
             ))
         })?;
     }
+
+    Ok(Response::default())
+}
+
+pub(crate) fn try_trigger_reset(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    // only the admin is allowed to trigger DKG reset
+    DKG_ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+    let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+
+    // only allow reset when the DKG exchange isn't in progress
+    if !current_epoch.state.is_in_progress() {
+        return Err(ContractError::CantReshareDuringExchange);
+    }
+
+    let next_epoch = Epoch::new(
+        EpochState::PublicKeySubmission { resharing: false },
+        current_epoch.epoch_id + 1,
+        current_epoch.time_configuration,
+        env.block.time,
+    );
+    CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
+
+    // TODO: remove
+    reset_dkg_state(deps.storage)?;
+
+    Ok(Response::default())
+}
+
+pub(crate) fn try_trigger_resharing(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    // only the admin is allowed to trigger DKG resharing
+    DKG_ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+    let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+
+    // only allow resharing when the DKG exchange isn't in progress
+    if !current_epoch.state.is_in_progress() {
+        return Err(ContractError::CantReshareDuringExchange);
+    }
+
+    let next_epoch = Epoch::new(
+        EpochState::PublicKeySubmission { resharing: true },
+        current_epoch.epoch_id + 1,
+        current_epoch.time_configuration,
+        env.block.time,
+    );
+    CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
+
+    // TODO: remove
+    reset_dkg_state(deps.storage)?;
 
     Ok(Response::default())
 }

@@ -69,6 +69,10 @@ pub enum ExecuteMsg {
     SurpassedThreshold {},
 
     AdvanceEpochState {},
+
+    TriggerReset {},
+
+    TriggerResharing {},
 }
 
 #[cw_serde]

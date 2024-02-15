@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage as dealers_storage;
-use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
+use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::storage::STATE;
-use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
+use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response, StdResult};
 use nym_coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 
 // currently we only require that
@@ -73,6 +73,11 @@ pub fn try_add_dealer(
         assigned_index: node_index,
     };
     dealers_storage::current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
+    CURRENT_EPOCH.update(deps.storage, |epoch| -> StdResult<_> {
+        let mut updated_epoch = epoch;
+        updated_epoch.state_progress.registered_dealers += 1;
+        Ok(updated_epoch)
+    })?;
 
     Ok(Response::new().add_attribute("node_index", node_index.to_string()))
 }

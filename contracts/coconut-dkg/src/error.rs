@@ -136,4 +136,13 @@ pub enum ContractError {
         value: String,
         error_message: String,
     },
+
+    #[error("cannot perform DKG reset during an ongoing exchange")]
+    CantResetDuringExchange,
+
+    #[error("cannot perform DKG resharing during an ongoing exchange")]
+    CantReshareDuringExchange,
+
+    #[error("retrieved the maximum allowed number of cw4 members. for more the contracts have to be refactored")]
+    PossiblyIncompleteGroupMembersQuery,
 }

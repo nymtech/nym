@@ -5,7 +5,7 @@ use cosmwasm_schema::cw_serde;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-pub use crate::dealer::{DealerDetails, PagedDealerResponse};
+pub use crate::dealer::{DealerDetails, DealerRegistrationDetails, PagedDealerResponse};
 pub use contracts_common::dealings::ContractSafeBytes;
 pub use cosmwasm_std::{Addr, Coin, Timestamp};
 pub use cw4::Cw4Contract;
@@ -89,9 +89,26 @@ pub struct State {
 
 #[cw_serde]
 #[derive(Copy, Default)]
+pub struct StateProgress {
+    // ideally we want to have here all group members
+    pub registered_dealers: u32,
+
+    // we expect registered_dealers * state.key_size number of dealings here (each dealer has to submit key_size number of dealings)
+    pub submitted_dealings: u32,
+
+    // we expect registered_dealers number of keys here
+    pub submitted_key_shares: u32,
+
+    // we expect submitted_key_shares number of verified keys here
+    pub verified_keys: u32,
+}
+
+#[cw_serde]
+#[derive(Copy, Default)]
 pub struct Epoch {
     pub state: EpochState,
     pub epoch_id: EpochId,
+    pub state_progress: StateProgress,
     pub time_configuration: TimeConfiguration,
 
     #[serde(alias = "finish_timestamp")]
@@ -127,6 +144,7 @@ impl Epoch {
         Epoch {
             state,
             epoch_id,
+            state_progress: Default::default(),
             time_configuration,
             deadline: duration.map(|d| current_timestamp.plus_seconds(d)),
         }

@@ -6,18 +6,28 @@ use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRES
 use crate::epoch_state::transactions::{
     dealers_eq_members, replacement_threshold_surpassed, reset_dkg_state,
 };
+use crate::epoch_state::utils::{check_state_completion, needs_reset, needs_resharing};
 use crate::error::ContractError;
 use crate::state::storage::STATE;
 use crate::verification_key_shares::storage::verified_dealers;
-use cosmwasm_std::{Addr, DepsMut, Env, Order, Response};
+use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, Response};
 use nym_coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
 
-pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
-    let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+fn ensure_can_advance_state(
+    deps: Deps<'_>,
+    env: &Env,
+    current_epoch: &Epoch,
+) -> Result<(), ContractError> {
     if current_epoch.state == EpochState::WaitingInitialisation {
         return Err(ContractError::WaitingInitialisation);
     }
 
+    // check if we completed the state, so we could short circuit the deadline
+    if check_state_completion(deps.storage, current_epoch)? {
+        return Ok(());
+    }
+
+    // otherwise fallback to the deadline
     if let Some(finish_timestamp) = current_epoch.deadline {
         if finish_timestamp > env.block.time {
             return Err(ContractError::EarlyEpochStateAdvancement(
@@ -28,80 +38,111 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
         }
     }
 
-    let next_epoch = if let Some(state) = current_epoch.state.next() {
-        // We are during DKG process
-        let mut new_state = state;
-        if let EpochState::DealingExchange { .. } = state {
-            let current_dealers = current_dealers()
-                .keys(deps.storage, None, None, Order::Ascending)
-                .collect::<Result<Vec<Addr>, _>>()?;
-            let group_members =
-                STATE
-                    .load(deps.storage)?
-                    .group_addr
-                    .list_members(&deps.querier, None, None)?;
-            if current_dealers.len() < group_members.len() {
-                // If not all group members registered yet, we just stay in the same state until
-                // they either register or they get kicked out of the group
-                new_state = current_epoch.state;
-            } else {
-                // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
-                let threshold = (2 * current_dealers.len() as u64 + 3 - 1) / 3;
-                THRESHOLD.save(deps.storage, &threshold)?;
-            }
-        };
-        Epoch::new(
-            new_state,
-            current_epoch.epoch_id,
-            current_epoch.time_configuration,
-            env.block.time,
-        )
-    } else if dealers_eq_members(&deps)? {
-        // The dealer set hasn't changed, so we only extend the finish timestamp
-        // The epoch remains the same, as we use it as key for storing VKs
+    Ok(())
+}
 
-        // TODO: change that behaviour in the following PR
-        Epoch::new(
-            current_epoch.state,
-            current_epoch.epoch_id,
-            current_epoch.time_configuration,
-            env.block.time,
-        )
-    } else {
-        // Dealer set changed, we need to redo DKG...
-        let state = if replacement_threshold_surpassed(&deps)? {
-            // ... in reset mode
-            INITIAL_REPLACEMENT_DATA.remove(deps.storage);
-            EpochState::PublicKeySubmission { resharing: false }
-        } else {
-            // ... in reshare mode
-            if INITIAL_REPLACEMENT_DATA.may_load(deps.storage)?.is_some() {
-                INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
-                    // TODO: FIXME: for second reshare the added set of dealers won't be allowed to participate
-                    data.initial_height = env.block.height;
-                    Ok(data)
-                })?;
-            } else {
-                let replacement_data = InitialReplacementData {
-                    initial_dealers: verified_dealers(deps.storage)?,
-                    initial_height: env.block.height,
-                };
-                INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
-            }
+pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
+    // TODO: the only case where this can retrigger itself is when insufficient number of parties completed it, i.e. we don't have threshold
 
-            EpochState::PublicKeySubmission { resharing: true }
-        };
-        reset_dkg_state(deps.storage)?;
-        Epoch::new(
-            state,
-            current_epoch.epoch_id + 1,
-            current_epoch.time_configuration,
-            env.block.time,
-        )
+    let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+
+    // checks whether the given phase has either completed or reached its deadline
+    ensure_can_advance_state(deps.as_ref(), &env, &current_epoch)?;
+
+    let next_state = match current_epoch.state.next() {
+        Some(next_state) => next_state,
+        None => {
+            debug_assert!(current_epoch.state.is_in_progress());
+            // TODO: that's for the future because it will involve more changes in the other bits of the codebase
+            // but change epoch_id upon extending time of the "in progress" phase and instead store a map of
+            // [current_epoch_id => epoch_id_of_keys_creation] for key retrieval
+            EpochState::InProgress
+        }
     };
+
+    // update the epoch state
+    let mut next_epoch = current_epoch;
+    next_epoch.state = next_state;
     CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
 
-    Ok(Response::default())
+    Ok(Response::new())
+
+    //
+    //
+    // let next_epoch = if let Some(state) = current_epoch.state.next() {
+    //     // We are during DKG process
+    //     let mut new_state = state;
+    //     if let EpochState::DealingExchange { .. } = state {
+    //         let current_dealers = current_dealers()
+    //             .keys(deps.storage, None, None, Order::Ascending)
+    //             .collect::<Result<Vec<Addr>, _>>()?;
+    //         let group_members =
+    //             STATE
+    //                 .load(deps.storage)?
+    //                 .group_addr
+    //                 .list_members(&deps.querier, None, None)?;
+    //         if current_dealers.len() < group_members.len() {
+    //             // If not all group members registered yet, we just stay in the same state until
+    //             // they either register or they get kicked out of the group
+    //             new_state = current_epoch.state;
+    //         } else {
+    //             // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
+    //             let threshold = (2 * current_dealers.len() as u64 + 3 - 1) / 3;
+    //             THRESHOLD.save(deps.storage, &threshold)?;
+    //         }
+    //     };
+    //     Epoch::new(
+    //         new_state,
+    //         current_epoch.epoch_id,
+    //         current_epoch.time_configuration,
+    //         env.block.time,
+    //     )
+    // } else if dealers_eq_members(&deps)? {
+    //     // The dealer set hasn't changed, so we only extend the finish timestamp
+    //     // The epoch remains the same, as we use it as key for storing VKs
+    //
+    //     // TODO: change that behaviour in the following PR
+    //     Epoch::new(
+    //         current_epoch.state,
+    //         current_epoch.epoch_id,
+    //         current_epoch.time_configuration,
+    //         env.block.time,
+    //     )
+    // } else {
+    //     // Dealer set changed, we need to redo DKG...
+    //     let state = if replacement_threshold_surpassed(&deps)? {
+    //         // ... in reset mode
+    //         INITIAL_REPLACEMENT_DATA.remove(deps.storage);
+    //         EpochState::PublicKeySubmission { resharing: false }
+    //     } else {
+    //         // ... in reshare mode
+    //         if INITIAL_REPLACEMENT_DATA.may_load(deps.storage)?.is_some() {
+    //             INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
+    //                 // TODO: FIXME: for second reshare the added set of dealers won't be allowed to participate
+    //                 data.initial_height = env.block.height;
+    //                 Ok(data)
+    //             })?;
+    //         } else {
+    //             let replacement_data = InitialReplacementData {
+    //                 initial_dealers: verified_dealers(deps.storage)?,
+    //                 initial_height: env.block.height,
+    //             };
+    //             INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
+    //         }
+    //
+    //         EpochState::PublicKeySubmission { resharing: true }
+    //     };
+    //     reset_dkg_state(deps.storage)?;
+    //     Epoch::new(
+    //         state,
+    //         current_epoch.epoch_id + 1,
+    //         current_epoch.time_configuration,
+    //         env.block.time,
+    //     )
+    // };
+    // CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
+    //
+    // Ok(Response::default())
 }
 
 #[cfg(test)]

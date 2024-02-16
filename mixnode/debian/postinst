@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 default_location="/usr/bin/nym-mixnode"
 default_user="nym"

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 default_location="/usr/bin/nym-gateway"
 default_user="nym"
@@ -11,7 +11,7 @@ oldest_binary=$(ls -ltr $existing_binaries | head -n 1 | awk '{print $NF}')
 if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
     echo "Existing binary found at $oldest_binary"
 
-    backup_path="${oldest_binary}.backup"
+    backup_path="${oldest_binary}.backup.$(date +%Y-%m-%dT%H:%M:%S%z)"
     echo "Backing up the original binary to $backup_path"
     sudo cp "$oldest_binary" "$backup_path"
 

@@ -15,21 +15,21 @@ if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
     echo "Backing up the original binary to $backup_path"
     sudo cp "$oldest_binary" "$backup_path"
 
-    original_user=$(sudo stat -c "%U" "$oldest_binary")
-    original_group=$(sudo stat -c "%G" "$oldest_binary")
+    original_user=$(stat -c "%U" "$oldest_binary")
+    original_group=$(stat -c "%G" "$oldest_binary")
 
     echo "Original group: $original_group"
     echo "Original user: $original_user"
 
     echo "Moving new binary from $default_location to $oldest_binary"
-    sudo mv "$default_location" "$oldest_binary"
+    mv "$default_location" "$oldest_binary"
 
     echo "Changing ownership to $original_user:$original_group"
-    sudo chown "$original_user":"$original_group" "$oldest_binary"
+    chown "$original_user:$original_group" "$oldest_binary"
 
-    original_perms=$(sudo stat -c "%a" "$backup_path")
+    original_perms=$(stat -c "%a" "$backup_path")
     echo "Setting permissions to $original_perms"
-    sudo chmod "$original_perms" "$oldest_binary"
+    chmod "$original_perms" "$oldest_binary"
 
     echo "Please restart the nym-gateway process to apply changes."
     echo "Sometimes the gateways will require a re-init, but comms during releases should highlight this."
@@ -40,13 +40,13 @@ elif [ ! -f "$default_location" ]; then
 
     if [ -f "/usr/bin/nym-gateway" ]; then
         echo "Moving new binary to $default_location"
-        sudo mv "/usr/bin/nym-gateway" "$default_location"
+        mv "/usr/bin/nym-gateway" "$default_location"
 
         echo "Setting default ownership to $default_user:$default_group"
-        sudo chown "$default_user":"$default_group" "$default_location"
+        chown "$default_user:$default_group" "$default_location"
 
         echo "Setting default permissions"
-        sudo chmod 755 "$default_location"
+        chmod 755 "$default_location"
 
         echo "Installation complete. Please configure and start the nym-gateway process manually."
         echo "Please refer to https://nymtech.net/operators/nodes/gateway-setup.html"

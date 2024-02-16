@@ -35,7 +35,7 @@ if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
     echo "Sometimes the mixnode will require a re-init, but comms during releases should highlight this"
     echo "Usually: systemctl restart nym-mixnode.service"
 
-elif [[ ! -f "$default_location" ]]; then
+elif [ ! -f "$default_location" ]; then
     echo "no existing binary found, performing first-time installation."
 
     if [[ -f "/usr/bin/nym-mixnode" ]]; then

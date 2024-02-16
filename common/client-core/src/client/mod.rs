@@ -13,4 +13,3 @@ pub mod received_buffer;
 pub mod replies;
 pub mod topology_control;
 pub(crate) mod transmission_buffer;
-pub(crate) mod prometheus_metrics_controller;

@@ -1,12 +1,14 @@
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     time::{Duration, Instant},
 };
 
+use prometheus::Counter;
 use serde::Serialize;
+use serde_json::{Map, Value};
 use si_scale::helpers::bibytes2;
 
-use crate::spawn_future;
+use crate::{error::MetricsError, spawn_future};
 
 // Time interval between reporting packet statistics
 const PACKET_REPORT_INTERVAL_SECS: u64 = 2;
@@ -49,51 +51,6 @@ struct PacketStatistics {
 }
 
 impl PacketStatistics {
-    fn handle_event(&mut self, event: PacketStatisticsEvent) {
-        match event {
-            PacketStatisticsEvent::RealPacketSent(packet_size) => {
-                self.real_packets_sent += 1;
-                self.real_packets_sent_size += packet_size;
-            }
-            PacketStatisticsEvent::CoverPacketSent(packet_size) => {
-                self.cover_packets_sent += 1;
-                self.cover_packets_sent_size += packet_size;
-            }
-            PacketStatisticsEvent::RealPacketReceived(packet_size) => {
-                self.real_packets_received += 1;
-                self.real_packets_received_size += packet_size;
-            }
-            PacketStatisticsEvent::CoverPacketReceived(packet_size) => {
-                self.cover_packets_received += 1;
-                self.cover_packets_received_size += packet_size;
-            }
-            PacketStatisticsEvent::AckReceived(packet_size) => {
-                self.total_acks_received += 1;
-                self.total_acks_received_size += packet_size;
-            }
-            PacketStatisticsEvent::RealAckReceived(packet_size) => {
-                self.real_acks_received += 1;
-                self.real_acks_received_size += packet_size;
-            }
-            PacketStatisticsEvent::CoverAckReceived(packet_size) => {
-                self.cover_acks_received += 1;
-                self.cover_acks_received_size += packet_size;
-            }
-            PacketStatisticsEvent::RealPacketQueued => {
-                self.real_packets_queued += 1;
-            }
-            PacketStatisticsEvent::RetransmissionQueued => {
-                self.retransmissions_queued += 1;
-            }
-            PacketStatisticsEvent::ReplySurbRequestQueued => {
-                self.reply_surbs_queued += 1;
-            }
-            PacketStatisticsEvent::AdditionalReplySurbRequestQueued => {
-                self.additional_reply_surbs_queued += 1;
-            }
-        }
-    }
-
     fn summary(&self) -> (String, String) {
         (
             format!(
@@ -348,6 +305,9 @@ pub(crate) struct PacketStatisticsControl {
 
     // Keep previous rates so that we can detect notable events
     rates: VecDeque<(Instant, PacketRates)>,
+
+    registry: prometheus::Registry,
+    metrics: HashMap<String, Counter>,
 }
 
 impl PacketStatisticsControl {
@@ -360,6 +320,8 @@ impl PacketStatisticsControl {
                 stats: PacketStatistics::default(),
                 history: VecDeque::new(),
                 rates: VecDeque::new(),
+                registry: prometheus::Registry::new(),
+                metrics: HashMap::new(),
             },
             PacketStatisticsReporter::new(stats_tx),
         )
@@ -458,8 +420,17 @@ impl PacketStatisticsControl {
         // IDEA: if there is a burst of acks, that could indicate tokio task starvation.
     }
 
-    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    pub(crate) async fn run_with_shutdown(
+        &mut self,
+        mut shutdown: nym_task::TaskClient,
+    ) -> Result<(), MetricsError> {
         log::debug!("Started PacketStatisticsControl with graceful shutdown support");
+
+        let metrics = init_metrics(&self.stats)?;
+        for metric in metrics {
+            self.registry.register(Box::new(metric.counter.clone()))?;
+            self.metrics.insert(metric.name, metric.counter);
+        }
 
         let report_interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
         let mut report_interval = tokio::time::interval(report_interval);
@@ -471,7 +442,7 @@ impl PacketStatisticsControl {
                 stats_event = self.stats_rx.recv() => match stats_event {
                     Some(stats_event) => {
                         log::trace!("PacketStatisticsControl: Received stats event");
-                        self.stats.handle_event(stats_event);
+                        self.handle_event(stats_event);
                     },
                     None => {
                         log::trace!("PacketStatisticsControl: stopping since stats channel was closed");
@@ -494,11 +465,154 @@ impl PacketStatisticsControl {
             }
         }
         log::debug!("PacketStatisticsControl: Exiting");
+        Ok(())
     }
 
     pub(crate) fn start_with_shutdown(mut self, task_client: nym_task::TaskClient) {
         spawn_future(async move {
-            self.run_with_shutdown(task_client).await;
+            self.run_with_shutdown(task_client)
+                .await
+                .unwrap_or_else(|err| {
+                    log::error!("PacketStatisticsControl: Error: {:?}", err);
+                });
         })
     }
+
+    fn handle_event(&mut self, event: PacketStatisticsEvent) {
+        match event {
+            PacketStatisticsEvent::RealPacketSent(packet_size) => {
+                self.stats.real_packets_sent += 1;
+                self.metrics.get("real_packets_sent").unwrap().inc();
+                self.stats.real_packets_sent_size += packet_size;
+                self.metrics
+                    .get("real_packets_sent_size")
+                    .unwrap()
+                    .inc_by(packet_size as f64);
+            }
+            PacketStatisticsEvent::CoverPacketSent(packet_size) => {
+                self.stats.cover_packets_sent += 1;
+                self.metrics.get("cover_packets_sent").unwrap().inc();
+                self.stats.cover_packets_sent_size += packet_size;
+                self.metrics
+                    .get("cover_packets_sent_size")
+                    .unwrap()
+                    .inc_by(packet_size as f64);
+            }
+            PacketStatisticsEvent::RealPacketReceived(packet_size) => {
+                self.stats.real_packets_received += 1;
+                self.metrics.get("real_packets_received").unwrap().inc();
+                self.stats.real_packets_received_size += packet_size;
+                self.metrics
+                    .get("real_packets_received_size")
+                    .unwrap()
+                    .inc_by(packet_size as f64);
+            }
+            PacketStatisticsEvent::CoverPacketReceived(packet_size) => {
+                self.stats.cover_packets_received += 1;
+                self.metrics.get("cover_packets_received").unwrap().inc();
+                self.stats.cover_packets_received_size += packet_size;
+                self.metrics
+                    .get("cover_packets_received_size")
+                    .unwrap()
+                    .inc_by(packet_size as f64);
+            }
+            PacketStatisticsEvent::AckReceived(packet_size) => {
+                self.stats.total_acks_received += 1;
+                self.metrics.get("total_acks_received").unwrap().inc();
+                self.stats.total_acks_received_size += packet_size;
+                self.metrics
+                    .get("total_acks_received_size")
+                    .unwrap()
+                    .inc_by(packet_size as f64);
+            }
+            PacketStatisticsEvent::RealAckReceived(packet_size) => {
+                self.stats.real_acks_received += 1;
+                self.metrics.get("real_acks_received").unwrap().inc();
+                self.stats.real_acks_received_size += packet_size;
+                self.metrics
+                    .get("real_acks_received_size")
+                    .unwrap()
+                    .inc_by(packet_size as f64);
+            }
+            PacketStatisticsEvent::CoverAckReceived(packet_size) => {
+                self.stats.cover_acks_received += 1;
+                self.metrics.get("cover_acks_received").unwrap().inc();
+                self.stats.cover_acks_received_size += packet_size;
+                self.metrics
+                    .get("cover_acks_received_size")
+                    .unwrap()
+                    .inc_by(packet_size as f64);
+            }
+            PacketStatisticsEvent::RealPacketQueued => {
+                self.stats.real_packets_queued += 1;
+                self.metrics.get("real_packets_queued").unwrap().inc();
+            }
+            PacketStatisticsEvent::RetransmissionQueued => {
+                self.stats.retransmissions_queued += 1;
+                self.metrics.get("retransmissions_queued").unwrap().inc();
+            }
+            PacketStatisticsEvent::ReplySurbRequestQueued => {
+                self.stats.reply_surbs_queued += 1;
+                self.metrics.get("reply_surbs_queued").unwrap().inc();
+            }
+            PacketStatisticsEvent::AdditionalReplySurbRequestQueued => {
+                self.stats.additional_reply_surbs_queued += 1;
+                self.metrics
+                    .get("additional_reply_surbs_queued")
+                    .unwrap()
+                    .inc();
+            }
+        }
+    }
+}
+
+fn init_metric(name: &str, value: &Value) -> Result<Option<Vec<PromMetric>>, MetricsError> {
+    match value {
+        Value::String(_) | Value::Bool(_) | Value::Null => Ok(None),
+        Value::Number(_v) => Ok(Some(vec![PromMetric::init(name)?])),
+        Value::Array(arr) => {
+            Ok(Some(flatten_all(arr.iter().enumerate().map(|(i, v)| {
+                init_metric(&format!("{}.{}", name, i), v)
+            }))?))
+        }
+        Value::Object(obj) => {
+            Ok(Some(flatten_all(obj.iter().map(|(k, v)| {
+                init_metric(&format!("{}.{}", name, k), v)
+            }))?))
+        }
+    }
+}
+
+struct PromMetric {
+    name: String,
+    counter: Counter,
+}
+
+impl PromMetric {
+    fn init(name: &str) -> Result<PromMetric, MetricsError> {
+        Ok(PromMetric {
+            name: name.to_string(),
+            counter: prometheus::Counter::new(name, "")?,
+        })
+    }
+}
+
+fn flatten_all<T>(
+    it: impl Iterator<Item = Result<Option<Vec<T>>, MetricsError>>,
+) -> Result<Vec<T>, MetricsError> {
+    Ok(it
+        .collect::<Result<Vec<Option<Vec<T>>>, MetricsError>>()?
+        .into_iter()
+        .flatten()
+        .flatten()
+        .collect::<Vec<T>>())
+}
+
+fn init_metrics<T: Serialize>(source: &T) -> Result<Vec<PromMetric>, MetricsError> {
+    let metrics_map: Map<String, Value> = serde_json::to_value(source)?
+        .as_object()
+        .ok_or_else(|| MetricsError::NotAnObject)?
+        .clone();
+    let metrics = flatten_all(metrics_map.iter().map(|(k, v)| init_metric(k, v)))?;
+    Ok(metrics)
 }

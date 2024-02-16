@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::{contract_bandwidth, contract_dkg, contract_group, contract_multisig};
-use cosmwasm_std::testing::mock_dependencies;
-use cosmwasm_std::{coins, Addr, Api, CanonicalAddr};
+use cosmwasm_std::{coins, Addr};
 use cw3::{Cw3Contract, ProposalListResponse, Status, Vote};
 use cw4::{Cw4Contract, Member};
 use cw_multi_test::{App, AppBuilder, Executor};
@@ -40,6 +39,7 @@ pub fn random_address(rng: &mut ChaCha20Rng) -> Addr {
     Addr::unchecked(bech32::encode(PREFIX, bytes))
 }
 
+#[allow(dead_code)]
 pub struct TestSetup {
     pub app: App,
     pub rng: ChaCha20Rng,
@@ -51,6 +51,7 @@ pub struct TestSetup {
     pub bandwidth_contract: Addr,
 }
 
+#[allow(dead_code)]
 impl TestSetup {
     pub fn new() -> Self {
         let mut rng = test_rng();
@@ -339,7 +340,7 @@ impl TestSetup {
                     .execute_contract(
                         member.clone(),
                         self.dkg_contract.clone(),
-                        &DkgExecuteMsg::CommitDealingsChunk { chunk, resharing },
+                        &DkgExecuteMsg::CommitDealingsChunk { chunk },
                         &[],
                     )
                     .unwrap();

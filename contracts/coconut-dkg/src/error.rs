@@ -48,9 +48,6 @@ pub enum ContractError {
     #[error("This sender is not a dealer for epoch {epoch_id}")]
     NotADealer { epoch_id: EpochId },
 
-    #[error("This sender is not a dealer for the current resharing epoch")]
-    NotAnInitialDealer,
-
     #[error("Dealer {dealer} has already committed dealing chunk for epoch {epoch_id} with dealing index {dealing_index} and chunk index {chunk_index} at height {block_height}")]
     DealingChunkAlreadyCommitted {
         epoch_id: EpochId,

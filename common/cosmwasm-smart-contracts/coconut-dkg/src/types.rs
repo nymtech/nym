@@ -104,15 +104,24 @@ pub struct State {
 #[cw_serde]
 #[derive(Copy, Default)]
 pub struct StateProgress {
+    /// Counts the number of dealers that have registered in this epoch.
     // ideally we want to have here all group members
     pub registered_dealers: u32,
 
+    /// Counts the number of resharing dealers that have registered in this epoch.
+    /// This field is only populated during a resharing exchange.
+    /// It is always <= registered_dealers.
+    pub registered_resharing_dealers: u32,
+
+    /// Counts the number of fully received dealings (i.e. full chunks) from all the allowed dealers.
     // we expect registered_dealers * state.key_size number of dealings here (each dealer has to submit key_size number of dealings)
     pub submitted_dealings: u32,
 
+    /// Counts the number of submitted verification key shared from the dealers.
     // we expect registered_dealers number of keys here
     pub submitted_key_shares: u32,
 
+    /// Counts the number of verified key shares.
     // we expect submitted_key_shares number of verified keys here
     pub verified_keys: u32,
 }
@@ -153,6 +162,24 @@ impl Epoch {
         self.deadline = duration.map(|d| current_timestamp.plus_seconds(d));
 
         self
+    }
+
+    pub fn next_reset(self, current_timestamp: Timestamp) -> Self {
+        Epoch::new(
+            EpochState::PublicKeySubmission { resharing: false },
+            self.epoch_id + 1,
+            self.time_configuration,
+            current_timestamp,
+        )
+    }
+
+    pub fn next_resharing(self, current_timestamp: Timestamp) -> Self {
+        Epoch::new(
+            EpochState::PublicKeySubmission { resharing: true },
+            self.epoch_id + 1,
+            self.time_configuration,
+            current_timestamp,
+        )
     }
 
     pub fn final_timestamp_secs(&self) -> Option<u64> {

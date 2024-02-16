@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
+use crate::epoch_state::transactions::reset_dkg_state;
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
 use cosmwasm_std::{Deps, DepsMut, Env, Response};
@@ -43,7 +44,7 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
     // checks whether the given phase has either completed or reached its deadline
     ensure_can_advance_state(deps.as_ref(), &env, &current_epoch)?;
 
-    let mut next_state = match current_epoch.state.next() {
+    let next_state = match current_epoch.state.next() {
         Some(next_state) => next_state,
         None => {
             debug_assert!(current_epoch.state.is_in_progress());
@@ -64,16 +65,21 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
     }
 
     // edge case: we have completed DKG with fewer than threshold number of verified keys.
-    // we have no choice but to reset since no credentials can be issued anyway
-    if next_state.is_in_progress() {
+    // we have no choice but to reset since no credentials can be issued anyway.
+    // TODO: is this actually a desired behaviour?
+    let next_epoch = if next_state.is_in_progress() {
         let threshold = THRESHOLD.load(deps.storage)?;
         if (current_epoch.state_progress.verified_keys as u64) < threshold {
-            next_state = EpochState::PublicKeySubmission { resharing: false }
-        };
-    }
+            reset_dkg_state(deps.storage)?;
+            current_epoch.next_reset(env.block.time)
+        } else {
+            current_epoch.update(next_state, env.block.time)
+        }
+    } else {
+        current_epoch.update(next_state, env.block.time)
+    };
 
     // update the epoch state
-    let next_epoch = current_epoch.update(next_state, env.block.time);
     CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
 
     Ok(Response::new())
@@ -82,53 +88,268 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dealers::storage::past_dealers;
     use crate::epoch_state::transactions::try_initiate_dkg;
+    use crate::epoch_state::utils::check_epoch_state;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
-    use crate::support::tests::fixtures::{dealer_details_fixture, vk_share_fixture};
-    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS, GROUP_MEMBERS};
-    use crate::verification_key_shares::storage::vk_shares;
+    use crate::state::storage::STATE;
+    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cw4::Member;
+    use cosmwasm_std::{StdResult, Storage};
     use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]
-    fn advance_state() {
+    fn short_circuit_advance_state() {
+        fn epoch_in_state(state: EpochState, env: &Env) -> Epoch {
+            Epoch::new(state, 0, Default::default(), env.block.time)
+        }
+
+        fn set_epoch(storage: &mut dyn Storage, epoch: Epoch) {
+            CURRENT_EPOCH.save(storage, &epoch).unwrap();
+        }
+
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        // it's never possible to short-circuit `WaitingInitialisation`
+        let epoch = epoch_in_state(EpochState::WaitingInitialisation, &env);
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        // neither PublicKeySubmission (in either resharing or non-resharing)
+        let epoch = epoch_in_state(EpochState::PublicKeySubmission { resharing: false }, &env);
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let epoch = epoch_in_state(EpochState::PublicKeySubmission { resharing: true }, &env);
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let key_size = STATE.load(&deps.storage).unwrap().key_size;
+
+        THRESHOLD.save(deps.as_mut().storage, &3).unwrap();
+
+        // we can short-circuit `DealingExchange` if all dealers submitted their dealings
+
+        // no dealings
+        let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: false }, &env);
+        epoch.state_progress.registered_dealers = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        // some dealings
+        let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: false }, &env);
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.submitted_dealings = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        // all dealings
+        let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: false }, &env);
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.submitted_dealings = key_size * 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_ok());
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::VerificationKeySubmission { resharing: false },
+        )
+        .unwrap();
+
+        // no dealings
+        let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: true }, &env);
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.registered_resharing_dealers = 4;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        // some dealings
+        let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: true }, &env);
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.registered_resharing_dealers = 4;
+        epoch.state_progress.submitted_dealings = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        // all dealings
+        let mut epoch = epoch_in_state(EpochState::DealingExchange { resharing: true }, &env);
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.registered_resharing_dealers = 4;
+        epoch.state_progress.submitted_dealings = key_size * 4;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_ok());
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::VerificationKeySubmission { resharing: true },
+        )
+        .unwrap();
+
+        // we can short-circuit `VerificationKeySubmission` if all dealers submitted their verification keys
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeySubmission { resharing: false },
+            &env,
+        );
+        epoch.state_progress.registered_dealers = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeySubmission { resharing: true },
+            &env,
+        );
+        epoch.state_progress.registered_dealers = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeySubmission { resharing: false },
+            &env,
+        );
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.submitted_key_shares = 4;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeySubmission { resharing: true },
+            &env,
+        );
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.submitted_key_shares = 4;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeySubmission { resharing: false },
+            &env,
+        );
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.submitted_key_shares = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_ok());
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::VerificationKeyValidation { resharing: false },
+        )
+        .unwrap();
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeySubmission { resharing: true },
+            &env,
+        );
+        epoch.state_progress.registered_dealers = 5;
+        epoch.state_progress.submitted_key_shares = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_ok());
+        check_epoch_state(
+            deps.as_ref().storage,
+            EpochState::VerificationKeyValidation { resharing: true },
+        )
+        .unwrap();
+
+        // can't short-circuit `VerificationKeyValidation` => we rely on multisig votes here
+        let epoch = epoch_in_state(
+            EpochState::VerificationKeyValidation { resharing: false },
+            &env,
+        );
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let epoch = epoch_in_state(
+            EpochState::VerificationKeyValidation { resharing: true },
+            &env,
+        );
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        // we can short-circuit `VerificationKeyFinalization` if all submitted keys got verified
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeyFinalization { resharing: false },
+            &env,
+        );
+        epoch.state_progress.submitted_key_shares = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeyFinalization { resharing: true },
+            &env,
+        );
+        epoch.state_progress.submitted_key_shares = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeyFinalization { resharing: false },
+            &env,
+        );
+        epoch.state_progress.submitted_key_shares = 5;
+        epoch.state_progress.verified_keys = 4;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeyFinalization { resharing: true },
+            &env,
+        );
+        epoch.state_progress.submitted_key_shares = 5;
+        epoch.state_progress.verified_keys = 4;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeyFinalization { resharing: false },
+            &env,
+        );
+        epoch.state_progress.submitted_key_shares = 5;
+        epoch.state_progress.verified_keys = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_ok());
+        check_epoch_state(deps.as_ref().storage, EpochState::InProgress).unwrap();
+
+        let mut epoch = epoch_in_state(
+            EpochState::VerificationKeyFinalization { resharing: true },
+            &env,
+        );
+        epoch.state_progress.submitted_key_shares = 5;
+        epoch.state_progress.verified_keys = 5;
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_ok());
+        check_epoch_state(deps.as_ref().storage, EpochState::InProgress).unwrap();
+
+        // it's never possible to short-circuit `InProgress`
+        let epoch = epoch_in_state(EpochState::InProgress, &env);
+        set_epoch(deps.as_mut().storage, epoch);
+        let res = try_advance_epoch_state(deps.as_mut(), env.clone());
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn advance_state_with_deadline() {
         let mut deps = init_contract();
         let mut env = mock_env();
-
-        {
-            let mut group = GROUP_MEMBERS.lock().unwrap();
-
-            group.push((
-                Member {
-                    addr: "owner1".to_string(),
-                    weight: 10,
-                },
-                1,
-            ));
-            group.push((
-                Member {
-                    addr: "owner2".to_string(),
-                    weight: 10,
-                },
-                1,
-            ));
-            group.push((
-                Member {
-                    addr: "owner3".to_string(),
-                    weight: 10,
-                },
-                1,
-            ));
-            group.push((
-                Member {
-                    addr: "owner4".to_string(),
-                    weight: 10,
-                },
-                1,
-            ));
-        }
 
         // can't advance the state if dkg hasn't been initiated
         assert_eq!(
@@ -160,32 +381,15 @@ mod tests {
         );
 
         env.block.time = env.block.time.plus_seconds(1);
-        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(
-            epoch.state,
-            EpochState::PublicKeySubmission { resharing: false }
-        );
 
-        // setup dealer details
-        let all_shares: [_; 4] =
-            std::array::from_fn(|i| vk_share_fixture(&format!("owner{}", i + 1), 0));
-        for share in all_shares.iter() {
-            vk_shares()
-                .save(deps.as_mut().storage, (&share.owner, 0), share)
-                .unwrap();
-        }
-        let all_details: [_; 4] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
-        for details in all_details.iter() {
-            current_dealers()
-                .save(deps.as_mut().storage, &details.address, details)
-                .unwrap();
-        }
+        // add some dealers to prevent short-circuiting
+        CURRENT_EPOCH
+            .update(deps.as_mut().storage, |mut e| -> StdResult<_> {
+                e.state_progress.registered_dealers = 42;
+                Ok(e)
+            })
+            .unwrap();
 
-        assert!(INITIAL_REPLACEMENT_DATA
-            .may_load(&deps.storage)
-            .unwrap()
-            .is_none());
         env.block.time = env
             .block
             .time
@@ -266,6 +470,14 @@ mod tests {
             EarlyEpochStateAdvancement(3)
         );
 
+        // add some key shares to prevent short-circuiting
+        CURRENT_EPOCH
+            .update(deps.as_mut().storage, |mut e| -> StdResult<_> {
+                e.state_progress.submitted_key_shares = 42;
+                Ok(e)
+            })
+            .unwrap();
+
         env.block.time = env.block.time.plus_seconds(3);
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
@@ -273,6 +485,7 @@ mod tests {
             epoch.state,
             EpochState::VerificationKeyFinalization { resharing: false }
         );
+
         assert_eq!(
             epoch.deadline.unwrap(),
             env.block.time.plus_seconds(
@@ -290,6 +503,14 @@ mod tests {
             try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(1)
         );
+
+        // add some finalized keys to prevent reset
+        CURRENT_EPOCH
+            .update(deps.as_mut().storage, |mut e| -> StdResult<_> {
+                e.state_progress.verified_keys = 42;
+                Ok(e)
+            })
+            .unwrap();
 
         env.block.time = env.block.time.plus_seconds(1);
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
@@ -322,103 +543,64 @@ mod tests {
         let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        let expected_epoch = Epoch::new(
+        let mut expected_epoch = Epoch::new(
             EpochState::InProgress,
             prev_epoch.epoch_id,
             prev_epoch.time_configuration,
             env.block.time,
         );
+        expected_epoch.state_progress = curr_epoch.state_progress;
         assert_eq!(curr_epoch, expected_epoch);
 
-        // Group changed slightly, so re-run dkg in reshare mode
-        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (
-            Member {
-                addr: "owner5".to_string(),
-                weight: 10,
-            },
-            1,
+        // advancing from key finalization without threshold keys verified results in reset
+        THRESHOLD.save(deps.as_mut().storage, &42).unwrap();
+        let mut epoch = Epoch::new(
+            EpochState::VerificationKeyFinalization { resharing: true },
+            10,
+            TimeConfiguration::default(),
+            env.block.time,
         );
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(epoch.time_configuration.in_progress_time_secs);
-        let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+
+        // fewer than the threshold
+        epoch.state_progress.verified_keys = 41;
+        CURRENT_EPOCH.save(deps.as_mut().storage, &epoch).unwrap();
+        env.block.time = env.block.time.plus_seconds(5000000);
+
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         let expected_epoch = Epoch::new(
-            EpochState::PublicKeySubmission { resharing: true },
-            prev_epoch.epoch_id + 1,
-            prev_epoch.time_configuration,
+            EpochState::PublicKeySubmission { resharing: false },
+            epoch.epoch_id + 1,
+            epoch.time_configuration,
             env.block.time,
         );
         assert_eq!(curr_epoch, expected_epoch);
         assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
-        let replacement_data = INITIAL_REPLACEMENT_DATA.load(&deps.storage).unwrap();
-        let expected_replacement_data = InitialReplacementData {
-            initial_dealers: all_details.iter().map(|d| d.address.clone()).collect(),
-            initial_height: 12345,
-        };
-        assert_eq!(replacement_data, expected_replacement_data);
+    }
 
-        let all_details: [_; 4] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 2));
-        for details in all_details.iter() {
-            past_dealers()
-                .remove(deps.as_mut().storage, &details.address)
-                .unwrap();
-            current_dealers()
-                .save(deps.as_mut().storage, &details.address, details)
-                .unwrap();
-        }
-        for times in [
-            epoch.time_configuration.public_key_submission_time_secs,
-            epoch.time_configuration.dealing_exchange_time_secs,
-            epoch
-                .time_configuration
-                .verification_key_submission_time_secs,
-            epoch
-                .time_configuration
-                .verification_key_validation_time_secs,
-            epoch
-                .time_configuration
-                .verification_key_finalization_time_secs,
-        ] {
-            env.block.time = env.block.time.plus_seconds(times);
-            try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        }
+    #[test]
+    fn verify_threshold() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
 
-        let all_shares: [_; 4] = std::array::from_fn(|i| {
-            let mut share = vk_share_fixture(&format!("owner{}", i + 1), 1);
-            share.verified = i % 2 == 0;
-            share
-        });
-        for share in all_shares.iter() {
-            vk_shares()
-                .save(deps.as_mut().storage, (&share.owner, 0), share)
-                .unwrap();
-        }
+        assert!(THRESHOLD.may_load(deps.as_mut().storage).unwrap().is_none());
 
-        // Group changed even more, surpassing threshold, so re-run dkg in reset mode
-        *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = (
-            Member {
-                addr: "owner6".to_string(),
-                weight: 10,
-            },
-            1,
-        );
+        CURRENT_EPOCH
+            .update(deps.as_mut().storage, |mut e| -> StdResult<_> {
+                e.state_progress.registered_dealers = 100;
+                Ok(e)
+            })
+            .unwrap();
+
         env.block.time = env
             .block
             .time
-            .plus_seconds(epoch.time_configuration.in_progress_time_secs);
-        let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        let expected_epoch = Epoch::new(
-            EpochState::PublicKeySubmission { resharing: true },
-            prev_epoch.epoch_id + 1,
-            prev_epoch.time_configuration,
-            env.block.time,
+            .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
+        try_advance_epoch_state(deps.as_mut(), env).unwrap();
+        assert_eq!(
+            THRESHOLD.may_load(deps.as_mut().storage).unwrap().unwrap(),
+            67
         );
-        assert_eq!(curr_epoch, expected_epoch);
-        assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
     }
 }

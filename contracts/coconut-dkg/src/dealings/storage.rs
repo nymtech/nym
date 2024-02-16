@@ -179,7 +179,7 @@ impl StoredDealing {
     pub(crate) fn unchecked_all_entries(
         storage: &dyn Storage,
     ) -> Vec<(
-        (EpochId, Addr, (DealingIndex, ChunkIndex)),
+        (EpochId, cosmwasm_std::Addr, (DealingIndex, ChunkIndex)),
         PartialContractDealingData,
     )> {
         use cw_storage_plus::KeyDeserialize;
@@ -209,6 +209,7 @@ impl StoredDealing {
 mod tests {
     use super::*;
     use crate::support::tests::helpers::init_contract;
+    use cosmwasm_std::Addr;
     use cw_storage_plus::Bound;
     use std::collections::HashMap;
 

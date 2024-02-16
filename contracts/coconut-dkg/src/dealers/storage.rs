@@ -52,10 +52,14 @@ pub(crate) fn ensure_dealer(
     dealer: Dealer,
     epoch_id: EpochId,
 ) -> Result<(), ContractError> {
-    if !EPOCH_DEALERS_MAP.has(storage, (epoch_id, dealer)) {
+    if !is_dealer(storage, dealer, epoch_id) {
         return Err(ContractError::NotADealer { epoch_id });
     }
     Ok(())
+}
+
+pub(crate) fn is_dealer(storage: &dyn Storage, dealer: Dealer, epoch_id: EpochId) -> bool {
+    EPOCH_DEALERS_MAP.has(storage, (epoch_id, dealer))
 }
 
 // note: `epoch_id` is provided purely for the error message. it has nothing to do with storage retrieval

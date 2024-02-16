@@ -103,7 +103,9 @@ mod tests {
     use super::*;
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT};
+    use crate::support::tests::helpers::{
+        add_current_dealer, add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT,
+    };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
     use cw_controllers::AdminError;
@@ -139,9 +141,7 @@ mod tests {
             announce_address: announce_address.clone(),
             assigned_index: 1,
         };
-        dealers_storage::current_dealers()
-            .save(deps.as_mut().storage, &dealer, &dealer_details)
-            .unwrap();
+        add_current_dealer(deps.as_mut(), &dealer_details);
 
         try_commit_verification_key_share(deps.as_mut(), env, info.clone(), share.clone(), false)
             .unwrap();
@@ -203,7 +203,7 @@ mod tests {
             false,
         )
         .unwrap_err();
-        assert_eq!(ret, ContractError::NotADealer);
+        assert_eq!(ret, ContractError::NotADealer { epoch_id: 0 });
 
         let dealer = Addr::unchecked("requester");
         let dealer_details = DealerDetails {
@@ -213,9 +213,7 @@ mod tests {
             announce_address: String::new(),
             assigned_index: 1,
         };
-        dealers_storage::current_dealers()
-            .save(deps.as_mut().storage, &dealer, &dealer_details)
-            .unwrap();
+        add_current_dealer(deps.as_mut(), &dealer_details);
 
         try_commit_verification_key_share(
             deps.as_mut(),
@@ -325,13 +323,8 @@ mod tests {
             announce_address: String::new(),
             assigned_index: 1,
         };
-        dealers_storage::current_dealers()
-            .save(
-                deps.as_mut().storage,
-                &Addr::unchecked(&owner),
-                &dealer_details,
-            )
-            .unwrap();
+        add_current_dealer(deps.as_mut(), &dealer_details);
+
         try_commit_verification_key_share(deps.as_mut(), env.clone(), info, share, false).unwrap();
 
         env.block.time = env

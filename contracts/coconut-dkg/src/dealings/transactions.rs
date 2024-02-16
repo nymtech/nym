@@ -192,14 +192,14 @@ pub fn try_commit_dealings_chunk(
 
     // store the dealing
     StoredDealing::save(deps.storage, epoch.epoch_id, &info.sender, chunk);
-    
-    // this is less than ideal since we have to iterate through all the chunks, but realistically, 
+
+    // this is less than ideal since we have to iterate through all the chunks, but realistically,
     // there won't be a lot of them
     if metadata.is_complete() {
         epoch.state_progress.submitted_dealings += 1;
         CURRENT_EPOCH.save(deps.storage, &epoch)?;
     }
-    
+
     Ok(Response::new())
 }
 
@@ -208,17 +208,13 @@ pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::storage::CURRENT_EPOCH;
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
-    use crate::support::tests::fixtures::{
-        dealer_details_fixture, dealing_metadata_fixture, partial_dealing_fixture,
-    };
+    use crate::support::tests::fixtures::{dealing_metadata_fixture, partial_dealing_fixture};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS};
+    use crate::support::tests::helpers::{add_current_dealer, re_register_dealer, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
     use nym_coconut_dkg_common::dealer::DealerDetails;
-    use nym_coconut_dkg_common::types::{
-        ContractSafeBytes, InitialReplacementData, TimeConfiguration,
-    };
+    use nym_coconut_dkg_common::types::{ContractSafeBytes, TimeConfiguration};
 
     #[test]
     fn invalid_commit_dealing_chunk() {
@@ -228,41 +224,27 @@ pub(crate) mod tests {
 
         let owner = Addr::unchecked("owner1");
         let info = mock_info(owner.as_str(), &[]);
-        let dealing = partial_dealing_fixture();
+        let chunk = partial_dealing_fixture();
 
-        let ret = try_commit_dealings_chunk(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            dealing.clone(),
-            false,
-        )
-        .unwrap_err();
+        // no dealing metadata
+        let ret =
+            try_commit_dealings_chunk(deps.as_mut(), env.clone(), info.clone(), chunk.clone())
+                .unwrap_err();
         assert_eq!(
             ret,
-            ContractError::IncorrectEpochState {
-                current_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
-                expected_state: EpochState::DealingExchange { resharing: false }.to_string()
+            ContractError::UnavailableDealingMetadata {
+                epoch_id: 0,
+                dealer: info.sender.clone(),
+                dealing_index: chunk.dealing_index,
             }
         );
 
+        // add dealing metadata
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
-        add_fixture_dealer(deps.as_mut());
         try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-
-        let ret = try_commit_dealings_chunk(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            dealing.clone(),
-            false,
-        )
-        .unwrap_err();
-        assert_eq!(ret, ContractError::NotADealer);
-
         let dealer_details = DealerDetails {
             address: owner.clone(),
             bte_public_key_with_proof: String::new(),
@@ -270,60 +252,12 @@ pub(crate) mod tests {
             announce_address: String::new(),
             assigned_index: 1,
         };
-        dealers_storage::current_dealers()
-            .save(deps.as_mut().storage, &owner, &dealer_details)
-            .unwrap();
+        add_current_dealer(deps.as_mut(), &dealer_details);
 
-        // assume we're in resharing mode
-        CURRENT_EPOCH
-            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
-                epoch.state = EpochState::DealingExchange { resharing: true };
-                Ok(epoch)
-            })
-            .unwrap();
-        INITIAL_REPLACEMENT_DATA
-            .save(
-                deps.as_mut().storage,
-                &InitialReplacementData {
-                    initial_dealers: vec![],
-                    initial_height: 1,
-                },
-            )
-            .unwrap();
-        let ret = try_commit_dealings_chunk(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            dealing.clone(),
-            true,
-        )
-        .unwrap_err();
-        assert_eq!(ret, ContractError::NotAnInitialDealer);
-
-        INITIAL_REPLACEMENT_DATA
-            .update::<_, ContractError>(deps.as_mut().storage, |mut data| {
-                data.initial_dealers = vec![dealer_details_fixture(1).address];
-                Ok(data)
-            })
-            .unwrap();
-
-        // back to 'normal' mode
-        CURRENT_EPOCH
-            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
-                epoch.state = EpochState::DealingExchange { resharing: false };
-                Ok(epoch)
-            })
-            .unwrap();
-
-        // TODO: test case: no metadata
-        //
-        //
-
-        // add dealing metadata
         try_submit_dealings_metadata(
             deps.as_mut(),
             info.clone(),
-            0,
+            chunk.dealing_index,
             dealing_metadata_fixture(),
             false,
         )
@@ -339,7 +273,6 @@ pub(crate) mod tests {
                 chunk_index: 42,
                 data: ContractSafeBytes(vec![1, 2, 3]),
             },
-            false,
         )
         .unwrap_err();
         assert_eq!(
@@ -353,24 +286,14 @@ pub(crate) mod tests {
         );
 
         // 'good' dealing
-        let ret = try_commit_dealings_chunk(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            dealing.clone(),
-            false,
-        );
+        let ret =
+            try_commit_dealings_chunk(deps.as_mut(), env.clone(), info.clone(), chunk.clone());
         assert!(ret.is_ok());
 
         // duplicate dealing
-        let ret = try_commit_dealings_chunk(
-            deps.as_mut(),
-            env.clone(),
-            info.clone(),
-            dealing.clone(),
-            false,
-        )
-        .unwrap_err();
+        let ret =
+            try_commit_dealings_chunk(deps.as_mut(), env.clone(), info.clone(), chunk.clone())
+                .unwrap_err();
         assert_eq!(
             ret,
             ContractError::DealingChunkAlreadyCommitted {
@@ -389,6 +312,7 @@ pub(crate) mod tests {
                 Ok(epoch)
             })
             .unwrap();
+        re_register_dealer(deps.as_mut(), &info.sender);
 
         try_submit_dealings_metadata(
             deps.as_mut(),
@@ -399,7 +323,7 @@ pub(crate) mod tests {
         )
         .unwrap();
 
-        let ret = try_commit_dealings_chunk(deps.as_mut(), env, info, dealing.clone(), false);
+        let ret = try_commit_dealings_chunk(deps.as_mut(), env, info, chunk.clone());
         assert!(ret.is_ok());
     }
 }

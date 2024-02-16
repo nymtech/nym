@@ -1,7 +1,9 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealers::storage::{get_or_assign_index, save_dealer_details_if_not_a_dealer};
+use crate::dealers::storage::{
+    get_or_assign_index, is_dealer, save_dealer_details_if_not_a_dealer,
+};
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
@@ -53,10 +55,27 @@ pub fn try_add_dealer(
         dealer_details,
     )?;
 
+    // check if it's a resharing dealer
+
+    let is_resharing_dealer = resharing
+        && is_dealer(
+            deps.storage,
+            &info.sender,
+            epoch
+                .epoch_id
+                .checked_sub(1)
+                .expect("epoch invariant broken: resharing during 0th epoch"),
+        );
+
     // increment the number of registered dealers
     CURRENT_EPOCH.update(deps.storage, |epoch| -> StdResult<_> {
         let mut updated_epoch = epoch;
         updated_epoch.state_progress.registered_dealers += 1;
+
+        if is_resharing_dealer {
+            updated_epoch.state_progress.registered_resharing_dealers += 1;
+        }
+
         Ok(updated_epoch)
     })?;
 
@@ -66,63 +85,12 @@ pub fn try_add_dealer(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::dealers::storage::current_dealers;
     use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
-    use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS, GROUP_MEMBERS};
+    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cw4::Member;
-    use nym_coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
-    use rusty_fork::rusty_fork_test;
-
-    rusty_fork_test! {
-        #[test]
-        fn verification() {
-            let mut deps = helpers::init_contract();
-            let new_dealer = Addr::unchecked("new_dealer");
-            let details1 = dealer_details_fixture(1);
-            let details2 = dealer_details_fixture(2);
-            let details3 = dealer_details_fixture(3);
-            current_dealers()
-                .save(deps.as_mut().storage, &details1.address, &details1)
-                .unwrap();
-            let err = verify_dealer(deps.as_mut(), &details1.address, false).unwrap_err();
-            assert_eq!(err, ContractError::AlreadyADealer);
-
-            INITIAL_REPLACEMENT_DATA
-                .save(
-                    deps.as_mut().storage,
-                    &InitialReplacementData {
-                        initial_dealers: vec![details1.address, details2.address, details3.address],
-                        initial_height: 1,
-                    },
-                )
-                .unwrap();
-            let err = verify_dealer(deps.as_mut(), &new_dealer, false).unwrap_err();
-            assert_eq!(err, ContractError::Unauthorized);
-
-            GROUP_MEMBERS.lock().unwrap().push((
-                Member {
-                    addr: new_dealer.to_string(),
-                    weight: 10,
-                },
-                2,
-            ));
-            verify_dealer(deps.as_mut(), &new_dealer, false).unwrap();
-
-            let err = verify_dealer(deps.as_mut(), &new_dealer, true).unwrap_err();
-            assert_eq!(err, ContractError::Unauthorized);
-
-            INITIAL_REPLACEMENT_DATA
-                .update::<_, ContractError>(deps.as_mut().storage, |mut data| {
-                    data.initial_height = 2;
-                    Ok(data)
-                })
-                .unwrap();
-            verify_dealer(deps.as_mut(), &new_dealer, true).unwrap();
-        }
-    }
+    use cosmwasm_std::Addr;
+    use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]
     fn invalid_state() {

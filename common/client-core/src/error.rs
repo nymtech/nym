@@ -153,6 +153,12 @@ pub enum ClientCoreError {
         #[source]
         source: std::io::Error,
     },
+
+    #[error("MetricsError: {source}")]
+    MetricsError {
+        #[from]
+        source: MetricsError,
+    },
 }
 
 /// Set of messages that the client can send to listeners via the task manager
@@ -173,15 +179,9 @@ pub enum MetricsError {
         #[from]
         source: prometheus::Error,
     },
-    #[error("Serde error: {source}")]
-    SerdeJson {
+    #[error("UTF-8 error: {source}")]
+    Utf8Error {
         #[from]
-        source: serde_json::Error,
+        source: std::string::FromUtf8Error,
     },
-    #[error(
-        "Associated type does not deserialize into an object, this is not supported at the moment"
-    )]
-    NotAnObject,
-    #[error("Value detected as a number, but it is not a valid number")]
-    NotANumber,
 }

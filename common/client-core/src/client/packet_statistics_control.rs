@@ -1,12 +1,9 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::VecDeque,
     time::{Duration, Instant},
 };
 
-use prometheus::Counter;
-use serde::Serialize;
-use serde_json::{Map, Value};
-use si_scale::helpers::bibytes2;
+use prometheus::{Counter, Encoder, TextEncoder};
 
 use crate::{error::MetricsError, spawn_future};
 
@@ -20,228 +17,80 @@ const SNAPSHOT_INTERVAL_MS: u64 = 500;
 // Also, set it larger than the packet report interval so that we don't miss notable singular events
 const RECORDING_WINDOW_MS: u64 = 2300;
 
-#[derive(Default, Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 struct PacketStatistics {
     // Sent
-    real_packets_sent: u64,
-    real_packets_sent_size: usize,
-    cover_packets_sent: u64,
-    cover_packets_sent_size: usize,
+    real_packets_sent: Counter,
+    real_packets_sent_size: Counter,
+    cover_packets_sent: Counter,
+    cover_packets_sent_size: Counter,
 
     // Received
-    real_packets_received: u64,
-    real_packets_received_size: usize,
-    cover_packets_received: u64,
-    cover_packets_received_size: usize,
+    real_packets_received: Counter,
+    real_packets_received_size: Counter,
+    cover_packets_received: Counter,
+    cover_packets_received_size: Counter,
 
     // Acks
-    total_acks_received: u64,
-    total_acks_received_size: usize,
-    real_acks_received: u64,
-    real_acks_received_size: usize,
-    cover_acks_received: u64,
-    cover_acks_received_size: usize,
+    total_acks_received: Counter,
+    total_acks_received_size: Counter,
+    real_acks_received: Counter,
+    real_acks_received_size: Counter,
+    cover_acks_received: Counter,
+    cover_acks_received_size: Counter,
 
     // Types of packets queued
     // TODO: track the type sent instead
-    real_packets_queued: u64,
-    retransmissions_queued: u64,
-    reply_surbs_queued: u64,
-    additional_reply_surbs_queued: u64,
+    real_packets_queued: Counter,
+    retransmissions_queued: Counter,
+    reply_surbs_queued: Counter,
+    additional_reply_surbs_queued: Counter,
 }
 
 impl PacketStatistics {
+    fn new() -> Result<Self, MetricsError> {
+        Ok(Self {
+            real_packets_sent: Counter::new("real_packets_sent", "")?,
+            real_packets_sent_size: Counter::new("real_packets_sent_size", "")?,
+            cover_packets_sent: Counter::new("cover_packets_sent", "")?,
+            cover_packets_sent_size: Counter::new("cover_packets_sent_size", "")?,
+
+            real_packets_received: Counter::new("real_packets_received", "")?,
+            real_packets_received_size: Counter::new("real_packets_received_size", "")?,
+            cover_packets_received: Counter::new("cover_packets_received", "")?,
+            cover_packets_received_size: Counter::new("cover_packets_received_size", "")?,
+
+            total_acks_received: Counter::new("total_acks_received", "")?,
+            total_acks_received_size: Counter::new("total_acks_received_size", "")?,
+            real_acks_received: Counter::new("real_acks_received", "")?,
+            real_acks_received_size: Counter::new("real_acks_received_size", "")?,
+            cover_acks_received: Counter::new("cover_acks_received", "")?,
+            cover_acks_received_size: Counter::new("cover_acks_received_size", "")?,
+
+            real_packets_queued: Counter::new("real_packets_queued", "")?,
+            retransmissions_queued: Counter::new("retransmissions_queued", "")?,
+            reply_surbs_queued: Counter::new("reply_surbs_queued", "")?,
+            additional_reply_surbs_queued: Counter::new("additional_reply_surbs_queued", "")?,
+        })
+    }
+
     fn summary(&self) -> (String, String) {
         (
             format!(
                 "packets sent: {} (real: {}, cover: {}, retransmissions: {})",
-                self.real_packets_sent + self.cover_packets_sent,
-                self.real_packets_sent,
-                self.cover_packets_sent,
-                self.retransmissions_queued,
+                self.real_packets_sent.get() + self.cover_packets_sent.get(),
+                self.real_packets_sent.get(),
+                self.cover_packets_sent.get(),
+                self.retransmissions_queued.get(),
             ),
             format!(
                 "packets received: {}, (real: {}, cover: {}, acks: {}, acks for cover: {})",
-                self.real_packets_received + self.cover_packets_received,
-                self.real_packets_received,
-                self.cover_packets_received,
-                self.real_acks_received,
-                self.cover_acks_received,
+                self.real_packets_received.get() + self.cover_packets_received.get(),
+                self.real_packets_received.get(),
+                self.cover_packets_received.get(),
+                self.real_acks_received.get(),
+                self.cover_acks_received.get(),
             ),
-        )
-    }
-}
-
-impl std::ops::Sub for PacketStatistics {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            real_packets_sent: self.real_packets_sent - rhs.real_packets_sent,
-            real_packets_sent_size: self.real_packets_sent_size - rhs.real_packets_sent_size,
-            cover_packets_sent: self.cover_packets_sent - rhs.cover_packets_sent,
-            cover_packets_sent_size: self.cover_packets_sent_size - rhs.cover_packets_sent_size,
-
-            real_packets_received: self.real_packets_received - rhs.real_packets_received,
-            real_packets_received_size: self.real_packets_received_size
-                - rhs.real_packets_received_size,
-            cover_packets_received: self.cover_packets_received - rhs.cover_packets_received,
-            cover_packets_received_size: self.cover_packets_received_size
-                - rhs.cover_packets_received_size,
-
-            total_acks_received: self.total_acks_received - rhs.total_acks_received,
-            total_acks_received_size: self.total_acks_received_size - rhs.total_acks_received_size,
-            real_acks_received: self.real_acks_received - rhs.real_acks_received,
-            real_acks_received_size: self.real_acks_received_size - rhs.real_acks_received_size,
-            cover_acks_received: self.cover_acks_received - rhs.cover_acks_received,
-            cover_acks_received_size: self.cover_acks_received_size - rhs.cover_acks_received_size,
-
-            real_packets_queued: self.real_packets_queued - rhs.real_packets_queued,
-            retransmissions_queued: self.retransmissions_queued - rhs.retransmissions_queued,
-            reply_surbs_queued: self.reply_surbs_queued - rhs.reply_surbs_queued,
-            additional_reply_surbs_queued: self.additional_reply_surbs_queued
-                - rhs.additional_reply_surbs_queued,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct PacketRates {
-    real_packets_sent: f64,
-    real_packets_sent_size: f64,
-    cover_packets_sent: f64,
-    cover_packets_sent_size: f64,
-
-    real_packets_received: f64,
-    real_packets_received_size: f64,
-    cover_packets_received: f64,
-    cover_packets_received_size: f64,
-
-    total_acks_received: f64,
-    total_acks_received_size: f64,
-    real_acks_received: f64,
-    real_acks_received_size: f64,
-    cover_acks_received: f64,
-    cover_acks_received_size: f64,
-
-    real_packets_queued: f64,
-    retransmissions_queued: f64,
-    reply_surbs_queued: f64,
-    additional_reply_surbs_queued: f64,
-}
-
-impl From<PacketStatistics> for PacketRates {
-    fn from(stats: PacketStatistics) -> Self {
-        Self {
-            real_packets_sent: stats.real_packets_sent as f64,
-            real_packets_sent_size: stats.real_packets_sent_size as f64,
-            cover_packets_sent: stats.cover_packets_sent as f64,
-            cover_packets_sent_size: stats.cover_packets_sent_size as f64,
-
-            real_packets_received: stats.real_packets_received as f64,
-            real_packets_received_size: stats.real_packets_received_size as f64,
-            cover_packets_received: stats.cover_packets_received as f64,
-            cover_packets_received_size: stats.cover_packets_received_size as f64,
-
-            total_acks_received: stats.total_acks_received as f64,
-            total_acks_received_size: stats.total_acks_received_size as f64,
-            real_acks_received: stats.real_acks_received as f64,
-            real_acks_received_size: stats.real_acks_received_size as f64,
-            cover_acks_received: stats.cover_acks_received as f64,
-            cover_acks_received_size: stats.cover_acks_received_size as f64,
-
-            real_packets_queued: stats.real_packets_queued as f64,
-            retransmissions_queued: stats.retransmissions_queued as f64,
-            reply_surbs_queued: stats.reply_surbs_queued as f64,
-            additional_reply_surbs_queued: stats.additional_reply_surbs_queued as f64,
-        }
-    }
-}
-
-impl std::ops::Sub for PacketRates {
-    type Output = Self;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            real_packets_sent: self.real_packets_sent - rhs.real_packets_sent,
-            real_packets_sent_size: self.real_packets_sent_size - rhs.real_packets_sent_size,
-            cover_packets_sent: self.cover_packets_sent - rhs.cover_packets_sent,
-            cover_packets_sent_size: self.cover_packets_sent_size - rhs.cover_packets_sent_size,
-
-            real_packets_received: self.real_packets_received - rhs.real_packets_received,
-            real_packets_received_size: self.real_packets_received_size
-                - rhs.real_packets_received_size,
-            cover_packets_received: self.cover_packets_received - rhs.cover_packets_received,
-            cover_packets_received_size: self.cover_packets_received_size
-                - rhs.cover_packets_received_size,
-
-            total_acks_received: self.total_acks_received - rhs.total_acks_received,
-            total_acks_received_size: self.total_acks_received_size - rhs.total_acks_received_size,
-            real_acks_received: self.real_acks_received - rhs.real_acks_received,
-            real_acks_received_size: self.real_acks_received_size - rhs.real_acks_received_size,
-            cover_acks_received: self.cover_acks_received - rhs.cover_acks_received,
-            cover_acks_received_size: self.cover_acks_received_size - rhs.cover_acks_received_size,
-
-            real_packets_queued: self.real_packets_queued - rhs.real_packets_queued,
-            retransmissions_queued: self.retransmissions_queued - rhs.retransmissions_queued,
-            reply_surbs_queued: self.reply_surbs_queued - rhs.reply_surbs_queued,
-            additional_reply_surbs_queued: self.additional_reply_surbs_queued
-                - rhs.additional_reply_surbs_queued,
-        }
-    }
-}
-
-impl std::ops::Div<f64> for PacketRates {
-    type Output = Self;
-
-    fn div(self, rhs: f64) -> Self::Output {
-        Self {
-            real_packets_sent: self.real_packets_sent / rhs,
-            real_packets_sent_size: self.real_packets_sent_size / rhs,
-            cover_packets_sent: self.cover_packets_sent / rhs,
-            cover_packets_sent_size: self.cover_packets_sent_size / rhs,
-
-            real_packets_received: self.real_packets_received / rhs,
-            real_packets_received_size: self.real_packets_received_size / rhs,
-            cover_packets_received: self.cover_packets_received / rhs,
-            cover_packets_received_size: self.cover_packets_received_size / rhs,
-
-            total_acks_received: self.total_acks_received / rhs,
-            total_acks_received_size: self.total_acks_received_size / rhs,
-            real_acks_received: self.real_acks_received / rhs,
-            real_acks_received_size: self.real_acks_received_size / rhs,
-            cover_acks_received: self.cover_acks_received / rhs,
-            cover_acks_received_size: self.cover_acks_received_size / rhs,
-
-            real_packets_queued: self.real_packets_queued / rhs,
-            retransmissions_queued: self.retransmissions_queued / rhs,
-            reply_surbs_queued: self.reply_surbs_queued / rhs,
-            additional_reply_surbs_queued: self.additional_reply_surbs_queued / rhs,
-        }
-    }
-}
-
-impl PacketRates {
-    fn summary(&self) -> String {
-        format!(
-            "down: {}/s, up: {}/s (cover down: {}/s, cover up: {}/s)",
-            bibytes2(self.real_packets_received_size),
-            bibytes2(self.real_packets_sent_size),
-            bibytes2(self.cover_packets_received_size),
-            bibytes2(self.cover_packets_sent_size),
-        )
-    }
-
-    fn detailed_summary(&self) -> String {
-        format!(
-            "RX: {:.1} mixpkt/s, {}/s (real: {}/s, acks: {}/s), TX: {:.1} mixpkt/s, {}/s (real: {}/s)",
-            self.real_packets_received + self.cover_packets_received,
-            bibytes2(self.real_packets_received_size + self.cover_packets_received_size),
-            bibytes2(self.real_packets_received_size),
-            bibytes2(self.total_acks_received_size),
-            self.real_packets_sent + self.cover_packets_sent,
-            bibytes2(self.real_packets_sent_size + self.cover_packets_sent_size),
-            bibytes2(self.real_packets_sent_size),
         )
     }
 }
@@ -303,28 +152,46 @@ pub(crate) struct PacketStatisticsControl {
     // full history allows for some more fancy averaging if we want to do that.
     history: VecDeque<(Instant, PacketStatistics)>,
 
-    // Keep previous rates so that we can detect notable events
-    rates: VecDeque<(Instant, PacketRates)>,
-
     registry: prometheus::Registry,
-    metrics: HashMap<String, Counter>,
 }
 
 impl PacketStatisticsControl {
-    pub(crate) fn new() -> (Self, PacketStatisticsReporter) {
+    pub(crate) fn new() -> Result<(Self, PacketStatisticsReporter), MetricsError> {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
+        let registry = prometheus::Registry::new();
+        let stats = PacketStatistics::new()?;
 
-        (
+        registry.register(Box::new(stats.real_packets_sent.clone()))?;
+        registry.register(Box::new(stats.real_packets_sent_size.clone()))?;
+        registry.register(Box::new(stats.cover_packets_sent.clone()))?;
+        registry.register(Box::new(stats.cover_packets_sent_size.clone()))?;
+
+        registry.register(Box::new(stats.real_packets_received.clone()))?;
+        registry.register(Box::new(stats.real_packets_received_size.clone()))?;
+        registry.register(Box::new(stats.cover_packets_received.clone()))?;
+        registry.register(Box::new(stats.cover_packets_received_size.clone()))?;
+
+        registry.register(Box::new(stats.total_acks_received.clone()))?;
+        registry.register(Box::new(stats.total_acks_received_size.clone()))?;
+        registry.register(Box::new(stats.real_acks_received.clone()))?;
+        registry.register(Box::new(stats.real_acks_received_size.clone()))?;
+        registry.register(Box::new(stats.cover_acks_received.clone()))?;
+        registry.register(Box::new(stats.cover_acks_received_size.clone()))?;
+
+        registry.register(Box::new(stats.real_packets_queued.clone()))?;
+        registry.register(Box::new(stats.retransmissions_queued.clone()))?;
+        registry.register(Box::new(stats.reply_surbs_queued.clone()))?;
+        registry.register(Box::new(stats.additional_reply_surbs_queued.clone()))?;
+
+        Ok((
             Self {
                 stats_rx,
-                stats: PacketStatistics::default(),
+                stats,
                 history: VecDeque::new(),
-                rates: VecDeque::new(),
-                registry: prometheus::Registry::new(),
-                metrics: HashMap::new(),
+                registry,
             },
             PacketStatisticsReporter::new(stats_tx),
-        )
+        ))
     }
 
     // Add the current stats to the history, and remove old ones.
@@ -343,45 +210,12 @@ impl PacketStatisticsControl {
         }
     }
 
-    fn compute_rates(&self) -> Option<PacketRates> {
-        // NOTE: consider changing this to compute rates over the history instead of using current
-        // stats. Currently it should not make much of a difference since we call this just after
-        // updating the history, but it seems like it could be more internally consistent to do it
-        // that way.
-
-        // Do basic averaging over the entire history, which just uses the first and last
-        if let Some((start, start_stats)) = self.history.front() {
-            let duration_secs = Instant::now().duration_since(*start).as_secs_f64();
-            let delta = self.stats.clone() - start_stats.clone();
-            let rates = PacketRates::from(delta) / duration_secs;
-            Some(rates)
-        } else {
-            None
-        }
-    }
-
-    fn update_rates(&mut self) {
-        // Update latest
-        if let Some(rates) = self.compute_rates() {
-            self.rates.push_back((Instant::now(), rates));
-        }
-
-        // Filter out old ones
-        let recording_window = Instant::now() - Duration::from_millis(RECORDING_WINDOW_MS);
-        while self
-            .rates
-            .front()
-            .map_or(false, |&(t, _)| t < recording_window)
-        {
-            self.rates.pop_front();
-        }
-    }
-
-    fn report_rates(&self) {
-        if let Some((_, rates)) = self.rates.back() {
-            log::info!("{}", rates.summary());
-            log::debug!("{}", rates.detailed_summary());
-        }
+    fn prom(&self) -> Result<String, MetricsError> {
+        let mut buffer = vec![];
+        let encoder = TextEncoder::new();
+        let metrics = self.registry.gather();
+        encoder.encode(&metrics, &mut buffer).unwrap();
+        Ok(String::from_utf8(buffer)?)
     }
 
     fn report_counters(&self) {
@@ -391,46 +225,16 @@ impl PacketStatisticsControl {
         log::debug!("{}", summary_recv);
     }
 
-    fn check_for_notable_events(&self) {
-        let Some((_, latest_rates)) = self.rates.back() else {
-            return;
-        };
-
-        // If we get a burst of retransmissions
-        // TODO: consider making this the number of retransmissions since last report instead.
-        if latest_rates.retransmissions_queued > 0.0 {
-            log::debug!(
-                "retransmissions: {:.2} pkt/s",
-                latest_rates.retransmissions_queued
-            );
-
-            // Check what the number of retransmissions was during the recording window
-            if let Some((_, start_stats)) = self.history.front() {
-                let delta = self.stats.clone() - start_stats.clone();
-                log::info!(
-                    "mix packet retransmissions/real mix packets: {}/{}",
-                    delta.retransmissions_queued,
-                    delta.real_packets_queued,
-                );
-            } else {
-                log::warn!("Unable to check retransmissions during recording window");
-            }
-        }
-
-        // IDEA: if there is a burst of acks, that could indicate tokio task starvation.
-    }
-
     pub(crate) async fn run_with_shutdown(
         &mut self,
         mut shutdown: nym_task::TaskClient,
     ) -> Result<(), MetricsError> {
         log::debug!("Started PacketStatisticsControl with graceful shutdown support");
 
-        let metrics = init_metrics(&self.stats)?;
-        for metric in metrics {
-            self.registry.register(Box::new(metric.counter.clone()))?;
-            self.metrics.insert(metric.name, metric.counter);
-        }
+        // for metric in metrics {
+        //     self.registry.register(Box::new(metric.counter.clone()))?;
+        //     self.metrics.insert(metric.name, metric.counter);
+        // }
 
         let report_interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
         let mut report_interval = tokio::time::interval(report_interval);
@@ -451,11 +255,8 @@ impl PacketStatisticsControl {
                 },
                 _ = snapshot_interval.tick() => {
                     self.update_history();
-                    self.update_rates();
                 }
                 _ = report_interval.tick() => {
-                    self.report_rates();
-                    self.check_for_notable_events();
                     self.report_counters();
                 }
                 _ = shutdown.recv_with_delay() => {
@@ -481,138 +282,57 @@ impl PacketStatisticsControl {
     fn handle_event(&mut self, event: PacketStatisticsEvent) {
         match event {
             PacketStatisticsEvent::RealPacketSent(packet_size) => {
-                self.stats.real_packets_sent += 1;
-                self.metrics.get("real_packets_sent").unwrap().inc();
-                self.stats.real_packets_sent_size += packet_size;
-                self.metrics
-                    .get("real_packets_sent_size")
-                    .unwrap()
-                    .inc_by(packet_size as f64);
+                self.stats.real_packets_sent.inc();
+                self.stats.real_packets_sent_size.inc_by(packet_size as f64);
             }
             PacketStatisticsEvent::CoverPacketSent(packet_size) => {
-                self.stats.cover_packets_sent += 1;
-                self.metrics.get("cover_packets_sent").unwrap().inc();
-                self.stats.cover_packets_sent_size += packet_size;
-                self.metrics
-                    .get("cover_packets_sent_size")
-                    .unwrap()
+                self.stats.cover_packets_sent.inc();
+                self.stats
+                    .cover_packets_sent_size
                     .inc_by(packet_size as f64);
             }
             PacketStatisticsEvent::RealPacketReceived(packet_size) => {
-                self.stats.real_packets_received += 1;
-                self.metrics.get("real_packets_received").unwrap().inc();
-                self.stats.real_packets_received_size += packet_size;
-                self.metrics
-                    .get("real_packets_received_size")
-                    .unwrap()
+                self.stats.real_packets_received.inc();
+                self.stats
+                    .real_packets_received_size
                     .inc_by(packet_size as f64);
             }
             PacketStatisticsEvent::CoverPacketReceived(packet_size) => {
-                self.stats.cover_packets_received += 1;
-                self.metrics.get("cover_packets_received").unwrap().inc();
-                self.stats.cover_packets_received_size += packet_size;
-                self.metrics
-                    .get("cover_packets_received_size")
-                    .unwrap()
+                self.stats.cover_packets_received.inc();
+                self.stats
+                    .cover_packets_received_size
                     .inc_by(packet_size as f64);
             }
             PacketStatisticsEvent::AckReceived(packet_size) => {
-                self.stats.total_acks_received += 1;
-                self.metrics.get("total_acks_received").unwrap().inc();
-                self.stats.total_acks_received_size += packet_size;
-                self.metrics
-                    .get("total_acks_received_size")
-                    .unwrap()
+                self.stats.total_acks_received.inc();
+                self.stats
+                    .total_acks_received_size
                     .inc_by(packet_size as f64);
             }
             PacketStatisticsEvent::RealAckReceived(packet_size) => {
-                self.stats.real_acks_received += 1;
-                self.metrics.get("real_acks_received").unwrap().inc();
-                self.stats.real_acks_received_size += packet_size;
-                self.metrics
-                    .get("real_acks_received_size")
-                    .unwrap()
+                self.stats.real_acks_received.inc();
+                self.stats
+                    .real_acks_received_size
                     .inc_by(packet_size as f64);
             }
             PacketStatisticsEvent::CoverAckReceived(packet_size) => {
-                self.stats.cover_acks_received += 1;
-                self.metrics.get("cover_acks_received").unwrap().inc();
-                self.stats.cover_acks_received_size += packet_size;
-                self.metrics
-                    .get("cover_acks_received_size")
-                    .unwrap()
+                self.stats.cover_acks_received.inc();
+                self.stats
+                    .cover_acks_received_size
                     .inc_by(packet_size as f64);
             }
             PacketStatisticsEvent::RealPacketQueued => {
-                self.stats.real_packets_queued += 1;
-                self.metrics.get("real_packets_queued").unwrap().inc();
+                self.stats.real_packets_queued.inc();
             }
             PacketStatisticsEvent::RetransmissionQueued => {
-                self.stats.retransmissions_queued += 1;
-                self.metrics.get("retransmissions_queued").unwrap().inc();
+                self.stats.retransmissions_queued.inc();
             }
             PacketStatisticsEvent::ReplySurbRequestQueued => {
-                self.stats.reply_surbs_queued += 1;
-                self.metrics.get("reply_surbs_queued").unwrap().inc();
+                self.stats.reply_surbs_queued.inc();
             }
             PacketStatisticsEvent::AdditionalReplySurbRequestQueued => {
-                self.stats.additional_reply_surbs_queued += 1;
-                self.metrics
-                    .get("additional_reply_surbs_queued")
-                    .unwrap()
-                    .inc();
+                self.stats.additional_reply_surbs_queued.inc();
             }
         }
     }
-}
-
-fn init_metric(name: &str, value: &Value) -> Result<Option<Vec<PromMetric>>, MetricsError> {
-    match value {
-        Value::String(_) | Value::Bool(_) | Value::Null => Ok(None),
-        Value::Number(_v) => Ok(Some(vec![PromMetric::init(name)?])),
-        Value::Array(arr) => {
-            Ok(Some(flatten_all(arr.iter().enumerate().map(|(i, v)| {
-                init_metric(&format!("{}.{}", name, i), v)
-            }))?))
-        }
-        Value::Object(obj) => {
-            Ok(Some(flatten_all(obj.iter().map(|(k, v)| {
-                init_metric(&format!("{}.{}", name, k), v)
-            }))?))
-        }
-    }
-}
-
-struct PromMetric {
-    name: String,
-    counter: Counter,
-}
-
-impl PromMetric {
-    fn init(name: &str) -> Result<PromMetric, MetricsError> {
-        Ok(PromMetric {
-            name: name.to_string(),
-            counter: prometheus::Counter::new(name, "")?,
-        })
-    }
-}
-
-fn flatten_all<T>(
-    it: impl Iterator<Item = Result<Option<Vec<T>>, MetricsError>>,
-) -> Result<Vec<T>, MetricsError> {
-    Ok(it
-        .collect::<Result<Vec<Option<Vec<T>>>, MetricsError>>()?
-        .into_iter()
-        .flatten()
-        .flatten()
-        .collect::<Vec<T>>())
-}
-
-fn init_metrics<T: Serialize>(source: &T) -> Result<Vec<PromMetric>, MetricsError> {
-    let metrics_map: Map<String, Value> = serde_json::to_value(source)?
-        .as_object()
-        .ok_or_else(|| MetricsError::NotAnObject)?
-        .clone();
-    let metrics = flatten_all(metrics_map.iter().map(|(k, v)| init_metric(k, v)))?;
-    Ok(metrics)
 }

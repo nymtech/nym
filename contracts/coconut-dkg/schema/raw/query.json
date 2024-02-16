@@ -44,6 +44,19 @@
     {
       "type": "object",
       "required": [
+        "can_advance_state"
+      ],
+      "properties": {
+        "can_advance_state": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_registered_dealer"
       ],
       "properties": {

@@ -4,7 +4,7 @@
 use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
-use cosmwasm_std::{Env, StdResult, Storage};
+use cosmwasm_std::{Env, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochState, StateAdvanceResponse};
 
 pub(crate) fn query_can_advance_state(

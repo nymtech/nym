@@ -13,13 +13,13 @@ use cosmwasm_schema::cw_serde;
 use crate::{
     dealer::{
         DealerDetailsResponse, PagedDealerIndexResponse, PagedDealerResponse,
-        RegisteredDealerDetails, StateAdvanceResponse,
+        RegisteredDealerDetails,
     },
     dealing::{
         DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
         DealingMetadataResponse, DealingStatusResponse,
     },
-    types::{Epoch, State},
+    types::{Epoch, State, StateAdvanceResponse},
     verification_key::{PagedVKSharesResponse, VkShareResponse},
 };
 #[cfg(feature = "schema")]

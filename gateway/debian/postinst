@@ -56,3 +56,5 @@ elif [ ! -f "$default_location" ]; then
 else
     echo "The binary is already in the expected location ($default_location). No action taken."
 fi
+
+#DEBHELPER#

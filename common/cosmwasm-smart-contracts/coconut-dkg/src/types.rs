@@ -22,6 +22,22 @@ pub type ChunkIndex = u16;
 pub type PartialContractDealingData = ContractSafeBytes;
 
 #[cw_serde]
+#[derive(Copy, Default)]
+pub struct StateAdvanceResponse {
+    pub current_state: EpochState,
+    pub progress: StateProgress,
+    pub deadline: Option<Timestamp>,
+    pub reached_deadline: bool,
+    pub is_complete: bool,
+}
+
+impl StateAdvanceResponse {
+    pub fn can_advance(&self) -> bool {
+        self.reached_deadline || self.is_complete
+    }
+}
+
+#[cw_serde]
 #[derive(Copy)]
 pub struct TimeConfiguration {
     // The time sign-up is open for dealers to join

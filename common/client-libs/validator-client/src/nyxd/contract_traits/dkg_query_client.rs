@@ -8,7 +8,7 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmwasm_std::Addr;
-use nym_coconut_dkg_common::types::{ChunkIndex, NodeIndex};
+use nym_coconut_dkg_common::types::{ChunkIndex, NodeIndex, StateAdvanceResponse};
 use serde::Deserialize;
 
 use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
@@ -37,6 +37,11 @@ pub trait DkgQueryClient {
 
     async fn get_current_epoch(&self) -> Result<Epoch, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochState {};
+        self.query_dkg_contract(request).await
+    }
+
+    async fn can_advance_state(&self) -> Result<StateAdvanceResponse, NyxdError> {
+        let request = DkgQueryMsg::CanAdvanceState {};
         self.query_dkg_contract(request).await
     }
 
@@ -245,6 +250,7 @@ mod tests {
         match msg {
             DkgQueryMsg::GetState {} => client.get_state().ignore(),
             DkgQueryMsg::GetCurrentEpochState {} => client.get_current_epoch().ignore(),
+            DkgQueryMsg::CanAdvanceState {} => client.can_advance_state().ignore(),
             DkgQueryMsg::GetCurrentEpochThreshold {} => {
                 client.get_current_epoch_threshold().ignore()
             }

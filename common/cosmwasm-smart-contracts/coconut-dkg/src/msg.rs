@@ -13,7 +13,7 @@ use cosmwasm_schema::cw_serde;
 use crate::{
     dealer::{
         DealerDetailsResponse, PagedDealerIndexResponse, PagedDealerResponse,
-        RegisteredDealerDetails,
+        RegisteredDealerDetails, StateAdvanceResponse,
     },
     dealing::{
         DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
@@ -86,6 +86,9 @@ pub enum QueryMsg {
 
     #[cfg_attr(feature = "schema", returns(u64))]
     GetCurrentEpochThreshold {},
+
+    #[cfg_attr(feature = "schema", returns(StateAdvanceResponse))]
+    CanAdvanceState {},
 
     #[cfg_attr(feature = "schema", returns(RegisteredDealerDetails))]
     GetRegisteredDealer {

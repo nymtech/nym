@@ -2,9 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
+use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
-use cosmwasm_std::Storage;
-use nym_coconut_dkg_common::types::Epoch;
+use cosmwasm_std::{Env, StdResult, Storage};
+use nym_coconut_dkg_common::types::{Epoch, EpochState, StateAdvanceResponse};
+
+pub(crate) fn query_can_advance_state(
+    storage: &dyn Storage,
+    env: Env,
+) -> Result<StateAdvanceResponse, ContractError> {
+    let epoch = CURRENT_EPOCH.load(storage)?;
+
+    if epoch.state == EpochState::WaitingInitialisation {
+        return Ok(StateAdvanceResponse::default());
+    }
+
+    let is_complete = check_state_completion(storage, &epoch)?;
+    let reached_deadline = if let Some(finish_timestamp) = epoch.deadline {
+        finish_timestamp <= env.block.time
+    } else {
+        false
+    };
+
+    Ok(StateAdvanceResponse {
+        current_state: epoch.state,
+        progress: epoch.state_progress,
+        deadline: epoch.deadline,
+        reached_deadline,
+        is_complete,
+    })
+}
 
 pub(crate) fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
     CURRENT_EPOCH

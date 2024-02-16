@@ -11,7 +11,9 @@ use crate::dealings::queries::{
     query_dealing_metadata, query_dealing_status,
 };
 use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
-use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_threshold};
+use crate::epoch_state::queries::{
+    query_can_advance_state, query_current_epoch, query_current_epoch_threshold,
+};
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::{
     try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
@@ -123,10 +125,11 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
         QueryMsg::GetState {} => to_binary(&query_state(deps.storage)?)?,
         QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch(deps.storage)?)?,
+        QueryMsg::CanAdvanceState {} => to_binary(&query_can_advance_state(deps.storage, env)?)?,
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }

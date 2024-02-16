@@ -903,6 +903,7 @@ impl super::client::Client for DummyClient {
             Some(epoch_shares) => Ok(epoch_shares.values().cloned().collect()),
         }
     }
+
     async fn vote_proposal(
         &self,
         proposal_id: u64,
@@ -954,7 +955,6 @@ impl super::client::Client for DummyClient {
 
         Ok(())
     }
-
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
         let mut chain = self.state.lock().unwrap();
         let multisig_address: AccountId = chain.multisig_contract.address.as_str().parse().unwrap();
@@ -975,6 +975,17 @@ impl super::client::Client for DummyClient {
         }
 
         Ok(())
+    }
+
+    async fn can_advance_epoch_state(&self) -> Result<bool> {
+        // TODO: incorporate the short-circuiting logic in here
+        let chain = self.state.lock().unwrap();
+        let epoch = chain.dkg_contract.epoch;
+        Ok(if let Some(finish_timestamp) = epoch.deadline {
+            finish_timestamp <= chain.block_info.time
+        } else {
+            false
+        })
     }
 
     async fn advance_epoch_state(&self) -> Result<()> {

@@ -1228,7 +1228,6 @@ dependencies = [
  "cw4-group",
  "nym-coconut-dkg-common",
  "nym-group-contract-common",
- "rusty-fork",
  "semver",
  "serde",
  "thiserror",

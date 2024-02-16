@@ -191,6 +191,11 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             self.state.in_progress_state_mut(epoch_id).unwrap().entered = true;
         }
 
+        // so at this point we don't need to be polling the contract so often anymore, but we can't easily
+        // adjust the existing interval.
+        // however, what we can do is just wait here for a bit each iteration
+        tokio::time::sleep(Duration::from_secs(120)).await;
+
         Ok(())
     }
 

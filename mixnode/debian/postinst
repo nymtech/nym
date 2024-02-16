@@ -1,7 +1,5 @@
 #!/bin/bash
 
-#DEBHELPER#
-
 default_location="/usr/bin/nym-mixnode"
 default_user="nym"
 default_group="nym"

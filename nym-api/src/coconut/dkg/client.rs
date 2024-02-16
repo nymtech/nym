@@ -156,6 +156,10 @@ impl DkgClient {
         self.inner.advance_epoch_state().await
     }
 
+    pub(crate) async fn can_advance_epoch_state(&self) -> Result<bool, CoconutError> {
+        self.inner.can_advance_epoch_state().await
+    }
+
     pub(crate) async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,

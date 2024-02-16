@@ -100,6 +100,8 @@ pub trait Client {
 
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()>;
 
+    async fn can_advance_epoch_state(&self) -> Result<bool>;
+
     async fn advance_epoch_state(&self) -> Result<()>;
 
     async fn register_dealer(

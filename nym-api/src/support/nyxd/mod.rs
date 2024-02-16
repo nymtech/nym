@@ -522,6 +522,10 @@ impl crate::coconut::client::Client for Client {
         Ok(())
     }
 
+    async fn can_advance_epoch_state(&self) -> crate::coconut::error::Result<bool> {
+        Ok(nyxd_query!(self, can_advance_state().await?.can_advance()))
+    }
+
     async fn advance_epoch_state(&self) -> crate::coconut::error::Result<()> {
         nyxd_signing!(self, advance_dkg_epoch_state(None).await?);
         Ok(())

@@ -1,6 +1,53 @@
 #DEBHELPER#
 
-useradd nym
-mkdir -p /etc/nym
-chown -R nym /etc/nym
-su nym -c 'NYM_HOME_DIR=/etc/nym nym-mixnode init --host 0.0.0.0 --id nym-mixnode'
+default_location="/usr/bin/nym-mixnode"
+default_user="nym"
+default_group="nym"
+
+existing_binary=$(sudo find / \( -path /proc -o -path /sys -o -path /dev -o -path /mnt -o -path /media \) -prune -o -type f -name nym-mixnode -print 2>/dev/null)
+
+if [[ -n "$existing_binary" ]] && [[ "$existing_binary" != "/usr/bin/nym-mixnode" ]]; then
+  echo "existing binary found at $existing_binary"
+  
+  backup_path="${existing_binary}.backup"
+  echo "backing up the original binary to $backup_path"
+  sudo cp "$existing_binary" "$backup_path"
+  
+  original_user=$(sudo stat -c "%U" "$existing_binary")
+  original_group=$(sudo stat -c "%G" "$existing_binary")
+  
+  echo "moving new binary from /usr/bin/nym-mixnode to $existing_binary"
+  sudo mv "/usr/bin/nym-mixnode" "$existing_binary"
+  
+  echo "changing ownership to $original_user:$original_group"
+  sudo chown "$original_user":"$original_group" "$existing_binary"
+  
+  original_perms=$(sudo stat -c "%a" "$backup_path")
+  echo "setting permissions to $original_perms"
+  sudo chmod "$original_perms" "$existing_binary"
+  
+  echo "please restart the nym-mixnode process to apply changes."
+  echo "sometimes the mixnode will require a re-init, but comms during releases should highlight this"
+  echo "usually: systemctl restart nym-mixnode.service"
+
+elif [[ ! -f "$default_location" ]]; then
+  echo "no existing binary found, performing first-time installation."
+  
+  if [[ -f "/usr/bin/nym-mixnode" ]]; then
+    echo "moving new binary to $default_location"
+    sudo mv "/usr/bin/nym-mixnode" "$default_location"
+    
+    echo "setting default ownership to $default_user:$default_group"
+    sudo chown "$default_user":"$default_group" "$default_location"
+    
+    echo "setting default permissions"
+    sudo chmod 755 "$default_location"
+    
+    echo "installation complete. please configure and start the nym-mixnode process manually."
+    echo "please refer to https://nymtech.net/operators/nodes/mix-node-setup.html"
+  else
+    echo "error: the new binary /usr/bin/nym-mixnode does not exist."
+  fi
+else
+  echo "the binary is already in the expected location ($default_location). no action taken."
+fi

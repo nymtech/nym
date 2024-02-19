@@ -59,7 +59,6 @@ After=network-online.target
 [Service]
 ExecStart=/usr/bin/nym-mixnode run --id nym-mixnode
 User=nym
-Environment="NYM_HOME_DIR=/etc/nym"
 
 [Install]
 WantedBy=multi-user.target

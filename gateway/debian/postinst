@@ -33,7 +33,7 @@ if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
 
     echo "Please restart the nym-gateway process to apply changes."
     echo "Sometimes the gateways will require a re-init, but comms during releases should highlight this."
-    echo "Now if you're running via systemd service file: systemctl restart nym-gateway.service"
+    echo "If you're running via a service file: systemctl restart nym-gateway.service"
 
 elif [ ! -f "$default_location" ]; then
     echo "No existing binary found, performing first-time installation."
@@ -59,7 +59,6 @@ After=network-online.target
 [Service]
 ExecStart=/usr/bin/nym-gateway run --id nym-gateway
 User=nym
-Environment="NYM_HOME_DIR=/etc/nym"
 
 [Install]
 WantedBy=multi-user.target

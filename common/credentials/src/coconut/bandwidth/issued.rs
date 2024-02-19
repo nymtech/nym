@@ -116,6 +116,14 @@ impl IssuedBandwidthCredential {
         }
     }
 
+    pub fn epoch_id(&self) -> EpochId {
+        self.epoch_id
+    }
+
+    pub fn variant_data(&self) -> &BandwidthCredentialIssuedDataVariant {
+        &self.variant_data
+    }
+
     pub fn current_serialization_revision(&self) -> u8 {
         CURRENT_SERIALIZATION_REVISION
     }

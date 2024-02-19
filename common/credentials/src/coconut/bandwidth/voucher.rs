@@ -30,6 +30,10 @@ impl<'a> From<&'a BandwidthVoucherIssuanceData> for BandwidthVoucherIssuedData {
 }
 
 impl BandwidthVoucherIssuedData {
+    pub fn value(&self) -> &Coin {
+        &self.value
+    }
+
     pub fn value_plain(&self) -> String {
         self.value.amount.to_string()
     }

@@ -30,6 +30,10 @@ impl<'a> From<&'a FreePassIssuanceData> for FreePassIssuedData {
 }
 
 impl FreePassIssuedData {
+    pub fn expiry_date(&self) -> OffsetDateTime {
+        self.expiry_date
+    }
+
     pub fn expiry_date_plain(&self) -> String {
         self.expiry_date.unix_timestamp().to_string()
     }

@@ -35,10 +35,12 @@ fn parse_rfc3339_expiration_date(raw: &str) -> Result<OffsetDateTime, time::erro
 #[clap(group(ArgGroup::new("expiration").required(true)))]
 pub struct Args {
     /// Specifies the expiration date of the free pass(es)
-    /// Requires
+    /// Can't be set to more than a week into the future.
     #[clap(long, group = "expiration", value_parser = parse_rfc3339_expiration_date)]
     pub(crate) expiration_date: Option<OffsetDateTime>,
 
+    /// The expiration of the free pass(es) expresses as unix timestamp.
+    /// Can't be set to more than a week into the future.
     #[clap(long, group = "expiration")]
     pub(crate) expiration_timestamp: Option<i64>,
 

@@ -11,7 +11,7 @@ oldest_binary=$(ls -ltr $existing_binaries | head -n 1 | awk '{print $NF}')
 if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
     echo "Existing binary found at $oldest_binary"
 
-    backup_path="${oldest_binary}.backup"
+    backup_path="${oldest_binary}.backup.$(date +%Y-%m-%dT%H:%M:%S)"
     echo "Backing up the original binary to $backup_path"
     sudo cp "$oldest_binary" "$backup_path"
 
@@ -33,12 +33,12 @@ if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
 
     echo "Please restart the nym-mixnode process to apply changes."
     echo "Sometimes the mixnode will require a re-init, but comms during releases should highlight this"
-    echo "Usually: systemctl restart nym-mixnode.service"
+    echo "If you're running via a service file: systemctl restart nym-gateway.service"
 
 elif [ ! -f "$default_location" ]; then
     echo "no existing binary found, performing first-time installation."
 
-    if [[ -f "/usr/bin/nym-mixnode" ]]; then
+    if [ -f "/usr/bin/nym-mixnode" ]; then
         echo "Moving new binary to $default_location"
         sudo mv "/usr/bin/nym-mixnode" "$default_location"
 
@@ -50,6 +50,20 @@ elif [ ! -f "$default_location" ]; then
 
         echo "Installation complete. please configure and start the nym-mixnode process manually."
         echo "Please refer to https://nymtech.net/operators/nodes/mix-node-setup.html"
+        echo "An example running the Mixnode via a service file:"
+        cat <<'EOF'
+[Unit]
+Description=Nym Mixnode
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/nym-mixnode run --id nym-mixnode
+User=nym
+Environment="NYM_HOME_DIR=/etc/nym"
+
+[Install]
+WantedBy=multi-user.target
+EOF
     else
         echo "Error: the new binary /usr/bin/nym-mixnode does not exist."
     fi

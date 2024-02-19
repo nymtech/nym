@@ -11,7 +11,7 @@ oldest_binary=$(ls -ltr $existing_binaries | head -n 1 | awk '{print $NF}')
 if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
     echo "Existing binary found at $oldest_binary"
 
-    backup_path="${oldest_binary}.backup.$(date +%Y-%m-%dT%H:%M:%S%z)"
+    backup_path="${oldest_binary}.backup.$(date +%Y-%m-%dT%H:%M:%S)"
     echo "Backing up the original binary to $backup_path"
     sudo cp "$oldest_binary" "$backup_path"
 
@@ -33,7 +33,7 @@ if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
 
     echo "Please restart the nym-gateway process to apply changes."
     echo "Sometimes the gateways will require a re-init, but comms during releases should highlight this."
-    echo "Usually: systemctl restart nym-gateway.service"
+    echo "Now if you're running via systemd service file: systemctl restart nym-gateway.service"
 
 elif [ ! -f "$default_location" ]; then
     echo "No existing binary found, performing first-time installation."
@@ -50,6 +50,20 @@ elif [ ! -f "$default_location" ]; then
 
         echo "Installation complete. Please configure and start the nym-gateway process manually."
         echo "Please refer to https://nymtech.net/operators/nodes/gateway-setup.html"
+        echo "An example running the Gateway via a service file:"
+        cat <<'EOF'
+[Unit]
+Description=Nym Gateway
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/nym-gateway run --id nym-gateway
+User=nym
+Environment="NYM_HOME_DIR=/etc/nym"
+
+[Install]
+WantedBy=multi-user.target
+EOF
     else
         echo "Error: the new binary /usr/bin/nym-gateway does not exist."
     fi

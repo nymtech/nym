@@ -397,7 +397,7 @@ pub trait NymApiClientExt: ApiClient {
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
-                routes::COCONUT_FREE_PASS_NONCE,
+                routes::COCONUT_FREE_PASS,
             ],
             NO_PARAMS,
             request,

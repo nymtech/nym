@@ -382,6 +382,8 @@ impl<C, St> GatewayClient<C, St> {
         &self,
         gateway_protocol: Option<u8>,
     ) -> Result<(), GatewayClientError> {
+        debug!("gateway protocol: {gateway_protocol:?}, ours: {INITIAL_PROTOCOL_VERSION}");
+
         // right now there are no failure cases here, but this might change in the future
         match gateway_protocol {
             None => {

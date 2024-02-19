@@ -187,7 +187,7 @@ dependencies = [
 name = "coconut-test"
 version = "0.1.0"
 dependencies = [
- "bs58",
+ "bs58 0.4.0",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-controllers",

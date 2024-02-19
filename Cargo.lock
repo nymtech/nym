@@ -825,6 +825,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5353f36341f7451062466f0b755b96ac3a9547e4d7f6b70d603fc721a7d7896"
 dependencies = [
  "sha2 0.10.8",
+ "tinyvec",
 ]
 
 [[package]]
@@ -2318,6 +2319,7 @@ dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.6",
  "rfc6979 0.4.0",
+ "serdect",
  "signature 2.1.0",
  "spki 0.7.2",
 ]
@@ -2428,6 +2430,7 @@ dependencies = [
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
  "sec1 0.7.3",
+ "serdect",
  "subtle 2.4.1",
  "zeroize",
 ]
@@ -2517,7 +2520,6 @@ dependencies = [
  "humantime-serde",
  "isocountry",
  "itertools 0.10.5",
- "lazy_static",
  "log",
  "maxminddb",
  "nym-bin-common",
@@ -4923,7 +4925,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bip39",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cfg-if",
  "clap 4.4.7",
  "console-subscriber",
@@ -4937,7 +4939,7 @@ dependencies = [
  "getset",
  "humantime-serde",
  "itertools 0.12.0",
- "lazy_static",
+ "k256",
  "log",
  "nym-api-requests",
  "nym-bandwidth-controller",
@@ -4995,9 +4997,10 @@ dependencies = [
 name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
+ "ecdsa 0.16.8",
  "getset",
  "nym-credentials-interface",
  "nym-crypto",
@@ -5074,7 +5077,7 @@ dependencies = [
  "anyhow",
  "base64 0.13.1",
  "bip39",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "clap 4.4.7",
  "clap_complete",
  "clap_complete_fig",
@@ -5099,7 +5102,7 @@ dependencies = [
  "anyhow",
  "base64 0.13.1",
  "bip39",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cfg-if",
  "clap 4.4.7",
  "comfy-table",
@@ -5151,10 +5154,10 @@ dependencies = [
 name = "nym-client"
 version = "1.1.32"
 dependencies = [
+ "bs58 0.5.0",
  "clap 4.4.7",
  "dirs 4.0.0",
  "futures",
- "lazy_static",
  "log",
  "nym-bandwidth-controller",
  "nym-bin-common",
@@ -5171,15 +5174,16 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "pretty_env_logger",
  "rand 0.7.3",
  "serde",
  "serde_json",
  "tap",
  "thiserror",
+ "time",
  "tokio",
  "tokio-tungstenite",
  "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -5270,7 +5274,7 @@ name = "nym-coconut"
 version = "0.5.0"
 dependencies = [
  "bls12_381",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "criterion",
  "digest 0.9.0",
  "doc-comment",
@@ -5329,7 +5333,7 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "schemars",
@@ -5401,7 +5405,7 @@ version = "0.4.0"
 dependencies = [
  "aes 0.8.3",
  "blake3",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cipher 0.4.4",
  "ctr 0.9.2",
  "digest 0.10.7",
@@ -5427,7 +5431,7 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "bls12_381",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "criterion",
  "ff 0.13.0",
  "group 0.13.0",
@@ -5507,7 +5511,7 @@ dependencies = [
  "async-trait",
  "atty",
  "bip39",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "clap 4.4.7",
  "colored",
  "dashmap",
@@ -5518,7 +5522,6 @@ dependencies = [
  "humantime-serde",
  "hyper",
  "ipnetwork 0.16.0",
- "lazy_static",
  "log",
  "nym-api-requests",
  "nym-bin-common",
@@ -5595,7 +5598,7 @@ dependencies = [
 name = "nym-gateway-requests"
 version = "0.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "futures",
  "generic-array 0.14.7",
  "log",
@@ -5652,12 +5655,11 @@ name = "nym-ip-packet-router"
 version = "0.1.0"
 dependencies = [
  "bincode",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "bytes",
  "clap 4.4.7",
  "etherparse",
  "futures",
- "lazy_static",
  "log",
  "nym-bin-common",
  "nym-client-core",
@@ -5726,7 +5728,7 @@ version = "1.1.34"
 dependencies = [
  "anyhow",
  "axum",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cfg-if",
  "clap 4.4.7",
  "colored",
@@ -5735,7 +5737,6 @@ dependencies = [
  "dirs 4.0.0",
  "futures",
  "humantime-serde",
- "lazy_static",
  "log",
  "nym-bin-common",
  "nym-config",
@@ -5848,13 +5849,12 @@ dependencies = [
  "anyhow",
  "async-file-watcher",
  "async-trait",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "clap 4.4.7",
  "dirs 4.0.0",
  "futures",
  "humantime-serde",
  "ipnetwork 0.20.0",
- "lazy_static",
  "log",
  "nym-bin-common",
  "nym-client-core",
@@ -6138,8 +6138,8 @@ dependencies = [
 name = "nym-socks5-client"
 version = "1.1.32"
 dependencies = [
+ "bs58 0.5.0",
  "clap 4.4.7",
- "lazy_static",
  "log",
  "nym-bin-common",
  "nym-client-core",
@@ -6154,14 +6154,15 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-sphinx",
  "nym-topology",
- "pretty_env_logger",
  "rand 0.7.3",
  "serde",
  "serde_json",
  "tap",
  "thiserror",
+ "time",
  "tokio",
  "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -6305,7 +6306,7 @@ dependencies = [
 name = "nym-sphinx-anonymous-replies"
 version = "0.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "nym-crypto",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
@@ -6445,7 +6446,7 @@ name = "nym-topology"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "log",
  "nym-api-requests",
  "nym-bin-common",
@@ -8582,6 +8583,7 @@ dependencies = [
  "der 0.7.8",
  "generic-array 0.14.7",
  "pkcs8 0.10.2",
+ "serdect",
  "subtle 2.4.1",
  "zeroize",
 ]
@@ -8812,6 +8814,16 @@ dependencies = [
  "ryu",
  "serde",
  "unsafe-libyaml",
+]
+
+[[package]]
+name = "serdect"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a84f14a19e9a014bb9f4512488d9829a68e04ecabffb0f9904cd1ace94598177"
+dependencies = [
+ "base16ct 0.2.0",
+ "serde",
 ]
 
 [[package]]

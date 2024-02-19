@@ -44,20 +44,23 @@ impl Storage for EphemeralStorage {
 
     async fn get_next_unspent_credential(
         &self,
-    ) -> Result<StoredIssuedCredential, Self::StorageError> {
-        let credential = self
+    ) -> Result<Option<StoredIssuedCredential>, Self::StorageError> {
+        Ok(self
             .coconut_credential_manager
             .get_next_unspent_credential()
-            .await
-            .ok_or(StorageError::NoCredential)?;
-
-        Ok(credential)
+            .await)
     }
 
     async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError> {
         self.coconut_credential_manager
             .consume_coconut_credential(id)
             .await;
+
+        Ok(())
+    }
+
+    async fn mark_expired(&self, id: i64) -> Result<(), Self::StorageError> {
+        self.coconut_credential_manager.mark_expired(id).await;
 
         Ok(())
     }

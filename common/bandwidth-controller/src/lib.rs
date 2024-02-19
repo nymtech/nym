@@ -3,10 +3,12 @@
 
 use crate::error::BandwidthControllerError;
 use crate::utils::stored_credential_to_issued_bandwidth;
-use log::{error, warn};
+use log::{debug, error, warn};
 use nym_credential_storage::storage::Storage;
+use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
+use nym_credentials::IssuedBandwidthCredential;
 use nym_credentials_interface::VerificationKey;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
@@ -33,9 +35,65 @@ pub struct PreparedCredential {
     pub credential_id: i64,
 }
 
+pub struct RetrievedCredential {
+    pub credential: IssuedBandwidthCredential,
+    pub credential_id: i64,
+}
+
 impl<C, St: Storage> BandwidthController<C, St> {
     pub fn new(storage: St, client: C) -> Self {
         BandwidthController { storage, client }
+    }
+
+    /// Tries to retrieve one of the stored, unused credentials that hasn't yet expired.
+    /// It marks any retrieved intermediate credentials as expired.
+    pub async fn get_next_usable_credential(
+        &self,
+    ) -> Result<RetrievedCredential, BandwidthControllerError>
+    where
+        <St as Storage>::StorageError: Send + Sync + 'static,
+    {
+        loop {
+            let Some(maybe_next) = self
+                .storage
+                .get_next_unspent_credential()
+                .await
+                .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?
+            else {
+                return Err(BandwidthControllerError::NoCredentialsAvailable);
+            };
+            let id = maybe_next.id;
+
+            // try to deserialize it
+            let valid_credential = match stored_credential_to_issued_bandwidth(maybe_next) {
+                // check if it has already expired
+                Ok(credential) => match credential.variant_data() {
+                    BandwidthCredentialIssuedDataVariant::Voucher(_) => {
+                        debug!("credential {id} is a bandwidth voucher");
+                        credential
+                    }
+                    BandwidthCredentialIssuedDataVariant::FreePass(freepass_info) => {
+                        debug!("credential {id} is a free pass");
+                        if freepass_info.expired() {
+                            warn!("the free pass (id: {id}) has already expired! The expiration was set to {}", freepass_info.expiry_date());
+                            self.storage.mark_expired(id).await.map_err(|err| {
+                                BandwidthControllerError::CredentialStorageError(Box::new(err))
+                            })?;
+                            continue;
+                        }
+                        credential
+                    }
+                },
+                Err(err) => {
+                    error!("failed to deserialize credential with id {id}: {err}. it may need to be manually removed from the storage");
+                    return Err(err);
+                }
+            };
+            return Ok(RetrievedCredential {
+                credential: valid_credential,
+                credential_id: id,
+            });
+        }
     }
 
     pub fn storage(&self) -> &St {
@@ -61,29 +119,16 @@ impl<C, St: Storage> BandwidthController<C, St> {
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        let retrieved_credential = self
-            .storage
-            .get_next_unspent_credential()
-            .await
-            .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
+        let retrieved_credential = self.get_next_usable_credential().await?;
 
-        let epoch_id = retrieved_credential.epoch_id as EpochId;
-        let credential_id = retrieved_credential.id;
+        let epoch_id = retrieved_credential.credential.epoch_id();
+        let credential_id = retrieved_credential.credential_id;
 
-        let issued_bandwidth = stored_credential_to_issued_bandwidth(retrieved_credential)?;
+        let verification_key = self.get_aggregate_verification_key(epoch_id).await?;
 
-        let verification_key = match self.get_aggregate_verification_key(epoch_id).await {
-            Ok(key) => key,
-            Err(err) => {
-                warn!("failed to obtain master verification key: {err}. Putting the credential back into the database");
-
-                // TODO: ERROR RECOVERY:
-                error!("unimplemented: putting the credential back into the database");
-                return Err(err);
-            }
-        };
-
-        let spend_request = issued_bandwidth.prepare_for_spending(&verification_key)?;
+        let spend_request = retrieved_credential
+            .credential
+            .prepare_for_spending(&verification_key)?;
 
         Ok(PreparedCredential {
             data: spend_request,

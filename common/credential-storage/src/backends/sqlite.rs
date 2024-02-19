@@ -27,8 +27,8 @@ impl CoconutCredentialManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO coconut_credentials(serialization_revision, credential_type, credential_data, epoch_id, consumed)
-                VALUES (?, ?, ?, ?, false)
+                INSERT INTO coconut_credentials(serialization_revision, credential_type, credential_data, epoch_id, consumed, expired)
+                VALUES (?, ?, ?, ?, false, false)
             "#,
             serialization_revision, credential_type, credential_data, epoch_id
         ).execute(&self.connection_pool).await?;
@@ -38,9 +38,11 @@ impl CoconutCredentialManager {
     pub async fn get_next_unspent_credential(
         &self,
     ) -> Result<Option<StoredIssuedCredential>, sqlx::Error> {
-        sqlx::query_as("SELECT * FROM coconut_credentials WHERE NOT consumed LIMIT 1")
-            .fetch_optional(&self.connection_pool)
-            .await
+        sqlx::query_as(
+            "SELECT * FROM coconut_credentials WHERE NOT consumed AND NOT expired LIMIT 1",
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     /// Consumes in the database the specified credential.
@@ -51,6 +53,21 @@ impl CoconutCredentialManager {
     pub async fn consume_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE coconut_credentials SET consumed = TRUE WHERE id = ?",
+            id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Marks the specified credential as expired
+    ///
+    /// # Arguments
+    ///
+    /// * `id`: Id of the credential to mark as expired.
+    pub async fn mark_expired(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE coconut_credentials SET expired = TRUE WHERE id = ?",
             id
         )
         .execute(&self.connection_pool)

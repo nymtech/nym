@@ -48,13 +48,18 @@ impl CoconutCredentialManager {
             credential_type,
             epoch_id,
             consumed: false,
+            expired: false,
         })
     }
 
     /// Tries to retrieve one of the stored, unused credentials.
     pub async fn get_next_unspent_credential(&self) -> Option<StoredIssuedCredential> {
         let creds = self.inner.read().await;
-        creds.data.iter().find(|c| !c.consumed).cloned()
+        creds
+            .data
+            .iter()
+            .find(|c| !c.consumed && !c.expired)
+            .cloned()
     }
 
     /// Consumes in the database the specified credential.
@@ -66,6 +71,18 @@ impl CoconutCredentialManager {
         let mut creds = self.inner.write().await;
         if let Some(cred) = creds.data.get_mut(id as usize) {
             cred.consumed = true;
+        }
+    }
+
+    /// Marks the specified credential as expired
+    ///
+    /// # Arguments
+    ///
+    /// * `id`: Id of the credential to mark as expired.
+    pub async fn mark_expired(&self, id: i64) {
+        let mut creds = self.inner.write().await;
+        if let Some(cred) = creds.data.get_mut(id as usize) {
+            cred.expired = true;
         }
     }
 }

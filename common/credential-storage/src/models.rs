@@ -27,6 +27,7 @@ pub struct StoredIssuedCredential {
 
     pub epoch_id: u32,
     pub consumed: bool,
+    pub expired: bool,
 }
 
 pub struct StorableIssuedCredential<'a> {

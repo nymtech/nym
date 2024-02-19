@@ -13,5 +13,6 @@ CREATE TABLE coconut_credentials
     credential_type        TEXT    NOT NULL,
     credential_data        BLOB    NOT NULL,
     epoch_id               INTEGER NOT NULL,
-    consumed               BOOLEAN NOT NULL
+    consumed               BOOLEAN NOT NULL,
+    expired                BOOLEAN NOT NULL
 );

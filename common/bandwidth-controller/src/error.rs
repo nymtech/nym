@@ -21,6 +21,9 @@ pub enum BandwidthControllerError {
     #[error("There was a credential storage error - {0}")]
     CredentialStorageError(Box<dyn std::error::Error + Send + Sync>),
 
+    #[error("the credential storage does not contain any usable credentials")]
+    NoCredentialsAvailable,
+
     // this should really be fully incorporated into the above, but messing with coconut is the last thing I want to do now
     #[error(transparent)]
     StorageError(#[from] StorageError),

@@ -30,6 +30,10 @@ impl<'a> From<&'a FreePassIssuanceData> for FreePassIssuedData {
 }
 
 impl FreePassIssuedData {
+    pub fn expired(&self) -> bool {
+        self.expiry_date <= OffsetDateTime::now_utc()
+    }
+
     pub fn expiry_date(&self) -> OffsetDateTime {
         self.expiry_date
     }

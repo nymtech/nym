@@ -80,7 +80,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
         }
         BandwidthCredentialIssuedDataVariant::FreePass(freepass_info) => {
             info!("with expiry at {}", freepass_info.expiry_date());
-            if freepass_info.expiry_date() > OffsetDateTime::now_utc() {
+            if freepass_info.expired() {
                 error!("the free pass has already expired!");
 
                 // technically we can, but the gateway will just reject it so what's the point

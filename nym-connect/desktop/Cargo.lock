@@ -612,6 +612,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5353f36341f7451062466f0b755b96ac3a9547e4d7f6b70d603fc721a7d7896"
 dependencies = [
  "sha2 0.10.8",
+ "tinyvec",
 ]
 
 [[package]]
@@ -3692,7 +3693,7 @@ dependencies = [
 name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cosmrs",
  "cosmwasm-std",
  "ecdsa 0.16.8",
@@ -3796,7 +3797,7 @@ name = "nym-coconut"
 version = "0.5.0"
 dependencies = [
  "bls12_381",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "digest 0.9.0",
  "ff 0.13.0",
  "getrandom 0.2.10",
@@ -3901,7 +3902,7 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "schemars",
@@ -3955,7 +3956,7 @@ version = "0.4.0"
 dependencies = [
  "aes 0.8.3",
  "blake3",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cipher 0.4.4",
  "ctr 0.9.2",
  "digest 0.10.7",
@@ -3980,7 +3981,7 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "bls12_381",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "ff 0.13.0",
  "group 0.13.0",
  "lazy_static",
@@ -4073,7 +4074,7 @@ dependencies = [
 name = "nym-gateway-requests"
 version = "0.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "futures",
  "generic-array 0.14.7",
  "log",
@@ -4358,7 +4359,7 @@ dependencies = [
 name = "nym-sphinx-anonymous-replies"
 version = "0.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "nym-crypto",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
@@ -4468,7 +4469,7 @@ name = "nym-topology"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "log",
  "nym-api-requests",
  "nym-bin-common",

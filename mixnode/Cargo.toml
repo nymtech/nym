@@ -19,7 +19,7 @@ rust-version = "1.58.1"
 [dependencies]
 axum = { workspace = true }
 anyhow = { workspace = true }
-bs58 = "0.4.0"
+bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 colored = "2.0"
 cupid = "0.6.1"

@@ -8,16 +8,18 @@ rust-version = "1.56"
 license.workspace = true
 
 [dependencies]
+bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 log = { workspace = true }
-pretty_env_logger = "0.4"
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
 serde_json = { workspace = true }
 tap = "1.0.1"
 thiserror = { workspace = true }
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 rand = "0.7.3"
+time = { workspace = true }
 url = { workspace = true }
+zeroize = { workspace = true }
 
 # internal
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }

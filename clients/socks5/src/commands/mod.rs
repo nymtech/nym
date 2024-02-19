@@ -26,6 +26,7 @@ use std::net::IpAddr;
 use std::sync::OnceLock;
 
 pub(crate) mod build_info;
+mod import_credential;
 pub mod init;
 pub(crate) mod run;
 
@@ -56,6 +57,9 @@ pub(crate) enum Commands {
 
     /// Run the Nym client with provided configuration client optionally overriding set parameters
     Run(run::Run),
+
+    /// Import a pre-generated credential
+    ImportCredential(import_credential::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
@@ -88,6 +92,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
+        Commands::ImportCredential(m) => import_credential::execute(m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

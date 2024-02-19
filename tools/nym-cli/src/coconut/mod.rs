@@ -28,6 +28,9 @@ pub(crate) async fn execute(
             )
             .await?
         }
+        nym_cli_commands::coconut::CoconutCommands::ImportCredential(args) => {
+            nym_cli_commands::coconut::import_credential::execute(args).await?
+        }
     }
     Ok(())
 }

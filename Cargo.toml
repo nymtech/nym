@@ -143,6 +143,7 @@ anyhow = "1.0.71"
 async-trait = "0.1.68"
 axum = "0.6.20"
 base64 = "0.21.4"
+bs58 = "0.5.0"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 clap = "4.4.7"
 cfg-if = "1.0.0"

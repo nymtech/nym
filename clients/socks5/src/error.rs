@@ -1,4 +1,6 @@
 use nym_client_core::error::ClientCoreError;
+use nym_credential_storage::error::StorageError;
+use time::OffsetDateTime;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientError {
@@ -18,6 +20,24 @@ pub enum Socks5ClientError {
     #[error("Fail to bind address")]
     FailToBindAddress,
 
-    #[error("client-core error: {0}")]
+    #[error(transparent)]
     ClientCoreError(#[from] ClientCoreError),
+
+    #[error("failed to store credential: {source}")]
+    CredentialStorageFailure {
+        #[from]
+        source: StorageError,
+    },
+
+    #[error(
+        "failed to deserialize provided credential using revision {storage_revision}: {source}"
+    )]
+    CredentialDeserializationFailure {
+        storage_revision: u8,
+        #[source]
+        source: nym_credentials::error::Error,
+    },
+
+    #[error("attempted to import an expired credential (it expired on {expiration})")]
+    ExpiredCredentialImport { expiration: OffsetDateTime },
 }

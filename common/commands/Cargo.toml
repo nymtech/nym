@@ -9,7 +9,7 @@ license.workspace = true
 anyhow = { workspace = true }
 base64 = "0.13.0"
 bip39 = { workspace = true }
-bs58 = "0.4"
+bs58 = { workspace = true }
 comfy-table = "6.0.0"
 cfg-if = "1.0.0"
 clap = { workspace = true, features = ["derive"] }

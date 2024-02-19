@@ -452,6 +452,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5353f36341f7451062466f0b755b96ac3a9547e4d7f6b70d603fc721a7d7896"
 dependencies = [
  "sha2 0.10.8",
+ "tinyvec",
 ]
 
 [[package]]
@@ -3096,7 +3097,7 @@ dependencies = [
 name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "ecdsa 0.16.8",
@@ -3132,7 +3133,7 @@ name = "nym-coconut"
 version = "0.5.0"
 dependencies = [
  "bls12_381",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "digest 0.9.0",
  "ff 0.13.0",
  "getrandom 0.2.10",
@@ -3186,7 +3187,7 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "schemars",
@@ -3208,7 +3209,7 @@ dependencies = [
 name = "nym-crypto"
 version = "0.4.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "ed25519-dalek",
  "nym-pemstore",
  "nym-sphinx-types",
@@ -3227,7 +3228,7 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "bls12_381",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "ff 0.13.0",
  "group 0.13.0",
  "lazy_static",

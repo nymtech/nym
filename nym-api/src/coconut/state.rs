@@ -14,8 +14,10 @@ use nym_coconut::{BlindedSignature, VerificationKey};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::{AccountId, Hash, TxResponse};
+use rand::rngs::OsRng;
+use rand::RngCore;
 use std::sync::Arc;
-use tokio::sync::OnceCell;
+use tokio::sync::{OnceCell, RwLock};
 
 pub use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
 
@@ -27,6 +29,7 @@ pub struct State {
     pub(crate) identity_keypair: identity::KeyPair,
     pub(crate) comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     pub(crate) storage: NymApiStorage,
+    pub(crate) freepass_nonce: Arc<RwLock<[u8; 16]>>,
 }
 
 impl State {
@@ -45,6 +48,9 @@ impl State {
         let client = Arc::new(client);
         let comm_channel = Arc::new(comm_channel);
 
+        let mut nonce = [0u8; 16];
+        OsRng.fill_bytes(&mut nonce);
+
         Self {
             client,
             bandwidth_contract_admin: OnceCell::new(),
@@ -53,6 +59,7 @@ impl State {
             identity_keypair,
             comm_channel,
             storage,
+            freepass_nonce: Arc::new(RwLock::new(nonce)),
         }
     }
 

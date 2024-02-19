@@ -105,7 +105,7 @@ impl BlindSignRequestBody {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FreePassNonceResponse {
-    pub current_nonce: u32,
+    pub current_nonce: [u8; 16],
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -147,7 +147,7 @@ pub struct FreePassRequest {
 
     // we need to include a nonce here to prevent replay attacks
     // (and not making the nym-api store the serial numbers of all issued credential)
-    pub used_nonce: u32,
+    pub used_nonce: [u8; 16],
 
     /// Signature on the nonce
     /// to prove the possession of the cosmos key/address
@@ -160,7 +160,7 @@ impl FreePassRequest {
     pub fn new(
         cosmos_pubkey: cosmrs::crypto::PublicKey,
         inner_sign_request: BlindSignRequest,
-        used_nonce: u32,
+        used_nonce: [u8; 16],
         nonce_signature: cosmrs::crypto::secp256k1::Signature,
         public_attributes_plain: Vec<String>,
     ) -> Self {
@@ -175,10 +175,6 @@ impl FreePassRequest {
 
     pub fn tendermint_pubkey(&self) -> tendermint::PublicKey {
         self.cosmos_pubkey.into()
-    }
-
-    pub fn nonce_plaintext(&self) -> [u8; 4] {
-        self.used_nonce.to_be_bytes()
     }
 
     pub fn public_attributes_hashed(&self) -> Vec<Attribute> {

@@ -23,6 +23,8 @@ use nym_credentials::coconut::bandwidth::{
     bandwidth_credential_params, CredentialType, IssuanceBandwidthCredential,
 };
 use nym_validator_client::nyxd::Coin;
+use rand::rngs::OsRng;
+use rand::RngCore;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::ops::Deref;
@@ -74,10 +76,12 @@ pub async fn get_current_free_pass_nonce(
 ) -> Result<Json<FreePassNonceResponse>> {
     debug!("Received free pass nonce request");
 
-    let current_nonce = state.storage.get_current_freepass_nonce().await?;
-    debug!("the current expected nonce is {current_nonce}");
+    let current_nonce = state.freepass_nonce.read().await;
+    debug!("the current expected nonce is {current_nonce:?}");
 
-    Ok(Json(FreePassNonceResponse { current_nonce }))
+    Ok(Json(FreePassNonceResponse {
+        current_nonce: *current_nonce,
+    }))
 }
 
 #[post("/free-pass", data = "<freepass_request_body>")]
@@ -117,12 +121,13 @@ pub async fn post_free_pass(
         });
     }
 
-    let current_nonce = state.storage.get_current_freepass_nonce().await?;
-    debug!("the current expected nonce is {current_nonce}");
+    // get the write lock on the nonce to block other requests (since we don't need concurrency and nym is the only one getting them)
+    let mut current_nonce = state.freepass_nonce.write().await;
+    debug!("the current expected nonce is {current_nonce:?}");
 
-    if current_nonce != freepass_request_body.used_nonce {
+    if *current_nonce != freepass_request_body.used_nonce {
         return Err(CoconutError::InvalidNonce {
-            current: current_nonce,
+            current: *current_nonce,
             received: freepass_request_body.used_nonce,
         });
     }
@@ -147,7 +152,7 @@ pub async fn post_free_pass(
     // make sure the signature actually verifies
     secp256k1_pubkey
         .verify(
-            &freepass_request_body.nonce_plaintext(),
+            &freepass_request_body.used_nonce,
             &freepass_request_body.nonce_signature,
         )
         .map_err(|_| CoconutError::FreePassSignatureVerificationFailure)?;
@@ -157,11 +162,11 @@ pub async fn post_free_pass(
     let blinded_signature =
         blind_sign(freepass_request_body.deref(), signing_key.keys.secret_key())?;
 
-    // update the nonce in storage (and also check if a parallel request hasn't updated it; if so we return an error. no race conditions allowed)
-    state
-        .storage
-        .update_and_validate_freepass_nonce(current_nonce + 1)
-        .await?;
+    // update the number of issued free passes
+    state.storage.increment_issued_freepasses().await?;
+
+    // update the nonce
+    OsRng.fill_bytes(current_nonce.as_mut_slice());
 
     // finally return the credential to the client
     Ok(Json(BlindedSignatureResponse { blinded_signature }))

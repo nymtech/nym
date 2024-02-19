@@ -93,7 +93,7 @@ impl FreePassIssuanceData {
     pub async fn obtain_free_pass_nonce(
         &self,
         client: &nym_validator_client::client::NymApiClient,
-    ) -> Result<u32, Error> {
+    ) -> Result<[u8; 16], Error> {
         let server_response = client.free_pass_nonce().await?;
         Ok(server_response.current_nonce)
     }
@@ -102,12 +102,11 @@ impl FreePassIssuanceData {
         &self,
         signing_request: &CredentialSigningData,
         account_data: &AccountData,
-        issuer_nonce: u32,
+        issuer_nonce: [u8; 16],
     ) -> Result<FreePassRequest, Error> {
-        let plaintext = issuer_nonce.to_be_bytes();
         let nonce_signature = account_data
             .private_key()
-            .sign(&plaintext)
+            .sign(&issuer_nonce)
             .map_err(|_| Error::Secp256k1SignFailure)?;
 
         Ok(FreePassRequest {

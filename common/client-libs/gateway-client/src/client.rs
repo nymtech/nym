@@ -20,7 +20,8 @@ use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressByt
 use nym_gateway_requests::iv::IV;
 use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ServerResponse, CURRENT_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V1_PROTOCOL_VERSION,
+    CURRENT_PROTOCOL_VERSION,
 };
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -493,6 +494,7 @@ impl<C, St> GatewayClient<C, St> {
                 self.check_gateway_protocol(protocol_version)?;
                 self.authenticated = status;
                 self.bandwidth_remaining = bandwidth_remaining;
+                self.negotiated_protocol = protocol_version;
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
@@ -577,6 +579,18 @@ impl<C, St> GatewayClient<C, St> {
         if self.disabled_credentials_mode {
             info!("The client is running in disabled credentials mode - attempting to claim bandwidth without a credential");
             return self.try_claim_testnet_bandwidth().await;
+        }
+
+        let Some(gateway_protocol) = self.negotiated_protocol else {
+            return Err(GatewayClientError::OutdatedGatewayCredentialVersion {
+                negotiated_protocol: None,
+            });
+        };
+
+        if gateway_protocol < CREDENTIAL_UPDATE_V1_PROTOCOL_VERSION {
+            return Err(GatewayClientError::OutdatedGatewayCredentialVersion {
+                negotiated_protocol: Some(gateway_protocol),
+            });
         }
 
         let prepared_credential = self

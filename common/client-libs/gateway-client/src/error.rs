@@ -47,6 +47,9 @@ pub enum GatewayClientError {
     #[error("Credential could not be serialized")]
     SerializeCredential,
 
+    #[error("can not spend bandwidth credential with the gateway as it's using outdated protocol (version: {negotiated_protocol:?})")]
+    OutdatedGatewayCredentialVersion { negotiated_protocol: Option<u8> },
+
     #[error("Client is not authenticated")]
     NotAuthenticated,
 

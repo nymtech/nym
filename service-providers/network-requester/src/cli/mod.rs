@@ -23,6 +23,7 @@ use nym_config::OptionalSet;
 use std::sync::OnceLock;
 
 mod build_info;
+mod import_credential;
 mod init;
 mod run;
 mod sign;
@@ -59,6 +60,9 @@ pub(crate) enum Commands {
 
     /// Sign to prove ownership of this network requester
     Sign(sign::Sign),
+
+    /// Import a pre-generated credential
+    ImportCredential(import_credential::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
@@ -154,6 +158,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
         Commands::Sign(m) => sign::execute(&m).await?,
+        Commands::ImportCredential(m) => import_credential::execute(m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

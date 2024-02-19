@@ -5861,6 +5861,7 @@ dependencies = [
  "nym-client-websocket-requests",
  "nym-config",
  "nym-credential-storage",
+ "nym-credentials",
  "nym-crypto",
  "nym-exit-policy",
  "nym-network-defaults",
@@ -5884,9 +5885,11 @@ dependencies = [
  "tap",
  "tempfile",
  "thiserror",
+ "time",
  "tokio",
  "tokio-tungstenite",
  "url",
+ "zeroize",
 ]
 
 [[package]]

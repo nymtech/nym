@@ -1,14 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Epoch",
+  "title": "StateAdvanceResponse",
   "type": "object",
   "required": [
-    "epoch_id",
-    "state",
-    "state_progress",
-    "time_configuration"
+    "current_state",
+    "is_complete",
+    "progress",
+    "reached_deadline"
   ],
   "properties": {
+    "current_state": {
+      "$ref": "#/definitions/EpochState"
+    },
     "deadline": {
       "anyOf": [
         {
@@ -19,19 +22,14 @@
         }
       ]
     },
-    "epoch_id": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
+    "is_complete": {
+      "type": "boolean"
     },
-    "state": {
-      "$ref": "#/definitions/EpochState"
-    },
-    "state_progress": {
+    "progress": {
       "$ref": "#/definitions/StateProgress"
     },
-    "time_configuration": {
-      "$ref": "#/definitions/TimeConfiguration"
+    "reached_deadline": {
+      "type": "boolean"
     }
   },
   "additionalProperties": false,
@@ -190,50 +188,6 @@
           "description": "Counts the number of verified key shares.",
           "type": "integer",
           "format": "uint32",
-          "minimum": 0.0
-        }
-      },
-      "additionalProperties": false
-    },
-    "TimeConfiguration": {
-      "type": "object",
-      "required": [
-        "dealing_exchange_time_secs",
-        "in_progress_time_secs",
-        "public_key_submission_time_secs",
-        "verification_key_finalization_time_secs",
-        "verification_key_submission_time_secs",
-        "verification_key_validation_time_secs"
-      ],
-      "properties": {
-        "dealing_exchange_time_secs": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        },
-        "in_progress_time_secs": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        },
-        "public_key_submission_time_secs": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        },
-        "verification_key_finalization_time_secs": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        },
-        "verification_key_submission_time_secs": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        },
-        "verification_key_validation_time_secs": {
-          "type": "integer",
-          "format": "uint64",
           "minimum": 0.0
         }
       },

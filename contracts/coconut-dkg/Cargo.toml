@@ -30,7 +30,6 @@ thiserror = { workspace = true }
 cw-multi-test = { workspace = true }
 cw4-group = { path = "../multisig/cw4-group" }
 nym-group-contract-common = { path = "../../common/cosmwasm-smart-contracts/group-contract" }
-rusty-fork = "0.3"
 
 [features]
 schema-gen = ["nym-coconut-dkg-common/schema", "cosmwasm-schema"]

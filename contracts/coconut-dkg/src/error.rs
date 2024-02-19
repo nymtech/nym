@@ -45,11 +45,8 @@ pub enum ContractError {
         expected_state: String,
     },
 
-    #[error("This sender is not a dealer for the current epoch")]
-    NotADealer,
-
-    #[error("This sender is not a dealer for the current resharing epoch")]
-    NotAnInitialDealer,
+    #[error("This sender is not a dealer for epoch {epoch_id}")]
+    NotADealer { epoch_id: EpochId },
 
     #[error("Dealer {dealer} has already committed dealing chunk for epoch {epoch_id} with dealing index {dealing_index} and chunk index {chunk_index} at height {block_height}")]
     DealingChunkAlreadyCommitted {
@@ -136,4 +133,13 @@ pub enum ContractError {
         value: String,
         error_message: String,
     },
+
+    #[error("cannot perform DKG reset during an ongoing exchange")]
+    CantResetDuringExchange,
+
+    #[error("cannot perform DKG resharing during an ongoing exchange")]
+    CantReshareDuringExchange,
+
+    #[error("retrieved the maximum allowed number of cw4 members. for more the contracts have to be refactored")]
+    PossiblyIncompleteGroupMembersQuery,
 }

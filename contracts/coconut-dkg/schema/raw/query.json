@@ -44,11 +44,40 @@
     {
       "type": "object",
       "required": [
-        "get_initial_dealers"
+        "can_advance_state"
       ],
       "properties": {
-        "get_initial_dealers": {
+        "can_advance_state": {
           "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_registered_dealer"
+      ],
+      "properties": {
+        "get_registered_dealer": {
+          "type": "object",
+          "required": [
+            "dealer_address"
+          ],
+          "properties": {
+            "dealer_address": {
+              "type": "string"
+            },
+            "epoch_id": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
           "additionalProperties": false
         }
       },
@@ -107,10 +136,10 @@
     {
       "type": "object",
       "required": [
-        "get_past_dealers"
+        "get_dealer_indices"
       ],
       "properties": {
-        "get_past_dealers": {
+        "get_dealer_indices": {
           "type": "object",
           "properties": {
             "limit": {

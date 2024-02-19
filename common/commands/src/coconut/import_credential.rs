@@ -13,7 +13,6 @@ use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVa
 use nym_credentials::IssuedBandwidthCredential;
 use std::fs;
 use std::path::PathBuf;
-use time::OffsetDateTime;
 use zeroize::Zeroizing;
 
 fn parse_encoded_credential_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {

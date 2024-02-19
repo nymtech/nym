@@ -8,7 +8,6 @@ use crate::client::config::{BaseClientConfig, Config};
 use crate::error::ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
-use lazy_static::lazy_static;
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
@@ -21,18 +20,16 @@ use nym_client_core::error::ClientCoreError;
 use nym_config::OptionalSet;
 use std::error::Error;
 use std::net::IpAddr;
+use std::sync::OnceLock;
 
 pub(crate) mod build_info;
+pub(crate) mod import_credential;
 pub(crate) mod init;
 pub(crate) mod run;
 
-lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
-}
-
-// Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
-    &PRETTY_BUILD_INFORMATION
+    static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
+    PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
 #[derive(Parser)]

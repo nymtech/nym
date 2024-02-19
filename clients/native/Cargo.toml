@@ -23,7 +23,6 @@ url = { workspace = true }
 
 clap = { workspace = true, features = ["cargo", "derive"] }
 dirs = "4.0"
-lazy_static = "1.4.0"
 log = { workspace = true } # self explanatory
 pretty_env_logger = "0.4" # for formatting log messages
 rand = { version = "0.7.3", features = ["wasm-bindgen"] } # rng-related traits + some rng implementation to use

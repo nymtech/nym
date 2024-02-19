@@ -26,7 +26,6 @@ cupid = "0.6.1"
 dirs = "4.0"
 futures = { workspace = true }
 humantime-serde = "1.0"
-lazy_static = "1.4.0"
 log = { workspace = true }
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }

@@ -8,6 +8,7 @@ use nym_client_core::client::base_client::storage::gateway_details::{
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
+use std::sync::OnceLock;
 
 use crate::config::{BaseClientConfig, Config};
 use crate::error::IpPacketRouterError;
@@ -17,13 +18,9 @@ mod init;
 mod run;
 mod sign;
 
-lazy_static::lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
-}
-
-// Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
-    &PRETTY_BUILD_INFORMATION
+    static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
+    PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
 #[derive(Parser)]

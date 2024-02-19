@@ -11,7 +11,7 @@ use nyxd_scraper::NyxdScraper;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Range;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 
 pub(crate) mod types;
 
@@ -28,6 +28,7 @@ impl EpochSigning {
         height_range: Range<i64>,
     ) -> Result<Option<i64>, NymRewarderError> {
         for height in height_range {
+            trace!("attempting to get precommit for {address} at height {height}");
             if let Some(precommit) = self
                 .nyxd_scraper
                 .storage
@@ -87,6 +88,8 @@ impl EpochSigning {
         );
 
         let validators = self.nyxd_scraper.storage.get_all_known_validators().await?;
+        debug!("retrieved {} known validators", validators.len());
+
         let epoch_start = current_epoch.start_time;
         let epoch_end = current_epoch.end_time;
         let first_block = self
@@ -111,10 +114,14 @@ impl EpochSigning {
 
         // for each validator, with a valid voting power, get number of signed blocks in the rewarding epoch
         for validator in validators {
+            let addr = &validator.consensus_address;
+            debug!("getting voting power and signed blocks of {addr}");
+
             let Some(vp) = self
                 .get_voting_power(&validator.consensus_address, vp_range.clone())
                 .await?
             else {
+                warn!("failed to obtain voting power of {addr}");
                 continue;
             };
 

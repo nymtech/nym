@@ -1,4 +1,4 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
@@ -10,13 +10,15 @@ use crate::rewarder::credential_issuance::CredentialIssuance;
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
+use futures::future::{FusedFuture, OptionFuture};
+use futures::FutureExt;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
 use std::ops::Add;
 use tokio::pin;
 use tokio::time::{interval_at, Instant};
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 
 mod block_signing;
 mod credential_issuance;
@@ -26,10 +28,15 @@ mod nyxd_client;
 mod storage;
 mod tasks;
 
+pub struct RewardingResult {
+    pub total_spent: Coin,
+    pub rewarding_tx: Hash,
+}
+
 pub struct EpochRewards {
     pub epoch: Epoch,
-    pub signing: Option<EpochSigningResults>,
-    pub credentials: Option<CredentialIssuanceResults>,
+    pub signing: Result<Option<EpochSigningResults>, NymRewarderError>,
+    pub credentials: Result<Option<CredentialIssuanceResults>, NymRewarderError>,
 
     pub total_budget: Coin,
     pub signing_budget: Coin,
@@ -37,10 +44,10 @@ pub struct EpochRewards {
 }
 
 impl EpochRewards {
-    pub fn amounts(&self) -> Vec<(AccountId, Vec<Coin>)> {
+    pub fn amounts(&self) -> Result<Vec<(AccountId, Vec<Coin>)>, NymRewarderError> {
         let mut amounts = Vec::new();
 
-        if let Some(signing) = &self.signing {
+        if let Ok(Some(signing)) = &self.signing {
             for (account, signing_amount) in signing.rewarding_amounts(&self.signing_budget) {
                 if signing_amount[0].amount != 0 {
                     amounts.push((account, signing_amount))
@@ -48,7 +55,7 @@ impl EpochRewards {
             }
         }
 
-        if let Some(credentials) = &self.credentials {
+        if let Ok(Some(credentials)) = &self.credentials {
             for (account, credential_amount) in
                 credentials.rewarding_amounts(&self.credentials_budget)
             {
@@ -58,7 +65,7 @@ impl EpochRewards {
             }
         }
 
-        amounts
+        Ok(amounts)
     }
 }
 
@@ -93,6 +100,10 @@ impl Rewarder {
                 return Err(NymRewarderError::EmptyBlockSigningWhitelist);
             }
 
+            if config.block_signing.monitor_only {
+                info!("the block signing rewarding is running in monitor only mode");
+            }
+
             let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
 
             Some(EpochSigning {
@@ -115,7 +126,9 @@ impl Rewarder {
             None
         };
 
-        if config.issuance_monitor.enabled || config.block_signing.enabled {
+        if config.issuance_monitor.enabled
+            || (config.block_signing.enabled && !config.block_signing.monitor_only)
+        {
             let balance = nyxd_client
                 .balance(&config.rewarding.epoch_budget.denom)
                 .await?;
@@ -179,7 +192,7 @@ impl Rewarder {
         .transpose()
     }
 
-    async fn determine_epoch_rewards(&mut self) -> Result<EpochRewards, NymRewarderError> {
+    async fn determine_epoch_rewards(&mut self) -> EpochRewards {
         let epoch_budget = self.config.rewarding.epoch_budget.clone();
         let denom = &epoch_budget.denom;
         let signing_budget = Coin::new(
@@ -191,17 +204,17 @@ impl Rewarder {
             denom,
         );
 
-        let signing_rewards = self.calculate_block_signing_rewards().await?;
-        let credential_rewards = self.calculate_credential_rewards().await?;
+        let signing_rewards = self.calculate_block_signing_rewards().await;
+        let credential_rewards = self.calculate_credential_rewards().await;
 
-        Ok(EpochRewards {
+        EpochRewards {
             epoch: self.current_epoch,
             signing: signing_rewards,
             credentials: credential_rewards,
             total_budget: epoch_budget.clone(),
             signing_budget,
             credentials_budget,
-        })
+        }
     }
 
     #[instrument(skip(self))]
@@ -214,33 +227,47 @@ impl Rewarder {
             return Ok(Hash::Sha256([0u8; 32]));
         }
 
+        if amounts.is_empty() {
+            warn!("no rewards to send");
+            return Err(NymRewarderError::NoValidatorsToReward);
+        }
+
         info!("sending rewards");
         self.nyxd_client
             .send_rewards(self.current_epoch, amounts)
             .await
     }
 
-    async fn handle_epoch_end(&mut self) {
-        info!("handling the epoch end");
-
-        let rewards = match self.determine_epoch_rewards().await {
-            Ok(rewards) => rewards,
-            Err(err) => {
-                error!("failed to determine epoch rewards: {err}");
-                return;
-            }
-        };
-
-        let rewarding_amounts = rewards.amounts();
+    async fn calculate_and_send_epoch_rewards(
+        &mut self,
+        rewards: &EpochRewards,
+    ) -> Result<RewardingResult, NymRewarderError> {
+        let rewarding_amounts = rewards.amounts()?;
         let total_spent = total_spent(
             &rewarding_amounts,
             &self.config.rewarding.epoch_budget.denom,
         );
 
-        let rewarding_result = self.send_rewards(rewarding_amounts).await;
+        let rewarding_tx = self.send_rewards(rewarding_amounts).await?;
+
+        Ok(RewardingResult {
+            total_spent,
+            rewarding_tx,
+        })
+    }
+
+    async fn handle_epoch_end(&mut self) {
+        info!("handling the epoch end");
+        let base_rewards = self.determine_epoch_rewards().await;
+
+        let rewarding_result = self
+            .calculate_and_send_epoch_rewards(&base_rewards)
+            .await
+            .inspect_err(|err| error!("failed to determine and send epoch_rewards: {err}"));
+
         if let Err(err) = self
             .storage
-            .save_rewarding_information(rewards, total_spent, rewarding_result)
+            .save_rewarding_information(base_rewards, rewarding_result)
             .await
         {
             error!("failed to persist rewarding information: {err}")
@@ -263,15 +290,22 @@ impl Rewarder {
             );
         }
 
-        if let Some(epoch_signing) = &self.epoch_signing {
-            epoch_signing.nyxd_scraper.start().await?;
-            epoch_signing.nyxd_scraper.wait_for_startup_sync().await;
-        }
+        let mut scraper_cancellation: OptionFuture<_> =
+            if let Some(epoch_signing) = &self.epoch_signing {
+                let cancellation_token = epoch_signing.nyxd_scraper.cancel_token();
+                epoch_signing.nyxd_scraper.start().await?;
+                epoch_signing.nyxd_scraper.wait_for_startup_sync().await;
+                Some(Box::pin(async move { cancellation_token.cancelled().await }).fuse())
+            } else {
+                None
+            }
+            .into();
 
         let until_end = self.current_epoch.until_end();
 
         info!(
-            "the first epoch will finish in {} secs",
+            "the initial epoch (id: {}) will finish in {} secs",
+            self.current_epoch.id,
             until_end.as_secs()
         );
         let mut epoch_ticker = interval_at(
@@ -291,6 +325,10 @@ impl Rewarder {
                         error!("runtime interrupt failure: {err}")
                     }
                     break;
+                }
+                _ = &mut scraper_cancellation, if !scraper_cancellation.is_terminated() => {
+                    warn!("the nyxd scraper has been cancelled");
+                    break
                 }
                 _ = epoch_ticker.tick() => self.handle_epoch_end().await
             }

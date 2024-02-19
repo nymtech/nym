@@ -7,19 +7,19 @@ default_group="nym"
 if [ -f "/tmp/nym_mixnode_preinst_marker" ]; then
     backup_path=$(cat /tmp/nym_mixnode_preinst_marker)
     echo "Upgrade detected. Previous version backed up at $backup_path"
-    
+
     existing_location=$(dirname "$backup_path" | sed 's/\.backup\..*//')
     echo "Existing location: ${existing_location}"
-    
+
     if [ "$existing_location" != "$default_location" ]; then
         echo "Custom installation location detected: $existing_location"
-        
+
         mv "$default_location" "$existing_location/nym-mixnode"
-        
+
         original_user=$(stat -c "%U" "$backup_path")
         original_group=$(stat -c "%G" "$backup_path")
         original_perms=$(stat -c "%a" "$backup_path")
-        
+
         chown "$original_user:$original_group" "$existing_location/nym-mixnode"
         chmod "$original_perms" "$existing_location/nym-mixnode"
     fi
@@ -35,6 +35,7 @@ else
         echo "Installation complete. Please configure and start the nym-mixnode process manually."
         echo "Refer to https://nymtech.net/operators/nodes/mixnode-setup.html"
         echo "Example for setting up the nym-mixnode service:"
+        echo
 
         cat <<EOF
 [Unit]
@@ -53,6 +54,7 @@ EOF
     fi
 fi
 
+echo
 echo "Consider restarting the nym-mixnode service if it is already enabled."
 echo "systemctl restart nym-mixnode.service"
 

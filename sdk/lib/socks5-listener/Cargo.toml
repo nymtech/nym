@@ -16,6 +16,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 anyhow = { workspace = true }
 futures = { workspace = true }
+lazy_static = "1.4.0"
 nym-bin-common = { path = "../../../common/bin-common"}
 nym-client-core = { path = "../../../common/client-core", default-features = false }
 nym-config-common = { path = "../../../common/config", package = "nym-config" }

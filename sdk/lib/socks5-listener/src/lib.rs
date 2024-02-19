@@ -5,6 +5,7 @@ use crate::config::{config_filepath_from_root, Config};
 use crate::persistence::MobileClientStorage;
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
+use lazy_static::lazy_static;
 use log::{debug, info, warn};
 use nym_bin_common::logging::setup_logging;
 use nym_client_core::init::helpers::current_gateways;

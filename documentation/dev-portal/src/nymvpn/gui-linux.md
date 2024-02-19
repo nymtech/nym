@@ -63,8 +63,7 @@ sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit
 ```sh
 ./nym-vpn-cli --help
 ```
-~~~admonish example collapsible=true title="Console output"
-```sh
+
 4. If you prefer to run `.AppImage` make executable by running:
 ```sh
 chmod u+x ./appimage/nym-vpn_0.0.2_amd64.AppImage

@@ -1,0 +1,24 @@
+#!/bin/sh
+
+backup_dir="/var/lib/nym-mixnode-backup"
+mkdir -p "$backup_dir"
+
+existing_binaries=$(find / \( -path /proc -o -path /sys -o -path /dev -o -path /mnt -o -path /media \) -prune -o -type f -name "nym-mixnode" -print 2>/dev/null)
+
+if [ -n "$existing_binaries" ]; then
+    echo "Existing installation(s) detected. Preparing for upgrade."
+
+    for binary_path in $existing_binaries; do
+        backup_path="$backup_dir/$(basename $binary_path).backup.$(date +%Y-%m-%dT%H:%M:%S)"
+        cp "$binary_path" "$backup_path"
+        
+        echo "Backed up existing binary from $binary_path to $backup_path"
+    done
+
+    oldest_binary=$(echo "$existing_binaries" | head -n 1)
+    echo "$oldest_binary" > /tmp/nym_mixnode_preinst_marker
+else
+    echo "No existing nym-mixnode installation detected. Proceeding with fresh installation."
+fi
+
+exit 0

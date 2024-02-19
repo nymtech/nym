@@ -4,70 +4,58 @@ default_location="/usr/bin/nym-gateway"
 default_user="nym"
 default_group="nym"
 
-# We're assuming there's only two binaries on the machine, one is the newly installed app package version, and the second the existing binary, thus the logic below applies
-existing_binaries=$(sudo find / \( -path /proc -o -path /sys -o -path /dev -o -path /mnt -o -path /media \) -prune -o -type f -name "nym-gateway" -print 2>/dev/null)
-oldest_binary=$(ls -ltr $existing_binaries | head -n 1 | awk '{print $NF}')
+if [ -f "/tmp/nym_gateway_preinst_marker" ]; then
+    backup_path=$(cat /tmp/nym_gateway_preinst_marker)
+    echo "Upgrade detected. Previous version backed up at $backup_path"
+    
+    existing_location=$(dirname "$backup_path" | sed 's/\.backup\..*//')
+    echo "Existing location: ${existing_location}"
+    
+    if [ "$existing_location" != "$default_location" ]; then
+        echo "Custom installation location detected: $existing_location"
+        
+        mv "$default_location" "$existing_location/nym-gateway"
+        
+        original_user=$(stat -c "%U" "$backup_path")
+        original_group=$(stat -c "%G" "$backup_path")
+        original_perms=$(stat -c "%a" "$backup_path")
+        
+        chown "$original_user:$original_group" "$existing_location/nym-gateway"
+        chmod "$original_perms" "$existing_location/nym-gateway"
+    fi
 
-if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
-    echo "Existing binary found at $oldest_binary"
+    rm -f /tmp/nym_gateway_preinst_marker
+else
+    echo "Fresh installation detected."
 
-    backup_path="${oldest_binary}.backup.$(date +%Y-%m-%dT%H:%M:%S)"
-    echo "Backing up the original binary to $backup_path"
-    sudo cp "$oldest_binary" "$backup_path"
-
-    original_user=$(stat -c "%U" "$oldest_binary")
-    original_group=$(stat -c "%G" "$oldest_binary")
-
-    echo "Original group: $original_group"
-    echo "Original user: $original_user"
-
-    echo "Moving new binary from $default_location to $oldest_binary"
-    mv "$default_location" "$oldest_binary"
-
-    echo "Changing ownership to $original_user:$original_group"
-    chown "$original_user:$original_group" "$oldest_binary"
-
-    original_perms=$(stat -c "%a" "$backup_path")
-    echo "Setting permissions to $original_perms"
-    chmod "$original_perms" "$oldest_binary"
-
-    echo "Please restart the nym-gateway process to apply changes."
-    echo "Sometimes the gateways will require a re-init, but comms during releases should highlight this."
-    echo "If you're running via a service file: systemctl restart nym-gateway.service"
-
-elif [ ! -f "$default_location" ]; then
-    echo "No existing binary found, performing first-time installation."
-
-    if [ -f "/usr/bin/nym-gateway" ]; then
-        echo "Moving new binary to $default_location"
-        mv "/usr/bin/nym-gateway" "$default_location"
-
-        echo "Setting default ownership to $default_user:$default_group"
+    if [ -f "$default_location" ]; then
         chown "$default_user:$default_group" "$default_location"
-
-        echo "Setting default permissions"
         chmod 755 "$default_location"
 
         echo "Installation complete. Please configure and start the nym-gateway process manually."
-        echo "Please refer to https://nymtech.net/operators/nodes/gateway-setup.html"
-        echo "An example running the Gateway via a service file:"
-        cat <<'EOF'
+        echo "Refer to https://nymtech.net/operators/nodes/gateway-setup.html"
+        echo "Example for setting up the nym-gateway service:"
+
+        cat <<EOF
 [Unit]
 Description=Nym Gateway
 After=network-online.target
 
 [Service]
-ExecStart=/usr/bin/nym-gateway run --id nym-gateway
-User=nym
+ExecStart=$default_location run --id nym-gateway
+User=$default_user
 
 [Install]
 WantedBy=multi-user.target
 EOF
     else
-        echo "Error: the new binary /usr/bin/nym-gateway does not exist."
+        echo "Error: the new binary $default_location does not exist."
     fi
-else
-    echo "The binary is already in the expected location ($default_location). No action taken."
 fi
+
+echo "Consider restarting the nym-gateway service if it is already enabled."
+echo "systemctl restart nym-gateway.service"
+
+exit 0
 
 #DEBHELPER#

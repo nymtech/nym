@@ -4,70 +4,58 @@ default_location="/usr/bin/nym-mixnode"
 default_user="nym"
 default_group="nym"
 
-# We're assuming there's only two binaries on the machine, one is the newly installed app package version, and the second the existing binary, thus the logic below applies
-existing_binaries=$(sudo find / \( -path /proc -o -path /sys -o -path /dev -o -path /mnt -o -path /media \) -prune -o -type f -name "nym-mixnode" -print 2>/dev/null)
-oldest_binary=$(ls -ltr $existing_binaries | head -n 1 | awk '{print $NF}')
+if [ -f "/tmp/nym_mixnode_preinst_marker" ]; then
+    backup_path=$(cat /tmp/nym_mixnode_preinst_marker)
+    echo "Upgrade detected. Previous version backed up at $backup_path"
+    
+    existing_location=$(dirname "$backup_path" | sed 's/\.backup\..*//')
+    echo "Existing location: ${existing_location}"
+    
+    if [ "$existing_location" != "$default_location" ]; then
+        echo "Custom installation location detected: $existing_location"
+        
+        mv "$default_location" "$existing_location/nym-mixnode"
+        
+        original_user=$(stat -c "%U" "$backup_path")
+        original_group=$(stat -c "%G" "$backup_path")
+        original_perms=$(stat -c "%a" "$backup_path")
+        
+        chown "$original_user:$original_group" "$existing_location/nym-mixnode"
+        chmod "$original_perms" "$existing_location/nym-mixnode"
+    fi
 
-if [ -n "$oldest_binary" ] && [ "$oldest_binary" != "$default_location" ]; then
-    echo "Existing binary found at $oldest_binary"
+    rm -f /tmp/nym_mixnode_preinst_marker
+else
+    echo "Fresh installation detected."
 
-    backup_path="${oldest_binary}.backup.$(date +%Y-%m-%dT%H:%M:%S)"
-    echo "Backing up the original binary to $backup_path"
-    sudo cp "$oldest_binary" "$backup_path"
+    if [ -f "$default_location" ]; then
+        chown "$default_user:$default_group" "$default_location"
+        chmod 755 "$default_location"
 
-    original_user=$(sudo stat -c "%U" "$oldest_binary")
-    original_group=$(sudo stat -c "%G" "$oldest_binary")
+        echo "Installation complete. Please configure and start the nym-mixnode process manually."
+        echo "Refer to https://nymtech.net/operators/nodes/mixnode-setup.html"
+        echo "Example for setting up the nym-mixnode service:"
 
-    echo "Original group: $original_group"
-    echo "Original user: $original_user"
-
-    echo "Moving new binary from $default_location to $oldest_binary"
-    sudo mv "$default_location" "$oldest_binary"
-
-    echo "Changing ownership to $original_user:$original_group"
-    sudo chown "$original_user":"$original_group" "$oldest_binary"
-
-    original_perms=$(sudo stat -c "%a" "$backup_path")
-    echo "Setting permissions to $original_perms"
-    sudo chmod "$original_perms" "$oldest_binary"
-
-    echo "Please restart the nym-mixnode process to apply changes."
-    echo "Sometimes the mixnode will require a re-init, but comms during releases should highlight this"
-    echo "If you're running via a service file: systemctl restart nym-gateway.service"
-
-elif [ ! -f "$default_location" ]; then
-    echo "no existing binary found, performing first-time installation."
-
-    if [ -f "/usr/bin/nym-mixnode" ]; then
-        echo "Moving new binary to $default_location"
-        sudo mv "/usr/bin/nym-mixnode" "$default_location"
-
-        echo "Setting default ownership to $default_user:$default_group"
-        sudo chown "$default_user":"$default_group" "$default_location"
-
-        echo "Setting default permissions"
-        sudo chmod 755 "$default_location"
-
-        echo "Installation complete. please configure and start the nym-mixnode process manually."
-        echo "Please refer to https://nymtech.net/operators/nodes/mix-node-setup.html"
-        echo "An example running the Mixnode via a service file:"
-        cat <<'EOF'
+        cat <<EOF
 [Unit]
-Description=Nym Mixnode
+Description=Nym mixnode
 After=network-online.target
 
 [Service]
-ExecStart=/usr/bin/nym-mixnode run --id nym-mixnode
-User=nym
+ExecStart=$default_location run --id nym-mixnode
+User=$default_user
 
 [Install]
 WantedBy=multi-user.target
 EOF
     else
-        echo "Error: the new binary /usr/bin/nym-mixnode does not exist."
+        echo "Error: the new binary $default_location does not exist."
     fi
-else
-    echo "The binary is already in the expected location ($default_location). No action taken."
 fi
+
+echo "Consider restarting the nym-mixnode service if it is already enabled."
+echo "systemctl restart nym-mixnode.service"
+
+exit 0
 
 #DEBHELPER#

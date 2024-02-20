@@ -109,6 +109,8 @@ pub async fn initialise_client<C>(
 ) -> Result<InitResultsWithConfig<C::Config>, C::Error>
 where
     C: InitialisableClient,
+    <C as InitialisableClient>::Config: std::fmt::Debug,
+    <C as InitialisableClient>::InitArgs: std::fmt::Debug,
 {
     info!("initialising {} client", C::NAME);
 
@@ -140,16 +142,31 @@ where
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway;
+    log::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
+
     let selection_spec = GatewaySelectionSpecification::new(
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(common_args.latency_based_selection),
         false,
     );
+    log::debug!("Gateway selection specification: {selection_spec:?}");
 
     // Load and potentially override config
+    log::debug!("Init arguments: {init_args:#?}");
     let config = C::construct_config(&init_args);
+    log::debug!("Constructed config: {config:#?}");
     let paths = config.common_paths();
     let core = config.core_config();
+
+    log::info!(
+        "Using nym-api: {}",
+        core.client
+            .nym_api_urls
+            .iter()
+            .map(|url| url.as_str())
+            .collect::<Vec<&str>>()
+            .join(",")
+    );
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.

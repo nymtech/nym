@@ -61,7 +61,10 @@ Quite a bit of stuff gets built. The key working parts are:
 * [webassembly client](https://nymtech.net/docs/clients/webassembly-client.html): `webassembly-client`
 * [network requester](../nodes/network-requester-setup.md): `nym-network-requester`
 * [nym-cli tool](https://nymtech.net/docs/tools/nym-cli.html): `nym-cli`
+* [nym-api](../nodes/nym-api.md): `nym-api`
 
+[//]: # (* [nymvisor]&#40;../nodes/nymvisor-upgrade.md&#41;: `nymvisor`)
+ 
 The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
 * [Nym Wallet](https://nymtech.net/docs/wallet/desktop-wallet.html)
 * [Nym Connect](https://nymtech.net/developers/quickstart/nymconnect-gui.html)

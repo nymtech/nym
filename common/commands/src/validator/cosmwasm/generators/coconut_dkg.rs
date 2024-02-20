@@ -3,6 +3,7 @@
 
 use clap::Parser;
 use log::{debug, info};
+use nym_coconut_dkg_common::dealing::DEFAULT_DEALINGS;
 use std::str::FromStr;
 
 use nym_coconut_dkg_common::msg::InstantiateMsg;
@@ -93,6 +94,7 @@ pub async fn generate(args: Args) {
         multisig_addr: multisig_addr.to_string(),
         time_configuration: Some(time_configuration),
         mix_denom,
+        key_size: DEFAULT_DEALINGS as u32,
     };
 
     debug!("instantiate_msg: {:?}", instantiate_msg);

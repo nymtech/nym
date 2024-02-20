@@ -23,8 +23,12 @@ use crate::utils::{
 };
 use crate::Base58;
 
-#[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq, Clone))]
+#[cfg_attr(
+    feature = "key-zeroize",
+    derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop)
+)]
 pub struct SecretKey {
     pub(crate) x: Scalar,
     pub(crate) ys: Vec<Scalar>,
@@ -62,7 +66,9 @@ impl TryFrom<&[u8]> for SecretKey {
         }
 
         // this conversion will not fail as we are taking the same length of data
+        #[allow(clippy::unwrap_used)]
         let x_bytes: [u8; 32] = bytes[..32].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
         let ys_len = u64::from_le_bytes(bytes[32..40].try_into().unwrap());
         let actual_ys_len = (bytes.len() - 40) / 32;
 
@@ -93,8 +99,14 @@ impl SecretKey {
         Self { x, ys }
     }
 
-    pub fn into_raw(&self) -> (Scalar, Vec<Scalar>) {
+    /// Extract the Scalar copy of the underlying secrets.
+    /// The caller of this function must exercise extreme care to not misuse the data and ensuring it gets zeroized
+    pub fn hazmat_to_raw(&self) -> (Scalar, Vec<Scalar>) {
         (self.x, self.ys.clone())
+    }
+
+    pub fn size(&self) -> usize {
+        self.ys.len()
     }
 
     /// Derive verification key using this secret key.
@@ -141,6 +153,10 @@ impl Base58 for SecretKey {}
 // TODO: perhaps change points to affine representation
 // to make verification slightly more efficient?
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(
+    feature = "key-zeroize",
+    derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop)
+)]
 pub struct VerificationKey {
     // TODO add gen2 as per the paper or imply it from the fact library is using bls381?
     pub(crate) alpha: G2Projective,
@@ -180,7 +196,9 @@ impl TryFrom<&[u8]> for VerificationKey {
         }
 
         // this conversion will not fail as we are taking the same length of data
+        #[allow(clippy::unwrap_used)]
         let alpha_bytes: [u8; 96] = bytes[..96].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
         let betas_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
 
         let actual_betas_len = (bytes.len() - 104) / (96 + 48);
@@ -204,6 +222,8 @@ impl TryFrom<&[u8]> for VerificationKey {
         for i in 0..betas_len {
             let start = (104 + i * 48) as usize;
             let end = start + 48;
+            // we're using a constant 48 byte offset (which is the size of G1 compressed) so unwrap is fine
+            #[allow(clippy::unwrap_used)]
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g1_projective(
                 &beta_i_bytes,
@@ -220,6 +240,8 @@ impl TryFrom<&[u8]> for VerificationKey {
         for i in 0..betas_len {
             let start = (beta_g1_end + i * 96) as usize;
             let end = start + 96;
+            // we're using a constant 96 byte offset (which is the size of G2 compressed) so unwrap is fine
+            #[allow(clippy::unwrap_used)]
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g2_projective(
                 &beta_i_bytes,
@@ -392,7 +414,11 @@ impl Bytable for VerificationKey {
 impl Base58 for VerificationKey {}
 
 #[derive(Debug, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[cfg_attr(test, derive(PartialEq, Eq, Clone))]
+#[cfg_attr(
+    feature = "key-zeroize",
+    derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop)
+)]
 pub struct KeyPair {
     secret_key: SecretKey,
     verification_key: VerificationKey,
@@ -429,12 +455,12 @@ impl KeyPair {
         }
     }
 
-    pub fn secret_key(&self) -> SecretKey {
-        self.secret_key.clone()
+    pub fn secret_key(&self) -> &SecretKey {
+        &self.secret_key
     }
 
-    pub fn verification_key(&self) -> VerificationKey {
-        self.verification_key.clone()
+    pub fn verification_key(&self) -> &VerificationKey {
+        &self.verification_key
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -488,6 +514,8 @@ impl TryFrom<&[u8]> for KeyPair {
             });
         }
 
+        // safety: we made bound check and we're using constant offest
+        #[allow(clippy::unwrap_used)]
         let secret_key_len =
             u64::from_le_bytes(bytes[header_len..header_len + 8].try_into().unwrap()) as usize;
         let secret_key_start = header_len + 8;
@@ -503,6 +531,8 @@ impl TryFrom<&[u8]> for KeyPair {
             });
         }
 
+        // safety: we made bound check
+        #[allow(clippy::unwrap_used)]
         let verification_key_len = u64::from_le_bytes(
             bytes[secret_key_start + secret_key_len..secret_key_start + secret_key_len + 8]
                 .try_into()
@@ -515,6 +545,7 @@ impl TryFrom<&[u8]> for KeyPair {
         )?;
         let consumed_bytes = verification_key_start + verification_key_len;
         let index = if consumed_bytes < bytes.len() && [consumed_bytes..].len() == 8 {
+            #[allow(clippy::unwrap_used)]
             Some(u64::from_le_bytes(
                 bytes[consumed_bytes..consumed_bytes + 8]
                     .try_into()

@@ -434,6 +434,10 @@ pub struct ReplySurbsWasm {
     /// Defines maximum amount of time given reply key is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
     pub maximum_reply_key_age_ms: u32,
+
+    /// Defines how many mix nodes the reply surb should go through.
+    /// If not set, the default value is going to be used.
+    pub surb_mix_hops: Option<u8>,
 }
 
 impl Default for ReplySurbsWasm {
@@ -463,6 +467,7 @@ impl From<ReplySurbsWasm> for ConfigReplySurbs {
             maximum_reply_key_age: Duration::from_millis(
                 reply_surbs.maximum_reply_key_age_ms as u64,
             ),
+            surb_mix_hops: reply_surbs.surb_mix_hops,
         }
     }
 }
@@ -484,6 +489,7 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
                 .as_millis() as u32,
             maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u32,
             maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u32,
+            surb_mix_hops: reply_surbs.surb_mix_hops,
         }
     }
 }

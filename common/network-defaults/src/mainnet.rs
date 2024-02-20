@@ -3,6 +3,7 @@
 
 use crate::var_names;
 use crate::{DenomDetails, ValidatorDetails};
+use std::str::FromStr;
 
 pub const NETWORK_NAME: &str = "mainnet";
 
@@ -25,6 +26,7 @@ pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772
 pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
+pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
 pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
 
 // I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
@@ -32,7 +34,11 @@ pub const EXIT_POLICY_URL: &str =
     "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
-    vec![ValidatorDetails::new(NYXD_URL, Some(NYM_API))]
+    vec![ValidatorDetails::new(
+        NYXD_URL,
+        Some(NYM_API),
+        Some(NYXD_WS),
+    )]
 }
 
 const DEFAULT_SUFFIX: &str = "_MAINNET_DEFAULT";
@@ -58,6 +64,12 @@ pub fn read_var_if_not_default(var: &str) -> Option<String> {
     } else {
         std::env::var(var).ok()
     }
+}
+
+pub fn read_parsed_var_if_not_default<T: FromStr>(var: &str) -> Option<Result<T, T::Err>> {
+    read_var_if_not_default(var)
+        .as_deref()
+        .map(FromStr::from_str)
 }
 
 pub fn export_to_env() {
@@ -104,6 +116,7 @@ pub fn export_to_env() {
     );
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
+    set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_to_default(var_names::EXPLORER_API, EXPLORER_API);
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
 }
@@ -152,6 +165,7 @@ pub fn export_to_env_if_not_set() {
     );
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
+    set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_conditionally_to_default(var_names::EXPLORER_API, EXPLORER_API);
     set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
 }

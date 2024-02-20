@@ -67,6 +67,7 @@ members = [
     "common/nymsphinx/params",
     "common/nymsphinx/routing",
     "common/nymsphinx/types",
+    "common/nyxd-scraper",
     "common/pemstore",
     "common/socks5-client-core",
     "common/socks5/proxy-helpers",
@@ -101,10 +102,12 @@ members = [
     "nym-node",
     "nym-node/nym-node-requests",
     "nym-outfox",
+    "nym-validator-rewarder",
     "tools/internal/ssl-inject",
-    "tools/internal/sdk-version-bump",
+    # "tools/internal/sdk-version-bump",
     "tools/nym-cli",
     "tools/nym-nr-query",
+    "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
 #    "wasm/full-nym-wasm",
@@ -120,10 +123,12 @@ default-members = [
     "service-providers/network-statistics",
     "mixnode",
     "nym-api",
+    "tools/nymvisor",
     "explorer-api",
+    "nym-validator-rewarder",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "nym-vpn/ui/src-tauri", "cpu-cycles"]
+exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "nym-vpn/ui/src-tauri", "cpu-cycles", "sdk/ffi/cpp"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]
@@ -139,7 +144,6 @@ async-trait = "0.1.68"
 axum = "0.6.20"
 base64 = "0.21.4"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
-boringtun = { git = "https://github.com/cloudflare/boringtun", rev = "e1d6360d6ab4529fc942a078e4c54df107abe2ba" }
 clap = "4.4.7"
 cfg-if = "1.0.0"
 dashmap = "5.5.3"
@@ -154,21 +158,32 @@ log = "0.4"
 once_cell = "1.7.2"
 parking_lot = "0.12.1"
 rand = "0.8.5"
-reqwest = "0.11.22"
+reqwest = { version = "0.11.22", default_features = false, features = ["rustls-tls"] }
 schemars = "0.8.1"
 serde = "1.0.152"
 serde_json = "1.0.91"
+sqlx = "0.6.3"
 tap = "1.0.1"
+time = "0.3.30"
 thiserror = "1.0.48"
-tokio = "1.24.1"
-tokio-tungstenite = "0.20.1"
+tokio = "1.33.0"
+tokio-util = "0.7.10"
+tokio-tungstenite = { version = "0.20.1", features = ["rustls"] }
 tracing = "0.1.37"
-tungstenite = { version = "0.20.1", default-features = false }
+tungstenite = { version = "0.20.1", default-features = false, features = ["rustls"] }
 ts-rs = "7.0.0"
 utoipa = "3.5.0"
 utoipa-swagger-ui = "3.1.5"
 url = "2.4"
 zeroize = "1.6.0"
+
+# coconut/DKG related
+# unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
+# as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
+bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch ="feature/gt-serialization-0.8.0" }
+group = "0.13.0"
+ff = "0.13.0"
+
 
 # cosmwasm-related
 cosmwasm-derive = "=1.3.0"
@@ -188,7 +203,11 @@ cw-controllers = { version = "=1.1.0" }
 
 # cosmrs-related
 bip32 = "0.5.1"
-cosmrs = "=0.15.0"
+
+# temporarily using a fork again (yay.) because we need staking and slashing support
+cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch ="nym-temp/all-validator-features" }
+#cosmrs = {  git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" } # unfortuntely we need a fork by yours truly to get the staking support
+tendermint = "0.34" # same version as used by cosmrs
 tendermint-rpc = "0.34" # same version as used by cosmrs
 prost = "0.12"
 

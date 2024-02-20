@@ -84,7 +84,7 @@ Additionally
 
 #### Add Network Requester to an existing Gateway
 
-If you already [upgraded](./maintenance.md#upgrading-your-node) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network Requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
+If you already [upgraded](./manual-upgrade.md) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network Requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
 
 See the options:
 
@@ -132,7 +132,7 @@ Save, exit and restart your Gateway. Now you are an operator of post-smooshed Ex
 
 In case you already added Network Requester functionality to your Gateway as described above but haven't enabled the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) there is an easy tweak to do so and turn your node into [Nym Exit Gateway](../faq/smoosh-faq.md#what-are-the-changes).
 
-Open the config file stored at `.nym/gateways/<ID>/config/network_requester_config.tom` and set:
+Open the config file stored at `.nym/gateways/<ID>/config/network_requester_config.toml` and set:
 ```sh
 use_deprecated_allow_list = false
 ```
@@ -189,12 +189,12 @@ The `run` command starts the Gateway:
 ## Bonding your Gateway
 
 ```admonish info
-Before you bond your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup [WSS on your Gateway](./maintenance.md#run-web-secure-socket-wss-on-gateway) and [automate](./maintenance.md#vps-setup-and-automation) your Gateway to simplify the operation overhead. We highly recommend to run ny of these steps before bonding to prevent disruption of your Gateway's routing score later on.
+Before you bond your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup [WSS on your Gateway](./maintenance.md#run-web-secure-socket-wss-on-gateway) and [automate](./maintenance.md#vps-setup-and-automation) your Gateway to simplify the operation overhead. We highly recommend to run any of these steps before bonding to prevent disruption of your Gateway's routing score later on.
 ```
 
 ### Via the Desktop wallet (recommended)
 
-You can bond your Gateway via the Desktop wallet. Make sure your Gateway is running and follow the steps below:
+You can bond your Gateway via the Desktop wallet. **Make sure your Gateway is running first**, then follow the steps below:
 
 1. Open your wallet, and head to the `Bonding` page, then select the node type `Gateway` and input your node details. Press `Next`.
 
@@ -240,7 +240,7 @@ It will look something like this (as `<YOUR_ID>` we used `supergateway`):
 * And paste it into the wallet nodal, press `Next` and confirm the transaction.
 
 ![Paste Signature](../images/wallet-screenshots/wallet-gateway-sign.png)  
-*This image is just an example, copy-paste your own base58-encoded signature*
+*This image is just an example, copy-paste your own base58-encoded signature.*
 
 * Your Gateway is now bonded.
 

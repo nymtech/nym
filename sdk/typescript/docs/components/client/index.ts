@@ -6,7 +6,7 @@ export const mainnetSettings = {
 };
 
 export const qaSettings = {
-  url: 'wss://sandbox-validator1.nymtech.net/',
+  url: 'wss://rpc.sandbox.nymtech.net',
   mixnetContractAddress: 'n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav',
   mnemonic: process.env.QA_MNEMONIC,
   address: 'n13uryxldwdllpakevsmt6n0uyfn3kgr2wvj5dnf',

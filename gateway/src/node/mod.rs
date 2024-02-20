@@ -200,13 +200,17 @@ impl<St> Gateway<St> {
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
-    #[cfg(feature = "wireguard")]
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
     async fn start_wireguard(
         &self,
         shutdown: TaskClient,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // TODO: possibly we should start the UDP listener and TUN device explicitly here
+    ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn Error + Send + Sync>> {
         nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
+    }
+
+    #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
+    async fn start_wireguard(&self, _shutdown: TaskClient) {
+        nym_wireguard::start_wireguard().await
     }
 
     fn start_client_websocket_listener(
@@ -346,19 +350,19 @@ impl<St> Gateway<St> {
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut ip_builder =
-            nym_ip_packet_router::IpPacketRouterBuilder::new(ip_opts.config.clone())
+        let mut ip_packet_router =
+            nym_ip_packet_router::IpPacketRouter::new(ip_opts.config.clone())
                 .with_shutdown(shutdown)
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
                 .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
-            ip_builder = ip_builder.with_stored_topology(custom_mixnet)?
+            ip_packet_router = ip_packet_router.with_stored_topology(custom_mixnet)?
         }
 
         tokio::spawn(async move {
-            if let Err(err) = ip_builder.run_service_provider().await {
+            if let Err(err) = ip_packet_router.run_service_provider().await {
                 // no need to panic as we have passed a task client to the ip packet router so
                 // we're most likely already in the process of shutting down
                 error!("ip packet router has failed: {err}")
@@ -387,7 +391,9 @@ impl<St> Gateway<St> {
         ))
     }
 
-    async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn wait_for_interrupt(
+        mut shutdown: TaskManager,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym gateway");
         res
@@ -450,8 +456,8 @@ impl<St> Gateway<St> {
 
         let coconut_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
-            CoconutVerifier::new(nyxd_client)
-        };
+            CoconutVerifier::new(nyxd_client).await
+        }?;
 
         let mix_forwarding_channel =
             self.start_packet_forwarder(shutdown.subscribe().named("PacketForwarder"));
@@ -518,24 +524,30 @@ impl<St> Gateway<St> {
         .with_wireguard_client_registry(self.client_registry.clone())
         .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
         .with_maybe_network_request_filter(nr_request_filter)
+        .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))
         .start(shutdown.subscribe().named("http-api"))?;
 
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
-        #[cfg(feature = "wireguard")]
-        if let Err(err) = self
+        #[cfg(all(feature = "wireguard", target_os = "linux"))]
+        let wg_api = self
             .start_wireguard(shutdown.subscribe().named("wireguard"))
             .await
-        {
-            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-            bail!("{err}")
-        }
+            .ok();
+
+        #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
+        self.start_wireguard(shutdown.subscribe().named("wireguard"))
+            .await;
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
         if let Err(err) = Self::wait_for_interrupt(shutdown).await {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
+        }
+        #[cfg(all(feature = "wireguard", target_os = "linux"))]
+        if let Some(wg_api) = wg_api {
+            defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&wg_api)?;
         }
         Ok(())
     }

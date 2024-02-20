@@ -201,6 +201,17 @@ impl<'a> From<&'a PrivateKey> for PublicKey {
 }
 
 impl PrivateKey {
+    #[cfg(feature = "rand")]
+    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        let x25519_secret = x25519_dalek::StaticSecret::new(rng);
+
+        PrivateKey(x25519_secret)
+    }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.into()
+    }
+
     pub fn to_bytes(&self) -> [u8; PRIVATE_KEY_SIZE] {
         self.0.to_bytes()
     }

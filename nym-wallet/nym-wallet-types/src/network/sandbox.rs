@@ -30,8 +30,9 @@ pub(crate) const EPHEMERA_CONTRACT_ADDRESS: &str =
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
-        "https://sandbox-validator1.nymtech.net",
+        "https://rpc.sandbox.nymtech.net",
         Some("https://sandbox-nym-api1.nymtech.net/api"),
+        Some("wss://rpc.sandbox.nymtech.net/websocket"),
     )]
 }
 

@@ -1,0 +1,63 @@
+#!/bin/sh
+
+default_location="/usr/bin/nym-gateway"
+default_user="nym"
+default_group="nym"
+
+if [ -f "/tmp/nym_gateway_preinst_marker" ]; then
+    backup_path=$(cat /tmp/nym_gateway_preinst_marker)
+    echo "Upgrade detected. Previous version backed up at $backup_path"
+
+    existing_location=$(dirname "$backup_path" | sed 's/\.backup\..*//')
+    echo "Existing location: ${existing_location}"
+
+    if [ "$existing_location" != "$default_location" ]; then
+        echo "Custom installation location detected: $existing_location"
+
+        mv "$default_location" "$existing_location/nym-gateway"
+
+        original_user=$(stat -c "%U" "$backup_path")
+        original_group=$(stat -c "%G" "$backup_path")
+        original_perms=$(stat -c "%a" "$backup_path")
+
+        chown "$original_user:$original_group" "$existing_location/nym-gateway"
+        chmod "$original_perms" "$existing_location/nym-gateway"
+    fi
+
+    rm -f /tmp/nym_gateway_preinst_marker
+else
+    echo "Fresh installation detected."
+
+    if [ -f "$default_location" ]; then
+        # Leave the binary as the  user to perform the apt install
+        # It's down to the user to specify the correct ownership and permissions
+        chmod 755 "$default_location"
+
+        echo "Installation complete. Please configure and start the nym-gateway process manually."
+        echo "Refer to https://nymtech.net/operators/nodes/gateway-setup.html"
+        echo "Example for setting up the nym-gateway service:"
+        echo
+        cat <<EOF
+[Unit]
+Description=Nym Gateway
+After=network-online.target
+
+[Service]
+ExecStart=$default_location run --id nym-gateway
+User=$default_user
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    else
+        echo "Error: the new binary $default_location does not exist."
+    fi
+fi
+
+echo
+echo "Consider restarting the nym-gateway service if it is already enabled."
+echo "systemctl restart nym-gateway.service"
+
+exit 0
+
+#DEBHELPER#

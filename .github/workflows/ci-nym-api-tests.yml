@@ -17,6 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: install yarn in root
+        run: cd ../.. && yarn install
+
       - name: Install npm
         run: npm install
 

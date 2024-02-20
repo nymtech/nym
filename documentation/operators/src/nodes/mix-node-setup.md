@@ -68,7 +68,7 @@ Initialise your Mix Node with the following command, replacing the value of `--i
 ```
 ./nym-mixnode init --id <YOUR_ID> --host $(curl -4 https://ifconfig.me) 
 ```
-If `<YOUR_ID>` was `my-node`, the output shall look like like this:
+If `<YOUR_ID>` was `my-node`, the output will look like this:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
@@ -89,7 +89,7 @@ In order to easily identify your node via human-readable information later on, y
 ```
 Node description is a short text that describes your node. It is displayed in the `./nym-mixnode list` command and in the `./nym-mixnode node-details --id <YOUR_ID>` command. It also shows up in the node explorer to let people know what your node is about and link to your website.
 
-You can set your node description, by creating a file called `description.toml` and put it in the same directory as your `config.toml` file (`~/.nym/mixnodes/<YOUR_ID>/description.toml`). The file should look like this example:
+You can set your node description, by creating a file called `description.toml` and put it in the same directory as your `config.toml` file (`~/.nym/mixnodes/<YOUR_ID>/config/description.toml`). The file should look like this example:
 
 ```toml
 name = "Winston Smith"
@@ -98,7 +98,7 @@ link = "https://nymtech.net"
 location = "Giza, Egypt"
 ```
 
-> Remember to restart your `nym-mix-node` process in order for the new description to be propagated.
+> Remember to restart your `nym-mixnode` process in order for the new description to be propagated.
 
 ## Running your Mix Node
 

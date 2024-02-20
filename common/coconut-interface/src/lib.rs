@@ -14,17 +14,21 @@ pub use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar,
     prepare_blind_sign, prove_bandwidth_credential, Attribute, Base58, BlindSignRequest,
     BlindedSignature, Bytable, CoconutError, KeyPair, Parameters, PrivateAttribute,
-    PublicAttribute, Signature, SignatureShare, Theta, VerificationKey,
+    PublicAttribute, SecretKey, Signature, SignatureShare, Theta, VerificationKey,
 };
 
 #[derive(Debug, Serialize, Deserialize, Getters, CopyGetters, Clone, PartialEq, Eq)]
 pub struct Credential {
     #[getset(get = "pub")]
     n_params: u32,
+
     #[getset(get = "pub")]
     theta: Theta,
+
     voucher_value: u64,
+
     voucher_info: String,
+
     #[getset(get = "pub")]
     epoch_id: u64,
 }
@@ -64,14 +68,12 @@ impl Credential {
 
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
-        let public_attributes = [
-            self.voucher_value.to_string().as_bytes(),
-            self.voucher_info.as_bytes(),
-        ]
-        .iter()
-        .map(hash_to_scalar)
-        .collect::<Vec<Attribute>>();
-        nym_coconut::verify_credential(&params, verification_key, &self.theta, &public_attributes)
+
+        let hashed_value = hash_to_scalar(self.voucher_value.to_string());
+        let hashed_info = hash_to_scalar(&self.voucher_info);
+        let public_attributes = &[&hashed_value, &hashed_info];
+
+        nym_coconut::verify_credential(&params, verification_key, &self.theta, public_attributes)
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -180,8 +182,8 @@ mod tests {
             &params,
             &verification_key,
             &signature,
-            serial_number,
-            binding_number,
+            &serial_number,
+            &binding_number,
         )
         .unwrap();
         let credential = Credential::new(4, theta, voucher_value, voucher_info, 42);

@@ -22,7 +22,6 @@ use std::time::Duration;
 use url::Url;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
-pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;

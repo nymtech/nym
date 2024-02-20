@@ -607,6 +607,10 @@ pub struct ReplySurbs {
     /// This is going to be superseded by key rotation once implemented.
     #[serde(with = "humantime_serde")]
     pub maximum_reply_key_age: Duration,
+
+    /// Specifies the number of mixnet hops the packet should go through. If not specified, then
+    /// the default value is used.
+    pub surb_mix_hops: Option<u8>,
 }
 
 impl Default for ReplySurbs {
@@ -622,6 +626,7 @@ impl Default for ReplySurbs {
             maximum_reply_surb_drop_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
             maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
             maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
+            surb_mix_hops: None,
         }
     }
 }

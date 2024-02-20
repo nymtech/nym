@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::random_scalars_refs;
 use crate::tests::helpers::tests::generate_dkg_keys;
 use crate::{
     aggregate_verification_keys, setup, tests::helpers::*, ttp_keygen, verify_credential,
@@ -12,14 +13,14 @@ fn keygen() -> Result<(), CoconutError> {
     let params = setup(5)?;
     let node_indices = vec![15u64, 248, 33521];
 
-    let public_attributes = params.n_random_scalars(2);
+    random_scalars_refs!(public_attributes, params, 2);
 
     // generate_keys
     let coconut_keypairs = ttp_keygen(&params, 2, 3)?;
 
     let verification_keys: Vec<VerificationKey> = coconut_keypairs
         .iter()
-        .map(|keypair| keypair.verification_key())
+        .map(|keypair| keypair.verification_key().clone())
         .collect();
 
     // aggregate verification keys
@@ -50,14 +51,14 @@ fn dkg() -> Result<(), CoconutError> {
     let params = setup(5)?;
     let node_indices = vec![15u64, 248, 33521];
 
-    let public_attributes = params.n_random_scalars(2);
+    random_scalars_refs!(public_attributes, params, 2);
 
     // generate_keys
     let coconut_keypairs = generate_dkg_keys(5, &node_indices);
 
     let verification_keys: Vec<VerificationKey> = coconut_keypairs
         .iter()
-        .map(|keypair| keypair.verification_key())
+        .map(|keypair| keypair.verification_key().clone())
         .collect();
 
     // aggregate verification keys

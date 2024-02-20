@@ -17,7 +17,11 @@
     - [Gateway](nodes/gateway-setup.md)
     - [Network Requester](nodes/network-requester-setup.md)
 - [Nyx Validator Setup](nodes/validator-setup.md)
+  - [Nym API Setup](nodes/nym-api.md)
 - [Maintenance](nodes/maintenance.md)
+  - [Manual Node Upgrade](nodes/manual-upgrade.md)
+
+[//]: # (  - [Automatic Node Upgrade: Nymvisor Setup and Usage]&#40;nodes/nymvisor-upgrade.md&#41;)
 - [Troubleshooting](nodes/troubleshooting.md)
 
 # FAQ
@@ -28,10 +32,14 @@
 # Legal Forum
 
 - [Exit Gateway](legal/exit-gateway.md)
-    - [Switzerland](legal/swiss.md)
-    - [United States](legal/united-states.md)
+- [Community Counsel](legal/community-counsel.md)
+    - [Jurisdictions](legal/jurisdictions.md)
+        - [Switzerland](legal/swiss.md)
+        - [United States](legal/united-states.md)
+    - [Landing Pages](legal/landing-pages.md)
+- [How to Add Info](legal/add-content.md)
 
---- 
+---
 # Misc.
 - [Code of Conduct](coc.md)
 - [Licensing](licensing.md)

@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 rust-version = "1.56"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,7 +31,6 @@ log = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["sync", "time"] }
 futures = { workspace = true }
-openssl = { version = "^0.10.55", features = ["vendored"], optional = true }
 
 nym-coconut-interface = { path = "../../coconut-interface" }
 nym-network-defaults = { path = "../../network-defaults" }
@@ -89,7 +89,7 @@ required-features = ["http-client"]
 
 [features]
 default = ["http-client"]
-http-client = ["cosmrs/rpc", "openssl"]
+http-client = ["cosmrs/rpc"]
 generate-ts = []
 contract-testing = ["nym-mixnet-contract-common/contract-testing"]
 

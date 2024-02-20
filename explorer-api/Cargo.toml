@@ -1,29 +1,30 @@
 [package]
 name = "explorer-api"
-version = "1.1.32"
+version = "1.1.33"
 edition = "2021"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 chrono = { version = "0.4.31", features = ["serde"] }
 clap = { workspace = true, features = ["cargo", "derive"] }
-dotenvy = "0.15.6"
+dotenvy = { workspace = true }
 humantime-serde = "1.0"
 isocountry = "0.3.2"
 itertools = "0.10.3"
 lazy_static = "1.4.0"
 log = { workspace = true }
 maxminddb = "0.23.0"
-okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
+okapi = { version = "0.7.0", features = ["impl_json_schema"] }
 pretty_env_logger = "0.4.0"
 rand = "0.8.5"
 rand_pcg = "0.3.1"
 rand_seeder = "0.2.3"
 reqwest = { workspace = true }
-rocket = { version = "0.5.0-rc.2", features = ["json"] }
-rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
-rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
+rocket = { version = "0.5.0", features = ["json"] }
+rocket_cors = { version = "0.6.0" }
+rocket_okapi = { version = "0.8.0", features = ["swagger"] }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

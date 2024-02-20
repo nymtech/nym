@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{Args, Subcommand};
@@ -7,6 +7,7 @@ pub mod balance;
 pub mod create;
 pub mod pubkey;
 pub mod send;
+pub mod send_multiple;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -25,4 +26,6 @@ pub enum AccountCommands {
     PubKey(crate::validator::account::pubkey::Args),
     /// Sends tokens to another account
     Send(crate::validator::account::send::Args),
+    /// Batch multiple token sends
+    SendMultiple(crate::validator::account::send_multiple::Args),
 }

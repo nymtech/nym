@@ -103,10 +103,50 @@ fn load_network_requester_details(
     )
 }
 
+fn load_ip_packet_router_details(
+    config: &Config,
+    ip_packet_router_config: &nym_ip_packet_router::Config,
+) -> Result<api_requests::v1::ip_packet_router::models::IpPacketRouter, GatewayError> {
+    let identity_public_key: identity::PublicKey = load_public_key(
+        &ip_packet_router_config
+            .storage_paths
+            .common_paths
+            .keys
+            .public_identity_key_file,
+        "ip packet router identity",
+    )?;
+
+    let dh_public_key: encryption::PublicKey = load_public_key(
+        &ip_packet_router_config
+            .storage_paths
+            .common_paths
+            .keys
+            .public_encryption_key_file,
+        "ip packet router diffie hellman",
+    )?;
+
+    let gateway_identity_public_key: identity::PublicKey = load_public_key(
+        &config.storage_paths.keys.public_identity_key_file,
+        "gateway identity",
+    )?;
+
+    Ok(api_requests::v1::ip_packet_router::models::IpPacketRouter {
+        encoded_identity_key: identity_public_key.to_base58_string(),
+        encoded_x25519_key: dh_public_key.to_base58_string(),
+        address: Recipient::new(
+            identity_public_key,
+            dh_public_key,
+            gateway_identity_public_key,
+        )
+        .to_string(),
+    })
+}
+
 pub(crate) struct HttpApiBuilder<'a> {
     gateway_config: &'a Config,
     network_requester_config: Option<&'a nym_network_requester::Config>,
     exit_policy: Option<UsedExitPolicy>,
+    ip_packet_router_config: Option<&'a nym_ip_packet_router::Config>,
 
     identity_keypair: &'a identity::KeyPair,
     // TODO: this should be a wg specific key and not re-used sphinx
@@ -124,6 +164,7 @@ impl<'a> HttpApiBuilder<'a> {
         HttpApiBuilder {
             gateway_config,
             network_requester_config: None,
+            ip_packet_router_config: None,
             exit_policy: None,
             identity_keypair,
             sphinx_keypair,
@@ -188,6 +229,15 @@ impl<'a> HttpApiBuilder<'a> {
     }
 
     #[must_use]
+    pub(crate) fn with_maybe_ip_packet_router(
+        mut self,
+        ip_packet_router_config: Option<&'a nym_ip_packet_router::Config>,
+    ) -> Self {
+        self.ip_packet_router_config = ip_packet_router_config;
+        self
+    }
+
+    #[must_use]
     pub(crate) fn with_wireguard_client_registry(
         mut self,
         client_registry: Arc<GatewayClientRegistry>,
@@ -223,6 +273,13 @@ impl<'a> HttpApiBuilder<'a> {
             if let Some(exit_policy) = self.exit_policy {
                 config = config.with_used_exit_policy(exit_policy)
             }
+        }
+
+        if let Some(ipr_config) = self.ip_packet_router_config {
+            config = config.with_ip_packet_router(load_ip_packet_router_details(
+                self.gateway_config,
+                ipr_config,
+            )?);
         }
 
         let wireguard_private_network = IpNetwork::new(

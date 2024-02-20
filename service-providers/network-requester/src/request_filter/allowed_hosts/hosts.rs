@@ -96,11 +96,7 @@ impl HostsStore {
     /// Appends a line of `text` to the storefile at `path`
     pub(super) fn append(path: &Path, text: &str) {
         use std::io::Write;
-        let mut file = OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(path)
-            .unwrap();
+        let mut file = OpenOptions::new().append(true).open(path).unwrap();
 
         if let Err(e) = writeln!(file, "{text}") {
             log::error!("Couldn't write to file: {e}");

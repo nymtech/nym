@@ -26,7 +26,7 @@ Since this is the file where client creation and message parsing are handled, th
 Below this are the chain-related `const` variables. These have been hardcoded for this demo.
 
 ```rust
-pub const DEFAULT_VALIDATOR_RPC: &str = "https://sandbox-validator1.nymtech.net";
+pub const DEFAULT_VALIDATOR_RPC: &str = "https://rpc.sandbox.nymtech.net";
 pub const DEFAULT_DENOM: &str = "unym";
 pub const DEFAULT_PREFIX: &str = "n";
 ```

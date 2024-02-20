@@ -40,14 +40,22 @@ pub struct BinaryBuildInformation {
     /// Provides the rustc channel that was used for the build, for example `nightly`.
     pub rustc_channel: &'static str,
 
-    // VERGEN_CARGO_PROFILE
-    /// Provides the cargo profile that was used for the build, for example `debug`.
+    // VERGEN_CARGO_DEBUG
+    /// Provides the cargo debug mode that was used for the build.
+    // NOTE: keep the old name cargo_profile instead of cargo_debug for backwards compatibility
     pub cargo_profile: &'static str,
 }
 
 impl BinaryBuildInformation {
     // explicitly require the build_version to be passed as it's binary specific
     pub const fn new(binary_name: &'static str, build_version: &'static str) -> Self {
+        let cargo_debug = env!("VERGEN_CARGO_DEBUG");
+        let cargo_profile = if const_str::equal!(cargo_debug, "true") {
+            "debug"
+        } else {
+            "release"
+        };
+
         BinaryBuildInformation {
             binary_name,
             build_timestamp: env!("VERGEN_BUILD_TIMESTAMP"),
@@ -57,7 +65,7 @@ impl BinaryBuildInformation {
             commit_branch: env!("VERGEN_GIT_BRANCH"),
             rustc_version: env!("VERGEN_RUSTC_SEMVER"),
             rustc_channel: env!("VERGEN_RUSTC_CHANNEL"),
-            cargo_profile: env!("VERGEN_CARGO_PROFILE"),
+            cargo_profile,
         }
     }
 
@@ -80,7 +88,7 @@ impl BinaryBuildInformation {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "bin_info_schema", derive(schemars::JsonSchema))]
 pub struct BinaryBuildInformationOwned {
@@ -115,8 +123,9 @@ pub struct BinaryBuildInformationOwned {
     /// Provides the rustc channel that was used for the build, for example `nightly`.
     pub rustc_channel: String,
 
-    // VERGEN_CARGO_PROFILE
-    /// Provides the cargo profile that was used for the build, for example `debug`.
+    // VERGEN_CARGO_DEBUG
+    /// Provides the cargo debug mode that was used for the build.
+    // NOTE: keep the old name cargo_profile instead of cargo_debug for backwards compatibility
     pub cargo_profile: String,
 }
 

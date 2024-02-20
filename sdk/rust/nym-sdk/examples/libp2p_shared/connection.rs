@@ -109,7 +109,7 @@ impl Connection {
                     },
                 }),
             })
-            .map_err(|e| Error::OutboundSendError(e.to_string()))?;
+            .map_err(|e| Error::OutboundSendFailure(e.to_string()))?;
 
         // track pending outbound substreams
         // TODO we should probably lock this? storing map values should be atomic
@@ -159,7 +159,7 @@ impl Connection {
         // notify poll_close that the substream is closed
         self.close_tx
             .send(substream_id)
-            .map_err(|e| Error::InboundSendError(e.to_string()))
+            .map_err(|e| Error::InboundSendFailure(e.to_string()))
     }
 }
 
@@ -217,13 +217,13 @@ impl StreamMuxer for Connection {
                                 },
                             }),
                         })
-                        .map_err(|e| Error::OutboundSendError(e.to_string()))?;
+                        .map_err(|e| Error::OutboundSendFailure(e.to_string()))?;
                     debug!("wrote OpenResponse for substream: {:?}", &msg.substream_id);
 
                     // send the substream to our own channel to be returned in poll_inbound
                     self.inbound_open_tx
                         .send(substream)
-                        .map_err(|e| Error::InboundSendError(e.to_string()))?;
+                        .map_err(|e| Error::InboundSendFailure(e.to_string()))?;
 
                     debug!("new inbound substream: {:?}", &msg.substream_id);
                 }

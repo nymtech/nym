@@ -1,16 +1,23 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration};
+use crate::dealing::{DealingChunkInfo, PartialContractDealing};
+use crate::types::{
+    ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration,
+};
 use crate::verification_key::VerificationKeyShare;
+use contracts_common::IdentityKey;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
 
 #[cfg(feature = "schema")]
 use crate::{
-    dealer::{DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse},
-    types::{Epoch, InitialReplacementData},
-    verification_key::PagedVKSharesResponse,
+    dealer::{DealerDetailsResponse, PagedDealerResponse},
+    dealing::{
+        DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
+        DealingMetadataResponse, DealingStatusResponse,
+    },
+    types::{Epoch, InitialReplacementData, State},
+    verification_key::{PagedVKSharesResponse, VkShareResponse},
 };
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
@@ -21,18 +28,31 @@ pub struct InstantiateMsg {
     pub multisig_addr: String,
     pub time_configuration: Option<TimeConfiguration>,
     pub mix_denom: String,
+
+    /// Specifies the number of elements in the derived keys
+    pub key_size: u32,
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    // we could have just re-used AdvanceEpochState, but imo an explicit message is better
+    InitiateDkg {},
+
     RegisterDealer {
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
     },
 
-    CommitDealing {
-        dealing_bytes: ContractSafeBytes,
+    CommitDealingsMetadata {
+        dealing_index: DealingIndex,
+        chunks: Vec<DealingChunkInfo>,
+        resharing: bool,
+    },
+
+    CommitDealingsChunk {
+        chunk: PartialContractDealing,
         resharing: bool,
     },
 
@@ -42,8 +62,7 @@ pub enum ExecuteMsg {
     },
 
     VerifyVerificationKeyShare {
-        // TODO: this should be using a String...
-        owner: Addr,
+        owner: String,
         resharing: bool,
     },
 
@@ -55,6 +74,9 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
+    #[cfg_attr(feature = "schema", returns(State))]
+    GetState {},
+
     #[cfg_attr(feature = "schema", returns(Epoch))]
     GetCurrentEpochState {},
 
@@ -79,12 +101,41 @@ pub enum QueryMsg {
         start_after: Option<String>,
     },
 
-    #[cfg_attr(feature = "schema", returns(PagedDealingsResponse))]
-    GetDealing {
-        idx: u64,
-        limit: Option<u32>,
-        start_after: Option<String>,
+    #[cfg_attr(feature = "schema", returns(DealingMetadataResponse))]
+    GetDealingsMetadata {
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
     },
+
+    #[cfg_attr(feature = "schema", returns(DealerDealingsStatusResponse))]
+    GetDealerDealingsStatus { epoch_id: EpochId, dealer: String },
+
+    #[cfg_attr(feature = "schema", returns(DealingStatusResponse))]
+    GetDealingStatus {
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    },
+
+    #[cfg_attr(feature = "schema", returns(DealingChunkStatusResponse))]
+    GetDealingChunkStatus {
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    },
+
+    #[cfg_attr(feature = "schema", returns(DealingChunkResponse))]
+    GetDealingChunk {
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    },
+
+    #[cfg_attr(feature = "schema", returns(VkShareResponse))]
+    GetVerificationKey { epoch_id: EpochId, owner: String },
 
     #[cfg_attr(feature = "schema", returns(PagedVKSharesResponse))]
     GetVerificationKeys {
@@ -92,6 +143,11 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<String>,
     },
+
+    /// Gets the stored contract version information that's required by the CW2 spec interface for migrations.
+    #[serde(rename = "get_cw2_contract_version")]
+    #[cfg_attr(feature = "schema", returns(cw2::ContractVersion))]
+    GetCW2ContractVersion {},
 }
 
 #[cw_serde]

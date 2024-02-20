@@ -16,7 +16,6 @@ use crate::signing::tx_signer::TxSigner;
 use crate::signing::AccountData;
 use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
 use async_trait::async_trait;
-use cosmrs::cosmwasm;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Raw, SignDoc};
 use cosmwasm_std::Addr;
@@ -29,31 +28,41 @@ use tendermint_rpc::endpoint::*;
 use tendermint_rpc::{Error as TendermintRpcError, Order};
 use url::Url;
 
-pub use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
-pub use crate::nyxd::fee::Fee;
+pub use crate::nyxd::{
+    cosmwasm_client::{
+        client_traits::{CosmWasmClient, SigningCosmWasmClient},
+        module_traits::{self, StakingQueryClient},
+    },
+    fee::Fee,
+};
 pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
-pub use cosmrs::bank::MsgSend;
-pub use cosmrs::tendermint::abci::{
-    response::DeliverTx, types::ExecTxResult, Event, EventAttribute,
+pub use cosmrs::{
+    bank::MsgSend,
+    bip32, cosmwasm,
+    crypto::PublicKey,
+    query::{PageRequest, PageResponse},
+    tendermint::{
+        abci::{response::DeliverTx, types::ExecTxResult, Event, EventAttribute},
+        block::Height,
+        hash::{self, Algorithm, Hash},
+        validator::Info as TendermintValidatorInfo,
+        Time as TendermintTime,
+    },
+    tx::{self, Msg},
+    AccountId, Any, Coin as CosmosCoin, Denom, Gas,
 };
-pub use cosmrs::tendermint::block::Height;
-pub use cosmrs::tendermint::hash::{self, Algorithm, Hash};
-pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
-pub use cosmrs::tendermint::Time as TendermintTime;
-pub use cosmrs::tx::Msg;
-pub use cosmrs::tx::{self};
-pub use cosmrs::Coin as CosmosCoin;
-pub use cosmrs::Gas;
-pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
+pub use cw2;
+pub use cw3;
+pub use cw4;
+pub use cw_controllers;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
     query::Query,
-    Paging,
+    Paging, Request, Response, SimpleRequest,
 };
-pub use tendermint_rpc::{Request, Response, SimpleRequest};
 
 #[cfg(feature = "http-client")]
 use crate::http_client;
@@ -67,6 +76,7 @@ pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
+pub mod helpers;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -89,6 +99,14 @@ impl Config {
     pub fn with_simulated_gas_multplier(mut self, simulated_gas_multiplier: f32) -> Self {
         self.simulated_gas_multiplier = simulated_gas_multiplier;
         self
+    }
+}
+
+impl TryFrom<NymNetworkDetails> for Config {
+    type Error = NyxdError;
+
+    fn try_from(value: NymNetworkDetails) -> Result<Self, Self::Error> {
+        Config::try_from_nym_network_details(&value)
     }
 }
 
@@ -376,7 +394,11 @@ where
         })
     }
 
-    pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NyxdError>
+    pub async fn simulate<I, M>(
+        &self,
+        messages: I,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<SimulateResponse, NyxdError>
     where
         I: IntoIterator<Item = M> + Send,
         M: Msg,
@@ -391,7 +413,7 @@ where
                     .map_err(|_| {
                         NyxdError::SerializationError("custom simulate messages".to_owned())
                     })?,
-                "simulating execution of transactions",
+                memo,
             )
             .await
     }
@@ -719,7 +741,7 @@ where
     where
         H: Into<Height> + Send,
     {
-        self.client.validators(height, paging).await
+        TendermintRpcClient::validators(&self.client, height, paging).await
     }
 
     async fn latest_consensus_params(
@@ -792,14 +814,6 @@ where
     {
         self.client.perform(request).await
     }
-}
-
-#[async_trait]
-impl<C, S> CosmWasmClient for NyxdClient<C, S>
-where
-    C: TendermintRpcClient + Send + Sync,
-    S: Send + Sync,
-{
 }
 
 impl<C, S> OfflineSigner for NyxdClient<C, S>

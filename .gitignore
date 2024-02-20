@@ -9,6 +9,7 @@
 target
 .env
 .env.dev
+envs/devnet.env
 /.vscode/settings.json
 validator/.vscode
 sample-configs/validator-config.toml

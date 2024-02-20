@@ -65,7 +65,7 @@ pub async fn current_gateways<R: Rng>(
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
     let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
 
-    log::trace!("Fetching list of gateways from: {nym_api}");
+    log::debug!("Fetching list of gateways from: {nym_api}");
 
     let gateways = client.get_cached_described_gateways().await?;
     log::debug!("Found {} gateways", gateways.len());
@@ -259,6 +259,7 @@ pub(super) fn get_specified_gateway(
     gateways: &[gateway::Node],
     must_use_tls: bool,
 ) -> Result<gateway::Node, ClientCoreError> {
+    log::debug!("Requesting specified gateway: {}", gateway_identity);
     let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 

@@ -15,15 +15,15 @@ id = '{{ base.id }}'
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
 
-# Address of the validator contract managing the network.
-mixnet_contract_address = '{{ base.mixnet_contract_address }}'
-
-# Address of the vesting contract holding locked tokens
-vesting_contract_address = '{{ base.vesting_contract_address }}'
-
 # Mnemonic used for rewarding and validator interaction
 mnemonic = '{{ base.mnemonic }}'
 
+[base.storage_paths]
+# Path to file containing private identity key of the nym-api.
+private_identity_key_file = '{{ base.storage_paths.private_identity_key_file }}'
+
+# Path to file containing public identity key of the nym-api.
+public_identity_key_file = '{{ base.storage_paths.public_identity_key_file }}'
 
 ##### network monitor config options #####
 
@@ -118,11 +118,8 @@ announce_address = '{{ coconut_signer.announce_address }}'
 # Path to a JSON file where state is persisted between different stages of DKG.
 dkg_persistent_state_path = '{{ coconut_signer.storage_paths.dkg_persistent_state_path }}'
 
-# Path to the coconut verification key
-verification_key_path = '{{ coconut_signer.storage_paths.verification_key_path }}'
-
-# Path to the coconut verification key
-secret_key_path = '{{ coconut_signer.storage_paths.secret_key_path }}'
+# Path to the coconut key.
+coconut_key_path = '{{ coconut_signer.storage_paths.coconut_key_path }}'
 
 # Path to the dkg dealer decryption key
 decryption_key_path = '{{ coconut_signer.storage_paths.decryption_key_path }}'

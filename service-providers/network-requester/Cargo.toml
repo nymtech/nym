@@ -3,8 +3,8 @@
 
 [package]
 name = "nym-network-requester"
-license = "GPL-3"
-version = "1.1.32"
+license = "GPL-3.0"
+version = "1.1.33"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.65"
@@ -16,6 +16,7 @@ name = "nym_network_requester"
 path = "src/lib.rs"
 
 [dependencies]
+addr = "0.15.6"
 async-trait = { workspace = true }
 bs58 = "0.4.0"
 clap = { workspace = true, features = ["cargo", "derive"]}
@@ -26,13 +27,13 @@ ipnetwork = "0.20.0"
 lazy_static = { workspace = true }
 log = { workspace = true }
 pretty_env_logger = "0.4.0"
-publicsuffix = "1.5" # Can't update this until bip updates to support newer idna version
+publicsuffix = "2.2.3"
 rand = "0.7.3"
 regex = "1.8.4"
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "chrono"]}
 tap = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }

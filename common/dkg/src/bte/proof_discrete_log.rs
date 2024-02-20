@@ -13,8 +13,7 @@ use zeroize::Zeroize;
 const DISCRETE_LOG_DOMAIN: &[u8] =
     b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381_XMD:SHA-256_SSWU_RO_PROOF_DISCRETE_LOG";
 
-#[derive(Clone, Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProofOfDiscreteLog {
     pub(crate) rand_commitment: G1Projective,
     pub(crate) response: Scalar,

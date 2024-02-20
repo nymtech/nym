@@ -1,0 +1,50 @@
+{
+  "name": "nym-node-test-suite",
+  "version": "1.0.0",
+  "description": "a basic nym-node-api suite to test the nym-node-api",
+  "main": "dist/index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test:sandbox": "TEST_ENV=sandbox jest --forceExit --detectOpenHandles --passWithNoTests",
+    "test:prod": "TEST_ENV=prod jest --forceExit --detectOpenHandles --passWithNoTests",
+    "build": "tsc",
+    "lint": "eslint --fix --ext .js,.ts,.tsx .",
+    "cleanup": "rm -rf node_modules; rm -rf dist; yarn install"
+  },
+  "author": "Nymtech",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": "18.1.0",
+    "npm": "8.x"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "eslint": "^8.51.0",
+    "form-data": "4.0.0",
+    "json-stringify-safe": "5.0.1",
+    "tslog": "../../../../../node_modules/tslog",
+    "uuid": "8.3.2",
+    "yaml": "^2.2.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.5",
+    "@types/node": "^20.8.4",
+    "@typescript-eslint/eslint-plugin": "^5.12.1",
+    "@typescript-eslint/parser": "^5.33.0",
+    "axios-mock-adapter": "^1.20.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "jest": "^28.1.3",
+    "jest-junit": "^14.0.0", 
+    "prettier": "^3.0.3",
+    "process": "0.11.10",
+    "ts-jest": "28.0.7",
+    "typescript": "^4.7.4",
+    "uuidv4": "^6.2.12"
+  }
+}

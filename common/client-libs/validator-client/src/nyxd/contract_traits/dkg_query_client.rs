@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::collect_paged;
@@ -7,13 +7,21 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use nym_coconut_dkg_common::dealer::{
-    ContractDealing, DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse,
-};
-use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use nym_coconut_dkg_common::types::{DealerDetails, Epoch, EpochId, InitialReplacementData};
-use nym_coconut_dkg_common::verification_key::{ContractVKShare, PagedVKSharesResponse};
+use nym_coconut_dkg_common::types::ChunkIndex;
 use serde::Deserialize;
+
+pub use nym_coconut_dkg_common::{
+    dealer::{DealerDetailsResponse, PagedDealerResponse},
+    dealing::{
+        DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
+        DealingMetadataResponse, DealingStatusResponse,
+    },
+    msg::QueryMsg as DkgQueryMsg,
+    types::{
+        DealerDetails, DealingIndex, Epoch, EpochId, EpochState, InitialReplacementData, State,
+    },
+    verification_key::{ContractVKShare, PagedVKSharesResponse, VkShareResponse},
+};
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -22,10 +30,16 @@ pub trait DkgQueryClient {
     where
         for<'a> T: Deserialize<'a>;
 
+    async fn get_state(&self) -> Result<State, NyxdError> {
+        let request = DkgQueryMsg::GetState {};
+        self.query_dkg_contract(request).await
+    }
+
     async fn get_current_epoch(&self) -> Result<Epoch, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochState {};
         self.query_dkg_contract(request).await
     }
+
     async fn get_current_epoch_threshold(&self) -> Result<Option<u64>, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochThreshold {};
         self.query_dkg_contract(request).await
@@ -64,17 +78,86 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
-    async fn get_dealings_paged(
+    async fn get_dealings_metadata(
         &self,
-        idx: u64,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> Result<PagedDealingsResponse, NyxdError> {
-        let request = DkgQueryMsg::GetDealing {
-            idx,
-            limit,
-            start_after,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> Result<DealingMetadataResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealingsMetadata {
+            epoch_id,
+            dealer,
+            dealing_index,
         };
+
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_dealer_dealings_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<DealerDealingsStatusResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealerDealingsStatus { epoch_id, dealer };
+
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_dealing_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> Result<DealingStatusResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealingStatus {
+            epoch_id,
+            dealer,
+            dealing_index,
+        };
+
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_dealing_chunk_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) -> Result<DealingChunkStatusResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealingChunkStatus {
+            epoch_id,
+            dealer,
+            dealing_index,
+            chunk_index,
+        };
+
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_dealing_chunk(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) -> Result<DealingChunkResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealingChunk {
+            epoch_id,
+            dealer,
+            dealing_index,
+            chunk_index,
+        };
+
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_vk_share(
+        &self,
+        epoch_id: EpochId,
+        owner: String,
+    ) -> Result<VkShareResponse, NyxdError> {
+        let request = DkgQueryMsg::GetVerificationKey { epoch_id, owner };
         self.query_dkg_contract(request).await
     }
 
@@ -91,6 +174,11 @@ pub trait DkgQueryClient {
         };
         self.query_dkg_contract(request).await
     }
+
+    async fn get_contract_cw2_version(&self) -> Result<cw2::ContractVersion, NyxdError> {
+        self.query_dkg_contract(DkgQueryMsg::GetCW2ContractVersion {})
+            .await
+    }
 }
 
 // extension trait to the query client to deal with the paged queries
@@ -104,10 +192,6 @@ pub trait PagedDkgQueryClient: DkgQueryClient {
 
     async fn get_all_past_dealers(&self) -> Result<Vec<DealerDetails>, NyxdError> {
         collect_paged!(self, get_past_dealers_paged, dealers)
-    }
-
-    async fn get_all_epoch_dealings(&self, idx: u64) -> Result<Vec<ContractDealing>, NyxdError> {
-        collect_paged!(self, get_dealings_paged, dealings, idx)
     }
 
     async fn get_all_verification_key_shares(
@@ -143,6 +227,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_coconut_dkg_common::msg::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -151,6 +236,7 @@ mod tests {
         msg: DkgQueryMsg,
     ) {
         match msg {
+            DkgQueryMsg::GetState {} => client.get_state().ignore(),
             DkgQueryMsg::GetCurrentEpochState {} => client.get_current_epoch().ignore(),
             DkgQueryMsg::GetCurrentEpochThreshold {} => {
                 client.get_current_epoch_threshold().ignore()
@@ -165,11 +251,42 @@ mod tests {
             DkgQueryMsg::GetPastDealers { limit, start_after } => {
                 client.get_past_dealers_paged(start_after, limit).ignore()
             }
-            DkgQueryMsg::GetDealing {
-                idx,
-                limit,
-                start_after,
-            } => client.get_dealings_paged(idx, start_after, limit).ignore(),
+            DkgQueryMsg::GetDealingStatus {
+                epoch_id,
+                dealer,
+                dealing_index,
+            } => client
+                .get_dealing_status(epoch_id, dealer, dealing_index)
+                .ignore(),
+            DkgQueryMsg::GetDealingsMetadata {
+                epoch_id,
+                dealer,
+                dealing_index,
+            } => client
+                .get_dealings_metadata(epoch_id, dealer, dealing_index)
+                .ignore(),
+            QueryMsg::GetDealerDealingsStatus { epoch_id, dealer } => {
+                client.get_dealer_dealings_status(epoch_id, dealer).ignore()
+            }
+            DkgQueryMsg::GetDealingChunkStatus {
+                epoch_id,
+                dealer,
+                dealing_index,
+                chunk_index,
+            } => client
+                .get_dealing_chunk_status(epoch_id, dealer, dealing_index, chunk_index)
+                .ignore(),
+            DkgQueryMsg::GetDealingChunk {
+                epoch_id,
+                dealer,
+                dealing_index,
+                chunk_index,
+            } => client
+                .get_dealing_chunk(epoch_id, dealer, dealing_index, chunk_index)
+                .ignore(),
+            DkgQueryMsg::GetVerificationKey { epoch_id, owner } => {
+                client.get_vk_share(epoch_id, owner).ignore()
+            }
             DkgQueryMsg::GetVerificationKeys {
                 epoch_id,
                 limit,
@@ -177,6 +294,7 @@ mod tests {
             } => client
                 .get_vk_shares_paged(epoch_id, start_after, limit)
                 .ignore(),
+            DkgQueryMsg::GetCW2ContractVersion {} => client.get_contract_cw2_version().ignore(),
         };
     }
 }

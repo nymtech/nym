@@ -2,6 +2,7 @@
 name = "nym-coconut-dkg-common"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,6 +10,8 @@ edition = "2021"
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw-utils = { workspace = true }
+cw2 = { workspace = true }
+cw4 = { workspace = true }
 
 contracts-common = { path = "../contracts-common", package = "nym-contracts-common" }
 nym-multisig-contract-common = { path = "../multisig-contract" }

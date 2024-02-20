@@ -52,6 +52,13 @@ pub(crate) async fn execute(
             )
             .await;
         }
+        Some(nym_cli_commands::validator::account::AccountCommands::SendMultiple(args)) => {
+            nym_cli_commands::validator::account::send_multiple::send_multiple(
+                args,
+                &create_signing_client(global_args, network_details)?,
+            )
+            .await;
+        }
         _ => unreachable!(),
     }
 

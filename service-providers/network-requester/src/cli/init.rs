@@ -48,7 +48,7 @@ impl InitialisableClient for NetworkRequesterInit {
     }
 }
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Debug)]
 pub(crate) struct Init {
     #[command(flatten)]
     common_args: CommonClientInitArgs,

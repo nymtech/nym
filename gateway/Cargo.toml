@@ -3,8 +3,8 @@
 
 [package]
 name = "nym-gateway"
-license = "GPL-3"
-version = "1.1.32"
+license = "GPL-3.0"
+version = "1.1.33"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -36,7 +36,7 @@ pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { version = "0.5", features = [
+sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",
@@ -53,7 +53,7 @@ tokio = { workspace = true, features = [
 ] }
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = { version = "0.20.1" }
-tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
@@ -77,8 +77,10 @@ nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-wireguard = { path = "../common/wireguard", optional = true }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
+
+nym-wireguard = { path = "../common/wireguard", optional = true }
+defguard_wireguard_rs = { git = "https://github.com/neacsu/wireguard-rs.git", rev = "c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed", optional = true }
 
 [dev-dependencies]
 tower = "0.4.13"
@@ -87,7 +89,7 @@ hyper = "0.14.27"
 
 [build-dependencies]
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
-sqlx = { version = "0.5", features = [
+sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",
@@ -95,4 +97,10 @@ sqlx = { version = "0.5", features = [
 ] }
 
 [features]
-wireguard = ["nym-wireguard"]
+wireguard = ["nym-wireguard", "defguard_wireguard_rs"]
+
+[package.metadata.deb]
+name = "nym-gateway"
+maintainer-scripts = "debian"
+depends = "curl"
+systemd-units = { enable = false }

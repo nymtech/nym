@@ -61,12 +61,13 @@ export const Tutorial = () => {
   return (
     <NymCard
       borderless
-      title="Buy NYM with BTC"
+      title="Buy/Sell NYM with BTC"
       sx={{ mt: 4 }}
       Action={clientDetails?.client_address && <ClientAddress address={clientDetails?.client_address} withCopy />}
     >
       <Typography mb={2} fontSize={14}>
-        Follow below 3 steps to quickly and easily buy NYM tokens. You can purchase up to 1000 Swiss Francs per day.
+        Follow below 3 steps to quickly and easily buy or sell NYM tokens. You can purchase up to 1000 Swiss Francs per
+        day.
       </Typography>
       {showSignModal && <SignMessageModal onClose={() => setShowSignModal(false)} />}
       <Grid
@@ -89,7 +90,7 @@ export const Tutorial = () => {
             <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
               Click on{' '}
               <Typography display="inline" fontWeight={600} fontSize={14} lineHeight="24px">
-                Buy NYM
+                Buy/Sell NYM
               </Typography>{' '}
               button and follow the steps in the browser window that opens. You will be asked for purchase details i.e.
               amount, wallet address, etc.
@@ -138,7 +139,7 @@ export const Tutorial = () => {
             href={`${EXCHANGE_URL}/?wallet_address=${clientDetails!.client_address}`}
             target="_blank"
           >
-            Buy NYM
+            Buy/Sell NYM
           </Button>
         </Stack>
       </Stack>

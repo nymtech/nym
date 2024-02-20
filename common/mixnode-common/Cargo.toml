@@ -3,6 +3,7 @@ name = "nym-mixnode-common"
 version = "0.1.0"
 authors = ["Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,7 +21,7 @@ tokio = { version = "1.24.1", features = [
     "net",
     "io-util",
 ] }
-tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true }
 thiserror = { workspace = true }
 

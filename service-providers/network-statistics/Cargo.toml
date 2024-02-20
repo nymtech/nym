@@ -1,7 +1,8 @@
 [package]
 name = "nym-network-statistics"
-version = "1.1.32"
+version = "1.1.33"
 edition = "2021"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -9,9 +10,9 @@ edition = "2021"
 dirs = "4.0"
 log = { workspace = true }
 pretty_env_logger = "0.4"
-rocket = { version = "0.5.0-rc.2", features = ["json"] }
+rocket = { version = "0.5.0", features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono"]}
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono"]}
 thiserror = { workspace = true }
 tokio = { version = "1.4", features = [ "net", "rt-multi-thread", "macros", "time" ] }
 nym-bin-common = { path = "../../common/bin-common"}
@@ -19,5 +20,5 @@ nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 
 [build-dependencies]
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }

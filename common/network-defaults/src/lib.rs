@@ -111,6 +111,7 @@ impl NymNetworkDetails {
             .with_additional_validator_endpoint(ValidatorDetails::new(
                 var(var_names::NYXD).expect("nyxd validator not set"),
                 Some(var(var_names::NYM_API).expect("nym api not set")),
+                get_optional_env(var_names::NYXD_WEBSOCKET),
             ))
             .with_mixnet_contract(Some(
                 var(var_names::MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set"),
@@ -340,6 +341,9 @@ impl DenomDetailsOwned {
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nyxd_url: String,
+    //
+    pub websocket_url: Option<String>,
+
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
     pub api_url: Option<String>,
@@ -347,9 +351,10 @@ pub struct ValidatorDetails {
 }
 
 impl ValidatorDetails {
-    pub fn new<S: Into<String>>(nyxd_url: S, api_url: Option<S>) -> Self {
+    pub fn new<S: Into<String>>(nyxd_url: S, api_url: Option<S>, websocket_url: Option<S>) -> Self {
         ValidatorDetails {
             nyxd_url: nyxd_url.into(),
+            websocket_url: websocket_url.map(Into::into),
             api_url: api_url.map(Into::into),
         }
     }
@@ -357,6 +362,7 @@ impl ValidatorDetails {
     pub fn new_nyxd_only<S: Into<String>>(nyxd_url: S) -> Self {
         ValidatorDetails {
             nyxd_url: nyxd_url.into(),
+            websocket_url: None,
             api_url: None,
         }
     }
@@ -371,6 +377,12 @@ impl ValidatorDetails {
         self.api_url
             .as_ref()
             .map(|url| url.parse().expect("the provided api url is invalid!"))
+    }
+
+    pub fn websocket_url(&self) -> Option<Url> {
+        self.websocket_url
+            .as_ref()
+            .map(|url| url.parse().expect("the provided websocket url is invalid!"))
     }
 }
 
@@ -388,11 +400,25 @@ fn fix_deprecated_environmental_variables() {
     }
 }
 
+// Read the variables from the file and log what the corresponding values in the environment are.
+fn print_env_vars_with_keys_in_file<P: AsRef<Path> + Copy>(config_env_file: P) {
+    let items = dotenvy::from_path_iter(config_env_file)
+        .expect("Invalid path to environment configuration file");
+    for item in items {
+        let (key, val) = item.expect("Invalid item in environment configuration file");
+        log::debug!("{}: {}", key, val);
+    }
+}
+
 pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
     match std::env::var(var_names::CONFIGURED) {
         // if the configuration is not already set in the env vars
         Err(std::env::VarError::NotPresent) => {
-            if let Some(config_env_file) = config_env_file {
+            if let Some(config_env_file) = &config_env_file {
+                log::debug!(
+                    "Loading environment variables from {:?}",
+                    config_env_file.as_ref()
+                );
                 dotenvy::from_path(config_env_file)
                     .expect("Invalid path to environment configuration file");
                 fix_deprecated_environmental_variables();
@@ -400,17 +426,25 @@ pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
                 // if nothing is set, the use mainnet defaults
                 // if the user has not set `CONFIGURED`, then even if they set any of the env variables,
                 // overwrite them
+                log::debug!("Loading mainnet defaults");
                 crate::mainnet::export_to_env();
             }
         }
-        Err(_) => crate::mainnet::export_to_env(),
+        Err(_) => {
+            log::debug!("Environment variables already set. Using them");
+            crate::mainnet::export_to_env()
+        }
         _ => {
             fix_deprecated_environmental_variables();
         }
     }
 
     // if we haven't explicitly defined any of the constants, fallback to defaults
-    crate::mainnet::export_to_env_if_not_set()
+    crate::mainnet::export_to_env_if_not_set();
+
+    if let Some(config_env_file) = &config_env_file {
+        print_env_vars_with_keys_in_file(config_env_file);
+    }
 }
 
 // Name of the event triggered by the eth contract. If the event name is changed,

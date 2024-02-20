@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
-use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
+use crate::coconut::client::Client;
+use crate::coconut::{self, comm::QueryCommunicationChannel};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
@@ -12,7 +13,9 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::{nyxd, storage};
 use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
-use anyhow::Result;
+use anyhow::{bail, Result};
+use nym_crypto::asymmetric::identity;
+use nym_validator_client::nyxd::Coin;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
@@ -25,7 +28,8 @@ pub(crate) async fn setup_rocket(
     config: &Config,
     network_details: NetworkDetails,
     _nyxd_client: nyxd::Client,
-    coconut_keypair: coconut::keypair::KeyPair,
+    identity_keypair: identity::KeyPair,
+    coconut_keypair: coconut::keys::KeyPair,
 ) -> anyhow::Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
     let mut rocket = rocket::build();
@@ -65,10 +69,19 @@ pub(crate) async fn setup_rocket(
     };
 
     let rocket = if config.coconut_signer.enabled {
+        // make sure we have some tokens to cover multisig fees
+        let balance = _nyxd_client.balance(&mix_denom).await?;
+        if balance.amount < coconut::MINIMUM_BALANCE {
+            let address = _nyxd_client.address().await;
+            let min = Coin::new(coconut::MINIMUM_BALANCE, mix_denom);
+            bail!("the account ({address}) doesn't have enough funds to cover verification fees. it has {balance} while it needs at least {min}")
+        }
+
         let comm_channel = QueryCommunicationChannel::new(_nyxd_client.clone());
-        rocket.attach(InternalSignRequest::stage(
+        rocket.attach(coconut::stage(
             _nyxd_client.clone(),
             mix_denom,
+            identity_keypair,
             coconut_keypair,
             comm_channel,
             storage.clone().unwrap(),

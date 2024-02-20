@@ -43,6 +43,8 @@ impl TryFrom<&[u8]> for Theta {
                 ));
         }
 
+        // safety: we just checked for the length so the unwraps are fine
+        #[allow(clippy::unwrap_used)]
         let blinded_message_bytes = bytes[..96].try_into().unwrap();
         let blinded_message = try_deserialize_g2_projective(
             &blinded_message_bytes,
@@ -51,6 +53,8 @@ impl TryFrom<&[u8]> for Theta {
             ),
         )?;
 
+        // safety: we just checked for the length so the unwraps are fine
+        #[allow(clippy::unwrap_used)]
         let blinded_serial_number_bytes = bytes[96..192].try_into().unwrap();
         let blinded_serial_number = try_deserialize_g2_projective(
             &blinded_serial_number_bytes,
@@ -130,7 +134,7 @@ impl Base58 for Theta {}
 pub fn compute_kappa(
     params: &Parameters,
     verification_key: &VerificationKey,
-    private_attributes: &[Attribute],
+    private_attributes: &[&Attribute],
     blinding_factor: Scalar,
 ) -> G2Projective {
     params.gen2() * blinding_factor
@@ -138,11 +142,11 @@ pub fn compute_kappa(
         + private_attributes
             .iter()
             .zip(verification_key.beta_g2.iter())
-            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .map(|(&priv_attr, beta_i)| beta_i * priv_attr)
             .sum::<G2Projective>()
 }
 
-pub fn compute_zeta(params: &Parameters, serial_number: Attribute) -> G2Projective {
+pub fn compute_zeta(params: &Parameters, serial_number: &Attribute) -> G2Projective {
     params.gen2() * serial_number
 }
 
@@ -150,8 +154,8 @@ pub fn prove_bandwidth_credential(
     params: &Parameters,
     verification_key: &VerificationKey,
     signature: &Signature,
-    serial_number: Attribute,
-    binding_number: Attribute,
+    serial_number: &Attribute,
+    binding_number: &Attribute,
 ) -> Result<Theta> {
     if verification_key.beta_g2.len() < 2 {
         return Err(
@@ -171,7 +175,7 @@ pub fn prove_bandwidth_credential(
     // Thus, we need kappa which allows us to verify sigma'. In particular,
     // kappa is computed on m as input, but thanks to the use or random value r,
     // it does not reveal any information about m.
-    let private_attributes = vec![serial_number, binding_number];
+    let private_attributes = [serial_number, binding_number];
     let blinded_message = compute_kappa(
         params,
         verification_key,
@@ -185,8 +189,8 @@ pub fn prove_bandwidth_credential(
     let pi_v = ProofKappaZeta::construct(
         params,
         verification_key,
-        &serial_number,
-        &binding_number,
+        serial_number,
+        binding_number,
         &sign_blinding_factor,
         &blinded_message,
         &blinded_serial_number,
@@ -221,10 +225,14 @@ pub fn check_vk_pairing(
     if values_len == 0 || values_len - 1 != vk.beta_g1.len() || values_len - 1 != vk.beta_g2.len() {
         return false;
     }
-    if vk.alpha != *dkg_values.last().unwrap() {
+
+    // safety: we made an explicit check for if the length of the slice is 0, thus unwrap here is fine
+    #[allow(clippy::unwrap_used)]
+    if &vk.alpha != *dkg_values.first().as_ref().unwrap() {
         return false;
     }
-    if dkg_values
+    let dkg_betas = &dkg_values[1..];
+    if dkg_betas
         .iter()
         .zip(vk.beta_g2.iter())
         .any(|(dkg_beta, vk_beta)| dkg_beta != vk_beta)
@@ -249,7 +257,7 @@ pub fn verify_credential(
     params: &Parameters,
     verification_key: &VerificationKey,
     theta: &Theta,
-    public_attributes: &[Attribute],
+    public_attributes: &[&Attribute],
 ) -> bool {
     if public_attributes.len() + theta.pi_v.private_attributes_len()
         > verification_key.beta_g2.len()
@@ -272,7 +280,7 @@ pub fn verify_credential(
                     .iter()
                     .skip(theta.pi_v.private_attributes_len()),
             )
-            .map(|(pub_attr, beta_i)| beta_i * pub_attr)
+            .map(|(&pub_attr, beta_i)| beta_i * pub_attr)
             .sum::<G2Projective>();
 
         theta.blinded_message + signed_public_attributes
@@ -291,14 +299,14 @@ pub fn verify_credential(
 pub fn verify(
     params: &Parameters,
     verification_key: &VerificationKey,
-    public_attributes: &[Attribute],
+    public_attributes: &[&Attribute],
     sig: &Signature,
 ) -> bool {
     let kappa = (verification_key.alpha
         + public_attributes
             .iter()
             .zip(verification_key.beta_g2.iter())
-            .map(|(m_i, b_i)| b_i * m_i)
+            .map(|(&m_i, b_i)| b_i * m_i)
             .sum::<G2Projective>())
     .to_affine();
 
@@ -320,10 +328,12 @@ mod tests {
     #[test]
     fn vk_pairing() {
         let params = setup(2).unwrap();
-        let vk = keygen(&params).verification_key();
-        let mut dkg_values = vk.beta_g2.clone();
-        dkg_values.push(vk.alpha);
-        assert!(check_vk_pairing(&params, &dkg_values, &vk));
+        let keypair = keygen(&params);
+        let vk = keypair.verification_key();
+
+        let mut dkg_values = vec![vk.alpha];
+        dkg_values.append(&mut vk.beta_g2.clone());
+        assert!(check_vk_pairing(&params, &dkg_values, vk));
     }
 
     #[test]
@@ -340,10 +350,10 @@ mod tests {
 
         let theta = prove_bandwidth_credential(
             &params,
-            &keypair.verification_key(),
+            keypair.verification_key(),
             &signature,
-            serial_number,
-            binding_number,
+            &serial_number,
+            &binding_number,
         )
         .unwrap();
 

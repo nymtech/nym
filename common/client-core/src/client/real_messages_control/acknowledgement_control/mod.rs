@@ -8,6 +8,7 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use crate::client::inbound_messages::InputMessageReceiver;
+use crate::client::packet_statistics_control::PacketStatisticsReporter;
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::spawn_future;
@@ -69,6 +70,7 @@ pub(crate) struct PendingAcknowledgement {
     message_chunk: Fragment,
     delay: SphinxDelay,
     destination: PacketDestination,
+    mix_hops: Option<u8>,
 }
 
 impl PendingAcknowledgement {
@@ -77,11 +79,13 @@ impl PendingAcknowledgement {
         message_chunk: Fragment,
         delay: SphinxDelay,
         recipient: Recipient,
+        mix_hops: Option<u8>,
     ) -> Self {
         PendingAcknowledgement {
             message_chunk,
             delay,
             destination: PacketDestination::KnownRecipient(recipient.into()),
+            mix_hops,
         }
     }
 
@@ -98,6 +102,9 @@ impl PendingAcknowledgement {
                 recipient_tag,
                 extra_surb_request,
             },
+            // Messages sent using SURBs are using the number of mix hops set by the recipient when
+            // they provided the SURBs, so it doesn't make sense to include it here.
+            mix_hops: None,
         }
     }
 
@@ -202,6 +209,7 @@ where
         connectors: AcknowledgementControllerConnectors,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -218,6 +226,7 @@ where
             Arc::clone(&ack_key),
             connectors.ack_receiver,
             connectors.ack_action_sender.clone(),
+            stats_tx,
         );
 
         // will listen for any new messages from the client

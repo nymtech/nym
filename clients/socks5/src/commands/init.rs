@@ -51,7 +51,7 @@ impl InitialisableClient for Socks5ClientInit {
     }
 }
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Debug)]
 pub(crate) struct Init {
     #[command(flatten)]
     common_args: CommonClientInitArgs,

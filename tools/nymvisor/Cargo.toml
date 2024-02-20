@@ -1,0 +1,41 @@
+[package]
+name = "nymvisor"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+bytes = { version = "1.5.0", features = ["std"]}
+clap = { workspace = true, features = ["derive"] }
+dotenvy = { workspace = true }
+flate2 = "1.0.28"
+futures = { workspace = true }
+hex = "0.4.3"
+humantime = "2.1.0"
+humantime-serde = "1.1.1"
+nix = { version = "0.27.1", features = ["signal", "fs"] }
+reqwest = { workspace = true, features = ["json", "stream"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha2 = "0.10.8"
+tar = "0.4.40"
+time = { workspace = true, features = [ "serde-human-readable" ] }
+tokio = { workspace = true, features = ["rt", "macros", "signal", "process", "sync"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true, features = ["serde"] }
+
+async-file-watcher = { path = "../../common/async-file-watcher" }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-config = { path = "../../common/config" }
+nym-task = { path = "../../common/task"}
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

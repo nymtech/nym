@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 build = "build.rs"
 links = "cpucycles"
+license = "LicenseRef-PD-hp OR CC0-1.0 OR 0BSD OR MIT-0 OR MIT"
 
 [dependencies]
 libc = "0.2.140"

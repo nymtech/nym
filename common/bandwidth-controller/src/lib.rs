@@ -7,6 +7,7 @@ use nym_credential_storage::storage::Storage;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::str::FromStr;
+use zeroize::Zeroizing;
 use {
     nym_coconut_interface::Base58,
     nym_credentials::coconut::{
@@ -46,10 +47,12 @@ impl<C, St: Storage> BandwidthController<C, St> {
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
             .map_err(|_| StorageError::InconsistentData)?;
         let voucher_info = bandwidth_credential.voucher_info.clone();
-        let serial_number =
-            nym_coconut_interface::Attribute::try_from_bs58(bandwidth_credential.serial_number)?;
-        let binding_number =
-            nym_coconut_interface::Attribute::try_from_bs58(bandwidth_credential.binding_number)?;
+        let serial_number = Zeroizing::new(nym_coconut_interface::Attribute::try_from_bs58(
+            bandwidth_credential.serial_number,
+        )?);
+        let binding_number = Zeroizing::new(nym_coconut_interface::Attribute::try_from_bs58(
+            bandwidth_credential.binding_number,
+        )?);
         let signature =
             nym_coconut_interface::Signature::try_from_bs58(bandwidth_credential.signature)?;
         let epoch_id = u64::from_str(&bandwidth_credential.epoch_id)
@@ -64,8 +67,8 @@ impl<C, St: Storage> BandwidthController<C, St> {
             prepare_for_spending(
                 voucher_value,
                 voucher_info,
-                serial_number,
-                binding_number,
+                &serial_number,
+                &binding_number,
                 epoch_id,
                 &signature,
                 &verification_key,

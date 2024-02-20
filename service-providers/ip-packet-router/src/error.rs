@@ -30,6 +30,12 @@ pub enum IpPacketRouterError {
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
+    #[error("received packet has an invalid version: {0}")]
+    InvalidPacketVersion(u8),
+
+    #[error("failed to serialize response packet: {source}")]
+    FailedToSerializeResponsePacket { source: Box<bincode::ErrorKind> },
+
     #[error("failed to deserialize tagged packet: {source}")]
     FailedToDeserializeTaggedPacket { source: bincode::Error },
 
@@ -42,16 +48,14 @@ pub enum IpPacketRouterError {
     #[error("parsed packet is missing transport header")]
     PacketMissingTransportHeader,
 
-    #[error("failed to send packet to tun device: {source}")]
-    FailedToSendPacketToTun {
-        source: tokio::sync::mpsc::error::TrySendError<(u64, Vec<u8>)>,
-    },
+    #[error("failed to write packet to tun")]
+    FailedToWritePacketToTun,
+
+    #[error("failed to send packet to mixnet: {source}")]
+    FailedToSendPacketToMixnet { source: nym_sdk::Error },
 
     #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
     AddressNotCoveredByExitPolicy { addr: SocketAddr },
-
-    #[error("failed filter check: '{addr}'")]
-    AddressFailedFilterCheck { addr: SocketAddr },
 
     #[error("failed to apply the exit policy: {source}")]
     ExitPolicyFailure {
@@ -67,4 +71,12 @@ pub enum IpPacketRouterError {
 
     #[error("can't setup an exit policy without any upstream urls")]
     NoUpstreamExitPolicy,
+
+    #[error("no recipient in response packet")]
+    NoRecipientInResponse,
+
+    #[error("failed to update client activity")]
+    FailedToUpdateClientActivity,
 }
+
+pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

@@ -29,21 +29,23 @@ export const BondBreakdownTable: FCWithChildren = () => {
   React.useEffect(() => {
     if (mixNode?.data) {
       // delegations
-      const decimalisedDelegations = currencyToString(
-        mixNode.data.total_delegation.amount.toString(),
-        mixNode.data.total_delegation.denom,
-      );
+      const decimalisedDelegations = currencyToString({
+        amount: mixNode.data.total_delegation.amount.toString(),
+        denom: mixNode.data.total_delegation.denom,
+      });
 
       // pledges
-      const decimalisedPledges = currencyToString(
-        mixNode.data.pledge_amount.amount.toString(),
-        mixNode.data.pledge_amount.denom,
-      );
+      const decimalisedPledges = currencyToString({
+        amount: mixNode.data.pledge_amount.amount.toString(),
+        denom: mixNode.data.pledge_amount.denom,
+      });
 
       // bonds total (del + pledges)
       const pledgesSum = Number(mixNode.data.pledge_amount.amount);
       const delegationsSum = Number(mixNode.data.total_delegation.amount);
-      const bondsTotal = currencyToString((delegationsSum + pledgesSum).toString());
+      const bondsTotal = currencyToString({
+        amount: (pledgesSum + delegationsSum).toString(),
+      });
 
       setBonds({
         delegations: decimalisedDelegations,
@@ -186,12 +188,12 @@ export const BondBreakdownTable: FCWithChildren = () => {
             </TableHead>
 
             <TableBody>
-              {uniqDelegations?.data?.map(({ owner, amount: { amount, denom } }) => (
+              {uniqDelegations?.data?.map(({ owner, amount: { amount } }) => (
                 <TableRow key={owner}>
                   <TableCell sx={isMobile ? { width: 190 } : null} align="left">
                     {owner}
                   </TableCell>
-                  <TableCell align="left">{currencyToString(amount.toString(), denom)}</TableCell>
+                  <TableCell align="left">{currencyToString({ amount: amount.toString() })}</TableCell>
                   <TableCell align="left">{calcBondPercentage(amount)}%</TableCell>
                 </TableRow>
               ))}

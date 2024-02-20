@@ -61,7 +61,7 @@ impl FailedIpAddresses {
         if Path::new(&file_path).exists() {
             if let Ok(file) = File::open(&file_path) {
                 let lines = io::BufReader::new(file).lines();
-                for ip in lines.flatten() {
+                for ip in lines.map_while(Result::ok) {
                     failed_ips.insert(ip);
                 }
             }

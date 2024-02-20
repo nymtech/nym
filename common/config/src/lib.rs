@@ -4,7 +4,7 @@
 use handlebars::{Handlebars, TemplateRenderError};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -72,16 +72,22 @@ where
     C: NymConfigTemplate,
     P: AsRef<Path>,
 {
-    log::debug!("trying to save config file to {}", path.as_ref().display());
-    let file = File::create(path.as_ref())?;
+    let path = path.as_ref();
+    log::info!("saving config file to {}", path.display());
 
-    // TODO: check for whether any of our configs stores anything sensitive
+    if let Some(parent) = path.parent() {
+        create_dir_all(parent)?;
+    }
+
+    let file = File::create(path)?;
+
+    // TODO: check for whether any of our configs store anything sensitive
     // and change that to 0o644 instead
     #[cfg(target_family = "unix")]
     {
         use std::os::unix::fs::PermissionsExt;
 
-        let mut perms = fs::metadata(path.as_ref())?.permissions();
+        let mut perms = fs::metadata(path)?.permissions();
         perms.set_mode(0o600);
         fs::set_permissions(path, perms)?;
     }

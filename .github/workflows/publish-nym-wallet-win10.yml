@@ -1,4 +1,4 @@
-name: Publish Nym Wallet (Windows 10)
+name: publish-nym-wallet-win10
 on:
   workflow_dispatch:
   release:

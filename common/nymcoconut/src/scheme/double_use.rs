@@ -25,6 +25,8 @@ impl TryFrom<&[u8]> for BlindedSerialNumber {
                 ));
         }
 
+        // safety: we've just made a check for 96 bytes
+        #[allow(clippy::unwrap_used)]
         let inner = try_deserialize_g2_projective(
             &bytes.try_into().unwrap(),
             CoconutError::Deserialization(

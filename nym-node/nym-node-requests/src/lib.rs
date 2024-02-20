@@ -33,6 +33,7 @@ pub mod routes {
             pub const GATEWAY: &str = "/gateway";
             pub const MIXNODE: &str = "/mixnode";
             pub const NETWORK_REQUESTER: &str = "/network-requester";
+            pub const IP_PACKET_ROUTER: &str = "/ip-packet-router";
             pub const SWAGGER: &str = "/swagger";
 
             // define helper functions to get absolute routes
@@ -43,6 +44,7 @@ pub mod routes {
             absolute_route!(gateway_absolute, v1_absolute(), GATEWAY);
             absolute_route!(mixnode_absolute, v1_absolute(), MIXNODE);
             absolute_route!(network_requester_absolute, v1_absolute(), NETWORK_REQUESTER);
+            absolute_route!(ip_packet_router_absolute, v1_absolute(), IP_PACKET_ROUTER);
             absolute_route!(swagger_absolute, v1_absolute(), SWAGGER);
 
             pub mod gateway {
@@ -96,6 +98,10 @@ pub mod routes {
                     EXIT_POLICY
                 );
             }
+
+            pub mod ip_packet_router {
+                // use super::*;
+            }
         }
     }
 }
@@ -145,6 +151,10 @@ mod tests {
         assert_eq!(
             "/api/v1/network-requester",
             routes::api::v1::network_requester_absolute()
+        );
+        assert_eq!(
+            "/api/v1/ip-packet-router",
+            routes::api::v1::ip_packet_router_absolute()
         );
     }
 }

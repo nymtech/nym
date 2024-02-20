@@ -1,8 +1,9 @@
 [package]
 name = "nym-cli"
-version = "1.1.33"
+version = "1.1.34"
 authors.workspace = true
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 base64 = "0.13.0"
@@ -10,7 +11,8 @@ bs58 = "0.4"
 clap = { workspace = true, features = ["derive"] }
 clap_complete = "4.0"
 clap_complete_fig = "4.0"
-dotenvy = "0.15.6"
+dotenvy = { workspace = true }
+inquire = "0.6.2"
 log = { workspace = true }
 pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }
@@ -24,3 +26,8 @@ nym-cli-commands = { path = "../../common/commands" }
 nym-bin-common = { path = "../../common/bin-common"}
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["http-client"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
+
+[package.metadata.deb]
+name = "nym-cli"
+maintainer-scripts = "debian"
+systemd-units = { enable = false }

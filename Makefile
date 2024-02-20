@@ -12,6 +12,7 @@ help:
 	@echo "  clippy: run clippy for all workspaces"
 	@echo "  test: run clippy, unit tests, and formatting."
 	@echo "  test-all: like test, but also includes the expensive tests"
+	@echo "  deb: build debian packages
 
 # -----------------------------------------------------------------------------
 # Meta targets
@@ -157,6 +158,12 @@ build-explorer-api:
 build-nym-cli:
 	cargo build -p nym-cli --release
 
+build-nym-gateway:
+	cargo build -p nym-gateway --release
+
+build-nym-mixnode:
+	cargo build -p nym-mixnode --release
+
 # -----------------------------------------------------------------------------
 # Misc
 # -----------------------------------------------------------------------------
@@ -169,6 +176,13 @@ run-api-tests:
 	cd nym-api/tests/functional_test && yarn test:qa
 
 # Build debian package, and update PPA
-# Requires base64 encode GPG key to be set up in environment PPA_SIGNING_KEY
-deb:
-	scripts/ppa.sh
+deb-mixnode: build-nym-mixnode
+	cargo deb -p nym-mixnode 
+
+deb-gateway: build-nym-gateway
+	cargo deb -p nym-gateway
+
+deb-cli: build-nym-cli
+	cargo deb -p nym-cli
+
+deb: deb-mixnode deb-gateway deb-cli

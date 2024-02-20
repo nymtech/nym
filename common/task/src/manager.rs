@@ -116,8 +116,8 @@ impl TaskManager {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn catch_interrupt(mut self) -> Result<(), SentError> {
-        let res = crate::wait_for_signal_and_error(&mut self).await;
+    pub async fn catch_interrupt(&mut self) -> Result<(), SentError> {
+        let res = crate::wait_for_signal_and_error(self).await;
 
         log::info!("Sending shutdown");
         self.signal_shutdown().ok();
@@ -495,11 +495,14 @@ impl Drop for TaskClient {
         if !self.mode.should_signal_on_drop() {
             self.log(
                 Level::Trace,
-                "the task client is getting dropped (but instructed to not signal)",
+                "the task client is getting dropped but inststructed to not signal: this is expected during client shutdown",
             );
             return;
         } else {
-            self.log(Level::Debug, "the task client is getting dropped");
+            self.log(
+                Level::Debug,
+                "the task client is getting dropped: this is expected during client shutdown",
+            );
         }
 
         if !self.is_shutdown_poll() {
@@ -626,7 +629,7 @@ impl TaskHandle {
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn wait_for_shutdown(self) -> Result<(), SentError> {
         match self {
-            TaskHandle::Internal(task_manager) => task_manager.catch_interrupt().await,
+            TaskHandle::Internal(mut task_manager) => task_manager.catch_interrupt().await,
             TaskHandle::External(mut task_client) => {
                 task_client.recv().await;
                 Ok(())

@@ -4,12 +4,19 @@
   "type": "object",
   "required": [
     "group_addr",
+    "key_size",
     "mix_denom",
     "multisig_addr"
   ],
   "properties": {
     "group_addr": {
       "type": "string"
+    },
+    "key_size": {
+      "description": "Specifies the number of elements in the derived keys",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
     },
     "mix_denom": {
       "type": "string"

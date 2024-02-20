@@ -2,6 +2,7 @@
 name = "nym-explorer-api-requests"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }

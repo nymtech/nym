@@ -2,6 +2,7 @@
 name = "nym-credential-storage"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,14 +14,14 @@ thiserror = { workspace = true }
 tokio = { version = "1.24.1", features = ["sync"]}
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
-version = "0.5"
+workspace = true
 features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.24.1"
+workspace = true
 features = [ "rt-multi-thread", "net", "signal", "fs" ]
 
 
 [build-dependencies]
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }

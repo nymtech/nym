@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::BatchMixMessageSender;
+use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 use crate::client::topology_control::TopologyAccessor;
 use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
@@ -61,6 +62,8 @@ where
     secondary_packet_size: Option<PacketSize>,
 
     packet_type: PacketType,
+
+    stats_tx: PacketStatisticsReporter,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -97,7 +100,8 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl LoopCoverTrafficStream<OsRng> {
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
         ack_key: Arc<AckKey>,
         average_ack_delay: Duration,
         mix_tx: BatchMixMessageSender,
@@ -105,6 +109,7 @@ impl LoopCoverTrafficStream<OsRng> {
         topology_access: TopologyAccessor,
         traffic_config: config::Traffic,
         cover_config: config::CoverTraffic,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         let rng = OsRng;
 
@@ -122,6 +127,7 @@ impl LoopCoverTrafficStream<OsRng> {
             primary_packet_size: traffic_config.primary_packet_size,
             secondary_packet_size: traffic_config.secondary_packet_size,
             packet_type: traffic_config.packet_type,
+            stats_tx,
         }
     }
 
@@ -191,6 +197,10 @@ impl LoopCoverTrafficStream<OsRng> {
                     log::warn!("Failed to send cover message - channel closed");
                 }
             }
+        } else {
+            self.stats_tx.report(PacketStatisticsEvent::CoverPacketSent(
+                cover_traffic_packet_size.size(),
+            ));
         }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%

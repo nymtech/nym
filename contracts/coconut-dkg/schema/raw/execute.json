@@ -5,6 +5,19 @@
     {
       "type": "object",
       "required": [
+        "initiate_dkg"
+      ],
+      "properties": {
+        "initiate_dkg": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "register_dealer"
       ],
       "properties": {
@@ -13,6 +26,7 @@
           "required": [
             "announce_address",
             "bte_key_with_proof",
+            "identity_key",
             "resharing"
           ],
           "properties": {
@@ -20,6 +34,9 @@
               "type": "string"
             },
             "bte_key_with_proof": {
+              "type": "string"
+            },
+            "identity_key": {
               "type": "string"
             },
             "resharing": {
@@ -34,18 +51,52 @@
     {
       "type": "object",
       "required": [
-        "commit_dealing"
+        "commit_dealings_metadata"
       ],
       "properties": {
-        "commit_dealing": {
+        "commit_dealings_metadata": {
           "type": "object",
           "required": [
-            "dealing_bytes",
+            "chunks",
+            "dealing_index",
             "resharing"
           ],
           "properties": {
-            "dealing_bytes": {
-              "$ref": "#/definitions/ContractSafeBytes"
+            "chunks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/DealingChunkInfo"
+              }
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "resharing": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "commit_dealings_chunk"
+      ],
+      "properties": {
+        "commit_dealings_chunk": {
+          "type": "object",
+          "required": [
+            "chunk",
+            "resharing"
+          ],
+          "properties": {
+            "chunk": {
+              "$ref": "#/definitions/PartialContractDealing"
             },
             "resharing": {
               "type": "boolean"
@@ -95,7 +146,7 @@
           ],
           "properties": {
             "owner": {
-              "$ref": "#/definitions/Addr"
+              "type": "string"
             },
             "resharing": {
               "type": "boolean"
@@ -134,10 +185,6 @@
     }
   ],
   "definitions": {
-    "Addr": {
-      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-      "type": "string"
-    },
     "ContractSafeBytes": {
       "type": "array",
       "items": {
@@ -145,6 +192,44 @@
         "format": "uint8",
         "minimum": 0.0
       }
+    },
+    "DealingChunkInfo": {
+      "type": "object",
+      "required": [
+        "size"
+      ],
+      "properties": {
+        "size": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "PartialContractDealing": {
+      "type": "object",
+      "required": [
+        "chunk_index",
+        "data",
+        "dealing_index"
+      ],
+      "properties": {
+        "chunk_index": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "data": {
+          "$ref": "#/definitions/ContractSafeBytes"
+        },
+        "dealing_index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

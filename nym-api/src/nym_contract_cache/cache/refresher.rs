@@ -47,44 +47,52 @@ impl NymContractCacheRefresher {
     }
 
     async fn get_nym_contracts_info(&self) -> Result<CachedContractsInfo> {
+        use crate::query_guard;
+
         let mut updated = HashMap::new();
 
         let client_guard = self.nyxd_client.read().await;
 
-        let mixnet = client_guard.mixnet_contract_address();
-        let vesting = client_guard.vesting_contract_address();
-        let name_service = client_guard.name_service_contract_address();
-        let service_provider = client_guard.service_provider_contract_address();
-        let coconut_bandwidth = client_guard.coconut_bandwidth_contract_address();
-        let coconut_dkg = client_guard.dkg_contract_address();
-        let group = client_guard.group_contract_address();
-        let multisig = client_guard.multisig_contract_address();
+        let mixnet = query_guard!(client_guard, mixnet_contract_address());
+        let vesting = query_guard!(client_guard, vesting_contract_address());
+        let name_service = query_guard!(client_guard, name_service_contract_address());
+        let service_provider = query_guard!(client_guard, service_provider_contract_address());
+        let coconut_bandwidth = query_guard!(client_guard, coconut_bandwidth_contract_address());
+        let coconut_dkg = query_guard!(client_guard, dkg_contract_address());
+        let group = query_guard!(client_guard, group_contract_address());
+        let multisig = query_guard!(client_guard, multisig_contract_address());
 
         // get cw2 versions
-        let mixnet_cw2_future = client_guard.get_mixnet_contract_cw2_version();
-        let vesting_cw2_future = client_guard.get_vesting_contract_cw2_version();
-        let service_provider_cw2_future = client_guard.get_name_service_contract_cw2_version();
-        let name_service_cw2_future = client_guard.get_name_service_contract_cw2_version();
+        let mixnet_cw2_future = query_guard!(client_guard, get_mixnet_contract_cw2_version());
+        let vesting_cw2_future = query_guard!(client_guard, get_vesting_contract_cw2_version());
+        let service_provider_cw2_future =
+            query_guard!(client_guard, get_name_service_contract_cw2_version());
+        let name_service_cw2_future =
+            query_guard!(client_guard, get_name_service_contract_cw2_version());
 
         // group and multisig contract save that information in their storage but don't expose it via queries
         // so a temporary workaround...
         let multisig_cw2 = if let Some(multisig_contract) = multisig {
-            client_guard
-                .query_contract_raw(multisig_contract, b"contract_info".to_vec())
-                .await
-                .map(|r| serde_json::from_slice(&r).ok())
-                .ok()
-                .flatten()
+            query_guard!(
+                client_guard,
+                query_contract_raw(multisig_contract, b"contract_info".to_vec())
+                    .await
+                    .map(|r| serde_json::from_slice(&r).ok())
+                    .ok()
+                    .flatten()
+            )
         } else {
             None
         };
         let group_cw2 = if let Some(group_contract) = group {
-            client_guard
-                .query_contract_raw(group_contract, b"contract_info".to_vec())
-                .await
-                .map(|r| serde_json::from_slice(&r).ok())
-                .ok()
-                .flatten()
+            query_guard!(
+                client_guard,
+                query_contract_raw(group_contract, b"contract_info".to_vec())
+                    .await
+                    .map(|r| serde_json::from_slice(&r).ok())
+                    .ok()
+                    .flatten()
+            )
         } else {
             None
         };
@@ -98,10 +106,12 @@ impl NymContractCacheRefresher {
         .await;
 
         // get detailed build info
-        let mixnet_detailed_future = client_guard.get_mixnet_contract_version();
-        let vesting_detailed_future = client_guard.get_vesting_contract_version();
-        let service_provider_detailed_future = client_guard.get_sp_contract_version();
-        let name_service_detailed_future = client_guard.get_name_service_contract_version();
+        let mixnet_detailed_future = query_guard!(client_guard, get_mixnet_contract_version());
+        let vesting_detailed_future = query_guard!(client_guard, get_vesting_contract_version());
+        let service_provider_detailed_future =
+            query_guard!(client_guard, get_sp_contract_version());
+        let name_service_detailed_future =
+            query_guard!(client_guard, get_name_service_contract_version());
 
         let mut build_info = join_all(vec![
             mixnet_detailed_future,

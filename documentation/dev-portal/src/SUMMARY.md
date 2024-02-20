@@ -18,13 +18,23 @@
 
 # User Manuals
 
+- [NymVPN alpha](nymvpn/intro.md)
+    - [GUI](nymvpn/gui.md)
+        - [Linux](nymvpn/gui-linux.md)
+        - [MacOS](nymvpn/gui-mac.md)
+    - [CLI](nymvpn/cli.md)
+        - [Linux](nymvpn/cli-linux.md)
+        - [MacOS](nymvpn/cli-mac.md)
+    - [Testing](nymvpn/testing.md)
+    - [Troubleshooting](nymvpn/troubleshooting.md)
+    - [NymVPN FAQ](nymvpn/faq.md)
 - [NymConnect X Monero](tutorials/monero.md)
 - [NymConnect X Matrix](tutorials/matrix.md)
 - [NymConnect X Telegram](tutorials/telegram.md)
 - [NymConnect X Electrum](tutorials/electrum.md)
 - [NymConnect X Firo wallet](tutorials/firo.md)
 
-# Code Examples 
+# Code Examples
 
 - [Custom Service Providers](examples/custom-services.md)
 - [Apps Using Network Requesters](examples/using-nrs.md)
@@ -49,9 +59,9 @@
 		- [Preparing Your Service](tutorials/cosmos-service/service.md)
 		- [Preparing Your Service pt2](tutorials/cosmos-service/service-src.md)
 		- [Querying the Chain](tutorials/cosmos-service/querying.md)
-   
+
 - [Typescript](tutorials/typescript.md)
-    - [[DEPRECATED] Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md) 
+    - [Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md)
       	- [Tutorial Overview](tutorials/simple-service-provider/overview.md)
       	- [Preparing Your User Client Environment](tutorials/simple-service-provider/preparating-env.md)
       	- [Building Your User Client](tutorials/simple-service-provider/user-client.md)
@@ -59,11 +69,12 @@
       	- [Building Your Service Provider](tutorials/simple-service-provider/service-provider.md)
       	- [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
 
-# Shipyard Builders Hackathon 2023 
-- [General Info & Resources](shipyard/general.md)
-- [Hackathon Challenges](shipyard/challenges-overview.md)
-- [A Note on Infrastructure](shipyard/infra.md)
-- [Submission Guidelines](shipyard/guidelines.md)
+[//]: # (TODO make generic )
+[//]: # (# Shipyard Builders Hackathon 2023 )
+[//]: # (- [General Info & Resources]&#40;shipyard/general.md&#41;)
+[//]: # (- [Hackathon Challenges]&#40;shipyard/challenges-overview.md&#41;)
+[//]: # (- [A Note on Infrastructure]&#40;shipyard/infra.md&#41;)
+[//]: # (- [Submission Guidelines]&#40;shipyard/guidelines.md&#41;)
 
 # Events
 
@@ -82,7 +93,7 @@
 - [Community Applications and Guides](community-resources/community-applications-and-guides.md)
 - [Change Service Grantee Information](info-request.md)
 
---- 
+---
 # Misc.
 - [Code of Conduct](coc.md)
 - [Licensing](licensing.md)

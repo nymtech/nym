@@ -3,8 +3,27 @@ import fetch from "node-fetch";
 import { Octokit } from "@octokit/rest";
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
+
+function getBinInfo(path) {
+    // let's be super naive about it. add a+x bits on the file and try to run the command
+    try {
+        let mode = fs.statSync(path).mode
+        fs.chmodSync(path, mode | 0o111)
+
+        const raw = execSync(`${path} build-info --output=json`, { stdio: 'pipe', encoding: "utf8" });
+        const parsed = JSON.parse(raw)
+        return parsed
+    } catch (_) {
+        return undefined
+    }
+}
 
 async function run(assets, algorithm, filename, cache) {
+    if (!cache) {
+        console.warn("cache is set to 'false', but we we no longer support it")
+    }
+
     try {
         fs.mkdirSync('.tmp');
     } catch(e) {
@@ -19,26 +38,25 @@ async function run(assets, algorithm, filename, cache) {
 
             let buffer = null;
             let sig = null;
-            if(cache) {
-                // cache in `${WORKING_DIR}/.tmp/`
-                const cacheFilename = path.resolve(`.tmp/${asset.name}`);
-                if(!fs.existsSync(cacheFilename)) {
-                    console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
-                    buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));
-                    fs.writeFileSync(cacheFilename, buffer);
-                } else {
-                    console.log(`Loading from ${cacheFilename}`);
-                    buffer = Buffer.from(fs.readFileSync(cacheFilename));
 
-                    // console.log('Reading signature from content');
-                    // if(asset.name.endsWith('.sig')) {
-                    //     sig = fs.readFileSync(cacheFilename).toString();
-                    // }
-                }
-            } else {
-                // fetch always
+            // cache in `${WORKING_DIR}/.tmp/`
+            const cacheFilename = path.resolve(`.tmp/${asset.name}`);
+            if(!fs.existsSync(cacheFilename)) {
+                console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
                 buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));
+                fs.writeFileSync(cacheFilename, buffer);
+            } else {
+                console.log(`Loading from ${cacheFilename}`);
+                buffer = Buffer.from(fs.readFileSync(cacheFilename));
+
+                // console.log('Reading signature from content');
+                // if(asset.name.endsWith('.sig')) {
+                //     sig = fs.readFileSync(cacheFilename).toString();
+                // }
             }
+
+            const binInfo = getBinInfo(cacheFilename)
+
             if(!hashes[asset.name]) {
                 hashes[asset.name] = {};
             }
@@ -98,6 +116,9 @@ async function run(assets, algorithm, filename, cache) {
             }
             if(kind) {
                 hashes[asset.name].kind = kind;
+            }
+            if(binInfo) {
+                hashes[asset.name].details = binInfo;
             }
 
             // process Tauri signature files
@@ -224,6 +245,8 @@ export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrI
             componentVersion,
             assets: hashes,
         };
+
+        console.log(output)
 
         if(upload) {
             console.log(`🚚 Uploading ${filename} to release name="${release.name}" id=${release.id} (${release.upload_url})...`);

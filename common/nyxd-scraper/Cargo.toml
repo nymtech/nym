@@ -1,0 +1,37 @@
+[package]
+name = "nyxd-scraper"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait.workspace = true
+const_format = "0.2.32"
+cosmrs.workspace = true
+eyre = "0.6.9"
+futures.workspace = true
+sha2 = "0.10.8"
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+tendermint.workspace = true
+tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tokio-stream = "0.1.14"
+tokio-util = { version = "0.7.10", features = ["rt"]}
+tracing.workspace = true
+url.workspace = true
+
+
+# TEMP
+nym-bin-common = { path = "../bin-common", features = ["basic_tracing"]}
+
+
+[build-dependencies]
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

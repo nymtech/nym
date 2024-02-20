@@ -1,17 +1,17 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 // some sane upper-bound size on byte sizes
 // currently set to 128 bytes
 pub const MAX_DISPLAY_SIZE: usize = 128;
 
-// TODO: if we are to use this for different types, it might make sense to introduce something like
-// CommitmentTypeId field on the below for distinguishing different ones. it would somehow become part of the trait
+// helps to transfer bytes between contract boundary to decrease amount of data sent accross
+// after it's put to `Binary`
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, JsonSchema)]
 pub struct ContractSafeBytes(pub Vec<u8>);
 
@@ -20,6 +20,24 @@ impl Deref for ContractSafeBytes {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for ContractSafeBytes {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<Vec<u8>> for ContractSafeBytes {
+    fn from(value: Vec<u8>) -> Self {
+        ContractSafeBytes(value)
+    }
+}
+
+impl<'a> From<&'a [u8]> for ContractSafeBytes {
+    fn from(value: &'a [u8]) -> Self {
+        value.to_vec().into()
     }
 }
 

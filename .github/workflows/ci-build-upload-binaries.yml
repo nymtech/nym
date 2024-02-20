@@ -79,15 +79,15 @@ jobs:
           command: build
           args: --workspace --release ${{ env.CARGO_FEATURES }}
 
-      - name: Install cargo-deb
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-deb
+      # - name: Install cargo-deb
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: install
+      #     args: cargo-deb
 
-      - name: Build deb packages
-        shell: bash
-        run: make deb
+      # - name: Build deb packages
+      #   shell: bash
+      #   run: make deb
 
       # If this was a manual workflow_dispatch, publish binaries.
 
@@ -124,7 +124,7 @@ jobs:
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
-          cp target/debian/*.deb $OUTPUT_DIR
+          # cp target/debian/*.deb $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         # if: github.event_name == 'schedule' || github.event_name == 'pull_request'

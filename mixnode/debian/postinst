@@ -1,6 +1,64 @@
-#DEBHELPER#
+#!/bin/sh
 
-useradd nym
-mkdir -p /etc/nym
-chown -R nym /etc/nym
-su nym -c 'NYM_HOME_DIR=/etc/nym nym-mixnode init --host 0.0.0.0 --id nym-mixnode'
+default_location="/usr/bin/nym-mixnode"
+default_user="nym"
+default_group="nym"
+
+if [ -f "/tmp/nym_mixnode_preinst_marker" ]; then
+    backup_path=$(cat /tmp/nym_mixnode_preinst_marker)
+    echo "Upgrade detected. Previous version backed up at $backup_path"
+
+    existing_location=$(dirname "$backup_path" | sed 's/\.backup\..*//')
+    echo "Existing location: ${existing_location}"
+
+    if [ "$existing_location" != "$default_location" ]; then
+        echo "Custom installation location detected: $existing_location"
+
+        mv "$default_location" "$existing_location/nym-mixnode"
+
+        original_user=$(stat -c "%U" "$backup_path")
+        original_group=$(stat -c "%G" "$backup_path")
+        original_perms=$(stat -c "%a" "$backup_path")
+
+        chown "$original_user:$original_group" "$existing_location/nym-mixnode"
+        chmod "$original_perms" "$existing_location/nym-mixnode"
+    fi
+
+    rm -f /tmp/nym_mixnode_preinst_marker
+else
+    echo "Fresh installation detected."
+
+    if [ -f "$default_location" ]; then
+        # Leave the binary as the  user to perform the apt install
+        # It's down to the user to specify the correct ownership and permissions
+        chmod 755 "$default_location"
+
+        echo "Installation complete. Please configure and start the nym-mixnode process manually."
+        echo "Refer to https://nymtech.net/operators/nodes/mixnode-setup.html"
+        echo "Example for setting up the nym-mixnode service:"
+        echo
+
+        cat <<EOF
+[Unit]
+Description=Nym mixnode
+After=network-online.target
+
+[Service]
+ExecStart=$default_location run --id nym-mixnode
+User=$default_user
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    else
+        echo "Error: the new binary $default_location does not exist."
+    fi
+fi
+
+echo
+echo "Consider restarting the nym-mixnode service if it is already enabled."
+echo "systemctl restart nym-mixnode.service"
+
+exit 0
+
+#DEBHELPER#

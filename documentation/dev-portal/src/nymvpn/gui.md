@@ -18,7 +18,7 @@ We wrote a [script](https://gist.github.com/serinko/e0a9f7ff3d79e974ec6f6783caa1
 
 1. Open a terminal window in a directory where you want the script and NymVPN binary be downloaded and run
 ```sh
-curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e/raw/495f836db25b4c2d7c3f3b5e1c93608438480dd5/nym-vpn-desktop-install-run.sh
+curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e/raw/227c8c348a1e58f68cb500e4504b22412177c680/nym-vpn-desktop-install-run.sh
 ```
 
 2. Make the script executable

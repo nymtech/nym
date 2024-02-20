@@ -1,4 +1,4 @@
-# NymVPN alpha GUI: Guide for GNU/Linux
+# NymVPN alpha - Desktop: Guide for GNU/Linux
 
 <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/908221306?h=404b2bbdc8" style="position:absolute;top:0;left:0;width:100%;height:100%;" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
 
@@ -18,9 +18,52 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-echo "a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip" | shasum -a 256 -c
+# echo "a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip" | shasum -a 256 -c
 ```
-3. Extract files with `unzip` command or manually as you are used to
+3. Extract files:
+```sh
+tar -xvf <BINARY>
+# for example
+# tar -xvf nym-vpn-desktop_0.0.4_ubuntu-22.04_x86_64.tar.gz
+```
+2. Make executable by running:
+```sh
+# possibly you may have to cd into a sub-directory
+chmod u+x <BINARY>
+```
+5. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
+```sh
+curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
+```
+
+## Run NymVPN
+
+**For NymVPN to work, all other VPNs must be switched off!** At this alpha stage of NymVPN, the network connection (wifi) must be reconnected after or in between the testing rounds.
+
+Make sure your terminal is open in the same directory as your `nym-vpn-cli` binary.
+
+1. Go to [nymvpn.com/en/alpha](https://nymvpn.com/en/alpha) to get the entire command with all the needed arguments' values and your wireguard private key for testing purposes
+2. Run it as root with `sudo` - the command will look like this with specified arguments:
+```sh
+sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WIREGUARD_IP>
+```
+3. To choose different Gateways, visit [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways) and pick one
+4. See all possibilities in [command explanation](#cli-commands-and-options) section below
+
+In case of errors, see [troubleshooting section](troubleshooting.md).
+
+### CLI Commands and Options
+
+The basic syntax of `nym-vpn-cli` is:
+```sh
+sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WG_IP>
+```
+* To choose different Gateways, visit [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways)
+* To see all possibilities run with `--help` flag:
+```sh
+./nym-vpn-cli --help
+```
+
 4. If you prefer to run `.AppImage` make executable by running:
 ```sh
 chmod u+x ./appimage/nym-vpn_0.0.2_amd64.AppImage
@@ -49,9 +92,6 @@ curl -o $HOME/.config/nym-vpn/sandbox.env -L https://raw.githubusercontent.com/n
 ```toml
 # change <USER> to your username
 env_config_file = "/home/<USER>/.config/nym-vpn/sandbox.env"
-entry_node_location = "DE" # two letters country code
-# You can choose different entry by entering one of the following two letter country codes:
-# DE, UK, FR, IE
 ```
 
 ## Run NymVPN
@@ -64,7 +104,7 @@ Open terminal and run:
 
 ```sh
 # .AppImage must be run from the same directory as the binary
-sudo -E ./nym-vpn_0.0.2_amd64.AppImage
+sudo -E ./nym-vpn_0.033_amd64.AppImage
 
 # .deb installation shall be executable from anywhere as
 sudo -E nym-vpn

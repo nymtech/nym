@@ -29,7 +29,9 @@ else
     echo "Fresh installation detected."
 
     if [ -f "$default_location" ]; then
-        chown "$default_user:$default_group" "$default_location"
+        # Leave the binary as the  user to perform the apt install
+        # It's down to the user to specify the correct ownership and permissions
+        chmod 755 "$default_location"
         chmod 755 "$default_location"
 
         echo "Installation complete. Please configure and start the nym-mixnode process manually."

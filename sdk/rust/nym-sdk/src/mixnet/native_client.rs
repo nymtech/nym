@@ -4,6 +4,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use futures::{ready, Stream, StreamExt};
 use log::error;
+use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
@@ -16,7 +17,6 @@ use nym_task::{
     TaskHandle,
 };
 use nym_topology::NymTopology;
-use std::os::fd::RawFd;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -98,9 +98,9 @@ impl MixnetClient {
         &self.nym_address
     }
 
-    /// Get the file descriptor of the WebSocket connection to the gateway
-    pub fn gateway_ws_fd(&self) -> Option<RawFd> {
-        self.client_state.gateway_ws_fd
+    /// Get gateway connection information, like the file descriptor of the WebSocket
+    pub fn gateway_connection(&self) -> GatewayConnection {
+        self.client_state.gateway_connection
     }
 
     /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and

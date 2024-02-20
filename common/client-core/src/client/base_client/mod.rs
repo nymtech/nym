@@ -104,6 +104,11 @@ pub struct ClientState {
     pub shared_lane_queue_lengths: LaneQueueLengths,
     pub reply_controller_sender: ReplyControllerSender,
     pub topology_accessor: TopologyAccessor,
+    pub gateway_connection: GatewayConnection,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct GatewayConnection {
     pub gateway_ws_fd: Option<RawFd>,
 }
 
@@ -762,7 +767,7 @@ where
                 shared_lane_queue_lengths,
                 reply_controller_sender,
                 topology_accessor: shared_topology_accessor,
-                gateway_ws_fd,
+                gateway_connection: GatewayConnection { gateway_ws_fd },
             },
             task_handle: shutdown,
         })

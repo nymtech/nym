@@ -2,10 +2,6 @@
 
 Below are listed some points which may need to be addressed when testing NymVPN alpha. If you crashed into any errors which are not listed, please contact us at the testing workshop or in the NymVPN [Matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat).
 
-#### Installing GUI on MacOS not working
-
-In case there was a problem running the script, try the [manual setup](gui-mac.md) for MacOS.
-
 #### Running GUI failed due to `TOML parse error`
 
 If you see this error when running NymVPN alpha desktop, it's because the older versions needed entry location in `config.toml` configuration file. From `v0.0.3` the entry location is selected directly by the user in the application. This error is due to an old `app-data.toml` config in your computer.

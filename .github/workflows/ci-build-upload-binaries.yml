@@ -13,6 +13,11 @@ on:
         required: true
         default: false
         type: boolean
+      enable_deb:
+        description: "True to enable cargo-deb installation and .deb package building"
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '14 0 * * *'
   pull_request:
@@ -79,17 +84,17 @@ jobs:
           command: build
           args: --workspace --release ${{ env.CARGO_FEATURES }}
 
-      # - name: Install cargo-deb
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: install
-      #     args: cargo-deb
+      - name: Install cargo-deb
+        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-deb
 
-      # - name: Build deb packages
-      #   shell: bash
-      #   run: make deb
-
-      # If this was a manual workflow_dispatch, publish binaries.
+      - name: Build deb packages
+        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
+        shell: bash
+        run: make deb
 
       - name: Upload Artifact
         if: github.event_name == 'workflow_dispatch'
@@ -124,10 +129,11 @@ jobs:
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
-          # cp target/debian/*.deb $OUTPUT_DIR
+          if [ ${{ github.event_name == 'workflow_dispatch' && inputs.enable_deb == true }} = true ]; then
+            cp target/debian/*.deb $OUTPUT_DIR
+          fi
 
       - name: Deploy branch to CI www
-        # if: github.event_name == 'schedule' || github.event_name == 'pull_request'
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:

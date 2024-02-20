@@ -21,15 +21,17 @@ use nym_coconut_bandwidth_contract_common::events::{
     DEPOSIT_VALUE,
 };
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse, DealerType};
+use nym_coconut_dkg_common::dealer::{
+    DealerDetails, DealerDetailsResponse, DealerType, RegisteredDealerDetails,
+};
 use nym_coconut_dkg_common::dealing::{
     DealerDealingsStatusResponse, DealingChunkInfo, DealingMetadata, DealingStatus,
     DealingStatusResponse, PartialContractDealing,
 };
 use nym_coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
 use nym_coconut_dkg_common::types::{
-    ChunkIndex, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, EpochState,
-    InitialReplacementData, PartialContractDealingData, State as ContractState,
+    ChunkIndex, DealerRegistrationDetails, DealingIndex, EncodedBTEPublicKeyWithProof, Epoch,
+    EpochId, EpochState, PartialContractDealingData, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_coconut_interface::VerificationKey;
@@ -38,7 +40,6 @@ use nym_contracts_common::IdentityKey;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_dkg::{NodeIndex, Threshold};
-use nym_mixnet_contract_common::BlockHeight;
 use nym_validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES,
 };
@@ -53,7 +54,6 @@ use rand_07::RngCore;
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
 use std::collections::{BTreeMap, HashMap};
-use std::mem;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -135,9 +135,13 @@ impl Dealing {
 pub(crate) struct FakeDkgContractState {
     pub(crate) address: AccountId,
 
-    pub(crate) dealers: HashMap<NodeIndex, DealerDetails>,
-    pub(crate) past_dealers: HashMap<NodeIndex, DealerDetails>,
-    pub(crate) initial_dealers: Option<InitialReplacementData>,
+    // pub(crate) dealers: HashMap<NodeIndex, DealerDetails>,
+    // pub(crate) past_dealers: HashMap<NodeIndex, DealerDetails>,
+    // pub(crate) initial_dealers: Option<InitialReplacementData>,
+    pub(crate) dealer_indices: HashMap<String, NodeIndex>,
+
+    // map of epoch id -> dealer -> info
+    pub(crate) dealers: HashMap<EpochId, HashMap<String, DealerRegistrationDetails>>,
 
     // map of epoch id -> dealer -> dealings
     pub(crate) dealings: HashMap<EpochId, HashMap<String, HashMap<DealingIndex, Dealing>>>,
@@ -151,40 +155,83 @@ pub(crate) struct FakeDkgContractState {
 }
 
 impl FakeDkgContractState {
-    pub(crate) fn verified_dealers(&self) -> Vec<Addr> {
-        let epoch_id = self.epoch.epoch_id;
-        let Some(shares) = self.verification_shares.get(&epoch_id) else {
-            return Vec::new();
-        };
-
-        shares
-            .values()
-            .filter(|s| s.verified)
-            .map(|s| s.owner.clone())
-            .collect()
-    }
+    // pub(crate) fn verified_dealers(&self) -> Vec<Addr> {
+    //     let epoch_id = self.epoch.epoch_id;
+    //     let Some(shares) = self.verification_shares.get(&epoch_id) else {
+    //         return Vec::new();
+    //     };
+    //
+    //     shares
+    //         .values()
+    //         .filter(|s| s.verified)
+    //         .map(|s| s.owner.clone())
+    //         .collect()
+    // }
 
     fn reset_dkg_state(&mut self) {
         self.threshold = None;
-        let dealers = mem::take(&mut self.dealers);
-        for (index, details) in dealers {
-            self.past_dealers.insert(index, details);
-        }
     }
 
-    pub(crate) fn reset_epoch_in_reshare_mode(&mut self, block_height: BlockHeight) {
-        if let Some(initial_dealers) = self.initial_dealers.as_mut() {
-            initial_dealers.initial_height = block_height;
-        } else {
-            self.initial_dealers = Some(InitialReplacementData {
-                initial_dealers: self.verified_dealers(),
-                initial_height: block_height,
-            })
-        }
-
+    pub(crate) fn reset_epoch_in_reshare_mode(&mut self) {
         self.reset_dkg_state();
         self.epoch.state = EpochState::PublicKeySubmission { resharing: true };
         self.epoch.epoch_id += 1;
+    }
+
+    pub(crate) fn reset_dkg(&mut self) {
+        self.reset_dkg_state();
+        self.epoch.state = EpochState::PublicKeySubmission { resharing: false };
+        self.epoch.epoch_id += 1;
+    }
+
+    pub(crate) fn get_registration_details(
+        &self,
+        addr: &str,
+        epoch_id: EpochId,
+    ) -> Option<DealerRegistrationDetails> {
+        self.dealers.get(&epoch_id)?.get(addr).cloned()
+    }
+
+    pub(crate) fn get_dealer_details(
+        &self,
+        addr: &str,
+        epoch_id: EpochId,
+    ) -> Option<DealerDetails> {
+        let registration_details = self.get_registration_details(addr, epoch_id)?;
+        let assigned_index = self.get_dealer_index(addr)?;
+
+        Some(DealerDetails {
+            address: Addr::unchecked(addr),
+            bte_public_key_with_proof: registration_details.bte_public_key_with_proof,
+            ed25519_identity: registration_details.ed25519_identity,
+            announce_address: registration_details.announce_address,
+            assigned_index,
+        })
+    }
+
+    // implementation copied from our contract
+    pub(crate) fn query_dealer_details(&self, addr: &str) -> DealerDetailsResponse {
+        let current_epoch_id = self.epoch.epoch_id;
+
+        // if the address has registration data for the current epoch, it means it's an active dealer
+        if let Some(dealer_details) = self.get_dealer_details(addr, current_epoch_id) {
+            let assigned_index = dealer_details.assigned_index;
+            return DealerDetailsResponse::new(
+                Some(dealer_details),
+                DealerType::Current { assigned_index },
+            );
+        }
+
+        // and if has had an assigned index it must have been a dealer at some point in the past
+        if let Some(assigned_index) = self.get_dealer_index(addr) {
+            return DealerDetailsResponse::new(None, DealerType::Past { assigned_index });
+        }
+
+        DealerDetailsResponse::new(None, DealerType::Unknown)
+    }
+
+    pub(crate) fn get_dealer_index(&self, addr: &str) -> Option<NodeIndex> {
+        self.dealer_indices.get(addr).copied()
     }
 }
 
@@ -274,8 +321,8 @@ impl Default for FakeChainState {
 
             dkg_contract: FakeDkgContractState {
                 address: dkg_contract.as_ref().parse().unwrap(),
+                dealer_indices: Default::default(),
                 dealers: HashMap::new(),
-                past_dealers: Default::default(),
 
                 epoch: Epoch::default(),
                 contract_state: ContractState {
@@ -287,7 +334,6 @@ impl Default for FakeChainState {
                 dealings: HashMap::new(),
                 verification_shares: HashMap::new(),
                 threshold: None,
-                initial_dealers: None,
             },
             group_contract: FakeGroupContractState {
                 address: group_contract,
@@ -307,6 +353,18 @@ impl Default for FakeChainState {
 }
 
 impl FakeChainState {
+    pub(crate) fn get_or_assign_dealer(&mut self, addr: &str) -> NodeIndex {
+        if let Some(index) = self.dkg_contract.dealer_indices.get(addr) {
+            *index
+        } else {
+            let new = self._counters.next_node_index();
+            self.dkg_contract
+                .dealer_indices
+                .insert(addr.to_string(), new);
+            new
+        }
+    }
+
     pub(crate) fn total_group_weight(&self) -> u64 {
         self.group_contract.total_weight()
     }
@@ -320,8 +378,12 @@ impl FakeChainState {
     }
 
     pub(crate) fn advance_epoch_in_reshare_mode(&mut self) {
-        self.dkg_contract
-            .reset_epoch_in_reshare_mode(self.block_info.height)
+        self.dkg_contract.reset_epoch_in_reshare_mode()
+    }
+
+    #[allow(unused)]
+    pub(crate) fn advance_epoch_in_reset_mode(&mut self) {
+        self.dkg_contract.reset_dkg()
     }
 
     // TODO: make it return a result
@@ -519,25 +581,25 @@ impl DummyClient {
     //     // self
     // }
 
-    async fn get_dealer_by_address(&self, address: &str) -> Option<DealerDetails> {
-        let guard = self.state.lock().unwrap();
-        for dealer in guard.dkg_contract.dealers.values() {
-            if dealer.address.as_str() == address {
-                return Some(dealer.clone());
-            }
-        }
-        None
-    }
-
-    async fn get_past_dealer_by_address(&self, address: &str) -> Option<DealerDetails> {
-        let guard = self.state.lock().unwrap();
-        for dealer in guard.dkg_contract.past_dealers.values() {
-            if dealer.address.as_str() == address {
-                return Some(dealer.clone());
-            }
-        }
-        None
-    }
+    // async fn get_dealer_by_address(&self, address: &str) -> Option<DealerDetails> {
+    //     let guard = self.state.lock().unwrap();
+    //     for dealer in guard.dkg_contract.dealers.values() {
+    //         if dealer.address.as_str() == address {
+    //             return Some(dealer.clone());
+    //         }
+    //     }
+    //     None
+    // }
+    //
+    // async fn get_past_dealer_by_address(&self, address: &str) -> Option<DealerDetails> {
+    //     let guard = self.state.lock().unwrap();
+    //     for dealer in guard.dkg_contract.past_dealers.values() {
+    //         if dealer.address.as_str() == address {
+    //             return Some(dealer.clone());
+    //         }
+    //     }
+    //     None
+    // }
 }
 
 #[async_trait]
@@ -651,36 +713,76 @@ impl super::client::Client for DummyClient {
         Ok(self.state.lock().unwrap().dkg_contract.threshold)
     }
 
-    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>> {
+    async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
+        let address = self.validator_address.as_ref();
         Ok(self
             .state
             .lock()
             .unwrap()
             .dkg_contract
-            .initial_dealers
-            .clone())
+            .query_dealer_details(address))
     }
 
-    async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
-        let address = self.validator_address.as_ref();
+    async fn get_registered_dealer_details(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<RegisteredDealerDetails> {
+        let details = self
+            .state
+            .lock()
+            .unwrap()
+            .dkg_contract
+            .dealers
+            .get(&epoch_id)
+            .and_then(|dealers| dealers.get(&dealer))
+            .cloned();
+        Ok(RegisteredDealerDetails { details })
+    }
 
-        if let Some(details) = self.get_dealer_by_address(address).await {
-            return Ok(DealerDetailsResponse {
-                details: Some(details),
-                dealer_type: DealerType::Current,
+    async fn get_dealer_dealings_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<DealerDealingsStatusResponse> {
+        let guard = self.state.lock().unwrap();
+        let key_size = guard.dkg_contract.contract_state.key_size;
+
+        let dealer_addr = Addr::unchecked(&dealer);
+
+        let Some(epoch_dealings) = guard.dkg_contract.dealings.get(&epoch_id) else {
+            return Ok(DealerDealingsStatusResponse {
+                epoch_id,
+                dealer: dealer_addr,
+                all_dealings_fully_submitted: false,
+                dealing_submission_status: Default::default(),
             });
+        };
+
+        let Some(dealer_dealings) = epoch_dealings.get(&dealer) else {
+            return Ok(DealerDealingsStatusResponse {
+                epoch_id,
+                dealer: dealer_addr,
+                all_dealings_fully_submitted: false,
+                dealing_submission_status: Default::default(),
+            });
+        };
+
+        let mut dealing_submission_status: BTreeMap<DealingIndex, DealingStatus> = BTreeMap::new();
+        for dealing_index in 0..key_size {
+            let metadata = dealer_dealings
+                .get(&dealing_index)
+                .map(|d| d.metadata.clone());
+            dealing_submission_status.insert(dealing_index, metadata.into());
         }
 
-        if let Some(details) = self.get_past_dealer_by_address(address).await {
-            return Ok(DealerDetailsResponse {
-                details: Some(details),
-                dealer_type: DealerType::Past,
-            });
-        }
-
-        Ok(DealerDetailsResponse {
-            details: None,
-            dealer_type: DealerType::Unknown,
+        Ok(DealerDealingsStatusResponse {
+            epoch_id,
+            dealer: Addr::unchecked(&dealer),
+            all_dealings_fully_submitted: dealing_submission_status
+                .values()
+                .all(|d| d.fully_submitted),
+            dealing_submission_status,
         })
     }
 
@@ -709,15 +811,73 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>> {
-        Ok(self
-            .state
-            .lock()
-            .unwrap()
-            .dkg_contract
-            .dealers
-            .values()
-            .cloned()
+        let chain = self.state.lock().unwrap();
+        let current_epoch_id = chain.dkg_contract.epoch.epoch_id;
+
+        let Some(epoch_dealers) = chain.dkg_contract.dealers.get(&current_epoch_id) else {
+            return Ok(Vec::new());
+        };
+
+        Ok(epoch_dealers
+            .iter()
+            .map(|(address, details)| {
+                let assigned_index = chain.dkg_contract.get_dealer_index(address).unwrap();
+                DealerDetails {
+                    address: Addr::unchecked(address),
+                    bte_public_key_with_proof: details.bte_public_key_with_proof.clone(),
+                    ed25519_identity: details.ed25519_identity.clone(),
+                    announce_address: details.announce_address.clone(),
+                    assigned_index,
+                }
+            })
             .collect())
+    }
+
+    async fn get_dealing_metadata(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> Result<Option<DealingMetadata>> {
+        let guard = self.state.lock().unwrap();
+
+        let Some(epoch_dealings) = guard.dkg_contract.dealings.get(&epoch_id) else {
+            return Ok(None);
+        };
+
+        let Some(dealer_dealings) = epoch_dealings.get(&dealer) else {
+            return Ok(None);
+        };
+
+        let Some(dealing) = dealer_dealings.get(&dealing_index) else {
+            return Ok(None);
+        };
+
+        Ok(Some(dealing.metadata.clone()))
+    }
+
+    async fn get_dealing_chunk(
+        &self,
+        epoch_id: EpochId,
+        dealer: &str,
+        dealing_index: DealingIndex,
+        chunk_index: ChunkIndex,
+    ) -> Result<Option<PartialContractDealingData>> {
+        let guard = self.state.lock().unwrap();
+
+        let Some(epoch_dealings) = guard.dkg_contract.dealings.get(&epoch_id) else {
+            return Ok(None);
+        };
+
+        let Some(dealer_dealings) = epoch_dealings.get(dealer) else {
+            return Ok(None);
+        };
+
+        let Some(dealing) = dealer_dealings.get(&dealing_index) else {
+            return Ok(None);
+        };
+
+        Ok(dealing.chunks.get(&chunk_index).cloned())
     }
 
     async fn get_verification_key_share(
@@ -795,7 +955,6 @@ impl super::client::Client for DummyClient {
 
         Ok(())
     }
-
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
         let mut chain = self.state.lock().unwrap();
         let multisig_address: AccountId = chain.multisig_contract.address.as_str().parse().unwrap();
@@ -818,6 +977,17 @@ impl super::client::Client for DummyClient {
         Ok(())
     }
 
+    async fn can_advance_epoch_state(&self) -> Result<bool> {
+        // TODO: incorporate the short-circuiting logic in here
+        let chain = self.state.lock().unwrap();
+        let epoch = chain.dkg_contract.epoch;
+        Ok(if let Some(finish_timestamp) = epoch.deadline {
+            finish_timestamp <= chain.block_info.time
+        } else {
+            false
+        })
+    }
+
     async fn advance_epoch_state(&self) -> Result<()> {
         todo!()
     }
@@ -829,43 +999,23 @@ impl super::client::Client for DummyClient {
         announce_address: String,
         _resharing: bool,
     ) -> Result<ExecuteResult> {
-        let assigned_index = if let Some(already_registered) = self
-            .get_dealer_by_address(self.validator_address.as_ref())
-            .await
-        {
-            // current dealer
-            already_registered.assigned_index
-        } else if let Some(registered_in_the_past) = self
-            .get_past_dealer_by_address(self.validator_address.as_ref())
-            .await
-        {
-            // past dealer
-            let index = registered_in_the_past.assigned_index;
-            let mut guard = self.state.lock().unwrap();
-            guard
-                .dkg_contract
-                .dealers
-                .insert(index, registered_in_the_past);
-
-            index
-        } else {
-            // new dealer
-            let mut guard = self.state.lock().unwrap();
-            let assigned_index = guard._counters.next_node_index();
-
-            guard.dkg_contract.dealers.insert(
-                assigned_index,
-                DealerDetails {
-                    address: Addr::unchecked(self.validator_address.to_string()),
-                    bte_public_key_with_proof,
-                    ed25519_identity: identity_key,
-                    announce_address,
-                    assigned_index,
-                },
-            );
-            assigned_index
-        };
         let mut guard = self.state.lock().unwrap();
+        let assigned_index = guard.get_or_assign_dealer(self.validator_address.as_ref());
+        let epoch = guard.dkg_contract.epoch.epoch_id;
+
+        let dealer_details = DealerRegistrationDetails {
+            bte_public_key_with_proof,
+            ed25519_identity: identity_key,
+            announce_address,
+        };
+
+        let epoch_dealers = guard.dkg_contract.dealers.entry(epoch).or_default();
+        if !epoch_dealers.contains_key(self.validator_address.as_ref()) {
+            epoch_dealers.insert(self.validator_address.to_string(), dealer_details);
+        } else {
+            unimplemented!("already registered")
+        }
+
         let transaction_hash = guard._counters.next_tx_hash();
 
         Ok(ExecuteResult {
@@ -879,21 +1029,89 @@ impl super::client::Client for DummyClient {
             gas_info: Default::default(),
         })
     }
+
+    async fn submit_dealing_metadata(
+        &self,
+        dealing_index: DealingIndex,
+        chunks: Vec<DealingChunkInfo>,
+        _resharing: bool,
+    ) -> Result<ExecuteResult> {
+        let mut guard = self.state.lock().unwrap();
+        let current_epoch = guard.dkg_contract.epoch.epoch_id;
+
+        let epoch_dealings = guard
+            .dkg_contract
+            .dealings
+            .entry(current_epoch)
+            .or_default();
+
+        let dealer_dealings = epoch_dealings
+            .entry(self.validator_address.to_string())
+            .or_default();
+        dealer_dealings.insert(
+            dealing_index,
+            Dealing::new_metadata_submission(dealing_index, chunks),
+        );
+
+        let transaction_hash = guard._counters.next_tx_hash();
+
+        Ok(ExecuteResult {
+            logs: vec![],
+            data: Default::default(),
+            transaction_hash,
+            gas_info: Default::default(),
+        })
+    }
+
+    async fn submit_dealing_chunk(&self, chunk: PartialContractDealing) -> Result<ExecuteResult> {
+        let mut guard = self.state.lock().unwrap();
+        let current_epoch = guard.dkg_contract.epoch.epoch_id;
+        let current_height = guard.block_info.height;
+
+        // normally we should do checks for existence, etc.
+        // but since this is a testing code, we assume everything is sent in order and the appropriate entries exist
+        let epoch_dealings = guard.dkg_contract.dealings.get_mut(&current_epoch).unwrap();
+
+        let dealer_dealings = epoch_dealings
+            .get_mut(self.validator_address.as_ref())
+            .unwrap();
+
+        let dealing_chunks = dealer_dealings.get_mut(&chunk.dealing_index).unwrap();
+        dealing_chunks.chunks.insert(chunk.chunk_index, chunk.data);
+
+        dealing_chunks
+            .metadata
+            .submitted_chunks
+            .get_mut(&chunk.chunk_index)
+            .unwrap()
+            .status
+            .submission_height = Some(current_height);
+
+        let transaction_hash = guard._counters.next_tx_hash();
+
+        Ok(ExecuteResult {
+            logs: vec![],
+            data: Default::default(),
+            transaction_hash,
+            gas_info: Default::default(),
+        })
+    }
+
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
         resharing: bool,
     ) -> Result<ExecuteResult> {
-        let address = self.validator_address.to_string();
+        let mut chain = self.state.lock().unwrap();
 
-        let Some(dealer_details) = self.get_dealer_by_address(&address).await else {
+        let address = self.validator_address.to_string();
+        let epoch_id = chain.dkg_contract.epoch.epoch_id;
+        let Some(dealer_details) = chain.dkg_contract.get_dealer_details(&address, epoch_id) else {
             // Just throw some error, not really the correct one
             return Err(CoconutError::DepositEncrKeyNotFound);
         };
 
-        let mut chain = self.state.lock().unwrap();
         let dkg_contract = chain.dkg_contract.address.clone();
-        let epoch_id = chain.dkg_contract.epoch.epoch_id;
 
         chain
             .dkg_contract
@@ -949,170 +1167,6 @@ impl super::client::Client for DummyClient {
                 events: vec![cosmwasm_std::Event::new("wasm")
                     .add_attribute(DKG_PROPOSAL_ID, proposal_id.to_string())],
             }],
-            data: Default::default(),
-            transaction_hash,
-            gas_info: Default::default(),
-        })
-    }
-
-    async fn get_dealer_dealings_status(
-        &self,
-        epoch_id: EpochId,
-        dealer: String,
-    ) -> Result<DealerDealingsStatusResponse> {
-        let guard = self.state.lock().unwrap();
-        let key_size = guard.dkg_contract.contract_state.key_size;
-
-        let dealer_addr = Addr::unchecked(&dealer);
-
-        let Some(epoch_dealings) = guard.dkg_contract.dealings.get(&epoch_id) else {
-            return Ok(DealerDealingsStatusResponse {
-                epoch_id,
-                dealer: dealer_addr,
-                all_dealings_fully_submitted: false,
-                dealing_submission_status: Default::default(),
-            });
-        };
-
-        let Some(dealer_dealings) = epoch_dealings.get(&dealer) else {
-            return Ok(DealerDealingsStatusResponse {
-                epoch_id,
-                dealer: dealer_addr,
-                all_dealings_fully_submitted: false,
-                dealing_submission_status: Default::default(),
-            });
-        };
-
-        let mut dealing_submission_status: BTreeMap<DealingIndex, DealingStatus> = BTreeMap::new();
-        for dealing_index in 0..key_size {
-            let metadata = dealer_dealings
-                .get(&dealing_index)
-                .map(|d| d.metadata.clone());
-            dealing_submission_status.insert(dealing_index, metadata.into());
-        }
-
-        Ok(DealerDealingsStatusResponse {
-            epoch_id,
-            dealer: Addr::unchecked(&dealer),
-            all_dealings_fully_submitted: dealing_submission_status
-                .values()
-                .all(|d| d.fully_submitted),
-            dealing_submission_status,
-        })
-    }
-
-    async fn get_dealing_metadata(
-        &self,
-        epoch_id: EpochId,
-        dealer: String,
-        dealing_index: DealingIndex,
-    ) -> Result<Option<DealingMetadata>> {
-        let guard = self.state.lock().unwrap();
-
-        let Some(epoch_dealings) = guard.dkg_contract.dealings.get(&epoch_id) else {
-            return Ok(None);
-        };
-
-        let Some(dealer_dealings) = epoch_dealings.get(&dealer) else {
-            return Ok(None);
-        };
-
-        let Some(dealing) = dealer_dealings.get(&dealing_index) else {
-            return Ok(None);
-        };
-
-        Ok(Some(dealing.metadata.clone()))
-    }
-
-    async fn get_dealing_chunk(
-        &self,
-        epoch_id: EpochId,
-        dealer: &str,
-        dealing_index: DealingIndex,
-        chunk_index: ChunkIndex,
-    ) -> Result<Option<PartialContractDealingData>> {
-        let guard = self.state.lock().unwrap();
-
-        let Some(epoch_dealings) = guard.dkg_contract.dealings.get(&epoch_id) else {
-            return Ok(None);
-        };
-
-        let Some(dealer_dealings) = epoch_dealings.get(dealer) else {
-            return Ok(None);
-        };
-
-        let Some(dealing) = dealer_dealings.get(&dealing_index) else {
-            return Ok(None);
-        };
-
-        Ok(dealing.chunks.get(&chunk_index).cloned())
-    }
-
-    async fn submit_dealing_metadata(
-        &self,
-        dealing_index: DealingIndex,
-        chunks: Vec<DealingChunkInfo>,
-        _resharing: bool,
-    ) -> Result<ExecuteResult> {
-        let mut guard = self.state.lock().unwrap();
-        let current_epoch = guard.dkg_contract.epoch.epoch_id;
-
-        let epoch_dealings = guard
-            .dkg_contract
-            .dealings
-            .entry(current_epoch)
-            .or_default();
-
-        let dealer_dealings = epoch_dealings
-            .entry(self.validator_address.to_string())
-            .or_default();
-        dealer_dealings.insert(
-            dealing_index,
-            Dealing::new_metadata_submission(dealing_index, chunks),
-        );
-
-        let transaction_hash = guard._counters.next_tx_hash();
-
-        Ok(ExecuteResult {
-            logs: vec![],
-            data: Default::default(),
-            transaction_hash,
-            gas_info: Default::default(),
-        })
-    }
-
-    async fn submit_dealing_chunk(
-        &self,
-        chunk: PartialContractDealing,
-        _resharing: bool,
-    ) -> Result<ExecuteResult> {
-        let mut guard = self.state.lock().unwrap();
-        let current_epoch = guard.dkg_contract.epoch.epoch_id;
-        let current_height = guard.block_info.height;
-
-        // normally we should do checks for existence, etc.
-        // but since this is a testing code, we assume everything is sent in order and the appropriate entries exist
-        let epoch_dealings = guard.dkg_contract.dealings.get_mut(&current_epoch).unwrap();
-
-        let dealer_dealings = epoch_dealings
-            .get_mut(self.validator_address.as_ref())
-            .unwrap();
-
-        let dealing_chunks = dealer_dealings.get_mut(&chunk.dealing_index).unwrap();
-        dealing_chunks.chunks.insert(chunk.chunk_index, chunk.data);
-
-        dealing_chunks
-            .metadata
-            .submitted_chunks
-            .get_mut(&chunk.chunk_index)
-            .unwrap()
-            .status
-            .submission_height = Some(current_height);
-
-        let transaction_hash = guard._counters.next_tx_hash();
-
-        Ok(ExecuteResult {
-            logs: vec![],
             data: Default::default(),
             transaction_hash,
             gas_info: Default::default(),

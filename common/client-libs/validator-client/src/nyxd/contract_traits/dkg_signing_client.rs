@@ -39,13 +39,6 @@ pub trait DkgSigningClient {
             .await
     }
 
-    async fn surpass_threshold(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::SurpassedThreshold {};
-
-        self.execute_dkg_contract(fee, req, "surpass DKG threshold".to_string(), vec![])
-            .await
-    }
-
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
@@ -85,10 +78,9 @@ pub trait DkgSigningClient {
     async fn submit_dealing_chunk(
         &self,
         chunk: PartialContractDealing,
-        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitDealingsChunk { chunk, resharing };
+        let req = DkgExecuteMsg::CommitDealingsChunk { chunk };
 
         self.execute_dkg_contract(fee, req, "dealing chunk commitment".to_string(), vec![])
             .await
@@ -129,6 +121,20 @@ pub trait DkgSigningClient {
             vec![],
         )
         .await
+    }
+
+    async fn trigger_dkg_reset(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::TriggerReset {};
+
+        self.execute_dkg_contract(fee, req, "trigger DKG reset".to_string(), vec![])
+            .await
+    }
+
+    async fn trigger_dkg_resharing(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::TriggerResharing {};
+
+        self.execute_dkg_contract(fee, req, "trigger DKG resharing".to_string(), vec![])
+            .await
     }
 }
 
@@ -192,8 +198,8 @@ mod tests {
             } => client
                 .submit_dealing_metadata(dealing_index, chunks, resharing, None)
                 .ignore(),
-            DkgExecuteMsg::CommitDealingsChunk { chunk, resharing } => {
-                client.submit_dealing_chunk(chunk, resharing, None).ignore()
+            DkgExecuteMsg::CommitDealingsChunk { chunk } => {
+                client.submit_dealing_chunk(chunk, None).ignore()
             }
             DkgExecuteMsg::CommitVerificationKeyShare { share, resharing } => client
                 .submit_verification_key_share(share, resharing, None)
@@ -201,8 +207,9 @@ mod tests {
             DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => client
                 .verify_verification_key_share(&owner.parse().unwrap(), resharing, None)
                 .ignore(),
-            DkgExecuteMsg::SurpassedThreshold {} => client.surpass_threshold(None).ignore(),
             DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),
+            DkgExecuteMsg::TriggerReset {} => client.trigger_dkg_reset(None).ignore(),
+            DkgExecuteMsg::TriggerResharing {} => client.trigger_dkg_resharing(None).ignore(),
         };
     }
 }

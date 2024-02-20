@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::BLOCK_TIME_FOR_VERIFICATION_SECS;
-use crate::dealers::storage as dealers_storage;
+use crate::dealers::storage::get_dealer_details;
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
@@ -25,11 +25,10 @@ pub fn try_commit_verification_key_share(
         deps.storage,
         EpochState::VerificationKeySubmission { resharing },
     )?;
-    // ensure the sender is a dealer
-    let details = dealers_storage::current_dealers()
-        .load(deps.storage, &info.sender)
-        .map_err(|_| ContractError::NotADealer)?;
-    let epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    let mut epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let epoch_id = epoch.epoch_id;
+
+    let details = get_dealer_details(deps.storage, &info.sender, epoch_id)?;
     if vk_shares()
         .may_load(deps.storage, (&info.sender, epoch_id))?
         .is_some()
@@ -60,6 +59,9 @@ pub fn try_commit_verification_key_share(
             .plus_seconds(BLOCK_TIME_FOR_VERIFICATION_SECS),
     )?;
 
+    epoch.state_progress.submitted_key_shares += 1;
+    CURRENT_EPOCH.save(deps.storage, &epoch)?;
+
     Ok(Response::new().add_message(msg))
 }
 
@@ -75,7 +77,9 @@ pub fn try_verify_verification_key_share(
         deps.storage,
         EpochState::VerificationKeyFinalization { resharing },
     )?;
-    let epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    let mut epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let epoch_id = epoch.epoch_id;
+
     MULTISIG.assert_admin(deps.as_ref(), &info.sender)?;
     vk_shares().update(deps.storage, (&owner, epoch_id), |vk_share| {
         vk_share
@@ -88,15 +92,20 @@ pub fn try_verify_verification_key_share(
             })
     })?;
 
+    epoch.state_progress.verified_keys += 1;
+    CURRENT_EPOCH.save(deps.storage, &epoch)?;
+
     Ok(Response::default())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epoch_state::transactions::{advance_epoch_state, try_initiate_dkg};
+    use crate::epoch_state::transactions::{try_advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT};
+    use crate::support::tests::helpers::{
+        add_current_dealer, add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT,
+    };
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
     use cw_controllers::AdminError;
@@ -117,12 +126,12 @@ mod tests {
             .block
             .time
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().dealing_exchange_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let dealer = Addr::unchecked("requester");
         let announce_address = String::from("localhost");
         let dealer_details = DealerDetails {
@@ -132,9 +141,7 @@ mod tests {
             announce_address: announce_address.clone(),
             assigned_index: 1,
         };
-        dealers_storage::current_dealers()
-            .save(deps.as_mut().storage, &dealer, &dealer_details)
-            .unwrap();
+        add_current_dealer(deps.as_mut(), &dealer_details);
 
         try_commit_verification_key_share(deps.as_mut(), env, info.clone(), share.clone(), false)
             .unwrap();
@@ -182,12 +189,12 @@ mod tests {
             .block
             .time
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().dealing_exchange_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let ret = try_commit_verification_key_share(
             deps.as_mut(),
             env.clone(),
@@ -196,7 +203,7 @@ mod tests {
             false,
         )
         .unwrap_err();
-        assert_eq!(ret, ContractError::NotADealer);
+        assert_eq!(ret, ContractError::NotADealer { epoch_id: 0 });
 
         let dealer = Addr::unchecked("requester");
         let dealer_details = DealerDetails {
@@ -206,9 +213,7 @@ mod tests {
             announce_address: String::new(),
             assigned_index: 1,
         };
-        dealers_storage::current_dealers()
-            .save(deps.as_mut().storage, &dealer, &dealer_details)
-            .unwrap();
+        add_current_dealer(deps.as_mut(), &dealer_details);
 
         try_commit_verification_key_share(
             deps.as_mut(),
@@ -256,22 +261,22 @@ mod tests {
             .block
             .time
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().dealing_exchange_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().verification_key_submission_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().verification_key_validation_time_secs);
-        advance_epoch_state(deps.as_mut(), env).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env).unwrap();
 
         let ret = try_verify_verification_key_share(deps.as_mut(), info, owner.clone(), false)
             .unwrap_err();
@@ -304,12 +309,12 @@ mod tests {
             .block
             .time
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().dealing_exchange_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         let dealer_details = DealerDetails {
             address: Addr::unchecked(&owner),
@@ -318,25 +323,20 @@ mod tests {
             announce_address: String::new(),
             assigned_index: 1,
         };
-        dealers_storage::current_dealers()
-            .save(
-                deps.as_mut().storage,
-                &Addr::unchecked(&owner),
-                &dealer_details,
-            )
-            .unwrap();
+        add_current_dealer(deps.as_mut(), &dealer_details);
+
         try_commit_verification_key_share(deps.as_mut(), env.clone(), info, share, false).unwrap();
 
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().verification_key_submission_time_secs);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         env.block.time = env
             .block
             .time
             .plus_seconds(TimeConfiguration::default().verification_key_validation_time_secs);
-        advance_epoch_state(deps.as_mut(), env).unwrap();
+        try_advance_epoch_state(deps.as_mut(), env).unwrap();
 
         try_verify_verification_key_share(deps.as_mut(), multisig_info, owner, false).unwrap();
     }

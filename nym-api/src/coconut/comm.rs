@@ -43,7 +43,7 @@ impl CachedEpoch {
     async fn update(&mut self, epoch: Epoch) -> Result<()> {
         let now = OffsetDateTime::now_utc();
 
-        let validity_duration = if let Some(epoch_finish) = epoch.finish_timestamp {
+        let validity_duration = if let Some(epoch_finish) = epoch.deadline {
             let state_end =
                 OffsetDateTime::from_unix_timestamp(epoch_finish.seconds() as i64).unwrap();
             let until_epoch_state_end = state_end - now;

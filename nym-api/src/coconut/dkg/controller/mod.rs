@@ -17,7 +17,7 @@ use rand::{CryptoRng, Rng, RngCore};
 use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::time::interval;
+use tokio::time::{interval, MissedTickBehavior};
 
 mod error;
 pub(crate) mod keys;
@@ -191,7 +191,20 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             self.state.in_progress_state_mut(epoch_id).unwrap().entered = true;
         }
 
+        // so at this point we don't need to be polling the contract so often anymore, but we can't easily
+        // adjust the existing interval.
+        // however, what we can do is just wait here for a bit each iteration
+        tokio::time::sleep(Duration::from_secs(120)).await;
+
         Ok(())
+    }
+
+    async fn check_if_can_advance_epoch_state(&self) -> Result<bool, DkgError> {
+        debug!("checking if we can advance the epoch state");
+        self.dkg_client
+            .can_advance_epoch_state()
+            .await
+            .map_err(|source| DkgError::StateStatusQueryFailure { source })
     }
 
     async fn try_advance_dkg_state(&mut self) -> Result<(), DkgError> {
@@ -234,13 +247,13 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             EpochState::InProgress => self.handle_in_progress(epoch.epoch_id).await?,
         };
 
-        // add a bit of variance so that all apis wouldn't attempt to trigger it at the same time
-        let variance = self.rng.gen_range(0..=60);
-        if let Some(epoch_finish) = epoch.finish_timestamp {
-            let now = OffsetDateTime::now_utc();
-            if now.unix_timestamp() > epoch_finish.seconds() as i64 + variance {
-                // TODO: make sure to not overload validator in case its running slow
-                // i.e. send it once at most every X seconds
+        if self.check_if_can_advance_epoch_state().await? {
+            // add a bit of variance so that all apis wouldn't attempt to trigger it at the same time
+            let variance = self.rng.gen_range(0..=60);
+            tokio::time::sleep(Duration::from_secs(variance)).await;
+
+            // check if whether during our waiting somebody has already advanced the epoch
+            if self.check_if_can_advance_epoch_state().await? {
                 self.try_advance_dkg_state().await?
             }
         }
@@ -248,8 +261,17 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         Ok(())
     }
 
+    fn reduced_tick_rate(&self, tick_duration: time::Duration) -> bool {
+        // make sure to not trigger warnings if say the target rate is 10s, but our last tick took `9s999ms785µs321ns`
+        // check for 95% of polling rate, so in that case if its below 9s500ms
+        let target_nanos = self.polling_rate.as_nanos();
+        let min = time::Duration::nanoseconds(((target_nanos * 95) / 100) as i64);
+        tick_duration < min
+    }
+
     pub(crate) async fn run(mut self, mut shutdown: TaskClient) {
         let mut interval = interval(self.polling_rate);
+        interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
 
         // sometimes when the process is running behind, the ticker resolves multiple times in quick succession
         // so explicitly track those instances and make sure we don't overload the validator with contract calls
@@ -263,7 +285,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                     let tick_duration = now - last_polled;
                     last_polled = now;
 
-                    if tick_duration < self.polling_rate {
+                    if self.reduced_tick_rate(tick_duration) {
                         warn!("it seems the process is running behind. The current tick rate is lower than the polling rate. rate: {:?}, current tick: {}, previous tick: {}", self.polling_rate, tick_duration, last_tick_duration);
                         last_tick_duration = tick_duration;
                         continue

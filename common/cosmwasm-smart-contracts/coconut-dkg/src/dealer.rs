@@ -15,17 +15,29 @@ pub struct DealerDetails {
 }
 
 #[cw_serde]
+pub struct DealerRegistrationDetails {
+    pub bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
+    pub ed25519_identity: String,
+    pub announce_address: String,
+}
+
+#[cw_serde]
 #[derive(Copy)]
 pub enum DealerType {
-    Current,
-    Past,
+    Current { assigned_index: NodeIndex },
+    Past { assigned_index: NodeIndex },
     Unknown,
 }
 
 impl DealerType {
     pub fn is_current(&self) -> bool {
-        matches!(&self, DealerType::Current)
+        matches!(&self, DealerType::Current { .. })
     }
+}
+
+#[cw_serde]
+pub struct RegisteredDealerDetails {
+    pub details: Option<DealerRegistrationDetails>,
 }
 
 #[cw_serde]
@@ -61,6 +73,23 @@ impl PagedDealerResponse {
         PagedDealerResponse {
             dealers,
             per_page,
+            start_next_after,
+        }
+    }
+}
+
+#[cw_serde]
+pub struct PagedDealerIndexResponse {
+    pub indices: Vec<(Addr, NodeIndex)>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
+    pub start_next_after: Option<Addr>,
+}
+
+impl PagedDealerIndexResponse {
+    pub fn new(indices: Vec<(Addr, NodeIndex)>, start_next_after: Option<Addr>) -> Self {
+        PagedDealerIndexResponse {
+            indices,
             start_next_after,
         }
     }

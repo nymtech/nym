@@ -163,6 +163,9 @@ pub enum NymRewarderError {
 
     #[error("credential issuance rewarding is enabled, but the validator whitelist is empty")]
     EmptyCredentialIssuanceWhitelist,
+
+    #[error("there were no validators to reward in this epoch")]
+    NoValidatorsToReward,
 }
 
 #[derive(Debug)]

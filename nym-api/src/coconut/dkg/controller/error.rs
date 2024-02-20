@@ -25,6 +25,12 @@ pub enum DkgError {
         source: CoconutError,
     },
 
+    #[error("failed to query for the epoch state status: {source}")]
+    StateStatusQueryFailure {
+        #[source]
+        source: CoconutError,
+    },
+
     #[error("failed to query the CW4 group contract for the membership status: {source}")]
     GroupQueryFailure {
         #[source]

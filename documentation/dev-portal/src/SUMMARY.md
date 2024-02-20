@@ -21,7 +21,7 @@
 - [NymVPN alpha](nymvpn/intro.md)
     - [GUI](nymvpn/gui.md)
         - [Linux](nymvpn/gui-linux.md)
-        - [MacOS](nymvpn/gui-mac.md)
+      <!--  - [MacOS](nymvpn/gui-mac.md) -->
     - [CLI](nymvpn/cli.md)
         - [Linux](nymvpn/cli-linux.md)
         - [MacOS](nymvpn/cli-mac.md)

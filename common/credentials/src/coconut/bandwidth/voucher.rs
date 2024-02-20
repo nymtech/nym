@@ -13,7 +13,7 @@ use nym_validator_client::nyxd::{Coin, Hash};
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-#[derive(Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
+#[derive(Debug, Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
 pub struct BandwidthVoucherIssuedData {
     /// the plain value (e.g., bandwidth) encoded in this voucher
     // note: for legacy reasons we're only using the value of the coin and ignoring the denom

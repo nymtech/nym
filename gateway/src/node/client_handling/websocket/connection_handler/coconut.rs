@@ -112,10 +112,15 @@ impl CoconutVerifier {
 
         // the key was already in the map
         if let Ok(mapped) = RwLockReadGuard::try_map(guard, |clients| clients.get(&epoch_id)) {
+            trace!("we already had cached api clients for epoch {epoch_id}");
             return Ok(mapped);
         }
 
         let api_clients = self.query_api_clients(epoch_id).await?;
+        trace!(
+            "obtained {} api clients for epoch {epoch_id} from the contract",
+            api_clients.len()
+        );
 
         // EDGE CASE:
         // if this epoch is from the past, we can't query for its threshold
@@ -131,6 +136,7 @@ impl CoconutVerifier {
         let mut guard = self.api_clients.write().await;
         guard.insert(epoch_id, api_clients);
         let guard = guard.downgrade();
+        trace!("stored api clients for epoch {epoch_id}");
 
         // SAFETY:
         // we just inserted the entry into the map while NEVER dropping the lock (only downgraded it)
@@ -149,10 +155,15 @@ impl CoconutVerifier {
 
         // the key was already in the map
         if let Ok(mapped) = RwLockReadGuard::try_map(guard, |keys| keys.get(&epoch_id)) {
+            trace!("we already had cached verification key for epoch {epoch_id}");
             return Ok(mapped);
         }
 
         let api_clients = self.api_clients(epoch_id).await?;
+        trace!(
+            "attempting to obtain verification key from {} api clients",
+            api_clients.len()
+        );
 
         let aggregated_verification_key =
             nym_credentials::obtain_aggregate_verification_key(&api_clients)?;
@@ -160,6 +171,7 @@ impl CoconutVerifier {
         let mut guard = self.master_keys.write().await;
         guard.insert(epoch_id, aggregated_verification_key);
         let guard = guard.downgrade();
+        trace!("stored aggregated verification key for epoch {epoch_id}");
 
         // SAFETY:
         // we just inserted the entry into the map while NEVER dropping the lock (only downgraded it)

@@ -20,7 +20,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const CURRENT_SERIALIZATION_REVISION: u8 = 1;
 
-#[derive(Zeroize, Serialize, Deserialize)]
+#[derive(Debug, Zeroize, Serialize, Deserialize)]
 pub enum BandwidthCredentialIssuedDataVariant {
     Voucher(BandwidthVoucherIssuedData),
     FreePass(FreePassIssuedData),

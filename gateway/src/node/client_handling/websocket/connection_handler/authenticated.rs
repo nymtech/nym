@@ -21,7 +21,7 @@ use futures::{
 };
 use log::*;
 use nym_credentials::coconut::bandwidth::{bandwidth_credential_params, CredentialType};
-use nym_credentials_interface::CoconutError;
+use nym_credentials_interface::{Base58, CoconutError};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
@@ -227,14 +227,22 @@ where
     ) -> Result<ServerResponse, RequestHandlingError> {
         // check if the credential hasn't been spent before
         let serial_number = credential.data.blinded_serial_number();
+        trace!("processing credential {}", serial_number.to_bs58());
+
         let already_spent = self
             .inner
             .storage
             .contains_credential(&serial_number)
             .await?;
         if already_spent {
+            trace!("the credential has already been spent before");
             return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
         }
+
+        trace!(
+            "attempting to obtain aggregate verification key for epoch {}",
+            credential.data.epoch_id
+        );
 
         let aggregated_verification_key = self
             .inner
@@ -243,26 +251,32 @@ where
             .await?;
 
         if !credential.data.validate_type_attribute() {
+            trace!("mismatch in the type attribute");
             return Err(RequestHandlingError::InvalidTypeAttribute);
         }
 
         let Some(bandwidth_attribute) = credential.data.get_bandwidth_attribute() else {
+            trace!("missing bandwidth attribute");
             return Err(RequestHandlingError::MissingBandwidthAttribute);
         };
 
         // this will extract token amounts out of bandwidth vouchers and validate expiry of free passes
         let bandwidth = Bandwidth::try_from_raw_value(bandwidth_attribute, credential.data.typ)?;
 
+        trace!("embedded bandwidth: {bandwidth:?}");
+
         // locally verify the credential
         let params = bandwidth_credential_params();
         if !credential.data.verify(params, &aggregated_verification_key) {
+            trace!("the credential did not verify correctly");
             return Err(RequestHandlingError::InvalidBandwidthCredential(
-                String::from("credential failed to verify on gateway"),
+                String::from("local credential verification has failed"),
             ));
         }
 
         let was_freepass = match credential.data.typ {
             CredentialType::Voucher => {
+                trace!("the credential is a bandwidth voucher. attempting to release the funds");
                 let api_clients = self
                     .inner
                     .coconut_verifier
@@ -291,11 +305,13 @@ where
         // mark the credential as spent
         // TODO: technically this should be done under a storage transaction so that if we experience any
         // failures later on, it'd get reverted
+        trace!("storing serial number information");
         self.inner
             .storage
             .insert_spent_credential(serial_number, was_freepass, self.client.address)
             .await?;
 
+        trace!("increasing client bandwidth");
         self.increase_bandwidth(bandwidth).await?;
         let available_total = self.get_available_bandwidth().await?;
 
@@ -307,6 +323,8 @@ where
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        debug!("handling v1 bandwidth request");
+
         let iv = IV::try_from_bytes(&iv)?;
         let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential_v1(
             enc_credential,
@@ -329,6 +347,8 @@ where
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        debug!("handling v2 bandwidth request");
+
         let iv = IV::try_from_bytes(&iv)?;
         let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential_v2(
             enc_credential,
@@ -342,6 +362,8 @@ where
     async fn handle_claim_testnet_bandwidth(
         &mut self,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        debug!("handling testnet bandwidth request");
+
         if self.inner.only_coconut_credentials {
             return Err(RequestHandlingError::OnlyCoconutCredentials);
         }
@@ -389,6 +411,7 @@ where
     ///
     /// * `bin_msg`: raw message to handle.
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
+        trace!("binary request");
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
             Err(e) => {
@@ -413,6 +436,7 @@ where
     ///
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message {
+        trace!("text request");
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
@@ -465,6 +489,12 @@ where
     ///
     /// * `raw_request`: raw received websocket message.
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
+        // TODO: this should be added via tracing
+        debug!(
+            "handling request from {}",
+            self.client.address.as_base58_string()
+        );
+
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
         // desktop nym-client websocket as I've manually handled everything there

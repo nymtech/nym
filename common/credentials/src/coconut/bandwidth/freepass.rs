@@ -14,7 +14,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const MAX_FREE_PASS_VALIDITY: Duration = Duration::WEEK; // 1 week
 
-#[derive(Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
+#[derive(Debug, Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
 pub struct FreePassIssuedData {
     /// the plain validity value of this credential expressed as unix timestamp
     #[zeroize(skip)]

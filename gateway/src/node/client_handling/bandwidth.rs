@@ -36,6 +36,7 @@ pub enum BandwidthError {
     },
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct Bandwidth {
     value: u64,
 }

@@ -8,14 +8,16 @@ license.workspace = true
 
 [dependencies]
 bip39 = { workspace = true }
+log = { workspace = true }
 rand = "0.7.3"
 thiserror = { workspace = true }
 url = { workspace = true }
 zeroize = { workspace = true }
 
-nym-coconut-interface = { path = "../coconut-interface" }
+nym-coconut = { path = "../nymcoconut" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-credentials = { path = "../credentials" }
+nym-credentials-interface = { path = "../credentials-interface" }
 nym-crypto = { path = "../crypto", features = ["rand", "asymmetric", "symmetric", "aes", "hashing"] }
 nym-network-defaults = { path = "../network-defaults" }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }

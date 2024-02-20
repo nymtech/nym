@@ -12,7 +12,7 @@ pub fn theta_from_keys_and_attributes(
     coconut_keypairs: &Vec<KeyPair>,
     indices: &[scheme::SignerIndex],
     public_attributes: &[&PublicAttribute],
-) -> Result<Theta, CoconutError> {
+) -> Result<VerifyCredentialRequest, CoconutError> {
     let serial_number = params.random_scalar();
     let binding_number = params.random_scalar();
     let private_attributes = vec![&serial_number, &binding_number];

@@ -3,7 +3,8 @@
 
 use super::authenticated::RequestHandlingError;
 use log::*;
-use nym_coconut_interface::{Credential, VerificationKey};
+use nym_credentials_interface::VerificationKey;
+use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{MultisigQueryClient, NymContractsProvider};
@@ -88,7 +89,7 @@ impl CoconutVerifier {
                 });
             }
             let aggregated_verification_key =
-                nym_credentials::obtain_aggregate_verification_key(&epoch_api_clients).await?;
+                nym_credentials::obtain_aggregate_verification_key(&epoch_api_clients)?;
 
             api_clients.insert(current_epoch.epoch_id, epoch_api_clients);
             master_keys.insert(current_epoch.epoch_id, aggregated_verification_key);
@@ -111,10 +112,15 @@ impl CoconutVerifier {
 
         // the key was already in the map
         if let Ok(mapped) = RwLockReadGuard::try_map(guard, |clients| clients.get(&epoch_id)) {
+            trace!("we already had cached api clients for epoch {epoch_id}");
             return Ok(mapped);
         }
 
         let api_clients = self.query_api_clients(epoch_id).await?;
+        trace!(
+            "obtained {} api clients for epoch {epoch_id} from the contract",
+            api_clients.len()
+        );
 
         // EDGE CASE:
         // if this epoch is from the past, we can't query for its threshold
@@ -130,6 +136,7 @@ impl CoconutVerifier {
         let mut guard = self.api_clients.write().await;
         guard.insert(epoch_id, api_clients);
         let guard = guard.downgrade();
+        trace!("stored api clients for epoch {epoch_id}");
 
         // SAFETY:
         // we just inserted the entry into the map while NEVER dropping the lock (only downgraded it)
@@ -148,17 +155,23 @@ impl CoconutVerifier {
 
         // the key was already in the map
         if let Ok(mapped) = RwLockReadGuard::try_map(guard, |keys| keys.get(&epoch_id)) {
+            trace!("we already had cached verification key for epoch {epoch_id}");
             return Ok(mapped);
         }
 
         let api_clients = self.api_clients(epoch_id).await?;
+        trace!(
+            "attempting to obtain verification key from {} api clients",
+            api_clients.len()
+        );
 
         let aggregated_verification_key =
-            nym_credentials::obtain_aggregate_verification_key(&api_clients).await?;
+            nym_credentials::obtain_aggregate_verification_key(&api_clients)?;
 
         let mut guard = self.master_keys.write().await;
         guard.insert(epoch_id, aggregated_verification_key);
         let guard = guard.downgrade();
+        trace!("stored aggregated verification key for epoch {epoch_id}");
 
         // SAFETY:
         // we just inserted the entry into the map while NEVER dropping the lock (only downgraded it)
@@ -176,21 +189,31 @@ impl CoconutVerifier {
         Ok(all_coconut_api_clients(self.nyxd_client.read().await.deref(), epoch_id).await?)
     }
 
-    pub async fn release_funds(
+    pub async fn release_bandwidth_voucher_funds(
         &self,
         api_clients: &[CoconutApiClient],
-        credential: &Credential,
+        credential: CredentialSpendingRequest,
     ) -> Result<(), RequestHandlingError> {
+        if !credential.data.typ.is_voucher() {
+            unimplemented!()
+        }
+
+        // safety: the voucher funds are released after the credential has already been verified locally
+        // and the underlying bandwidth value has been extracted, so the below MUST succeed
+        let voucher_amount = credential.unchecked_voucher_value() as u128;
+
+        let blinded_serial_number = credential
+            .data
+            .verify_credential_request
+            .blinded_serial_number_bs58();
+
         let res = self
             .nyxd_client
             .write()
             .await
             .spend_credential(
-                Coin::new(
-                    credential.voucher_value().into(),
-                    self.mix_denom_base.clone(),
-                ),
-                credential.blinded_serial_number(),
+                Coin::new(voucher_amount, &self.mix_denom_base),
+                blinded_serial_number,
                 self.address.to_string(),
                 None,
             )
@@ -211,27 +234,28 @@ impl CoconutVerifier {
             .await
             .query_proposal(proposal_id)
             .await?;
-        if !credential.has_blinded_serial_number(&proposal.description)? {
+        if !credential.matches_blinded_serial_number(&proposal.description)? {
             return Err(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal has different serial number"),
             });
         }
 
         let req = nym_api_requests::coconut::VerifyCredentialBody::new(
-            credential.clone(),
+            credential.data,
             proposal_id,
             self.address.clone(),
         );
         for client in api_clients {
             let ret = client.api_client.verify_bandwidth_credential(&req).await;
+            let client_url = client.api_client.nym_api.current_url();
             match ret {
                 Ok(res) => {
                     if !res.verification_result {
-                        debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.api_client.nym_api.current_url());
+                        warn!("Validator at {client_url} didn't accept the credential. It will probably vote No on the spending proposal");
                     }
                 }
-                Err(e) => {
-                    warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api.current_url(), e);
+                Err(err) => {
+                    warn!("Validator at {client_url} could not be reached. There might be a problem with the coconut endpoint: {err}");
                 }
             }
         }

@@ -1,12 +1,14 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
+use crate::models::{CredentialSpendingRequest, OldV1Credential};
 use crate::registration::handshake::SharedKeys;
-use crate::{GatewayMacSize, PROTOCOL_VERSION};
+use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION};
 use log::error;
-use nym_coconut_interface::Credential;
+use nym_credentials::coconut::bandwidth::CredentialSpendingData;
+use nym_credentials_interface::{CoconutError, UnknownCredentialType};
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use nym_crypto::symmetric::stream_cipher;
@@ -16,10 +18,9 @@ use nym_sphinx::params::packet_sizes::PacketSize;
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
 use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
-use std::{
-    convert::{TryFrom, TryInto},
-    fmt::{self, Error, Formatter},
-};
+use std::convert::{TryFrom, TryInto};
+use std::string::FromUtf8Error;
+use thiserror::Error;
 use tungstenite::protocol::Message;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,7 +39,7 @@ pub enum RegistrationHandshake {
 impl RegistrationHandshake {
     pub fn new_payload(data: Vec<u8>) -> Self {
         RegistrationHandshake::HandshakePayload {
-            protocol_version: Some(PROTOCOL_VERSION),
+            protocol_version: Some(CURRENT_PROTOCOL_VERSION),
             data,
         }
     }
@@ -66,53 +67,58 @@ impl TryInto<String> for RegistrationHandshake {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum GatewayRequestsError {
+    #[error("the request is too short")]
     TooShortRequest,
+
+    #[error("provided MAC is invalid")]
     InvalidMac,
-    IncorrectlyEncodedAddress,
+
+    #[error("address field was incorrectly encoded: {source}")]
+    IncorrectlyEncodedAddress {
+        #[from]
+        source: NymNodeRoutingAddressError,
+    },
+
+    #[error("received request had invalid size. (actual: {0}, but expected one of: {} (ACK), {} (REGULAR), {}, {}, {} (EXTENDED))",
+        PacketSize::AckPacket.size(),
+        PacketSize::RegularPacket.size(),
+        PacketSize::ExtendedPacket8.size(),
+        PacketSize::ExtendedPacket16.size(),
+        PacketSize::ExtendedPacket32.size())
+    ]
     RequestOfInvalidSize(usize),
+
+    #[error("received sphinx packet was malformed")]
     MalformedSphinxPacket,
+
+    #[error("the received encrypted data was malformed")]
     MalformedEncryption,
+
+    #[error("provided packet mode is invalid")]
     InvalidPacketMode,
-    InvalidMixPacket(MixPacketFormattingError),
-}
 
-impl fmt::Display for GatewayRequestsError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        use GatewayRequestsError::*;
-        match self {
-            TooShortRequest => write!(f, "the request is too short"),
-            InvalidMac => write!(f, "provided MAC is invalid"),
-            IncorrectlyEncodedAddress => write!(f, "address field was incorrectly encoded"),
-            RequestOfInvalidSize(actual) =>
-                write!(
-                f,
-                "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {}, {}, {} (EXTENDED))",
-                actual, PacketSize::AckPacket.size(), PacketSize::RegularPacket.size(),
-                PacketSize::ExtendedPacket8.size(), PacketSize::ExtendedPacket16.size(),
-                PacketSize::ExtendedPacket32.size()
-            ),
-            MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
-            MalformedEncryption => write!(f, "the received encrypted data was malformed"),
-            InvalidPacketMode => write!(f, "provided packet mode is invalid"),
-            InvalidMixPacket(err) => write!(f, "provided mix packet was malformed - {err}")
-        }
-    }
-}
+    #[error("provided mix packet was malformed: {source}")]
+    InvalidMixPacket {
+        #[from]
+        source: MixPacketFormattingError,
+    },
 
-impl std::error::Error for GatewayRequestsError {}
+    #[error("failed to deserialize provided credential: EOF")]
+    CredentialDeserializationFailureEOF,
 
-impl From<NymNodeRoutingAddressError> for GatewayRequestsError {
-    fn from(_: NymNodeRoutingAddressError) -> Self {
-        GatewayRequestsError::IncorrectlyEncodedAddress
-    }
-}
+    #[error("failed to deserialize provided credential: malformed string: {0}")]
+    CredentialDeserializationFailureMalformedString(#[from] FromUtf8Error),
 
-impl From<MixPacketFormattingError> for GatewayRequestsError {
-    fn from(err: MixPacketFormattingError) -> Self {
-        GatewayRequestsError::InvalidMixPacket(err)
-    }
+    #[error("failed to deserialize provided credential: {0}")]
+    CredentialDeserializationFailureUnknownType(#[from] UnknownCredentialType),
+
+    #[error("failed to deserialize provided credential: malformed verify request: {0}")]
+    CredentialDeserializationFailureMalformedTheta(CoconutError),
+
+    #[error("the provided [v1] credential has invalid number of parameters - {0}")]
+    InvalidNumberOfEmbededParameters(u32),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -137,6 +143,10 @@ pub enum ClientControlRequest {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
+    BandwidthCredentialV2 {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
     ClaimFreeTestnetBandwidth,
 }
 
@@ -147,15 +157,15 @@ impl ClientControlRequest {
         iv: IV,
     ) -> Self {
         ClientControlRequest::Authenticate {
-            protocol_version: Some(PROTOCOL_VERSION),
+            protocol_version: Some(CURRENT_PROTOCOL_VERSION),
             address: address.as_base58_string(),
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),
         }
     }
 
-    pub fn new_enc_coconut_bandwidth_credential(
-        credential: &Credential,
+    pub fn new_enc_coconut_bandwidth_credential_v1(
+        credential: &OldV1Credential,
         shared_key: &SharedKeys,
         iv: IV,
     ) -> Self {
@@ -168,13 +178,38 @@ impl ClientControlRequest {
         }
     }
 
-    pub fn try_from_enc_coconut_bandwidth_credential(
+    pub fn try_from_enc_coconut_bandwidth_credential_v1(
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
         iv: IV,
-    ) -> Result<Credential, GatewayRequestsError> {
+    ) -> Result<OldV1Credential, GatewayRequestsError> {
         let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
-        Credential::from_bytes(&credential_bytes)
+        OldV1Credential::from_bytes(&credential_bytes)
+            .map_err(|_| GatewayRequestsError::MalformedEncryption)
+    }
+
+    pub fn new_enc_coconut_bandwidth_credential_v2(
+        credential: CredentialSpendingData,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Self {
+        let cred = CredentialSpendingRequest::new(credential);
+        let serialized_credential = cred.to_bytes();
+        let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
+
+        ClientControlRequest::BandwidthCredentialV2 {
+            enc_credential,
+            iv: iv.to_bytes(),
+        }
+    }
+
+    pub fn try_from_enc_coconut_bandwidth_credential_v2(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
+        let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        CredentialSpendingRequest::try_from_bytes(&credential_bytes)
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }

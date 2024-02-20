@@ -7,7 +7,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bs58 = "0.4.0"
+bs58 = { workspace = true }
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 getset = "0.1.1"
@@ -16,10 +16,13 @@ serde = { workspace = true, features = ["derive"] }
 ts-rs = { workspace = true, optional = true }
 tendermint = { workspace = true }
 
-nym-coconut-interface = { path = "../../common/coconut-interface" }
+# for serde on secp256k1 signatures
+ecdsa = { version = "0.16", features = ["serde"] }
+
+nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"]}
 
-nym-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false }
 
 [features]

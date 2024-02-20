@@ -1,41 +1,40 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use core::ops::Neg;
-use std::convert::TryFrom;
-use std::convert::TryInto;
-
-use bls12_381::{multi_miller_loop, G1Affine, G2Prepared, G2Projective, Scalar};
-use group::{Curve, Group};
 
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofKappaZeta;
-use crate::scheme::double_use::BlindedSerialNumber;
 use crate::scheme::setup::Parameters;
 use crate::scheme::Signature;
 use crate::scheme::VerificationKey;
 use crate::traits::{Base58, Bytable};
 use crate::utils::try_deserialize_g2_projective;
 use crate::Attribute;
+use bls12_381::{multi_miller_loop, G1Affine, G2Prepared, G2Projective, Scalar};
+use core::ops::Neg;
+use group::{Curve, Group};
+use std::convert::TryFrom;
+use std::convert::TryInto;
+
+pub use crate::scheme::double_use::BlindedSerialNumber;
 
 // TODO NAMING: this whole thing
 // Theta
 #[derive(Debug, PartialEq, Eq)]
-pub struct Theta {
+pub struct VerifyCredentialRequest {
     // blinded_message (kappa)
     pub blinded_message: G2Projective,
     // blinded serial number (zeta)
-    pub blinded_serial_number: G2Projective,
+    pub blinded_serial_number: BlindedSerialNumber,
     // sigma
     pub credential: Signature,
     // pi_v
     pub pi_v: ProofKappaZeta,
 }
 
-impl TryFrom<&[u8]> for Theta {
+impl TryFrom<&[u8]> for VerifyCredentialRequest {
     type Error = CoconutError;
 
-    fn try_from(bytes: &[u8]) -> Result<Theta> {
+    fn try_from(bytes: &[u8]) -> Result<VerifyCredentialRequest> {
         if bytes.len() < 288 {
             return Err(
                 CoconutError::Deserialization(
@@ -53,20 +52,15 @@ impl TryFrom<&[u8]> for Theta {
             ),
         )?;
 
-        // safety: we just checked for the length so the unwraps are fine
-        #[allow(clippy::unwrap_used)]
-        let blinded_serial_number_bytes = bytes[96..192].try_into().unwrap();
-        let blinded_serial_number = try_deserialize_g2_projective(
-            &blinded_serial_number_bytes,
-            CoconutError::Deserialization(
-                "failed to deserialize the blinded serial number (zeta)".to_string(),
-            ),
-        )?;
+        let blinded_serial_number_bytes = &bytes[96..192];
+        let blinded_serial_number =
+            BlindedSerialNumber::try_from_byte_slice(blinded_serial_number_bytes)?;
+
         let credential = Signature::try_from(&bytes[192..288])?;
 
         let pi_v = ProofKappaZeta::from_bytes(&bytes[288..])?;
 
-        Ok(Theta {
+        Ok(VerifyCredentialRequest {
             blinded_message,
             blinded_serial_number,
             credential,
@@ -75,7 +69,7 @@ impl TryFrom<&[u8]> for Theta {
     }
 }
 
-impl Theta {
+impl VerifyCredentialRequest {
     fn verify_proof(&self, params: &Parameters, verification_key: &VerificationKey) -> bool {
         self.pi_v.verify(
             params,
@@ -87,7 +81,7 @@ impl Theta {
 
     pub fn has_blinded_serial_number(&self, blinded_serial_number_bs58: &str) -> Result<bool> {
         let blinded_serial_number = BlindedSerialNumber::try_from_bs58(blinded_serial_number_bs58)?;
-        let ret = self.blinded_serial_number.eq(&blinded_serial_number.inner);
+        let ret = self.blinded_serial_number.eq(&blinded_serial_number);
         Ok(ret)
     }
 
@@ -107,29 +101,30 @@ impl Theta {
         bytes
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Theta> {
-        Theta::try_from(bytes)
+    pub fn from_bytes(bytes: &[u8]) -> Result<VerifyCredentialRequest> {
+        VerifyCredentialRequest::try_from(bytes)
+    }
+
+    pub fn blinded_serial_number(&self) -> BlindedSerialNumber {
+        self.blinded_serial_number
     }
 
     pub fn blinded_serial_number_bs58(&self) -> String {
-        let blinded_serial_nuumber = BlindedSerialNumber {
-            inner: self.blinded_serial_number,
-        };
-        blinded_serial_nuumber.to_bs58()
+        self.blinded_serial_number.to_bs58()
     }
 }
 
-impl Bytable for Theta {
+impl Bytable for VerifyCredentialRequest {
     fn to_byte_vec(&self) -> Vec<u8> {
         self.to_bytes()
     }
 
     fn try_from_byte_slice(slice: &[u8]) -> Result<Self> {
-        Theta::try_from(slice)
+        VerifyCredentialRequest::try_from(slice)
     }
 }
 
-impl Base58 for Theta {}
+impl Base58 for VerifyCredentialRequest {}
 
 pub fn compute_kappa(
     params: &Parameters,
@@ -156,7 +151,7 @@ pub fn prove_bandwidth_credential(
     signature: &Signature,
     serial_number: &Attribute,
     binding_number: &Attribute,
-) -> Result<Theta> {
+) -> Result<VerifyCredentialRequest> {
     if verification_key.beta_g2.len() < 2 {
         return Err(
             CoconutError::Verification(
@@ -196,9 +191,9 @@ pub fn prove_bandwidth_credential(
         &blinded_serial_number,
     );
 
-    Ok(Theta {
+    Ok(VerifyCredentialRequest {
         blinded_message,
-        blinded_serial_number,
+        blinded_serial_number: blinded_serial_number.into(),
         credential: signature_prime,
         pi_v,
     })
@@ -256,7 +251,7 @@ pub fn check_vk_pairing(
 pub fn verify_credential(
     params: &Parameters,
     verification_key: &VerificationKey,
-    theta: &Theta,
+    theta: &VerifyCredentialRequest,
     public_attributes: &[&Attribute],
 ) -> bool {
     if public_attributes.len() + theta.pi_v.private_attributes_len()
@@ -358,6 +353,9 @@ mod tests {
         .unwrap();
 
         let bytes = theta.to_bytes();
-        assert_eq!(Theta::try_from(bytes.as_slice()).unwrap(), theta);
+        assert_eq!(
+            VerifyCredentialRequest::try_from(bytes.as_slice()).unwrap(),
+            theta
+        );
     }
 }

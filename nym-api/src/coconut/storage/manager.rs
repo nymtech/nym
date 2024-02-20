@@ -4,6 +4,7 @@
 use crate::coconut::storage::models::{EpochCredentials, IssuedCredential};
 use crate::support::storage::manager::StorageManager;
 use nym_coconut_dkg_common::types::EpochId;
+use thiserror::Error;
 
 #[async_trait]
 pub trait CoconutStorageManagerExt {
@@ -120,6 +121,8 @@ pub trait CoconutStorageManagerExt {
         start_after: i64,
         limit: u32,
     ) -> Result<Vec<IssuedCredential>, sqlx::Error>;
+
+    async fn increment_issued_freepasses(&self) -> Result<(), sqlx::Error>;
 }
 
 #[async_trait]
@@ -378,4 +381,18 @@ impl CoconutStorageManagerExt for StorageManager {
             .fetch_all(&self.connection_pool)
             .await
     }
+
+    async fn increment_issued_freepasses(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!("UPDATE issued_freepass SET issued = issued + 1",)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("tried to store an invalid nonce. the received value is {got} while current is {current}. expected {current} + 1")]
+pub struct UnexpectedNonce {
+    current: u32,
+    got: u32,
 }

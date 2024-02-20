@@ -8,6 +8,7 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmwasm_std::Addr;
+use log::trace;
 use nym_coconut_dkg_common::types::{ChunkIndex, NodeIndex, StateAdvanceResponse};
 use serde::Deserialize;
 
@@ -230,6 +231,7 @@ where
         let dkg_contract_address = &self
             .dkg_contract_address()
             .ok_or_else(|| NyxdError::unavailable_contract_address("dkg contract"))?;
+        trace!("using the following dkg contract: {dkg_contract_address}");
         self.query_contract_smart(dkg_contract_address, &query)
             .await
     }

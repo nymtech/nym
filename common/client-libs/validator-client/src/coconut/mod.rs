@@ -4,9 +4,9 @@
 use crate::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use crate::nyxd::error::NyxdError;
 use crate::NymApiClient;
+use nym_coconut::{Base58, CoconutError, VerificationKey};
 use nym_coconut_dkg_common::types::{EpochId, NodeIndex};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
-use nym_coconut_interface::{Base58, CoconutError, VerificationKey};
 use thiserror::Error;
 use url::Url;
 

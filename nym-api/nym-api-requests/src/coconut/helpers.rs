@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_coconut_interface::BlindedSignature;
+use nym_credentials_interface::BlindedSignature;
 use tendermint::hash::Hash;
 
 // recomputes plaintext on the credential nym-api has used for signing

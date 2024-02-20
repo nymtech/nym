@@ -28,6 +28,8 @@ pub trait Client {
 
     async fn dkg_contract_address(&self) -> Result<AccountId>;
 
+    async fn bandwidth_contract_admin(&self) -> Result<Option<AccountId>>;
+
     async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse>;
 
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse>;

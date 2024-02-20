@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_coconut_interface::CoconutError;
+use nym_credentials_interface::CoconutError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_validator_client::ValidatorClientError;
 
@@ -11,6 +11,9 @@ use thiserror::Error;
 pub enum Error {
     #[error("IO error")]
     IOError(#[from] std::io::Error),
+
+    #[error("failed to (de)serialize credential structure: {0}")]
+    SerializationFailure(#[from] bincode::Error),
 
     #[error("The detailed description is yet to be determined")]
     BandwidthCredentialError,
@@ -41,4 +44,13 @@ pub enum Error {
 
     #[error("Could not deserialize bandwidth voucher - {0}")]
     BandwidthVoucherDeserializationError(String),
+
+    #[error("the provided issuance data wasn't prepared for a bandwidth voucher")]
+    NotABandwdithVoucher,
+
+    #[error("the provided issuance data wasn't prepared for a free pass")]
+    NotAFreePass,
+
+    #[error("failed to create a secp256k1 signature")]
+    Secp256k1SignFailure,
 }

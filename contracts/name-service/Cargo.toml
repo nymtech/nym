@@ -11,7 +11,7 @@ required-features = ["schema-gen"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-bs58 = "0.4.0"
+bs58 = { workspace = true }
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
 cw-controllers = { workspace = true }

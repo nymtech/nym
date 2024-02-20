@@ -27,13 +27,12 @@ members = [
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
-    "common/coconut-interface",
     "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
-    "common/cosmwasm-smart-contracts/ephemera",
+#    "common/cosmwasm-smart-contracts/ephemera",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
@@ -43,6 +42,7 @@ members = [
     "common/credential-storage",
     "common/credentials",
     "common/credential-utils",
+    "common/credentials-interface",
     "common/crypto",
     "common/dkg",
     "common/execute",
@@ -143,6 +143,7 @@ anyhow = "1.0.71"
 async-trait = "0.1.68"
 axum = "0.6.20"
 base64 = "0.21.4"
+bs58 = "0.5.0"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 clap = "4.4.7"
 cfg-if = "1.0.0"

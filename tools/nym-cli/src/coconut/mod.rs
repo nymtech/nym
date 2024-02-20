@@ -7,6 +7,13 @@ pub(crate) async fn execute(
     network_details: &NymNetworkDetails,
 ) -> anyhow::Result<()> {
     match coconut.command {
+        nym_cli_commands::coconut::CoconutCommands::GenerateFreepass(args) => {
+            nym_cli_commands::coconut::generate_freepass::execute(
+                args,
+                create_signing_client(global_args, network_details)?,
+            )
+            .await?
+        }
         nym_cli_commands::coconut::CoconutCommands::IssueCredentials(args) => {
             nym_cli_commands::coconut::issue_credentials::execute(
                 args,
@@ -20,6 +27,9 @@ pub(crate) async fn execute(
                 create_query_client(network_details)?,
             )
             .await?
+        }
+        nym_cli_commands::coconut::CoconutCommands::ImportCredential(args) => {
+            nym_cli_commands::coconut::import_credential::execute(args).await?
         }
     }
     Ok(())

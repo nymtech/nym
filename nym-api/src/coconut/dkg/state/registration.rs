@@ -7,7 +7,7 @@ use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
 use nym_dkg::bte::PublicKeyWithProof;
 use nym_dkg::{bte, NodeIndex};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Clone, Deserialize, Debug, Serialize)]

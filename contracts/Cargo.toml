@@ -34,6 +34,7 @@ incremental = false
 overflow-checks = true
 
 [workspace.dependencies]
+bs58 = "0.4.0"
 cosmwasm-crypto = "=1.3.0"
 cosmwasm-derive = "=1.3.0"
 cosmwasm-schema = "=1.3.0"
@@ -49,5 +50,6 @@ cw3-fixed-multisig = "=1.1.0"
 cw4 = "=1.1.0"
 cw20 = "=1.1.0"
 semver = "1.0.21"
+serde = "1.0.196"
 
 thiserror = "1.0.48"

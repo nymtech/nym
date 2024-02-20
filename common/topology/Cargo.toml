@@ -12,7 +12,7 @@ documentation = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bs58 = "0.4"
+bs58 = { workspace = true }
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = { workspace = true }

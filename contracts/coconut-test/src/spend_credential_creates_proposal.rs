@@ -81,7 +81,7 @@ fn spend_credential_creates_proposal() {
 
     let msg = MigrateMsg {
         coconut_bandwidth_address: coconut_bandwidth_contract_addr.to_string(),
-        coconut_dkg_address: "".to_string(),
+        coconut_dkg_address: "dkg-address".to_string(),
     };
     app.migrate_contract(
         Addr::unchecked(OWNER),

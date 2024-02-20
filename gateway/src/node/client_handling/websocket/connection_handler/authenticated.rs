@@ -1,26 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use futures::{
-    future::{FusedFuture, OptionFuture},
-    FutureExt, StreamExt,
-};
-use log::*;
-use nym_gateway_requests::{
-    iv::{IVConversionError, IV},
-    types::{BinaryRequest, ServerResponse},
-    ClientControlRequest, GatewayRequestsError,
-};
-use nym_sphinx::forwarding::packet::MixPacket;
-use nym_task::TaskClient;
-use nym_validator_client::coconut::CoconutApiError;
-use rand::{CryptoRng, Rng};
-use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-
-use std::{convert::TryFrom, process, time::Duration};
-
+use crate::node::client_handling::bandwidth::BandwidthError;
 use crate::node::{
     client_handling::{
         bandwidth::Bandwidth,
@@ -34,6 +15,27 @@ use crate::node::{
     },
     storage::{error::StorageError, Storage},
 };
+use futures::{
+    future::{FusedFuture, OptionFuture},
+    FutureExt, StreamExt,
+};
+use log::*;
+use nym_credentials::coconut::bandwidth::{bandwidth_credential_params, CredentialType};
+use nym_credentials_interface::{Base58, CoconutError};
+use nym_gateway_requests::models::CredentialSpendingRequest;
+use nym_gateway_requests::{
+    iv::{IVConversionError, IV},
+    types::{BinaryRequest, ServerResponse},
+    ClientControlRequest, GatewayRequestsError,
+};
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_task::TaskClient;
+use nym_validator_client::coconut::CoconutApiError;
+use rand::{CryptoRng, Rng};
+use std::{convert::TryFrom, process, time::Duration};
+use thiserror::Error;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
 #[derive(Debug, Error)]
 pub(crate) enum RequestHandlingError {
@@ -52,11 +54,11 @@ pub(crate) enum RequestHandlingError {
     #[error("The received request is not valid in the current context")]
     IllegalRequest,
 
-    #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
-    UnsupportedBandwidthValue(u64),
-
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
+
+    #[error("the provided bandwidth credential has already been spent before at this gateway")]
+    BandwidthCredentialAlreadySpent,
 
     #[error("This gateway is only accepting coconut credentials for bandwidth")]
     OnlyCoconutCredentials,
@@ -73,14 +75,23 @@ pub(crate) enum RequestHandlingError {
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
 
-    #[error("Coconut interface error - {0}")]
-    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
+    #[error("coconut failure: {0}")]
+    CoconutError(#[from] CoconutError),
 
     #[error("coconut api query failure: {0}")]
     CoconutApiError(#[from] CoconutApiError),
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] nym_credentials::error::Error),
+
+    #[error("failed to recover bandwidth value: {0}")]
+    BandwidthRecoveryFailure(#[from] BandwidthError),
+
+    #[error("the provided credential did not contain a valid type attribute")]
+    InvalidTypeAttribute,
+
+    #[error("the provided credential did not have a bandwidth attribute")]
+    MissingBandwidthAttribute,
 }
 
 impl RequestHandlingError {
@@ -177,10 +188,10 @@ where
     /// # Arguments
     ///
     /// * `amount`: amount to increase the available bandwidth by.
-    async fn increase_bandwidth(&self, amount: i64) -> Result<(), RequestHandlingError> {
+    async fn increase_bandwidth(&self, bandwidth: Bandwidth) -> Result<(), RequestHandlingError> {
         self.inner
             .storage
-            .increase_bandwidth(self.client.address, amount)
+            .increase_bandwidth(self.client.address, bandwidth.value() as i64)
             .await?;
         Ok(())
     }
@@ -210,6 +221,120 @@ where
         }
     }
 
+    async fn handle_bandwidth_request(
+        &mut self,
+        credential: CredentialSpendingRequest,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        // check if the credential hasn't been spent before
+        let serial_number = credential.data.blinded_serial_number();
+        trace!("processing credential {}", serial_number.to_bs58());
+
+        let already_spent = self
+            .inner
+            .storage
+            .contains_credential(&serial_number)
+            .await?;
+        if already_spent {
+            trace!("the credential has already been spent before");
+            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
+        }
+
+        trace!(
+            "attempting to obtain aggregate verification key for epoch {}",
+            credential.data.epoch_id
+        );
+
+        let aggregated_verification_key = self
+            .inner
+            .coconut_verifier
+            .verification_key(credential.data.epoch_id)
+            .await?;
+
+        if !credential.data.validate_type_attribute() {
+            trace!("mismatch in the type attribute");
+            return Err(RequestHandlingError::InvalidTypeAttribute);
+        }
+
+        let Some(bandwidth_attribute) = credential.data.get_bandwidth_attribute() else {
+            trace!("missing bandwidth attribute");
+            return Err(RequestHandlingError::MissingBandwidthAttribute);
+        };
+
+        // this will extract token amounts out of bandwidth vouchers and validate expiry of free passes
+        let bandwidth = Bandwidth::try_from_raw_value(bandwidth_attribute, credential.data.typ)?;
+
+        trace!("embedded bandwidth: {bandwidth:?}");
+
+        // locally verify the credential
+        let params = bandwidth_credential_params();
+        if !credential.data.verify(params, &aggregated_verification_key) {
+            trace!("the credential did not verify correctly");
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("local credential verification has failed"),
+            ));
+        }
+
+        let was_freepass = match credential.data.typ {
+            CredentialType::Voucher => {
+                trace!("the credential is a bandwidth voucher. attempting to release the funds");
+                let api_clients = self
+                    .inner
+                    .coconut_verifier
+                    .api_clients(credential.data.epoch_id)
+                    .await?;
+
+                self.inner
+                    .coconut_verifier
+                    .release_bandwidth_voucher_funds(&api_clients, credential)
+                    .await?;
+                false
+            }
+            CredentialType::FreePass => {
+                // no need to do anything special here, we already extracted the bandwidth amount and checked expiry
+                info!("received a free pass credential");
+
+                true
+            }
+        };
+
+        // technically this is not atomic, i.e. checking for the spending and then marking as spent,
+        // but because we have the `UNIQUE` constraint on the database table
+        // if somebody attempts to spend the same credential in another, parallel request,
+        // one of them will fail
+        //
+        // mark the credential as spent
+        // TODO: technically this should be done under a storage transaction so that if we experience any
+        // failures later on, it'd get reverted
+        trace!("storing serial number information");
+        self.inner
+            .storage
+            .insert_spent_credential(serial_number, was_freepass, self.client.address)
+            .await?;
+
+        trace!("increasing client bandwidth");
+        self.increase_bandwidth(bandwidth).await?;
+        let available_total = self.get_available_bandwidth().await?;
+
+        Ok(ServerResponse::Bandwidth { available_total })
+    }
+
+    async fn handle_bandwidth_v1(
+        &mut self,
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        debug!("handling v1 bandwidth request");
+
+        let iv = IV::try_from_bytes(&iv)?;
+        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential_v1(
+            enc_credential,
+            &self.client.shared_keys,
+            iv,
+        )?;
+
+        self.handle_bandwidth_request(credential.try_into()?).await
+    }
+
     /// Tries to handle the received bandwidth request by checking correctness of the received data
     /// and if successful, increases client's bandwidth by an appropriate amount.
     ///
@@ -217,63 +342,28 @@ where
     ///
     /// * `enc_credential`: raw encrypted bandwidth credential to verify.
     /// * `iv`: fresh iv used for the credential.
-    async fn handle_bandwidth(
+    async fn handle_bandwidth_v2(
         &mut self,
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        debug!("handling v2 bandwidth request");
+
         let iv = IV::try_from_bytes(&iv)?;
-        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential(
+        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential_v2(
             enc_credential,
             &self.client.shared_keys,
             iv,
         )?;
 
-        let aggregated_verification_key = self
-            .inner
-            .coconut_verifier
-            .verification_key(*credential.epoch_id())
-            .await?;
-
-        if !credential.verify(&aggregated_verification_key) {
-            return Err(RequestHandlingError::InvalidBandwidthCredential(
-                String::from("credential failed to verify on gateway"),
-            ));
-        }
-
-        let api_clients = self
-            .inner
-            .coconut_verifier
-            .api_clients(*credential.epoch_id())
-            .await?;
-
-        self.inner
-            .coconut_verifier
-            .release_funds(&api_clients, &credential)
-            .await?;
-
-        let bandwidth = Bandwidth::from(credential);
-        let bandwidth_value = bandwidth.value();
-
-        if bandwidth_value > i64::MAX as u64 {
-            // note that this would have represented more than 1 exabyte,
-            // which is like 125,000 worth of hard drives so I don't think we have
-            // to worry about it for now...
-            warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
-            return Err(RequestHandlingError::UnsupportedBandwidthValue(
-                bandwidth_value,
-            ));
-        }
-
-        self.increase_bandwidth(bandwidth_value as i64).await?;
-        let available_total = self.get_available_bandwidth().await?;
-
-        Ok(ServerResponse::Bandwidth { available_total })
+        self.handle_bandwidth_request(credential).await
     }
 
     async fn handle_claim_testnet_bandwidth(
         &mut self,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        debug!("handling testnet bandwidth request");
+
         if self.inner.only_coconut_credentials {
             return Err(RequestHandlingError::OnlyCoconutCredentials);
         }
@@ -321,6 +411,7 @@ where
     ///
     /// * `bin_msg`: raw message to handle.
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
+        trace!("binary request");
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
             Err(e) => {
@@ -345,11 +436,16 @@ where
     ///
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message {
+        trace!("text request");
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
                 ClientControlRequest::BandwidthCredential { enc_credential, iv } => self
-                    .handle_bandwidth(enc_credential, iv)
+                    .handle_bandwidth_v1(enc_credential, iv)
+                    .await
+                    .into_ws_message(),
+                ClientControlRequest::BandwidthCredentialV2 { enc_credential, iv } => self
+                    .handle_bandwidth_v2(enc_credential, iv)
                     .await
                     .into_ws_message(),
                 ClientControlRequest::ClaimFreeTestnetBandwidth => self
@@ -393,6 +489,12 @@ where
     ///
     /// * `raw_request`: raw received websocket message.
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
+        // TODO: this should be added via tracing
+        debug!(
+            "handling request from {}",
+            self.client.address.as_base58_string()
+        );
+
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
         // desktop nym-client websocket as I've manually handled everything there

@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ContractError;
-use cosmwasm_std::{Addr, Storage};
+use crate::Dealer;
+use cosmwasm_std::Storage;
 use cw_storage_plus::{Key, Map, Path, PrimaryKey};
 use nym_coconut_dkg_common::dealing::{DealingMetadata, PartialContractDealing};
 use nym_coconut_dkg_common::types::{
     ChunkIndex, ContractSafeBytes, DealingIndex, EpochId, PartialContractDealingData,
 };
-
-type Dealer<'a> = &'a Addr;
 
 /// Metadata for a dealing for given `EpochId`, submitted by particular `Dealer` for given `DealingIndex`.
 pub(crate) const DEALINGS_METADATA: Map<(EpochId, Dealer, DealingIndex), DealingMetadata> =
@@ -180,7 +179,7 @@ impl StoredDealing {
     pub(crate) fn unchecked_all_entries(
         storage: &dyn Storage,
     ) -> Vec<(
-        (EpochId, Addr, (DealingIndex, ChunkIndex)),
+        (EpochId, cosmwasm_std::Addr, (DealingIndex, ChunkIndex)),
         PartialContractDealingData,
     )> {
         use cw_storage_plus::KeyDeserialize;
@@ -210,6 +209,7 @@ impl StoredDealing {
 mod tests {
     use super::*;
     use crate::support::tests::helpers::init_contract;
+    use cosmwasm_std::Addr;
     use cw_storage_plus::Bound;
     use std::collections::HashMap;
 

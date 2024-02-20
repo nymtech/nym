@@ -53,6 +53,7 @@ pub struct EpochSigningResults {
     pub validators: Vec<ValidatorSigning>,
 }
 
+#[derive(Debug)]
 pub struct RawValidatorResult {
     pub signed_blocks: i32,
     pub voting_power: i64,

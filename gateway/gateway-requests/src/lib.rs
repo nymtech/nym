@@ -9,12 +9,19 @@ pub use types::*;
 
 pub mod authentication;
 pub mod iv;
+pub mod models;
 pub mod registration;
 pub mod types;
 
+pub const CURRENT_PROTOCOL_VERSION: u8 = CREDENTIAL_UPDATE_V1_PROTOCOL_VERSION;
+
 /// Defines the current version of the communication protocol between gateway and clients.
 /// It has to be incremented for any breaking change.
-pub const PROTOCOL_VERSION: u8 = 1;
+// history:
+// 1 - initial release
+// 2 - changes to client credentials structure
+pub const INITIAL_PROTOCOL_VERSION: u8 = 1;
+pub const CREDENTIAL_UPDATE_V1_PROTOCOL_VERSION: u8 = 2;
 
 pub type GatewayMac = HmacOutput<GatewayIntegrityHmacAlgorithm>;
 

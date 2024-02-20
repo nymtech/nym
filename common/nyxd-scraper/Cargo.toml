@@ -21,6 +21,7 @@ sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros
 tendermint.workspace = true
 tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
 thiserror.workspace = true
+time = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = "0.1.14"
 tokio-util = { version = "0.7.10", features = ["rt"]}

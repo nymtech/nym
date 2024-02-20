@@ -8,7 +8,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-bs58 = "0.4.0"
+bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 schemars = "0.8"

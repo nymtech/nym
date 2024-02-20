@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 base64 = "0.13.0"
-bs58 = "0.4"
+bs58 = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 clap_complete = "4.0"
 clap_complete_fig = "4.0"

@@ -57,7 +57,6 @@ nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-config = { path = "../../common/config" }
-nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-types = { path = "../../common/types" }
 nym-wallet-types = { path = "../nym-wallet-types" }
 nym-store-cipher = { path = "../../common/store-cipher", features = ["json"] }

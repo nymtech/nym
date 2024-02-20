@@ -11,12 +11,15 @@ use cosmwasm_schema::cw_serde;
 
 #[cfg(feature = "schema")]
 use crate::{
-    dealer::{DealerDetailsResponse, PagedDealerResponse},
+    dealer::{
+        DealerDetailsResponse, PagedDealerIndexResponse, PagedDealerResponse,
+        RegisteredDealerDetails,
+    },
     dealing::{
         DealerDealingsStatusResponse, DealingChunkResponse, DealingChunkStatusResponse,
         DealingMetadataResponse, DealingStatusResponse,
     },
-    types::{Epoch, InitialReplacementData, State},
+    types::{Epoch, State, StateAdvanceResponse},
     verification_key::{PagedVKSharesResponse, VkShareResponse},
 };
 #[cfg(feature = "schema")]
@@ -53,7 +56,6 @@ pub enum ExecuteMsg {
 
     CommitDealingsChunk {
         chunk: PartialContractDealing,
-        resharing: bool,
     },
 
     CommitVerificationKeyShare {
@@ -66,9 +68,11 @@ pub enum ExecuteMsg {
         resharing: bool,
     },
 
-    SurpassedThreshold {},
-
     AdvanceEpochState {},
+
+    TriggerReset {},
+
+    TriggerResharing {},
 }
 
 #[cw_serde]
@@ -83,8 +87,14 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(u64))]
     GetCurrentEpochThreshold {},
 
-    #[cfg_attr(feature = "schema", returns(Option<InitialReplacementData>))]
-    GetInitialDealers {},
+    #[cfg_attr(feature = "schema", returns(StateAdvanceResponse))]
+    CanAdvanceState {},
+
+    #[cfg_attr(feature = "schema", returns(RegisteredDealerDetails))]
+    GetRegisteredDealer {
+        dealer_address: String,
+        epoch_id: Option<EpochId>,
+    },
 
     #[cfg_attr(feature = "schema", returns(DealerDetailsResponse))]
     GetDealerDetails { dealer_address: String },
@@ -95,8 +105,8 @@ pub enum QueryMsg {
         start_after: Option<String>,
     },
 
-    #[cfg_attr(feature = "schema", returns(PagedDealerResponse))]
-    GetPastDealers {
+    #[cfg_attr(feature = "schema", returns(PagedDealerIndexResponse))]
+    GetDealerIndices {
         limit: Option<u32>,
         start_after: Option<String>,
     },

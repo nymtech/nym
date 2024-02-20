@@ -358,6 +358,10 @@ where
     S: OfflineSigner + Send + Sync,
     NyxdError: From<<S as OfflineSigner>::Error>,
 {
+    pub fn signing_account(&self) -> Result<AccountData, NyxdError> {
+        Ok(self.find_account(&self.address())?)
+    }
+
     pub fn address(&self) -> AccountId {
         match self.client.signer_addresses() {
             Ok(addresses) => addresses[0].clone(),

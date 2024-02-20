@@ -13,7 +13,6 @@ dotenvy = { workspace = true }
 humantime-serde = "1.0"
 isocountry = "0.3.2"
 itertools = "0.10.3"
-lazy_static = "1.4.0"
 log = { workspace = true }
 maxminddb = "0.23.0"
 okapi = { version = "0.7.0", features = ["impl_json_schema"] }

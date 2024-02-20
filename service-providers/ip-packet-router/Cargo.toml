@@ -10,12 +10,11 @@ license.workspace = true
 
 [dependencies]
 bincode = "1.3.3"
-bs58 = "0.4.0"
+bs58 = { workspace = true }
 bytes = "1.5.0"
 clap.workspace = true
 etherparse = "0.13.0"
 futures = { workspace = true }
-lazy_static.workspace = true
 log = { workspace = true }
 nym-bin-common = { path = "../../common/bin-common" }
 nym-client-core = { path = "../../common/client-core" }

@@ -63,6 +63,8 @@ pub trait CoconutStorageExt {
         &self,
         pagination: Pagination<i64>,
     ) -> Result<Vec<IssuedCredential>, NymApiStorageError>;
+
+    async fn increment_issued_freepasses(&self) -> Result<(), NymApiStorageError>;
 }
 
 #[async_trait]
@@ -162,5 +164,9 @@ impl CoconutStorageExt for NymApiStorage {
             .manager
             .get_issued_credentials_paged(start_after, limit)
             .await?)
+    }
+
+    async fn increment_issued_freepasses(&self) -> Result<(), NymApiStorageError> {
+        Ok(self.manager.increment_issued_freepasses().await?)
     }
 }

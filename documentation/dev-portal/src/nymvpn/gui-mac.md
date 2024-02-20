@@ -34,8 +34,7 @@ cd "macos/nym-vpn.app/Contents/MacOS"
 
 chmod u+x nym-vpn
 ```
-6. Move `nw
-7. ym-vpn` to your `~/nym-vpn-latest` directory
+6. Move `nym-vpn` to your `~/nym-vpn-latest` directory
 ```sh
 mv nym-vpn "$HOME/nym-vpn-latest"
 ```

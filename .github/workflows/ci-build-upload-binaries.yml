@@ -9,7 +9,7 @@ on:
         default: false
         type: boolean
       enable_wireguard:
-        description: 'Add --features wireguard'
+        description: "Add --features wireguard"
         required: true
         default: false
         type: boolean
@@ -19,7 +19,7 @@ on:
         default: false
         type: boolean
   schedule:
-    - cron: '14 0 * * *'
+    - cron: "14 0 * * *"
   pull_request:
     paths:
       - "clients/**"
@@ -85,16 +85,16 @@ jobs:
           args: --workspace --release ${{ env.CARGO_FEATURES }}
 
       - name: Install cargo-deb
-        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: cargo-deb
+        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
 
       - name: Build deb packages
-        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
         shell: bash
         run: make deb
+        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
 
       - name: Upload Artifact
         if: github.event_name == 'workflow_dispatch'

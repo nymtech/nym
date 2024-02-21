@@ -23,6 +23,9 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::DelegateVesting(args) => {
             nym_cli_commands::validator::mixnet::delegators::vesting_delegate_to_mixnode::vesting_delegate_to_mixnode(args, create_signing_client(global_args, network_details)?).await
         }
+        nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::DelegateMulti(args) => {
+            nym_cli_commands::validator::mixnet::delegators::delegate_to_multiple_mixnodes::delegate_to_multiple_mixnodes(args, create_signing_client(global_args, network_details)?).await.expect("TODO: panic message");
+        }
         nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::Undelegate(args) => {
             nym_cli_commands::validator::mixnet::delegators::undelegate_from_mixnode::undelegate_from_mixnode(args, create_signing_client(global_args, network_details)?).await
         }

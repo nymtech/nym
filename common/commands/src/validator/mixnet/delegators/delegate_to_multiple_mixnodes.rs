@@ -8,7 +8,6 @@ use std::fs::OpenOptions;
 
 use clap::Parser;
 use comfy_table::Table;
-use cosmrs::AccountId;
 use csv::WriterBuilder;
 use log::{info, warn};
 
@@ -24,13 +23,12 @@ pub struct Args {
     #[clap(long)]
     pub memo: Option<String>,
 
-    #[clap(long, help = "Input csv files with delegation amounts")]
+    #[clap(long, help = "Input csv files with delegation amounts. Format: mixid, amount in NYM")]
     pub input: String,
 
     #[clap(
         long,
-        help = "An output file path (CSV format) to create or append a log of results to",
-
+        help = "An output file path (CSV format) to create or append a log of results to"
     )]
     pub output: Option<String>,
 }
@@ -61,18 +59,20 @@ impl InputFileReader {
             // Return error if any of the line is malformed
             if tokens.len() != 2 {
                 return Err(anyhow::anyhow!(
-                    "Malformed input file, please make sure the file is in the correct format (mix_id,amount)"
+                    "Malformed input file, please make sure the file is in the correct format (mix_id, amount)"
                 ));
             }
 
             let mix_id = tokens[0].trim().to_string();
             let token_input_raw = tokens[1].trim().parse::<u128>()?;
             if token_input_raw > 1_000_000 {
-                warn!("Delegation amount exceeds 1,000,000. \
-                Make sure the input amount is in nym and not unym denomination!");
+                warn!(
+                    "Delegation amount exceeds 1,000,000. \
+                Make sure the input amount is in nym and not unym denomination!"
+                );
             }
 
-            let tokens_in_unym: u128 = token_input_raw  * 1_000_000;
+            let tokens_in_unym: u128 = token_input_raw * 1_000_000;
 
             let amount = Coin {
                 amount: tokens_in_unym,
@@ -95,11 +95,15 @@ impl InputFileReader {
     }
 }
 
-
-fn write_to_csv(output_details: Vec<[String; 4]>, output_file: Option<String>) -> Result<(), anyhow::Error> {
+fn write_to_csv(
+    output_details: Vec<[String; 4]>,
+    output_file: Option<String>,
+) -> Result<(), anyhow::Error> {
     if let Some(file_path) = output_file {
         // Determine if the file exists and is not empty
-        let file_exists = fs::metadata(&file_path).map(|metadata| metadata.len() > 0).unwrap_or(false);
+        let file_exists = fs::metadata(&file_path)
+            .map(|metadata| metadata.len() > 0)
+            .unwrap_or(false);
 
         // Open the file for appending or creation
         let file = OpenOptions::new()
@@ -114,7 +118,9 @@ fn write_to_csv(output_details: Vec<[String; 4]>, output_file: Option<String>) -
             wtr.flush()?;
         }
 
-        let mut wtr = WriterBuilder::new().has_headers(!file_exists).from_writer(file);
+        let mut wtr = WriterBuilder::new()
+            .has_headers(!file_exists)
+            .from_writer(file);
 
         // Write the details to the CSV file
         for detail in output_details {
@@ -126,14 +132,24 @@ fn write_to_csv(output_details: Vec<[String; 4]>, output_file: Option<String>) -
     Ok(())
 }
 
-pub async fn delegate_to_multiple_mixnodes(
-    args: Args,
-    client: SigningClient,
-) -> Result<AccountId, anyhow::Error> {
+pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
     let address = client.address();
-    let records = InputFileReader::new(&args.input)?;
+    let records = match InputFileReader::new(&args.input) {
+        Ok(records) => records,
+        Err(e) => {
+            println!("Error reading input file: {}", e);
+            return;
+        }
+    };
+
     // Fetch all delegations for the user
-    let delegations = client.get_all_delegator_delegations(&address).await?;
+    let delegations = match client.get_all_delegator_delegations(&address).await {
+        Ok(delegations) => delegations,
+        Err(e) => {
+            println!("Error fetching delegator delegations: {}", e);
+            return;
+        }
+    };
 
     // Build a map to make it easier to handle delegation data
     let mut existing_delegation_map: HashMap<String, Coin> = HashMap::new();
@@ -145,7 +161,14 @@ pub async fn delegate_to_multiple_mixnodes(
     }
 
     // Look for pending delegate / undelegate events which might be of interest to us
-    let pending_events = client.get_all_pending_epoch_events().await?;
+    let pending_events = match client.get_all_pending_epoch_events().await {
+        Ok(events) => events,
+        Err(e) => {
+            println!("Error fetching pending epoch events: {}", e);
+            return;
+        }
+    };
+
     for event in pending_events {
         match event.event.kind {
             // If a pending undelegate tx is found, remove it from delegation map
@@ -195,7 +218,6 @@ pub async fn delegate_to_multiple_mixnodes(
     for row in records.rows.iter() {
         // Check if there's an existing delegation for this mix_id
         if let Some(existing_delegation_record) = existing_delegation_map.get(&row.mix_id) {
-
             let existing_delegation_amount = existing_delegation_record.amount;
             let input_amount = row.amount.amount;
 
@@ -216,7 +238,7 @@ pub async fn delegate_to_multiple_mixnodes(
                         pretty_coin(&adjusted_amount),
                     ]);
                     delegations_to_be_made.push((row.mix_id.clone(), adjusted_amount));
-                },
+                }
 
                 // If existing delegation is greater, we need to undelegate and delegate the specified amount
                 Ordering::Greater => {
@@ -231,7 +253,6 @@ pub async fn delegate_to_multiple_mixnodes(
                     ]);
                 }
             }; // match close
-
         } else {
             delegations_to_be_made.push((row.mix_id.clone(), row.amount.clone()));
             delegation_table.add_row([
@@ -244,7 +265,7 @@ pub async fn delegate_to_multiple_mixnodes(
 
     if delegations_to_be_made.is_empty() && undelegations_to_be_made.is_empty() {
         println!("Nothing to do. Delegations are up-to-date!");
-        return Ok(address.clone());
+        return;
     }
     if !delegations_to_be_made.is_empty() {
         println!("Delegation records : \n{}\n\n", delegation_table);
@@ -255,26 +276,32 @@ pub async fn delegate_to_multiple_mixnodes(
     }
 
     let ans = inquire::Confirm::new("Do you want to continue with the shown operations?")
-    .with_default(false)
-    .with_help_message("You must confirm before the transactions are signed")
-    .prompt();
+        .with_default(false)
+        .with_help_message("You must confirm before the transactions are signed")
+        .prompt();
 
-    if let Err(e) =  ans {
+    if let Err(e) = ans {
         info!("Aborting, {}...", e);
-        return Err(anyhow::anyhow!("Aborted :: {}", e));
+        return;
     }
 
     if let Ok(false) = ans {
         info!("Aborting:: User denied proceeding with signing!");
-        return Err(anyhow::anyhow!("Aborting:: User denied proceeding with signing!"));
+        return;
     }
 
-    let mut output_details: Vec<[String;4]> = Vec::new();
+    let mut output_details: Vec<[String; 4]> = Vec::new();
 
     // Perform undelegation operations
     for mix_id in undelegations_to_be_made {
-        let res = client.undelegate_from_mixnode(mix_id.parse::<u32>()?, None).await.expect("Failed to undelegate from mixnode");
-        info!("Delegation to {} successful. tx: {}", mix_id, &res.transaction_hash );
+        let res = client
+            .undelegate_from_mixnode(mix_id.parse::<u32>().unwrap(), None)
+            .await
+            .expect("Failed to undelegate from mixnode");
+        info!(
+            "Undelegation from {} successful. tx: {}",
+            mix_id, &res.transaction_hash
+        );
         if args.output.is_some() {
             output_details.push([
                 "Undelegate".into(),
@@ -287,11 +314,15 @@ pub async fn delegate_to_multiple_mixnodes(
 
     // Perform delegation operations
     for (mix_id, amount) in delegations_to_be_made {
-        let res = client.delegate_to_mixnode(mix_id.parse::<u32>()?, amount.clone(), None)
-        .await
-        .expect("Failed to delegate to mixnode");
+        let res = client
+            .delegate_to_mixnode(mix_id.parse::<u32>().unwrap(), amount.clone(), None)
+            .await
+            .expect("Failed to delegate to mixnode");
 
-        info!("Delegation to {} successful. tx: {}", mix_id, &res.transaction_hash );
+        info!(
+            "Delegation to {} successful. tx: {}",
+            mix_id, &res.transaction_hash
+        );
         if args.output.is_some() {
             output_details.push([
                 "Delegate".into(),
@@ -305,9 +336,6 @@ pub async fn delegate_to_multiple_mixnodes(
     if args.output.is_some() {
         if let Err(e) = write_to_csv(output_details, args.output) {
             info!("Failed to write to CSV, {}", e);
-            return Err(anyhow::anyhow!("Failed to write to CSV: {}", e));
         }
     }
-
-    Ok(address)
 }

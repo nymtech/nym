@@ -11,9 +11,12 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_task::TaskClient;
+use std::os::raw::c_int as RawFd;
 use std::sync::Arc;
 use tungstenite::Message;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::os::fd::AsRawFd;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
@@ -37,9 +40,22 @@ type WsConn = JSWebsocket;
 
 type SplitStreamReceiver = oneshot::Receiver<Result<SplitStream<WsConn>, GatewayClientError>>;
 
+pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
+    #[cfg(not(target_arch = "wasm32"))]
+    match _conn.get_ref() {
+        MaybeTlsStream::Plain(stream) => Some(stream.as_raw_fd()),
+        &_ => unreachable!(
+            "If tls features are enabled, the inner stream needs to be unpacked into raw fd"
+        ),
+    }
+    #[cfg(target_arch = "wasm32")]
+    None
+}
+
 pub(crate) struct PartiallyDelegated {
     sink_half: SplitSink<WsConn, Message>,
     delegated_stream: (SplitStreamReceiver, oneshot::Sender<()>),
+    ws_fd: Option<RawFd>,
 }
 
 impl PartiallyDelegated {
@@ -92,6 +108,8 @@ impl PartiallyDelegated {
         let (notify_sender, notify_receiver) = oneshot::channel();
         let (stream_sender, stream_receiver) = oneshot::channel();
 
+        let ws_fd = ws_fd(&conn);
+
         let (sink, mut stream) = conn.split();
 
         let mixnet_receiver_future = async move {
@@ -141,9 +159,14 @@ impl PartiallyDelegated {
         tokio::spawn(mixnet_receiver_future);
 
         PartiallyDelegated {
+            ws_fd,
             sink_half: sink,
             delegated_stream: (stream_receiver, notify_sender),
         }
+    }
+
+    pub(crate) fn ws_fd(&self) -> Option<RawFd> {
+        self.ws_fd
     }
 
     // if we want to send a message and don't care about response, we can don't need to reunite the split,

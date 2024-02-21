@@ -23,7 +23,10 @@ pub struct Args {
     #[clap(long)]
     pub memo: Option<String>,
 
-    #[clap(long, help = "Input csv files with delegation amounts. Format: mixid, amount in NYM")]
+    #[clap(
+        long,
+        help = "Input csv files with delegation amounts. Format: mixid, amount in NYM"
+    )]
     pub input: String,
 
     #[clap(

@@ -23,6 +23,12 @@
   - [Automatic Node Upgrade: Nymvisor Setup and Usage](nodes/nymvisor-upgrade.md)
 - [Troubleshooting](nodes/troubleshooting.md)
 
+# Token Economics
+
+<!-- - [Fair Mixnet](tokenomics/fair-mixnet.md) -->
+<!--    - [Mixnet: Nym Node Rewards](tokenomics/mixnet-rewards.md) -->
+- [Nyx: Validator Rewards](tokenomics/validator-rewards.md)
+
 # FAQ
 
 - [Mix Nodes](faq/mixnodes-faq.md)

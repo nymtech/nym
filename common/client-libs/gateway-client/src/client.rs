@@ -33,14 +33,14 @@ use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(unix)]
 use std::os::fd::RawFd;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(unix))]
 use std::os::raw::c_int as RawFd;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;

@@ -31,10 +31,10 @@ Validator rewards initially come from the Nym mixmining pool with additional rew
 
 2. **From vpn user subscriptions** - 1/3 will be distributed for signing blocks and 2/3 for zk-nyms. These are stable in $$ and fluctuate in NYM depending on exchange rate
 
-| Source         | Block signing | NymAPI |
-| :--            | --:           | --:    |
-| Mixmining pool | 2/3           | 1/3    |
-| NymVPN         | 1/3           | 2/3    |
+| Source         | Block signing | NymAPI | Currency |
+| :--            | --:           | --:    | :---:    |
+| Mixmining pool | 2/3           | 1/3    | NYM      |
+| NymVPN         | 1/3           | 2/3    | USD      |
 
 ### zk-nyms
 

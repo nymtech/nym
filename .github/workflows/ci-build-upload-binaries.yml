@@ -9,12 +9,17 @@ on:
         default: false
         type: boolean
       enable_wireguard:
-        description: 'Add --features wireguard'
+        description: "Add --features wireguard"
         required: true
         default: false
         type: boolean
+      enable_deb:
+        description: "True to enable cargo-deb installation and .deb package building"
+        required: false
+        default: false
+        type: boolean
   schedule:
-    - cron: '14 0 * * *'
+    - cron: "14 0 * * *"
   pull_request:
     paths:
       - "clients/**"
@@ -85,12 +90,12 @@ jobs:
         with:
           command: install
           args: cargo-deb
+        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
 
       - name: Build deb packages
         shell: bash
         run: make deb
-
-      # If this was a manual workflow_dispatch, publish binaries.
+        if: github.event_name == 'workflow_dispatch' && inputs.enable_deb == true
 
       - name: Upload Artifact
         if: github.event_name == 'workflow_dispatch'
@@ -127,10 +132,11 @@ jobs:
           cp target/release/nymvisor $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
-          cp target/debian/*.deb $OUTPUT_DIR
+          if [ ${{ github.event_name == 'workflow_dispatch' && inputs.enable_deb == true }} = true ]; then
+            cp target/debian/*.deb $OUTPUT_DIR
+          fi
 
       - name: Deploy branch to CI www
-        # if: github.event_name == 'schedule' || github.event_name == 'pull_request'
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:

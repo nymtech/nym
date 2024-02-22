@@ -108,7 +108,6 @@ fn write_to_csv(
 
         // Open the file for appending or creation
         let file = OpenOptions::new()
-            .write(true)
             .append(true)
             .create(true)
             .open(&file_path)?;

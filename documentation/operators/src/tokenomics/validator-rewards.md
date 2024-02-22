@@ -10,18 +10,20 @@
 
 ## Summary
 
-* Nyx Validators are rewarded from the Nym mixmining pool and increasingly from apps that run on the Nym mixnet, the first of which is the NymVPN.
-* Validators are rewarded for two different types of work: signing blocks in the Nyx chain and running the NymAPI to monitor mixnet routing and sign zk-nym credentials.
+* Nyx Validators are rewarded from the Nym mixmining pool and increasingly from apps that run on the Nym mixnet, the first of which is the NymVPN
+* Validators are rewarded for two different types of work: signing blocks in the Nyx chain and running the NymAPI to monitor mixnet routing and sign zk-nym credentials
 * New validators can join via a NYM-to-NYX swap contract. The contract will not allow more than 1% of total stake increase per month to prevent sudden hostile takeovers. Current stake is ~53{{current_nyx_stake}} million Nyx. Rate: 1:4.8 ~ 288k NYX for 60k NYM => 0.54% voting power
-* The contract is one way and will **not** allow exchanging NYX back to NYM. A NYX holder that wishes to sell their NYX stake will not have access to contracts or markets to do so. OTC is the only way, currently.
+* The contract will only allow swapping NYM to NYX and will **not** allow exchanging NYX back to NYM. A NYX holder who wishes to sell their NYX stake will have to do so via OTC trades.
 
 ## Validator Rewards
 
 Nyx Validators perform two types of work for which they will be rewarded:
 
-1. **Signing blocks in the Nyx chain**: A “block signing monitor" will sample a number of the validator's APIs to get the current voting power (and check for any discrepancies).
+1. **Signing blocks in the Nyx chain**
 
-2. **Running the NymAPI to monitor Mixnet routing and sign zk-nyms** (Nym’s anonymous credentials).
+A “block signing monitor" monitors blocks being produced on the Nyx chain and gathers the signatures present on every block. After an epoch end, the monitor will assess performance of a mixnode and distribute tokens (to the self-delegation wallet) proportional to the voting period and uptime of the validator.
+
+2. **Running the NymAPI to monitor Mixnet routing and sign zk-nyms** (Nym’s anonymous credentials)
 
 Validator rewards initially come from the Nym mixmining pool with additional rewards increasingly coming from paid applications running on the Nym mixnet. The first paid application is the NymVPN. Nyx validators will be rewarded for their work directly in NYM tokens to their validator self-delegation address.
 

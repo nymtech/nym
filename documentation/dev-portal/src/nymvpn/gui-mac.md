@@ -51,7 +51,7 @@ chmod u+x nym-vpn
 mv nym-vpn "$HOME/nym-vpn-latest"
 ```
 -->
-4. Mount the `.dmg` image you extracted by double clicking on it
+4. Mount the `.dmg` image you extracted by double clicking on it and move it (drag it) to your `/Application` folder
 
 
 NymVPN alpha version runs over Nym testnet (called sandbox), a little extra configuration is needed for the application to work.

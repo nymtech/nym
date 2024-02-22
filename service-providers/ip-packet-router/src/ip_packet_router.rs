@@ -133,8 +133,8 @@ impl IpPacketRouter {
         // Create the TUN device that we interact with the rest of the world with
         let config = nym_tun::tun_device::TunDeviceConfig {
             base_name: crate::constants::TUN_BASE_NAME.to_string(),
-            ip: crate::constants::TUN_DEVICE_ADDRESS.parse().unwrap(),
-            netmask: crate::constants::TUN_DEVICE_NETMASK.parse().unwrap(),
+            ip: crate::constants::TUN_DEVICE_ADDRESS_V4.parse().unwrap(),
+            netmask: crate::constants::TUN_DEVICE_NETMASK_V4.parse().unwrap(),
         };
         let (tun_reader, tun_writer) =
             tokio::io::split(nym_tun::tun_device::TunDevice::new_device_only(config));

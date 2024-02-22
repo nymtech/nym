@@ -1,8 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use bigdecimal::{BigDecimal, FromPrimitive, ToPrimitive};
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::fs::OpenOptions;
 
@@ -10,9 +11,11 @@ use clap::Parser;
 use comfy_table::Table;
 use csv::WriterBuilder;
 use log::{info, warn};
+use nym_mixnet_contract_common::ExecuteMsg;
+use nym_mixnet_contract_common::ExecuteMsg::{DelegateToMixnode, UndelegateFromMixnode};
 
 use nym_mixnet_contract_common::PendingEpochEventKind::{Delegate, Undelegate};
-use nym_validator_client::nyxd::contract_traits::{MixnetSigningClient, PagedMixnetQueryClient};
+use nym_validator_client::nyxd::contract_traits::{NymContractsProvider, PagedMixnetQueryClient};
 use nym_validator_client::nyxd::Coin;
 
 use crate::context::SigningClient;
@@ -25,7 +28,7 @@ pub struct Args {
 
     #[clap(
         long,
-        help = "Input csv files with delegation amounts. Format: mixid, amount in NYM"
+        help = "Input csv files with delegation amounts. Format: (mixID, amount(in NYM))"
     )]
     pub input: String,
 
@@ -48,58 +51,53 @@ pub struct InputFileReader {
 
 impl InputFileReader {
     pub fn new(path: &str) -> Result<InputFileReader, anyhow::Error> {
-        let mut rows: Vec<InputFileRow> = Vec::new();
         let file_contents = fs::read_to_string(path)?;
-        let mut mix_id_list: Vec<String> = Vec::new();
-        let lines: Vec<String> = file_contents.lines().map(String::from).collect();
-        for line in lines {
-            // Skip over blank lines without throwing an error
-            if line.trim().is_empty() {
-                continue;
-            }
+        let mut rows = Vec::new();
+        let mut mix_id_set = HashSet::new();
 
+        for line in file_contents
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+        {
             let tokens: Vec<_> = line.split(',').collect();
-            // Return error if any of the line is malformed
             if tokens.len() != 2 {
-                return Err(anyhow::anyhow!(
-                    "Malformed input file, please make sure the file is in the correct format (mix_id, amount)"
-                ));
+                anyhow::bail!("Incorrect format: {}", line);
             }
-
             let mix_id = tokens[0].trim().to_string();
-            let token_input_raw = tokens[1].trim().parse::<u128>()?;
-            if token_input_raw > 1_000_000 {
-                warn!(
-                    "Delegation amount exceeds 1,000,000. \
-                Make sure the input amount is in nym and not unym denomination!"
-                );
+            let input_amount = BigDecimal::parse_bytes(tokens[1].trim().as_bytes(), 10)
+                .ok_or_else(|| anyhow::anyhow!("Invalid number format"))?;
+            let scaled_amount = input_amount.with_scale(6);
+
+            if scaled_amount > BigDecimal::from(1_000_000) {
+                warn!("Delegation amount is high. Please make sure your input is in NYM and not unym denomination");
             }
 
-            let tokens_in_unym: u128 = token_input_raw * 1_000_000;
+            let smallest_unit_multiplier = BigDecimal::from_u64(1_000_000).unwrap(); // For 6 decimal places
+            let amount_in_smallest_unit = scaled_amount * smallest_unit_multiplier;
 
-            let amount = Coin {
-                amount: tokens_in_unym,
-                denom: "unym".to_string(),
-            };
-            if mix_id_list.contains(&mix_id) {
-                return Err(anyhow::anyhow!(
-                    "Input document has duplicate delegation record for {}",
-                    mix_id.clone()
-                ));
-            } else {
-                rows.push(InputFileRow {
-                    mix_id: mix_id.clone(),
+            let amount = amount_in_smallest_unit.to_u128().ok_or_else(|| {
+                anyhow::anyhow!("Amount after scaling cannot be represented in u128")
+            })?;
+
+            if !mix_id_set.insert(mix_id.clone()) {
+                anyhow::bail!("Duplicate mix_id found: {}", mix_id);
+            }
+
+            rows.push(InputFileRow {
+                mix_id,
+                amount: Coin {
                     amount,
-                });
-                mix_id_list.push(mix_id);
-            }
+                    denom: "unym".to_string(),
+                },
+            });
         }
         Ok(InputFileReader { rows })
     }
 }
 
 fn write_to_csv(
-    output_details: Vec<[String; 4]>,
+    output_details: Vec<[String; 3]>,
     output_file: Option<String>,
 ) -> Result<(), anyhow::Error> {
     if let Some(file_path) = output_file {
@@ -117,7 +115,7 @@ fn write_to_csv(
 
         if !file_exists {
             let mut wtr = csv::Writer::from_writer(&file);
-            wtr.write_record(["Operation", "Mix ID", "Amount", "tx hash"])?;
+            wtr.write_record(["Operation", "Transaction Hash", "Timestamp"])?;
             wtr.flush()?;
         }
 
@@ -135,22 +133,15 @@ fn write_to_csv(
     Ok(())
 }
 
-pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
+async fn fetch_delegation_data(
+    client: &SigningClient,
+) -> Result<HashMap<String, Coin>, anyhow::Error> {
     let address = client.address();
-    let records = match InputFileReader::new(&args.input) {
-        Ok(records) => records,
-        Err(e) => {
-            println!("Error reading input file: {}", e);
-            return;
-        }
-    };
-
     // Fetch all delegations for the user
     let delegations = match client.get_all_delegator_delegations(&address).await {
         Ok(delegations) => delegations,
         Err(e) => {
-            println!("Error fetching delegator delegations: {}", e);
-            return;
+            anyhow::bail!("Error fetching delegations: {}", e)
         }
     };
 
@@ -167,8 +158,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
     let pending_events = match client.get_all_pending_epoch_events().await {
         Ok(events) => events,
         Err(e) => {
-            println!("Error fetching pending epoch events: {}", e);
-            return;
+            anyhow::bail!("Error fetching pending epoch events: {}", e);
         }
     };
 
@@ -176,7 +166,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
         match event.event.kind {
             // If a pending undelegate tx is found, remove it from delegation map
             Undelegate { owner, mix_id, .. } => {
-                if owner == client.address().as_ref()
+                if owner == address.as_ref()
                     && existing_delegation_map.get(&mix_id.to_string()).is_some()
                 {
                     existing_delegation_map.remove(&mix_id.to_string());
@@ -190,7 +180,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
                 amount,
                 ..
             } => {
-                if owner == client.address().as_ref() {
+                if owner == address.as_ref() {
                     let mut amount = Coin::from(amount);
                     if let Some(pending_record) = pending_delegation_map.get(&mix_id.to_string()) {
                         amount.amount += pending_record.amount;
@@ -210,72 +200,83 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
             .or_insert(amount);
     }
 
+    Ok(existing_delegation_map)
+}
+
+pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
+    let records = match InputFileReader::new(&args.input) {
+        Ok(records) => records,
+        Err(e) => {
+            println!("Error reading input file: {}", e);
+            return;
+        }
+    };
+
+    let existing_delegation_map = fetch_delegation_data(&client)
+        .await
+        .expect("Could not fetch existing delegations");
+
     let mut delegation_table = Table::new();
     let mut undelegation_table = Table::new();
-    let mut delegations_to_be_made: Vec<(String, Coin)> = Vec::new();
-    let mut undelegations_to_be_made = Vec::new();
+    let mut delegation_msgs: Vec<(ExecuteMsg, Vec<Coin>)> = Vec::new();
+    let mut undelegation_msgs: Vec<(ExecuteMsg, Vec<Coin>)> = Vec::new();
 
     delegation_table.set_header(["Mix ID", "Input Amount", "Adjusted Amount"]);
     undelegation_table.set_header(["Mix ID"]);
 
-    for row in records.rows.iter() {
-        // Check if there's an existing delegation for this mix_id
-        if let Some(existing_delegation_record) = existing_delegation_map.get(&row.mix_id) {
-            let existing_delegation_amount = existing_delegation_record.amount;
-            let input_amount = row.amount.amount;
+    for row in &records.rows {
+        let input_amount = row.amount.amount;
+        let existing_delegation_amount = existing_delegation_map
+            .get(&row.mix_id)
+            .map_or(0, |coin| coin.amount);
 
-            match existing_delegation_amount.cmp(&input_amount) {
-                // Nothing to do if the delegation record matches, just continue
-                Ordering::Equal => continue,
+        match existing_delegation_amount.cmp(&input_amount) {
+            Ordering::Equal => continue, // No action needed if amounts are equal
 
-                // If existing delegation is lesser, we need to delegate only remaining amount
-                Ordering::Less => {
-                    let adjusted_amount = Coin {
-                        amount: input_amount - existing_delegation_amount,
-                        denom: existing_delegation_record.denom.clone(),
-                    };
+            Ordering::Less => {
+                // Delegate the difference if the existing delegation is less
+                let difference = Coin {
+                    amount: input_amount - existing_delegation_amount,
+                    denom: row.amount.denom.clone(),
+                };
+                let mix_id = row.mix_id.clone().parse::<u32>().unwrap();
+                delegation_msgs.push((DelegateToMixnode { mix_id }, vec![difference.clone()]));
+                delegation_table.add_row(&[
+                    row.mix_id.clone(),
+                    pretty_coin(&row.amount),
+                    pretty_coin(&difference),
+                ]);
+            }
 
-                    delegation_table.add_row([
-                        row.mix_id.clone(),
-                        pretty_coin(&row.amount.clone()),
-                        pretty_coin(&adjusted_amount),
-                    ]);
-                    delegations_to_be_made.push((row.mix_id.clone(), adjusted_amount));
-                }
+            Ordering::Greater => {
+                let mix_id = row.mix_id.clone().parse::<u32>().unwrap();
+                let coins: Vec<Coin> = vec![];
+                undelegation_msgs.push((UndelegateFromMixnode { mix_id }, coins));
+                undelegation_table.add_row(&[row.mix_id.clone()]);
 
-                // If existing delegation is greater, we need to undelegate and delegate the specified amount
-                Ordering::Greater => {
-                    undelegations_to_be_made.push(row.mix_id.clone());
-                    undelegation_table.add_row([row.mix_id.clone()]);
-
-                    delegations_to_be_made.push((row.mix_id.clone(), row.amount.clone()));
-                    delegation_table.add_row([
+                if row.amount.amount > 0 {
+                    delegation_msgs.push((DelegateToMixnode { mix_id }, vec![row.amount.clone()]));
+                    delegation_table.add_row(&[
                         row.mix_id.clone(),
                         pretty_coin(&row.amount),
                         pretty_coin(&row.amount),
                     ]);
                 }
-            }; // match close
-        } else {
-            delegations_to_be_made.push((row.mix_id.clone(), row.amount.clone()));
-            delegation_table.add_row([
-                row.mix_id.clone(),
-                pretty_coin(&row.amount.clone()),
-                pretty_coin(&row.amount.clone()),
-            ]);
+            }
         }
     }
 
-    if delegations_to_be_made.is_empty() && undelegations_to_be_made.is_empty() {
+    if delegation_msgs.is_empty() && undelegation_msgs.is_empty() {
         println!("Nothing to do. Delegations are up-to-date!");
         return;
     }
-    if !delegations_to_be_made.is_empty() {
-        println!("Delegation records : \n{}\n\n", delegation_table);
+
+    if !undelegation_msgs.is_empty() {
+        println!("Undelegation records : \n{}\n\n", undelegation_table);
     }
 
-    if !undelegations_to_be_made.is_empty() {
-        println!("Undelegation records : \n{}\n\n", undelegation_table);
+    if !delegation_msgs.is_empty() {
+        println!("Delegation records : \n{}\n\n", delegation_table);
     }
 
     let ans = inquire::Confirm::new("Do you want to continue with the shown operations?")
@@ -293,47 +294,66 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
         return;
     }
 
-    let mut output_details: Vec<[String; 4]> = Vec::new();
+    let mut output_details: Vec<[String; 3]> = Vec::new();
+    let now = time::OffsetDateTime::now_utc();
+    let now = now
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap();
 
-    // Perform undelegation operations
-    for mix_id in undelegations_to_be_made {
+    let mixnet_contract = client
+        .mixnet_contract_address()
+        .expect("mixnet contract address is not available");
+
+    // Execute all undelegation transactions
+    if !undelegation_msgs.is_empty() {
         let res = client
-            .undelegate_from_mixnode(mix_id.parse::<u32>().unwrap(), None)
+            .execute_multiple(
+                mixnet_contract,
+                undelegation_msgs.clone(),
+                None,
+                format!(
+                    "Undelegate from {} nodes via nym-cli",
+                    undelegation_msgs.len()
+                ),
+            )
             .await
-            .expect("Failed to undelegate from mixnode");
-        info!(
-            "Undelegation from {} successful. tx: {}",
-            mix_id, &res.transaction_hash
+            .expect("Could not undelegate!");
+
+        println!(
+            "Undelegation transaction successful : {}",
+            res.transaction_hash
         );
-        if args.output.is_some() {
-            output_details.push([
-                "Undelegate".into(),
-                mix_id.clone(),
-                "-".into(),
-                res.transaction_hash.to_string(),
-            ]);
-        }
+        output_details.push([
+            "Undelegate".to_string(),
+            res.transaction_hash.to_string(),
+            now.clone(),
+        ]);
     }
 
-    // Perform delegation operations
-    for (mix_id, amount) in delegations_to_be_made {
+    // Execute all  delegation delegations
+    if !delegation_msgs.is_empty() {
         let res = client
-            .delegate_to_mixnode(mix_id.parse::<u32>().unwrap(), amount.clone(), None)
+            .execute_multiple(
+                mixnet_contract,
+                delegation_msgs,
+                None,
+                format!(
+                    "Delegatations to {} nodes via nym-cli",
+                    undelegation_msgs.len()
+                ),
+            )
             .await
-            .expect("Failed to delegate to mixnode");
+            .expect("Could not delegate");
 
-        info!(
-            "Delegation to {} successful. tx: {}",
-            mix_id, &res.transaction_hash
+        println!(
+            "Delegation transaction successful : {}",
+            res.transaction_hash
         );
-        if args.output.is_some() {
-            output_details.push([
-                "Delegate".into(),
-                mix_id.clone(),
-                pretty_coin(&amount),
-                res.transaction_hash.to_string(),
-            ]);
-        }
+        output_details.push([
+            "Delegate".to_string(),
+            res.transaction_hash.to_string(),
+            now.clone(),
+        ]);
     }
 
     if args.output.is_some() {

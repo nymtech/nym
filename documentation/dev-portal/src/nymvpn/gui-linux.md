@@ -13,7 +13,7 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 ### Installation
 
 1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for Debian based Linux
-2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+2. Required (if you don't want to check shasum, skip this point): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
@@ -41,18 +41,22 @@ sudo dpkg -i ./nym-vpn_0.0.4_amd64.deb
 sudo apt-get install -f ./nym-vpn_0.0.4_amd64.deb
 ```
 
+NymVPN alpha version runs over Nym testnet (called sandbox), a little extra configuration is needed for the application to work.
+
 ### Configuration
+
+To test NymVPN alpha we must create two configuration files: an environment config file `sandbox.env` and `config.toml` file pointing the application to run over the testnet environment.
 
 6. Create a NymVPN config directory called `nym-vpn` in your `~/.config`, either manually or by a command:
 ```sh
 mkdir $HOME/.config/nym-vpn/
 ```
-7. Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the directory `~/.config/nym-vpn/` you just created by running:
+7. Create the network testnet config: copy-paste [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) and save as `sandbox.env` in the directory `~/.config/nym-vpn/` you just created. Aternatively do it by runnin a command
 ```sh
 curl -o $HOME/.config/nym-vpn/sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```
 
-8. Create NymVPN main config file called `config.toml` in the same directory `~/.config/nym-vpn/` with this content:
+8. Create NymVPN main config file: copy-paste the line below and save it as `config.toml` in the same directory `~/.config/nym-vpn/`:
 ```toml
 # change <USER> to your username
 env_config_file = "/home/<USER>/.config/nym-vpn/sandbox.env"

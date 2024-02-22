@@ -58,7 +58,7 @@ NymVPN alpha version runs over Nym testnet (called sandbox), a little extra conf
 
 ### Configuration
 
-To test NymVPN alspha two configuration files are needed. An environment config file `sandbox.env` and `config.toml` file pointing the application to run over the testnet environment.
+To test NymVPN alpha we must create two configuration files: an environment config file `sandbox.env` and `config.toml` file pointing the application to run over the testnet environment.
 
 5. Create testnet configuration file: Open a text editor, copy-paste [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) and save it as `sandbox.env` in `/Applications/nym-vpn.app/Contents/MacOS/`. Alternatively use this command:
 ```sh

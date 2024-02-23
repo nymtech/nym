@@ -9,7 +9,7 @@ on:
 
 jobs:
   wasm:
-    runs-on: [custom-linux]
+    runs-on: [ custom-linux ]
     env:
       CARGO_TERM_COLOR: always
     steps:
@@ -42,6 +42,9 @@ jobs:
 
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli
+
+      - name: Install clang
+        run: sudo apt update && sudo apt install -y clang
 
       - name: "Build"
         run: make sdk-wasm-build

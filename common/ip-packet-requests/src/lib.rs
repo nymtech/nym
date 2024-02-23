@@ -5,7 +5,7 @@ pub mod codec;
 pub mod request;
 pub mod response;
 
-pub const CURRENT_VERSION: u8 = 3;
+pub const CURRENT_VERSION: u8 = 4;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IPPair {

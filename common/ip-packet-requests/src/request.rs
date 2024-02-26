@@ -7,8 +7,7 @@ use crate::{make_bincode_serializer, IPPair, CURRENT_VERSION};
 
 impl Display for IPPair {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "IPv4: {}", self.ipv4)?;
-        write!(f, "IPv6: {}", self.ipv6)
+        writeln!(f, "IPv4: {}, IPV6: {}", self.ipv4, self.ipv6)
     }
 }
 

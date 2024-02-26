@@ -12,7 +12,7 @@
 
 * Nyx Validators are rewarded from the Nym mixmining pool and increasingly from apps that run on the Nym mixnet, the first of which is the NymVPN
 * Validators are rewarded for two different types of work: signing blocks in the Nyx chain and running the NymAPI to monitor mixnet routing and sign zk-nym credentials
-* New validators can join via a NYM-to-NYX swap contract. The contract will not allow more than 1% of total stake increase per month to prevent sudden hostile takeovers. Current stake is ~53{{current_nyx_stake}} million Nyx. Rate: 1:4.8 ~ 288k NYX for 60k NYM => 0.54% voting power
+* New validators can join via a NYM-to-NYX swap contract. The contract will not allow more than 1% of total stake increase per month to prevent sudden hostile takeovers. Current stake is <!-- cmdrun ../scripts/nyx-total-stake.sh --> million Nyx. Rate: 1:4.8 ~ 288k NYX for 60k NYM => <!-- cmdrun ../scripts/nyx-percent-stake.sh --> voting power
 * The contract will only allow swapping NYM to NYX and will **not** allow exchanging NYX back to NYM. A NYX holder who wishes to sell their NYX stake will have to do so via OTC trades.
 
 ## Validator Rewards
@@ -60,4 +60,4 @@ Such smart contract needs two parameters:
 
 ### Maximum Amount of NYX Available for Purchase per Month
 
-The contract will not allow more than 1% of total stake increase per month to prevent sudden hostile takeovers. Current stake is ~53{{current_nyx_stake}} million Nyx.
+The contract will not allow more than 1% of total stake increase per month to prevent sudden hostile takeovers. Current stake level is <!-- cmdrun ../scripts/nyx-total-stake.sh --> million Nyx.

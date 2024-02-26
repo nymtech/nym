@@ -1,7 +1,7 @@
 [book]
-title = "Nym Docs"
+title = "Nym Operators Guide"
 authors = ["Max Hampshire, Serinko, Alexia Lorenza Martinel"]
-description = "Nym technical documentation"
+description = "Everything needed to run Nym Mixnet components"
 language = "en"
 multilingual = false # for the moment - ideally work on chinese, brazillian portugese, spanish next
 src = "src"
@@ -28,11 +28,13 @@ assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
 
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
+# after = ["api-call"]
 minimum_rust_version = "1.66"
 wallet_release_version = "1.2.8"
 # nym-vpn related variables
-nym_vpn_latest_binary_url = "https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.3"
+nym_vpn_latest_binary_url = "https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.4"
 nym_vpn_form_url = "https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2"
+# nyx_total_stake = GET THE API CALL COMMAND HERE
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"
@@ -43,6 +45,9 @@ renderer = ["html"]
 
 # more pre-processor plugins to look into from https://github.com/rust-lang/mdBook/wiki/Third-party-plugins & https://lib.rs/keywords/mdbook-preprocessor
 # mdbook-i18n
+
+# [preprocessor.api-call]
+# command = "$(tokens=$(curl -L https://api.nymtech.net/cosmos/staking/v1beta1/pool | jq 'values[\"pool\"][\"bonded_tokens\"]') && echo ${tokens:0:2},${tokens:2:2})"
 
 #########
 # BUILD #

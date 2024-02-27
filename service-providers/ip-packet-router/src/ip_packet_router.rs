@@ -126,18 +126,20 @@ impl IpPacketRouter {
             self.wait_for_gateway,
             &self.config.storage_paths.common_paths,
         )
-        .await?;
+            .await?;
 
         let self_address = *mixnet_client.nym_address();
 
         // Create the TUN device that we interact with the rest of the world with
         let config = nym_tun::tun_device::TunDeviceConfig {
             base_name: crate::constants::TUN_BASE_NAME.to_string(),
-            ip: crate::constants::TUN_DEVICE_ADDRESS_V4.parse().unwrap(),
-            netmask: crate::constants::TUN_DEVICE_NETMASK_V4.parse().unwrap(),
+            ipv4: crate::constants::TUN_DEVICE_ADDRESS_V4.parse().unwrap(),
+            netmaskv4: crate::constants::TUN_DEVICE_NETMASK_V4.parse().unwrap(),
+            ipv6: crate::constants::TUN_DEVICE_ADDRESS_V6.parse().unwrap(),
+            netmaskv6: crate::constants::TUN_DEVICE_NETMASK_V6.to_string(),
         };
         let (tun_reader, tun_writer) =
-            tokio::io::split(nym_tun::tun_device::TunDevice::new_device_only(config));
+            tokio::io::split(nym_tun::tun_device::TunDevice::new_device_only(config)?);
 
         // Channel used by the IpPacketRouter to signal connected and disconnected clients to the
         // TunListener

@@ -1,3 +1,4 @@
+use std::net::Ipv6Addr;
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr},
@@ -19,6 +20,12 @@ const TUN_WRITE_TIMEOUT_MS: u64 = 1000;
 
 #[derive(thiserror::Error, Debug)]
 pub enum TunDeviceError {
+    #[error("{0}")]
+    IO(#[from] std::io::Error),
+
+    #[error("{0}")]
+    TokioTun(#[from] tokio_tun::Error),
+
     #[error("timeout writing to tun device, dropping packet")]
     TunWriteTimeout,
 
@@ -44,14 +51,18 @@ pub enum TunDeviceError {
     FailedToLockPeer,
 }
 
-fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
+fn setup_tokio_tun_device(
+    name: &str,
+    address: Ipv4Addr,
+    netmask: Ipv4Addr,
+) -> Result<tokio_tun::Tun, TunDeviceError> {
     log::info!("Creating TUN device with: address={address}, netmask={netmask}");
     // Read MTU size from env variable NYM_MTU_SIZE, else default to 1420.
     let mtu = std::env::var("NYM_MTU_SIZE")
         .map(|mtu| mtu.parse().expect("NYM_MTU_SIZE must be a valid integer"))
         .unwrap_or(1420);
     log::info!("Using MTU size: {mtu}");
-    tokio_tun::Tun::builder()
+    Ok(tokio_tun::Tun::builder()
         .name(name)
         .tap(false)
         .packet_info(false)
@@ -59,8 +70,7 @@ fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> t
         .up()
         .address(address)
         .netmask(netmask)
-        .try_build()
-        .expect("Failed to setup tun device, do you have permission?")
+        .try_build()?)
 }
 
 pub struct TunDevice {
@@ -103,16 +113,18 @@ pub struct NatInner {
 
 pub struct TunDeviceConfig {
     pub base_name: String,
-    pub ip: Ipv4Addr,
-    pub netmask: Ipv4Addr,
+    pub ipv4: Ipv4Addr,
+    pub netmaskv4: Ipv4Addr,
+    pub ipv6: Ipv6Addr,
+    pub netmaskv6: String,
 }
 
 impl TunDevice {
     pub fn new(
         routing_mode: RoutingMode,
         config: TunDeviceConfig,
-    ) -> (Self, TunTaskTx, TunTaskResponseRx) {
-        let tun = Self::new_device_only(config);
+    ) -> Result<(Self, TunTaskTx, TunTaskResponseRx), TunDeviceError> {
+        let tun = Self::new_device_only(config)?;
 
         // Channels to communicate with the other tasks
         let (tun_task_tx, tun_task_rx) = tun_task_channel();
@@ -125,20 +137,32 @@ impl TunDevice {
             routing_mode,
         };
 
-        (tun_device, tun_task_tx, tun_task_response_rx)
+        Ok((tun_device, tun_task_tx, tun_task_response_rx))
     }
 
-    pub fn new_device_only(config: TunDeviceConfig) -> tokio_tun::Tun {
+    pub fn new_device_only(config: TunDeviceConfig) -> Result<tokio_tun::Tun, TunDeviceError> {
         let TunDeviceConfig {
             base_name,
-            ip,
-            netmask,
+            ipv4,
+            netmaskv4,
+            ipv6,
+            netmaskv6,
         } = config;
         let name = format!("{base_name}%d");
 
-        let tun = setup_tokio_tun_device(&name, ip, netmask);
+        let tun = setup_tokio_tun_device(&name, ipv4, netmaskv4)?;
         log::info!("Created TUN device: {}", tun.name());
-        tun
+        std::process::Command::new("ip")
+            .args([
+                "-6",
+                "addr",
+                "add",
+                &format!("{}/{}", ipv6.to_string(), netmaskv6),
+                "dev",
+                &tun.name(),
+            ])
+            .output()?;
+        Ok(tun)
     }
 
     // Send outbound packets out on the wild internet

@@ -5,6 +5,7 @@ pub const TUN_BASE_NAME: &str = "nymtun";
 pub const TUN_DEVICE_ADDRESS_V4: &str = "10.0.0.1";
 pub const TUN_DEVICE_NETMASK_V4: &str = "255.255.255.0";
 pub const TUN_DEVICE_ADDRESS_V6: &str = "2001:db8:a160::1";
+pub const TUN_DEVICE_NETMASK_V6: &str = "120";
 
 // We routinely check if any clients needs to be disconnected at this interval
 pub(crate) const DISCONNECT_TIMER_INTERVAL: Duration = Duration::from_secs(10);

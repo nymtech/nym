@@ -12,11 +12,11 @@
 
 Nyx Validators perform two types of work for which they will be rewarded:
 
-1. **Signing blocks in the Nyx chain**
+### 1. Signing blocks in the Nyx chain
 
 A “block signing monitor" monitors blocks being produced on the Nyx chain and gathers the signatures present on every block. After an epoch ends, the monitor will assess performance of a validator and distribute tokens (to the self-delegation wallet) proportional to the voting period and uptime of the validator.
 
-2. **Running the NymAPI to monitor Mixnet routing and sign zk-nyms** (Nym’s anonymous credentials)
+### 2. Running the NymAPI to monitor Mixnet routing and sign zk-nyms (Nym’s anonymous credentials)
 
 Validator rewards initially come from the Nym mixmining pool with additional rewards increasingly coming from paid applications running on the Nym mixnet. The first paid application is the NymVPN. Nyx validators will be rewarded for their work directly in NYM tokens to their validator self-delegation address.
 
@@ -29,7 +29,7 @@ Validator rewards initially come from the Nym mixmining pool with additional rew
 | Mixmining pool | 2/3           | 1/3    | NYM      |
 | NymVPN         | 1/3           | 2/3    | fiat     |
 
-### zk-nyms
+#### zk-nyms
 
 The zk-nyms enable people to anonymously prove access rights to the upcoming NymVPN client without having to reveal payment details that might compromise their privacy. This is the first of what we imagine to be many possible use-cases for the zk-nym scheme.
 

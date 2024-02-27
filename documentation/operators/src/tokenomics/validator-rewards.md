@@ -5,7 +5,7 @@
 * Nyx Validators are rewarded in NYM tokens from the Nym mixmining pool and increasingly from apps that run on the Nym mixnet, the first of which is the NymVPN.
 * Validators are rewarded for two different types of work: signing blocks in the Nyx chain and running the NymAPI to monitor mixnet routing and sign zk-nym credentials.
 * New validators can join via a NYM-to-NYX swap contract. The contract will not allow more than 1% of total stake increase per month to prevent sudden hostile takeovers. Current stake is <!-- cmdrun ../scripts/nyx-total-stake.sh --> million Nyx. Rate: 1:4.8 ~ 288k NYX for 60k NYM => <!-- cmdrun ../scripts/nyx-percent-stake.sh --> voting power
-* NYX tokens serve no other purpose than self-delegation for governance voting power and governance. All rewards are in NYM and distributed directly to the validators self-delegation address and are not distributed to stakers.
+* NYX tokens serve no other purpose than self-delegation for voting power and governance. All rewards are in NYM and distributed directly to the validators self-delegation address and are not distributed to stakers.
 * The contract will only allow swapping NYM to NYX and will **not** allow exchanging NYX back to NYM. A NYX holder who wishes to sell their NYX stake will have to do so via OTC trades.
 
 ## Validator Rewards

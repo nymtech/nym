@@ -16,6 +16,8 @@ use nym_crypto::bech32_address_validation;
 use std::net::IpAddr;
 use std::process;
 
+pub const DEFAULT_MIXNODE_ID: &str = "nym-mixnode";
+
 mod build_info;
 mod describe;
 mod init;
@@ -54,7 +56,7 @@ pub(crate) enum Commands {
 // Configuration that can be overridden.
 struct OverrideConfig {
     id: String,
-    host: Option<IpAddr>,
+    listening_address: Option<IpAddr>,
     mix_port: Option<u16>,
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
@@ -79,7 +81,7 @@ pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
 
 fn override_config(config: Config, args: OverrideConfig) -> Config {
     config
-        .with_optional(Config::with_listening_address, args.host)
+        .with_optional(Config::with_listening_address, args.listening_address)
         .with_optional(Config::with_mix_port, args.mix_port)
         .with_optional(Config::with_verloc_port, args.verloc_port)
         .with_optional(Config::with_http_api_port, args.http_api_port)

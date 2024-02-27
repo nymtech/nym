@@ -20,7 +20,7 @@ rust-version = "1.58.1"
 axum = { workspace = true }
 anyhow = { workspace = true }
 bs58 = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive", "env"] }
 colored = "2.0"
 cupid = "0.6.1"
 dirs = "4.0"

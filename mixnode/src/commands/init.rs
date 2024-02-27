@@ -1,46 +1,52 @@
-// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::OverrideConfig;
+use super::DEFAULT_MIXNODE_ID;
 use crate::commands::override_config;
 use crate::config::{
     default_config_directory, default_config_filepath, default_data_directory, Config,
 };
+use crate::env::vars::*;
 use crate::node::MixNode;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
+use nym_config::defaults::{
+    DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
+};
+use nym_config::helpers::inaddr_any;
 use nym_crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use std::{fs, io};
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Debug)]
 pub(crate) struct Init {
     /// Id of the mixnode we want to create config for
-    #[clap(long)]
+    #[clap(long, default_value = DEFAULT_MIXNODE_ID, env = MIXNODE_ID_ARG)]
     id: String,
 
     /// The host on which the mixnode will be running
-    #[clap(long)]
-    host: IpAddr,
+    #[clap(long, alias = "host", default_value_t = inaddr_any(), env = MIXNODE_LISTENING_ADDRESS_ARG)]
+    listening_address: IpAddr,
 
     /// The port on which the mixnode will be listening for mix packets
-    #[clap(long)]
-    mix_port: Option<u16>,
+    #[clap(long, default_value_t = DEFAULT_MIX_LISTENING_PORT, env = MIXNODE_MIX_PORT_ARG)]
+    mix_port: u16,
 
     /// The port on which the mixnode will be listening for verloc packets
-    #[clap(long)]
-    verloc_port: Option<u16>,
+    #[clap(long, default_value_t = DEFAULT_VERLOC_LISTENING_PORT, env = MIXNODE_VERLOC_PORT_ARG)]
+    verloc_port: u16,
 
     /// The port on which the mixnode will be listening for http requests
-    #[clap(long)]
-    http_api_port: Option<u16>,
+    #[clap(long, default_value_t = DEFAULT_HTTP_API_LISTENING_PORT, env = MIXNODE_HTTP_API_PORT_ARG)]
+    http_api_port: u16,
 
     /// Comma separated list of nym-api endpoints of the validators
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    #[clap(long, alias = "validators", value_delimiter = ',')]
+    #[clap(long, alias = "validators", value_delimiter = ',', env = MIXNODE_NYM_APIS_ARG)]
     nym_apis: Option<Vec<url::Url>>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    #[clap(short, long, default_value_t = OutputFormat::default(), env = MIXNODE_OUTPUT_ARG)]
     output: OutputFormat,
 }
 
@@ -48,10 +54,10 @@ impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
             id: init_config.id,
-            host: Some(init_config.host),
-            mix_port: init_config.mix_port,
-            verloc_port: init_config.verloc_port,
-            http_api_port: init_config.http_api_port,
+            listening_address: Some(init_config.listening_address),
+            mix_port: Some(init_config.mix_port),
+            verloc_port: Some(init_config.verloc_port),
+            http_api_port: Some(init_config.http_api_port),
             nym_apis: init_config.nym_apis,
         }
     }

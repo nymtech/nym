@@ -18,6 +18,7 @@ use tracing::instrument;
 
 mod commands;
 mod config;
+mod env;
 pub(crate) mod error;
 mod node;
 

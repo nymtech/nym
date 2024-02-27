@@ -1,7 +1,10 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::version_check;
+use super::DEFAULT_MIXNODE_ID;
 use crate::commands::{try_load_current_config, validate_bech32_address_or_exit};
+use crate::env::vars::*;
 use crate::node::helpers::load_identity_keys;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
@@ -12,13 +15,11 @@ use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
 use std::convert::TryFrom;
 
-use super::version_check;
-
 #[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text", "contract_msg"])))]
 pub(crate) struct Sign {
     /// The id of the mixnode you want to sign with
-    #[clap(long)]
+    #[clap(long, default_value = DEFAULT_MIXNODE_ID, env = MIXNODE_ID_ARG)]
     id: String,
 
     /// Signs your blockchain address with your identity key
@@ -34,7 +35,7 @@ pub(crate) struct Sign {
     #[clap(long)]
     contract_msg: Option<String>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    #[clap(short, long, default_value_t = OutputFormat::default(), env = MIXNODE_OUTPUT_ARG)]
     output: OutputFormat,
 }
 

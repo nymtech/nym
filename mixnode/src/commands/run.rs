@@ -2,28 +2,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::OverrideConfig;
+use super::DEFAULT_MIXNODE_ID;
 use crate::commands::{override_config, try_load_current_config, version_check};
+use crate::env::vars::*;
 use crate::node::MixNode;
 use anyhow::bail;
 use clap::Args;
 use log::error;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
-use nym_validator_client::nyxd;
 use std::net::IpAddr;
+
 #[derive(Args, Clone)]
 pub(crate) struct Run {
     /// Id of the nym-mixnode we want to run
-    #[clap(long)]
+    #[clap(long, default_value = DEFAULT_MIXNODE_ID, env = MIXNODE_ID_ARG)]
     id: String,
 
     /// The custom host on which the mixnode will be running
-    #[clap(long)]
-    host: Option<IpAddr>,
-
-    /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
-    #[clap(long)]
-    wallet_address: Option<nyxd::AccountId>,
+    #[clap(long, alias = "host")]
+    listening_address: Option<IpAddr>,
 
     /// The port on which the mixnode will be listening for mix packets
     #[clap(long)]
@@ -42,7 +40,7 @@ pub(crate) struct Run {
     #[clap(long, alias = "validators", value_delimiter = ',')]
     nym_apis: Option<Vec<url::Url>>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    #[clap(short, long, default_value_t = OutputFormat::default(), env = MIXNODE_OUTPUT_ARG)]
     output: OutputFormat,
 }
 
@@ -50,7 +48,7 @@ impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
             id: run_config.id,
-            host: run_config.host,
+            listening_address: run_config.listening_address,
             mix_port: run_config.mix_port,
             verloc_port: run_config.verloc_port,
             http_api_port: run_config.http_api_port,

@@ -1,7 +1,9 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::DEFAULT_MIXNODE_ID;
 use crate::commands::try_load_current_config;
+use crate::env::vars::*;
 use crate::node::node_description::NodeDescription;
 use clap::Args;
 use colored::Colorize;
@@ -11,7 +13,7 @@ use std::io::Write;
 #[derive(Args)]
 pub(crate) struct Describe {
     /// The id of the mixnode you want to describe
-    #[clap(long)]
+    #[clap(long, default_value = DEFAULT_MIXNODE_ID, env = MIXNODE_ID_ARG)]
     id: String,
 
     /// Human readable name of this node

@@ -20,24 +20,24 @@ pub(crate) struct Run {
     id: String,
 
     /// The custom host on which the mixnode will be running
-    #[clap(long, alias = "host")]
+    #[clap(long, alias = "host", env = MIXNODE_LISTENING_ADDRESS_ARG)]
     listening_address: Option<IpAddr>,
 
     /// The port on which the mixnode will be listening for mix packets
-    #[clap(long)]
+    #[clap(long, env = MIXNODE_MIX_PORT_ARG)]
     mix_port: Option<u16>,
 
     /// The port on which the mixnode will be listening for verloc packets
-    #[clap(long)]
+    #[clap(long, env = MIXNODE_VERLOC_PORT_ARG)]
     verloc_port: Option<u16>,
 
     /// The port on which the mixnode will be listening for http requests
-    #[clap(long)]
+    #[clap(long, env = MIXNODE_HTTP_API_PORT_ARG)]
     http_api_port: Option<u16>,
 
     /// Comma separated list of nym-api endpoints of the validators
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    #[clap(long, alias = "validators", value_delimiter = ',')]
+    #[clap(long, alias = "validators", value_delimiter = ',', env = MIXNODE_NYM_APIS_ARG)]
     nym_apis: Option<Vec<url::Url>>,
 
     #[clap(short, long, default_value_t = OutputFormat::default(), env = MIXNODE_OUTPUT_ARG)]

@@ -125,6 +125,7 @@ impl ConnectedClients {
             close_tx: Some(close_tx),
             handle,
         }));
+        log::info!("Inserting {} and {}", ips.ipv4, ips.ipv6);
         self.clients_ipv4_mapping
             .insert(ips.ipv4, Arc::clone(&client));
         self.clients_ipv6_mapping.insert(ips.ipv6, client);

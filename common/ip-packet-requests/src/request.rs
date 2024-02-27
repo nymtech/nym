@@ -267,7 +267,7 @@ mod tests {
                 sender_tag: None,
             },
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(deserialized.version, 4);
         assert_eq!(

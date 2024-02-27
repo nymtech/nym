@@ -126,7 +126,7 @@ impl IpPacketRouter {
             self.wait_for_gateway,
             &self.config.storage_paths.common_paths,
         )
-            .await?;
+        .await?;
 
         let self_address = *mixnet_client.nym_address();
 

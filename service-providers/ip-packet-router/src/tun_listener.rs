@@ -24,7 +24,7 @@ pub(crate) struct ConnectedClientsListener {
     clients_ipv4: HashMap<Ipv4Addr, ConnectedClientMirror>,
     clients_ipv6: HashMap<Ipv6Addr, ConnectedClientMirror>,
     connected_client_rx:
-    tokio::sync::mpsc::UnboundedReceiver<mixnet_listener::ConnectedClientEvent>,
+        tokio::sync::mpsc::UnboundedReceiver<mixnet_listener::ConnectedClientEvent>,
 }
 
 impl ConnectedClientsListener {
@@ -98,9 +98,9 @@ impl TunListener {
         };
 
         if let Some(ConnectedClientMirror {
-                        forward_from_tun_tx,
-                        ips,
-                    }) = self.connected_clients.get(&dst_addr)
+            forward_from_tun_tx,
+            ips,
+        }) = self.connected_clients.get(&dst_addr)
         {
             let packet = buf[..len].to_vec();
             if forward_from_tun_tx.send(packet).is_err() {

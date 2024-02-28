@@ -174,7 +174,7 @@ export const PageMixnodes: FCWithChildren = () => {
           to={`/network-components/mixnode/${params.row.mix_id}`}
           color={useGetMixNodeStatusColor(params.row.status)}
         >
-          {currencyToString(params.value)}
+          {currencyToString({ amount: params.value })}
         </StyledLink>
       ),
     },
@@ -214,7 +214,7 @@ export const PageMixnodes: FCWithChildren = () => {
           to={`/network-components/mixnode/${params.row.mix_id}`}
           color={useGetMixNodeStatusColor(params.row.status)}
         >
-          {currencyToString(params.value)}
+          {currencyToString({ amount: params.value })}
         </StyledLink>
       ),
     },

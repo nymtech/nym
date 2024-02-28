@@ -157,7 +157,7 @@ impl TunDevice {
                 "-6",
                 "addr",
                 "add",
-                &format!("{}/{}", ipv6.to_string(), netmaskv6),
+                &format!("{}/{}", ipv6, netmaskv6),
                 "dev",
                 &tun.name(),
             ])
@@ -183,9 +183,9 @@ impl TunDevice {
             Duration::from_millis(TUN_WRITE_TIMEOUT_MS),
             self.tun.write_all(&packet),
         )
-        .await
-        .map_err(|_| TunDeviceError::TunWriteTimeout)?
-        .map_err(|err| TunDeviceError::TunWriteError { source: err })
+            .await
+            .map_err(|_| TunDeviceError::TunWriteTimeout)?
+            .map_err(|err| TunDeviceError::TunWriteError { source: err })
     }
 
     // Receive reponse packets from the wild internet

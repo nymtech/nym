@@ -6,6 +6,7 @@ on:
       - 'wasm/**'
       - 'clients/client-core/**'
       - 'common/**'
+      - '.github/workflows/ci-sdk-wasm.yml'
 
 jobs:
   wasm:

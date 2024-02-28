@@ -315,9 +315,12 @@ impl IssuanceBandwidthCredential {
     }
 
     // TODO: is that actually needed?
+    // idea: make it consistent with the issued credential and its vX serde
     pub fn try_from_recovered_bytes(bytes: &[u8]) -> Result<Self, Error> {
         use bincode::Options;
-        Ok(make_recovery_bincode_serializer().deserialize(bytes)?)
+        make_recovery_bincode_serializer()
+            .deserialize(bytes)
+            .map_err(|source| Error::RecoveryCredentialDeserializationFailure { source })
     }
 }
 
@@ -326,4 +329,19 @@ fn make_recovery_bincode_serializer() -> impl bincode::Options {
     bincode::DefaultOptions::new()
         .with_big_endian()
         .with_varint_encoding()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
+
+    fn assert_zeroize<T: Zeroize>() {}
+
+    #[test]
+    fn credential_is_zeroized() {
+        assert_zeroize::<IssuanceBandwidthCredential>();
+        assert_zeroize_on_drop::<IssuanceBandwidthCredential>();
+    }
 }

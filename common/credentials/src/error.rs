@@ -5,6 +5,7 @@ use nym_credentials_interface::CoconutError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_validator_client::ValidatorClientError;
 
+use crate::coconut::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -12,8 +13,18 @@ pub enum Error {
     #[error("IO error")]
     IOError(#[from] std::io::Error),
 
-    #[error("failed to (de)serialize credential structure: {0}")]
-    SerializationFailure(#[from] bincode::Error),
+    #[error("failed to deserialize a recovery credential: {source}")]
+    RecoveryCredentialDeserializationFailure { source: bincode::Error },
+
+    #[error("failed to (de)serialize provided credential using revision {revision}: {source}")]
+    SerializationFailure {
+        #[source]
+        source: bincode::Error,
+        revision: u8,
+    },
+
+    #[error("unknown credential serializatio revision {revision}. the current (and max supported) version is {CURRENT_SERIALIZATION_REVISION}")]
+    UnknownSerializationRevision { revision: u8 },
 
     #[error("The detailed description is yet to be determined")]
     BandwidthCredentialError,

@@ -9,3 +9,4 @@ pub use coconut::bandwidth::{
     IssuedBandwidthCredential,
 };
 pub use coconut::utils::{obtain_aggregate_signature, obtain_aggregate_verification_key};
+pub use error::Error;

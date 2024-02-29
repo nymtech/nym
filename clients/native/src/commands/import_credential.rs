@@ -5,14 +5,9 @@ use crate::commands::try_load_current_config;
 use crate::error::ClientError;
 use clap::ArgGroup;
 
-
-
-
-
 use nym_id_lib::import_credential;
 use std::fs;
 use std::path::PathBuf;
-
 
 fn parse_encoded_credential_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
     bs58::decode(raw).into_vec()

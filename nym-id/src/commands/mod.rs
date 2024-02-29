@@ -37,7 +37,6 @@ pub(crate) enum Commands {
     // TODO: to be determined how it's going to work in nymvpn et al.
     // ///
     // Setup,
-    
     /// Attempt to import a bandwidth credential into the provided storage.
     ImportCredential(import_credential::Args),
 

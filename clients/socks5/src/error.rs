@@ -2,7 +2,6 @@ use nym_client_core::error::ClientCoreError;
 
 use nym_id_lib::NymIdError;
 
-
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientError {
     #[error("I/O error: {0}")]

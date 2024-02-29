@@ -8,7 +8,6 @@ use nym_id_lib::NymIdError;
 use nym_socks5_requests::{RemoteAddress, Socks5RequestError};
 use std::net::SocketAddr;
 
-
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkRequesterError {
     #[error("I/O error: {0}")]

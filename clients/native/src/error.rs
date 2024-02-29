@@ -1,6 +1,5 @@
 use nym_client_core::error::ClientCoreError;
 
-
 use nym_id_lib::NymIdError;
 
 #[derive(thiserror::Error, Debug)]
@@ -23,7 +22,7 @@ pub enum ClientError {
 
     #[error("Attempted to start the client in invalid socket mode")]
     InvalidSocketMode,
-    
+
     #[error(transparent)]
-    NymIdError(#[from] NymIdError)
+    NymIdError(#[from] NymIdError),
 }

@@ -5,16 +5,10 @@ use crate::utils::CommonConfigsWrapper;
 use anyhow::bail;
 use clap::ArgGroup;
 use clap::Parser;
-use log::{error, info};
 use nym_credential_storage::initialise_persistent_storage;
-use nym_credential_storage::models::StorableIssuedCredential;
-use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
-use nym_credentials::IssuedBandwidthCredential;
 use nym_id_lib::import_credential;
 use std::fs;
 use std::path::PathBuf;
-use zeroize::Zeroizing;
 
 fn parse_encoded_credential_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
     bs58::decode(raw).into_vec()

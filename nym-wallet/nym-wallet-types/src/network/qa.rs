@@ -1,5 +1,5 @@
 use super::parse_optional_str;
-use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
+use nym_network_defaults::{mainnet::SWAPPER_CONTRACT_ADDRESS, ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
 
 // -- Chain details --
 
@@ -28,6 +28,8 @@ pub(crate) const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str =
     "n13ehuhysn5mqjeaheeuew2gjs785f6k7jm8vfsqg3jhtpkwppcmzq6m2hmz";
 pub(crate) const NAME_SERVICE_CONTRACT_ADDRESS: &str =
     "n1qum2tr7hh4y7ruzew68c64myjec0dq2s2njf6waja5t0w879lutqadamme";
+pub(crate) const SWAPPER_CONTRACT_ADDRESS: &str =
+    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
 // -- Constructor functions --
 
@@ -64,6 +66,7 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
                 SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ),
             name_service_contract_address: parse_optional_str(NAME_SERVICE_CONTRACT_ADDRESS),
+            swapper_contract_address: parse_optional_str(SWAPPER_CONTRACT_ADDRESS),
         },
         explorer_api: parse_optional_str(EXPLORER_API),
     }

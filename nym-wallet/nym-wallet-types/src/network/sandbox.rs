@@ -25,6 +25,8 @@ pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
     "n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a";
 pub(crate) const EPHEMERA_CONTRACT_ADDRESS: &str =
     "n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a";
+pub(crate) const SWAPPER_CONTRACT_ADDRESS: &str =
+    "n1e65nvg9dntgjmfl5ptgpqtlrl89ergakn0zchz68cklhjz6hrnxsmjs5rd";
 
 // -- Constructor functions --
 
@@ -59,6 +61,7 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             ephemera_contract_address: parse_optional_str(EPHEMERA_CONTRACT_ADDRESS),
             service_provider_directory_contract_address: None,
             name_service_contract_address: None,
+            swapper_contract_address: parse_optional_str(SWAPPER_CONTRACT_ADDRESS),
         },
         explorer_api: parse_optional_str(EXPLORER_API),
     }

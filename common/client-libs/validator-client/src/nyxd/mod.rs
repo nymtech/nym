@@ -292,6 +292,9 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
     fn name_service_contract_address(&self) -> Option<&AccountId> {
         self.config.contracts.name_service_contract_address.as_ref()
     }
+    fn swapper_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.swapper_contract_address.as_ref()
+    }
 
     fn service_provider_contract_address(&self) -> Option<&AccountId> {
         self.config

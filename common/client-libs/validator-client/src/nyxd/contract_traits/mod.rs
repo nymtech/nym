@@ -71,6 +71,8 @@ pub trait NymContractsProvider {
     // SPs
     fn name_service_contract_address(&self) -> Option<&AccountId>;
     fn service_provider_contract_address(&self) -> Option<&AccountId>;
+    // swapper
+    fn swapper_contract_address(&self) -> Option<&AccountId>;
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +89,7 @@ pub struct TypedNymContracts {
 
     pub service_provider_directory_contract_address: Option<AccountId>,
     pub name_service_contract_address: Option<AccountId>,
+    pub swapper_contract_address: Option<AccountId>,
 }
 
 impl TryFrom<NymContracts> for TypedNymContracts {
@@ -127,6 +130,10 @@ impl TryFrom<NymContracts> for TypedNymContracts {
                 .map(|addr| addr.parse())
                 .transpose()?,
             name_service_contract_address: value
+                .name_service_contract_address
+                .map(|addr| addr.parse())
+                .transpose()?,
+            swapper_contract_address: value
                 .name_service_contract_address
                 .map(|addr| addr.parse())
                 .transpose()?,

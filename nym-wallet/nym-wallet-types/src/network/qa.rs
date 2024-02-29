@@ -1,5 +1,5 @@
 use super::parse_optional_str;
-use nym_network_defaults::{mainnet::SWAPPER_CONTRACT_ADDRESS, ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
+use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDetails};
 
 // -- Chain details --
 

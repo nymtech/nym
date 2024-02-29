@@ -33,6 +33,7 @@ pub struct NymContracts {
     pub ephemera_contract_address: Option<String>,
     pub service_provider_directory_contract_address: Option<String>,
     pub name_service_contract_address: Option<String>,
+    pub swapper_contract_address: Option<String>,
 }
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
@@ -140,6 +141,7 @@ impl NymNetworkDetails {
             ))
             .with_name_service_contract(get_optional_env(var_names::NAME_SERVICE_CONTRACT_ADDRESS))
             .with_explorer_api(get_optional_env(var_names::EXPLORER_API))
+            .with_swapper_contract(get_optional_env(var_names::SWAPPER_CONTRACT_ADDRESS))
     }
 
     pub fn new_mainnet() -> Self {
@@ -170,6 +172,7 @@ impl NymNetworkDetails {
                 ephemera_contract_address: parse_optional_str(mainnet::EPHEMERA_CONTRACT_ADDRESS),
                 service_provider_directory_contract_address: None,
                 name_service_contract_address: None,
+                swapper_contract_address: None,
             },
             explorer_api: parse_optional_str(mainnet::EXPLORER_API),
         }
@@ -287,6 +290,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_explorer_api<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
         self.explorer_api = endpoint.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_swapper_contract<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
+        self.contracts.swapper_contract_address = endpoint.map(Into::into);
         self
     }
 }

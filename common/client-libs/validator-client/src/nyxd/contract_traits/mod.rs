@@ -134,7 +134,7 @@ impl TryFrom<NymContracts> for TypedNymContracts {
                 .map(|addr| addr.parse())
                 .transpose()?,
             swapper_contract_address: value
-                .name_service_contract_address
+                .swapper_contract_address
                 .map(|addr| addr.parse())
                 .transpose()?,
         })

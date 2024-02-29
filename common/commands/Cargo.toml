@@ -55,6 +55,7 @@ nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-credential-utils = { path = "../../common/credential-utils" }
+nym-id-lib = { path = "../../common/nym-id-lib" }
 
 nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
 nym-types = { path = "../../common/types" }

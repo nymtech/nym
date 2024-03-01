@@ -2,37 +2,26 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
+use crate::node::client_handling::websocket::shared_state::SharedHandlerState;
 use crate::node::storage::Storage;
 use log::*;
-use nym_crypto::asymmetric::identity;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::process;
-use std::sync::Arc;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
     address: SocketAddr,
-    local_identity: Arc<identity::KeyPair>,
-    only_coconut_credentials: bool,
-    pub(crate) coconut_verifier: Arc<CoconutVerifier>,
+    shared_state: SharedHandlerState,
 }
 
 impl Listener {
-    pub(crate) fn new(
-        address: SocketAddr,
-        local_identity: Arc<identity::KeyPair>,
-        only_coconut_credentials: bool,
-        coconut_verifier: Arc<CoconutVerifier>,
-    ) -> Self {
+    pub(crate) fn new(address: SocketAddr, shared_state: SharedHandlerState) -> Self {
         Listener {
             address,
-            local_identity,
-            only_coconut_credentials,
-            coconut_verifier,
+            shared_state,
         }
     }
 
@@ -71,12 +60,10 @@ impl Listener {
                             let handle = FreshHandler::new(
                                 OsRng,
                                 socket,
-                                self.only_coconut_credentials,
                                 outbound_mix_sender.clone(),
-                                Arc::clone(&self.local_identity),
                                 storage.clone(),
                                 active_clients_store.clone(),
-                                Arc::clone(&self.coconut_verifier),
+                                self.shared_state.clone(),
                             );
                             let shutdown = shutdown.clone().named(format!("ClientConnectionHandler_{remote_addr}"));
                             tokio::spawn(async move { handle.start_handling(shutdown).await });

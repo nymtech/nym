@@ -119,11 +119,11 @@ impl ConnectedClients {
             ipv6: ips.ipv6,
             mix_hops,
             last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
-            close_tx: Arc::new(RwLock::new(CloseTx {
+            _close_tx: Arc::new(CloseTx {
                 nym_address,
                 inner: Some(close_tx),
-            })),
-            handle: Arc::new(RwLock::new(handle)),
+            }),
+            handle: Arc::new(handle),
         };
         log::info!("Inserting {} and {}", ips.ipv4, ips.ipv6);
         self.clients_ipv4_mapping.insert(ips.ipv4, client.clone());
@@ -151,20 +151,23 @@ impl ConnectedClients {
     }
 
     // Identify connected client handlers that have stopped without being told to stop
-    async fn get_finished_client_handlers(&mut self) -> Vec<(IPPair, Recipient)> {
-        let mut ret = vec![];
-        for (ip, connected_client) in self.clients_ipv4_mapping.iter() {
-            if connected_client.handle.read().await.is_finished() {
-                ret.push((
-                    IPPair {
-                        ipv4: *ip,
-                        ipv6: connected_client.ipv6,
-                    },
-                    connected_client.nym_address,
-                ));
-            }
-        }
-        ret
+    fn get_finished_client_handlers(&mut self) -> Vec<(IPPair, Recipient)> {
+        self.clients_ipv4_mapping
+            .iter_mut()
+            .filter_map(|(ip, connected_client)| {
+                if connected_client.handle.is_finished() {
+                    Some((
+                        IPPair {
+                            ipv4: *ip,
+                            ipv6: connected_client.ipv6,
+                        },
+                        connected_client.nym_address,
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     async fn get_inactive_clients(&mut self) -> Vec<(IPPair, Recipient)> {
@@ -221,6 +224,8 @@ impl ConnectedClients {
 
 pub(crate) struct CloseTx {
     pub(crate) nym_address: Recipient,
+    // Send to connected clients listener to stop. This is option only because we need to take
+    // ownership of it when the client is dropped.
     pub(crate) inner: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
@@ -239,12 +244,10 @@ pub(crate) struct ConnectedClient {
     // Keep track of last activity so we can disconnect inactive clients
     pub(crate) last_activity: Arc<RwLock<std::time::Instant>>,
 
-    // Send to connected clients listener to stop. This is option only because we need to take
-    // ownership of it when the client is dropped.
-    pub(crate) close_tx: Arc<RwLock<CloseTx>>,
+    pub(crate) _close_tx: Arc<CloseTx>,
 
     // Handle for the connected client handler
-    pub(crate) handle: Arc<RwLock<tokio::task::JoinHandle<()>>>,
+    pub(crate) handle: Arc<tokio::task::JoinHandle<()>>,
 }
 
 impl ConnectedClient {
@@ -311,10 +314,7 @@ impl MixnetListener {
         let is_ip_taken = self.connected_clients.is_ip_connected(&requested_ips);
 
         // Check that the nym address isn't already registered
-        let is_nym_address_taken = self
-            .connected_clients
-            .is_nym_address_connected(&reply_to)
-            .await;
+        let is_nym_address_taken = self.connected_clients.is_nym_address_connected(&reply_to);
 
         match (is_ip_taken, is_nym_address_taken) {
             (true, true) => {
@@ -395,11 +395,7 @@ impl MixnetListener {
         // TODO: this is problematic. Until we sign connect requests this means you can spam people
         // with return traffic
 
-        if let Some(existing_ips) = self
-            .connected_clients
-            .lookup_ip_from_nym_address(&reply_to)
-            .await
-        {
+        if let Some(existing_ips) = self.connected_clients.lookup_ip_from_nym_address(&reply_to) {
             log::info!("Found existing client for nym address");
             if self
                 .connected_clients
@@ -477,9 +473,8 @@ impl MixnetListener {
         log::debug!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
 
         if let Some(connected_client) = self.connected_clients.get_client_from_ip_mut(&src_addr) {
-            let mut client = connected_client.write().await;
             // Keep track of activity so we can disconnect inactive clients
-            client.update_activity();
+            connected_client.update_activity().await;
 
             // For packets without a port, use 0.
             let dst = dst.unwrap_or_else(|| SocketAddr::new(dst_addr, 0));
@@ -495,7 +490,7 @@ impl MixnetListener {
             } else {
                 log::info!("Denied filter check: {dst}");
                 Ok(Some(IpPacketResponse::new_data_error_response(
-                    client.nym_address,
+                    connected_client.nym_address,
                     ErrorResponseReply::ExitPolicyFilterCheckFailed {
                         dst: dst.to_string(),
                     },
@@ -591,7 +586,7 @@ impl MixnetListener {
     }
 
     async fn handle_disconnect_timer(&mut self) {
-        let stopped_clients = self.connected_clients.get_finished_client_handlers().await;
+        let stopped_clients = self.connected_clients.get_finished_client_handlers();
         let inactive_clients = self.connected_clients.get_inactive_clients().await;
 
         // TODO: Send disconnect responses to all disconnected clients
@@ -625,9 +620,8 @@ impl MixnetListener {
         let mix_hops = if let Some(c) = self
             .connected_clients
             .lookup_client_from_nym_address(recipient)
-            .await
         {
-            c.read().await.mix_hops
+            c.mix_hops
         } else {
             None
         };

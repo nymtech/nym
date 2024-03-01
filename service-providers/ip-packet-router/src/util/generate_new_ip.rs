@@ -34,9 +34,10 @@ pub(crate) fn find_new_ips<T>(
 ) -> Option<IPPair> {
     let mut new_ips = generate_random_ips_within_subnet();
     let mut tries = 0;
-    let ipv4 = TUN_DEVICE_ADDRESS_V4.parse::<Ipv4Addr>().unwrap();
-    let ipv6 = TUN_DEVICE_ADDRESS_V6.parse::<Ipv6Addr>().unwrap();
-    let tun_ips = IPPair { ipv4, ipv6 };
+    let tun_ips = IPPair {
+        ipv4: TUN_DEVICE_ADDRESS_V4,
+        ipv6: TUN_DEVICE_ADDRESS_V6,
+    };
 
     while is_ip_taken(
         connected_clients_ipv4,

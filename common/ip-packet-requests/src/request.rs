@@ -1,9 +1,15 @@
-use std::net::IpAddr;
+use std::fmt::{Display, Formatter};
 
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
-use crate::{make_bincode_serializer, CURRENT_VERSION};
+use crate::{make_bincode_serializer, IPPair, CURRENT_VERSION};
+
+impl Display for IPPair {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "IPv4: {}, IPV6: {}", self.ipv4, self.ipv6)
+    }
+}
 
 fn generate_random() -> u64 {
     use rand::RngCore;
@@ -19,7 +25,7 @@ pub struct IpPacketRequest {
 
 impl IpPacketRequest {
     pub fn new_static_connect_request(
-        ip: IpAddr,
+        ips: IPPair,
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
@@ -31,7 +37,7 @@ impl IpPacketRequest {
                 version: CURRENT_VERSION,
                 data: IpPacketRequestData::StaticConnect(StaticConnectRequest {
                     request_id,
-                    ip,
+                    ips,
                     reply_to,
                     reply_to_hops,
                     reply_to_avg_mix_delays,
@@ -137,7 +143,7 @@ pub enum IpPacketRequestData {
 pub struct StaticConnectRequest {
     pub request_id: u64,
 
-    pub ip: IpAddr,
+    pub ips: IPPair,
 
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
@@ -210,6 +216,8 @@ pub struct HealthRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::{Ipv4Addr, Ipv6Addr};
+    use std::str::FromStr;
 
     #[test]
     fn check_size_of_request() {
@@ -218,15 +226,18 @@ mod tests {
             data: IpPacketRequestData::StaticConnect(
                 StaticConnectRequest {
                     request_id: 123,
-                    ip: IpAddr::from([10, 0, 0, 1]),
+                    ips: IPPair {
+                        ipv4: Ipv4Addr::from_str("10.0.0.1").unwrap(),
+                        ipv6: Ipv6Addr::from_str("2001:db8:a160::1").unwrap(),
+                    },
                     reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
                     reply_to_hops: None,
                     reply_to_avg_mix_delays: None,
                     buffer_timeout: None,
                 },
-            )
+            ),
         };
-        assert_eq!(connect.to_bytes().unwrap().len(), 108);
+        assert_eq!(connect.to_bytes().unwrap().len(), 123);
     }
 
     #[test]

@@ -1,5 +1,7 @@
-use std::{collections::HashMap, net::IpAddr};
+use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use nym_ip_packet_requests::IPPair;
 use nym_task::TaskClient;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
@@ -15,10 +17,12 @@ use crate::{
 // It's even ok if this is slightly out of date
 pub(crate) struct ConnectedClientMirror {
     pub(crate) forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
+    pub(crate) ips: IPPair,
 }
 
 pub(crate) struct ConnectedClientsListener {
-    clients: HashMap<IpAddr, ConnectedClientMirror>,
+    clients_ipv4: HashMap<Ipv4Addr, ConnectedClientMirror>,
+    clients_ipv6: HashMap<Ipv6Addr, ConnectedClientMirror>,
     connected_client_rx:
         tokio::sync::mpsc::UnboundedReceiver<mixnet_listener::ConnectedClientEvent>,
 }
@@ -30,35 +34,48 @@ impl ConnectedClientsListener {
         >,
     ) -> Self {
         ConnectedClientsListener {
-            clients: HashMap::new(),
+            clients_ipv4: HashMap::new(),
+            clients_ipv6: HashMap::new(),
             connected_client_rx,
         }
     }
 
     pub(crate) fn get(&self, ip: &IpAddr) -> Option<&ConnectedClientMirror> {
-        self.clients.get(ip)
+        match ip {
+            IpAddr::V4(ip) => self.clients_ipv4.get(ip),
+            IpAddr::V6(ip) => self.clients_ipv6.get(ip),
+        }
     }
 
     pub(crate) fn update(&mut self, event: mixnet_listener::ConnectedClientEvent) {
         match event {
             mixnet_listener::ConnectedClientEvent::Connect(connected_event) => {
                 let mixnet_listener::ConnectEvent {
-                    ip,
+                    ips,
                     forward_from_tun_tx,
                 } = *connected_event;
-                log::trace!("Connect client: {ip}");
-                self.clients.insert(
-                    ip,
+                log::trace!("Connect client: {ips}");
+                self.clients_ipv4.insert(
+                    ips.ipv4,
+                    ConnectedClientMirror {
+                        forward_from_tun_tx: forward_from_tun_tx.clone(),
+                        ips,
+                    },
+                );
+                self.clients_ipv6.insert(
+                    ips.ipv6,
                     ConnectedClientMirror {
                         forward_from_tun_tx,
+                        ips,
                     },
                 );
             }
             mixnet_listener::ConnectedClientEvent::Disconnect(
-                mixnet_listener::DisconnectEvent(ip),
+                mixnet_listener::DisconnectEvent(ips),
             ) => {
-                log::trace!("Disconnect client: {ip}");
-                self.clients.remove(&ip);
+                log::trace!("Disconnect client: {ips}");
+                self.clients_ipv4.remove(&ips.ipv4);
+                self.clients_ipv6.remove(&ips.ipv6);
             }
         }
     }
@@ -82,6 +99,7 @@ impl TunListener {
 
         if let Some(ConnectedClientMirror {
             forward_from_tun_tx,
+            ips,
         }) = self.connected_clients.get(&dst_addr)
         {
             let packet = buf[..len].to_vec();
@@ -89,7 +107,7 @@ impl TunListener {
                 log::warn!("Failed to forward packet to connected client {dst_addr}: disconnecting it from tun listener");
                 self.connected_clients
                     .update(mixnet_listener::ConnectedClientEvent::Disconnect(
-                        mixnet_listener::DisconnectEvent(dst_addr),
+                        mixnet_listener::DisconnectEvent(*ips),
                     ));
             }
         } else {

@@ -36,12 +36,10 @@ use crate::{
     },
 };
 
-pub(crate) type ConnectedClientRef = Arc<RwLock<ConnectedClient>>;
-
 pub(crate) struct ConnectedClients {
     // The set of connected clients
-    clients_ipv4_mapping: HashMap<Ipv4Addr, ConnectedClientRef>,
-    clients_ipv6_mapping: HashMap<Ipv6Addr, ConnectedClientRef>,
+    clients_ipv4_mapping: HashMap<Ipv4Addr, ConnectedClient>,
+    clients_ipv6_mapping: HashMap<Ipv6Addr, ConnectedClient>,
 
     // Notify the tun listener when a new client connects or disconnects
     tun_listener_connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
@@ -65,45 +63,44 @@ impl ConnectedClients {
             || self.clients_ipv6_mapping.contains_key(&ips.ipv6)
     }
 
-    fn get_client_from_ip_mut(&mut self, ip: &IpAddr) -> Option<&mut ConnectedClientRef> {
+    fn get_client_from_ip_mut(&mut self, ip: &IpAddr) -> Option<&mut ConnectedClient> {
         match ip {
             IpAddr::V4(ip) => self.clients_ipv4_mapping.get_mut(ip),
             IpAddr::V6(ip) => self.clients_ipv6_mapping.get_mut(ip),
         }
     }
 
-    async fn is_nym_address_connected(&self, nym_address: &Recipient) -> bool {
-        for client in self.clients_ipv4_mapping.values() {
-            if client.read().await.nym_address == *nym_address {
-                return true;
-            }
-        }
-        false
+    fn is_nym_address_connected(&self, nym_address: &Recipient) -> bool {
+        self.clients_ipv4_mapping
+            .values()
+            .any(|client| client.nym_address == *nym_address)
     }
 
-    async fn lookup_ip_from_nym_address(&self, nym_address: &Recipient) -> Option<IPPair> {
-        for (ipv4, client) in self.clients_ipv4_mapping.iter() {
-            let connected_client = client.read().await;
-            if connected_client.nym_address == *nym_address {
-                return Some(IPPair {
-                    ipv4: *ipv4,
-                    ipv6: connected_client.ipv6,
-                });
-            }
-        }
-        None
+    fn lookup_ip_from_nym_address(&self, nym_address: &Recipient) -> Option<IPPair> {
+        self.clients_ipv4_mapping
+            .iter()
+            .find_map(|(ipv4, connected_client)| {
+                if connected_client.nym_address == *nym_address {
+                    Some(IPPair {
+                        ipv4: *ipv4,
+                        ipv6: connected_client.ipv6,
+                    })
+                } else {
+                    None
+                }
+            })
     }
 
-    async fn lookup_client_from_nym_address(
-        &self,
-        nym_address: &Recipient,
-    ) -> Option<&ConnectedClientRef> {
-        for client in self.clients_ipv4_mapping.values() {
-            if client.read().await.nym_address == *nym_address {
-                return Some(client);
-            }
-        }
-        None
+    fn lookup_client_from_nym_address(&self, nym_address: &Recipient) -> Option<&ConnectedClient> {
+        self.clients_ipv4_mapping
+            .iter()
+            .find_map(|(_, connected_client)| {
+                if connected_client.nym_address == *nym_address {
+                    Some(connected_client)
+                } else {
+                    None
+                }
+            })
     }
 
     fn connect(
@@ -117,17 +114,19 @@ impl ConnectedClients {
     ) {
         // The map of connected clients that the mixnet listener keeps track of. It monitors
         // activity and disconnects clients that have been inactive for too long.
-        let client = Arc::new(RwLock::new(ConnectedClient {
+        let client = ConnectedClient {
             nym_address,
             ipv6: ips.ipv6,
             mix_hops,
-            last_activity: std::time::Instant::now(),
-            close_tx: Some(close_tx),
-            handle,
-        }));
+            last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
+            close_tx: Arc::new(RwLock::new(CloseTx {
+                nym_address,
+                inner: Some(close_tx),
+            })),
+            handle: Arc::new(RwLock::new(handle)),
+        };
         log::info!("Inserting {} and {}", ips.ipv4, ips.ipv6);
-        self.clients_ipv4_mapping
-            .insert(ips.ipv4, Arc::clone(&client));
+        self.clients_ipv4_mapping.insert(ips.ipv4, client.clone());
         self.clients_ipv6_mapping.insert(ips.ipv6, client);
         // Send the connected client info to the tun listener, which will use it to forward packets
         // to the connected client handler.
@@ -143,8 +142,8 @@ impl ConnectedClients {
     }
 
     async fn update_activity(&mut self, ips: &IPPair) -> Result<()> {
-        if let Some(client) = self.clients_ipv4_mapping.get_mut(&ips.ipv4) {
-            client.write().await.last_activity = std::time::Instant::now();
+        if let Some(client) = self.clients_ipv4_mapping.get(&ips.ipv4) {
+            *client.last_activity.write().await = std::time::Instant::now();
             Ok(())
         } else {
             Err(IpPacketRouterError::FailedToUpdateClientActivity)
@@ -154,13 +153,12 @@ impl ConnectedClients {
     // Identify connected client handlers that have stopped without being told to stop
     async fn get_finished_client_handlers(&mut self) -> Vec<(IPPair, Recipient)> {
         let mut ret = vec![];
-        for (ip, client) in self.clients_ipv4_mapping.iter() {
-            let connected_client = client.read().await;
-            if connected_client.handle.is_finished() {
+        for (ip, connected_client) in self.clients_ipv4_mapping.iter() {
+            if connected_client.handle.read().await.is_finished() {
                 ret.push((
                     IPPair {
                         ipv4: *ip,
-                        ipv6: client.read().await.ipv6,
+                        ipv6: connected_client.ipv6,
                     },
                     connected_client.nym_address,
                 ));
@@ -172,9 +170,9 @@ impl ConnectedClients {
     async fn get_inactive_clients(&mut self) -> Vec<(IPPair, Recipient)> {
         let now = std::time::Instant::now();
         let mut ret = vec![];
-        for (ip, client) in self.clients_ipv4_mapping.iter() {
-            let connected_client = client.read().await;
-            if now.duration_since(connected_client.last_activity) > CLIENT_MIXNET_INACTIVITY_TIMEOUT
+        for (ip, connected_client) in self.clients_ipv4_mapping.iter() {
+            if now.duration_since(*connected_client.last_activity.read().await)
+                > CLIENT_MIXNET_INACTIVITY_TIMEOUT
             {
                 ret.push((
                     IPPair {
@@ -221,6 +219,12 @@ impl ConnectedClients {
     }
 }
 
+pub(crate) struct CloseTx {
+    pub(crate) nym_address: Recipient,
+    pub(crate) inner: Option<tokio::sync::oneshot::Sender<()>>,
+}
+
+#[derive(Clone)]
 pub(crate) struct ConnectedClient {
     // The nym address of the connected client that we are communicating with on the other side of
     // the mixnet
@@ -233,26 +237,26 @@ pub(crate) struct ConnectedClient {
     pub(crate) mix_hops: Option<u8>,
 
     // Keep track of last activity so we can disconnect inactive clients
-    pub(crate) last_activity: std::time::Instant,
+    pub(crate) last_activity: Arc<RwLock<std::time::Instant>>,
 
     // Send to connected clients listener to stop. This is option only because we need to take
     // ownership of it when the client is dropped.
-    pub(crate) close_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    pub(crate) close_tx: Arc<RwLock<CloseTx>>,
 
     // Handle for the connected client handler
-    pub(crate) handle: tokio::task::JoinHandle<()>,
+    pub(crate) handle: Arc<RwLock<tokio::task::JoinHandle<()>>>,
 }
 
 impl ConnectedClient {
-    fn update_activity(&mut self) {
-        self.last_activity = std::time::Instant::now();
+    async fn update_activity(&self) {
+        *self.last_activity.write().await = std::time::Instant::now();
     }
 }
 
-impl Drop for ConnectedClient {
+impl Drop for CloseTx {
     fn drop(&mut self) {
         log::debug!("signal to close client: {}", self.nym_address);
-        if let Some(close_tx) = self.close_tx.take() {
+        if let Some(close_tx) = self.inner.take() {
             close_tx.send(()).ok();
         }
     }

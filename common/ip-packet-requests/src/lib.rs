@@ -5,6 +5,8 @@ pub mod codec;
 pub mod request;
 pub mod response;
 
+// version 3: initial version
+// version 4: IPv6 support
 pub const CURRENT_VERSION: u8 = 4;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

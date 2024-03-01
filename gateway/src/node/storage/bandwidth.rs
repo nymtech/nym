@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::storage::models::{PersistedBandwidth, SpentCredential};
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub(crate) struct BandwidthManager {
@@ -36,6 +37,53 @@ impl BandwidthManager {
         Ok(())
     }
 
+    /// Set the freepass expiration date of the particular client to the provided date.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address_bs58`: base58-encoded address of the client.
+    /// * `freepass_expiration`: the expiration date of the associated free pass.
+    pub(crate) async fn set_freepass_expiration(
+        &self,
+        client_address_bs58: &str,
+        freepass_expiration: OffsetDateTime,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                UPDATE available_bandwidth
+                SET freepass_expiration = ?
+                WHERE client_address_bs58 = ?
+            "#,
+            freepass_expiration,
+            client_address_bs58
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Reset all the bandwidth associated with the freepass and reset its expiration date
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address_bs58`: base58-encoded address of the client.
+    pub(crate) async fn reset_freepass_bandwidth(
+        &self,
+        client_address_bs58: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                UPDATE available_bandwidth
+                SET available = 0, freepass_expiration = NULL
+                WHERE client_address_bs58 = ?
+            "#,
+            client_address_bs58
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
     /// Tries to retrieve available bandwidth for the particular client.
     ///
     /// # Arguments
@@ -45,22 +93,19 @@ impl BandwidthManager {
         &self,
         client_address_bs58: &str,
     ) -> Result<Option<PersistedBandwidth>, sqlx::Error> {
-        sqlx::query_as!(
-            PersistedBandwidth,
-            "SELECT * FROM available_bandwidth WHERE client_address_bs58 = ?",
-            client_address_bs58
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
+        sqlx::query_as("SELECT * FROM available_bandwidth WHERE client_address_bs58 = ?")
+            .bind(client_address_bs58)
+            .fetch_optional(&self.connection_pool)
+            .await
     }
 
-    /// Increases available bandwidth of the particular client by the specified amount.
+    /// Sets available bandwidth of the particular client to the provided amount;
     ///
     /// # Arguments
     ///
-    /// * `client_address_bs58`: base58-encoded address of the client.
-    /// * `amount`: amount of available bandwidth to be added to the client.
-    pub(crate) async fn increase_available_bandwidth(
+    /// * `client_address`: address of the client
+    /// * `amount`: the updated client bandwidth amount.
+    pub(crate) async fn set_available_bandwidth(
         &self,
         client_address_bs58: &str,
         amount: i64,
@@ -68,32 +113,7 @@ impl BandwidthManager {
         sqlx::query!(
             r#"
                 UPDATE available_bandwidth
-                SET available = available + ?
-                WHERE client_address_bs58 = ?
-            "#,
-            amount,
-            client_address_bs58
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    /// Decreases available bandwidth of the particular client by the specified amount.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address_bs58`: base58-encoded address of the client.
-    /// * `amount`: amount of available bandwidth to be removed from the client.
-    pub(crate) async fn decrease_available_bandwidth(
-        &self,
-        client_address_bs58: &str,
-        amount: i64,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                UPDATE available_bandwidth
-                SET available = available - ?
+                SET available = ?
                 WHERE client_address_bs58 = ?
             "#,
             amount,

@@ -38,6 +38,7 @@ sqlx = { workspace = true, features = [
     "sqlite",
     "macros",
     "migrate",
+    "time"
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = { workspace = true }

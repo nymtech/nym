@@ -20,18 +20,19 @@ use nym_gateway_requests::{
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
+use crate::node::client_handling::websocket::connection_handler::AvailableBandwidth;
+use crate::node::client_handling::websocket::shared_state::SharedHandlerState;
 use crate::node::{
     client_handling::{
         active_clients::ActiveClientsStore,
         websocket::{
             connection_handler::{
-                coconut::CoconutVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
-                SocketStream,
+                AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
             },
             message_receiver::{IsActive, IsActiveRequestSender},
         },
@@ -88,13 +89,11 @@ impl InitialAuthenticationError {
 
 pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
-    local_identity: Arc<identity::KeyPair>,
-    pub(crate) only_coconut_credentials: bool,
+    pub(crate) shared_state: SharedHandlerState,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
-    pub(crate) coconut_verifier: Arc<CoconutVerifier>,
 
     // currently unused (but populated)
     pub(crate) negotiated_protocol: Option<u8>,
@@ -113,23 +112,19 @@ where
     pub(crate) fn new(
         rng: R,
         conn: S,
-        only_coconut_credentials: bool,
         outbound_mix_sender: MixForwardingSender,
-        local_identity: Arc<identity::KeyPair>,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        coconut_verifier: Arc<CoconutVerifier>,
+        shared_state: SharedHandlerState,
     ) -> Self {
         FreshHandler {
             rng,
             active_clients_store,
-            only_coconut_credentials,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
-            local_identity,
             storage,
-            coconut_verifier,
             negotiated_protocol: None,
+            shared_state,
         }
     }
 
@@ -171,7 +166,7 @@ where
                 gateway_handshake(
                     &mut self.rng,
                     ws_stream,
-                    self.local_identity.as_ref(),
+                    self.shared_state.local_identity.as_ref(),
                     init_msg,
                 )
                 .await
@@ -436,7 +431,7 @@ where
         // Ask the other connection to ping if they are still active.
         // Use a oneshot channel to return the result to us
         let (ping_result_sender, ping_result_receiver) = oneshot::channel();
-        log::debug!("Asking other connection handler to ping the connected client to see if it is still active");
+        debug!("Asking other connection handler to ping the connected client to see if it is still active");
         if let Err(err) = is_active_request_tx.send(ping_result_sender).await {
             warn!("Failed to send ping request to other handler: {err}");
         }
@@ -448,31 +443,31 @@ where
                     IsActive::NotActive => {
                         // The other handler reported that the client is not active, so we can
                         // disconnect the other client and continue with this connection.
-                        log::debug!("Other handler reports it is not active");
+                        debug!("Other handler reports it is not active");
                         self.active_clients_store.disconnect(address);
                     }
                     IsActive::Active => {
                         // The other handled reported a positive reply, so we have to assume it's
                         // still active and disconnect this connection.
-                        log::info!("Other handler reports it is active");
+                        info!("Other handler reports it is active");
                         return Err(InitialAuthenticationError::DuplicateConnection);
                     }
                     IsActive::BusyPinging => {
                         // The other handler is already busy pinging the client, so we have to
                         // assume it's still active and disconnect this connection.
-                        log::debug!("Other handler reports it is already busy pinging the client");
+                        debug!("Other handler reports it is already busy pinging the client");
                         return Err(InitialAuthenticationError::DuplicateConnection);
                     }
                 }
             }
             Ok(Err(_)) => {
                 // Other channel failed to reply (the channel sender probably dropped)
-                log::info!("Other connection failed to reply, disconnecting it in favour of this new connection");
+                info!("Other connection failed to reply, disconnecting it in favour of this new connection");
                 self.active_clients_store.disconnect(address);
             }
             Err(_) => {
                 // Timeout waiting for reply
-                log::warn!(
+                warn!(
                     "Other connection timed out, disconnecting it in favour of this new connection"
                 );
                 self.active_clients_store.disconnect(address);
@@ -509,7 +504,7 @@ where
 
         // Check for duplicate clients
         if let Some(client_tx) = self.active_clients_store.get_remote_client(address) {
-            log::warn!("Detected duplicate connection for client: {address}");
+            warn!("Detected duplicate connection for client: {address}");
             self.handle_duplicate_client(address, client_tx.is_active_request_sender)
                 .await?;
         }
@@ -518,11 +513,17 @@ where
             .authenticate_client(address, encrypted_address, iv)
             .await?;
         let status = shared_keys.is_some();
-        let bandwidth_remaining = self
-            .storage
-            .get_available_bandwidth(address)
-            .await?
-            .unwrap_or(0);
+
+        let available_bandwidth: AvailableBandwidth =
+            self.storage.get_available_bandwidth(address).await?.into();
+
+        let bandwidth_remaining = if available_bandwidth.freepass_expired() {
+            self.expire_freepass(address).await?;
+            0
+        } else {
+            available_bandwidth.bytes
+        };
+
         let client_details =
             shared_keys.map(|shared_keys| ClientDetails::new(address, shared_keys));
 
@@ -534,6 +535,13 @@ where
                 bandwidth_remaining,
             },
         ))
+    }
+
+    pub(crate) async fn expire_freepass(
+        &self,
+        client: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        self.storage.reset_freepass_bandwidth(client).await
     }
 
     /// Attempts to finalize registration of the client by storing the derived shared keys in the
@@ -708,12 +716,14 @@ where
                                     mix_sender,
                                     is_active_request_sender,
                                 );
-                                Some(AuthenticatedHandler::upgrade(
+                                AuthenticatedHandler::upgrade(
                                     self,
                                     client_details,
                                     mix_receiver,
                                     is_active_request_receiver,
-                                ))
+                                )
+                                .await
+                                .ok()
                             } else {
                                 None
                             };

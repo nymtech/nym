@@ -254,13 +254,14 @@ impl<St> Gateway<St> {
             self.config.gateway.clients_port,
         );
 
-        websocket::Listener::new(
-            listening_address,
-            Arc::clone(&self.identity_keypair),
-            self.config.gateway.only_coconut_credentials,
+        let shared_state = websocket::SharedHandlerState {
             coconut_verifier,
-        )
-        .start(
+            local_identity: Arc::clone(&self.identity_keypair),
+            only_coconut_credentials: self.config.gateway.only_coconut_credentials,
+            bandwidth_cfg: (&self.config).into(),
+        };
+
+        websocket::Listener::new(listening_address, shared_state).start(
             forwarding_channel,
             self.storage.clone(),
             active_clients_store,

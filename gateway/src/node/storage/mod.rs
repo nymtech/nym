@@ -4,7 +4,7 @@
 use crate::node::storage::bandwidth::BandwidthManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
-use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
+use crate::node::storage::models::{PersistedBandwidth, PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
 use log::{debug, error};
@@ -13,6 +13,7 @@ use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
+use time::OffsetDateTime;
 
 mod bandwidth;
 pub(crate) mod error;
@@ -102,6 +103,28 @@ pub trait Storage: Send + Sync {
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError>;
 
+    /// Set the freepass expiration date of the particular client to the provided date.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `freepass_expiration`: the expiration date of the associated free pass.
+    async fn set_freepass_expiration(
+        &self,
+        client_address: DestinationAddressBytes,
+        freepass_expiration: OffsetDateTime,
+    ) -> Result<(), StorageError>;
+
+    /// Reset all the bandwidth associated with the freepass and reset its expiration date
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    async fn reset_freepass_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError>;
+
     /// Tries to retrieve available bandwidth for the particular client.
     ///
     /// # Arguments
@@ -110,27 +133,15 @@ pub trait Storage: Send + Sync {
     async fn get_available_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
-    ) -> Result<Option<i64>, StorageError>;
+    ) -> Result<Option<PersistedBandwidth>, StorageError>;
 
-    /// Increases available bandwidth of the particular client by the specified amount.
+    /// Sets available bandwidth of the particular client to the provided amount;
     ///
     /// # Arguments
     ///
     /// * `client_address`: address of the client
-    /// * `amount`: amount of available bandwidth to be added to the client.
-    async fn increase_bandwidth(
-        &self,
-        client_address: DestinationAddressBytes,
-        amount: i64,
-    ) -> Result<(), StorageError>;
-
-    /// Decreases available bandwidth of the particular client by the specified amount.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    /// * `amount`: amount of available bandwidth to be removed from the client.
-    async fn consume_bandwidth(
+    /// * `amount`: the updated client bandwidth amount.
+    async fn set_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
         amount: i64,
@@ -295,36 +306,44 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn get_available_bandwidth(
+    async fn set_freepass_expiration(
         &self,
         client_address: DestinationAddressBytes,
-    ) -> Result<Option<i64>, StorageError> {
-        let res = self
-            .bandwidth_manager
-            .get_available_bandwidth(&client_address.as_base58_string())
-            .await
-            .map(|bandwidth_option| bandwidth_option.map(|bandwidth| bandwidth.available))?;
-        Ok(res)
-    }
-
-    async fn increase_bandwidth(
-        &self,
-        client_address: DestinationAddressBytes,
-        amount: i64,
+        freepass_expiration: OffsetDateTime,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .increase_available_bandwidth(&client_address.as_base58_string(), amount)
+            .set_freepass_expiration(&client_address.as_base58_string(), freepass_expiration)
             .await?;
         Ok(())
     }
 
-    async fn consume_bandwidth(
+    async fn reset_freepass_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        self.bandwidth_manager
+            .reset_freepass_bandwidth(&client_address.as_base58_string())
+            .await?;
+        Ok(())
+    }
+
+    async fn get_available_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<Option<PersistedBandwidth>, StorageError> {
+        Ok(self
+            .bandwidth_manager
+            .get_available_bandwidth(&client_address.as_base58_string())
+            .await?)
+    }
+
+    async fn set_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
         amount: i64,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .decrease_available_bandwidth(&client_address.as_base58_string(), amount)
+            .set_available_bandwidth(&client_address.as_base58_string(), amount)
             .await?;
         Ok(())
     }
@@ -422,22 +441,29 @@ impl Storage for InMemStorage {
         todo!()
     }
 
-    async fn get_available_bandwidth(
+    async fn set_freepass_expiration(
         &self,
         _client_address: DestinationAddressBytes,
-    ) -> Result<Option<i64>, StorageError> {
-        todo!()
-    }
-
-    async fn increase_bandwidth(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _amount: i64,
+        _freepass_expiration: OffsetDateTime,
     ) -> Result<(), StorageError> {
         todo!()
     }
 
-    async fn consume_bandwidth(
+    async fn reset_freepass_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn get_available_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<Option<PersistedBandwidth>, StorageError> {
+        todo!()
+    }
+
+    async fn set_bandwidth(
         &self,
         _client_address: DestinationAddressBytes,
         _amount: i64,

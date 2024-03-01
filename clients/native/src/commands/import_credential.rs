@@ -4,14 +4,10 @@
 use crate::commands::try_load_current_config;
 use crate::error::ClientError;
 use clap::ArgGroup;
-use log::{error, info};
-use nym_credential_storage::models::StorableIssuedCredential;
-use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
-use nym_credentials::IssuedBandwidthCredential;
+
+use nym_id_lib::import_credential;
 use std::fs;
 use std::path::PathBuf;
-use zeroize::Zeroizing;
 
 fn parse_encoded_credential_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
     bs58::decode(raw).into_vec()
@@ -33,8 +29,8 @@ pub(crate) struct Args {
     pub(crate) credential_path: Option<PathBuf>,
 
     // currently hidden as there exists only a single serialization standard
-    #[clap(long, hide = true, default_value_t = 1)]
-    pub(crate) version: u8,
+    #[clap(long, hide = true)]
+    pub(crate) version: Option<u8>,
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), ClientError> {
@@ -52,50 +48,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), ClientError> {
             fs::read(args.credential_path.unwrap())?
         }
     };
-    let raw_credential = Zeroizing::new(raw_credential);
 
-    // we're unpacking the data in order to make sure it's valid
-    // and to extract relevant metadata for storage purposes
-    let credential = match args.version {
-        1 => Zeroizing::new(
-            IssuedBandwidthCredential::unpack_v1(&raw_credential).map_err(|source| {
-                ClientError::CredentialDeserializationFailure {
-                    storage_revision: 1,
-                    source,
-                }
-            })?,
-        ),
-        other => panic!("unknown credential serialization version {other}"),
-    };
-
-    info!("importing {}", credential.typ());
-    match credential.variant_data() {
-        BandwidthCredentialIssuedDataVariant::Voucher(voucher_info) => {
-            info!("with value of {}", voucher_info.value())
-        }
-        BandwidthCredentialIssuedDataVariant::FreePass(freepass_info) => {
-            info!("with expiry at {}", freepass_info.expiry_date());
-            if freepass_info.expired() {
-                error!("the free pass has already expired!");
-
-                // technically we can import it, but the gateway will just reject it so what's the point
-                return Err(ClientError::ExpiredCredentialImport {
-                    expiration: freepass_info.expiry_date(),
-                });
-            }
-        }
-    }
-
-    let storable = StorableIssuedCredential {
-        serialization_revision: args.version,
-        credential_data: &raw_credential,
-        credential_type: credential.typ().to_string(),
-        epoch_id: credential
-            .epoch_id()
-            .try_into()
-            .expect("our epoch is has run over u32::MAX!"),
-    };
-
-    credentials_store.insert_issued_credential(storable).await?;
+    import_credential(credentials_store, raw_credential, args.version).await?;
     Ok(())
 }

@@ -5128,6 +5128,7 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-id-lib",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-name-service-common",
@@ -5168,6 +5169,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-id-lib",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -5627,6 +5629,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-id"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bs58 0.5.0",
+ "clap 4.4.7",
+ "nym-bin-common",
+ "nym-credential-storage",
+ "nym-id-lib",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "nym-id-lib"
+version = "0.1.0"
+dependencies = [
+ "nym-credential-storage",
+ "nym-credentials",
+ "thiserror",
+ "time",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-inclusion-probability"
 version = "0.1.0"
 dependencies = [
@@ -5864,6 +5892,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-exit-policy",
+ "nym-id-lib",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-sdk",
@@ -6151,6 +6180,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-id-lib",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-pemstore",

@@ -1,6 +1,6 @@
 use nym_client_core::error::ClientCoreError;
-use nym_credential_storage::error::StorageError;
-use time::OffsetDateTime;
+
+use nym_id_lib::NymIdError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientError {
@@ -23,21 +23,6 @@ pub enum ClientError {
     #[error("Attempted to start the client in invalid socket mode")]
     InvalidSocketMode,
 
-    #[error("failed to store credential: {source}")]
-    CredentialStorageFailure {
-        #[from]
-        source: StorageError,
-    },
-
-    #[error(
-        "failed to deserialize provided credential using revision {storage_revision}: {source}"
-    )]
-    CredentialDeserializationFailure {
-        storage_revision: u8,
-        #[source]
-        source: nym_credentials::error::Error,
-    },
-
-    #[error("attempted to import an expired credential (it expired on {expiration})")]
-    ExpiredCredentialImport { expiration: OffsetDateTime },
+    #[error(transparent)]
+    NymIdError(#[from] NymIdError),
 }

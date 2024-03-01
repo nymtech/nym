@@ -116,6 +116,15 @@ impl IssuedBandwidthCredential {
         }
     }
 
+    pub fn try_unpack(bytes: &[u8], revision: impl Into<Option<u8>>) -> Result<Self, Error> {
+        let revision = revision.into().unwrap_or(CURRENT_SERIALIZATION_REVISION);
+
+        match revision {
+            1 => Self::unpack_v1(bytes),
+            _ => Err(Error::UnknownSerializationRevision { revision }),
+        }
+    }
+
     pub fn epoch_id(&self) -> EpochId {
         self.epoch_id
     }
@@ -138,7 +147,12 @@ impl IssuedBandwidthCredential {
     /// Unpack (deserialize) the credential data from the given bytes using v1 serializer.
     pub fn unpack_v1(bytes: &[u8]) -> Result<Self, Error> {
         use bincode::Options;
-        Ok(make_storable_bincode_serializer().deserialize(bytes)?)
+        make_storable_bincode_serializer()
+            .deserialize(bytes)
+            .map_err(|source| Error::SerializationFailure {
+                source,
+                revision: 1,
+            })
     }
 
     pub fn randomise_signature(&mut self) {
@@ -190,4 +204,19 @@ fn make_storable_bincode_serializer() -> impl bincode::Options {
     bincode::DefaultOptions::new()
         .with_big_endian()
         .with_varint_encoding()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
+
+    fn assert_zeroize<T: Zeroize>() {}
+
+    #[test]
+    fn credential_is_zeroized() {
+        assert_zeroize::<IssuedBandwidthCredential>();
+        assert_zeroize_on_drop::<IssuedBandwidthCredential>();
+    }
 }

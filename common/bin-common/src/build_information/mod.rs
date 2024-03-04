@@ -222,7 +222,7 @@ macro_rules! bin_info_owned {
 #[macro_export]
 macro_rules! bin_info_local_vergen {
     () => {
-        $crate::build_information::BinaryBuildInformation::new_vergen(
+        $crate::build_information::BinaryBuildInformation::new_with_local_vergen(
             env!("CARGO_PKG_NAME"),
             env!("VERGEN_BUILD_TIMESTAMP"),
             env!("CARGO_PKG_VERSION"),
@@ -236,7 +236,7 @@ macro_rules! bin_info_local_vergen {
 #[macro_export]
 macro_rules! bin_info_local_vergen_owned {
     () => {
-        $crate::build_information::BinaryBuildInformation::new_vergen(
+        $crate::build_information::BinaryBuildInformation::new_with_local_vergen(
             env!("CARGO_PKG_NAME"),
             env!("VERGEN_BUILD_TIMESTAMP"),
             env!("CARGO_PKG_VERSION"),

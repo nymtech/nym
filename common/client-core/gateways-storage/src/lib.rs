@@ -1,14 +1,24 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+use async_trait::async_trait;
+use std::error::Error;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub mod error;
+pub mod models;
+
+pub use error::GatewaysStorageError;
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait GatewayDetailsStore {
+    type StorageError: Error;
+
+    async fn active_gateway(&self) -> Result<Option<()>, Self::StorageError>;
+
+    async fn all_gateways(&self) -> Result<Vec<()>, Self::StorageError>;
+
+    async fn load_gateway_details(&self) -> Result<(), Self::StorageError>;
+
+    async fn store_gateway_details(&self) -> Result<(), Self::StorageError>;
 }

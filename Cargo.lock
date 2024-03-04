@@ -5232,8 +5232,6 @@ dependencies = [
  "base64 0.21.4",
  "cfg-if",
  "clap 4.4.7",
- "dashmap",
- "dirs 4.0.0",
  "futures",
  "gloo-timers",
  "http-body-util",
@@ -5242,6 +5240,7 @@ dependencies = [
  "hyper-util",
  "log",
  "nym-bandwidth-controller",
+ "nym-client-core-gateways-storage",
  "nym-client-core-surb-storage",
  "nym-config",
  "nym-credential-storage",
@@ -5258,12 +5257,10 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.7.3",
- "reqwest",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "si-scale",
- "sqlx",
  "tap",
  "tempfile",
  "thiserror",
@@ -5277,6 +5274,23 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-utils",
  "wasmtimer",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-client-core-gateways-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
+ "log",
+ "nym-crypto",
+ "nym-gateway-requests",
+ "serde",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "url",
  "zeroize",
 ]
 

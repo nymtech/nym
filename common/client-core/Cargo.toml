@@ -46,6 +46,7 @@ nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-client-core-surb-storage = { path = "./surb-storage" }
+nym-client-core-gateways-storage = { path = "./gateways-storage" }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]

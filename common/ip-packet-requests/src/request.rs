@@ -1,7 +1,7 @@
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
-use crate::{make_bincode_serializer, IPPair, CURRENT_VERSION};
+use crate::{make_bincode_serializer, IpPair, CURRENT_VERSION};
 
 fn generate_random() -> u64 {
     use rand::RngCore;
@@ -17,7 +17,7 @@ pub struct IpPacketRequest {
 
 impl IpPacketRequest {
     pub fn new_static_connect_request(
-        ips: IPPair,
+        ips: IpPair,
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
@@ -135,7 +135,7 @@ pub enum IpPacketRequestData {
 pub struct StaticConnectRequest {
     pub request_id: u64,
 
-    pub ips: IPPair,
+    pub ips: IpPair,
 
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
@@ -218,7 +218,7 @@ mod tests {
             data: IpPacketRequestData::StaticConnect(
                 StaticConnectRequest {
                     request_id: 123,
-                    ips: IPPair::new(Ipv4Addr::from_str("10.0.0.1").unwrap(), Ipv6Addr::from_str("2001:db8:a160::1").unwrap()),
+                    ips: IpPair::new(Ipv4Addr::from_str("10.0.0.1").unwrap(), Ipv6Addr::from_str("2001:db8:a160::1").unwrap()),
                     reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
                     reply_to_hops: None,
                     reply_to_avg_mix_delays: None,

@@ -11,18 +11,18 @@ pub mod response;
 pub const CURRENT_VERSION: u8 = 4;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct IPPair {
+pub struct IpPair {
     pub ipv4: Ipv4Addr,
     pub ipv6: Ipv6Addr,
 }
 
-impl IPPair {
+impl IpPair {
     pub fn new(ipv4: Ipv4Addr, ipv6: Ipv6Addr) -> Self {
-        IPPair { ipv4, ipv6 }
+        IpPair { ipv4, ipv6 }
     }
 }
 
-impl Display for IPPair {
+impl Display for IpPair {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "IPv4: {}, IPV6: {}", self.ipv4, self.ipv6)
     }

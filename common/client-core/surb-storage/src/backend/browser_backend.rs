@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::backend::Empty;
-use crate::client::replies::reply_storage::{CombinedReplyStorage, ReplyStorageBackend};
+use crate::backend::Empty;
+use crate::{CombinedReplyStorage, ReplyStorageBackend};
 use async_trait::async_trait;
 
 // well, right now we don't have the browser storage : (

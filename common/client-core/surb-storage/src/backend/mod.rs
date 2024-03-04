@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::CombinedReplyStorage;
+use crate::CombinedReplyStorage;
 use async_trait::async_trait;
 use std::error::Error;
 use thiserror::Error;

@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::backend::fs_backend::error::StorageError;
-use crate::client::replies::reply_storage::key_storage::UsedReplyKey;
+use crate::backend::fs_backend::error::StorageError;
+use crate::key_storage::UsedReplyKey;
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::Digest;
 use nym_sphinx::addressing::clients::{Recipient, RecipientBytes};
@@ -12,13 +12,13 @@ use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey, SurbEncryption
 use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 
 #[derive(Debug, Clone)]
-pub(crate) struct StoredSenderTag {
-    pub(crate) recipient: Vec<u8>,
-    pub(crate) tag: Vec<u8>,
+pub struct StoredSenderTag {
+    pub recipient: Vec<u8>,
+    pub tag: Vec<u8>,
 }
 
 impl StoredSenderTag {
-    pub(crate) fn new(recipient: RecipientBytes, tag: AnonymousSenderTag) -> StoredSenderTag {
+    pub fn new(recipient: RecipientBytes, tag: AnonymousSenderTag) -> StoredSenderTag {
         StoredSenderTag {
             recipient: recipient.to_vec(),
             tag: tag.to_bytes().to_vec(),
@@ -57,14 +57,14 @@ impl TryFrom<StoredSenderTag> for (RecipientBytes, AnonymousSenderTag) {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct StoredReplyKey {
-    pub(crate) key_digest: Vec<u8>,
-    pub(crate) reply_key: Vec<u8>,
-    pub(crate) sent_at_timestamp: i64,
+pub struct StoredReplyKey {
+    pub key_digest: Vec<u8>,
+    pub reply_key: Vec<u8>,
+    pub sent_at_timestamp: i64,
 }
 
 impl StoredReplyKey {
-    pub(crate) fn new(key_digest: EncryptionKeyDigest, reply_key: UsedReplyKey) -> StoredReplyKey {
+    pub fn new(key_digest: EncryptionKeyDigest, reply_key: UsedReplyKey) -> StoredReplyKey {
         StoredReplyKey {
             key_digest: key_digest.to_vec(),
             reply_key: (*reply_key).to_bytes(),
@@ -105,14 +105,14 @@ impl TryFrom<StoredReplyKey> for (EncryptionKeyDigest, UsedReplyKey) {
     }
 }
 
-pub(crate) struct StoredSurbSender {
-    pub(crate) id: i64,
-    pub(crate) tag: Vec<u8>,
-    pub(crate) last_sent_timestamp: i64,
+pub struct StoredSurbSender {
+    pub id: i64,
+    pub tag: Vec<u8>,
+    pub last_sent_timestamp: i64,
 }
 
 impl StoredSurbSender {
-    pub(crate) fn new(tag: AnonymousSenderTag, last_sent_timestamp: i64) -> Self {
+    pub fn new(tag: AnonymousSenderTag, last_sent_timestamp: i64) -> Self {
         StoredSurbSender {
             // for the purposes of STORING data,
             // we ignore that field anyway
@@ -143,13 +143,13 @@ impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, i64) {
     }
 }
 
-pub(crate) struct StoredReplySurb {
-    pub(crate) reply_surb_sender_id: i64,
-    pub(crate) reply_surb: Vec<u8>,
+pub struct StoredReplySurb {
+    pub reply_surb_sender_id: i64,
+    pub reply_surb: Vec<u8>,
 }
 
 impl StoredReplySurb {
-    pub(crate) fn new(reply_surb_sender_id: i64, reply_surb: &ReplySurb) -> Self {
+    pub fn new(reply_surb_sender_id: i64, reply_surb: &ReplySurb) -> Self {
         StoredReplySurb {
             reply_surb_sender_id,
             reply_surb: reply_surb.to_bytes(),
@@ -168,13 +168,13 @@ impl TryFrom<StoredReplySurb> for ReplySurb {
 }
 
 #[derive(Copy, Clone)]
-pub(crate) struct ReplySurbStorageMetadata {
-    pub(crate) min_reply_surb_threshold: u32,
-    pub(crate) max_reply_surb_threshold: u32,
+pub struct ReplySurbStorageMetadata {
+    pub min_reply_surb_threshold: u32,
+    pub max_reply_surb_threshold: u32,
 }
 
 impl ReplySurbStorageMetadata {
-    pub(crate) fn new(min_reply_surb_threshold: usize, max_reply_surb_threshold: usize) -> Self {
+    pub fn new(min_reply_surb_threshold: usize, max_reply_surb_threshold: usize) -> Self {
         Self {
             min_reply_surb_threshold: min_reply_surb_threshold as u32,
             max_reply_surb_threshold: max_reply_surb_threshold as u32,

@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use crate::client::replies::reply_storage::combined::CombinedReplyStorage;
-pub use crate::client::replies::reply_storage::key_storage::SentReplyKeys;
-pub use crate::client::replies::reply_storage::surb_storage::ReceivedReplySurbsMap;
-pub use crate::client::replies::reply_storage::tag_storage::UsedSenderTags;
 pub use backend::*;
+pub use combined::CombinedReplyStorage;
+pub use key_storage::SentReplyKeys;
+pub use surb_storage::ReceivedReplySurbsMap;
+pub use tag_storage::UsedSenderTags;
 
 mod backend;
 mod combined;

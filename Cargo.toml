@@ -24,6 +24,7 @@ members = [
     "common/bandwidth-controller",
     "common/bin-common",
     "common/client-core",
+    "common/client-core/surb-storage",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",

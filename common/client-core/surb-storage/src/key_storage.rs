@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::iter::Iter;
@@ -14,13 +14,19 @@ pub struct SentReplyKeys {
     inner: Arc<SentReplyKeysInner>,
 }
 
+impl Default for SentReplyKeys {
+    fn default() -> Self {
+        SentReplyKeys::new()
+    }
+}
+
 #[derive(Debug)]
 struct SentReplyKeysInner {
     data: DashMap<EncryptionKeyDigest, UsedReplyKey>,
 }
 
 impl SentReplyKeys {
-    pub(crate) fn new() -> SentReplyKeys {
+    pub fn new() -> SentReplyKeys {
         SentReplyKeys {
             inner: Arc::new(SentReplyKeysInner {
                 data: DashMap::new(),
@@ -29,7 +35,7 @@ impl SentReplyKeys {
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-    pub(crate) fn from_raw(raw: Vec<(EncryptionKeyDigest, UsedReplyKey)>) -> SentReplyKeys {
+    pub fn from_raw(raw: Vec<(EncryptionKeyDigest, UsedReplyKey)>) -> SentReplyKeys {
         SentReplyKeys {
             inner: Arc::new(SentReplyKeysInner {
                 data: raw.into_iter().collect(),
@@ -37,35 +43,35 @@ impl SentReplyKeys {
         }
     }
 
-    pub(crate) fn as_raw_iter(&self) -> Iter<'_, EncryptionKeyDigest, UsedReplyKey> {
+    pub fn as_raw_iter(&self) -> Iter<'_, EncryptionKeyDigest, UsedReplyKey> {
         self.inner.data.iter()
     }
 
-    pub(crate) fn insert_multiple(&self, keys: Vec<SurbEncryptionKey>) {
+    pub fn insert_multiple(&self, keys: Vec<SurbEncryptionKey>) {
         let now = OffsetDateTime::now_utc().unix_timestamp();
         for key in keys {
             self.insert(UsedReplyKey::new(key, now))
         }
     }
 
-    pub(crate) fn insert(&self, key: UsedReplyKey) {
+    pub fn insert(&self, key: UsedReplyKey) {
         self.inner.data.insert(key.compute_digest(), key);
     }
 
-    pub(crate) fn try_pop(&self, digest: EncryptionKeyDigest) -> Option<UsedReplyKey> {
+    pub fn try_pop(&self, digest: EncryptionKeyDigest) -> Option<UsedReplyKey> {
         self.inner.data.remove(&digest).map(|(_k, v)| v)
     }
 
-    pub(crate) fn remove(&self, digest: EncryptionKeyDigest) {
+    pub fn remove(&self, digest: EncryptionKeyDigest) {
         self.inner.data.remove(&digest);
     }
 }
 
 #[derive(Debug, Copy, Clone)]
-pub(crate) struct UsedReplyKey {
+pub struct UsedReplyKey {
     key: SurbEncryptionKey,
     // the purpose of this field is to perform invalidation at relatively very long intervals
-    pub(crate) sent_at_timestamp: i64,
+    pub sent_at_timestamp: i64,
 }
 
 impl UsedReplyKey {

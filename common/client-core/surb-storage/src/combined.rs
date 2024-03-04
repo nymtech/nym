@@ -1,7 +1,7 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
+use crate::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 
 #[derive(Debug, Clone)]
 pub struct CombinedReplyStorage {

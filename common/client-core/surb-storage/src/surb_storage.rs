@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::iter::Iter;
@@ -28,10 +28,7 @@ struct ReceivedReplySurbsMapInner {
 }
 
 impl ReceivedReplySurbsMap {
-    pub(crate) fn new(
-        min_surb_threshold: usize,
-        max_surb_threshold: usize,
-    ) -> ReceivedReplySurbsMap {
+    pub fn new(min_surb_threshold: usize, max_surb_threshold: usize) -> ReceivedReplySurbsMap {
         ReceivedReplySurbsMap {
             inner: Arc::new(ReceivedReplySurbsMapInner {
                 data: DashMap::new(),
@@ -42,7 +39,7 @@ impl ReceivedReplySurbsMap {
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-    pub(crate) fn from_raw(
+    pub fn from_raw(
         min_surb_threshold: usize,
         max_surb_threshold: usize,
         raw: Vec<(AnonymousSenderTag, ReceivedReplySurbs)>,
@@ -56,28 +53,28 @@ impl ReceivedReplySurbsMap {
         }
     }
 
-    pub(crate) fn as_raw_iter(&self) -> Iter<'_, AnonymousSenderTag, ReceivedReplySurbs> {
+    pub fn as_raw_iter(&self) -> Iter<'_, AnonymousSenderTag, ReceivedReplySurbs> {
         self.inner.data.iter()
     }
 
-    pub(crate) fn remove(&self, target: &AnonymousSenderTag) {
+    pub fn remove(&self, target: &AnonymousSenderTag) {
         self.inner.data.remove(target);
     }
 
-    pub(crate) fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {
+    pub fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {
         if let Some(mut entry) = self.inner.data.get_mut(target) {
             entry.surbs_last_received_at_timestamp = OffsetDateTime::now_utc().unix_timestamp();
         }
     }
 
-    pub(crate) fn surbs_last_received_at(&self, target: &AnonymousSenderTag) -> Option<i64> {
+    pub fn surbs_last_received_at(&self, target: &AnonymousSenderTag) -> Option<i64> {
         self.inner
             .data
             .get(target)
             .map(|e| e.surbs_last_received_at())
     }
 
-    pub(crate) fn pending_reception(&self, target: &AnonymousSenderTag) -> u32 {
+    pub fn pending_reception(&self, target: &AnonymousSenderTag) -> u32 {
         self.inner
             .data
             .get(target)
@@ -85,7 +82,7 @@ impl ReceivedReplySurbsMap {
             .unwrap_or_default()
     }
 
-    pub(crate) fn increment_pending_reception(
+    pub fn increment_pending_reception(
         &self,
         target: &AnonymousSenderTag,
         amount: u32,
@@ -96,7 +93,7 @@ impl ReceivedReplySurbsMap {
             .map(|mut e| e.increment_pending_reception(amount))
     }
 
-    pub(crate) fn decrement_pending_reception(
+    pub fn decrement_pending_reception(
         &self,
         target: &AnonymousSenderTag,
         amount: u32,
@@ -107,21 +104,21 @@ impl ReceivedReplySurbsMap {
             .map(|mut e| e.decrement_pending_reception(amount))
     }
 
-    pub(crate) fn reset_pending_reception(&self, target: &AnonymousSenderTag) {
+    pub fn reset_pending_reception(&self, target: &AnonymousSenderTag) {
         if let Some(mut e) = self.inner.data.get_mut(target) {
             e.reset_pending_reception()
         }
     }
 
-    pub(crate) fn min_surb_threshold(&self) -> usize {
+    pub fn min_surb_threshold(&self) -> usize {
         self.inner.min_surb_threshold.load(Ordering::Relaxed)
     }
 
-    pub(crate) fn max_surb_threshold(&self) -> usize {
+    pub fn max_surb_threshold(&self) -> usize {
         self.inner.max_surb_threshold.load(Ordering::Relaxed)
     }
 
-    pub(crate) fn available_surbs(&self, target: &AnonymousSenderTag) -> usize {
+    pub fn available_surbs(&self, target: &AnonymousSenderTag) -> usize {
         self.inner
             .data
             .get(target)
@@ -129,11 +126,11 @@ impl ReceivedReplySurbsMap {
             .unwrap_or_default()
     }
 
-    pub(crate) fn contains_surbs_for(&self, target: &AnonymousSenderTag) -> bool {
+    pub fn contains_surbs_for(&self, target: &AnonymousSenderTag) -> bool {
         self.inner.data.contains_key(target)
     }
 
-    pub(crate) fn get_reply_surbs(
+    pub fn get_reply_surbs(
         &self,
         target: &AnonymousSenderTag,
         amount: usize,
@@ -150,7 +147,7 @@ impl ReceivedReplySurbsMap {
         }
     }
 
-    pub(crate) fn get_reply_surb_ignoring_threshold(
+    pub fn get_reply_surb_ignoring_threshold(
         &self,
         target: &AnonymousSenderTag,
     ) -> Option<(Option<ReplySurb>, usize)> {
@@ -160,7 +157,7 @@ impl ReceivedReplySurbsMap {
             .map(|mut s| s.get_reply_surb())
     }
 
-    pub(crate) fn get_reply_surb(
+    pub fn get_reply_surb(
         &self,
         target: &AnonymousSenderTag,
     ) -> Option<(Option<ReplySurb>, usize)> {
@@ -174,7 +171,7 @@ impl ReceivedReplySurbsMap {
         })
     }
 
-    pub(crate) fn insert_surbs<I: IntoIterator<Item = ReplySurb>>(
+    pub fn insert_surbs<I: IntoIterator<Item = ReplySurb>>(
         &self,
         target: &AnonymousSenderTag,
         surbs: I,
@@ -189,7 +186,7 @@ impl ReceivedReplySurbsMap {
 }
 
 #[derive(Debug)]
-pub(crate) struct ReceivedReplySurbs {
+pub struct ReceivedReplySurbs {
     // in the future we'd probably want to put extra data here to indicate when the SURBs got received
     // so we could invalidate entries from the previous key rotations
     data: VecDeque<ReplySurb>,
@@ -208,7 +205,7 @@ impl ReceivedReplySurbs {
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-    pub(crate) fn new_retrieved(
+    pub fn new_retrieved(
         surbs: Vec<ReplySurb>,
         surbs_last_received_at_timestamp: i64,
     ) -> ReceivedReplySurbs {
@@ -220,33 +217,33 @@ impl ReceivedReplySurbs {
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-    pub(crate) fn surbs_ref(&self) -> &VecDeque<ReplySurb> {
+    pub fn surbs_ref(&self) -> &VecDeque<ReplySurb> {
         &self.data
     }
 
-    pub(crate) fn surbs_last_received_at(&self) -> i64 {
+    pub fn surbs_last_received_at(&self) -> i64 {
         self.surbs_last_received_at_timestamp
     }
 
-    pub(crate) fn pending_reception(&self) -> u32 {
+    pub fn pending_reception(&self) -> u32 {
         self.pending_reception
     }
 
-    pub(crate) fn increment_pending_reception(&mut self, amount: u32) -> u32 {
+    pub fn increment_pending_reception(&mut self, amount: u32) -> u32 {
         self.pending_reception += amount;
         self.pending_reception
     }
 
-    pub(crate) fn decrement_pending_reception(&mut self, amount: u32) -> u32 {
+    pub fn decrement_pending_reception(&mut self, amount: u32) -> u32 {
         self.pending_reception = self.pending_reception.saturating_sub(amount);
         self.pending_reception
     }
 
-    pub(crate) fn reset_pending_reception(&mut self) {
+    pub fn reset_pending_reception(&mut self) {
         self.pending_reception = 0;
     }
 
-    pub(crate) fn get_reply_surbs(&mut self, amount: usize) -> (Option<Vec<ReplySurb>>, usize) {
+    pub fn get_reply_surbs(&mut self, amount: usize) -> (Option<Vec<ReplySurb>>, usize) {
         if self.items_left() < amount {
             (None, self.items_left())
         } else {
@@ -255,7 +252,7 @@ impl ReceivedReplySurbs {
         }
     }
 
-    pub(crate) fn get_reply_surb(&mut self) -> (Option<ReplySurb>, usize) {
+    pub fn get_reply_surb(&mut self) -> (Option<ReplySurb>, usize) {
         (self.pop_surb(), self.items_left())
     }
 
@@ -268,7 +265,7 @@ impl ReceivedReplySurbs {
     }
 
     // realistically we're always going to be getting multiple surbs at once
-    pub(crate) fn insert_reply_surbs<I: IntoIterator<Item = ReplySurb>>(&mut self, surbs: I) {
+    pub fn insert_reply_surbs<I: IntoIterator<Item = ReplySurb>>(&mut self, surbs: I) {
         let mut v = surbs.into_iter().collect::<VecDeque<_>>();
         trace!("storing {} surbs in the storage", v.len());
         self.data.append(&mut v);

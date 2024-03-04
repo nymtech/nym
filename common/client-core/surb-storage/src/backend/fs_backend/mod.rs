@@ -1,12 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::backend::fs_backend::manager::StorageManager;
-use crate::client::replies::reply_storage::backend::fs_backend::models::{
+use crate::backend::fs_backend::manager::StorageManager;
+use crate::backend::fs_backend::models::{
     ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
 };
-use crate::client::replies::reply_storage::surb_storage::ReceivedReplySurbs;
-use crate::client::replies::reply_storage::{
+use crate::surb_storage::ReceivedReplySurbs;
+use crate::{
     CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys, UsedSenderTags,
 };
 use async_trait::async_trait;

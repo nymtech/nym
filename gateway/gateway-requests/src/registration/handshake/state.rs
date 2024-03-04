@@ -199,7 +199,7 @@ impl<'a, S> State<'a, S> {
         self.remote_pubkey = Some(remote_pubkey)
     }
 
-    pub(crate) async fn _receive_handshake_message(&mut self) -> Result<Vec<u8>, HandshakeError>
+    async fn _receive_handshake_message(&mut self) -> Result<Vec<u8>, HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
     {

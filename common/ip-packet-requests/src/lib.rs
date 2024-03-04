@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 pub mod codec;
@@ -13,6 +14,18 @@ pub const CURRENT_VERSION: u8 = 4;
 pub struct IPPair {
     pub ipv4: Ipv4Addr,
     pub ipv6: Ipv6Addr,
+}
+
+impl IPPair {
+    pub fn new(ipv4: Ipv4Addr, ipv6: Ipv6Addr) -> Self {
+        IPPair { ipv4, ipv6 }
+    }
+}
+
+impl Display for IPPair {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "IPv4: {}, IPV6: {}", self.ipv4, self.ipv6)
+    }
 }
 
 fn make_bincode_serializer() -> impl bincode::Options {

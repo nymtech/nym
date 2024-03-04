@@ -1,15 +1,7 @@
-use std::fmt::{Display, Formatter};
-
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
 use crate::{make_bincode_serializer, IPPair, CURRENT_VERSION};
-
-impl Display for IPPair {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "IPv4: {}, IPV6: {}", self.ipv4, self.ipv6)
-    }
-}
 
 fn generate_random() -> u64 {
     use rand::RngCore;
@@ -226,10 +218,7 @@ mod tests {
             data: IpPacketRequestData::StaticConnect(
                 StaticConnectRequest {
                     request_id: 123,
-                    ips: IPPair {
-                        ipv4: Ipv4Addr::from_str("10.0.0.1").unwrap(),
-                        ipv6: Ipv6Addr::from_str("2001:db8:a160::1").unwrap(),
-                    },
+                    ips: IPPair::new(Ipv4Addr::from_str("10.0.0.1").unwrap(), Ipv6Addr::from_str("2001:db8:a160::1").unwrap()),
                     reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
                     reply_to_hops: None,
                     reply_to_avg_mix_delays: None,

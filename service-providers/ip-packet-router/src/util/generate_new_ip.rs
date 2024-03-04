@@ -12,7 +12,7 @@ fn generate_random_ips_within_subnet() -> IPPair {
     let last_octet = rand::Rng::gen_range(&mut rng, 1..=254);
     let ipv4 = Ipv4Addr::new(10, 0, 0, last_octet);
     let ipv6 = Ipv6Addr::new(0x2001, 0x0db8, 0xa160, 0, 0, 0, 0, last_octet as u16);
-    IPPair { ipv4, ipv6 }
+    IPPair::new(ipv4, ipv6)
 }
 
 fn is_ip_taken<T>(
@@ -34,10 +34,7 @@ pub(crate) fn find_new_ips<T>(
 ) -> Option<IPPair> {
     let mut new_ips = generate_random_ips_within_subnet();
     let mut tries = 0;
-    let tun_ips = IPPair {
-        ipv4: TUN_DEVICE_ADDRESS_V4,
-        ipv6: TUN_DEVICE_ADDRESS_V6,
-    };
+    let tun_ips = IPPair::new(TUN_DEVICE_ADDRESS_V4, TUN_DEVICE_ADDRESS_V6);
 
     while is_ip_taken(
         connected_clients_ipv4,

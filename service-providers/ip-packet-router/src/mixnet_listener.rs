@@ -81,10 +81,7 @@ impl ConnectedClients {
             .iter()
             .find_map(|(ipv4, connected_client)| {
                 if connected_client.nym_address == *nym_address {
-                    Some(IPPair {
-                        ipv4: *ipv4,
-                        ipv6: connected_client.ipv6,
-                    })
+                    Some(IPPair::new(*ipv4, connected_client.ipv6))
                 } else {
                     None
                 }
@@ -157,10 +154,7 @@ impl ConnectedClients {
             .filter_map(|(ip, connected_client)| {
                 if connected_client.handle.is_finished() {
                     Some((
-                        IPPair {
-                            ipv4: *ip,
-                            ipv6: connected_client.ipv6,
-                        },
+                        IPPair::new(*ip, connected_client.ipv6),
                         connected_client.nym_address,
                     ))
                 } else {
@@ -178,10 +172,7 @@ impl ConnectedClients {
                 > CLIENT_MIXNET_INACTIVITY_TIMEOUT
             {
                 ret.push((
-                    IPPair {
-                        ipv4: *ip,
-                        ipv6: connected_client.ipv6,
-                    },
+                    IPPair::new(*ip, connected_client.ipv6),
                     connected_client.nym_address,
                 ))
             }

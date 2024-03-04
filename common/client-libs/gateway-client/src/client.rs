@@ -20,7 +20,7 @@ use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressByt
 use nym_gateway_requests::iv::IV;
 use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V1_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
     CURRENT_PROTOCOL_VERSION,
 };
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
@@ -599,7 +599,7 @@ impl<C, St> GatewayClient<C, St> {
             });
         };
 
-        if gateway_protocol < CREDENTIAL_UPDATE_V1_PROTOCOL_VERSION {
+        if gateway_protocol < CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION {
             return Err(GatewayClientError::OutdatedGatewayCredentialVersion {
                 negotiated_protocol: Some(gateway_protocol),
             });

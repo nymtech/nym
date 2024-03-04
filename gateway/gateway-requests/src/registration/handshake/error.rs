@@ -25,4 +25,7 @@ pub enum HandshakeError {
     MalformedRequest,
     #[error("sent request was malformed")]
     HandshakeFailure,
+
+    #[error("timed out waiting for a handshake message")]
+    Timeout,
 }

@@ -19,6 +19,7 @@ use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorit
 use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
+use std::str::FromStr;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 use tungstenite::protocol::Message;
@@ -51,11 +52,19 @@ impl RegistrationHandshake {
     }
 }
 
+impl FromStr for RegistrationHandshake {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
 impl TryFrom<String> for RegistrationHandshake {
     type Error = serde_json::Error;
 
     fn try_from(msg: String) -> Result<Self, serde_json::Error> {
-        serde_json::from_str(&msg)
+        msg.parse()
     }
 }
 

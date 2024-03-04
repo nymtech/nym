@@ -6,7 +6,7 @@ use anyhow::bail;
 use clap::ArgGroup;
 use clap::Parser;
 use nym_credential_storage::initialise_persistent_storage;
-use nym_id_lib::import_credential;
+use nym_id::import_credential;
 use std::fs;
 use std::path::PathBuf;
 

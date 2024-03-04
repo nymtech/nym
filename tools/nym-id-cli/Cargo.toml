@@ -1,5 +1,5 @@
 [package]
-name = "nym-id"
+name = "nym-id-cli"
 version = "0.1.0"
 authors.workspace = true
 repository.workspace = true
@@ -17,6 +17,6 @@ clap = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing.workspace = true
 
-nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
-nym-credential-storage = { path = "../common/credential-storage" }
-nym-id-lib = { path = "../common/nym-id-lib" }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-credential-storage = { path = "../../common/credential-storage" }
+nym-id = { path = "../../common/nym-id" }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::ArgGroup;
-use nym_id_lib::import_credential;
+use nym_id::import_credential;
 use std::fs;
 use std::path::PathBuf;
 

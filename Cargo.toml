@@ -56,6 +56,7 @@ members = [
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
+    "common/nym-id",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -106,13 +107,14 @@ members = [
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
     "tools/nym-cli",
+    "tools/nym-id-cli",
     "tools/nym-nr-query",
     "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
 #    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
-    "wasm/node-tester", "nym-id", "common/nym-id-lib",
+    "wasm/node-tester",
 ]
 
 default-members = [

@@ -4,7 +4,7 @@
 pub use nym_client_core::error::ClientCoreError;
 
 use nym_exit_policy::policy::PolicyError;
-use nym_id_lib::NymIdError;
+use nym_id::NymIdError;
 use nym_socks5_requests::{RemoteAddress, Socks5RequestError};
 use std::net::SocketAddr;
 

@@ -56,7 +56,7 @@ members = [
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
-    "common/nym-id-lib",
+    "common/nym-id",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",

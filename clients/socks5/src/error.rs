@@ -1,6 +1,6 @@
 use nym_client_core::error::ClientCoreError;
 
-use nym_id_lib::NymIdError;
+use nym_id::NymIdError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientError {

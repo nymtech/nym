@@ -35,7 +35,7 @@ nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-pemstore = { path = "../../common/pemstore" }
 nym-topology = { path = "../../common/topology" }
 nym-socks5-client-core = { path = "../../common/socks5-client-core" }
-nym-id-lib = { path = "../../common/nym-id-lib" }
+nym-id = { path = "../../common/nym-id" }
 
 [features]
 default = []

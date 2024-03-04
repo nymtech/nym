@@ -19,4 +19,4 @@ tracing.workspace = true
 
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "basic_tracing"] }
 nym-credential-storage = { path = "../../common/credential-storage" }
-nym-id-lib = { path = "../../common/nym-id-lib" }
+nym-id = { path = "../../common/nym-id" }

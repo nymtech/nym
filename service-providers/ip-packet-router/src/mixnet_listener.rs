@@ -11,7 +11,7 @@ use nym_ip_packet_requests::{
         DynamicConnectFailureReason, ErrorResponseReply, IpPacketResponse,
         StaticConnectFailureReason,
     },
-    IPPair,
+    IpPair,
 };
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
@@ -58,7 +58,7 @@ impl ConnectedClients {
         )
     }
 
-    fn is_ip_connected(&self, ips: &IPPair) -> bool {
+    fn is_ip_connected(&self, ips: &IpPair) -> bool {
         self.clients_ipv4_mapping.contains_key(&ips.ipv4)
             || self.clients_ipv6_mapping.contains_key(&ips.ipv6)
     }
@@ -76,15 +76,12 @@ impl ConnectedClients {
             .any(|client| client.nym_address == *nym_address)
     }
 
-    fn lookup_ip_from_nym_address(&self, nym_address: &Recipient) -> Option<IPPair> {
+    fn lookup_ip_from_nym_address(&self, nym_address: &Recipient) -> Option<IpPair> {
         self.clients_ipv4_mapping
             .iter()
             .find_map(|(ipv4, connected_client)| {
                 if connected_client.nym_address == *nym_address {
-                    Some(IPPair {
-                        ipv4: *ipv4,
-                        ipv6: connected_client.ipv6,
-                    })
+                    Some(IpPair::new(*ipv4, connected_client.ipv6))
                 } else {
                     None
                 }
@@ -105,7 +102,7 @@ impl ConnectedClients {
 
     fn connect(
         &mut self,
-        ips: IPPair,
+        ips: IpPair,
         nym_address: Recipient,
         mix_hops: Option<u8>,
         forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
@@ -141,7 +138,7 @@ impl ConnectedClients {
             .ok();
     }
 
-    async fn update_activity(&mut self, ips: &IPPair) -> Result<()> {
+    async fn update_activity(&mut self, ips: &IpPair) -> Result<()> {
         if let Some(client) = self.clients_ipv4_mapping.get(&ips.ipv4) {
             *client.last_activity.write().await = std::time::Instant::now();
             Ok(())
@@ -151,16 +148,13 @@ impl ConnectedClients {
     }
 
     // Identify connected client handlers that have stopped without being told to stop
-    fn get_finished_client_handlers(&mut self) -> Vec<(IPPair, Recipient)> {
+    fn get_finished_client_handlers(&mut self) -> Vec<(IpPair, Recipient)> {
         self.clients_ipv4_mapping
             .iter_mut()
             .filter_map(|(ip, connected_client)| {
                 if connected_client.handle.is_finished() {
                     Some((
-                        IPPair {
-                            ipv4: *ip,
-                            ipv6: connected_client.ipv6,
-                        },
+                        IpPair::new(*ip, connected_client.ipv6),
                         connected_client.nym_address,
                     ))
                 } else {
@@ -170,7 +164,7 @@ impl ConnectedClients {
             .collect()
     }
 
-    async fn get_inactive_clients(&mut self) -> Vec<(IPPair, Recipient)> {
+    async fn get_inactive_clients(&mut self) -> Vec<(IpPair, Recipient)> {
         let now = std::time::Instant::now();
         let mut ret = vec![];
         for (ip, connected_client) in self.clients_ipv4_mapping.iter() {
@@ -178,10 +172,7 @@ impl ConnectedClients {
                 > CLIENT_MIXNET_INACTIVITY_TIMEOUT
             {
                 ret.push((
-                    IPPair {
-                        ipv4: *ip,
-                        ipv6: connected_client.ipv6,
-                    },
+                    IpPair::new(*ip, connected_client.ipv6),
                     connected_client.nym_address,
                 ))
             }
@@ -189,7 +180,7 @@ impl ConnectedClients {
         ret
     }
 
-    fn disconnect_stopped_client_handlers(&mut self, stopped_clients: Vec<(IPPair, Recipient)>) {
+    fn disconnect_stopped_client_handlers(&mut self, stopped_clients: Vec<(IpPair, Recipient)>) {
         for (ips, _) in &stopped_clients {
             log::info!("Disconnect stopped client: {ips}");
             self.clients_ipv4_mapping.remove(&ips.ipv4);
@@ -203,7 +194,7 @@ impl ConnectedClients {
         }
     }
 
-    fn disconnect_inactive_clients(&mut self, inactive_clients: Vec<(IPPair, Recipient)>) {
+    fn disconnect_inactive_clients(&mut self, inactive_clients: Vec<(IpPair, Recipient)>) {
         for (ips, _) in &inactive_clients {
             log::info!("Disconnect inactive client: {ips}");
             self.clients_ipv4_mapping.remove(&ips.ipv4);
@@ -217,7 +208,7 @@ impl ConnectedClients {
         }
     }
 
-    fn find_new_ip(&self) -> Option<IPPair> {
+    fn find_new_ip(&self) -> Option<IpPair> {
         generate_new_ip::find_new_ips(&self.clients_ipv4_mapping, &self.clients_ipv6_mapping)
     }
 }
@@ -692,9 +683,9 @@ pub(crate) enum ConnectedClientEvent {
     Connect(Box<ConnectEvent>),
 }
 
-pub(crate) struct DisconnectEvent(pub(crate) IPPair);
+pub(crate) struct DisconnectEvent(pub(crate) IpPair);
 
 pub(crate) struct ConnectEvent {
-    pub(crate) ips: IPPair,
+    pub(crate) ips: IpPair,
     pub(crate) forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
 }

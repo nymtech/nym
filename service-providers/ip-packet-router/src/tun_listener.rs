@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use nym_ip_packet_requests::IPPair;
+use nym_ip_packet_requests::IpPair;
 use nym_task::TaskClient;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
@@ -17,7 +17,7 @@ use crate::{
 // It's even ok if this is slightly out of date
 pub(crate) struct ConnectedClientMirror {
     pub(crate) forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
-    pub(crate) ips: IPPair,
+    pub(crate) ips: IpPair,
 }
 
 pub(crate) struct ConnectedClientsListener {

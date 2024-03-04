@@ -5629,7 +5629,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-id"
+name = "nym-id-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",

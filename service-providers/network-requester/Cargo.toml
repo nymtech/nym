@@ -4,7 +4,7 @@
 [package]
 name = "nym-network-requester"
 license = "GPL-3.0"
-version = "1.1.32"
+version = "1.1.33"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.65"
@@ -18,13 +18,12 @@ path = "src/lib.rs"
 [dependencies]
 addr = "0.15.6"
 async-trait = { workspace = true }
-bs58 = "0.4.0"
+bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"]}
 dirs = "4.0"
 futures = { workspace = true }
 humantime-serde = "1.1.1"
 ipnetwork = "0.20.0"
-lazy_static = { workspace = true }
 log = { workspace = true }
 pretty_env_logger = "0.4.0"
 publicsuffix = "2.2.3"
@@ -39,6 +38,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }
 tokio-tungstenite = { workspace = true }
 url = { workspace = true }
+time = "0.3.30"
+zeroize = "1.6.0"
 
 # internal
 async-file-watcher = { path = "../../common/async-file-watcher" }
@@ -46,6 +47,7 @@ nym-bin-common = { path = "../../common/bin-common", features = ["output_format"
 nym-client-core = { path = "../../common/client-core", features = ["cli"] }
 nym-client-websocket-requests = { path = "../../clients/native/websocket-requests" }
 nym-config = { path = "../../common/config" }
+nym-credentials = { path = "../../common/credentials" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto" }
 nym-network-defaults = { path = "../../common/network-defaults" }
@@ -59,6 +61,7 @@ nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }
 nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }
+nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
 tempfile = "3.5.0"

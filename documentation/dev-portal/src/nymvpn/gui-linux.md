@@ -1,4 +1,4 @@
-# NymVPN alpha GUI: Guide for GNU/Linux
+# NymVPN alpha - Desktop: Guide for GNU/Linux
 
 <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/908221306?h=404b2bbdc8" style="position:absolute;top:0;left:0;width:100%;height:100%;" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
 
@@ -13,45 +13,53 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 ### Installation
 
 1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for Debian based Linux
-2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+2. Required (if you don't want to check shasum, skip this point): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-echo "a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip" | shasum -a 256 -c
+# echo "a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip" | shasum -a 256 -c
 ```
-3. Extract files with `unzip` command or manually as you are used to
+3. Extract files:
+```sh
+tar -xvf <BINARY>
+# for example
+# tar -xvf nym-vpn-desktop_0.0.4_ubuntu-22.04_x86_64.tar.gz
+```
+
 4. If you prefer to run `.AppImage` make executable by running:
 ```sh
-chmod u+x ./appimage/nym-vpn_0.0.2_amd64.AppImage
+# make sure you cd into the right sub-directory after extraction
+chmod u+x ./appimage/nym-vpn_0.0.4_amd64.AppImage
 ```
 5. If you prefer to use the `.deb` version for installation (works on Debian based Linux only), open terminal in the same directory and run:
 ```sh
 cd deb
 
-sudo dpkg -i ./nym-vpn_0.0.3_amd64.deb
+sudo dpkg -i ./nym-vpn_0.0.4_amd64.deb
 # or
-sudo apt-get install -f ./nym-vpn_0.0.3_amd64.deb
+sudo apt-get install -f ./nym-vpn_0.0.4_amd64.deb
 ```
 
+NymVPN alpha version runs over Nym testnet (called sandbox), a little extra configuration is needed for the application to work.
+
 ### Configuration
+
+To test NymVPN alpha we must create two configuration files: an environment config file `sandbox.env` and `config.toml` file pointing the application to run over the testnet environment.
 
 6. Create a NymVPN config directory called `nym-vpn` in your `~/.config`, either manually or by a command:
 ```sh
 mkdir $HOME/.config/nym-vpn/
 ```
-7. Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the directory `~/.config/nym-vpn/` you just created by running:
+7. Create the network testnet config: copy-paste [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) and save as `sandbox.env` in the directory `~/.config/nym-vpn/` you just created. Aternatively do it by runnin a command
 ```sh
 curl -o $HOME/.config/nym-vpn/sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```
 
-8. Create NymVPN main config file called `config.toml` in the same directory `~/.config/nym-vpn/` with this content:
+8. Create NymVPN main config file: copy-paste the line below and save it as `config.toml` in the same directory `~/.config/nym-vpn/`:
 ```toml
 # change <USER> to your username
 env_config_file = "/home/<USER>/.config/nym-vpn/sandbox.env"
-entry_node_location = "DE" # two letters country code
-# You can choose different entry by entering one of the following two letter country codes:
-# DE, UK, FR, IE
 ```
 
 ## Run NymVPN
@@ -64,7 +72,7 @@ Open terminal and run:
 
 ```sh
 # .AppImage must be run from the same directory as the binary
-sudo -E ./nym-vpn_0.0.2_amd64.AppImage
+sudo -E ./nym-vpn_0.0.4_amd64.AppImage
 
 # .deb installation shall be executable from anywhere as
 sudo -E nym-vpn

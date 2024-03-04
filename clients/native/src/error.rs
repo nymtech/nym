@@ -1,11 +1,13 @@
 use nym_client_core::error::ClientCoreError;
 
+use nym_id::NymIdError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum ClientError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("client-core error: {0}")]
+    #[error(transparent)]
     ClientCoreError(#[from] ClientCoreError),
 
     #[error("Failed to load config for: {0}")]
@@ -20,4 +22,7 @@ pub enum ClientError {
 
     #[error("Attempted to start the client in invalid socket mode")]
     InvalidSocketMode,
+
+    #[error(transparent)]
+    NymIdError(#[from] NymIdError),
 }

@@ -27,7 +27,6 @@ members = [
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
-    "common/coconut-interface",
     "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
@@ -43,6 +42,7 @@ members = [
     "common/credential-storage",
     "common/credentials",
     "common/credential-utils",
+    "common/credentials-interface",
     "common/crypto",
     "common/dkg",
     "common/execute",
@@ -56,6 +56,7 @@ members = [
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
+    "common/nym-id",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -106,6 +107,7 @@ members = [
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
     "tools/nym-cli",
+    "tools/nym-id-cli",
     "tools/nym-nr-query",
     "tools/nymvisor",
     "tools/ts-rs-cli",
@@ -143,6 +145,7 @@ anyhow = "1.0.71"
 async-trait = "0.1.68"
 axum = "0.6.20"
 base64 = "0.21.4"
+bs58 = "0.5.0"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 clap = "4.4.7"
 cfg-if = "1.0.0"
@@ -158,7 +161,7 @@ log = "0.4"
 once_cell = "1.7.2"
 parking_lot = "0.12.1"
 rand = "0.8.5"
-reqwest = { version = "0.11.22", default_features = false, features = ["rustls-tls"] }
+reqwest = { version = "0.11.22", default_features = false }
 schemars = "0.8.1"
 serde = "1.0.152"
 serde_json = "1.0.91"
@@ -168,9 +171,9 @@ time = "0.3.30"
 thiserror = "1.0.48"
 tokio = "1.33.0"
 tokio-util = "0.7.10"
-tokio-tungstenite = { version = "0.20.1", features = ["rustls"] }
+tokio-tungstenite = { version = "0.20.1" }
 tracing = "0.1.37"
-tungstenite = { version = "0.20.1", default-features = false, features = ["rustls"] }
+tungstenite = { version = "0.20.1", default-features = false }
 ts-rs = "7.0.0"
 utoipa = "3.5.0"
 utoipa-swagger-ui = "3.1.5"

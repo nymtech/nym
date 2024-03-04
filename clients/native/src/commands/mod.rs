@@ -8,7 +8,6 @@ use crate::client::config::{BaseClientConfig, Config};
 use crate::error::ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
-use lazy_static::lazy_static;
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
@@ -21,18 +20,16 @@ use nym_client_core::error::ClientCoreError;
 use nym_config::OptionalSet;
 use std::error::Error;
 use std::net::IpAddr;
+use std::sync::OnceLock;
 
 pub(crate) mod build_info;
+pub(crate) mod import_credential;
 pub(crate) mod init;
 pub(crate) mod run;
 
-lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
-}
-
-// Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
-    &PRETTY_BUILD_INFORMATION
+    static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
+    PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
 #[derive(Parser)]
@@ -57,6 +54,9 @@ pub(crate) enum Commands {
 
     /// Run the Nym client with provided configuration client optionally overriding set parameters
     Run(run::Run),
+
+    /// Import a pre-generated credential
+    ImportCredential(import_credential::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
@@ -86,6 +86,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
+        Commands::ImportCredential(m) => import_credential::execute(m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

@@ -8,8 +8,10 @@ use crate::{
     nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
     ReqwestRpcClient, ValidatorClientError,
 };
+use nym_api_requests::coconut::models::FreePassNonceResponse;
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use nym_api_requests::models::{DescribedGateway, DescribedNymNode, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -359,5 +361,16 @@ impl NymApiClient {
             .nym_api
             .verify_bandwidth_credential(request_body)
             .await?)
+    }
+
+    pub async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, ValidatorClientError> {
+        Ok(self.nym_api.free_pass_nonce().await?)
+    }
+
+    pub async fn issue_free_pass_credential(
+        &self,
+        request: &FreePassRequest,
+    ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
+        Ok(self.nym_api.free_pass(request).await?)
     }
 }

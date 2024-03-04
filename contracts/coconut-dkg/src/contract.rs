@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::queries::{
-    query_current_dealers_paged, query_dealer_details, query_past_dealers_paged,
+    query_current_dealers_paged, query_dealer_details, query_dealers_indices_paged,
+    query_registered_dealer_details,
 };
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::{
@@ -11,11 +12,11 @@ use crate::dealings::queries::{
 };
 use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
 use crate::epoch_state::queries::{
-    query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
+    query_can_advance_state, query_current_epoch, query_current_epoch_threshold,
 };
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::{
-    advance_epoch_state, try_initiate_dkg, try_surpassed_threshold,
+    try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
 };
 use crate::error::ContractError;
 use crate::state::queries::query_state;
@@ -108,8 +109,8 @@ pub fn execute(
             chunks,
             resharing,
         } => try_submit_dealings_metadata(deps, info, dealing_index, chunks, resharing),
-        ExecuteMsg::CommitDealingsChunk { chunk, resharing } => {
-            try_commit_dealings_chunk(deps, env, info, chunk, resharing)
+        ExecuteMsg::CommitDealingsChunk { chunk } => {
+            try_commit_dealings_chunk(deps, env, info, chunk)
         }
         ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
             try_commit_verification_key_share(deps, env, info, share, resharing)
@@ -117,28 +118,37 @@ pub fn execute(
         ExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => {
             try_verify_verification_key_share(deps, info, owner, resharing)
         }
-        ExecuteMsg::SurpassedThreshold {} => try_surpassed_threshold(deps, env),
-        ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
+        ExecuteMsg::AdvanceEpochState {} => try_advance_epoch_state(deps, env),
+        ExecuteMsg::TriggerReset {} => try_trigger_reset(deps, env, info),
+        ExecuteMsg::TriggerResharing {} => try_trigger_resharing(deps, env, info),
     }
 }
 
 #[entry_point]
-pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
         QueryMsg::GetState {} => to_binary(&query_state(deps.storage)?)?,
         QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch(deps.storage)?)?,
+        QueryMsg::CanAdvanceState {} => to_binary(&query_can_advance_state(deps.storage, env)?)?,
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
-        QueryMsg::GetInitialDealers {} => to_binary(&query_initial_dealers(deps.storage)?)?,
+        QueryMsg::GetRegisteredDealer {
+            dealer_address,
+            epoch_id,
+        } => to_binary(&query_registered_dealer_details(
+            deps,
+            dealer_address,
+            epoch_id,
+        )?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }
         QueryMsg::GetCurrentDealers { limit, start_after } => {
             to_binary(&query_current_dealers_paged(deps, start_after, limit)?)?
         }
-        QueryMsg::GetPastDealers { limit, start_after } => {
-            to_binary(&query_past_dealers_paged(deps, start_after, limit)?)?
+        QueryMsg::GetDealerIndices { limit, start_after } => {
+            to_binary(&query_dealers_indices_paged(deps, start_after, limit)?)?
         }
         QueryMsg::GetDealingsMetadata {
             epoch_id,

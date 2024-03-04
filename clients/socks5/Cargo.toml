@@ -1,6 +1,6 @@
 [package]
 name = "nym-socks5-client"
-version = "1.1.32"
+version = "1.1.33"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"
@@ -8,22 +8,22 @@ rust-version = "1.56"
 license.workspace = true
 
 [dependencies]
+bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
-lazy_static = "1.4.0"
 log = { workspace = true }
-pretty_env_logger = "0.4"
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
 serde_json = { workspace = true }
 tap = "1.0.1"
 thiserror = { workspace = true }
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 rand = "0.7.3"
+time = { workspace = true }
 url = { workspace = true }
+zeroize = { workspace = true }
 
 # internal
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage", "cli"] }
-nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-config = { path = "../../common/config" }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
@@ -36,6 +36,7 @@ nym-pemstore = { path = "../../common/pemstore" }
 nym-topology = { path = "../../common/topology" }
 nym-topology-control = { path = "../../common/topology-control" }
 nym-socks5-client-core = { path = "../../common/socks5-client-core" }
+nym-id = { path = "../../common/nym-id" }
 
 [features]
 default = []

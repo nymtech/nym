@@ -14,7 +14,7 @@ bitvec = "1.0.0"
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
 bls12_381 = { workspace = true, default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
 nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common", optional = true }
-bs58 = "0.4"
+bs58 = { workspace = true }
 
 
 lazy_static = "1.4.0"

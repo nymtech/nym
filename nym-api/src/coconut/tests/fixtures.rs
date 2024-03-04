@@ -10,7 +10,8 @@ use crate::coconut::keys::KeyPair;
 use crate::coconut::tests::{DummyClient, SharedFakeChain};
 use cosmwasm_std::Addr;
 use nym_coconut::VerificationKey;
-use nym_coconut_dkg_common::types::{DealerDetails, EpochId, InitialReplacementData};
+use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
+use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_dkg::{NodeIndex, Threshold};
@@ -81,7 +82,6 @@ pub struct TestingDkgControllerBuilder {
     threshold: Option<Threshold>,
     self_dealer: Option<DealerDetails>,
     dealers: Vec<DealerDetails>,
-    initial_dealers: Option<InitialReplacementData>,
 }
 
 impl TestingDkgControllerBuilder {
@@ -124,11 +124,6 @@ impl TestingDkgControllerBuilder {
 
     pub fn with_dealers(mut self, dealers_details: Vec<DealerDetails>) -> Self {
         self.dealers = dealers_details;
-        self
-    }
-
-    pub fn with_initial_dealers(mut self, initial_dealers: InitialReplacementData) -> Self {
-        self.initial_dealers = Some(initial_dealers);
         self
     }
 
@@ -181,20 +176,34 @@ impl TestingDkgControllerBuilder {
         // insert initial data into the chain state
         {
             let mut state_guard = chain_state.lock().unwrap();
-            if let Some(threshold) = self.threshold {
-                state_guard.dkg_contract.threshold = Some(threshold)
-            }
-            for dealer in self.dealers {
-                state_guard
-                    .dkg_contract
-                    .dealers
-                    .insert(dealer.assigned_index, dealer);
-            }
             if let Some(epoch_id) = self.epoch_id {
                 state_guard.dkg_contract.epoch.epoch_id = epoch_id;
             }
-            if let Some(initial_dealers) = self.initial_dealers {
-                state_guard.dkg_contract.initial_dealers = Some(initial_dealers)
+            if let Some(threshold) = self.threshold {
+                state_guard.dkg_contract.threshold = Some(threshold)
+            }
+            let epoch_id = state_guard.dkg_contract.epoch.epoch_id;
+
+            for dealer in self.dealers {
+                let epoch_dealers = state_guard
+                    .dkg_contract
+                    .dealers
+                    .entry(epoch_id)
+                    .or_default();
+
+                epoch_dealers.insert(
+                    dealer.address.to_string(),
+                    DealerRegistrationDetails {
+                        bte_public_key_with_proof: dealer.bte_public_key_with_proof,
+                        ed25519_identity: dealer.ed25519_identity,
+                        announce_address: dealer.announce_address,
+                    },
+                );
+
+                state_guard
+                    .dkg_contract
+                    .dealer_indices
+                    .insert(dealer.address.to_string(), dealer.assigned_index);
             }
         }
 

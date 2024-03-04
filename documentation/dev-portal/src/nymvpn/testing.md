@@ -14,14 +14,17 @@ One of the main aims of NymVPN alpha release is testing; your results will help 
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary ([download here]({{nym_vpn_latest_binary_url}})) and [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) to that directory
-2. Copy the [block below](#testssh) and save it as `tests.sh` to the same folder
-3. Open terminal in the same directory
-4. Turn off any existing VPN's (including the NymVPN instances), reconnect your wifi and make the script executable by running
+1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary ([download here]({{nym_vpn_latest_binary_url}}))
+2. Copy or download [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) testnet config file to the same directory
+```sh
+curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
+```
+3. Copy the [block below](#testssh) and save it as `tests.sh` to the same folder
+4. Open terminal in the same directory and make the script executable
 ```sh
 chmod u+x ./tests.sh
 ```
-5. Run the `tests.sh` script:
+5. Turn off any existing VPN's (including NymVPN instances), reconnect your wifi and run the `tests.sh` script
 ```sh
 sudo ./tests.sh
 ````
@@ -46,8 +49,8 @@ nym-vpn-tests
 ├── timeout
 └── two_hop_perf_test_results.log
 ```
-10. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress the entire folder as `nym-vpn-tests.zip`
-11. Upload this compressed file to the [form]({{nym_vpn_form_url}}) upload field when prompted
+10. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress the entire folder as `nym-vpn-tests.zip` (both of these can be done in your graphical environment)
+11. Upload this compressed file to the [form]({{nym_vpn_form_url}}) drop field when prompted
 
 #### tests.sh
 

@@ -11,6 +11,10 @@ pub enum IpPacketRouterError {
     #[error("client-core error: {0}")]
     ClientCoreError(#[from] ClientCoreError),
 
+    #[cfg(target_os = "linux")]
+    #[error("tun device error: {0}")]
+    TunDeviceError(#[from] nym_tun::tun_device::TunDeviceError),
+
     #[error("failed to load configuration file: {0}")]
     FailedToLoadConfig(String),
 

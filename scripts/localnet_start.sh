@@ -73,4 +73,4 @@ tmux send-keys -t localnet:1 "time curl -x socks5h://127.0.0.1:1080 https://test
 tmux select-layout -t localnet:0 tiled
 tmux select-layout -t localnet:1 tiled
 
-tmux attach -tlocalnet
+tmux attach -t localnet

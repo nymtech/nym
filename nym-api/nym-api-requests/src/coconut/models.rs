@@ -1,11 +1,11 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::helpers::issued_credential_plaintext;
 use cosmrs::AccountId;
-use nym_coconut_interface::{
-    error::CoconutInterfaceError, hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature,
-    Bytable, Credential, VerificationKey,
+use nym_credentials_interface::{
+    hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, Bytable, CoconutError,
+    CredentialSpendingData, VerificationKey,
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
@@ -14,21 +14,24 @@ use tendermint::hash::Hash;
 
 #[derive(Serialize, Deserialize)]
 pub struct VerifyCredentialBody {
-    pub credential: Credential,
+    /// The cryptographic material required for spending the underlying credential.
+    pub credential_data: CredentialSpendingData,
 
+    /// Multisig proposal for releasing funds for the provided bandwidth credential
     pub proposal_id: u64,
 
+    /// Cosmos address of the spender of the credential
     pub gateway_cosmos_addr: AccountId,
 }
 
 impl VerifyCredentialBody {
     pub fn new(
-        credential: Credential,
+        credential_data: CredentialSpendingData,
         proposal_id: u64,
         gateway_cosmos_addr: AccountId,
     ) -> VerifyCredentialBody {
         VerifyCredentialBody {
-            credential,
+            credential_data,
             proposal_id,
             gateway_cosmos_addr,
         }
@@ -59,7 +62,6 @@ pub struct BlindSignRequestBody {
     /// Signature on the inner sign request and the tx hash
     pub signature: identity::Signature,
 
-    // public_attributes: Vec<String>,
     pub public_attributes_plain: Vec<String>,
 }
 
@@ -91,7 +93,7 @@ impl BlindSignRequestBody {
     }
 
     pub fn encode_commitments(&self) -> Vec<String> {
-        use nym_coconut_interface::Base58;
+        use nym_credentials_interface::Base58;
 
         self.inner_sign_request
             .get_private_attributes_pedersen_commitments()
@@ -99,6 +101,11 @@ impl BlindSignRequestBody {
             .map(|c| c.to_bs58())
             .collect()
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FreePassNonceResponse {
+    pub current_nonce: [u8; 16],
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -115,7 +122,7 @@ impl BlindedSignatureResponse {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CoconutInterfaceError> {
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CoconutError> {
         let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
@@ -124,10 +131,57 @@ impl BlindedSignatureResponse {
         self.blinded_signature.to_byte_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutInterfaceError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutError> {
         Ok(BlindedSignatureResponse {
             blinded_signature: BlindedSignature::from_bytes(bytes)?,
         })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FreePassRequest {
+    // secp256k1 key associated with the admin account
+    pub cosmos_pubkey: cosmrs::crypto::PublicKey,
+
+    pub inner_sign_request: BlindSignRequest,
+
+    // we need to include a nonce here to prevent replay attacks
+    // (and not making the nym-api store the serial numbers of all issued credential)
+    pub used_nonce: [u8; 16],
+
+    /// Signature on the nonce
+    /// to prove the possession of the cosmos key/address
+    pub nonce_signature: cosmrs::crypto::secp256k1::Signature,
+
+    pub public_attributes_plain: Vec<String>,
+}
+
+impl FreePassRequest {
+    pub fn new(
+        cosmos_pubkey: cosmrs::crypto::PublicKey,
+        inner_sign_request: BlindSignRequest,
+        used_nonce: [u8; 16],
+        nonce_signature: cosmrs::crypto::secp256k1::Signature,
+        public_attributes_plain: Vec<String>,
+    ) -> Self {
+        FreePassRequest {
+            cosmos_pubkey,
+            inner_sign_request,
+            used_nonce,
+            nonce_signature,
+            public_attributes_plain,
+        }
+    }
+
+    pub fn tendermint_pubkey(&self) -> tendermint::PublicKey {
+        self.cosmos_pubkey.into()
+    }
+
+    pub fn public_attributes_hashed(&self) -> Vec<Attribute> {
+        self.public_attributes_plain
+            .iter()
+            .map(hash_to_scalar)
+            .collect()
     }
 }
 

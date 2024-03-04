@@ -5,15 +5,11 @@
   "required": [
     "epoch_id",
     "state",
+    "state_progress",
     "time_configuration"
   ],
   "properties": {
-    "epoch_id": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
-    },
-    "finish_timestamp": {
+    "deadline": {
       "anyOf": [
         {
           "$ref": "#/definitions/Timestamp"
@@ -23,8 +19,16 @@
         }
       ]
     },
+    "epoch_id": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
     "state": {
       "$ref": "#/definitions/EpochState"
+    },
+    "state_progress": {
+      "$ref": "#/definitions/StateProgress"
     },
     "time_configuration": {
       "$ref": "#/definitions/TimeConfiguration"
@@ -147,6 +151,49 @@
           "additionalProperties": false
         }
       ]
+    },
+    "StateProgress": {
+      "type": "object",
+      "required": [
+        "registered_dealers",
+        "registered_resharing_dealers",
+        "submitted_dealings",
+        "submitted_key_shares",
+        "verified_keys"
+      ],
+      "properties": {
+        "registered_dealers": {
+          "description": "Counts the number of dealers that have registered in this epoch.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "registered_resharing_dealers": {
+          "description": "Counts the number of resharing dealers that have registered in this epoch. This field is only populated during a resharing exchange. It is always <= registered_dealers.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "submitted_dealings": {
+          "description": "Counts the number of fully received dealings (i.e. full chunks) from all the allowed dealers.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "submitted_key_shares": {
+          "description": "Counts the number of submitted verification key shared from the dealers.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "verified_keys": {
+          "description": "Counts the number of verified key shares.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     },
     "TimeConfiguration": {
       "type": "object",

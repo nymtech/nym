@@ -8,6 +8,7 @@ use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
 use log::{debug, error};
+use nym_credentials_interface::{Base58, BlindedSerialNumber};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
@@ -134,6 +135,29 @@ pub(crate) trait Storage: Send + Sync {
         client_address: DestinationAddressBytes,
         amount: i64,
     ) -> Result<(), StorageError>;
+
+    /// Mark received credential as spent and insert it into the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential
+    /// * `client_address`: address of the client that spent the credential
+    async fn insert_spent_credential(
+        &self,
+        blinded_serial_number: BlindedSerialNumber,
+        was_freepass: bool,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError>;
+
+    /// Check if the credential with the provided blinded serial number if already present in the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential
+    async fn contains_credential(
+        &self,
+        blinded_serial_number: &BlindedSerialNumber,
+    ) -> Result<bool, StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -304,6 +328,34 @@ impl Storage for PersistentStorage {
             .await?;
         Ok(())
     }
+
+    async fn insert_spent_credential(
+        &self,
+        blinded_serial_number: BlindedSerialNumber,
+        was_freepass: bool,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        self.bandwidth_manager
+            .insert_spent_credential(
+                &blinded_serial_number.to_bs58(),
+                was_freepass,
+                &client_address.as_base58_string(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn contains_credential(
+        &self,
+        blinded_serial_number: &BlindedSerialNumber,
+    ) -> Result<bool, StorageError> {
+        let cred = self
+            .bandwidth_manager
+            .retrieve_spent_credential(&blinded_serial_number.to_bs58())
+            .await?;
+
+        Ok(cred.is_some())
+    }
 }
 
 /// In-memory implementation of `Storage`. The intention is primarily in testing environments.
@@ -391,6 +443,22 @@ impl Storage for InMemStorage {
         _client_address: DestinationAddressBytes,
         _amount: i64,
     ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn insert_spent_credential(
+        &self,
+        _blinded_serial_number: BlindedSerialNumber,
+        _was_freepass: bool,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn contains_credential(
+        &self,
+        _blinded_serial_number: &BlindedSerialNumber,
+    ) -> Result<bool, StorageError> {
         todo!()
     }
 }

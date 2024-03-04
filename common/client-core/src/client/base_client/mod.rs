@@ -50,6 +50,7 @@ use nym_topology_control::nym_api_provider::NymApiTopologyProvider;
 use nym_topology_control::{TopologyAccessor, TopologyRefresher, TopologyRefresherConfig};
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::fmt::Debug;
+use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
 use url::Url;
@@ -101,6 +102,12 @@ pub struct ClientState {
     pub shared_lane_queue_lengths: LaneQueueLengths,
     pub reply_controller_sender: ReplyControllerSender,
     pub topology_accessor: TopologyAccessor,
+    pub gateway_connection: GatewayConnection,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct GatewayConnection {
+    pub gateway_ws_fd: Option<RawFd>,
 }
 
 pub enum ClientInputStatus {
@@ -664,6 +671,7 @@ where
             shutdown.fork("gateway_transceiver"),
         )
         .await?;
+        let gateway_ws_fd = gateway_transceiver.ws_fd();
 
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
@@ -757,6 +765,7 @@ where
                 shared_lane_queue_lengths,
                 reply_controller_sender,
                 topology_accessor: shared_topology_accessor,
+                gateway_connection: GatewayConnection { gateway_ws_fd },
             },
             task_handle: shutdown,
         })

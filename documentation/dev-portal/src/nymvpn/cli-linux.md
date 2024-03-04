@@ -14,11 +14,17 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_0.1.0_ubuntu-22.04_amd64.zip" | shasum -a 256 -c
+# echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_0.1.0_ubuntu-22.04_amd64.zip" | shasum -a 256 -c
 ```
-3. Extract files with `unzip` command or manually as you are used to
-4. Make executable by running:
+1. Extract files:
 ```sh
+tar -xvf <BINARY>
+# for example
+# tar -xvf nym-vpn-cli_0.0.2_ubuntu-22.04_x86_64.tar.gz
+```
+2. Make executable by running:
+```sh
+# possibly you may have to cd into a sub-directory
 chmod u+x ./nym-vpn-cli
 ```
 5. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
@@ -54,7 +60,7 @@ sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit
 ./nym-vpn-cli --help
 ```
 ~~~admonish example collapsible=true title="Console output"
-```
+```sh
 Usage: nym-vpn-cli [OPTIONS]
 
 Options:
@@ -88,11 +94,12 @@ Options:
           Enable two-hop mixnet traffic. This means that traffic jumps directly from entry gateway to exit gateway
       --enable-poisson-rate
           Enable Poisson process rate limiting of outbound traffic
+      --disable-background-cover-traffic
+          Disable constant rate background loop cover traffic
   -h, --help
           Print help
   -V, --version
           Print version
-
 ```
 ~~~
 

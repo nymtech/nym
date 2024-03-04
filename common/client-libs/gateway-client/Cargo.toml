@@ -19,7 +19,7 @@ tokio = { version = "1.24.1", features = ["macros"] }
 
 # internal
 nym-bandwidth-controller = { path = "../../bandwidth-controller" }
-nym-coconut-interface = { path = "../../coconut-interface" }
+nym-credentials = { path = "../../credentials" }
 nym-credential-storage = { path = "../../credential-storage" }
 nym-crypto = { path = "../../crypto" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }

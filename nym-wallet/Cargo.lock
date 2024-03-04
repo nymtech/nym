@@ -452,6 +452,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5353f36341f7451062466f0b755b96ac3a9547e4d7f6b70d603fc721a7d7896"
 dependencies = [
  "sha2 0.10.8",
+ "tinyvec",
 ]
 
 [[package]]
@@ -1480,6 +1481,7 @@ dependencies = [
  "digest 0.10.7",
  "elliptic-curve 0.13.5",
  "rfc6979 0.4.0",
+ "serdect",
  "signature 2.1.0",
  "spki 0.7.2",
 ]
@@ -1588,6 +1590,7 @@ dependencies = [
  "pkcs8 0.10.2",
  "rand_core 0.6.4",
  "sec1 0.7.3",
+ "serdect",
  "subtle 2.4.1",
  "zeroize",
 ]
@@ -3094,11 +3097,12 @@ dependencies = [
 name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
+ "ecdsa 0.16.8",
  "getset",
- "nym-coconut-interface",
+ "nym-credentials-interface",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-node-requests",
@@ -3129,7 +3133,7 @@ name = "nym-coconut"
 version = "0.5.0"
 dependencies = [
  "bls12_381",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "digest 0.9.0",
  "ff 0.13.0",
  "getrandom 0.2.10",
@@ -3167,17 +3171,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-coconut-interface"
-version = "0.1.0"
-dependencies = [
- "bs58 0.4.0",
- "getset",
- "nym-coconut",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-config"
 version = "0.1.0"
 dependencies = [
@@ -3194,7 +3187,7 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "schemars",
@@ -3203,10 +3196,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-credentials-interface"
+version = "0.1.0"
+dependencies = [
+ "bls12_381",
+ "nym-coconut",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-crypto"
 version = "0.4.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "ed25519-dalek",
  "nym-pemstore",
  "nym-sphinx-types",
@@ -3225,7 +3228,7 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "bls12_381",
- "bs58 0.4.0",
+ "bs58 0.5.0",
  "ff 0.13.0",
  "group 0.13.0",
  "lazy_static",
@@ -3400,7 +3403,6 @@ dependencies = [
  "hmac 0.12.1",
  "itertools 0.11.0",
  "log",
- "nym-coconut-interface",
  "nym-config",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -3441,9 +3443,9 @@ dependencies = [
  "itertools 0.10.5",
  "log",
  "nym-api-requests",
+ "nym-coconut",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
- "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-ephemera-common",
@@ -3528,7 +3530,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.2.11"
+version = "1.2.12"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
@@ -3545,7 +3547,6 @@ dependencies = [
  "itertools 0.10.5",
  "k256 0.13.1",
  "log",
- "nym-coconut-interface",
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
@@ -4693,6 +4694,7 @@ dependencies = [
  "der 0.7.8",
  "generic-array 0.14.7",
  "pkcs8 0.10.2",
+ "serdect",
  "subtle 2.4.1",
  "zeroize",
 ]
@@ -4879,6 +4881,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "serdect"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a84f14a19e9a014bb9f4512488d9829a68e04ecabffb0f9904cd1ace94598177"
+dependencies = [
+ "base16ct 0.2.0",
+ "serde",
 ]
 
 [[package]]

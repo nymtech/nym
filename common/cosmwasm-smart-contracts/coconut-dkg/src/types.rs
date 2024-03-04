@@ -5,7 +5,7 @@ use cosmwasm_schema::cw_serde;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-pub use crate::dealer::{DealerDetails, PagedDealerResponse};
+pub use crate::dealer::{DealerDetails, DealerRegistrationDetails, PagedDealerResponse};
 pub use contracts_common::dealings::ContractSafeBytes;
 pub use cosmwasm_std::{Addr, Coin, Timestamp};
 pub use cw4::Cw4Contract;
@@ -22,9 +22,19 @@ pub type ChunkIndex = u16;
 pub type PartialContractDealingData = ContractSafeBytes;
 
 #[cw_serde]
-pub struct InitialReplacementData {
-    pub initial_dealers: Vec<Addr>,
-    pub initial_height: u64,
+#[derive(Copy, Default)]
+pub struct StateAdvanceResponse {
+    pub current_state: EpochState,
+    pub progress: StateProgress,
+    pub deadline: Option<Timestamp>,
+    pub reached_deadline: bool,
+    pub is_complete: bool,
+}
+
+impl StateAdvanceResponse {
+    pub fn can_advance(&self) -> bool {
+        self.reached_deadline || self.is_complete
+    }
 }
 
 #[cw_serde]
@@ -38,6 +48,26 @@ pub struct TimeConfiguration {
     pub verification_key_finalization_time_secs: u64,
     // The time an epoch lasts
     pub in_progress_time_secs: u64,
+}
+
+impl TimeConfiguration {
+    pub fn state_duration(&self, state: EpochState) -> Option<u64> {
+        match state {
+            EpochState::WaitingInitialisation => None,
+            EpochState::PublicKeySubmission { .. } => Some(self.public_key_submission_time_secs),
+            EpochState::DealingExchange { .. } => Some(self.dealing_exchange_time_secs),
+            EpochState::VerificationKeySubmission { .. } => {
+                Some(self.verification_key_submission_time_secs)
+            }
+            EpochState::VerificationKeyValidation { .. } => {
+                Some(self.verification_key_validation_time_secs)
+            }
+            EpochState::VerificationKeyFinalization { .. } => {
+                Some(self.verification_key_finalization_time_secs)
+            }
+            EpochState::InProgress => Some(self.in_progress_time_secs),
+        }
+    }
 }
 
 impl FromStr for TimeConfiguration {
@@ -89,11 +119,39 @@ pub struct State {
 
 #[cw_serde]
 #[derive(Copy, Default)]
+pub struct StateProgress {
+    /// Counts the number of dealers that have registered in this epoch.
+    // ideally we want to have here all group members
+    pub registered_dealers: u32,
+
+    /// Counts the number of resharing dealers that have registered in this epoch.
+    /// This field is only populated during a resharing exchange.
+    /// It is always <= registered_dealers.
+    pub registered_resharing_dealers: u32,
+
+    /// Counts the number of fully received dealings (i.e. full chunks) from all the allowed dealers.
+    // we expect registered_dealers * state.key_size number of dealings here (each dealer has to submit key_size number of dealings)
+    pub submitted_dealings: u32,
+
+    /// Counts the number of submitted verification key shared from the dealers.
+    // we expect registered_dealers number of keys here
+    pub submitted_key_shares: u32,
+
+    /// Counts the number of verified key shares.
+    // we expect submitted_key_shares number of verified keys here
+    pub verified_keys: u32,
+}
+
+#[cw_serde]
+#[derive(Copy, Default)]
 pub struct Epoch {
     pub state: EpochState,
     pub epoch_id: EpochId,
+    pub state_progress: StateProgress,
     pub time_configuration: TimeConfiguration,
-    pub finish_timestamp: Option<Timestamp>,
+
+    #[serde(alias = "finish_timestamp")]
+    pub deadline: Option<Timestamp>,
 }
 
 impl Epoch {
@@ -103,35 +161,45 @@ impl Epoch {
         time_configuration: TimeConfiguration,
         current_timestamp: Timestamp,
     ) -> Self {
-        let duration = match state {
-            EpochState::WaitingInitialisation => None,
-            EpochState::PublicKeySubmission { .. } => {
-                Some(time_configuration.public_key_submission_time_secs)
-            }
-            EpochState::DealingExchange { .. } => {
-                Some(time_configuration.dealing_exchange_time_secs)
-            }
-            EpochState::VerificationKeySubmission { .. } => {
-                Some(time_configuration.verification_key_submission_time_secs)
-            }
-            EpochState::VerificationKeyValidation { .. } => {
-                Some(time_configuration.verification_key_validation_time_secs)
-            }
-            EpochState::VerificationKeyFinalization { .. } => {
-                Some(time_configuration.verification_key_finalization_time_secs)
-            }
-            EpochState::InProgress => Some(time_configuration.in_progress_time_secs),
-        };
+        let duration = time_configuration.state_duration(state);
+
         Epoch {
             state,
             epoch_id,
+            state_progress: Default::default(),
             time_configuration,
-            finish_timestamp: duration.map(|d| current_timestamp.plus_seconds(d)),
+            deadline: duration.map(|d| current_timestamp.plus_seconds(d)),
         }
     }
 
+    pub fn update(mut self, next_state: EpochState, current_timestamp: Timestamp) -> Self {
+        self.state = next_state;
+        let duration = self.time_configuration.state_duration(next_state);
+        self.deadline = duration.map(|d| current_timestamp.plus_seconds(d));
+
+        self
+    }
+
+    pub fn next_reset(self, current_timestamp: Timestamp) -> Self {
+        Epoch::new(
+            EpochState::PublicKeySubmission { resharing: false },
+            self.epoch_id + 1,
+            self.time_configuration,
+            current_timestamp,
+        )
+    }
+
+    pub fn next_resharing(self, current_timestamp: Timestamp) -> Self {
+        Epoch::new(
+            EpochState::PublicKeySubmission { resharing: true },
+            self.epoch_id + 1,
+            self.time_configuration,
+            current_timestamp,
+        )
+    }
+
     pub fn final_timestamp_secs(&self) -> Option<u64> {
-        let mut finish = self.finish_timestamp?.seconds();
+        let mut finish = self.deadline?.seconds();
         let time_configuration = self.time_configuration;
         let mut curr_epoch_state = self.state;
         while let Some(state) = curr_epoch_state.next() {
@@ -255,5 +323,9 @@ impl EpochState {
 
     pub fn is_in_progress(&self) -> bool {
         matches!(self, EpochState::InProgress)
+    }
+
+    pub fn is_dealing_exchange(&self) -> bool {
+        matches!(self, EpochState::DealingExchange { .. })
     }
 }

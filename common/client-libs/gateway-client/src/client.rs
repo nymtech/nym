@@ -438,6 +438,7 @@ impl<C, St> GatewayClient<C, St> {
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
+                !self.disabled_credentials_mode,
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),
@@ -494,8 +495,13 @@ impl<C, St> GatewayClient<C, St> {
             .derive_destination_address();
         let encrypted_address = EncryptedAddressBytes::new(&self_address, shared_key, &iv);
 
-        let msg =
-            ClientControlRequest::new_authenticate(self_address, encrypted_address, iv).into();
+        let msg = ClientControlRequest::new_authenticate(
+            self_address,
+            encrypted_address,
+            iv,
+            !self.disabled_credentials_mode,
+        )
+        .into();
 
         match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate {

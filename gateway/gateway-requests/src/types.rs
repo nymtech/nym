@@ -5,7 +5,7 @@ use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::models::{CredentialSpendingRequest, OldV1Credential};
 use crate::registration::handshake::SharedKeys;
-use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION};
+use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION};
 use log::error;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::{CoconutError, UnknownCredentialType};
@@ -38,9 +38,17 @@ pub enum RegistrationHandshake {
 }
 
 impl RegistrationHandshake {
-    pub fn new_payload(data: Vec<u8>) -> Self {
+    pub fn new_payload(data: Vec<u8>, will_use_credentials: bool) -> Self {
+        // if we're not going to be using credentials, advertise lower protocol version to allow connection
+        // to wider range of gateways
+        let protocol_version = if will_use_credentials {
+            Some(CURRENT_PROTOCOL_VERSION)
+        } else {
+            Some(INITIAL_PROTOCOL_VERSION)
+        };
+
         RegistrationHandshake::HandshakePayload {
-            protocol_version: Some(CURRENT_PROTOCOL_VERSION),
+            protocol_version,
             data,
         }
     }
@@ -164,9 +172,18 @@ impl ClientControlRequest {
         address: DestinationAddressBytes,
         enc_address: EncryptedAddressBytes,
         iv: IV,
+        uses_credentials: bool,
     ) -> Self {
+        // if we're not going to be using credentials, advertise lower protocol version to allow connection
+        // to wider range of gateways
+        let protocol_version = if uses_credentials {
+            Some(CURRENT_PROTOCOL_VERSION)
+        } else {
+            Some(INITIAL_PROTOCOL_VERSION)
+        };
+
         ClientControlRequest::Authenticate {
-            protocol_version: Some(CURRENT_PROTOCOL_VERSION),
+            protocol_version,
             address: address.as_base58_string(),
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),

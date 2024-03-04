@@ -44,6 +44,10 @@ pub(crate) struct State<'a, S> {
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<identity::PublicKey>,
+
+    // this field is really out of place here, however, we need to propagate this information somehow
+    // in order to establish correct protocol for backwards compatibility reasons
+    expects_credential_usage: bool,
 }
 
 impl<'a, S> State<'a, S> {
@@ -52,6 +56,7 @@ impl<'a, S> State<'a, S> {
         ws_stream: &'a mut S,
         identity: &'a identity::KeyPair,
         remote_pubkey: Option<identity::PublicKey>,
+        expects_credential_usage: bool,
     ) -> Self {
         let ephemeral_keypair = encryption::KeyPair::new(rng);
         State {
@@ -60,6 +65,7 @@ impl<'a, S> State<'a, S> {
             identity,
             remote_pubkey,
             derived_shared_keys: None,
+            expects_credential_usage,
         }
     }
 
@@ -265,7 +271,8 @@ impl<'a, S> State<'a, S> {
     where
         S: Sink<WsMessage> + Unpin,
     {
-        let handshake_message = types::RegistrationHandshake::new_payload(payload);
+        let handshake_message =
+            types::RegistrationHandshake::new_payload(payload, self.expects_credential_usage);
         self.ws_stream
             .send(WsMessage::Text(handshake_message.try_into().unwrap()))
             .await

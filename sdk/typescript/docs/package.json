@@ -12,11 +12,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "@cosmjs/amino": "^0.31.1",
+    "@cosmjs/amino": "^0.32.2",
     "@cosmjs/cosmwasm-launchpad": "^0.25.6",
-    "@cosmjs/cosmwasm-stargate": "^0.31.1",
-    "@cosmjs/encoding": "^0.31.1",
-    "@cosmjs/proto-signing": "^0.31.1",
+    "@cosmjs/cosmwasm-stargate": "^0.32.2",
+    "@cosmjs/encoding": "^0.32.2",
+    "@cosmjs/proto-signing": "^0.32.2",
     "@cosmjs/stargate": "^0.31.0",
     "@cosmos-kit/core": "^2.6.2",
     "@cosmos-kit/keplr": "^2.3.9",

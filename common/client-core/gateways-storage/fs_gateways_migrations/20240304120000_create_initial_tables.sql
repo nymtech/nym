@@ -11,8 +11,9 @@ CREATE TABLE active_gateway
 
 CREATE TABLE registered_gateway
 (
-    gateway_id_bs58 TEXT                                                NOT NULL UNIQUE PRIMARY KEY,
-    gateway_type    TEXT CHECK ( gateway_type IN ('remote', 'custom') ) NOT NULL DEFAULT 'remote'
+    gateway_id_bs58        TEXT                                                NOT NULL UNIQUE PRIMARY KEY,
+    registration_timestamp TIMESTAMP WITHOUT TIME ZONE                         NOT NULL,
+    gateway_type           TEXT CHECK ( gateway_type IN ('remote', 'custom') ) NOT NULL DEFAULT 'remote'
 );
 
 CREATE TABLE remote_gateway_details

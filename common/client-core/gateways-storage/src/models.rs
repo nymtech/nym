@@ -8,6 +8,7 @@ use nym_gateway_requests::registration::handshake::SharedKeys;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
+use time::OffsetDateTime;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -49,6 +50,10 @@ impl Display for GatewayType {
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct RawRegisteredGateway {
     pub gateway_id_bs58: String,
+
+    // not necessarily needed but is nice for display purposes
+    pub registration_timestamp: OffsetDateTime,
+
     pub gateway_type: String,
 }
 

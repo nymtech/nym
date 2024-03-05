@@ -11,6 +11,7 @@ cosmrs.workspace = true
 log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
+time.workspace = true
 url.workspace = true
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 

@@ -12,6 +12,7 @@ log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 time.workspace = true
+tokio = { workspace = true, features = ["sync"] }
 url.workspace = true
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 

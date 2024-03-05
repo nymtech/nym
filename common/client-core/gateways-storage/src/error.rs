@@ -6,7 +6,7 @@ use nym_gateway_requests::registration::handshake::shared_key::SharedKeyConversi
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum GatewaysStorageError {
+pub enum BadGateway {
     #[error("{typ} is not a valid gateway type")]
     InvalidGatewayType { typ: String },
 

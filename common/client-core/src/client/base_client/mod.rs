@@ -4,7 +4,6 @@
 use super::packet_statistics_control::PacketStatisticsReporter;
 use super::received_buffer::ReceivedBufferMessage;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
-use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
@@ -36,6 +35,7 @@ use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, error, info};
 use nym_bandwidth_controller::BandwidthController;
+use nym_client_core_gateways_storage::GatewaysDetailsStore;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::encryption;
 use nym_gateway_client::{
@@ -57,7 +57,11 @@ use std::path::Path;
 use std::sync::Arc;
 use url::Url;
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    feature = "fs-surb-storage",
+    feature = "fs-gateways-storage"
+))]
 pub mod non_wasm_helpers;
 
 pub mod helpers;
@@ -569,11 +573,11 @@ where
     async fn initialise_keys_and_gateway(
         setup_method: GatewaySetup,
         key_store: &S::KeyStore,
-        details_store: &S::GatewayDetailsStore,
+        details_store: &S::GatewaysDetailsStore,
     ) -> Result<InitialisationResult, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
-        <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
+        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
         setup_gateway(setup_method, key_store, details_store).await
     }
@@ -584,7 +588,7 @@ where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync,
         <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
-        <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
+        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
         info!("Starting nym client");
 

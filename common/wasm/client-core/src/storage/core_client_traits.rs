@@ -41,7 +41,7 @@ impl MixnetClientStorage for FullWasmClientStorage {
     type ReplyStore = browser_backend::Backend;
     type CredentialStore = EphemeralCredentialStorage;
 
-    type GatewayDetailsStore = ClientStorage;
+    type GatewaysDetailsStore = ClientStorage;
 
     fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
         (self.reply_storage, self.credential_storage)
@@ -59,7 +59,7 @@ impl MixnetClientStorage for FullWasmClientStorage {
         &self.credential_storage
     }
 
-    fn gateway_details_store(&self) -> &Self::GatewayDetailsStore {
+    fn gateway_details_store(&self) -> &Self::GatewaysDetailsStore {
         &self.keys_and_gateway_store
     }
 }

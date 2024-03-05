@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::backend::fs_backend::error::StorageError;
-use crate::backend::fs_backend::models::{
-    ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
-};
 use log::{error, info};
 use sqlx::ConnectOptions;
 use std::path::Path;
@@ -16,7 +13,7 @@ pub struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    pub async fn init<P: AsRef<Path>>(database_path: P, fresh: bool) -> Result<Self, StorageError> {
+    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
         // ensure the whole directory structure exists
         if let Some(parent_dir) = database_path.as_ref().parent() {
             std::fs::create_dir_all(parent_dir).map_err(|source| {
@@ -29,14 +26,14 @@ impl StorageManager {
 
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(fresh);
+            .create_if_missing(true);
 
         opts.disable_statement_logging();
 
         let connection_pool = sqlx::SqlitePool::connect_with(opts)
             .await
             .map_err(|source| {
-                error!("Failed to connect to SQLx database: {err}");
+                error!("Failed to connect to SQLx database: {source}");
                 StorageError::DatabaseConnectionError { source }
             })?;
 

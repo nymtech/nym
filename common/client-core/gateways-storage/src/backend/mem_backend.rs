@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::GatewayDetails;
-use crate::{BadGateway, GatewayDetailsStore};
+use crate::{BadGateway, GatewaysDetailsStore};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -18,10 +18,12 @@ pub enum InMemStorageError {
     MalformedGateway(#[from] BadGateway),
 }
 
-pub struct InMemStorage {
+#[derive(Debug, Default)]
+pub struct InMemGatewaysDetails {
     inner: Arc<RwLock<InMemStorageInner>>,
 }
 
+#[derive(Debug, Default)]
 struct InMemStorageInner {
     active_gateway: Option<String>,
     gateways: HashMap<String, GatewayDetails>,
@@ -29,7 +31,7 @@ struct InMemStorageInner {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl GatewayDetailsStore for InMemStorage {
+impl GatewaysDetailsStore for InMemGatewaysDetails {
     type StorageError = InMemStorageError;
 
     async fn active_gateway(&self) -> Result<Option<GatewayDetails>, Self::StorageError> {

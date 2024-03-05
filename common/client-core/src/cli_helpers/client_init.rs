@@ -5,7 +5,7 @@ use crate::config::disk_persistence::CommonClientPaths;
 use crate::error::ClientCoreError;
 use crate::{
     client::{
-        base_client::storage::gateway_details::OnDiskGatewayDetails,
+        base_client::non_wasm_helpers::setup_fs_gateways_storage,
         key_manager::persistence::OnDiskKeys,
     },
     init::types::{GatewayDetails, GatewaySelectionSpecification, GatewaySetup, InitResults},
@@ -144,84 +144,86 @@ where
     let user_chosen_gateway_id = common_args.gateway;
     log::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
 
-    let selection_spec = GatewaySelectionSpecification::new(
-        user_chosen_gateway_id.map(|id| id.to_base58_string()),
-        Some(common_args.latency_based_selection),
-        false,
-    );
-    log::debug!("Gateway selection specification: {selection_spec:?}");
+    todo!()
 
-    // Load and potentially override config
-    log::debug!("Init arguments: {init_args:#?}");
-    let config = C::construct_config(&init_args);
-    log::debug!("Constructed config: {config:#?}");
-    let paths = config.common_paths();
-    let core = config.core_config();
-
-    log::info!(
-        "Using nym-api: {}",
-        core.client
-            .nym_api_urls
-            .iter()
-            .map(|url| url.as_str())
-            .collect::<Vec<&str>>()
-            .join(",")
-    );
-
-    // Setup gateway by either registering a new one, or creating a new config from the selected
-    // one but with keys kept, or reusing the gateway configuration.
-    let key_store = OnDiskKeys::new(paths.keys.clone());
-    let details_store = OnDiskGatewayDetails::new(&paths.gateway_details);
-
-    let available_gateways = if let Some(custom_mixnet) = common_args.custom_mixnet.as_ref() {
-        let hardcoded_topology = NymTopology::new_from_file(custom_mixnet).map_err(|source| {
-            ClientCoreError::CustomTopologyLoadFailure {
-                file_path: custom_mixnet.clone(),
-                source,
-            }
-        })?;
-        hardcoded_topology.get_gateways()
-    } else {
-        let mut rng = rand::thread_rng();
-        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
-    };
-
-    let gateway_setup = GatewaySetup::New {
-        specification: selection_spec,
-        available_gateways,
-        overwrite_data: register_gateway,
-    };
-
-    let init_details =
-        crate::init::setup_gateway(gateway_setup, &key_store, &details_store).await?;
-
-    // TODO: ask the service provider we specified for its interface version and set it in the config
-
-    let config_save_location = config.default_store_location();
-    if let Err(err) = config.save_to(&config_save_location) {
-        return Err(ClientCoreError::ConfigSaveFailure {
-            typ: C::NAME.to_string(),
-            id: id.to_string(),
-            path: config_save_location,
-            source: err,
-        }
-        .into());
-    }
-
-    eprintln!(
-        "Saved configuration file to {}",
-        config_save_location.display()
-    );
-
-    let address = init_details.client_address()?;
-
-    let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
-        return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
-    };
-    let init_results = InitResults::new(config.core_config(), address, &gateway_details);
-
-    Ok(InitResultsWithConfig {
-        config,
-        init_results,
-    })
+    // let selection_spec = GatewaySelectionSpecification::new(
+    //     user_chosen_gateway_id.map(|id| id.to_base58_string()),
+    //     Some(common_args.latency_based_selection),
+    //     false,
+    // );
+    // log::debug!("Gateway selection specification: {selection_spec:?}");
+    //
+    // // Load and potentially override config
+    // log::debug!("Init arguments: {init_args:#?}");
+    // let config = C::construct_config(&init_args);
+    // log::debug!("Constructed config: {config:#?}");
+    // let paths = config.common_paths();
+    // let core = config.core_config();
+    //
+    // log::info!(
+    //     "Using nym-api: {}",
+    //     core.client
+    //         .nym_api_urls
+    //         .iter()
+    //         .map(|url| url.as_str())
+    //         .collect::<Vec<&str>>()
+    //         .join(",")
+    // );
+    //
+    // // Setup gateway by either registering a new one, or creating a new config from the selected
+    // // one but with keys kept, or reusing the gateway configuration.
+    // let key_store = OnDiskKeys::new(paths.keys.clone());
+    // let details_store = setup_fs_gateways_storage(&paths.gateway_details).await?;
+    //
+    // let available_gateways = if let Some(custom_mixnet) = common_args.custom_mixnet.as_ref() {
+    //     let hardcoded_topology = NymTopology::new_from_file(custom_mixnet).map_err(|source| {
+    //         ClientCoreError::CustomTopologyLoadFailure {
+    //             file_path: custom_mixnet.clone(),
+    //             source,
+    //         }
+    //     })?;
+    //     hardcoded_topology.get_gateways()
+    // } else {
+    //     let mut rng = rand::thread_rng();
+    //     crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
+    // };
+    //
+    // let gateway_setup = GatewaySetup::New {
+    //     specification: selection_spec,
+    //     available_gateways,
+    //     overwrite_data: register_gateway,
+    // };
+    //
+    // let init_details =
+    //     crate::init::setup_gateway(gateway_setup, &key_store, &details_store).await?;
+    //
+    // // TODO: ask the service provider we specified for its interface version and set it in the config
+    //
+    // let config_save_location = config.default_store_location();
+    // if let Err(err) = config.save_to(&config_save_location) {
+    //     return Err(ClientCoreError::ConfigSaveFailure {
+    //         typ: C::NAME.to_string(),
+    //         id: id.to_string(),
+    //         path: config_save_location,
+    //         source: err,
+    //     }
+    //     .into());
+    // }
+    //
+    // eprintln!(
+    //     "Saved configuration file to {}",
+    //     config_save_location.display()
+    // );
+    //
+    // let address = init_details.client_address()?;
+    //
+    // let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
+    //     return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
+    // };
+    // let init_results = InitResults::new(config.core_config(), address, &gateway_details);
+    //
+    // Ok(InitResultsWithConfig {
+    //     config,
+    //     init_results,
+    // })
 }

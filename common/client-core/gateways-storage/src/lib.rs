@@ -7,16 +7,21 @@
 use async_trait::async_trait;
 use std::error::Error;
 
-mod backend;
+pub mod backend;
 pub mod error;
 pub mod types;
 
-use crate::types::GatewayDetails;
+// todo: export port types
+pub use crate::types::GatewayDetails;
+pub use backend::mem_backend::{InMemGatewaysDetails, InMemStorageError};
 pub use error::BadGateway;
+
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-gateways-storage"))]
+pub use backend::fs_backend::{error::StorageError, OnDiskGatewaysDetails};
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait GatewayDetailsStore {
+pub trait GatewaysDetailsStore {
     type StorageError: Error + From<error::BadGateway>;
 
     /// Returns details of the currently active gateway, if available.

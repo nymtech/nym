@@ -64,7 +64,7 @@ impl MixnetClientStorage for MockClientStorage {
     type KeyStore = MockKeyStore;
     type ReplyStore = EmptyReplyStorage;
     type CredentialStore = EphemeralCredentialStorage;
-    type GatewayDetailsStore = MockGatewayDetailsStore;
+    type GatewaysDetailsStore = MockGatewayDetailsStore;
 
     fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
         (self.reply_store, self.credential_store)
@@ -82,7 +82,7 @@ impl MixnetClientStorage for MockClientStorage {
         &self.credential_store
     }
 
-    fn gateway_details_store(&self) -> &Self::GatewayDetailsStore {
+    fn gateway_details_store(&self) -> &Self::GatewaysDetailsStore {
         &self.gateway_details_store
     }
 }

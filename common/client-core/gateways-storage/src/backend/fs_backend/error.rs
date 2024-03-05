@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::BadGateway;
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -35,4 +36,7 @@ pub enum StorageError {
         #[from]
         source: sqlx::error::Error,
     },
+
+    #[error(transparent)]
+    MalformedGateway(#[from] BadGateway),
 }

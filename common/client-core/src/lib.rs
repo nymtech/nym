@@ -1,6 +1,10 @@
 use std::future::Future;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    feature = "fs-surb-storage",
+    feature = "fs-gateways-storage"
+))]
 pub mod cli_helpers;
 pub mod client;
 pub mod config;

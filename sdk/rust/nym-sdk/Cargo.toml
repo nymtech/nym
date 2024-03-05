@@ -9,7 +9,7 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 bip39 = { workspace = true }
-nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage"]}
+nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage"]}
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }

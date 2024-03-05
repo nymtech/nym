@@ -2,20 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::GatewayDetails;
-use crate::GatewayDetailsStore;
+use crate::{GatewaysDetailsStore, StorageError};
 use async_trait::async_trait;
 use manager::StorageManager;
+use std::path::Path;
 
-mod error;
+pub mod error;
 mod manager;
 mod models;
 
-pub struct OnDiskGatewayDetails {
+pub struct OnDiskGatewaysDetails {
     manager: StorageManager,
 }
 
+impl OnDiskGatewaysDetails {
+    pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+        Ok(OnDiskGatewaysDetails {
+            manager: StorageManager::init(database_path).await?,
+        })
+    }
+}
+
 #[async_trait]
-impl GatewayDetailsStore for OnDiskGatewayDetails {
+impl GatewaysDetailsStore for OnDiskGatewaysDetails {
     type StorageError = error::StorageError;
 
     async fn active_gateway(&self) -> Result<Option<GatewayDetails>, Self::StorageError> {

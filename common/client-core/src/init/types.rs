@@ -56,25 +56,26 @@ impl<T> InitialisationResult<T> {
         D::StorageError: Send + Sync + 'static,
         T: DeserializeOwned + Send + Sync,
     {
-        let loaded_details = _load_gateway_details(details_store).await?;
-        let loaded_keys = _load_managed_keys(key_store).await?;
-
-        match &loaded_details {
-            PersistedGatewayDetails::Default(loaded_default) => {
-                if !loaded_default.verify(&loaded_keys.must_get_gateway_shared_key()) {
-                    return Err(ClientCoreError::MismatchedGatewayDetails {
-                        gateway_id: loaded_default.details.gateway_id.clone(),
-                    });
-                }
-            }
-            PersistedGatewayDetails::Custom(_) => {}
-        }
-
-        Ok(InitialisationResult {
-            gateway_details: loaded_details.into(),
-            managed_keys: loaded_keys,
-            authenticated_ephemeral_client: None,
-        })
+        todo!()
+        // let loaded_details = _load_gateway_details(details_store).await?;
+        // let loaded_keys = _load_managed_keys(key_store).await?;
+        //
+        // match &loaded_details {
+        //     PersistedGatewayDetails::Default(loaded_default) => {
+        //         if !loaded_default.verify(&loaded_keys.must_get_gateway_shared_key()) {
+        //             return Err(ClientCoreError::MismatchedGatewayDetails {
+        //                 gateway_id: loaded_default.details.gateway_id.clone(),
+        //             });
+        //         }
+        //     }
+        //     PersistedGatewayDetails::Custom(_) => {}
+        // }
+        //
+        // Ok(InitialisationResult {
+        //     gateway_details: loaded_details.into(),
+        //     managed_keys: loaded_keys,
+        //     authenticated_ephemeral_client: None,
+        // })
     }
 
     pub fn client_address(&self) -> Result<Recipient, ClientCoreError> {
@@ -281,7 +282,8 @@ impl<T> GatewaySetup<T> {
         D::StorageError: Send + Sync + 'static,
         T: DeserializeOwned + Serialize + Send + Sync,
     {
-        setup_gateway(self, key_store, details_store).await
+        todo!()
+        // setup_gateway(self, key_store, details_store).await
     }
 
     pub fn is_must_load(&self) -> bool {

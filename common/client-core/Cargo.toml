@@ -102,5 +102,6 @@ tempfile = "3.1.0"
 default = []
 cli = ["clap"]
 fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
+fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
 wasm = ["nym-gateway-client/wasm"]
 metrics-server = []

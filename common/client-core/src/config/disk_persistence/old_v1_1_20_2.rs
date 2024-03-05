@@ -22,11 +22,12 @@ impl CommonClientPathsV1_1_20_2 {
                 new_version: "1.1.20-2".to_string(),
             }
         })?;
-        Ok(CommonClientPaths {
-            keys: self.keys,
-            gateway_details: data_dir.join(DEFAULT_GATEWAY_DETAILS_FILENAME),
-            credentials_database: self.credentials_database,
-            reply_surb_database: self.reply_surb_database,
-        })
+        todo!()
+        // Ok(CommonClientPaths {
+        //     keys: self.keys,
+        //     gateway_details: data_dir.join(DEFAULT_GATEWAY_DETAILS_FILENAME),
+        //     credentials_database: self.credentials_database,
+        //     reply_surb_database: self.reply_surb_database,
+        // })
     }
 }

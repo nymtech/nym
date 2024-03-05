@@ -3,9 +3,7 @@
 
 //! Collection of initialization steps used by client implementations
 
-use crate::client::base_client::storage::gateway_details::{
-    GatewayDetailsStore, PersistedGatewayDetails,
-};
+use crate::client::base_client::storage::gateway_details::PersistedGatewayDetails;
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ManagedKeys;
 use crate::config::GatewayEndpointConfig;
@@ -17,6 +15,7 @@ use crate::init::types::{
     CustomGatewayDetails, GatewayDetails, GatewaySelectionSpecification, GatewaySetup,
     InitialisationResult,
 };
+use nym_client_core_gateways_storage::GatewaysDetailsStore;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_topology::gateway;
 use rand::rngs::OsRng;
@@ -33,32 +32,34 @@ async fn _store_gateway_details<T, D>(
     details: &PersistedGatewayDetails<T>,
 ) -> Result<(), ClientCoreError>
 where
-    D: GatewayDetailsStore<T>,
+    D: GatewaysDetailsStore,
     D::StorageError: Send + Sync + 'static,
     T: Serialize + Send + Sync,
 {
-    details_store
-        .store_gateway_details(details)
-        .await
-        .map_err(|source| ClientCoreError::GatewayDetailsStoreError {
-            source: Box::new(source),
-        })
+    todo!()
+    // details_store
+    //     .store_gateway_details(details)
+    //     .await
+    //     .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
+    //         source: Box::new(source),
+    //     })
 }
 
 async fn _load_gateway_details<T, D>(
     details_store: &D,
 ) -> Result<PersistedGatewayDetails<T>, ClientCoreError>
 where
-    D: GatewayDetailsStore<T>,
+    D: GatewaysDetailsStore,
     D::StorageError: Send + Sync + 'static,
     T: DeserializeOwned + Send + Sync,
 {
-    details_store
-        .load_gateway_details()
-        .await
-        .map_err(|source| ClientCoreError::UnavailableGatewayDetails {
-            source: Box::new(source),
-        })
+    todo!()
+    // details_store
+    //     .load_gateway_details()
+    //     .await
+    //     .map_err(|source| ClientCoreError::UnavailableGatewayDetails {
+    //         source: Box::new(source),
+    //     })
 }
 
 async fn _load_managed_keys<K>(key_store: &K) -> Result<ManagedKeys, ClientCoreError>
@@ -89,7 +90,7 @@ async fn setup_new_gateway<T, K, D>(
 ) -> Result<InitialisationResult<T>, ClientCoreError>
 where
     K: KeyStore,
-    D: GatewayDetailsStore<T>,
+    D: GatewaysDetailsStore,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
     T: DeserializeOwned + Serialize + Send + Sync,
@@ -98,9 +99,12 @@ where
 
     // if we're setting up new gateway, failing to load existing information is fine.
     // as a matter of fact, it's only potentially a problem if we DO succeed
-    if _load_gateway_details(details_store).await.is_ok() && !overwrite_data {
-        return Err(ClientCoreError::ForbiddenKeyOverwrite);
-    }
+
+    todo!("check gateway details (maybe not even needed anymore, idk)");
+    // if _load_gateway_details(details_store).await.is_ok() && !overwrite_data {
+    //     return Err(ClientCoreError::ForbiddenKeyOverwrite);
+    // }
+
     if _load_managed_keys(key_store).await.is_ok() && !overwrite_data {
         return Err(ClientCoreError::ForbiddenKeyOverwrite);
     }
@@ -171,7 +175,7 @@ async fn use_loaded_gateway_details<T, K, D>(
 ) -> Result<InitialisationResult<T>, ClientCoreError>
 where
     K: KeyStore,
-    D: GatewayDetailsStore<T>,
+    D: GatewaysDetailsStore,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
     T: DeserializeOwned + Send + Sync,
@@ -207,7 +211,7 @@ pub async fn setup_gateway<T, K, D>(
 ) -> Result<InitialisationResult<T>, ClientCoreError>
 where
     K: KeyStore,
-    D: GatewayDetailsStore<T>,
+    D: GatewaysDetailsStore,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
     T: DeserializeOwned + Serialize + Send + Sync,

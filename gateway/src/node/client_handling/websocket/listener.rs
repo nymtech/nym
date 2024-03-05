@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
+use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
-use crate::node::client_handling::websocket::shared_state::SharedHandlerState;
 use crate::node::storage::Storage;
 use log::*;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -14,11 +14,11 @@ use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
     address: SocketAddr,
-    shared_state: SharedHandlerState,
+    shared_state: CommonHandlerState,
 }
 
 impl Listener {
-    pub(crate) fn new(address: SocketAddr, shared_state: SharedHandlerState) -> Self {
+    pub(crate) fn new(address: SocketAddr, shared_state: CommonHandlerState) -> Self {
         Listener {
             address,
             shared_state,

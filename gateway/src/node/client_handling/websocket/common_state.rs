@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 // I can see this being possible expanded with say storage or client store
 #[derive(Clone)]
-pub(crate) struct SharedHandlerState {
+pub(crate) struct CommonHandlerState {
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
     pub(crate) local_identity: Arc<identity::KeyPair>,
     pub(crate) only_coconut_credentials: bool,

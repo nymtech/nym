@@ -25,8 +25,8 @@ use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
+use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::AvailableBandwidth;
-use crate::node::client_handling::websocket::shared_state::SharedHandlerState;
 use crate::node::{
     client_handling::{
         active_clients::ActiveClientsStore,
@@ -89,7 +89,7 @@ impl InitialAuthenticationError {
 
 pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
-    pub(crate) shared_state: SharedHandlerState,
+    pub(crate) shared_state: CommonHandlerState,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
@@ -115,7 +115,7 @@ where
         outbound_mix_sender: MixForwardingSender,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        shared_state: SharedHandlerState,
+        shared_state: CommonHandlerState,
     ) -> Self {
         FreshHandler {
             rng,

@@ -254,7 +254,7 @@ impl<St> Gateway<St> {
             self.config.gateway.clients_port,
         );
 
-        let shared_state = websocket::SharedHandlerState {
+        let shared_state = websocket::CommonHandlerState {
             coconut_verifier,
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,

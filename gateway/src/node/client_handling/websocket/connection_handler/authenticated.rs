@@ -291,13 +291,6 @@ where
             credential.data.epoch_id
         );
 
-        let aggregated_verification_key = self
-            .inner
-            .shared_state
-            .coconut_verifier
-            .verification_key(credential.data.epoch_id)
-            .await?;
-
         if !credential.data.validate_type_attribute() {
             trace!("mismatch in the type attribute");
             return Err(RequestHandlingError::InvalidTypeAttribute);
@@ -314,15 +307,22 @@ where
         trace!("embedded bandwidth: {bandwidth:?}");
 
         // locally verify the credential
-        let params = bandwidth_credential_params();
-        if !credential.data.verify(params, &aggregated_verification_key) {
-            trace!("the credential did not verify correctly");
-            return Err(RequestHandlingError::InvalidBandwidthCredential(
-                String::from("local credential verification has failed"),
-            ));
-        }
+        {
+            let aggregated_verification_key = self
+                .inner
+                .shared_state
+                .coconut_verifier
+                .verification_key(credential.data.epoch_id)
+                .await?;
 
-        drop(aggregated_verification_key);
+            let params = bandwidth_credential_params();
+            if !credential.data.verify(params, &aggregated_verification_key) {
+                trace!("the credential did not verify correctly");
+                return Err(RequestHandlingError::InvalidBandwidthCredential(
+                    String::from("local credential verification has failed"),
+                ));
+            }
+        }
 
         let was_freepass = match credential.data.typ {
             CredentialType::Voucher => {

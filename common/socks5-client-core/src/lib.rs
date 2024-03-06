@@ -78,7 +78,7 @@ where
         NymClient {
             config,
             storage,
-            setup_method: GatewaySetup::MustLoad,
+            setup_method: GatewaySetup::MustLoad { gateway_id: None },
             custom_mixnet,
         }
     }
@@ -124,7 +124,7 @@ where
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = NymSocksServer::new(
-            socks5_config.bind_adddress,
+            socks5_config.bind_address,
             authenticator,
             socks5_config.get_provider_mix_address(),
             self_address,

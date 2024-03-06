@@ -118,7 +118,7 @@ impl InitResults {
         Self {
             client_address: res.init_results.address.to_string(),
             client_core: res.init_results,
-            socks5_listening_address: res.config.core.socks5.bind_adddress,
+            socks5_listening_address: res.config.core.socks5.bind_address,
         }
     }
 }

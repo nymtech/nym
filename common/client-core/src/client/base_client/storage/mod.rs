@@ -10,7 +10,6 @@
 use crate::client::key_manager::persistence::{InMemEphemeralKeys, KeyStore};
 use crate::client::replies::reply_storage;
 use crate::client::replies::reply_storage::ReplyStorageBackend;
-use nym_client_core_gateways_storage::{GatewaysDetailsStore, InMemGatewaysDetails};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 
@@ -34,6 +33,7 @@ use crate::error::ClientCoreError;
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
 // fs-gateways
+pub use nym_client_core_gateways_storage::{GatewaysDetailsStore, InMemGatewaysDetails};
 
 #[deprecated]
 pub mod gateway_details;

@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::Path;
 
+use crate::config::old_config_v1_1_33::SocksClientPathsV1_1_33;
 pub use nym_socks5_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as CoreConfigV1_1_20_2;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
@@ -47,7 +48,7 @@ impl ConfigV1_1_20_2 {
         let gateway_details = self.core.base.client.gateway_endpoint.clone().into();
         let config = ConfigV1_1_30 {
             core: self.core.into(),
-            storage_paths: SocksClientPaths {
+            storage_paths: SocksClientPathsV1_1_33 {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,
             },
             logging: self.logging,

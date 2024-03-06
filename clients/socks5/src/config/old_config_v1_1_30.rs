@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::SocksClientPaths;
+use crate::config::old_config_v1_1_33::{ConfigV1_1_33, SocksClientPathsV1_1_33};
 use crate::config::{default_config_filepath, Config};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::read_config_from_toml_file;
@@ -15,17 +15,14 @@ use std::path::Path;
 pub struct ConfigV1_1_30 {
     pub core: CoreConfigV1_1_30,
 
-    // I'm leaving a landmine here for when the paths actually do change the next time,
-    // but propagating the change right now (in ALL clients) would be such a hassle...,
-    // so sorry for the next person looking at it : )
-    pub storage_paths: SocksClientPaths,
+    pub storage_paths: SocksClientPathsV1_1_33,
 
     pub logging: LoggingSettings,
 }
 
-impl From<ConfigV1_1_30> for Config {
+impl From<ConfigV1_1_30> for ConfigV1_1_33 {
     fn from(value: ConfigV1_1_30) -> Self {
-        Config {
+        ConfigV1_1_33 {
             core: value.core.into(),
             storage_paths: value.storage_paths,
             logging: LoggingSettings::default(),

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::upgrades::types::{CurrentVersionInfo, DigestAlgorithm, UpgradeInfo};
-use async_file_watcher::NotifyError;
 use nix::errno::Errno;
 use nix::sys::signal::Signal;
+use nym_async_file_watcher::NotifyError;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use std::ffi::OsString;
 use std::io;

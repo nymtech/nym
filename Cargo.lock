@@ -390,16 +390,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-file-watcher"
-version = "0.1.0"
-dependencies = [
- "futures",
- "log",
- "notify",
- "tokio",
-]
-
-[[package]]
 name = "async-io"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5013,6 +5003,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-async-file-watcher"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+ "notify",
+ "tokio",
+]
+
+[[package]]
 name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
@@ -5875,7 +5875,6 @@ version = "1.1.33"
 dependencies = [
  "addr",
  "anyhow",
- "async-file-watcher",
  "async-trait",
  "bs58 0.5.0",
  "clap 4.4.7",
@@ -5884,6 +5883,7 @@ dependencies = [
  "humantime-serde",
  "ipnetwork 0.20.0",
  "log",
+ "nym-async-file-watcher",
  "nym-bin-common",
  "nym-client-core",
  "nym-client-websocket-requests",
@@ -6695,7 +6695,6 @@ name = "nymvisor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-file-watcher",
  "bytes",
  "clap 4.4.7",
  "dotenvy",
@@ -6705,6 +6704,7 @@ dependencies = [
  "humantime 2.1.0",
  "humantime-serde",
  "nix 0.27.1",
+ "nym-async-file-watcher",
  "nym-bin-common",
  "nym-config",
  "nym-task",

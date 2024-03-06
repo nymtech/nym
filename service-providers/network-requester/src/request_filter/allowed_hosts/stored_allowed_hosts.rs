@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::request_filter::allowed_hosts::HostsStore;
-use async_file_watcher::{AsyncFileWatcher, FileWatcherEventReceiver};
 use futures::channel::mpsc;
 use futures::StreamExt;
+use nym_async_file_watcher::{AsyncFileWatcher, FileWatcherEventReceiver};
 use nym_task::TaskClient;
 use std::io;
 use std::path::Path;

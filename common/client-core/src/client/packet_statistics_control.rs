@@ -210,6 +210,7 @@ impl PacketStatisticsControl {
         }
     }
 
+    #[allow(dead_code)]
     fn prom(&self) -> Result<String, MetricsError> {
         let mut buffer = vec![];
         let encoder = TextEncoder::new();
@@ -230,11 +231,6 @@ impl PacketStatisticsControl {
         mut shutdown: nym_task::TaskClient,
     ) -> Result<(), MetricsError> {
         log::debug!("Started PacketStatisticsControl with graceful shutdown support");
-
-        // for metric in metrics {
-        //     self.registry.register(Box::new(metric.counter.clone()))?;
-        //     self.metrics.insert(metric.name, metric.counter);
-        // }
 
         let report_interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
         let mut report_interval = tokio::time::interval(report_interval);

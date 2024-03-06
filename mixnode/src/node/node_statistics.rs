@@ -6,18 +6,46 @@ use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::{debug, info, trace};
+use prometheus::{Counter, Encoder as _, TextEncoder};
 use serde::Serialize;
 use std::collections::HashMap;
-use std::ops::DerefMut;
+use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 // convenience aliases
-type PacketsMap = HashMap<String, u64>;
+type PacketsMap = HashMap<String, f64>;
 type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
+
+#[derive(Default, Clone)]
+struct PromPacketsMap(HashMap<String, Counter>);
+
+impl PromPacketsMap {
+    fn sum(&self) -> f64 {
+        (*self).values().map(|c| c.get()).sum()
+    }
+
+    fn new() -> Self {
+        PromPacketsMap(HashMap::new())
+    }
+}
+
+impl DerefMut for PromPacketsMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Deref for PromPacketsMap {
+    type Target = HashMap<String, Counter>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Clone, Default)]
 pub(crate) struct SharedNodeStats {
@@ -27,23 +55,35 @@ pub(crate) struct SharedNodeStats {
 impl SharedNodeStats {
     pub(crate) fn new() -> Self {
         let now = SystemTime::now();
+
+        let registry = prometheus::Registry::new();
+        let packets_received_since_startup = Counter::new(
+            "packets_received_since_startup",
+            "Packets received since startup",
+        )
+        .unwrap();
+        registry
+            .register(Box::new(packets_received_since_startup.clone()))
+            .unwrap();
+
         SharedNodeStats {
             inner: Arc::new(RwLock::new(NodeStats {
                 update_time: now,
                 previous_update_time: now,
-                packets_received_since_startup: 0,
-                packets_sent_since_startup: HashMap::new(),
-                packets_explicitly_dropped_since_startup: HashMap::new(),
-                packets_received_since_last_update: 0,
+                packets_received_since_startup,
+                packets_sent_since_startup: PromPacketsMap::new(),
+                packets_explicitly_dropped_since_startup: PromPacketsMap::new(),
+                packets_received_since_last_update: 0.,
                 packets_sent_since_last_update: HashMap::new(),
                 packets_explicitly_dropped_since_last_update: HashMap::new(),
+                registry,
             })),
         }
     }
 
     pub(crate) async fn update(
         &self,
-        new_received: u64,
+        new_received: f64,
         new_sent: PacketsMap,
         new_dropped: PacketsMap,
     ) {
@@ -53,19 +93,39 @@ impl SharedNodeStats {
         guard.previous_update_time = guard.update_time;
         guard.update_time = snapshot_time;
 
-        guard.packets_received_since_startup += new_received;
+        guard.packets_received_since_startup.inc_by(new_received);
         for (mix, count) in &new_sent {
-            *guard
-                .packets_sent_since_startup
-                .entry(mix.clone())
-                .or_insert(0) += *count;
+            if let Some(cntr) = guard.packets_sent_since_startup.get(mix) {
+                cntr.inc_by(*count);
+            } else {
+                let counter = Counter::new(
+                    format!("packets_sent_{}", mix),
+                    format!("Packets sent to mix {}, since startup", mix),
+                )
+                .unwrap();
+                guard.registry.register(Box::new(counter.clone())).unwrap();
+                counter.inc_by(*count);
+                guard
+                    .packets_sent_since_startup
+                    .insert(mix.clone(), counter);
+            }
         }
 
         for (mix, count) in &new_dropped {
-            *guard
-                .packets_explicitly_dropped_since_last_update
-                .entry(mix.clone())
-                .or_insert(0) += *count;
+            if let Some(cntr) = guard.packets_explicitly_dropped_since_startup.get(mix) {
+                cntr.inc_by(*count);
+            } else {
+                let counter = Counter::new(
+                    format!("packets_dropped_{}", mix),
+                    format!("Packets dropped to mix {}, since startup", mix),
+                )
+                .unwrap();
+                guard.registry.register(Box::new(counter.clone())).unwrap();
+                counter.inc_by(*count);
+                guard
+                    .packets_explicitly_dropped_since_startup
+                    .insert(mix.clone(), counter);
+            }
         }
 
         guard.packets_received_since_last_update = new_received;
@@ -82,42 +142,50 @@ impl SharedNodeStats {
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Clone)]
 pub struct NodeStats {
-    #[serde(serialize_with = "humantime_serde::serialize")]
     update_time: SystemTime,
 
-    #[serde(serialize_with = "humantime_serde::serialize")]
     previous_update_time: SystemTime,
 
-    packets_received_since_startup: u64,
+    packets_received_since_startup: Counter,
 
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_startup: PacketsMap,
+    packets_sent_since_startup: PromPacketsMap,
 
     // we know for sure we dropped packets to those destinations
-    packets_explicitly_dropped_since_startup: PacketsMap,
+    packets_explicitly_dropped_since_startup: PromPacketsMap,
 
-    packets_received_since_last_update: u64,
+    packets_received_since_last_update: f64,
 
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
     packets_sent_since_last_update: PacketsMap,
 
     // we know for sure we dropped packets to those destinations
     packets_explicitly_dropped_since_last_update: PacketsMap,
+
+    pub registry: prometheus::Registry,
 }
 
 impl Default for NodeStats {
     fn default() -> Self {
+        let registry = prometheus::Registry::new();
+        let packets_received_since_startup =
+            Counter::new("packets_received_since_startup", "Packets received since startup").unwrap();
+        registry
+            .register(Box::new(packets_received_since_startup.clone()))
+            .unwrap();
+
         NodeStats {
             update_time: SystemTime::UNIX_EPOCH,
             previous_update_time: SystemTime::UNIX_EPOCH,
-            packets_received_since_startup: 0,
+            packets_received_since_startup,
             packets_sent_since_startup: Default::default(),
             packets_explicitly_dropped_since_startup: Default::default(),
-            packets_received_since_last_update: 0,
+            packets_received_since_last_update: 0.,
             packets_sent_since_last_update: Default::default(),
             packets_explicitly_dropped_since_last_update: Default::default(),
+            registry,
         }
     }
 }
@@ -127,11 +195,10 @@ impl NodeStats {
         NodeStatsSimple {
             update_time: self.update_time,
             previous_update_time: self.previous_update_time,
-            packets_received_since_startup: self.packets_received_since_startup,
-            packets_sent_since_startup: self.packets_sent_since_startup.values().sum(),
+            packets_received_since_startup: self.packets_received_since_startup.get(),
+            packets_sent_since_startup: self.packets_sent_since_startup.sum(),
             packets_explicitly_dropped_since_startup: self
                 .packets_explicitly_dropped_since_startup
-                .values()
                 .sum(),
             packets_received_since_last_update: self.packets_received_since_last_update,
             packets_sent_since_last_update: self.packets_sent_since_last_update.values().sum(),
@@ -140,6 +207,14 @@ impl NodeStats {
                 .values()
                 .sum(),
         }
+    }
+
+    pub async fn prom(&self) -> String {
+        let mut buffer = vec![];
+        let encoder = TextEncoder::new();
+        let metrics = self.registry.gather();
+        encoder.encode(&metrics, &mut buffer).unwrap();
+        String::from_utf8(buffer).unwrap()
     }
 }
 
@@ -151,21 +226,21 @@ pub struct NodeStatsSimple {
     #[serde(serialize_with = "humantime_serde::serialize")]
     previous_update_time: SystemTime,
 
-    packets_received_since_startup: u64,
+    packets_received_since_startup: f64,
 
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_startup: u64,
+    packets_sent_since_startup: f64,
 
     // we know for sure we dropped those packets
-    packets_explicitly_dropped_since_startup: u64,
+    packets_explicitly_dropped_since_startup: f64,
 
-    packets_received_since_last_update: u64,
+    packets_received_since_last_update: f64,
 
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_last_update: u64,
+    packets_sent_since_last_update: f64,
 
     // we know for sure we dropped those packets
-    packets_explicitly_dropped_since_last_update: u64,
+    packets_explicitly_dropped_since_last_update: f64,
 }
 
 pub(crate) enum PacketEvent {
@@ -203,14 +278,14 @@ impl CurrentPacketData {
 
     async fn increment_sent(&self, destination: String) {
         let mut unlocked = self.inner.sent.lock().await;
-        let receiver_count = unlocked.entry(destination).or_insert(0);
-        *receiver_count += 1;
+        let receiver_count = unlocked.entry(destination).or_insert(0.);
+        *receiver_count += 1.;
     }
 
     async fn increment_dropped(&self, destination: String) {
         let mut unlocked = self.inner.dropped.lock().await;
-        let dropped_count = unlocked.entry(destination).or_insert(0);
-        *dropped_count += 1;
+        let dropped_count = unlocked.entry(destination).or_insert(0.);
+        *dropped_count += 1.;
     }
 
     async fn acquire_and_reset(&self) -> (u64, PacketsMap, PacketsMap) {
@@ -332,7 +407,9 @@ impl StatsUpdater {
     async fn update_stats(&self) {
         // grab new data since last update
         let (received, sent, dropped) = self.current_packet_data.acquire_and_reset().await;
-        self.current_stats.update(received, sent, dropped).await;
+        self.current_stats
+            .update(received as f64, sent, dropped)
+            .await;
     }
 
     async fn run(&mut self) {
@@ -376,59 +453,53 @@ impl PacketStatsConsoleLogger {
 
             info!(
                 "Since startup mixed {} packets! ({} in last {} seconds)",
-                stats.packets_sent_since_startup.values().sum::<u64>(),
-                stats.packets_sent_since_last_update.values().sum::<u64>(),
+                stats.packets_sent_since_startup.sum(),
+                stats.packets_sent_since_last_update.values().sum::<f64>(),
                 difference_secs,
             );
             if !stats.packets_explicitly_dropped_since_startup.is_empty() {
                 info!(
                     "Since startup dropped {} packets! ({} in last {} seconds)",
-                    stats
-                        .packets_explicitly_dropped_since_startup
-                        .values()
-                        .sum::<u64>(),
+                    stats.packets_explicitly_dropped_since_startup.sum(),
                     stats
                         .packets_explicitly_dropped_since_last_update
                         .values()
-                        .sum::<u64>(),
+                        .sum::<f64>(),
                     difference_secs,
                 );
             }
 
             debug!(
                 "Since startup received {} packets ({} in last {} seconds)",
-                stats.packets_received_since_startup,
+                stats.packets_received_since_startup.get(),
                 stats.packets_received_since_last_update,
                 difference_secs,
             );
             trace!(
                 "Since startup sent packets to the following: \n{:#?} \n And in last {} seconds: {:#?})",
-                stats.packets_sent_since_startup,
+                stats.packets_sent_since_startup.sum(),
                 difference_secs,
                 stats.packets_sent_since_last_update
             );
         } else {
             info!(
                 "Since startup mixed {} packets!",
-                stats.packets_sent_since_startup.values().sum::<u64>(),
+                stats.packets_sent_since_startup.sum(),
             );
             if !stats.packets_explicitly_dropped_since_startup.is_empty() {
                 info!(
                     "Since startup dropped {} packets!",
-                    stats
-                        .packets_explicitly_dropped_since_startup
-                        .values()
-                        .sum::<u64>(),
+                    stats.packets_explicitly_dropped_since_startup.sum(),
                 );
             }
 
             debug!(
                 "Since startup received {} packets",
-                stats.packets_received_since_startup
+                stats.packets_received_since_startup.get()
             );
             trace!(
                 "Since startup sent packets to the following: \n{:#?}",
-                stats.packets_sent_since_startup
+                stats.packets_sent_since_startup.sum()
             );
         }
     }
@@ -545,14 +616,16 @@ mod tests {
 
         // Get output (stats)
         let stats = node_stats_pointer.read().await;
-        assert_eq!(&stats.packets_sent_since_startup.get("foo"), &Some(&2u64));
-        assert_eq!(&stats.packets_sent_since_startup.len(), &1);
         assert_eq!(
-            &stats.packets_sent_since_last_update.get("foo"),
-            &Some(&2u64)
+            &stats.packets_sent_since_startup.get("foo").unwrap().get(),
+            &2.
         );
+        assert_eq!(&stats.packets_sent_since_startup.len(), &1);
+        assert_eq!(&stats.packets_sent_since_last_update.get("foo"), &Some(&2.));
         assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
-        assert_eq!(&stats.packets_received_since_startup, &0u64);
+        assert_eq!(&stats.packets_received_since_startup.get(), &0.);
         assert!(&stats.packets_explicitly_dropped_since_startup.is_empty());
+
+        assert_eq!(stats.prom().await, "# HELP packets_received_since_startup Packets received since startup\n# TYPE packets_received_since_startup counter\npackets_received_since_startup 0\n# HELP packets_sent_foo Packets sent to mix foo, since startup\n# TYPE packets_sent_foo counter\npackets_sent_foo 2\n");
     }
 }

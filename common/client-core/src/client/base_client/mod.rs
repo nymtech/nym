@@ -29,17 +29,17 @@ use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
 use crate::init::{
     setup_gateway,
-    types::{GatewayDetails, GatewaySetup, InitialisationResult},
+    types::{GatewaySetup, InitialisationResult},
 };
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, error, info};
 use nym_bandwidth_controller::BandwidthController;
-use nym_client_core_gateways_storage::GatewaysDetailsStore;
+use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::encryption;
 use nym_gateway_client::{
-    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
+    AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
@@ -201,7 +201,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
-            setup_method: GatewaySetup::MustLoad,
+            setup_method: GatewaySetup::MustLoad { gateway_id: None },
         }
     }
 
@@ -250,13 +250,7 @@ where
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
     // because it relies on the crypto keys being already loaded
     fn mix_address(details: &InitialisationResult) -> Recipient {
-        Recipient::new(
-            *details.managed_keys.identity_public_key(),
-            *details.managed_keys.encryption_public_key(),
-            // TODO: below only works under assumption that gateway address == gateway id
-            // (which currently is true)
-            NodeIdentity::from_base58_string(details.gateway_details.gateway_id()).unwrap(),
-        )
+        details.client_address()
     }
 
     // future constantly pumping loop cover traffic at some specified average rate
@@ -355,8 +349,8 @@ where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
-        let managed_keys = initialisation_result.managed_keys;
-        let GatewayDetails::Configured(gateway_config) = initialisation_result.gateway_details
+        let managed_keys = initialisation_result.client_keys;
+        let GatewayDetails::Remote(details) = initialisation_result.gateway_registration.details
         else {
             return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
         };
@@ -365,11 +359,15 @@ where
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
                 existing_client.upgrade(packet_router, bandwidth_controller, shutdown)
             } else {
-                let cfg = gateway_config.try_into()?;
+                let cfg = GatewayConfig::new(
+                    details.gateway_id,
+                    Some(details.gateway_owner_address.to_string()),
+                    details.gateway_listener.to_string(),
+                );
                 GatewayClient::new(
                     cfg,
                     managed_keys.identity_keypair(),
-                    Some(managed_keys.must_get_gateway_shared_key()),
+                    Some(details.derived_aes128_ctr_blake3_hmac_keys),
                     packet_router,
                     bandwidth_controller,
                     shutdown,
@@ -378,20 +376,16 @@ where
                 .with_response_timeout(config.debug.gateway_connection.gateway_response_timeout)
             };
 
-        let gateway_id = gateway_client.gateway_identity();
-
-        let shared_key = gateway_client
+        gateway_client
             .authenticate_and_start()
             .await
             .map_err(|err| {
                 log::error!("Could not authenticate and start up the gateway connection - {err}");
                 ClientCoreError::GatewayClientError {
-                    gateway_id: gateway_id.to_base58_string(),
+                    gateway_id: details.gateway_id.to_base58_string(),
                     source: err,
                 }
             })?;
-
-        managed_keys.ensure_gateway_key(Some(shared_key));
 
         Ok(gateway_client)
     }
@@ -410,7 +404,11 @@ where
     {
         // if we have setup custom gateway sender and persisted details agree with it, return it
         if let Some(mut custom_gateway_transceiver) = custom_gateway_transceiver {
-            return if !initialisation_result.gateway_details.is_custom() {
+            return if !initialisation_result
+                .gateway_registration
+                .details
+                .is_custom()
+            {
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
                 // and make sure to invalidate the task client so we wouldn't cause premature shutdown
@@ -633,8 +631,8 @@ where
             reply_controller::requests::new_control_channels();
 
         let self_address = Self::mix_address(&init_res);
-        let ack_key = init_res.managed_keys.ack_key();
-        let encryption_keys = init_res.managed_keys.encryption_keypair();
+        let ack_key = init_res.client_keys.ack_key();
+        let encryption_keys = init_res.client_keys.encryption_keypair();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.

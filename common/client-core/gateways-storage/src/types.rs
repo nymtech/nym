@@ -31,7 +31,34 @@ pub enum GatewayDetails {
     Custom(CustomGatewayDetails),
 }
 
+impl From<GatewayDetails> for GatewayRegistration {
+    fn from(details: GatewayDetails) -> Self {
+        GatewayRegistration {
+            details,
+            registration_timestamp: OffsetDateTime::now_utc(),
+        }
+    }
+}
+
 impl GatewayDetails {
+    pub fn new_remote(
+        gateway_id: identity::PublicKey,
+        derived_aes128_ctr_blake3_hmac_keys: Arc<SharedKeys>,
+        gateway_owner_address: AccountId,
+        gateway_listener: Url,
+    ) -> Self {
+        GatewayDetails::Remote(RemoteGatewayDetails {
+            gateway_id,
+            derived_aes128_ctr_blake3_hmac_keys,
+            gateway_owner_address,
+            gateway_listener,
+        })
+    }
+
+    pub fn new_custom(gateway_id: identity::PublicKey, data: Option<Vec<u8>>) -> Self {
+        GatewayDetails::Custom(CustomGatewayDetails { gateway_id, data })
+    }
+
     pub fn gateway_id(&self) -> identity::PublicKey {
         match self {
             GatewayDetails::Remote(details) => details.gateway_id,
@@ -44,6 +71,10 @@ impl GatewayDetails {
             GatewayDetails::Remote(details) => Some(&details.derived_aes128_ctr_blake3_hmac_keys),
             GatewayDetails::Custom(_) => None,
         }
+    }
+
+    pub fn is_custom(&self) -> bool {
+        matches!(self, GatewayDetails::Custom(..))
     }
 }
 

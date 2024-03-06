@@ -77,3 +77,18 @@ impl PemStorableKey for AckKey {
         Self::try_from_bytes(bytes)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
+
+    fn assert_zeroize<T: Zeroize>() {}
+
+    #[test]
+    fn ack_key_is_zeroized() {
+        assert_zeroize::<AckKey>();
+        assert_zeroize_on_drop::<AckKey>();
+    }
+}

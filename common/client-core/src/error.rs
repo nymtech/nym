@@ -4,6 +4,7 @@
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
+use nym_gateway_requests::registration::handshake::shared_key::SharedKeyConversionError;
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::NymTopologyError;
 use nym_validator_client::ValidatorClientError;
@@ -94,13 +95,21 @@ pub enum ClientCoreError {
     #[error("unexpected exit")]
     UnexpectedExit,
 
+    #[error("this operation would have resulted in the gateway {gateway_id:?} key being overwritten without permission")]
+    ForbiddenGatewayKeyOverwrite { gateway_id: String },
+
     #[error(
         "this operation would have resulted in clients keys being overwritten without permission"
     )]
     ForbiddenKeyOverwrite,
 
-    #[error("gateway details are unavailable")]
+    #[error("the client doesn't have any gateway set as active")]
+    NoActiveGatewaySet,
+
+    #[error("gateway details for gateway {gateway_id:?} are unavailable")]
     UnavailableGatewayDetails {
+        gateway_id: String,
+        #[source]
         source: Box<dyn Error + Send + Sync>,
     },
 
@@ -155,6 +164,36 @@ pub enum ClientCoreError {
         path: PathBuf,
         #[source]
         source: std::io::Error,
+    },
+
+    #[error("the provided gateway identity {gateway_id} is malformed: {source}")]
+    MalformedGatewayIdentity {
+        gateway_id: String,
+
+        #[source]
+        source: Ed25519RecoveryError,
+    },
+
+    #[error("the account owner of gateway {gateway_id} ({raw_owner}) is malformed: {err}")]
+    MalformedGatewayOwnerAccountAddress {
+        gateway_id: String,
+
+        raw_owner: String,
+
+        // just use the string formatting as opposed to underlying type to avoid having to import cosmrs
+        err: String,
+    },
+
+    #[error(
+        "the listening address of gateway {gateway_id} ({raw_listener}) is malformed: {source}"
+    )]
+    MalformedListener {
+        gateway_id: String,
+
+        raw_listener: String,
+
+        #[source]
+        source: url::ParseError,
     },
 }
 

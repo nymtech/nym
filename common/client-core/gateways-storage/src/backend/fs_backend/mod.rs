@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::GatewayDetails;
+use crate::types::{GatewayDetails, GatewayRegistration};
 use crate::{GatewaysDetailsStore, StorageError};
 use async_trait::async_trait;
 use manager::StorageManager;
@@ -26,8 +26,10 @@ impl OnDiskGatewaysDetails {
 #[async_trait]
 impl GatewaysDetailsStore for OnDiskGatewaysDetails {
     type StorageError = error::StorageError;
-
-    async fn active_gateway(&self) -> Result<Option<GatewayDetails>, Self::StorageError> {
+    async fn has_gateway_details(&self, gateway_id: &str) -> Result<bool, Self::StorageError> {
+        todo!()
+    }
+    async fn active_gateway(&self) -> Result<Option<GatewayRegistration>, Self::StorageError> {
         todo!()
     }
 
@@ -35,14 +37,14 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
         todo!()
     }
 
-    async fn all_gateways(&self) -> Result<Vec<GatewayDetails>, Self::StorageError> {
+    async fn all_gateways(&self) -> Result<Vec<GatewayRegistration>, Self::StorageError> {
         todo!()
     }
 
     async fn load_gateway_details(
         &self,
         gateway_id: &str,
-    ) -> Result<GatewayDetails, Self::StorageError> {
+    ) -> Result<GatewayRegistration, Self::StorageError> {
         todo!()
     }
 

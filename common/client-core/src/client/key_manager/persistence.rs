@@ -151,20 +151,16 @@ impl OnDiskKeys {
     fn load_keys(&self) -> Result<KeyManager, OnDiskKeysError> {
         let identity_keypair = self.load_identity_keypair()?;
         let encryption_keypair = self.load_encryption_keypair()?;
-
         let ack_key: AckKey = self.load_key(self.paths.ack_key(), "ack key")?;
 
         Ok(KeyManager::from_keys(
             identity_keypair,
             encryption_keypair,
-            None,
             ack_key,
         ))
     }
 
     fn store_keys(&self, keys: &KeyManager) -> Result<(), OnDiskKeysError> {
-        use std::ops::Deref;
-
         let identity_paths = self.paths.identity_key_pair_path();
         let encryption_paths = self.paths.encryption_key_pair_path();
 

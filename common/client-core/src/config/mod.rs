@@ -232,6 +232,7 @@ impl Config {
     }
 }
 
+#[deprecated]
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
 pub struct GatewayEndpointConfig {
@@ -259,6 +260,7 @@ impl TryFrom<GatewayEndpointConfig> for GatewayConfig {
     }
 }
 
+#[deprecated]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl GatewayEndpointConfig {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
@@ -276,6 +278,7 @@ impl GatewayEndpointConfig {
 }
 
 // separate block so it wouldn't be exported via wasm bindgen
+#[deprecated]
 impl GatewayEndpointConfig {
     pub fn try_get_gateway_identity_key(&self) -> Result<identity::PublicKey, ClientCoreError> {
         identity::PublicKey::from_base58_string(&self.gateway_id)

@@ -8,11 +8,13 @@ use crate::{
         base_client::non_wasm_helpers::setup_fs_gateways_storage,
         key_manager::persistence::OnDiskKeys,
     },
-    init::types::{GatewayDetails, GatewaySelectionSpecification, GatewaySetup, InitResults},
+    init::types::{GatewaySelectionSpecification, GatewaySetup, InitResults},
 };
 use log::info;
+use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::identity;
 use nym_topology::NymTopology;
+use rand::rngs::OsRng;
 use std::path::{Path, PathBuf};
 
 pub trait InitialisableClient {
@@ -133,6 +135,10 @@ where
         eprintln!("{} client \"{id}\" was already initialised before", C::NAME);
         true
     } else {
+        info!(
+            "{} client {id:?} hasn't been initialised before - new keys are going to be generated",
+            C::NAME
+        );
         C::initialise_storage_paths(id)?;
         false
     };
@@ -143,14 +149,6 @@ where
     if user_wants_force_register {
         eprintln!("Instructed to force registering gateway. This might overwrite keys!");
     }
-
-    // TODO: look at the registration logic due to being able to store multiple gws now
-    let unused_variable = 42;
-
-    // If the client was already initialized, don't generate new keys and don't re-register with
-    // the gateway (because this would create a new shared key).
-    // Unless the user really wants to.
-    let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway;
@@ -180,9 +178,16 @@ where
             .join(",")
     );
 
+    let key_store = OnDiskKeys::new(paths.keys.clone());
+
+    // if this is a first time client with this particular id is initialised, generated long-term keys
+    if !already_init {
+        let mut rng = OsRng;
+        crate::init::generate_new_client_keys(&mut rng, &key_store).await?;
+    }
+
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let key_store = OnDiskKeys::new(paths.keys.clone());
     let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
     let available_gateways = if let Some(custom_mixnet) = common_args.custom_mixnet.as_ref() {
@@ -198,10 +203,12 @@ where
         crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
     };
 
+    todo!("remove registered gateways from the list");
+
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
-        overwrite_data: register_gateway,
+        overwrite_data: common_args.force_register_gateway,
     };
 
     let init_details =
@@ -225,12 +232,17 @@ where
         config_save_location.display()
     );
 
-    let address = init_details.client_address()?;
+    let address = init_details.client_address();
 
-    let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
+    let GatewayDetails::Remote(gateway_details) = init_details.gateway_registration.details else {
         return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
     };
-    let init_results = InitResults::new(config.core_config(), address, &gateway_details);
+    let init_results = InitResults::new(
+        config.core_config(),
+        address,
+        &gateway_details,
+        init_details.gateway_registration.registration_timestamp,
+    );
 
     Ok(InitResultsWithConfig {
         config,

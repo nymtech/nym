@@ -10,6 +10,7 @@
 use crate::client::key_manager::persistence::{InMemEphemeralKeys, KeyStore};
 use crate::client::replies::reply_storage;
 use crate::client::replies::reply_storage::ReplyStorageBackend;
+use nym_client_core_gateways_storage::{GatewaysDetailsStore, InMemGatewaysDetails};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 
@@ -36,8 +37,6 @@ use nym_credential_storage::persistent_storage::PersistentStorage as PersistentC
 
 #[deprecated]
 pub mod gateway_details;
-
-pub use nym_client_core_gateways_storage::{GatewaysDetailsStore, InMemGatewaysDetails};
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-gateways-storage"))]
 pub use nym_client_core_gateways_storage::{OnDiskGatewaysDetails, StorageError};

@@ -12,7 +12,10 @@ pub mod error;
 pub mod types;
 
 // todo: export port types
-pub use crate::types::GatewayDetails;
+pub use crate::types::{
+    CustomGatewayDetails, GatewayDetails, GatewayRegistration, GatewayType, RegisteredGateway,
+    RemoteGatewayDetails,
+};
 pub use backend::mem_backend::{InMemGatewaysDetails, InMemStorageError};
 pub use error::BadGateway;
 
@@ -25,19 +28,22 @@ pub trait GatewaysDetailsStore {
     type StorageError: Error + From<error::BadGateway>;
 
     /// Returns details of the currently active gateway, if available.
-    async fn active_gateway(&self) -> Result<Option<GatewayDetails>, Self::StorageError>;
+    async fn active_gateway(&self) -> Result<Option<GatewayRegistration>, Self::StorageError>;
 
     /// Set the provided gateway as the currently active gateway.
     async fn set_active_gateway(&self, gateway_id: &str) -> Result<(), Self::StorageError>;
 
     /// Returns details of all registered gateways.
-    async fn all_gateways(&self) -> Result<Vec<GatewayDetails>, Self::StorageError>;
+    async fn all_gateways(&self) -> Result<Vec<GatewayRegistration>, Self::StorageError>;
+
+    /// Check if the gateway with the provided id already exists in the store.
+    async fn has_gateway_details(&self, gateway_id: &str) -> Result<bool, Self::StorageError>;
 
     /// Returns details of the particular gateway.
     async fn load_gateway_details(
         &self,
         gateway_id: &str,
-    ) -> Result<GatewayDetails, Self::StorageError>;
+    ) -> Result<GatewayRegistration, Self::StorageError>;
 
     /// Store the provided gateway details.
     async fn store_gateway_details(

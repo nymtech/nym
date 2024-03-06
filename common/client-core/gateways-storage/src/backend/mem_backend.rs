@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::GatewayDetails;
+use crate::types::{GatewayDetails, GatewayRegistration};
 use crate::{BadGateway, GatewaysDetailsStore};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -33,8 +33,10 @@ struct InMemStorageInner {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl GatewaysDetailsStore for InMemGatewaysDetails {
     type StorageError = InMemStorageError;
-
-    async fn active_gateway(&self) -> Result<Option<GatewayDetails>, Self::StorageError> {
+    async fn has_gateway_details(&self, gateway_id: &str) -> Result<bool, Self::StorageError> {
+        todo!()
+    }
+    async fn active_gateway(&self) -> Result<Option<GatewayRegistration>, Self::StorageError> {
         // let guard = self.inner.read().await;
         //
         // let foo = guard.active_gateway.map(|id| {
@@ -51,14 +53,14 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
         todo!()
     }
 
-    async fn all_gateways(&self) -> Result<Vec<GatewayDetails>, Self::StorageError> {
+    async fn all_gateways(&self) -> Result<Vec<GatewayRegistration>, Self::StorageError> {
         todo!()
     }
 
     async fn load_gateway_details(
         &self,
         gateway_id: &str,
-    ) -> Result<GatewayDetails, Self::StorageError> {
+    ) -> Result<GatewayRegistration, Self::StorageError> {
         todo!()
     }
 

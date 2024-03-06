@@ -1,24 +1,100 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::base_client::storage::gateway_details::{
-    GatewayDetailsStore, PersistedCustomGatewayDetails, PersistedGatewayDetails,
-};
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::key_manager::ManagedKeys;
+use crate::client::key_manager::{KeyManager, ManagedKeys};
 use crate::config::{Config, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
-use crate::init::{_load_gateway_details, _load_managed_keys, setup_gateway};
+use crate::init::{setup_gateway, use_loaded_gateway_details};
+use nym_client_core_gateways_storage::{
+    BadGateway, GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
+};
+use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;
+use nym_validator_client::nyxd::AccountId;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::str::FromStr;
 use std::sync::Arc;
+use time::OffsetDateTime;
+use url::Url;
+
+pub enum SelectedGateway {
+    Remote {
+        gateway_id: identity::PublicKey,
+
+        gateway_owner_address: AccountId,
+
+        gateway_listener: Url,
+    },
+    Custom {
+        gateway_id: identity::PublicKey,
+        additional_data: Option<Vec<u8>>,
+    },
+}
+
+impl SelectedGateway {
+    pub fn from_topology_node(
+        node: gateway::Node,
+        must_use_tls: bool,
+    ) -> Result<Self, ClientCoreError> {
+        let gateway_listener = if must_use_tls {
+            node.clients_address_tls()
+                .ok_or(ClientCoreError::UnsupportedWssProtocol {
+                    gateway: node.identity_key.to_base58_string(),
+                })?
+        } else {
+            node.clients_address()
+        };
+
+        let gateway_owner_address = AccountId::from_str(&node.owner).map_err(|source| {
+            ClientCoreError::MalformedGatewayOwnerAccountAddress {
+                gateway_id: node.identity_key.to_base58_string(),
+                raw_owner: node.owner,
+                err: source.to_string(),
+            }
+        })?;
+
+        let gateway_listener =
+            Url::parse(&gateway_listener).map_err(|source| ClientCoreError::MalformedListener {
+                gateway_id: node.identity_key.to_base58_string(),
+                raw_listener: gateway_listener,
+                source,
+            })?;
+
+        Ok(SelectedGateway::Remote {
+            gateway_id: node.identity_key,
+            gateway_owner_address,
+            gateway_listener,
+        })
+    }
+
+    pub fn custom(
+        gateway_id: String,
+        additional_data: Option<Vec<u8>>,
+    ) -> Result<Self, ClientCoreError> {
+        let gateway_id = identity::PublicKey::from_base58_string(&gateway_id)
+            .map_err(|source| ClientCoreError::MalformedGatewayIdentity { gateway_id, source })?;
+
+        Ok(SelectedGateway::Custom {
+            gateway_id,
+            additional_data,
+        })
+    }
+
+    pub fn gateway_id(&self) -> &identity::PublicKey {
+        match self {
+            SelectedGateway::Remote { gateway_id, .. } => gateway_id,
+            SelectedGateway::Custom { gateway_id, .. } => gateway_id,
+        }
+    }
+}
 
 /// Result of registering with a gateway:
 /// - shared keys derived between ourselves and the node
@@ -34,16 +110,16 @@ pub struct RegistrationResult {
 /// - an optional authenticated handle of an ephemeral gateway handle created for the purposes of registration,
 ///   if this was the first time this client registered
 pub struct InitialisationResult {
-    pub gateway_details: GatewayDetails,
-    pub managed_keys: ManagedKeys,
+    pub gateway_registration: GatewayRegistration,
+    pub client_keys: KeyManager,
     pub authenticated_ephemeral_client: Option<InitGatewayClient>,
 }
 
 impl InitialisationResult {
-    pub fn new_loaded(gateway_details: GatewayDetails, managed_keys: ManagedKeys) -> Self {
+    pub fn new_loaded(gateway_registration: GatewayRegistration, client_keys: KeyManager) -> Self {
         InitialisationResult {
-            gateway_details,
-            managed_keys,
+            gateway_registration,
+            client_keys,
             authenticated_ephemeral_client: None,
         }
     }
@@ -51,127 +127,106 @@ impl InitialisationResult {
     pub async fn try_load<K, D>(key_store: &K, details_store: &D) -> Result<Self, ClientCoreError>
     where
         K: KeyStore,
-        D: GatewayDetailsStore,
+        D: GatewaysDetailsStore,
         K::StorageError: Send + Sync + 'static,
         D::StorageError: Send + Sync + 'static,
     {
-        todo!()
-        // let loaded_details = _load_gateway_details(details_store).await?;
-        // let loaded_keys = _load_managed_keys(key_store).await?;
-        //
-        // match &loaded_details {
-        //     PersistedGatewayDetails::Default(loaded_default) => {
-        //         if !loaded_default.verify(&loaded_keys.must_get_gateway_shared_key()) {
-        //             return Err(ClientCoreError::MismatchedGatewayDetails {
-        //                 gateway_id: loaded_default.details.gateway_id.clone(),
-        //             });
-        //         }
-        //     }
-        //     PersistedGatewayDetails::Custom(_) => {}
-        // }
-        //
-        // Ok(InitialisationResult {
-        //     gateway_details: loaded_details.into(),
-        //     managed_keys: loaded_keys,
-        //     authenticated_ephemeral_client: None,
-        // })
+        use_loaded_gateway_details(key_store, details_store, None).await
     }
 
-    pub fn client_address(&self) -> Result<Recipient, ClientCoreError> {
-        let client_recipient = Recipient::new(
-            *self.managed_keys.identity_public_key(),
-            *self.managed_keys.encryption_public_key(),
+    pub fn client_address(&self) -> Recipient {
+        Recipient::new(
+            *self.client_keys.identity_keypair().public_key(),
+            *self.client_keys.encryption_keypair().public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            NodeIdentity::from_base58_string(self.gateway_details.gateway_id())?,
-        );
-
-        Ok(client_recipient)
+            self.gateway_registration.details.gateway_id(),
+        )
     }
 }
-
-/// Details of particular gateway client got registered with
-#[derive(Debug, Clone)]
-pub enum GatewayDetails {
-    /// Standard details of a remote gateway
-    Configured(GatewayEndpointConfig),
-
-    /// Custom gateway setup, such as for a client embedded inside gateway itself
-    Custom(CustomGatewayDetails),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomGatewayDetails {
-    // whatever custom method is used, gateway's identity must be known
-    pub gateway_id: String,
-
-    pub additional_data: Vec<u8>,
-}
-
-impl CustomGatewayDetails {
-    pub fn new(gateway_id: String, additional_data: Vec<u8>) -> Self {
-        Self {
-            gateway_id,
-            additional_data,
-        }
-    }
-}
-
-impl GatewayDetails {
-    pub fn try_get_configured_endpoint(&self) -> Option<&GatewayEndpointConfig> {
-        if let GatewayDetails::Configured(endpoint) = &self {
-            Some(endpoint)
-        } else {
-            None
-        }
-    }
-
-    pub fn is_custom(&self) -> bool {
-        matches!(self, GatewayDetails::Custom(_))
-    }
-
-    pub fn gateway_id(&self) -> &str {
-        match self {
-            GatewayDetails::Configured(cfg) => &cfg.gateway_id,
-            GatewayDetails::Custom(custom) => &custom.gateway_id,
-        }
-    }
-}
-
-impl From<GatewayEndpointConfig> for GatewayDetails {
-    fn from(value: GatewayEndpointConfig) -> Self {
-        GatewayDetails::Configured(value)
-    }
-}
-
-impl From<PersistedCustomGatewayDetails> for CustomGatewayDetails {
-    fn from(value: PersistedCustomGatewayDetails) -> Self {
-        CustomGatewayDetails {
-            gateway_id: value.gateway_id,
-            additional_data: value.additional_data,
-        }
-    }
-}
-
-impl From<CustomGatewayDetails> for PersistedCustomGatewayDetails {
-    fn from(value: CustomGatewayDetails) -> Self {
-        PersistedCustomGatewayDetails {
-            gateway_id: value.gateway_id,
-            additional_data: value.additional_data,
-        }
-    }
-}
-
-impl From<PersistedGatewayDetails> for GatewayDetails {
-    fn from(value: PersistedGatewayDetails) -> Self {
-        match value {
-            PersistedGatewayDetails::Default(default) => {
-                GatewayDetails::Configured(default.details)
-            }
-            PersistedGatewayDetails::Custom(custom) => GatewayDetails::Custom(custom.into()),
-        }
-    }
-}
+//
+// /// Details of particular gateway client got registered with
+// #[derive(Debug, Clone)]
+// pub enum GatewayDetails {
+//     /// Standard details of a remote gateway
+//     Configured(GatewayEndpointConfig),
+//
+//     /// Custom gateway setup, such as for a client embedded inside gateway itself
+//     Custom(CustomGatewayDetails),
+// }
+//
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct CustomGatewayDetails {
+//     // whatever custom method is used, gateway's identity must be known
+//     pub gateway_id: String,
+//
+//     pub additional_data: Vec<u8>,
+// }
+//
+// impl CustomGatewayDetails {
+//     pub fn new(gateway_id: String, additional_data: Vec<u8>) -> Self {
+//         Self {
+//             gateway_id,
+//             additional_data,
+//         }
+//     }
+// }
+//
+// impl GatewayDetails {
+//     pub fn try_get_configured_endpoint(&self) -> Option<&GatewayEndpointConfig> {
+//         if let GatewayDetails::Configured(endpoint) = &self {
+//             Some(endpoint)
+//         } else {
+//             None
+//         }
+//     }
+//
+//     pub fn is_custom(&self) -> bool {
+//         matches!(self, GatewayDetails::Custom(_))
+//     }
+//
+//     pub fn gateway_id(&self) -> &str {
+//         match self {
+//             GatewayDetails::Configured(cfg) => &cfg.gateway_id,
+//             GatewayDetails::Custom(custom) => &custom.gateway_id,
+//         }
+//     }
+// }
+//
+// impl From<GatewayEndpointConfig> for GatewayDetails {
+//     fn from(value: GatewayEndpointConfig) -> Self {
+//         GatewayDetails::Configured(value)
+//     }
+// }
+//
+// impl From<PersistedCustomGatewayDetails> for CustomGatewayDetails {
+//     fn from(value: PersistedCustomGatewayDetails) -> Self {
+//         CustomGatewayDetails {
+//             gateway_id: value.gateway_id,
+//             additional_data: value.additional_data,
+//         }
+//     }
+// }
+//
+// impl From<CustomGatewayDetails> for PersistedCustomGatewayDetails {
+//     fn from(value: CustomGatewayDetails) -> Self {
+//         PersistedCustomGatewayDetails {
+//             gateway_id: value.gateway_id,
+//             additional_data: value.additional_data,
+//         }
+//     }
+// }
+//
+// impl From<PersistedGatewayDetails> for GatewayDetails {
+//     fn from(value: PersistedGatewayDetails) -> Self {
+//         match value {
+//             PersistedGatewayDetails::Default(default) => {
+//                 GatewayDetails::Configured(default.details)
+//             }
+//             PersistedGatewayDetails::Custom(custom) => GatewayDetails::Custom(custom.into()),
+//         }
+//     }
+// }
 
 #[derive(Clone, Debug)]
 pub enum GatewaySelectionSpecification {
@@ -192,7 +247,7 @@ pub enum GatewaySelectionSpecification {
     /// This client has handled the selection by itself
     Custom {
         gateway_identity: String,
-        additional_data: Vec<u8>,
+        additional_data: Option<Vec<u8>>,
     },
 }
 
@@ -225,7 +280,10 @@ impl GatewaySelectionSpecification {
 
 pub enum GatewaySetup {
     /// The gateway specification (details + keys) MUST BE loaded from the underlying storage.
-    MustLoad,
+    MustLoad {
+        /// Optionally specify concrete gateway id. If none is selected, the current active gateway will be used.
+        gateway_id: Option<String>,
+    },
 
     /// Specifies usage of a new gateway
     New {
@@ -243,23 +301,24 @@ pub enum GatewaySetup {
         authenticated_ephemeral_client: InitGatewayClient,
 
         // Details of this pre-initialised client (i.e. gateway and keys)
-        gateway_details: GatewayDetails,
+        gateway_details: GatewayRegistration,
 
-        managed_keys: ManagedKeys,
+        managed_keys: KeyManager,
     },
 }
 
 impl GatewaySetup {
     pub fn try_reuse_connection(init_res: InitialisationResult) -> Result<Self, ClientCoreError> {
-        if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
-            Ok(GatewaySetup::ReuseConnection {
-                authenticated_ephemeral_client,
-                gateway_details: init_res.gateway_details,
-                managed_keys: init_res.managed_keys,
-            })
-        } else {
-            Err(ClientCoreError::NoInitClientPresent)
-        }
+        todo!()
+        // if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
+        //     Ok(GatewaySetup::ReuseConnection {
+        //         authenticated_ephemeral_client,
+        //         gateway_details: init_res.gateway_details,
+        //         managed_keys: init_res.managed_keys,
+        //     })
+        // } else {
+        //     Err(ClientCoreError::NoInitClientPresent)
+        // }
     }
 
     pub async fn try_setup<K, D>(
@@ -269,7 +328,7 @@ impl GatewaySetup {
     ) -> Result<InitialisationResult, ClientCoreError>
     where
         K: KeyStore,
-        D: GatewayDetailsStore,
+        D: GatewaysDetailsStore,
         K::StorageError: Send + Sync + 'static,
         D::StorageError: Send + Sync + 'static,
     {
@@ -278,7 +337,7 @@ impl GatewaySetup {
     }
 
     pub fn is_must_load(&self) -> bool {
-        matches!(self, GatewaySetup::MustLoad)
+        matches!(self, GatewaySetup::MustLoad { .. })
     }
 
     pub fn has_full_details(&self) -> bool {
@@ -299,14 +358,19 @@ pub struct InitResults {
 }
 
 impl InitResults {
-    pub fn new(config: &Config, address: Recipient, gateway: &GatewayEndpointConfig) -> Self {
+    pub fn new(
+        config: &Config,
+        address: Recipient,
+        gateway: &RemoteGatewayDetails,
+        registration: OffsetDateTime,
+    ) -> Self {
         Self {
             version: config.client.version.clone(),
             id: config.client.id.clone(),
             identity_key: address.identity().to_base58_string(),
             encryption_key: address.encryption_key().to_base58_string(),
-            gateway_id: gateway.gateway_id.clone(),
-            gateway_listener: gateway.gateway_listener.clone(),
+            gateway_id: gateway.gateway_id.to_base58_string(),
+            gateway_listener: gateway.gateway_listener.to_string(),
             address,
         }
     }

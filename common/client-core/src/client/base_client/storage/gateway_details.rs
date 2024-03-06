@@ -3,7 +3,6 @@
 
 use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
-use crate::init::types::GatewayDetails;
 use async_trait::async_trait;
 use log::error;
 use nym_gateway_requests::registration::handshake::SharedKeys;
@@ -108,44 +107,44 @@ impl PersistedGatewayConfig {
 }
 
 impl PersistedGatewayDetails {
-    pub fn new(
-        details: GatewayDetails,
-        shared_key: Option<&SharedKeys>,
-    ) -> Result<Self, ClientCoreError> {
-        match details {
-            GatewayDetails::Configured(cfg) => {
-                let shared_key = shared_key.ok_or(ClientCoreError::UnavailableSharedKey)?;
-                Ok(PersistedGatewayDetails::Default(
-                    PersistedGatewayConfig::new(cfg, shared_key),
-                ))
-            }
-            GatewayDetails::Custom(custom) => Ok(PersistedGatewayDetails::Custom(custom.into())),
-        }
-    }
-
-    pub fn is_custom(&self) -> bool {
-        matches!(self, PersistedGatewayDetails::Custom(..))
-    }
-
-    pub fn matches(&self, other: &GatewayDetails) -> bool {
-        match self {
-            PersistedGatewayDetails::Default(default) => {
-                if let GatewayDetails::Configured(other_configured) = other {
-                    &default.details == other_configured
-                } else {
-                    false
-                }
-            }
-            PersistedGatewayDetails::Custom(custom) => {
-                if let GatewayDetails::Custom(other_custom) = other {
-                    custom.gateway_id == other_custom.gateway_id
-                        && custom.additional_data == other_custom.additional_data
-                } else {
-                    false
-                }
-            }
-        }
-    }
+    // pub fn new(
+    //     details: GatewayDetails,
+    //     shared_key: Option<&SharedKeys>,
+    // ) -> Result<Self, ClientCoreError> {
+    //     match details {
+    //         GatewayDetails::Configured(cfg) => {
+    //             let shared_key = shared_key.ok_or(ClientCoreError::UnavailableSharedKey)?;
+    //             Ok(PersistedGatewayDetails::Default(
+    //                 PersistedGatewayConfig::new(cfg, shared_key),
+    //             ))
+    //         }
+    //         GatewayDetails::Custom(custom) => Ok(PersistedGatewayDetails::Custom(custom.into())),
+    //     }
+    // }
+    //
+    // pub fn is_custom(&self) -> bool {
+    //     matches!(self, PersistedGatewayDetails::Custom(..))
+    // }
+    //
+    // pub fn matches(&self, other: &GatewayDetails) -> bool {
+    //     match self {
+    //         PersistedGatewayDetails::Default(default) => {
+    //             if let GatewayDetails::Configured(other_configured) = other {
+    //                 &default.details == other_configured
+    //             } else {
+    //                 false
+    //             }
+    //         }
+    //         PersistedGatewayDetails::Custom(custom) => {
+    //             if let GatewayDetails::Custom(other_custom) = other {
+    //                 custom.gateway_id == other_custom.gateway_id
+    //                     && custom.additional_data == other_custom.additional_data
+    //             } else {
+    //                 false
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 // helper to make Vec<u8> serialization use base64 representation to make it human readable

@@ -4280,7 +4280,7 @@ dependencies = [
  "rw-stream-sink",
  "soketto",
  "url",
- "webpki-roots 0.22.6",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -5128,6 +5128,7 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-id",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-name-service-common",
@@ -5168,6 +5169,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-id",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",
@@ -5627,6 +5629,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-id"
+version = "0.1.0"
+dependencies = [
+ "nym-credential-storage",
+ "nym-credentials",
+ "thiserror",
+ "time",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-id-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bs58 0.5.0",
+ "clap 4.4.7",
+ "nym-bin-common",
+ "nym-credential-storage",
+ "nym-id",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "nym-inclusion-probability"
 version = "0.1.0"
 dependencies = [
@@ -5864,6 +5892,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-exit-policy",
+ "nym-id",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-sdk",
@@ -6151,6 +6180,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-id",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-pemstore",
@@ -8014,7 +8044,6 @@ dependencies = [
  "wasm-bindgen-futures",
  "wasm-streams",
  "web-sys",
- "webpki-roots 0.25.2",
  "winreg",
 ]
 
@@ -9177,7 +9206,7 @@ dependencies = [
  "time",
  "tokio-stream",
  "url",
- "webpki-roots 0.22.6",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -9824,7 +9853,6 @@ checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
 dependencies = [
  "futures-util",
  "log",
- "rustls 0.21.10",
  "tokio",
  "tungstenite",
 ]
@@ -10841,12 +10869,6 @@ checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
 dependencies = [
  "webpki 0.22.4",
 ]
-
-[[package]]
-name = "webpki-roots"
-version = "0.25.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14247bb57be4f377dfb94c72830b8ce8fc6beac03cf4bf7b9732eadd414123fc"
 
 [[package]]
 name = "webrtc"

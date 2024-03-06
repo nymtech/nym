@@ -1,7 +1,7 @@
 import React, { FC } from 'react';
 import { ChainProvider, useChain } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';
-import { wallets as keplr } from '@cosmos-kit/keplr';
+import { wallets as keplr } from '@cosmos-kit/keplr-extension';
 import { wallets as ledger } from '@cosmos-kit/ledger';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';

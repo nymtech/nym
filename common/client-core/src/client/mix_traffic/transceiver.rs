@@ -8,6 +8,7 @@ use nym_gateway_client::GatewayClient;
 pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::fmt::Debug;
+use std::os::raw::c_int as RawFd;
 use thiserror::Error;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -25,6 +26,7 @@ fn erase_err<E: std::error::Error + Send + Sync + 'static>(err: E) -> ErasedGate
 /// This combines combines the functionalities of being able to send and receive mix packets.
 pub trait GatewayTransceiver: GatewaySender + GatewayReceiver {
     fn gateway_identity(&self) -> identity::PublicKey;
+    fn ws_fd(&self) -> Option<RawFd>;
 }
 
 /// This trait defines the functionality of sending `MixPacket` into the mixnet,
@@ -65,6 +67,9 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
     #[inline]
     fn gateway_identity(&self) -> identity::PublicKey {
         (**self).gateway_identity()
+    }
+    fn ws_fd(&self) -> Option<RawFd> {
+        (**self).ws_fd()
     }
 }
 
@@ -111,6 +116,9 @@ where
 {
     fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_client.gateway_identity()
+    }
+    fn ws_fd(&self) -> Option<RawFd> {
+        self.gateway_client.ws_fd()
     }
 }
 
@@ -187,6 +195,9 @@ mod nonwasm_sealed {
         fn gateway_identity(&self) -> identity::PublicKey {
             self.local_identity
         }
+        fn ws_fd(&self) -> Option<RawFd> {
+            None
+        }
     }
 
     #[async_trait]
@@ -258,5 +269,8 @@ impl GatewaySender for MockGateway {
 impl GatewayTransceiver for MockGateway {
     fn gateway_identity(&self) -> identity::PublicKey {
         self.dummy_identity
+    }
+    fn ws_fd(&self) -> Option<RawFd> {
+        None
     }
 }

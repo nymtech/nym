@@ -23,7 +23,7 @@ systemctl start <NODE>.service
 journalctl -f -u <NODE>.service # to monitor log of you node
 ```
 
-If these steps are too difficult and you prefer to just run a script, you can use [ExploreNYM script](https://github.com/ExploreNYM/bash-tool) or one done by [Nym developers](https://gist.github.com/tommyv1987/4dca7cc175b70742c9ecb3d072eb8539).
+If these steps are too difficult and you prefer to automate the process, try to setup your flow with [Nymvisor](nymvisor-upgrade.md).
 
 > In case of a Network Requester this is all, the following step is only for Mix Nodes and Gateways.
 
@@ -98,4 +98,3 @@ The most common reason for your validator being jailed is that your validator is
 Running the command `df -H` will return the size of the various partitions of your VPS.
 
 If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog archives and restart your validator process.
-

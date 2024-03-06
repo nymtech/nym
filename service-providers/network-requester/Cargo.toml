@@ -61,7 +61,7 @@ nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }
 nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }
-
+nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
 tempfile = "3.5.0"

@@ -414,7 +414,7 @@ where
     }
 
     /// Client keys are generated at client creation if none were found. The gateway shared
-    /// key, however, is created during the gateway registration handshake so it might not
+    /// key, however, is created during the gateway registration handshake, so it might not
     /// necessarily be available.
     /// Furthermore, it has to be coupled with particular gateway's config.
     async fn has_valid_gateway_info(&self) -> bool {
@@ -466,7 +466,7 @@ where
         let api_endpoints = self.get_api_endpoints();
 
         let gateway_setup = if self.has_valid_gateway_info().await {
-            GatewaySetup::MustLoad
+            GatewaySetup::MustLoad { gateway_id: None }
         } else {
             let selection_spec = GatewaySelectionSpecification::new(
                 self.config.user_chosen_gateway.clone(),

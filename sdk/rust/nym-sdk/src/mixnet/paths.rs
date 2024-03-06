@@ -1,8 +1,7 @@
-// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{Error, Result};
-use nym_client_core::client::base_client::non_wasm_helpers::setup_fs_gateways_storage;
 use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
@@ -32,20 +31,13 @@ pub struct StoragePaths {
     /// Key for handling acks
     pub ack_key: PathBuf,
 
-    /// Key setup after authenticating with a gateway
-    #[deprecated]
-    pub gateway_shared_key: PathBuf,
-
     /// The database containing credentials
     pub credential_database_path: PathBuf,
 
     /// The database storing reply surbs in-between sessions
     pub reply_surb_database_path: PathBuf,
 
-    /// Details of the used gateway
-    #[deprecated]
-    pub gateway_details_path: PathBuf,
-
+    /// Details of the used gateways
     pub gateway_registrations: PathBuf,
 }
 
@@ -68,10 +60,8 @@ impl StoragePaths {
             private_encryption: dir.join("private_encryption.pem"),
             public_encryption: dir.join("public_encryption.pem"),
             ack_key: dir.join("ack_key.pem"),
-            gateway_shared_key: dir.join("gateway_shared.pem"),
             credential_database_path: dir.join("db.sqlite"),
             reply_surb_database_path: dir.join("persistent_reply_store.sqlite"),
-            gateway_details_path: dir.join("gateway_details.json"),
             gateway_registrations: dir.join("gateways_registrations.sqlite"),
         })
     }
@@ -145,7 +135,6 @@ impl StoragePaths {
             public_identity_key_file: self.public_identity.clone(),
             private_encryption_key_file: self.private_encryption.clone(),
             public_encryption_key_file: self.public_encryption.clone(),
-            gateway_shared_key_file: self.gateway_shared_key.clone(),
             ack_key_file: self.ack_key.clone(),
         }
     }
@@ -159,10 +148,8 @@ impl From<StoragePaths> for CommonClientPaths {
                 public_identity_key_file: value.public_identity,
                 private_encryption_key_file: value.private_encryption,
                 public_encryption_key_file: value.public_encryption,
-                gateway_shared_key_file: value.gateway_shared_key,
                 ack_key_file: value.ack_key,
             },
-            gateway_details: value.gateway_details_path,
             gateway_registrations: value.gateway_registrations,
             credentials_database: value.credential_database_path,
             reply_surb_database: value.reply_surb_database_path,
@@ -178,10 +165,8 @@ impl From<CommonClientPaths> for StoragePaths {
             private_encryption: value.keys.private_encryption_key_file,
             public_encryption: value.keys.public_encryption_key_file,
             ack_key: value.keys.ack_key_file,
-            gateway_shared_key: value.keys.gateway_shared_key_file,
             credential_database_path: value.credentials_database,
             reply_surb_database_path: value.reply_surb_database,
-            gateway_details_path: value.gateway_details,
             gateway_registrations: value.gateway_registrations,
         }
     }

@@ -1,9 +1,7 @@
-use std::net::IpAddr;
-
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
-use crate::{make_bincode_serializer, CURRENT_VERSION};
+use crate::{make_bincode_serializer, IpPair, CURRENT_VERSION};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IpPacketResponse {
@@ -38,13 +36,13 @@ impl IpPacketResponse {
         }
     }
 
-    pub fn new_dynamic_connect_success(request_id: u64, reply_to: Recipient, ip: IpAddr) -> Self {
+    pub fn new_dynamic_connect_success(request_id: u64, reply_to: Recipient, ips: IpPair) -> Self {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
                 request_id,
                 reply_to,
-                reply: DynamicConnectResponseReply::Success(DynamicConnectSuccess { ip }),
+                reply: DynamicConnectResponseReply::Success(DynamicConnectSuccess { ips }),
             }),
         }
     }
@@ -263,7 +261,7 @@ impl DynamicConnectResponseReply {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DynamicConnectSuccess {
-    pub ip: IpAddr,
+    pub ips: IpPair,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]

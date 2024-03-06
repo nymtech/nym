@@ -8,30 +8,20 @@ Our alpha testing round is done with participants at live workshop events. This 
 
 This is the alpha version of NymVPN desktop application (GUI). A demo of how the client will look like for majority of day-to-day users. For qualitative testing the [CLI](cli.md) is a necessity but to run the GUI holds the same importance as it provides the user with an experience of the actual app and the developers with a valuable feedback from the users.
 
-Follow the simple [automated script](#automated-script-for-gui-installation) below to install and run NymVPN GUI. If you prefer to do a manual setup follow the steps in the guide for [Linux](gui-linux.md).
+Follow the simple [automated script](#automated-script-for-gui-installation) below to install and run NymVPN GUI. If the script didn't work for your distribution or you prefer to do a manual setup follow the steps in the guide for [Linux](gui-linux.md) or [MacOS](gui-mac.md) .
 
 Visit NymVPN alpha latest [release page]({{nym_vpn_latest_binary_url}}) to check sha sums or download the binaries directly.
 
 ## Automated Script for GUI Installation
 
-We wrote a [script](https://gist.github.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e) which does download of dependencies and the application, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
+We wrote a [script](https://gist.github.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e) which does download of dependencies and the application, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically. Turn off all VPNs and follow the steps below.
 
-1. Open a terminal window in a directory where you want the script and NymVPN binary be downloaded and run
+1. Open a terminal window in a directory where you want the script to be downloaded and run
 ```sh
-curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e/raw/227c8c348a1e58f68cb500e4504b22412177c680/nym-vpn-desktop-install-run.sh
+curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e/raw/227c8c348a1e58f68cb500e4504b22412177c680/nym-vpn-desktop-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
 ```
 
-2. Make the script executable
-```sh
-chmod u+x nym-vpn-desktop-install-run.sh
-```
-
-3. Start the script, turn off any VPN and run
-```sh
-sudo -E ./nym-vpn-desktop-install-run.sh
-```
-
-4. Follow the prompts in the program
+2. Follow the prompts in the program
 
 To start the application again, reconnect your wifi and run
 ```sh

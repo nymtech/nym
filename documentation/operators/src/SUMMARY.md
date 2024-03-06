@@ -20,9 +20,14 @@
   - [Nym API Setup](nodes/nym-api.md)
 - [Maintenance](nodes/maintenance.md)
   - [Manual Node Upgrade](nodes/manual-upgrade.md)
-
-[//]: # (  - [Automatic Node Upgrade: Nymvisor Setup and Usage]&#40;nodes/nymvisor-upgrade.md&#41;)
+  - [Automatic Node Upgrade: Nymvisor Setup and Usage](nodes/nymvisor-upgrade.md)
 - [Troubleshooting](nodes/troubleshooting.md)
+
+# Token Economics
+
+<!-- - [Fair Mixnet](tokenomics/fair-mixnet.md) -->
+<!--    - [Mixnet: Nym Node Rewards](tokenomics/mixnet-rewards.md) -->
+- [Nyx: Validator Rewards](tokenomics/validator-rewards.md)
 
 # FAQ
 

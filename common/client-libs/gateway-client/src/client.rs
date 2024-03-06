@@ -6,7 +6,7 @@ use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
-use crate::socket_state::{PartiallyDelegated, SocketState};
+use crate::socket_state::{ws_fd, PartiallyDelegated, SocketState};
 use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
@@ -33,11 +33,15 @@ use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
 
+#[cfg(unix)]
+use std::os::fd::RawFd;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
+#[cfg(not(unix))]
+use std::os::raw::c_int as RawFd;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
@@ -151,6 +155,14 @@ impl<C, St> GatewayClient<C, St> {
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_identity
+    }
+
+    pub fn ws_fd(&self) -> Option<RawFd> {
+        match &self.connection {
+            SocketState::Available(conn) => ws_fd(conn.as_ref()),
+            SocketState::PartiallyDelegated(conn) => conn.ws_fd(),
+            _ => None,
+        }
     }
 
     pub fn remaining_bandwidth(&self) -> i64 {

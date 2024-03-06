@@ -1,13 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    client::config::{
-        default_config_filepath, persistence::ClientPaths, Config, Socket, SocketType,
-    },
-    error::ClientError,
+use crate::client::config::old_config_v1_1_33::{
+    ClientPathsV1_1_33, ConfigV1_1_33, SocketTypeV1_1_33, SocketV1_1_33,
 };
-
+use crate::{client::config::default_config_filepath, error::ClientError};
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as BaseConfigV1_1_20_2;
@@ -49,12 +46,12 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig), ClientError> {
+    pub fn upgrade(self) -> Result<(ConfigV1_1_33, GatewayEndpointConfig), ClientError> {
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
-        let config = Config {
+        let config = ConfigV1_1_33 {
             base: BaseConfigV1_1_30::from(self.base).into(),
             socket: self.socket.into(),
-            storage_paths: ClientPaths {
+            storage_paths: ClientPathsV1_1_33 {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,
             },
             logging: self.logging,
@@ -71,11 +68,11 @@ pub enum SocketTypeV1_1_20_2 {
     None,
 }
 
-impl From<SocketTypeV1_1_20_2> for SocketType {
+impl From<SocketTypeV1_1_20_2> for SocketTypeV1_1_33 {
     fn from(value: SocketTypeV1_1_20_2) -> Self {
         match value {
-            SocketTypeV1_1_20_2::WebSocket => SocketType::WebSocket,
-            SocketTypeV1_1_20_2::None => SocketType::None,
+            SocketTypeV1_1_20_2::WebSocket => SocketTypeV1_1_33::WebSocket,
+            SocketTypeV1_1_20_2::None => SocketTypeV1_1_33::None,
         }
     }
 }
@@ -88,9 +85,9 @@ pub struct SocketV1_1_20_2 {
     pub listening_port: u16,
 }
 
-impl From<SocketV1_1_20_2> for Socket {
+impl From<SocketV1_1_20_2> for SocketV1_1_33 {
     fn from(value: SocketV1_1_20_2) -> Self {
-        Socket {
+        SocketV1_1_33 {
             socket_type: value.socket_type.into(),
             host: value.host,
             listening_port: value.listening_port,

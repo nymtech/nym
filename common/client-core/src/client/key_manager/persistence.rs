@@ -85,14 +85,6 @@ impl OnDiskKeys {
     }
 
     #[doc(hidden)]
-    pub fn ephemeral_load_gateway_keys(
-        &self,
-    ) -> Result<zeroize::Zeroizing<SharedKeys>, OnDiskKeysError> {
-        self.load_key(self.paths.gateway_shared_key(), "gateway shared")
-            .map(zeroize::Zeroizing::new)
-    }
-
-    #[doc(hidden)]
     pub fn load_encryption_keypair(&self) -> Result<encryption::KeyPair, OnDiskKeysError> {
         let encryption_paths = self.paths.encryption_key_pair_path();
         self.load_keypair(encryption_paths, "encryption")
@@ -161,14 +153,11 @@ impl OnDiskKeys {
         let encryption_keypair = self.load_encryption_keypair()?;
 
         let ack_key: AckKey = self.load_key(self.paths.ack_key(), "ack key")?;
-        let gateway_shared_key: Option<SharedKeys> = self
-            .load_key(self.paths.gateway_shared_key(), "gateway shared keys")
-            .ok();
 
         Ok(KeyManager::from_keys(
             identity_keypair,
             encryption_keypair,
-            gateway_shared_key,
+            None,
             ack_key,
         ))
     }
@@ -191,14 +180,6 @@ impl OnDiskKeys {
         )?;
 
         self.store_key(keys.ack_key.as_ref(), self.paths.ack_key(), "ack key")?;
-
-        if let Some(shared_keys) = &keys.gateway_shared_key {
-            self.store_key(
-                shared_keys.deref(),
-                self.paths.gateway_shared_key(),
-                "gateway shared keys",
-            )?;
-        }
 
         Ok(())
     }

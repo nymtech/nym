@@ -183,7 +183,7 @@ where
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
     let key_store = OnDiskKeys::new(paths.keys.clone());
-    let details_store = setup_fs_gateways_storage(&paths.gateway_details).await?;
+    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
     let available_gateways = if let Some(custom_mixnet) = common_args.custom_mixnet.as_ref() {
         let hardcoded_topology = NymTopology::new_from_file(custom_mixnet).map_err(|source| {

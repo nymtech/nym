@@ -16,6 +16,9 @@ CREATE TABLE registered_gateway
     gateway_type           TEXT CHECK ( gateway_type IN ('remote', 'custom') ) NOT NULL DEFAULT 'remote'
 );
 
+-- TODO: perhaps keep additional metadata such as bandwidth, credential usage, etc
+
+
 CREATE TABLE remote_gateway_details
 (
     gateway_id_bs58                          TEXT NOT NULL UNIQUE PRIMARY KEY REFERENCES registered_gateway (gateway_id_bs58),

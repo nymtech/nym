@@ -7,9 +7,8 @@ use std::path::{Path, PathBuf};
 
 pub mod keys_paths;
 pub mod old_v1_1_20_2;
-mod old_v1_1_33;
+pub mod old_v1_1_33;
 
-pub const DEFAULT_GATEWAY_DETAILS_FILENAME: &str = "gateway_details.json";
 pub const DEFAULT_REPLY_SURB_DB_FILENAME: &str = "persistent_reply_store.sqlite";
 pub const DEFAULT_CREDENTIALS_DB_FILENAME: &str = "credentials_database.db";
 pub const DEFAULT_GATEWAYS_DETAILS_DB_FILENAME: &str = "gateways_registrations.sqlite";
@@ -19,12 +18,8 @@ pub const DEFAULT_GATEWAYS_DETAILS_DB_FILENAME: &str = "gateways_registrations.s
 pub struct CommonClientPaths {
     pub keys: ClientKeysPaths,
 
-    /// Path to the file containing information about gateway used by this client,
-    /// i.e. details such as its public key, owner address or the network information.
-    #[deprecated]
-    pub gateway_details: PathBuf,
-
-    // TODO:
+    /// Path to the file containing information about gateways used by this client,
+    /// i.e. details such as their public keys, owner addresses or the network information.
     pub gateway_registrations: PathBuf,
 
     /// Path to the database containing bandwidth credentials of this client.
@@ -41,7 +36,6 @@ impl CommonClientPaths {
         CommonClientPaths {
             credentials_database: base_dir.join(DEFAULT_CREDENTIALS_DB_FILENAME),
             reply_surb_database: base_dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
-            gateway_details: base_dir.join(DEFAULT_GATEWAY_DETAILS_FILENAME),
             gateway_registrations: base_dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
             keys: ClientKeysPaths::new_base(base_data_directory),
         }

@@ -113,6 +113,9 @@ pub enum ClientCoreError {
     #[error("the provided gateway details (for gateway {gateway_id}) do not correspond to the shared keys")]
     MismatchedGatewayDetails { gateway_id: String },
 
+    #[error("unable to upgrade config file from `{current_version}`")]
+    ConfigFileUpgradeFailure { current_version: String },
+
     #[error("unable to upgrade config file to `{new_version}`")]
     UnableToUpgradeConfigFile { new_version: String },
 

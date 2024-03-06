@@ -293,7 +293,7 @@ pub(crate) async fn initialise_local_network_requester(
     )
     .await?;
 
-    let address = init_res.client_address()?;
+    let address = init_res.client_address();
 
     if let Err(err) = save_formatted_config_to_file(&nr_cfg, nr_cfg_path) {
         log::error!("Failed to save the network requester config file: {err}");
@@ -366,7 +366,7 @@ pub(crate) async fn initialise_local_ip_packet_router(
     )
     .await?;
 
-    let address = init_res.client_address()?;
+    let address = init_res.client_address();
 
     if let Err(err) = save_formatted_config_to_file(&ip_cfg, ip_cfg_path) {
         log::error!("Failed to save the ip packet router config file: {err}");

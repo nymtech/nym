@@ -25,7 +25,7 @@ nym-wireguard-types = { path = "../../common/wireguard-types", default-features 
 
 ## client:
 async-trait = { workspace = true, optional = true }
-http-api-client = { path = "../../common/http-api-client", optional = true }
+nym-http-api-client = { path = "../../common/http-api-client", optional = true }
 
 ## openapi:
 utoipa = { workspace = true, optional = true }
@@ -36,5 +36,5 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["client"]
-client = ["http-api-client", "async-trait"]
+client = ["nym-http-api-client", "async-trait"]
 openapi = ["utoipa", "nym-bin-common/openapi", "nym-wireguard-types/openapi", "nym-exit-policy/openapi"]

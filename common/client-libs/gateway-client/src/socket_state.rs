@@ -15,7 +15,7 @@ use std::os::raw::c_int as RawFd;
 use std::sync::Arc;
 use tungstenite::Message;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(unix)]
 use std::os::fd::AsRawFd;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
@@ -41,14 +41,14 @@ type WsConn = JSWebsocket;
 type SplitStreamReceiver = oneshot::Receiver<Result<SplitStream<WsConn>, GatewayClientError>>;
 
 pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(unix)]
     match _conn.get_ref() {
         MaybeTlsStream::Plain(stream) => Some(stream.as_raw_fd()),
         &_ => unreachable!(
             "If tls features are enabled, the inner stream needs to be unpacked into raw fd"
         ),
     }
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(unix))]
     None
 }
 

@@ -33,14 +33,14 @@ pub struct RegistrationResult {
 /// - all loaded (or derived) keys
 /// - an optional authenticated handle of an ephemeral gateway handle created for the purposes of registration,
 ///   if this was the first time this client registered
-pub struct InitialisationResult<T = EmptyCustomDetails> {
-    pub gateway_details: GatewayDetails<T>,
+pub struct InitialisationResult {
+    pub gateway_details: GatewayDetails,
     pub managed_keys: ManagedKeys,
     pub authenticated_ephemeral_client: Option<InitGatewayClient>,
 }
 
-impl<T> InitialisationResult<T> {
-    pub fn new_loaded(gateway_details: GatewayDetails<T>, managed_keys: ManagedKeys) -> Self {
+impl InitialisationResult {
+    pub fn new_loaded(gateway_details: GatewayDetails, managed_keys: ManagedKeys) -> Self {
         InitialisationResult {
             gateway_details,
             managed_keys,
@@ -51,10 +51,9 @@ impl<T> InitialisationResult<T> {
     pub async fn try_load<K, D>(key_store: &K, details_store: &D) -> Result<Self, ClientCoreError>
     where
         K: KeyStore,
-        D: GatewayDetailsStore<T>,
+        D: GatewayDetailsStore,
         K::StorageError: Send + Sync + 'static,
         D::StorageError: Send + Sync + 'static,
-        T: DeserializeOwned + Send + Sync,
     {
         todo!()
         // let loaded_details = _load_gateway_details(details_store).await?;
@@ -93,29 +92,24 @@ impl<T> InitialisationResult<T> {
 
 /// Details of particular gateway client got registered with
 #[derive(Debug, Clone)]
-pub enum GatewayDetails<T = EmptyCustomDetails> {
+pub enum GatewayDetails {
     /// Standard details of a remote gateway
     Configured(GatewayEndpointConfig),
 
     /// Custom gateway setup, such as for a client embedded inside gateway itself
-    Custom(CustomGatewayDetails<T>),
+    Custom(CustomGatewayDetails),
 }
 
-#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub struct EmptyCustomDetails {}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomGatewayDetails<T = EmptyCustomDetails> {
+pub struct CustomGatewayDetails {
     // whatever custom method is used, gateway's identity must be known
     pub gateway_id: String,
 
-    #[serde(flatten)]
-    pub additional_data: T,
+    pub additional_data: Vec<u8>,
 }
 
-impl<T> CustomGatewayDetails<T> {
-    pub fn new(gateway_id: String, additional_data: T) -> Self {
+impl CustomGatewayDetails {
+    pub fn new(gateway_id: String, additional_data: Vec<u8>) -> Self {
         Self {
             gateway_id,
             additional_data,
@@ -123,7 +117,7 @@ impl<T> CustomGatewayDetails<T> {
     }
 }
 
-impl<T> GatewayDetails<T> {
+impl GatewayDetails {
     pub fn try_get_configured_endpoint(&self) -> Option<&GatewayEndpointConfig> {
         if let GatewayDetails::Configured(endpoint) = &self {
             Some(endpoint)
@@ -150,8 +144,8 @@ impl From<GatewayEndpointConfig> for GatewayDetails {
     }
 }
 
-impl<T> From<PersistedCustomGatewayDetails<T>> for CustomGatewayDetails<T> {
-    fn from(value: PersistedCustomGatewayDetails<T>) -> Self {
+impl From<PersistedCustomGatewayDetails> for CustomGatewayDetails {
+    fn from(value: PersistedCustomGatewayDetails) -> Self {
         CustomGatewayDetails {
             gateway_id: value.gateway_id,
             additional_data: value.additional_data,
@@ -159,8 +153,8 @@ impl<T> From<PersistedCustomGatewayDetails<T>> for CustomGatewayDetails<T> {
     }
 }
 
-impl<T> From<CustomGatewayDetails<T>> for PersistedCustomGatewayDetails<T> {
-    fn from(value: CustomGatewayDetails<T>) -> Self {
+impl From<CustomGatewayDetails> for PersistedCustomGatewayDetails {
+    fn from(value: CustomGatewayDetails) -> Self {
         PersistedCustomGatewayDetails {
             gateway_id: value.gateway_id,
             additional_data: value.additional_data,
@@ -168,8 +162,8 @@ impl<T> From<CustomGatewayDetails<T>> for PersistedCustomGatewayDetails<T> {
     }
 }
 
-impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
-    fn from(value: PersistedGatewayDetails<T>) -> Self {
+impl From<PersistedGatewayDetails> for GatewayDetails {
+    fn from(value: PersistedGatewayDetails) -> Self {
         match value {
             PersistedGatewayDetails::Default(default) => {
                 GatewayDetails::Configured(default.details)
@@ -180,7 +174,7 @@ impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
 }
 
 #[derive(Clone, Debug)]
-pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
+pub enum GatewaySelectionSpecification {
     /// Uniformly choose a random remote gateway.
     UniformRemote { must_use_tls: bool },
 
@@ -198,11 +192,11 @@ pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     /// This client has handled the selection by itself
     Custom {
         gateway_identity: String,
-        additional_data: T,
+        additional_data: Vec<u8>,
     },
 }
 
-impl<T> Default for GatewaySelectionSpecification<T> {
+impl Default for GatewaySelectionSpecification {
     fn default() -> Self {
         GatewaySelectionSpecification::UniformRemote {
             must_use_tls: false,
@@ -210,7 +204,7 @@ impl<T> Default for GatewaySelectionSpecification<T> {
     }
 }
 
-impl<T> GatewaySelectionSpecification<T> {
+impl GatewaySelectionSpecification {
     pub fn new(
         gateway_identity: Option<String>,
         latency_based_selection: Option<bool>,
@@ -229,13 +223,13 @@ impl<T> GatewaySelectionSpecification<T> {
     }
 }
 
-pub enum GatewaySetup<T = EmptyCustomDetails> {
+pub enum GatewaySetup {
     /// The gateway specification (details + keys) MUST BE loaded from the underlying storage.
     MustLoad,
 
     /// Specifies usage of a new gateway
     New {
-        specification: GatewaySelectionSpecification<T>,
+        specification: GatewaySelectionSpecification,
 
         // TODO: seems to be a bit inefficient to pass them by value
         available_gateways: Vec<gateway::Node>,
@@ -249,16 +243,14 @@ pub enum GatewaySetup<T = EmptyCustomDetails> {
         authenticated_ephemeral_client: InitGatewayClient,
 
         // Details of this pre-initialised client (i.e. gateway and keys)
-        gateway_details: GatewayDetails<T>,
+        gateway_details: GatewayDetails,
 
         managed_keys: ManagedKeys,
     },
 }
 
-impl<T> GatewaySetup<T> {
-    pub fn try_reuse_connection(
-        init_res: InitialisationResult<T>,
-    ) -> Result<Self, ClientCoreError> {
+impl GatewaySetup {
+    pub fn try_reuse_connection(init_res: InitialisationResult) -> Result<Self, ClientCoreError> {
         if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
             Ok(GatewaySetup::ReuseConnection {
                 authenticated_ephemeral_client,
@@ -274,13 +266,12 @@ impl<T> GatewaySetup<T> {
         self,
         key_store: &K,
         details_store: &D,
-    ) -> Result<InitialisationResult<T>, ClientCoreError>
+    ) -> Result<InitialisationResult, ClientCoreError>
     where
         K: KeyStore,
-        D: GatewayDetailsStore<T>,
+        D: GatewayDetailsStore,
         K::StorageError: Send + Sync + 'static,
         D::StorageError: Send + Sync + 'static,
-        T: DeserializeOwned + Serialize + Send + Sync,
     {
         todo!()
         // setup_gateway(self, key_store, details_store).await

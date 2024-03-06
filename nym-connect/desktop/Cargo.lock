@@ -3805,8 +3805,6 @@ dependencies = [
  "async-trait",
  "base64 0.21.4",
  "cfg-if",
- "dashmap",
- "dirs 4.0.0",
  "futures",
  "gloo-timers",
  "http-body-util",
@@ -3815,6 +3813,8 @@ dependencies = [
  "hyper-util",
  "log",
  "nym-bandwidth-controller",
+ "nym-client-core-gateways-storage",
+ "nym-client-core-surb-storage",
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
@@ -3830,12 +3830,10 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.7.3",
- "reqwest",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "si-scale",
- "sqlx",
  "tap",
  "thiserror",
  "time",
@@ -3849,6 +3847,40 @@ dependencies = [
  "wasm-utils",
  "wasmtimer",
  "zeroize",
+]
+
+[[package]]
+name = "nym-client-core-gateways-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "cosmrs",
+ "log",
+ "nym-crypto",
+ "nym-gateway-requests",
+ "serde",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "url",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-client-core-surb-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "dashmap",
+ "log",
+ "nym-crypto",
+ "nym-sphinx",
+ "nym-task",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
 ]
 
 [[package]]

@@ -15,7 +15,7 @@ use nym_client_core::client::base_client::storage::gateway_details::{
     GatewayDetailsStore, PersistedGatewayDetails,
 };
 use nym_client_core::client::base_client::storage::{
-    Ephemeral, MixnetClientStorage, OnDiskPersistent,
+    Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
 };
 use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
@@ -104,7 +104,7 @@ where
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
     <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-    <S::GatewaysDetailsStore as GatewayDetailsStore>::StorageError: Send + Sync,
+    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
     /// Creates a client builder with the provided client storage implementation.
     #[must_use]
@@ -309,7 +309,7 @@ where
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
     <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-    <S::GatewaysDetailsStore as GatewayDetailsStore>::StorageError: Send + Sync,
+    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
     /// Create a new mixnet client in a disconnected state. The default configuration,
     /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at
@@ -426,25 +426,27 @@ where
             }
         };
 
-        let gateway_details = match self
-            .storage
-            .gateway_details_store()
-            .load_gateway_details()
-            .await
-        {
-            Ok(details) => details,
-            Err(err) => {
-                warn!("failed to load stored gateway details: {err}");
-                return false;
-            }
-        };
+        todo!()
 
-        if let Err(err) = gateway_details.validate(keys.gateway_shared_key().as_deref()) {
-            warn!("stored key verification failure: {err}");
-            return false;
-        }
-
-        true
+        // let gateway_details = match self
+        //     .storage
+        //     .gateway_details_store()
+        //     .load_gateway_details()
+        //     .await
+        // {
+        //     Ok(details) => details,
+        //     Err(err) => {
+        //         warn!("failed to load stored gateway details: {err}");
+        //         return false;
+        //     }
+        // };
+        //
+        // if let Err(err) = gateway_details.validate(keys.gateway_shared_key().as_deref()) {
+        //     warn!("stored key verification failure: {err}");
+        //     return false;
+        // }
+        //
+        // true
     }
 
     /// Register with a gateway. If a gateway is provided in the config then that will try to be
@@ -552,29 +554,30 @@ where
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_gateway_setup(setup)
         } else if self.wireguard_mode {
-            if let Ok(PersistedGatewayDetails::Default(mut config)) = self
-                .storage
-                .gateway_details_store()
-                .load_gateway_details()
-                .await
-            {
-                config.details.gateway_listener = format!(
-                    "ws://{}:{}",
-                    WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
-                );
-                if let Err(e) = self
-                    .storage
-                    .gateway_details_store()
-                    .store_gateway_details(&PersistedGatewayDetails::Default(config))
-                    .await
-                {
-                    warn!("Could not switch to using wireguard mode - {:?}", e);
-                }
-            } else {
-                warn!("Storage type not supported with wireguard mode");
-            }
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway)
+            todo!()
+            // if let Ok(PersistedGatewayDetails::Default(mut config)) = self
+            //     .storage
+            //     .gateway_details_store()
+            //     .load_gateway_details()
+            //     .await
+            // {
+            //     config.details.gateway_listener = format!(
+            //         "ws://{}:{}",
+            //         WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
+            //     );
+            //     if let Err(e) = self
+            //         .storage
+            //         .gateway_details_store()
+            //         .store_gateway_details(&PersistedGatewayDetails::Default(config))
+            //         .await
+            //     {
+            //         warn!("Could not switch to using wireguard mode - {:?}", e);
+            //     }
+            // } else {
+            //     warn!("Storage type not supported with wireguard mode");
+            // }
+            // BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+            //     .with_wait_for_gateway(self.wait_for_gateway)
         } else {
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)

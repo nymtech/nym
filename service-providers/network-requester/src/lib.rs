@@ -13,7 +13,10 @@ pub use crate::core::{NRServiceProvider, NRServiceProviderBuilder};
 pub use config::Config;
 pub use nym_client_core::{
     client::{
-        base_client::storage::{gateway_details::OnDiskGatewayDetails, OnDiskPersistent},
+        base_client::{
+            non_wasm_helpers::{setup_fs_gateways_storage, setup_fs_reply_surb_backend},
+            storage::{GatewaysDetailsStore, OnDiskGatewaysDetails, OnDiskPersistent},
+        },
         key_manager::persistence::OnDiskKeys,
         mix_traffic::transceiver::*,
     },

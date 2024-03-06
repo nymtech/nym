@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{Error, Result};
-use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
+use nym_client_core::client::base_client::non_wasm_helpers::setup_fs_gateways_storage;
+use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::replies::reply_storage::fs_backend;
@@ -32,6 +33,7 @@ pub struct StoragePaths {
     pub ack_key: PathBuf,
 
     /// Key setup after authenticating with a gateway
+    #[deprecated]
     pub gateway_shared_key: PathBuf,
 
     /// The database containing credentials
@@ -41,7 +43,10 @@ pub struct StoragePaths {
     pub reply_surb_database_path: PathBuf,
 
     /// Details of the used gateway
+    #[deprecated]
     pub gateway_details_path: PathBuf,
+
+    pub gateway_registrations: PathBuf,
 }
 
 impl StoragePaths {
@@ -67,6 +72,7 @@ impl StoragePaths {
             credential_database_path: dir.join("db.sqlite"),
             reply_surb_database_path: dir.join("persistent_reply_store.sqlite"),
             gateway_details_path: dir.join("gateway_details.json"),
+            gateway_registrations: dir.join("gateways_registrations.sqlite"),
         })
     }
 
@@ -78,7 +84,7 @@ impl StoragePaths {
             self.on_disk_key_storage_spec(),
             self.default_persistent_fs_reply_backend().await?,
             self.persistent_credential_storage().await?,
-            self.on_disk_gateway_details_storage(),
+            self.on_disk_gateway_details_storage().await?,
         ))
     }
 
@@ -92,7 +98,7 @@ impl StoragePaths {
             self.persistent_fs_reply_backend(&config.reply_surbs)
                 .await?,
             self.persistent_credential_storage().await?,
-            self.on_disk_gateway_details_storage(),
+            self.on_disk_gateway_details_storage().await?,
         ))
     }
 
@@ -129,8 +135,8 @@ impl StoragePaths {
         OnDiskKeys::new(self.client_keys_paths())
     }
 
-    pub fn on_disk_gateway_details_storage(&self) -> OnDiskGatewayDetails {
-        OnDiskGatewayDetails::new(&self.gateway_details_path)
+    pub async fn on_disk_gateway_details_storage(&self) -> Result<OnDiskGatewaysDetails, Error> {
+        Ok(non_wasm_helpers::setup_fs_gateways_storage(&self.gateway_registrations).await?)
     }
 
     fn client_keys_paths(&self) -> ClientKeysPaths {
@@ -157,6 +163,7 @@ impl From<StoragePaths> for CommonClientPaths {
                 ack_key_file: value.ack_key,
             },
             gateway_details: value.gateway_details_path,
+            gateway_registrations: value.gateway_registrations,
             credentials_database: value.credential_database_path,
             reply_surb_database: value.reply_surb_database_path,
         }
@@ -175,6 +182,7 @@ impl From<CommonClientPaths> for StoragePaths {
             credential_database_path: value.credentials_database,
             reply_surb_database_path: value.reply_surb_database,
             gateway_details_path: value.gateway_details,
+            gateway_registrations: value.gateway_registrations,
         }
     }
 }

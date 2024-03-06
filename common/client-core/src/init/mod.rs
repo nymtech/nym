@@ -27,14 +27,13 @@ pub mod helpers;
 pub mod types;
 
 // helpers for error wrapping
-async fn _store_gateway_details<T, D>(
+async fn _store_gateway_details<D>(
     details_store: &D,
-    details: &PersistedGatewayDetails<T>,
+    details: &PersistedGatewayDetails,
 ) -> Result<(), ClientCoreError>
 where
     D: GatewaysDetailsStore,
     D::StorageError: Send + Sync + 'static,
-    T: Serialize + Send + Sync,
 {
     todo!()
     // details_store
@@ -45,13 +44,12 @@ where
     //     })
 }
 
-async fn _load_gateway_details<T, D>(
+async fn _load_gateway_details<D>(
     details_store: &D,
-) -> Result<PersistedGatewayDetails<T>, ClientCoreError>
+) -> Result<PersistedGatewayDetails, ClientCoreError>
 where
     D: GatewaysDetailsStore,
     D::StorageError: Send + Sync + 'static,
-    T: DeserializeOwned + Send + Sync,
 {
     todo!()
     // details_store
@@ -74,26 +72,25 @@ where
         })
 }
 
-fn ensure_valid_details<T>(
-    details: &PersistedGatewayDetails<T>,
+fn ensure_valid_details(
+    details: &PersistedGatewayDetails,
     loaded_keys: &ManagedKeys,
 ) -> Result<(), ClientCoreError> {
     details.validate(loaded_keys.gateway_shared_key().as_deref())
 }
 
-async fn setup_new_gateway<T, K, D>(
+async fn setup_new_gateway<K, D>(
     key_store: &K,
     details_store: &D,
     overwrite_data: bool,
-    selection_specification: GatewaySelectionSpecification<T>,
+    selection_specification: GatewaySelectionSpecification,
     available_gateways: Vec<gateway::Node>,
-) -> Result<InitialisationResult<T>, ClientCoreError>
+) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,
     D: GatewaysDetailsStore,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
-    T: DeserializeOwned + Serialize + Send + Sync,
 {
     log::trace!("Setting up new gateway");
 
@@ -169,16 +166,15 @@ where
     })
 }
 
-async fn use_loaded_gateway_details<T, K, D>(
+async fn use_loaded_gateway_details<K, D>(
     key_store: &K,
     details_store: &D,
-) -> Result<InitialisationResult<T>, ClientCoreError>
+) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,
     D: GatewaysDetailsStore,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
-    T: DeserializeOwned + Send + Sync,
 {
     let loaded_details = _load_gateway_details(details_store).await?;
     let loaded_keys = _load_managed_keys(key_store).await?;
@@ -192,11 +188,11 @@ where
     ))
 }
 
-fn reuse_gateway_connection<T>(
+fn reuse_gateway_connection(
     authenticated_ephemeral_client: InitGatewayClient,
-    gateway_details: GatewayDetails<T>,
+    gateway_details: GatewayDetails,
     managed_keys: ManagedKeys,
-) -> InitialisationResult<T> {
+) -> InitialisationResult {
     InitialisationResult {
         gateway_details,
         managed_keys,
@@ -204,17 +200,16 @@ fn reuse_gateway_connection<T>(
     }
 }
 
-pub async fn setup_gateway<T, K, D>(
-    setup: GatewaySetup<T>,
+pub async fn setup_gateway<K, D>(
+    setup: GatewaySetup,
     key_store: &K,
     details_store: &D,
-) -> Result<InitialisationResult<T>, ClientCoreError>
+) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,
     D: GatewaysDetailsStore,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
-    T: DeserializeOwned + Serialize + Send + Sync,
 {
     log::debug!("Setting up gateway");
     match setup {

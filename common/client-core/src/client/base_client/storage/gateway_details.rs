@@ -3,7 +3,7 @@
 
 use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
-use crate::init::types::{EmptyCustomDetails, GatewayDetails};
+use crate::init::types::GatewayDetails;
 use async_trait::async_trait;
 use log::error;
 use nym_gateway_requests::registration::handshake::SharedKeys;
@@ -17,32 +17,28 @@ use zeroize::Zeroizing;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait GatewayDetailsStore<T = EmptyCustomDetails> {
+pub trait GatewayDetailsStore {
     type StorageError: Error;
 
-    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails<T>, Self::StorageError>
-    where
-        T: DeserializeOwned + Send + Sync;
+    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError>;
 
     async fn store_gateway_details(
         &self,
-        details: &PersistedGatewayDetails<T>,
-    ) -> Result<(), Self::StorageError>
-    where
-        T: Serialize + Send + Sync;
+        details: &PersistedGatewayDetails,
+    ) -> Result<(), Self::StorageError>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum PersistedGatewayDetails<T = EmptyCustomDetails> {
+pub enum PersistedGatewayDetails {
     /// Standard details of a remote gateway
     Default(PersistedGatewayConfig),
 
     /// Custom gateway setup, such as for a client embedded inside gateway itself
-    Custom(PersistedCustomGatewayDetails<T>),
+    Custom(PersistedCustomGatewayDetails),
 }
 
-impl<T> PersistedGatewayDetails<T> {
+impl PersistedGatewayDetails {
     // TODO: this should probably allow for custom verification over T
     pub fn validate(&self, shared_key: Option<&SharedKeys>) -> Result<(), ClientCoreError> {
         match self {
@@ -81,12 +77,12 @@ pub struct PersistedGatewayConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersistedCustomGatewayDetails<T> {
+pub struct PersistedCustomGatewayDetails {
     // whatever custom method is used, gateway's identity must be known
     pub gateway_id: String,
 
     #[serde(flatten)]
-    pub additional_data: T,
+    pub additional_data: Vec<u8>,
 }
 
 impl PersistedGatewayConfig {
@@ -111,9 +107,9 @@ impl PersistedGatewayConfig {
     }
 }
 
-impl<T> PersistedGatewayDetails<T> {
+impl PersistedGatewayDetails {
     pub fn new(
-        details: GatewayDetails<T>,
+        details: GatewayDetails,
         shared_key: Option<&SharedKeys>,
     ) -> Result<Self, ClientCoreError> {
         match details {
@@ -131,10 +127,7 @@ impl<T> PersistedGatewayDetails<T> {
         matches!(self, PersistedGatewayDetails::Custom(..))
     }
 
-    pub fn matches(&self, other: &GatewayDetails<T>) -> bool
-    where
-        T: PartialEq,
-    {
+    pub fn matches(&self, other: &GatewayDetails) -> bool {
         match self {
             PersistedGatewayDetails::Default(default) => {
                 if let GatewayDetails::Configured(other_configured) = other {
@@ -205,10 +198,7 @@ impl OnDiskGatewayDetails {
         }
     }
 
-    pub fn load_from_disk<T>(&self) -> Result<PersistedGatewayDetails<T>, OnDiskGatewayDetailsError>
-    where
-        T: DeserializeOwned,
-    {
+    pub fn load_from_disk(&self) -> Result<PersistedGatewayDetails, OnDiskGatewayDetailsError> {
         let file = std::fs::File::open(&self.file_location).map_err(|err| {
             OnDiskGatewayDetailsError::LoadFailure {
                 path: self.file_location.display().to_string(),
@@ -219,13 +209,10 @@ impl OnDiskGatewayDetails {
         Ok(serde_json::from_reader(file)?)
     }
 
-    pub fn store_to_disk<T>(
+    pub fn store_to_disk(
         &self,
-        details: &PersistedGatewayDetails<T>,
-    ) -> Result<(), OnDiskGatewayDetailsError>
-    where
-        T: Serialize,
-    {
+        details: &PersistedGatewayDetails,
+    ) -> Result<(), OnDiskGatewayDetailsError> {
         // ensure the whole directory structure exists
         if let Some(parent_dir) = &self.file_location.parent() {
             std::fs::create_dir_all(parent_dir).map_err(|err| {
@@ -265,8 +252,8 @@ impl GatewayDetailsStore for OnDiskGatewayDetails {
 }
 
 #[derive(Default)]
-pub struct InMemGatewayDetails<T = EmptyCustomDetails> {
-    details: Mutex<Option<PersistedGatewayDetails<T>>>,
+pub struct InMemGatewayDetails {
+    details: Mutex<Option<PersistedGatewayDetails>>,
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -17,7 +17,8 @@ use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use nym_network_requester::config::BaseClientConfig;
 use nym_network_requester::{
-    setup_gateway, GatewaySelectionSpecification, GatewaySetup, OnDiskGatewayDetails, OnDiskKeys,
+    setup_fs_gateways_storage, setup_gateway, GatewaySelectionSpecification, GatewaySetup,
+    OnDiskKeys,
 };
 use nym_types::gateway::{GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails};
 use nym_validator_client::nyxd::AccountId;
@@ -275,7 +276,7 @@ pub(crate) async fn initialise_local_network_requester(
 
     let key_store = OnDiskKeys::new(nr_cfg.storage_paths.common_paths.keys.clone());
     let details_store =
-        OnDiskGatewayDetails::new(&nr_cfg.storage_paths.common_paths.gateway_details);
+        setup_fs_gateways_storage(&nr_cfg.storage_paths.common_paths.gateway_registrations).await?;
 
     // gateway setup here is way simpler as we're 'connecting' to ourselves
     let init_res = setup_gateway(
@@ -348,7 +349,7 @@ pub(crate) async fn initialise_local_ip_packet_router(
 
     let key_store = OnDiskKeys::new(ip_cfg.storage_paths.common_paths.keys.clone());
     let details_store =
-        OnDiskGatewayDetails::new(&ip_cfg.storage_paths.common_paths.gateway_details);
+        setup_fs_gateways_storage(&ip_cfg.storage_paths.common_paths.gateway_registrations).await?;
 
     // gateway setup here is way simpler as we're 'connecting' to ourselves
     let init_res = setup_gateway(

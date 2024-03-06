@@ -12,7 +12,7 @@ mod old_v1_1_33;
 pub const DEFAULT_GATEWAY_DETAILS_FILENAME: &str = "gateway_details.json";
 pub const DEFAULT_REPLY_SURB_DB_FILENAME: &str = "persistent_reply_store.sqlite";
 pub const DEFAULT_CREDENTIALS_DB_FILENAME: &str = "credentials_database.db";
-pub const DEFAULT_GATEWAYS_DETAILS_DB_FILENAME: &str = "gateways_registrations.db";
+pub const DEFAULT_GATEWAYS_DETAILS_DB_FILENAME: &str = "gateways_registrations.sqlite";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]

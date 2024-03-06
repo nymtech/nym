@@ -47,6 +47,10 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
         // foo.cloned()
     }
 
+    async fn set_active_gateway(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
+        todo!()
+    }
+
     async fn all_gateways(&self) -> Result<Vec<GatewayDetails>, Self::StorageError> {
         todo!()
     }

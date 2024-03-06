@@ -51,6 +51,10 @@ pub struct CommonClientInitArgs {
     #[cfg_attr(feature = "cli", clap(long))]
     pub gateway: Option<identity::PublicKey>,
 
+    /// Specifies whether the client will attempt to enforce tls connection to the desired gateway.
+    #[cfg_attr(feature = "cli", clap(long))]
+    pub force_tls_gateway: bool,
+
     /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
     /// uniformly.
     #[cfg_attr(feature = "cli", clap(long, conflicts_with = "gateway"))]
@@ -60,6 +64,11 @@ pub struct CommonClientInitArgs {
     /// potentially causing loss of access.
     #[cfg_attr(feature = "cli", clap(long))]
     pub force_register_gateway: bool,
+
+    /// If the registration is happening against new gateway,
+    /// specify whether it should be set as the currently active gateway
+    #[cfg_attr(feature = "cli", clap(long, default_value_t = true))]
+    pub set_active: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
     #[cfg_attr(
@@ -135,6 +144,9 @@ where
         eprintln!("Instructed to force registering gateway. This might overwrite keys!");
     }
 
+    // TODO: look at the registration logic due to being able to store multiple gws now
+    let unused_variable = 42;
+
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
     // Unless the user really wants to.
@@ -144,86 +156,84 @@ where
     let user_chosen_gateway_id = common_args.gateway;
     log::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
 
-    todo!()
+    let selection_spec = GatewaySelectionSpecification::new(
+        user_chosen_gateway_id.map(|id| id.to_base58_string()),
+        Some(common_args.latency_based_selection),
+        common_args.force_tls_gateway,
+    );
+    log::debug!("Gateway selection specification: {selection_spec:?}");
 
-    // let selection_spec = GatewaySelectionSpecification::new(
-    //     user_chosen_gateway_id.map(|id| id.to_base58_string()),
-    //     Some(common_args.latency_based_selection),
-    //     false,
-    // );
-    // log::debug!("Gateway selection specification: {selection_spec:?}");
-    //
-    // // Load and potentially override config
-    // log::debug!("Init arguments: {init_args:#?}");
-    // let config = C::construct_config(&init_args);
-    // log::debug!("Constructed config: {config:#?}");
-    // let paths = config.common_paths();
-    // let core = config.core_config();
-    //
-    // log::info!(
-    //     "Using nym-api: {}",
-    //     core.client
-    //         .nym_api_urls
-    //         .iter()
-    //         .map(|url| url.as_str())
-    //         .collect::<Vec<&str>>()
-    //         .join(",")
-    // );
-    //
-    // // Setup gateway by either registering a new one, or creating a new config from the selected
-    // // one but with keys kept, or reusing the gateway configuration.
-    // let key_store = OnDiskKeys::new(paths.keys.clone());
-    // let details_store = setup_fs_gateways_storage(&paths.gateway_details).await?;
-    //
-    // let available_gateways = if let Some(custom_mixnet) = common_args.custom_mixnet.as_ref() {
-    //     let hardcoded_topology = NymTopology::new_from_file(custom_mixnet).map_err(|source| {
-    //         ClientCoreError::CustomTopologyLoadFailure {
-    //             file_path: custom_mixnet.clone(),
-    //             source,
-    //         }
-    //     })?;
-    //     hardcoded_topology.get_gateways()
-    // } else {
-    //     let mut rng = rand::thread_rng();
-    //     crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
-    // };
-    //
-    // let gateway_setup = GatewaySetup::New {
-    //     specification: selection_spec,
-    //     available_gateways,
-    //     overwrite_data: register_gateway,
-    // };
-    //
-    // let init_details =
-    //     crate::init::setup_gateway(gateway_setup, &key_store, &details_store).await?;
-    //
-    // // TODO: ask the service provider we specified for its interface version and set it in the config
-    //
-    // let config_save_location = config.default_store_location();
-    // if let Err(err) = config.save_to(&config_save_location) {
-    //     return Err(ClientCoreError::ConfigSaveFailure {
-    //         typ: C::NAME.to_string(),
-    //         id: id.to_string(),
-    //         path: config_save_location,
-    //         source: err,
-    //     }
-    //     .into());
-    // }
-    //
-    // eprintln!(
-    //     "Saved configuration file to {}",
-    //     config_save_location.display()
-    // );
-    //
-    // let address = init_details.client_address()?;
-    //
-    // let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
-    //     return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
-    // };
-    // let init_results = InitResults::new(config.core_config(), address, &gateway_details);
-    //
-    // Ok(InitResultsWithConfig {
-    //     config,
-    //     init_results,
-    // })
+    // Load and potentially override config
+    log::debug!("Init arguments: {init_args:#?}");
+    let config = C::construct_config(&init_args);
+    log::debug!("Constructed config: {config:#?}");
+    let paths = config.common_paths();
+    let core = config.core_config();
+
+    log::info!(
+        "Using nym-api: {}",
+        core.client
+            .nym_api_urls
+            .iter()
+            .map(|url| url.as_str())
+            .collect::<Vec<&str>>()
+            .join(",")
+    );
+
+    // Setup gateway by either registering a new one, or creating a new config from the selected
+    // one but with keys kept, or reusing the gateway configuration.
+    let key_store = OnDiskKeys::new(paths.keys.clone());
+    let details_store = setup_fs_gateways_storage(&paths.gateway_details).await?;
+
+    let available_gateways = if let Some(custom_mixnet) = common_args.custom_mixnet.as_ref() {
+        let hardcoded_topology = NymTopology::new_from_file(custom_mixnet).map_err(|source| {
+            ClientCoreError::CustomTopologyLoadFailure {
+                file_path: custom_mixnet.clone(),
+                source,
+            }
+        })?;
+        hardcoded_topology.get_gateways()
+    } else {
+        let mut rng = rand::thread_rng();
+        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
+    };
+
+    let gateway_setup = GatewaySetup::New {
+        specification: selection_spec,
+        available_gateways,
+        overwrite_data: register_gateway,
+    };
+
+    let init_details =
+        crate::init::setup_gateway(gateway_setup, &key_store, &details_store).await?;
+
+    // TODO: ask the service provider we specified for its interface version and set it in the config
+
+    let config_save_location = config.default_store_location();
+    if let Err(err) = config.save_to(&config_save_location) {
+        return Err(ClientCoreError::ConfigSaveFailure {
+            typ: C::NAME.to_string(),
+            id: id.to_string(),
+            path: config_save_location,
+            source: err,
+        }
+        .into());
+    }
+
+    eprintln!(
+        "Saved configuration file to {}",
+        config_save_location.display()
+    );
+
+    let address = init_details.client_address()?;
+
+    let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
+        return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
+    };
+    let init_results = InitResults::new(config.core_config(), address, &gateway_details);
+
+    Ok(InitResultsWithConfig {
+        config,
+        init_results,
+    })
 }

@@ -27,6 +27,9 @@ pub trait GatewaysDetailsStore {
     /// Returns details of the currently active gateway, if available.
     async fn active_gateway(&self) -> Result<Option<GatewayDetails>, Self::StorageError>;
 
+    /// Set the provided gateway as the currently active gateway.
+    async fn set_active_gateway(&self, gateway_id: &str) -> Result<(), Self::StorageError>;
+
     /// Returns details of all registered gateways.
     async fn all_gateways(&self) -> Result<Vec<GatewayDetails>, Self::StorageError>;
 

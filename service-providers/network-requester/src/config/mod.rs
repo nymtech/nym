@@ -28,6 +28,7 @@ pub mod old_config_v1_1_20;
 pub mod old_config_v1_1_20_2;
 mod persistence;
 mod template;
+pub mod old_config_v1_1_33;
 
 const DEFAULT_NETWORK_REQUESTERS_DIR: &str = "network-requester";
 

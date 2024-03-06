@@ -1,14 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::{
-    config::{
-        default_config_filepath, persistence::NetworkRequesterPaths, Config, Debug,
-        NetworkRequester,
-    },
-    error::NetworkRequesterError,
+use super::old_config_v1_1_33::{
+    ConfigV1_1_33, DebugV1_1_33, NetworkRequesterPathsV1_1_33, NetworkRequesterV1_1_33,
 };
-
+use crate::{config::default_config_filepath, error::NetworkRequesterError};
 use log::trace;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
@@ -65,7 +61,7 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig), NetworkRequesterError> {
+    pub fn upgrade(self) -> Result<(ConfigV1_1_33, GatewayEndpointConfig), NetworkRequesterError> {
         trace!("Upgrading from v1.1.20_2");
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
         let nr_description = self
@@ -76,9 +72,9 @@ impl ConfigV1_1_20_2 {
             .parent()
             .expect("config paths upgrade failure")
             .join(DEFAULT_DESCRIPTION_FILENAME);
-        let config = Config {
+        let config = ConfigV1_1_33 {
             base: BaseConfigV1_1_30::from(self.base).into(),
-            storage_paths: NetworkRequesterPaths {
+            storage_paths: NetworkRequesterPathsV1_1_33 {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,
                 allowed_list_location: self.storage_paths.allowed_list_location,
                 unknown_list_location: self.storage_paths.unknown_list_location,
@@ -97,9 +93,9 @@ impl ConfigV1_1_20_2 {
 #[serde(default, deny_unknown_fields)]
 pub struct NetworkRequesterV1_1_20_2 {}
 
-impl From<NetworkRequesterV1_1_20_2> for NetworkRequester {
+impl From<NetworkRequesterV1_1_20_2> for NetworkRequesterV1_1_33 {
     fn from(_value: NetworkRequesterV1_1_20_2) -> Self {
-        NetworkRequester::default()
+        NetworkRequesterV1_1_33::default()
     }
 }
 
@@ -111,9 +107,9 @@ pub struct DebugV1_1_20_2 {
     pub standard_list_update_interval: Duration,
 }
 
-impl From<DebugV1_1_20_2> for Debug {
+impl From<DebugV1_1_20_2> for DebugV1_1_33 {
     fn from(value: DebugV1_1_20_2) -> Self {
-        Debug {
+        DebugV1_1_33 {
             standard_list_update_interval: value.standard_list_update_interval,
         }
     }

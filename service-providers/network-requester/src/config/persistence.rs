@@ -23,8 +23,6 @@ pub struct NetworkRequesterPaths {
     pub unknown_list_location: PathBuf,
 
     /// Location of the file containing our description
-    // For upgrade use default if missing. On next config upgrade iteration, remove the serde(default)
-    #[serde(default)]
     pub nr_description: PathBuf,
 }
 

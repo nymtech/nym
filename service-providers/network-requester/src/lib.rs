@@ -22,10 +22,7 @@ pub use nym_client_core::{
     },
     init::{
         setup_gateway,
-        types::{
-            CustomGatewayDetails, GatewayDetails, GatewaySelectionSpecification, GatewaySetup,
-            InitResults, InitialisationResult,
-        },
+        types::{GatewaySelectionSpecification, GatewaySetup, InitResults, InitialisationResult},
     },
 };
 pub use request_filter::RequestFilter;

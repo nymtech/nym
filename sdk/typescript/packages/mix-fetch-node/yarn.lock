@@ -621,10 +621,10 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
-"@nymproject/mix-fetch-wasm-node@>=1.2.0-rc.10 || ^1":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch-wasm-node/-/mix-fetch-wasm-node-1.2.0.tgz#76439db4eb5fd4b95dcf6b6883cb5a059aeb5ad2"
-  integrity sha512-vdEO4WfY1ql+DXIMR4nHvIlTB9tzhALiVjzbbf7UBgrQLxPSFTD2oGwGOVfgpNvXv0F92rDj3AHRommKKGa5pw==
+"@nymproject/mix-fetch-wasm-node@>=1.2.4-rc.2 || ^1":
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch-wasm-node/-/mix-fetch-wasm-node-1.2.3.tgz#f600df714782e6eb691faa14683e44c2507a8e53"
+  integrity sha512-J9mj52WSpsGpuCeW65zEj8RWJ3GvWG0VqVWIDD6w1RK4SesXiGb7ghD7F1rChRMlSbl9rP9reYkmAHz63Sb6Cw==
 
 "@rollup/plugin-commonjs@^24.0.1":
   version "24.1.0"
@@ -1648,13 +1648,14 @@ es-to-primitive@^1.2.1:
     is-date-object "^1.0.1"
     is-symbol "^1.0.2"
 
-es5-ext@^0.10.35, es5-ext@^0.10.46, es5-ext@^0.10.50, es5-ext@^0.10.53, es5-ext@^0.10.61, es5-ext@~0.10.14, es5-ext@~0.10.2, es5-ext@~0.10.46:
-  version "0.10.62"
-  resolved "https://registry.yarnpkg.com/es5-ext/-/es5-ext-0.10.62.tgz#5e6adc19a6da524bf3d1e02bbc8960e5eb49a9a5"
-  integrity sha512-BHLqn0klhEpnOKSrzn/Xsz2UIW8j+cGmo9JLzr8BiUapV8hPL9+FliFqjwr9ngW7jWdnxv6eO+/LqyhJVqgrjA==
+es5-ext@^0.10.35, es5-ext@^0.10.46, es5-ext@^0.10.50, es5-ext@^0.10.53, es5-ext@^0.10.61, es5-ext@^0.10.62, es5-ext@~0.10.14, es5-ext@~0.10.2, es5-ext@~0.10.46:
+  version "0.10.64"
+  resolved "https://registry.yarnpkg.com/es5-ext/-/es5-ext-0.10.64.tgz#12e4ffb48f1ba2ea777f1fcdd1918ef73ea21714"
+  integrity sha512-p2snDhiLaXe6dahss1LddxqEm+SkuDvV8dnIQG0MWjyHpcMNfXKPE+/Cc0y+PhxJX3A4xGNeFCj5oc0BUh6deg==
   dependencies:
     es6-iterator "^2.0.3"
     es6-symbol "^3.1.3"
+    esniff "^2.0.1"
     next-tick "^1.1.0"
 
 es6-iterator@^2.0.3:
@@ -1886,6 +1887,16 @@ eslint@^8.10.0:
     optionator "^0.9.3"
     strip-ansi "^6.0.1"
     text-table "^0.2.0"
+
+esniff@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/esniff/-/esniff-2.0.1.tgz#a4d4b43a5c71c7ec51c51098c1d8a29081f9b308"
+  integrity sha512-kTUIGKQ/mDPFoJ0oVfcmyJn4iBDRptjNVIzwIFR7tqWXdVI9xfA2RMwY/gbSpJG3lkdWNEjLap/NqVHZiJsdfg==
+  dependencies:
+    d "^1.0.1"
+    es5-ext "^0.10.62"
+    event-emitter "^0.3.5"
+    type "^2.7.2"
 
 espree@^9.6.0, espree@^9.6.1:
   version "9.6.1"

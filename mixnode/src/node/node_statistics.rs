@@ -170,8 +170,11 @@ pub struct NodeStats {
 impl Default for NodeStats {
     fn default() -> Self {
         let registry = prometheus::Registry::new();
-        let packets_received_since_startup =
-            Counter::new("packets_received_since_startup", "Packets received since startup").unwrap();
+        let packets_received_since_startup = Counter::new(
+            "packets_received_since_startup",
+            "Packets received since startup",
+        )
+        .unwrap();
         registry
             .register(Box::new(packets_received_since_startup.clone()))
             .unwrap();

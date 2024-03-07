@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{GatewayDetails, GatewayRegistration};
+use crate::types::GatewayRegistration;
 use crate::{BadGateway, GatewaysDetailsStore};
 use async_trait::async_trait;
 use std::collections::HashMap;

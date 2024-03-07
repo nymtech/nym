@@ -37,7 +37,7 @@ fn persist_gateway_details(
     details_store
         .store_to_disk(&persisted_details)
         .map_err(|source| BackendError::ClientCoreError {
-            source: ClientCoreError::GatewayDetailsStoreError {
+            source: ClientCoreError::GatewaysDetailsStoreError {
                 source: Box::new(source),
             },
         })

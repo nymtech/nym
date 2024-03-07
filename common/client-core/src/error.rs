@@ -56,8 +56,8 @@ pub enum ClientCoreError {
         source: Box<dyn Error + Send + Sync>,
     },
 
-    #[error("experienced a failure with our gateway details storage: {source}")]
-    GatewayDetailsStoreError {
+    #[error("experienced a failure with our gateways details storage: {source}")]
+    GatewaysDetailsStoreError {
         source: Box<dyn Error + Send + Sync>,
     },
 

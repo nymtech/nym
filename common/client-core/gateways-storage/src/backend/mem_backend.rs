@@ -66,7 +66,7 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
 
     async fn store_gateway_details(
         &self,
-        details: GatewayDetails,
+        details: &GatewayRegistration,
     ) -> Result<(), Self::StorageError> {
         todo!()
     }

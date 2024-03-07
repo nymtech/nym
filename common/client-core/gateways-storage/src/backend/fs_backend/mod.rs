@@ -50,7 +50,7 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
 
     async fn store_gateway_details(
         &self,
-        details: GatewayDetails,
+        details: &GatewayRegistration,
     ) -> Result<(), Self::StorageError> {
         todo!()
     }

@@ -126,7 +126,7 @@ fn persist_gateway_details(
     details_store
         .store_to_disk(&persisted_details)
         .map_err(|source| {
-            IpPacketRouterError::ClientCoreError(ClientCoreError::GatewayDetailsStoreError {
+            IpPacketRouterError::ClientCoreError(ClientCoreError::GatewaysDetailsStoreError {
                 source: Box::new(source),
             })
         })

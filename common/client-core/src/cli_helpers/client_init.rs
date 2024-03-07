@@ -5,7 +5,9 @@ use crate::config::disk_persistence::CommonClientPaths;
 use crate::error::ClientCoreError;
 use crate::{
     client::{
-        base_client::non_wasm_helpers::setup_fs_gateways_storage,
+        base_client::{
+            non_wasm_helpers::setup_fs_gateways_storage, storage::helpers::set_active_gateway,
+        },
         key_manager::persistence::OnDiskKeys,
     },
     init::types::{GatewaySelectionSpecification, GatewaySetup, InitResults},
@@ -203,7 +205,8 @@ where
         crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
     };
 
-    todo!("remove registered gateways from the list");
+    let unused_variable = 42;
+    // todo!("remove registered gateways from the list");
 
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
@@ -216,33 +219,42 @@ where
 
     // TODO: ask the service provider we specified for its interface version and set it in the config
 
-    let config_save_location = config.default_store_location();
-    if let Err(err) = config.save_to(&config_save_location) {
-        return Err(ClientCoreError::ConfigSaveFailure {
-            typ: C::NAME.to_string(),
-            id: id.to_string(),
-            path: config_save_location,
-            source: err,
+    if !already_init {
+        let config_save_location = config.default_store_location();
+        if let Err(err) = config.save_to(&config_save_location) {
+            return Err(ClientCoreError::ConfigSaveFailure {
+                typ: C::NAME.to_string(),
+                id: id.to_string(),
+                path: config_save_location,
+                source: err,
+            }
+            .into());
         }
-        .into());
-    }
 
-    eprintln!(
-        "Saved configuration file to {}",
-        config_save_location.display()
-    );
+        eprintln!(
+            "Saved configuration file to {}",
+            config_save_location.display()
+        );
+    }
 
     let address = init_details.client_address();
 
     let GatewayDetails::Remote(gateway_details) = init_details.gateway_registration.details else {
         return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
     };
+
     let init_results = InitResults::new(
         config.core_config(),
         address,
         &gateway_details,
         init_details.gateway_registration.registration_timestamp,
     );
+
+    if init_args.as_ref().set_active {
+        set_active_gateway(&init_results.gateway_id, &details_store).await?;
+    } else {
+        info!("registered with new gateway {} (under address {address}), but this will not be our default address", init_results.gateway_id);
+    }
 
     Ok(InitResultsWithConfig {
         config,

@@ -108,7 +108,7 @@ pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
     info!("setting up gateways details storage");
     OnDiskGatewaysDetails::init(db_path)
         .await
-        .map_err(|source| ClientCoreError::GatewayDetailsStoreError {
+        .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),
         })
 }

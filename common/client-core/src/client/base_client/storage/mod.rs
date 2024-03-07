@@ -37,6 +37,7 @@ pub use nym_client_core_gateways_storage::{GatewaysDetailsStore, InMemGatewaysDe
 
 #[deprecated]
 pub mod gateway_details;
+pub mod helpers;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-gateways-storage"))]
 pub use nym_client_core_gateways_storage::{OnDiskGatewaysDetails, StorageError};

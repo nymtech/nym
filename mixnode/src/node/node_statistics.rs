@@ -63,6 +63,27 @@ impl SharedNodeStats {
             "Packets received since startup",
         )
         .unwrap();
+
+        let packets_sent_since_startup_all = Counter::new(
+            "packets_sent_since_startup_all",
+            "Packets sent since startup",
+        )
+        .unwrap();
+
+        let packets_dropped_since_startup_all = Counter::new(
+            "packets_dropped_since_startup_all",
+            "Packets dropped since startup",
+        )
+        .unwrap();
+
+        registry
+            .register(Box::new(packets_sent_since_startup.clone()))
+            .unwrap();
+
+        registry
+            .register(Box::new(packets_dropped_since_startup.clone()))
+            .unwrap();
+
         registry
             .register(Box::new(packets_received_since_startup.clone()))
             .unwrap();
@@ -72,6 +93,8 @@ impl SharedNodeStats {
                 update_time: now,
                 previous_update_time: now,
                 packets_received_since_startup,
+                packets_sent_since_startup_all,
+                packets_dropped_since_startup_all,
                 packets_sent_since_startup: PromPacketsMap::new(),
                 packets_explicitly_dropped_since_startup: PromPacketsMap::new(),
                 packets_received_since_last_update: 0.,
@@ -110,6 +133,7 @@ impl SharedNodeStats {
                     .packets_sent_since_startup
                     .insert(mix.clone(), counter);
             }
+            guard.packets_sent_since_startup_all.inc_by(count);
         }
 
         for (mix, count) in &new_dropped {
@@ -127,6 +151,7 @@ impl SharedNodeStats {
                     .packets_explicitly_dropped_since_startup
                     .insert(mix.clone(), counter);
             }
+            guard.packets_dropped_since_startup_all.inc_by(count);
         }
 
         guard.packets_received_since_last_update = new_received;
@@ -150,6 +175,8 @@ pub struct NodeStats {
     previous_update_time: SystemTime,
 
     packets_received_since_startup: Counter,
+    packets_sent_since_startup_all: Counter,
+    packets_dropped_since_startup_all: Counter,
 
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
     packets_sent_since_startup: PromPacketsMap,
@@ -176,6 +203,26 @@ impl Default for NodeStats {
             "Packets received since startup",
         )
         .unwrap();
+        let packets_sent_since_startup_all = Counter::new(
+            "packets_sent_since_startup_all",
+            "Packets sent since startup",
+        )
+        .unwrap();
+
+        let packets_dropped_since_startup_all = Counter::new(
+            "packets_dropped_since_startup_all",
+            "Packets dropped since startup",
+        )
+        .unwrap();
+
+        registry
+            .register(Box::new(packets_sent_since_startup.clone()))
+            .unwrap();
+
+        registry
+            .register(Box::new(packets_dropped_since_startup.clone()))
+            .unwrap();
+
         registry
             .register(Box::new(packets_received_since_startup.clone()))
             .unwrap();
@@ -184,6 +231,8 @@ impl Default for NodeStats {
             update_time: SystemTime::UNIX_EPOCH,
             previous_update_time: SystemTime::UNIX_EPOCH,
             packets_received_since_startup,
+            packets_sent_since_startup_all,
+            packets_dropped_since_startup_all,
             packets_sent_since_startup: Default::default(),
             packets_explicitly_dropped_since_startup: Default::default(),
             packets_received_since_last_update: 0.,

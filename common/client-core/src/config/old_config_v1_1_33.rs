@@ -55,6 +55,19 @@ const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 6
 // 24 hours
 const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+pub struct OldGatewayEndpointConfigV1_1_33 {
+    /// gateway_id specifies ID of the gateway to which the client should send messages.
+    /// If initially omitted, a random gateway will be chosen from the available topology.
+    pub gateway_id: String,
+
+    /// Address of the gateway owner to which the client should send messages.
+    pub gateway_owner: String,
+
+    /// Address of the gateway listener to which all client requests should be sent.
+    pub gateway_listener: String,
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigV1_1_33 {

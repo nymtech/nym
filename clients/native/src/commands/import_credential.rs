@@ -34,7 +34,7 @@ pub(crate) struct Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), ClientError> {
-    let config = try_load_current_config(&args.id)?;
+    let config = try_load_current_config(&args.id).await?;
 
     let credentials_store = nym_credential_storage::initialise_persistent_storage(
         &config.storage_paths.common_paths.credentials_database,

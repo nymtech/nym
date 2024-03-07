@@ -11,8 +11,8 @@ use nym_crypto::asymmetric::identity;
 
 // helpers for error wrapping
 pub async fn set_active_gateway<D>(
-    gateway_id: &str,
     details_store: &D,
+    gateway_id: &str,
 ) -> Result<(), ClientCoreError>
 where
     D: GatewaysDetailsStore,

@@ -20,13 +20,15 @@ use nym_topology::NymTopology;
 use rand::rngs::OsRng;
 use std::path::{Path, PathBuf};
 
+// we can suppress this warning (as suggested by linter itself) since we're only using it in our own code
+#[allow(async_fn_in_trait)]
 pub trait InitialisableClient {
     const NAME: &'static str;
     type Error: From<ClientCoreError>;
     type InitArgs: AsRef<CommonClientInitArgs>;
     type Config: ClientConfig;
 
-    fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error>;
+    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error>;
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error>;
 
@@ -134,7 +136,7 @@ where
     let already_init = if C::default_config_path(id).exists() {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
-        C::try_upgrade_outdated_config(id)?;
+        C::try_upgrade_outdated_config(id).await?;
         eprintln!("{} client \"{id}\" was already initialised before", C::NAME);
         true
     } else {
@@ -273,7 +275,7 @@ where
     );
 
     if init_args.as_ref().set_active {
-        set_active_gateway(&init_results.gateway_id, &details_store).await?;
+        set_active_gateway(&details_store, &init_results.gateway_id).await?;
     } else {
         info!("registered with new gateway {} (under address {address}), but this will not be our default address", init_results.gateway_id);
     }

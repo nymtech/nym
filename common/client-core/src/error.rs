@@ -127,6 +127,9 @@ pub enum ClientCoreError {
     #[error("unable to upgrade config file to `{new_version}`")]
     UnableToUpgradeConfigFile { new_version: String },
 
+    #[error("failed to upgrade config file: {message}")]
+    UpgradeFailure { message: String },
+
     #[error("the provided gateway details don't much the stored data")]
     MismatchedStoredGatewayDetails,
 

@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
-pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
+pub use nym_client_core::config::DebugConfig;
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;

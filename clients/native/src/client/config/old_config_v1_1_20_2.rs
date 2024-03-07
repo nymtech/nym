@@ -9,7 +9,7 @@ use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as BaseConfigV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_30::ConfigV1_1_30 as BaseConfigV1_1_30;
-use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::config::old_config_v1_1_33::OldGatewayEndpointConfigV1_1_33;
 use nym_config::read_config_from_toml_file;
 use nym_network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use serde::{Deserialize, Serialize};
@@ -46,7 +46,7 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> Result<(ConfigV1_1_33, GatewayEndpointConfig), ClientError> {
+    pub fn upgrade(self) -> Result<(ConfigV1_1_33, OldGatewayEndpointConfigV1_1_33), ClientError> {
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
         let config = ConfigV1_1_33 {
             base: BaseConfigV1_1_30::from(self.base).into(),

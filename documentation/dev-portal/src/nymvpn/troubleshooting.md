@@ -45,7 +45,7 @@ If you are running NymVPN on mac OS for the first time, you may see this alert m
 2. Confirm with your password or TouchID
 
 3. Possibly you may have to confirm again upon running the application
-
+<!--
 #### Missing `jq` error
 
 In case of missing `jq` on Linux (Debian) install it with:
@@ -68,7 +68,6 @@ In that case, comment the `jq` check in the script as follows:
 
 When running `sudo sh ./test.sh` you may see an error like: `93: current_time: not found`. This has something to do with the `current_time` setup of your system and on itself shall not have a negative impact on the test. It has nothing to do with the client at all as it only relates to the code in our testing script.
 
-<!--
 #### Not connecting to the endpoint
 
 In case the automatic download of all the Gateways fail (and it shouldn't), you do an easy manual work around:

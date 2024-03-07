@@ -18,7 +18,7 @@
 
 ***NymVPN alpha testing will last from 15th of January - 15th of February.***
 
-*NOTE: NymVPN alpha is experimental software for [testing purposes](testing.md) only.*
+*NOTE: NymVPN alpha is experimental software for testing purposes only.*
 
 
 ## NymVPN Overview

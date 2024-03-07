@@ -29,7 +29,7 @@ echo "<SHA_STRING>" | shasum -a 256 -c
 
 3. Extract the downloaded file manually or by a command:
 ```sh
-tar -xvf <BINARY>
+tar -xvf <BINARY>.tar.gz
 # for example
 # tar -xvf nym-vpn-desktop_0.0.4_macos_aarch64.tar.gz
 ```
@@ -71,7 +71,7 @@ env_config_file = "sandbox.env"
 ```
 Alternatively do it by using this command:
 ```sh
-echo "env_config_file = sandbox.env" > /Applications/nym-vpn.app/Contents/MacOS//config.toml
+echo "env_config_file = sandbox.env" > /Applications/nym-vpn.app/Contents/MacOS/config.toml
 ```
 ## Run NymVPN
 

@@ -18,7 +18,7 @@ We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d
 
 1. Open a terminal window in a directory where you want the script to be downloaded and run
 ```sh
-curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/8e673170da309996b31de2cfcd3a65bd4d7c158f/nym-vpn-client-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
+curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/163abd7ebc45d1f44d93ba12fb904bcd54e5793f/nym-vpn-client-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
 ```
 
 2. Follow the prompts in the program
@@ -26,7 +26,7 @@ curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tom
 To start the application again, reconnect your wifi and run
 ```sh
 # Linux .AppImage
-sudo -E ~/nym-vpn-latest/nym-vpn-desktop_0.0.5-dev_ubuntu-22.04_x86_64/nym-vpn_0.0.5_amd64.AppImage
+sudo -E ~/nym-vpn-latest/nym-vpn-desktop_0.0.5_ubuntu-22.04_x86_64/nym-vpn_0.0.5_amd64.AppImage
 
 # Linux .deb
 sudo -E nym-vpn

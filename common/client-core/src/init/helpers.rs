@@ -8,6 +8,7 @@ use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 use nym_topology::{filter::VersionFilterable, gateway, mix};
+use nym_validator_client::client::IdentityKeyRef;
 use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
 use tungstenite::Message;
@@ -16,17 +17,13 @@ use url::Url;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-#[cfg(not(target_arch = "wasm32"))]
-type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
-use nym_validator_client::client::IdentityKeyRef;
-use nym_validator_client::nyxd::AccountId;
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time::sleep;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
@@ -34,6 +31,9 @@ use wasm_utils::websocket::JSWebsocket;
 use wasmtimer::std::Instant;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
+
+#[cfg(not(target_arch = "wasm32"))]
+type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
 type WsConn = JSWebsocket;

@@ -11,8 +11,6 @@ use crate::config::disk_persistence::keys_paths::ClientKeysPaths;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_crypto::asymmetric::{encryption, identity};
 #[cfg(not(target_arch = "wasm32"))]
-use nym_gateway_requests::registration::handshake::SharedKeys;
-#[cfg(not(target_arch = "wasm32"))]
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_pemstore::KeyPairPath;

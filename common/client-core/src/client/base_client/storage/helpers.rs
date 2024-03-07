@@ -4,7 +4,10 @@
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::error::ClientCoreError;
-use nym_client_core_gateways_storage::{GatewayRegistration, GatewaysDetailsStore};
+use nym_client_core_gateways_storage::{
+    GatewayRegistration, GatewaysDetailsStore, GatewaysDetailsStoreExt,
+};
+use nym_crypto::asymmetric::identity;
 
 // helpers for error wrapping
 pub async fn set_active_gateway<D>(
@@ -17,6 +20,21 @@ where
 {
     details_store
         .set_active_gateway(gateway_id)
+        .await
+        .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
+            source: Box::new(source),
+        })
+}
+
+pub async fn get_all_registered_identities<D>(
+    details_store: &D,
+) -> Result<Vec<identity::PublicKey>, ClientCoreError>
+where
+    D: GatewaysDetailsStore + Sync,
+    D::StorageError: Send + Sync + 'static,
+{
+    details_store
+        .all_gateways_identities()
         .await
         .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),

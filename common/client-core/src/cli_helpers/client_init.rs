@@ -6,7 +6,8 @@ use crate::error::ClientCoreError;
 use crate::{
     client::{
         base_client::{
-            non_wasm_helpers::setup_fs_gateways_storage, storage::helpers::set_active_gateway,
+            non_wasm_helpers::setup_fs_gateways_storage,
+            storage::helpers::{get_all_registered_identities, set_active_gateway},
         },
         key_manager::persistence::OnDiskKeys,
     },
@@ -181,6 +182,7 @@ where
     );
 
     let key_store = OnDiskKeys::new(paths.keys.clone());
+    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
     // if this is a first time client with this particular id is initialised, generated long-term keys
     if !already_init {
@@ -188,10 +190,21 @@ where
         crate::init::generate_new_client_keys(&mut rng, &key_store).await?;
     }
 
+    let registered_gateways = get_all_registered_identities(&details_store).await?;
+
+    // if user provided gateway id (and we can't overwrite data), make sure we're not trying to register
+    // with a known gateway
+    if let Some(user_chosen) = user_chosen_gateway_id {
+        if !common_args.force_register_gateway && registered_gateways.contains(&user_chosen) {
+            return Err(ClientCoreError::AlreadyRegistered {
+                gateway_id: user_chosen.to_base58_string(),
+            }
+            .into());
+        }
+    }
+
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
-
     let available_gateways = if let Some(custom_mixnet) = common_args.custom_mixnet.as_ref() {
         let hardcoded_topology = NymTopology::new_from_file(custom_mixnet).map_err(|source| {
             ClientCoreError::CustomTopologyLoadFailure {
@@ -205,8 +218,17 @@ where
         crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
     };
 
-    let unused_variable = 42;
-    // todo!("remove registered gateways from the list");
+    // since we're registering with a brand new gateway,
+    // make sure the list of available gateways doesn't overlap the list of known gateways
+    let available_gateways = if common_args.force_register_gateway {
+        // if we're force registering, all bets are off
+        available_gateways
+    } else {
+        available_gateways
+            .into_iter()
+            .filter(|g| !registered_gateways.contains(g.identity()))
+            .collect()
+    };
 
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,

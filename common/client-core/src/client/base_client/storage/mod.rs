@@ -26,7 +26,9 @@ use crate::{
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
-pub use nym_client_core_gateways_storage::{GatewaysDetailsStore, InMemGatewaysDetails};
+pub use nym_client_core_gateways_storage::{
+    GatewaysDetailsStore, GatewaysDetailsStoreExt, InMemGatewaysDetails,
+};
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-gateways-storage"))]
 pub use nym_client_core_gateways_storage::{OnDiskGatewaysDetails, StorageError};
@@ -34,7 +36,7 @@ pub use nym_client_core_gateways_storage::{OnDiskGatewaysDetails, StorageError};
 pub mod helpers;
 
 // TODO: ideally this should be changed into
-// `MixnetClientStorage: KeyStore + ReplyStorageBackend + CredentialStorage + GatewayDetailsStore`
+// `MixnetClientStorage: KeyStore + ReplyStorageBackend + CredentialStorage + GatewaysDetailsStore`
 pub trait MixnetClientStorage {
     type KeyStore: KeyStore;
     type ReplyStore: ReplyStorageBackend;

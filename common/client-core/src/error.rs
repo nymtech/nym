@@ -195,6 +195,9 @@ pub enum ClientCoreError {
         #[source]
         source: url::ParseError,
     },
+
+    #[error("this client has already registered with gateway {gateway_id}")]
+    AlreadyRegistered { gateway_id: String },
 }
 
 /// Set of messages that the client can send to listeners via the task manager

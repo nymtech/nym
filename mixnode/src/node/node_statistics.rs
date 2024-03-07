@@ -595,7 +595,7 @@ impl Controller {
 
 fn sanitize_metric_name(name: &str) -> String {
     let re = Regex::new(r"[^a-zA-Z0-9_]").unwrap();
-    re.replace_all(name, "-").to_string()
+    re.replace_all(name, "_").to_string()
 }
 
 #[cfg(test)]
@@ -607,7 +607,7 @@ mod tests {
     fn test_sanitization() {
         assert_eq!(
             sanitize_metric_name("packets_sent_34.242.65.133:1789"),
-            "packets_sent_34-242-65-133-1789"
+            "packets_sent_34_242_65_133_1789"
         )
     }
 

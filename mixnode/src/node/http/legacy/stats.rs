@@ -14,12 +14,15 @@ pub enum NodeStatsResponse {
 }
 
 pub(crate) async fn metrics(
-    Query(params): Query<StatsQueryParams>,
+    Query(_params): Query<StatsQueryParams>,
     State(stats): State<SharedNodeStats>,
-) -> MixnodeStatsResponse {
-    let output = params.output.unwrap_or_default();
+) -> String {
     let response = generate_stats(true, stats).await;
-    output.to_response(response)
+    match response {
+        NodeStatsResponse::Full(full) => full,
+        NodeStatsResponse::Simple(_) => unreachable!(),
+    
+    }
 }
 
 pub(crate) async fn stats(

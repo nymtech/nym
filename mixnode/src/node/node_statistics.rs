@@ -7,6 +7,7 @@ use futures::lock::Mutex;
 use futures::StreamExt;
 use log::{debug, info, trace};
 use prometheus::{Counter, Encoder as _, TextEncoder};
+use regex::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
@@ -99,7 +100,7 @@ impl SharedNodeStats {
                 cntr.inc_by(*count);
             } else {
                 let counter = Counter::new(
-                    format!("packets_sent_{}", mix),
+                    sanitize_metric_name(&format!("packets_sent_{}", mix)),
                     format!("Packets sent to mix {}, since startup", mix),
                 )
                 .unwrap();
@@ -116,7 +117,7 @@ impl SharedNodeStats {
                 cntr.inc_by(*count);
             } else {
                 let counter = Counter::new(
-                    format!("packets_dropped_{}", mix),
+                    sanitize_metric_name(&format!("packets_dropped_{}", mix)),
                     format!("Packets dropped to mix {}, since startup", mix),
                 )
                 .unwrap();
@@ -592,10 +593,23 @@ impl Controller {
     }
 }
 
+fn sanitize_metric_name(name: &str) -> String {
+    let re = Regex::new(r"[^a-zA-Z0-9_]").unwrap();
+    re.replace_all(name, "-").to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use nym_task::TaskManager;
+
+    #[test]
+    fn test_sanitization() {
+        assert_eq!(
+            sanitize_metric_name("packets_sent_34.242.65.133:1789"),
+            "packets_sent_34-242-65-133-1789"
+        )
+    }
 
     #[tokio::test]
     async fn node_stats_reported_are_received() {

@@ -32,8 +32,3 @@ where
 {
     tokio::spawn(future);
 }
-
-fn unused_function() {
-    let with_unused_variable = 42;
-    todo!("update all client config templates after changes stabilise")
-}

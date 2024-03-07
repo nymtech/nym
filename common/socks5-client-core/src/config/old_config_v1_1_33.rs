@@ -38,7 +38,7 @@ pub struct Socks5V1_1_33 {
     /// The address on which the client will be listening for incoming requests
     /// (default: 127.0.0.1:1080)
     // there was a typo in here, so accept the wrong name for the purposes of backwards compatibility
-    #[serde(alias = "bind_adddress")]
+    #[serde(alias = "bind_address")]
     pub bind_address: SocketAddr,
 
     /// The mix address of the provider to which all requests are going to be sent.

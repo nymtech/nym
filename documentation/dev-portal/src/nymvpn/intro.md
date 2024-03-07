@@ -5,7 +5,7 @@
 **Nym proudly presents NymVPN alpha** - a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet (for a full network privacy) or the faster 2-hop decentralised VPN (with some extra features).
 
 
-**You are invited to take part in the alpha testing** of this new application. The following pages provide a how-to guide, explaining steps to install and run NymVPN [CLI](cli.md) and [GUI](gui.md) on the Sandbox testnet environment as well as provide some scripts for [qualitative testing](testing.md).
+**You are invited to take part in the alpha testing** of this new application. The following pages provide a how-to guide, explaining steps to install and run NymVPN [CLI](cli.md) and [GUI](gui.md) on the Sandbox testnet environment.
 
 **Here is how**
 
@@ -13,9 +13,8 @@
 2. Please consent to the GDPR so we can use the results
 3. To test the GUI, [go here](gui.md)
 4. To test the CLI, [go here](cli.md)
-5. Run [qualitative testing script](testing.md)
-6. Fill and submit the [form!]({{nym_vpn_form_url}})
-7. Join the [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat) if you have any questions, comments or blockers
+5. Fill and submit the [form!]({{nym_vpn_form_url}})
+6. Join the [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat) if you have any questions, comments or blockers
 
 ***NymVPN alpha testing will last from 15th of January - 15th of February.***
 
@@ -48,7 +47,6 @@ The client can optionally do the first hop (local client to Entry Gateway) using
 * [Alpha release page]({{nym_vpn_latest_binary_url}})
 * [NymVPN application (GUI) guide](gui.md)
 * [NymVPN Command Line Interface (CLI) guide](cli.md)
-* [Testing scripts](testing.md)
 * [Troubleshooting](troubleshooting.md)
 * [NymVPN FAQ](faq.md)
 * [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat)

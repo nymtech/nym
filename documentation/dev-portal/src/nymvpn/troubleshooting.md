@@ -68,6 +68,7 @@ In that case, comment the `jq` check in the script as follows:
 
 When running `sudo sh ./test.sh` you may see an error like: `93: current_time: not found`. This has something to do with the `current_time` setup of your system and on itself shall not have a negative impact on the test. It has nothing to do with the client at all as it only relates to the code in our testing script.
 
+<!--
 #### Not connecting to the endpoint
 
 In case the automatic download of all the Gateways fail (and it shouldn't), you do an easy manual work around:
@@ -84,3 +85,4 @@ NEW_ENDPOINT="http://localhost:8000/data.json"
 python3 -m http.server 8000
 ```
 6. Continue with the steps listed in [testing section](testing.md)
+-->

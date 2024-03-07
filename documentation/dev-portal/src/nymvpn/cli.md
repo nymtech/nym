@@ -6,8 +6,6 @@ Our alpha testing round is done with participants at live workshop events. This 
 **If you commit to test NymVPN alpha, please start with the [user research form]({{nym_vpn_form_url}}) where all the steps will be provided**. If you disagree with any of the conditions listed, please leave this page.
 ```
 
-NymVPN CLI is a fundamental way to run the client for different purposes, currently it is a must for users who want to run the [testing scripts](testing.md).
-
 Follow the simple [automated script](#automated-script-for-cli-installation) below to install and run NymVPN CLI. If you prefer to do a manual setup follow the steps in the guide for [Linux](cli-linux.md) or [MacOS](cli-mac.md).
 
 ## Automated Script for CLI Installation

@@ -4,9 +4,6 @@
 // TODO: combine those more closely. Perhaps into a single underlying store.
 // Like for persistent, on-disk, storage, what's the point of having 3 different databases?
 
-// use crate::client::base_client::storage::gateway_details::{
-//     GatewayDetailsStore, InMemGatewayDetails,
-// };
 use crate::client::key_manager::persistence::{InMemEphemeralKeys, KeyStore};
 use crate::client::replies::reply_storage;
 use crate::client::replies::reply_storage::ReplyStorageBackend;
@@ -18,29 +15,23 @@ use nym_credential_storage::storage::Storage as CredentialStorage;
     feature = "fs-surb-storage",
     feature = "fs-gateways-storage"
 ))]
-use crate::client::base_client::non_wasm_helpers;
-// #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-// use crate::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::client::key_manager::persistence::OnDiskKeys;
-#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-use crate::client::replies::reply_storage::fs_backend;
-#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-use crate::config::{self, disk_persistence::CommonClientPaths};
-#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-use crate::error::ClientCoreError;
+use crate::{
+    client::{
+        base_client::non_wasm_helpers, key_manager::persistence::OnDiskKeys,
+        replies::reply_storage::fs_backend,
+    },
+    config::{self, disk_persistence::CommonClientPaths},
+    error::ClientCoreError,
+};
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
-// fs-gateways
 pub use nym_client_core_gateways_storage::{GatewaysDetailsStore, InMemGatewaysDetails};
-
-#[deprecated]
-pub mod gateway_details;
-pub mod helpers;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-gateways-storage"))]
 pub use nym_client_core_gateways_storage::{OnDiskGatewaysDetails, StorageError};
+
+pub mod helpers;
 
 // TODO: ideally this should be changed into
 // `MixnetClientStorage: KeyStore + ReplyStorageBackend + CredentialStorage + GatewayDetailsStore`

@@ -14,9 +14,6 @@ use log::{error, info, trace};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
-use nym_client_core::client::base_client::storage::gateway_details::{
-    OnDiskGatewayDetails, PersistedGatewayDetails,
-};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;

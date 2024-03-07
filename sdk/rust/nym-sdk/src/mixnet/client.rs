@@ -11,9 +11,6 @@ use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::warn;
-use nym_client_core::client::base_client::storage::gateway_details::{
-    GatewayDetailsStore, PersistedGatewayDetails,
-};
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
 };

@@ -8,7 +8,7 @@ use crate::client::base_client::storage::helpers::{
     store_gateway_details,
 };
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::key_manager::KeyManager;
+use crate::client::key_manager::ClientKeys;
 use crate::error::ClientCoreError;
 use crate::init::helpers::{
     choose_gateway_by_latency, get_specified_gateway, uniformly_random_gateway,
@@ -38,7 +38,7 @@ where
     K: KeyStore,
     K::StorageError: Send + Sync + 'static,
 {
-    KeyManager::generate_new(rng)
+    ClientKeys::generate_new(rng)
         .persist_keys(key_store)
         .await
         .map_err(|source| ClientCoreError::KeyStoreError {
@@ -176,7 +176,7 @@ where
 fn reuse_gateway_connection(
     authenticated_ephemeral_client: InitGatewayClient,
     gateway_registration: GatewayRegistration,
-    client_keys: KeyManager,
+    client_keys: ClientKeys,
 ) -> InitialisationResult {
     InitialisationResult {
         gateway_registration,
@@ -218,10 +218,10 @@ where
         GatewaySetup::ReuseConnection {
             authenticated_ephemeral_client,
             gateway_details,
-            managed_keys,
+            client_keys: managed_keys,
         } => Ok(reuse_gateway_connection(
             authenticated_ephemeral_client,
-            gateway_details,
+            *gateway_details,
             managed_keys,
         )),
     }

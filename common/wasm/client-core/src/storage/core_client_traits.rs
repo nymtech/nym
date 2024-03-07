@@ -7,12 +7,9 @@ use crate::helpers::setup_reply_surb_storage_backend;
 use crate::storage::wasm_client_traits::WasmClientStorage;
 use crate::storage::ClientStorage;
 use async_trait::async_trait;
-use nym_client_core::client::base_client::storage::gateway_details::{
-    GatewayDetailsStore, PersistedGatewayDetails,
-};
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
 use nym_client_core::client::key_manager::persistence::KeyStore;
-use nym_client_core::client::key_manager::KeyManager;
+use nym_client_core::client::key_manager::ClientKeys;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use wasm_utils::console_log;
@@ -68,7 +65,7 @@ impl MixnetClientStorage for FullWasmClientStorage {
 impl KeyStore for ClientStorage {
     type StorageError = WasmCoreError;
 
-    async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
+    async fn load_keys(&self) -> Result<ClientKeys, Self::StorageError> {
         console_log!("attempting to load cryptographic keys...");
 
         // all keys implement `ZeroizeOnDrop`, so if we return an Error, whatever was already loaded will be cleared
@@ -77,7 +74,7 @@ impl KeyStore for ClientStorage {
         let ack_keypair = self.must_read_ack_key().await?;
         let gateway_shared_key = self.must_read_gateway_shared_key().await?;
 
-        Ok(KeyManager::from_keys(
+        Ok(ClientKeys::from_keys(
             identity_keypair,
             encryption_keypair,
             Some(gateway_shared_key),
@@ -85,7 +82,7 @@ impl KeyStore for ClientStorage {
         ))
     }
 
-    async fn store_keys(&self, keys: &KeyManager) -> Result<(), Self::StorageError> {
+    async fn store_keys(&self, keys: &ClientKeys) -> Result<(), Self::StorageError> {
         console_log!("attempting to store cryptographic keys...");
 
         self.store_identity_keypair(&keys.identity_keypair())

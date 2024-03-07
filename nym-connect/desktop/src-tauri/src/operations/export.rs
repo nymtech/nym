@@ -7,7 +7,7 @@ use crate::{
     state::State,
 };
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::client::key_manager::KeyManager;
+use nym_client_core::client::key_manager::ClientKeys;
 use nym_crypto::asymmetric::identity;
 
 pub async fn get_identity_key(
@@ -23,7 +23,7 @@ pub async fn get_identity_key(
     // wtf, why are we loading EVERYTHING to just get identity key??
     let key_store = OnDiskKeys::from(paths);
     let key_manager =
-        KeyManager::load_keys(&key_store)
+        ClientKeys::load_keys(&key_store)
             .await
             .map_err(|err| BackendError::UnableToLoadKeys {
                 source: Box::new(err),

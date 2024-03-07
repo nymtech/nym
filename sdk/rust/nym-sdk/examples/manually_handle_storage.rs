@@ -1,8 +1,5 @@
-use nym_client_core::client::base_client::storage::gateway_details::{
-    GatewayDetailsStore, PersistedGatewayDetails,
-};
 use nym_sdk::mixnet::{
-    self, EmptyReplyStorage, EphemeralCredentialStorage, KeyManager, KeyStore, MixnetClientStorage,
+    self, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage, KeyStore, MixnetClientStorage,
     MixnetMessageSender,
 };
 use nym_topology::provider_trait::async_trait;
@@ -93,13 +90,13 @@ struct MockKeyStore;
 impl KeyStore for MockKeyStore {
     type StorageError = MyError;
 
-    async fn load_keys(&self) -> Result<KeyManager, Self::StorageError> {
+    async fn load_keys(&self) -> Result<ClientKeys, Self::StorageError> {
         println!("loading stored keys");
 
         Err(MyError)
     }
 
-    async fn store_keys(&self, _keys: &KeyManager) -> Result<(), Self::StorageError> {
+    async fn store_keys(&self, _keys: &ClientKeys) -> Result<(), Self::StorageError> {
         println!("storing keys");
 
         Ok(())

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::key_manager::KeyManager;
+use crate::client::key_manager::ClientKeys;
 use crate::error::ClientCoreError;
 use nym_client_core_gateways_storage::{GatewayRegistration, GatewaysDetailsStore};
 
@@ -88,12 +88,24 @@ where
         })
 }
 
-pub async fn load_client_keys<K>(key_store: &K) -> Result<KeyManager, ClientCoreError>
+pub async fn load_client_keys<K>(key_store: &K) -> Result<ClientKeys, ClientCoreError>
 where
     K: KeyStore,
     K::StorageError: Send + Sync + 'static,
 {
-    KeyManager::load_keys(key_store)
+    ClientKeys::load_keys(key_store)
+        .await
+        .map_err(|source| ClientCoreError::KeyStoreError {
+            source: Box::new(source),
+        })
+}
+
+pub async fn store_client_keys<K>(keys: ClientKeys, key_store: &K) -> Result<(), ClientCoreError>
+where
+    K: KeyStore,
+    K::StorageError: Send + Sync + 'static,
+{
+    keys.persist_keys(key_store)
         .await
         .map_err(|source| ClientCoreError::KeyStoreError {
             source: Box::new(source),

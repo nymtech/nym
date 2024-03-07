@@ -12,9 +12,6 @@ use clap::{Parser, Subcommand};
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_client_core::client::base_client::storage::gateway_details::{
-    OnDiskGatewayDetails, PersistedGatewayDetails,
-};
 use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;

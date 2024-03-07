@@ -16,13 +16,13 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub const REMOTE_GATEWAY_TYPE: &str = "remote";
 pub const CUSTOM_GATEWAY_TYPE: &str = "custom";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GatewayRegistration {
     pub details: GatewayDetails,
     pub registration_timestamp: OffsetDateTime,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GatewayDetails {
     /// Standard details of a remote gateway
     Remote(RemoteGatewayDetails),
@@ -197,7 +197,7 @@ impl From<RemoteGatewayDetails> for RawRemoteGatewayDetails {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RemoteGatewayDetails {
     pub gateway_id: identity::PublicKey,
 
@@ -245,7 +245,7 @@ impl From<CustomGatewayDetails> for RawCustomGatewayDetails {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CustomGatewayDetails {
     pub gateway_id: identity::PublicKey,
     pub data: Option<Vec<u8>>,

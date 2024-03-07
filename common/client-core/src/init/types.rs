@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::key_manager::{KeyManager, ManagedKeys};
-use crate::config::{Config, GatewayEndpointConfig};
+use crate::client::key_manager::ClientKeys;
+use crate::config::Config;
 use crate::error::ClientCoreError;
 use crate::init::{setup_gateway, use_loaded_gateway_details};
 use nym_client_core_gateways_storage::{
-    BadGateway, GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
+    GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
 };
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::AccountId;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::fmt::Display;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -111,12 +109,12 @@ pub struct RegistrationResult {
 ///   if this was the first time this client registered
 pub struct InitialisationResult {
     pub gateway_registration: GatewayRegistration,
-    pub client_keys: KeyManager,
+    pub client_keys: ClientKeys,
     pub authenticated_ephemeral_client: Option<InitGatewayClient>,
 }
 
 impl InitialisationResult {
-    pub fn new_loaded(gateway_registration: GatewayRegistration, client_keys: KeyManager) -> Self {
+    pub fn new_loaded(gateway_registration: GatewayRegistration, client_keys: ClientKeys) -> Self {
         InitialisationResult {
             gateway_registration,
             client_keys,
@@ -144,89 +142,6 @@ impl InitialisationResult {
         )
     }
 }
-//
-// /// Details of particular gateway client got registered with
-// #[derive(Debug, Clone)]
-// pub enum GatewayDetails {
-//     /// Standard details of a remote gateway
-//     Configured(GatewayEndpointConfig),
-//
-//     /// Custom gateway setup, such as for a client embedded inside gateway itself
-//     Custom(CustomGatewayDetails),
-// }
-//
-// #[derive(Debug, Clone, Serialize, Deserialize)]
-// pub struct CustomGatewayDetails {
-//     // whatever custom method is used, gateway's identity must be known
-//     pub gateway_id: String,
-//
-//     pub additional_data: Vec<u8>,
-// }
-//
-// impl CustomGatewayDetails {
-//     pub fn new(gateway_id: String, additional_data: Vec<u8>) -> Self {
-//         Self {
-//             gateway_id,
-//             additional_data,
-//         }
-//     }
-// }
-//
-// impl GatewayDetails {
-//     pub fn try_get_configured_endpoint(&self) -> Option<&GatewayEndpointConfig> {
-//         if let GatewayDetails::Configured(endpoint) = &self {
-//             Some(endpoint)
-//         } else {
-//             None
-//         }
-//     }
-//
-//     pub fn is_custom(&self) -> bool {
-//         matches!(self, GatewayDetails::Custom(_))
-//     }
-//
-//     pub fn gateway_id(&self) -> &str {
-//         match self {
-//             GatewayDetails::Configured(cfg) => &cfg.gateway_id,
-//             GatewayDetails::Custom(custom) => &custom.gateway_id,
-//         }
-//     }
-// }
-//
-// impl From<GatewayEndpointConfig> for GatewayDetails {
-//     fn from(value: GatewayEndpointConfig) -> Self {
-//         GatewayDetails::Configured(value)
-//     }
-// }
-//
-// impl From<PersistedCustomGatewayDetails> for CustomGatewayDetails {
-//     fn from(value: PersistedCustomGatewayDetails) -> Self {
-//         CustomGatewayDetails {
-//             gateway_id: value.gateway_id,
-//             additional_data: value.additional_data,
-//         }
-//     }
-// }
-//
-// impl From<CustomGatewayDetails> for PersistedCustomGatewayDetails {
-//     fn from(value: CustomGatewayDetails) -> Self {
-//         PersistedCustomGatewayDetails {
-//             gateway_id: value.gateway_id,
-//             additional_data: value.additional_data,
-//         }
-//     }
-// }
-//
-// impl From<PersistedGatewayDetails> for GatewayDetails {
-//     fn from(value: PersistedGatewayDetails) -> Self {
-//         match value {
-//             PersistedGatewayDetails::Default(default) => {
-//                 GatewayDetails::Configured(default.details)
-//             }
-//             PersistedGatewayDetails::Custom(custom) => GatewayDetails::Custom(custom.into()),
-//         }
-//     }
-// }
 
 #[derive(Clone, Debug)]
 pub enum GatewaySelectionSpecification {
@@ -301,24 +216,23 @@ pub enum GatewaySetup {
         authenticated_ephemeral_client: InitGatewayClient,
 
         // Details of this pre-initialised client (i.e. gateway and keys)
-        gateway_details: GatewayRegistration,
+        gateway_details: Box<GatewayRegistration>,
 
-        managed_keys: KeyManager,
+        client_keys: ClientKeys,
     },
 }
 
 impl GatewaySetup {
     pub fn try_reuse_connection(init_res: InitialisationResult) -> Result<Self, ClientCoreError> {
-        todo!()
-        // if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
-        //     Ok(GatewaySetup::ReuseConnection {
-        //         authenticated_ephemeral_client,
-        //         gateway_details: init_res.gateway_details,
-        //         managed_keys: init_res.managed_keys,
-        //     })
-        // } else {
-        //     Err(ClientCoreError::NoInitClientPresent)
-        // }
+        if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
+            Ok(GatewaySetup::ReuseConnection {
+                authenticated_ephemeral_client,
+                gateway_details: Box::new(init_res.gateway_registration),
+                client_keys: init_res.client_keys,
+            })
+        } else {
+            Err(ClientCoreError::NoInitClientPresent)
+        }
     }
 
     pub async fn try_setup<K, D>(
@@ -332,8 +246,7 @@ impl GatewaySetup {
         K::StorageError: Send + Sync + 'static,
         D::StorageError: Send + Sync + 'static,
     {
-        todo!()
-        // setup_gateway(self, key_store, details_store).await
+        setup_gateway(self, key_store, details_store).await
     }
 
     pub fn is_must_load(&self) -> bool {

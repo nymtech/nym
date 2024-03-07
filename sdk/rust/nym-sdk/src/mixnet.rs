@@ -48,7 +48,7 @@ pub use nym_client_core::{
         inbound_messages::InputMessage,
         key_manager::{
             persistence::{InMemEphemeralKeys, KeyStore, OnDiskKeys},
-            KeyManager,
+            ClientKeys,
         },
         replies::reply_storage::{
             fs_backend::Backend as ReplyStorage, CombinedReplyStorage, Empty as EmptyReplyStorage,

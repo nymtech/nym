@@ -4,10 +4,12 @@
 use super::packet_statistics_control::PacketStatisticsReporter;
 use super::received_buffer::ReceivedBufferMessage;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
+use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::persistence::KeyStore;
+use crate::client::key_manager::ClientKeys;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
 use crate::client::packet_statistics_control::PacketStatisticsControl;
@@ -51,6 +53,7 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+use rand::rngs::OsRng;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
@@ -577,6 +580,14 @@ where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
         <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
+        // if client keys do not exist already, create and persist them
+        if key_store.load_keys().await.is_err() {
+            info!("could not find valid client keys - a new set will be generated");
+            let mut rng = OsRng;
+            let keys = ClientKeys::generate_new(&mut rng);
+            store_client_keys(keys, key_store).await?;
+        }
+
         setup_gateway(setup_method, key_store, details_store).await
     }
 

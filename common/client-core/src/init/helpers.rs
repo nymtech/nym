@@ -1,7 +1,6 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};

@@ -12,7 +12,7 @@ async fn main() {
     let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    // Send a message throught the mixnet to ourselves
+    // Send a message through the mixnet to ourselves
     client
         .send_plain_message(*our_address, "hello there")
         .await

@@ -12,8 +12,8 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 
 ### Installation
 
-1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for Debian based Linux
-2. Required (if you don't want to check shasum, skip this point): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for Debian based Linux
+2. Required (if you don't want to check shasum, skip this point): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
@@ -30,15 +30,14 @@ tar -xvf <BINARY>
 4. If you prefer to run `.AppImage` make executable by running:
 ```sh
 # make sure you cd into the right sub-directory after extraction
-chmod u+x ./appimage/nym-vpn_0.0.4_amd64.AppImage
+chmod u+x ./nym-vpn_0.0.5-dev_amd64.AppImage
 ```
 5. If you prefer to use the `.deb` version for installation (works on Debian based Linux only), open terminal in the same directory and run:
 ```sh
-cd deb
-
-sudo dpkg -i ./nym-vpn_0.0.4_amd64.deb
+# make sure you cd into the right sub-directory after extraction
+sudo dpkg -i ./nym-vpn_0.0.5-dev_amd64.deb
 # or
-sudo apt-get install -f ./nym-vpn_0.0.4_amd64.deb
+sudo apt-get install -f ./nym-vpn-dev_0.0.5_amd64.deb
 ```
 
 NymVPN alpha version runs over Nym testnet (called sandbox), a little extra configuration is needed for the application to work.
@@ -72,7 +71,7 @@ Open terminal and run:
 
 ```sh
 # .AppImage must be run from the same directory as the binary
-sudo -E ./nym-vpn_0.0.4_amd64.AppImage
+sudo -E ./nym-vpn-dev_0.0.5_amd64.AppImage
 
 # .deb installation shall be executable from anywhere as
 sudo -E nym-vpn

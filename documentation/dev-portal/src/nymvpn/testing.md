@@ -14,7 +14,7 @@ One of the main aims of NymVPN alpha release is testing; your results will help 
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary ([download here]({{nym_vpn_latest_binary_url}}))
+1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary ([download here]({{nym_vpn_releases}}))
 2. Copy or download [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) testnet config file to the same directory
 ```sh
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env

@@ -17,9 +17,9 @@ mkdir -p "$HOME/nym-vpn-latest"
 ```
 -->
 
-1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for your version of MacOS
+1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for your version of MacOS
 
-2. Recommended (skip this point if you don't want to verify): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+2. Recommended (skip this point if you don't want to verify): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 

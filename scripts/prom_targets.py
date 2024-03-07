@@ -34,9 +34,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     nym_api = args.apiurl
-    outfile = "prom_targets.json"
+    outfile = "/tmp/prom_targets.json"
 
     mixnodes = requests.get(f"{nym_api}/api/v1/mixnodes").json()
     prom_targets = [make_prom_target(mixnode) for mixnode in mixnodes]
-    json.dump(prom_targets, open(outfile, "w"), indent=2)
+    j = json.dumps(prom_targets)
+    with open(outfile, "w") as fp:
+        fp.write(j)
     print(f"Prometheus -> {len(prom_targets)} targets written to {outfile}")

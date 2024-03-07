@@ -51,26 +51,59 @@ impl PacketStatistics {
     fn new() -> Result<Self, MetricsError> {
         Ok(Self {
             real_packets_sent: Counter::new("real_packets_sent", "Real packets sent count")?,
-            real_packets_sent_size: Counter::new("real_packets_sent_size", "Total size of real packets sent")?,
+            real_packets_sent_size: Counter::new(
+                "real_packets_sent_size",
+                "Total size of real packets sent",
+            )?,
             cover_packets_sent: Counter::new("cover_packets_sent", "Cover packets sent count")?,
-            cover_packets_sent_size: Counter::new("cover_packets_sent_size", "Total size of cover packets sent")?,
+            cover_packets_sent_size: Counter::new(
+                "cover_packets_sent_size",
+                "Total size of cover packets sent",
+            )?,
 
-            real_packets_received: Counter::new("real_packets_received", "Real packets received count")?,
-            real_packets_received_size: Counter::new("real_packets_received_size", "Total size of received packets")?,
-            cover_packets_received: Counter::new("cover_packets_received", "Cover packets received count")?,
-            cover_packets_received_size: Counter::new("cover_packets_received_size", "Total size of cover packets received")?,
+            real_packets_received: Counter::new(
+                "real_packets_received",
+                "Real packets received count",
+            )?,
+            real_packets_received_size: Counter::new(
+                "real_packets_received_size",
+                "Total size of received packets",
+            )?,
+            cover_packets_received: Counter::new(
+                "cover_packets_received",
+                "Cover packets received count",
+            )?,
+            cover_packets_received_size: Counter::new(
+                "cover_packets_received_size",
+                "Total size of cover packets received",
+            )?,
 
             total_acks_received: Counter::new("total_acks_received", "Total acks received count")?,
-            total_acks_received_size: Counter::new("total_acks_received_size", "Total size of acks received")?,
+            total_acks_received_size: Counter::new(
+                "total_acks_received_size",
+                "Total size of acks received",
+            )?,
             real_acks_received: Counter::new("real_acks_received", "Real acks received count")?,
-            real_acks_received_size: Counter::new("real_acks_received_size", "Total size of received acks")?,
+            real_acks_received_size: Counter::new(
+                "real_acks_received_size",
+                "Total size of received acks",
+            )?,
             cover_acks_received: Counter::new("cover_acks_received", "Cover acks received count")?,
-            cover_acks_received_size: Counter::new("cover_acks_received_size", "Total size of cover acks received")?,
+            cover_acks_received_size: Counter::new(
+                "cover_acks_received_size",
+                "Total size of cover acks received",
+            )?,
 
             real_packets_queued: Counter::new("real_packets_queued", "Real packets queued count")?,
-            retransmissions_queued: Counter::new("retransmissions_queued", "Retransmission queued count")?,
+            retransmissions_queued: Counter::new(
+                "retransmissions_queued",
+                "Retransmission queued count",
+            )?,
             reply_surbs_queued: Counter::new("reply_surbs_queued", "Reply SURBs queued count")?,
-            additional_reply_surbs_queued: Counter::new("additional_reply_surbs_queued", "Additional reply SURBs queued count")?,
+            additional_reply_surbs_queued: Counter::new(
+                "additional_reply_surbs_queued",
+                "Additional reply SURBs queued count",
+            )?,
         })
     }
 

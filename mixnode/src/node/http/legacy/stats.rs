@@ -21,7 +21,6 @@ pub(crate) async fn metrics(
     match response {
         NodeStatsResponse::Full(full) => full,
         NodeStatsResponse::Simple(_) => unreachable!(),
-    
     }
 }
 

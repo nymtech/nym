@@ -77,11 +77,11 @@ impl SharedNodeStats {
         .unwrap();
 
         registry
-            .register(Box::new(packets_sent_since_startup.clone()))
+            .register(Box::new(packets_sent_since_startup_all.clone()))
             .unwrap();
 
         registry
-            .register(Box::new(packets_dropped_since_startup.clone()))
+            .register(Box::new(packets_dropped_since_startup_all.clone()))
             .unwrap();
 
         registry
@@ -133,7 +133,7 @@ impl SharedNodeStats {
                     .packets_sent_since_startup
                     .insert(mix.clone(), counter);
             }
-            guard.packets_sent_since_startup_all.inc_by(count);
+            guard.packets_sent_since_startup_all.inc_by(*count);
         }
 
         for (mix, count) in &new_dropped {
@@ -151,7 +151,7 @@ impl SharedNodeStats {
                     .packets_explicitly_dropped_since_startup
                     .insert(mix.clone(), counter);
             }
-            guard.packets_dropped_since_startup_all.inc_by(count);
+            guard.packets_dropped_since_startup_all.inc_by(*count);
         }
 
         guard.packets_received_since_last_update = new_received;
@@ -216,11 +216,11 @@ impl Default for NodeStats {
         .unwrap();
 
         registry
-            .register(Box::new(packets_sent_since_startup.clone()))
+            .register(Box::new(packets_sent_since_startup_all.clone()))
             .unwrap();
 
         registry
-            .register(Box::new(packets_dropped_since_startup.clone()))
+            .register(Box::new(packets_dropped_since_startup_all.clone()))
             .unwrap();
 
         registry
@@ -249,10 +249,8 @@ impl NodeStats {
             update_time: self.update_time,
             previous_update_time: self.previous_update_time,
             packets_received_since_startup: self.packets_received_since_startup.get(),
-            packets_sent_since_startup: self.packets_sent_since_startup.sum(),
-            packets_explicitly_dropped_since_startup: self
-                .packets_explicitly_dropped_since_startup
-                .sum(),
+            packets_sent_since_startup: self.packets_sent_since_startup_all.get(),
+            packets_explicitly_dropped_since_startup: self.packets_dropped_since_startup_all.get(),
             packets_received_since_last_update: self.packets_received_since_last_update,
             packets_sent_since_last_update: self.packets_sent_since_last_update.values().sum(),
             packets_explicitly_dropped_since_last_update: self

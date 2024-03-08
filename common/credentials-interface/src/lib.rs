@@ -1,21 +1,27 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::Scalar;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
 
-pub use nym_coconut::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar, keygen,
-    prepare_blind_sign, prove_bandwidth_credential, verify_credential, Attribute, Base58,
-    BlindSignRequest, BlindedSerialNumber, BlindedSignature, Bytable, CoconutError, KeyPair,
-    Parameters, PrivateAttribute, PublicAttribute, SecretKey, Signature, SignatureShare,
-    VerificationKey, VerifyCredentialRequest,
+pub use nym_compact_ecash::{
+    aggregate_verification_keys, aggregate_wallets, constants, error::CompactEcashError,
+    generate_keypair_user, issue_verify,
+    scheme::expiration_date_signatures::aggregate_expiration_signatures,
+    scheme::expiration_date_signatures::date_scalar,
+    scheme::expiration_date_signatures::ExpirationDateSignature,
+    scheme::expiration_date_signatures::PartialExpirationDateSignature,
+    scheme::keygen::KeyPairUser, scheme::setup::aggregate_indices_signatures,
+    scheme::setup::CoinIndexSignature, scheme::setup::PartialCoinIndexSignature,
+    scheme::withdrawal::RequestInfo, scheme::Payment, scheme::Wallet, setup::setup,
+    setup::Parameters, utils::BlindedSignature, withdrawal_request, Base58, Bytable,
+    GroupParameters, PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+    WithdrawalRequest,
 };
 
-pub const VOUCHER_INFO_TYPE: &str = "BandwidthVoucher";
+pub const ECASH_INFO_TYPE: &str = "TicketBook";
 pub const FREE_PASS_INFO_TYPE: &str = "FreeBandwidthPass";
 
 // pub trait NymCredential {
@@ -28,7 +34,7 @@ pub struct UnknownCredentialType(String);
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum CredentialType {
-    Voucher,
+    TicketBook,
     FreePass,
 }
 
@@ -36,8 +42,8 @@ impl FromStr for CredentialType {
     type Err = UnknownCredentialType;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == VOUCHER_INFO_TYPE {
-            Ok(CredentialType::Voucher)
+        if s == ECASH_INFO_TYPE {
+            Ok(CredentialType::TicketBook)
         } else if s == FREE_PASS_INFO_TYPE {
             Ok(CredentialType::FreePass)
         } else {
@@ -49,7 +55,7 @@ impl FromStr for CredentialType {
 impl CredentialType {
     pub fn validate(&self, type_plain: &str) -> bool {
         match self {
-            CredentialType::Voucher => type_plain == VOUCHER_INFO_TYPE,
+            CredentialType::TicketBook => type_plain == ECASH_INFO_TYPE,
             CredentialType::FreePass => type_plain == FREE_PASS_INFO_TYPE,
         }
     }
@@ -58,15 +64,15 @@ impl CredentialType {
         matches!(self, CredentialType::FreePass)
     }
 
-    pub fn is_voucher(&self) -> bool {
-        matches!(self, CredentialType::Voucher)
+    pub fn is_ticketbook(&self) -> bool {
+        matches!(self, CredentialType::TicketBook)
     }
 }
 
 impl Display for CredentialType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CredentialType::Voucher => VOUCHER_INFO_TYPE.fmt(f),
+            CredentialType::TicketBook => ECASH_INFO_TYPE.fmt(f),
             CredentialType::FreePass => FREE_PASS_INFO_TYPE.fmt(f),
         }
     }

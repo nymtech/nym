@@ -203,7 +203,7 @@ pub mod v1_1_33 {
         )
         .await?;
 
-        remove_old_gateway_details(&old_storage_paths).map_err(|err| {
+        remove_old_gateway_details(old_storage_paths).map_err(|err| {
             ClientCoreError::UpgradeFailure {
                 message: format!("failed to remove old data: {err}"),
             }

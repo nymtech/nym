@@ -16,10 +16,7 @@ use nym_network_defaults::mainnet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use nym_network_requester::config::BaseClientConfig;
-use nym_network_requester::{
-    setup_fs_gateways_storage, setup_gateway, GatewaySelectionSpecification, GatewaySetup,
-    OnDiskKeys,
-};
+use nym_network_requester::{setup_fs_gateways_storage, setup_gateway, GatewaySetup, OnDiskKeys};
 use nym_types::gateway::{GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails};
 use nym_validator_client::nyxd::AccountId;
 use std::net::IpAddr;
@@ -251,7 +248,7 @@ pub(crate) fn override_ip_packet_router_config(
 
     // disable poisson rate in the BASE client if the IPR option is enabled
     if cfg.ip_packet_router.disable_poisson_rate {
-        log::info!("Disabling poisson rate for ip packet router");
+        info!("Disabling poisson rate for ip packet router");
         cfg.set_no_poisson_process();
     }
 
@@ -280,14 +277,7 @@ pub(crate) async fn initialise_local_network_requester(
 
     // gateway setup here is way simpler as we're 'connecting' to ourselves
     let init_res = setup_gateway(
-        GatewaySetup::New {
-            specification: GatewaySelectionSpecification::Custom {
-                gateway_identity: identity.to_base58_string(),
-                additional_data: Default::default(),
-            },
-            available_gateways: vec![],
-            overwrite_data: false,
-        },
+        GatewaySetup::new_inbuilt(identity),
         &key_store,
         &details_store,
     )
@@ -353,14 +343,7 @@ pub(crate) async fn initialise_local_ip_packet_router(
 
     // gateway setup here is way simpler as we're 'connecting' to ourselves
     let init_res = setup_gateway(
-        GatewaySetup::New {
-            specification: GatewaySelectionSpecification::Custom {
-                gateway_identity: identity.to_base58_string(),
-                additional_data: Default::default(),
-            },
-            available_gateways: vec![],
-            overwrite_data: false,
-        },
+        GatewaySetup::new_inbuilt(identity),
         &key_store,
         &details_store,
     )

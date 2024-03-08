@@ -16,6 +16,11 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub const REMOTE_GATEWAY_TYPE: &str = "remote";
 pub const CUSTOM_GATEWAY_TYPE: &str = "custom";
 
+#[derive(Debug, Clone, Default)]
+pub struct ActiveGateway {
+    pub registration: Option<GatewayRegistration>,
+}
+
 #[derive(Debug, Clone)]
 pub struct GatewayRegistration {
     pub details: GatewayDetails,
@@ -46,12 +51,14 @@ impl GatewayDetails {
         derived_aes128_ctr_blake3_hmac_keys: Arc<SharedKeys>,
         gateway_owner_address: AccountId,
         gateway_listener: Url,
+        wg_tun_address: Option<Url>,
     ) -> Self {
         GatewayDetails::Remote(RemoteGatewayDetails {
             gateway_id,
             derived_aes128_ctr_blake3_hmac_keys,
             gateway_owner_address,
             gateway_listener,
+            wg_tun_address,
         })
     }
 
@@ -136,6 +143,7 @@ pub struct RawRemoteGatewayDetails {
     pub derived_aes128_ctr_blake3_hmac_keys_bs58: String,
     pub gateway_owner_address: String,
     pub gateway_listener: String,
+    pub wg_tun_address: Option<String>,
 }
 
 impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
@@ -175,11 +183,24 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
             }
         })?;
 
+        let wg_tun_address = value
+            .wg_tun_address
+            .as_ref()
+            .map(|addr| {
+                Url::parse(addr).map_err(|source| BadGateway::MalformedListener {
+                    gateway_id: value.gateway_id_bs58.clone(),
+                    raw_listener: addr.clone(),
+                    source,
+                })
+            })
+            .transpose()?;
+
         Ok(RemoteGatewayDetails {
             gateway_id,
             derived_aes128_ctr_blake3_hmac_keys,
             gateway_owner_address,
             gateway_listener,
+            wg_tun_address,
         })
     }
 }
@@ -193,6 +214,7 @@ impl From<RemoteGatewayDetails> for RawRemoteGatewayDetails {
                 .to_base58_string(),
             gateway_owner_address: value.gateway_owner_address.to_string(),
             gateway_listener: value.gateway_listener.to_string(),
+            wg_tun_address: value.wg_tun_address.map(|addr| addr.to_string()),
         }
     }
 }
@@ -208,6 +230,8 @@ pub struct RemoteGatewayDetails {
     pub gateway_owner_address: AccountId,
 
     pub gateway_listener: Url,
+
+    pub wg_tun_address: Option<Url>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

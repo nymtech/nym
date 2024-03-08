@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::GatewayRegistration;
-use crate::{GatewaysDetailsStore, StorageError};
+use crate::{ActiveGateway, GatewaysDetailsStore, StorageError};
 use async_trait::async_trait;
 use manager::StorageManager;
 use std::path::Path;
@@ -26,11 +26,12 @@ impl OnDiskGatewaysDetails {
 #[async_trait]
 impl GatewaysDetailsStore for OnDiskGatewaysDetails {
     type StorageError = error::StorageError;
-    
+
     async fn has_gateway_details(&self, gateway_id: &str) -> Result<bool, Self::StorageError> {
         todo!()
     }
-    async fn active_gateway(&self) -> Result<Option<GatewayRegistration>, Self::StorageError> {
+
+    async fn active_gateway(&self) -> Result<ActiveGateway, Self::StorageError> {
         todo!()
     }
 

@@ -5,7 +5,7 @@ use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::error::ClientCoreError;
 use nym_client_core_gateways_storage::{
-    GatewayRegistration, GatewaysDetailsStore, GatewaysDetailsStoreExt,
+    ActiveGateway, GatewayRegistration, GatewaysDetailsStore, GatewaysDetailsStoreExt,
 };
 use nym_crypto::asymmetric::identity;
 
@@ -59,18 +59,16 @@ where
 
 pub async fn load_active_gateway_details<D>(
     details_store: &D,
-) -> Result<GatewayRegistration, ClientCoreError>
+) -> Result<ActiveGateway, ClientCoreError>
 where
     D: GatewaysDetailsStore,
     D::StorageError: Send + Sync + 'static,
 {
-    details_store
-        .active_gateway()
-        .await
-        .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
+    details_store.active_gateway().await.map_err(|source| {
+        ClientCoreError::GatewaysDetailsStoreError {
             source: Box::new(source),
-        })?
-        .ok_or(ClientCoreError::NoActiveGatewaySet)
+        }
+    })
 }
 
 pub async fn load_gateway_details<D>(

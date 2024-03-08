@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::GatewayRegistration;
+use crate::types::{ActiveGateway, GatewayRegistration};
 use crate::{BadGateway, GatewaysDetailsStore};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -38,14 +38,16 @@ impl GatewaysDetailsStore for InMemGatewaysDetails {
         Ok(self.inner.read().await.gateways.contains_key(gateway_id))
     }
 
-    async fn active_gateway(&self) -> Result<Option<GatewayRegistration>, Self::StorageError> {
+    async fn active_gateway(&self) -> Result<ActiveGateway, Self::StorageError> {
         let guard = self.inner.read().await;
 
-        Ok(guard.active_gateway.as_ref().map(|id| {
+        let registration = guard.active_gateway.as_ref().map(|id| {
             // SAFETY: if particular gateway is set as active, its details MUST exist
             #[allow(clippy::unwrap_used)]
             guard.gateways.get(id).unwrap().clone()
-        }))
+        });
+
+        Ok(ActiveGateway { registration })
     }
 
     async fn set_active_gateway(&self, gateway_id: &str) -> Result<(), Self::StorageError> {

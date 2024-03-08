@@ -13,8 +13,8 @@ pub mod types;
 
 // todo: export port types
 pub use crate::types::{
-    CustomGatewayDetails, GatewayDetails, GatewayRegistration, GatewayType, RegisteredGateway,
-    RemoteGatewayDetails,
+    ActiveGateway, CustomGatewayDetails, GatewayDetails, GatewayRegistration, GatewayType,
+    RegisteredGateway, RemoteGatewayDetails,
 };
 pub use backend::mem_backend::{InMemGatewaysDetails, InMemStorageError};
 pub use error::BadGateway;
@@ -29,7 +29,7 @@ pub trait GatewaysDetailsStore {
     type StorageError: Error + From<error::BadGateway>;
 
     /// Returns details of the currently active gateway, if available.
-    async fn active_gateway(&self) -> Result<Option<GatewayRegistration>, Self::StorageError>;
+    async fn active_gateway(&self) -> Result<ActiveGateway, Self::StorageError>;
 
     /// Set the provided gateway as the currently active gateway.
     async fn set_active_gateway(&self, gateway_id: &str) -> Result<(), Self::StorageError>;

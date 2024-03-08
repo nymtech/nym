@@ -236,6 +236,7 @@ where
         specification: selection_spec,
         available_gateways,
         overwrite_data: common_args.force_register_gateway,
+        wg_tun_address: None,
     };
 
     let init_details =

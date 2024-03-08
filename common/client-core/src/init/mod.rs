@@ -23,6 +23,7 @@ use nym_topology::gateway;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use serde::Serialize;
+use std::net::IpAddr;
 
 pub mod helpers;
 pub mod types;
@@ -46,19 +47,13 @@ where
         })
 }
 
-// fn ensure_valid_details(
-//     details: &PersistedGatewayDetails,
-//     loaded_keys: &ManagedKeys,
-// ) -> Result<(), ClientCoreError> {
-//     details.validate(loaded_keys.gateway_shared_key().as_deref())
-// }
-
 async fn setup_new_gateway<K, D>(
     key_store: &K,
     details_store: &D,
     overwrite_data: bool,
     selection_specification: GatewaySelectionSpecification,
     available_gateways: Vec<gateway::Node>,
+    wg_tun_ip_address: Option<IpAddr>,
 ) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,
@@ -76,19 +71,19 @@ where
     let selected_gateway = match selection_specification {
         GatewaySelectionSpecification::UniformRemote { must_use_tls } => {
             let gateway = uniformly_random_gateway(&mut rng, &available_gateways, must_use_tls)?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, wg_tun_ip_address, must_use_tls)?
         }
         GatewaySelectionSpecification::RemoteByLatency { must_use_tls } => {
             let gateway =
                 choose_gateway_by_latency(&mut rng, &available_gateways, must_use_tls).await?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, wg_tun_ip_address, must_use_tls)?
         }
         GatewaySelectionSpecification::Specified {
             must_use_tls,
             identity,
         } => {
             let gateway = get_specified_gateway(&identity, &available_gateways, must_use_tls)?;
-            SelectedGateway::from_topology_node(gateway, must_use_tls)?
+            SelectedGateway::from_topology_node(gateway, wg_tun_ip_address, must_use_tls)?
         }
         GatewaySelectionSpecification::Custom {
             gateway_identity,
@@ -110,18 +105,23 @@ where
             gateway_id,
             gateway_owner_address,
             gateway_listener,
+            wg_tun_address,
         } => {
             // if we're using a 'normal' gateway setup, do register
             let our_identity = client_keys.identity_keypair();
+
+            // if wg address is set, use that one
+            let url = wg_tun_address.clone().unwrap_or(gateway_listener.clone());
+
             let registration =
-                helpers::register_with_gateway(gateway_id, gateway_listener.clone(), our_identity)
-                    .await?;
+                helpers::register_with_gateway(gateway_id, url, our_identity).await?;
             (
                 GatewayDetails::new_remote(
                     gateway_id,
                     registration.shared_keys,
                     gateway_owner_address,
                     gateway_listener,
+                    wg_tun_address,
                 ),
                 Some(registration.authenticated_ephemeral_client),
             )
@@ -161,7 +161,10 @@ where
     let loaded_details = if let Some(gateway_id) = gateway_id {
         load_gateway_details(details_store, &gateway_id).await?
     } else {
-        load_active_gateway_details(details_store).await?
+        load_active_gateway_details(details_store)
+            .await?
+            .registration
+            .ok_or(ClientCoreError::NoActiveGatewaySet)?
     };
 
     let loaded_keys = load_client_keys(key_store).await?;
@@ -205,6 +208,7 @@ where
             specification,
             available_gateways,
             overwrite_data,
+            wg_tun_address,
         } => {
             setup_new_gateway(
                 key_store,
@@ -212,6 +216,7 @@ where
                 overwrite_data,
                 specification,
                 available_gateways,
+                wg_tun_address,
             )
             .await
         }

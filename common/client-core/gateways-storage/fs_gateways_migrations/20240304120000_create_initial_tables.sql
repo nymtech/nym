@@ -24,7 +24,8 @@ CREATE TABLE remote_gateway_details
     gateway_id_bs58                          TEXT NOT NULL UNIQUE PRIMARY KEY REFERENCES registered_gateway (gateway_id_bs58),
     derived_aes128_ctr_blake3_hmac_keys_bs58 TEXT NOT NULL,
     gateway_owner_address                    TEXT NOT NULL,
-    gateway_listener                         TEXT NOT NULL
+    gateway_listener                         TEXT NOT NULL,
+    wg_tun_address                           TEXT
 );
 
 CREATE TABLE custom_gateway_details

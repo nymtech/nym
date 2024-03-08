@@ -56,7 +56,7 @@ pub use nym_client_core::{
         },
         topology_control::geo_aware_provider::{CountryGroup, GeoAwareTopologyProvider},
     },
-    config::{GatewayEndpointConfig, GroupBy},
+    config::GroupBy,
 };
 pub use nym_credential_storage::{
     ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage,

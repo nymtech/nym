@@ -1,3 +1,6 @@
+use nym_client_core::client::base_client::storage::{
+    ActiveGateway, BadGateway, GatewayRegistration, GatewaysDetailsStore,
+};
 use nym_sdk::mixnet::{
     self, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage, KeyStore, MixnetClientStorage,
     MixnetMessageSender,
@@ -106,20 +109,53 @@ impl KeyStore for MockKeyStore {
 struct MockGatewayDetailsStore;
 
 #[async_trait]
-impl GatewayDetailsStore for MockGatewayDetailsStore {
+impl GatewaysDetailsStore for MockGatewayDetailsStore {
     type StorageError = MyError;
 
-    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError> {
-        println!("loading stored gateway details");
+    async fn active_gateway(&self) -> Result<ActiveGateway, Self::StorageError> {
+        println!("getting active gateway");
+
+        Err(MyError)
+    }
+
+    async fn set_active_gateway(&self, _gateway_id: &str) -> Result<(), Self::StorageError> {
+        println!("setting active gateway");
+
+        Ok(())
+    }
+
+    async fn all_gateways(&self) -> Result<Vec<GatewayRegistration>, Self::StorageError> {
+        println!("getting all registered gateways");
+
+        Err(MyError)
+    }
+
+    async fn has_gateway_details(&self, _gateway_id: &str) -> Result<bool, Self::StorageError> {
+        println!("checking for gateway details");
+
+        Err(MyError)
+    }
+
+    async fn load_gateway_details(
+        &self,
+        _gateway_id: &str,
+    ) -> Result<GatewayRegistration, Self::StorageError> {
+        println!("loading gateway details");
 
         Err(MyError)
     }
 
     async fn store_gateway_details(
         &self,
-        _details: &PersistedGatewayDetails,
+        _details: &GatewayRegistration,
     ) -> Result<(), Self::StorageError> {
         println!("storing gateway details");
+
+        Ok(())
+    }
+
+    async fn remove_gateway_details(&self, _gateway_id: &str) -> Result<(), Self::StorageError> {
+        println!("removing gateway details");
 
         Ok(())
     }
@@ -178,3 +214,9 @@ impl GatewayDetailsStore for MockGatewayDetailsStore {
 #[derive(thiserror::Error, Debug)]
 #[error("foobar")]
 struct MyError;
+
+impl From<BadGateway> for MyError {
+    fn from(_: BadGateway) -> Self {
+        MyError
+    }
+}

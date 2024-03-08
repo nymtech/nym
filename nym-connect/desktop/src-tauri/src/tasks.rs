@@ -1,9 +1,7 @@
 use futures::{channel::mpsc, StreamExt};
-use nym_client_core::init::types::GatewayDetails;
+use nym_client_core::client::base_client::storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_client_core::{
-    client::base_client::storage::{
-        gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
-    },
+    client::base_client::storage::{MixnetClientStorage, OnDiskPersistent},
     config::{GroupBy, TopologyStructure},
     error::ClientCoreStatusMessage,
 };
@@ -90,10 +88,12 @@ pub async fn start_nym_socks5_client(
 
     let used_gateway = storage
         .gateway_details_store()
-        .load_gateway_details()
+        .active_gateway()
         .await
-        .expect("failed to load gateway details")
-        .into();
+        .expect("failed to load active gateway details")
+        .registration
+        .expect("no active gateway set")
+        .details;
 
     log::info!("Starting socks5 client");
 

@@ -27,8 +27,9 @@ use crate::{
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
 pub use nym_client_core_gateways_storage::{
-    CustomGatewayDetails, GatewayDetails, GatewayRegistration, GatewayType, GatewaysDetailsStore,
-    InMemGatewaysDetails, RegisteredGateway, RemoteGatewayDetails,
+    ActiveGateway, BadGateway, CustomGatewayDetails, GatewayDetails, GatewayRegistration,
+    GatewayType, GatewaysDetailsStore, InMemGatewaysDetails, RegisteredGateway,
+    RemoteGatewayDetails,
 };
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-gateways-storage"))]

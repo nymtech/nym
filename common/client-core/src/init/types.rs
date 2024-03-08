@@ -320,6 +320,7 @@ pub struct InitResults {
     pub encryption_key: String,
     pub gateway_id: String,
     pub gateway_listener: String,
+    pub gateway_registration: OffsetDateTime,
     pub address: Recipient,
 }
 
@@ -337,6 +338,7 @@ impl InitResults {
             encryption_key: address.encryption_key().to_base58_string(),
             gateway_id: gateway.gateway_id.to_base58_string(),
             gateway_listener: gateway.gateway_listener.to_string(),
+            gateway_registration: registration,
             address,
         }
     }
@@ -349,6 +351,7 @@ impl Display for InitResults {
         writeln!(f, "Identity key: {}", self.identity_key)?;
         writeln!(f, "Encryption: {}", self.encryption_key)?;
         writeln!(f, "Gateway ID: {}", self.gateway_id)?;
-        write!(f, "Gateway: {}", self.gateway_listener)
+        writeln!(f, "Gateway: {}", self.gateway_listener)?;
+        write!(f, "Registered at: {}", self.gateway_registration)
     }
 }

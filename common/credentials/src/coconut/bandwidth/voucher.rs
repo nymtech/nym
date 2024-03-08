@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::bandwidth::CredentialSigningData;
-use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_credentials_interface::{
-    hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, PublicAttribute,
-};
+use nym_credentials_interface::{BlindedSignature, WithdrawalRequest};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_validator_client::nyxd::{Coin, Hash};
 use serde::{Deserialize, Serialize};
@@ -46,10 +43,6 @@ pub struct BandwidthVoucherIssuanceData {
     #[zeroize(skip)]
     value: Coin,
 
-    // note: as mentioned above, we're only hashing the value of the coin!
-    #[serde(with = "scalar_serde_helper")]
-    value_prehashed: PublicAttribute,
-
     /// the hash of the deposit transaction
     #[zeroize(skip)]
     deposit_tx_hash: Hash,
@@ -69,18 +62,16 @@ impl BandwidthVoucherIssuanceData {
         unused_ed25519: encryption::PrivateKey,
     ) -> Self {
         let value = value.into();
-        let value_prehashed = hash_to_scalar(value.amount.to_string());
 
         BandwidthVoucherIssuanceData {
             value,
-            value_prehashed,
             deposit_tx_hash,
             signing_key,
             unused_ed25519,
         }
     }
 
-    pub fn request_plaintext(request: &BlindSignRequest, tx_hash: Hash) -> Vec<u8> {
+    pub fn request_plaintext(request: &WithdrawalRequest, tx_hash: Hash) -> Vec<u8> {
         let mut message = request.to_bytes();
         message.extend_from_slice(tx_hash.as_bytes());
         message
@@ -88,7 +79,7 @@ impl BandwidthVoucherIssuanceData {
 
     fn request_signature(&self, signing_request: &CredentialSigningData) -> identity::Signature {
         let message =
-            Self::request_plaintext(&signing_request.blind_sign_request, self.deposit_tx_hash);
+            Self::request_plaintext(&signing_request.withdrawal_request, self.deposit_tx_hash);
         self.signing_key.sign(message)
     }
 
@@ -99,10 +90,11 @@ impl BandwidthVoucherIssuanceData {
         let request_signature = self.request_signature(signing_request);
 
         BlindSignRequestBody::new(
-            signing_request.blind_sign_request.clone(),
+            signing_request.withdrawal_request.clone(),
             self.deposit_tx_hash,
             request_signature,
-            signing_request.public_attributes_plain.clone(),
+            signing_request.ecash_pub_key.clone(),
+            signing_request.expiration_date,
         )
     }
 
@@ -115,12 +107,8 @@ impl BandwidthVoucherIssuanceData {
         Ok(server_response.blinded_signature)
     }
 
-    pub fn value_plain(&self) -> String {
-        self.value.amount.to_string()
-    }
-
-    pub fn value_attribute(&self) -> &Attribute {
-        &self.value_prehashed
+    pub fn value(&self) -> u128 {
+        self.value.amount
     }
 
     pub fn tx_hash(&self) -> Hash {

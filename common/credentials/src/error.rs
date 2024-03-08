@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials_interface::CoconutError;
+use nym_credentials_interface::CompactEcashError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_validator_client::ValidatorClientError;
 
@@ -32,8 +32,8 @@ pub enum Error {
     #[error("Could not contact any validator")]
     NoValidatorsAvailable,
 
-    #[error("Ran into a coconut error - {0}")]
-    CoconutError(#[from] CoconutError),
+    #[error("Ran into a Compact ecash error - {0}")]
+    CompactEcashError(#[from] CompactEcashError),
 
     #[error("Ran into a validator client error - {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
@@ -51,7 +51,7 @@ pub enum Error {
     NotEnoughShares,
 
     #[error("Could not aggregate signature shares - {0}. Try again using the recovery command")]
-    SignatureAggregationError(CoconutError),
+    SignatureAggregationError(CompactEcashError),
 
     #[error("Could not deserialize bandwidth voucher - {0}")]
     BandwidthVoucherDeserializationError(String),

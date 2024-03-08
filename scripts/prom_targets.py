@@ -1,6 +1,8 @@
 import argparse
+import os
 import requests
 import json
+from datetime import datetime
 
 
 def make_prom_target(mixnode):
@@ -34,11 +36,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     nym_api = args.apiurl
-    outfile = "/tmp/prom_targets.json"
+    outlink = "/tmp/prom_targets.json"
+    outfile = f"/tmp/temp_targets.json"
 
     mixnodes = requests.get(f"{nym_api}/api/v1/mixnodes").json()
     prom_targets = [make_prom_target(mixnode) for mixnode in mixnodes]
-    j = json.dumps(prom_targets)
-    with open(outfile, "w") as fp:
-        fp.write(j)
+    with open(outfile, "w") as f:
+        json.dump(prom_targets, f)
+    
+    os.chmod(outfile , 0o777)
+    os.rename(outfile, outlink)
+    os.chmod(outlink , 0o777)
+    
     print(f"Prometheus -> {len(prom_targets)} targets written to {outfile}")

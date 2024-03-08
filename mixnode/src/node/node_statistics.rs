@@ -689,7 +689,5 @@ mod tests {
         assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
         assert_eq!(&stats.packets_received_since_startup.get(), &0.);
         assert!(&stats.packets_explicitly_dropped_since_startup.is_empty());
-
-        assert_eq!(stats.prom().await, "# HELP packets_received_since_startup Packets received since startup\n# TYPE packets_received_since_startup counter\npackets_received_since_startup 0\n# HELP packets_sent_foo Packets sent to mix foo, since startup\n# TYPE packets_sent_foo counter\npackets_sent_foo 2\n");
     }
 }

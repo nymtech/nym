@@ -8,7 +8,7 @@ use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec,
     request::{IpPacketRequest, IpPacketRequestData},
     response::{
-        DynamicConnectFailureReason, ErrorResponseReply, IpPacketResponse,
+        DynamicConnectFailureReason, InfoResponseReply, IpPacketResponse,
         StaticConnectFailureReason,
     },
     IpPair,
@@ -482,7 +482,7 @@ impl MixnetListener {
                 log::info!("Denied filter check: {dst}");
                 Ok(Some(IpPacketResponse::new_data_error_response(
                     connected_client.nym_address,
-                    ErrorResponseReply::ExitPolicyFilterCheckFailed {
+                    InfoResponseReply::ExitPolicyFilterCheckFailed {
                         dst: dst.to_string(),
                     },
                 )))

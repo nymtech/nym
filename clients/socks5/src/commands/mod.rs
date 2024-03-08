@@ -6,17 +6,16 @@ use crate::config::old_config_v1_1_20::ConfigV1_1_20;
 use crate::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
 use crate::config::old_config_v1_1_30::ConfigV1_1_30;
 use crate::config::old_config_v1_1_33::ConfigV1_1_33;
-use crate::config::{BaseClientConfig, Config, SocksClientPaths};
+use crate::config::{BaseClientConfig, Config};
 use crate::error::Socks5ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
+use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
-use nym_client_core::config::{GatewayEndpointConfig, GroupBy, TopologyStructure};
-use nym_client_core::error::ClientCoreError;
+use nym_client_core::config::{GroupBy, TopologyStructure};
 use nym_config::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use std::error::Error;
@@ -166,36 +165,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         )
 }
 
-fn persist_gateway_details(
-    storage_paths: &SocksClientPaths,
-    details: GatewayEndpointConfig,
-) -> Result<(), Socks5ClientError> {
-    todo!()
-    // let details_store = OnDiskGatewayDetails::new(&storage_paths.common_paths.gateway_details);
-    // let keys_store = OnDiskKeys::new(storage_paths.common_paths.keys.clone());
-    // let shared_keys = keys_store.ephemeral_load_gateway_keys().map_err(|source| {
-    //     Socks5ClientError::ClientCoreError(ClientCoreError::KeyStoreError {
-    //         source: Box::new(source),
-    //     })
-    // })?;
-    // let persisted_details = PersistedGatewayDetails::new(details.into(), Some(&shared_keys))?;
-    // details_store
-    //     .store_to_disk(&persisted_details)
-    //     .map_err(|source| {
-    //         Socks5ClientError::ClientCoreError(ClientCoreError::GatewayDetailsStoreError {
-    //             source: Box::new(source),
-    //         })
-    //     })
-}
-
-fn migrate_gateway_details(
-    config: &Config,
-    old_details: Option<GatewayEndpointConfig>,
-) -> Result<(), Socks5ClientError> {
-    todo!()
-}
-
-fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, Socks5ClientError> {
+async fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, Socks5ClientError> {
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 
     // explicitly load it as v1.1.13 (which is incompatible with the next step, i.e. 1.1.19)
@@ -210,16 +180,23 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, Socks5ClientError> {
     let updated_step1: ConfigV1_1_20 = old_config.into();
     let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
     let (updated_step3, gateway_config) = updated_step2.upgrade()?;
+    let old_paths = updated_step3.storage_paths.clone();
+
     let updated_step4: ConfigV1_1_33 = updated_step3.into();
     let updated = updated_step4.try_upgrade()?;
 
-    migrate_gateway_details(&updated, Some(gateway_config))?;
+    v1_1_33::migrate_gateway_details(
+        &old_paths.common_paths,
+        &updated.storage_paths.common_paths,
+        Some(gateway_config),
+    )
+    .await?;
 
     updated.save_to_default_location()?;
     Ok(true)
 }
 
-fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, Socks5ClientError> {
+async fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, Socks5ClientError> {
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 
     // explicitly load it as v1.1.20 (which is incompatible with the current one, i.e. +1.1.21)
@@ -233,16 +210,23 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, Socks5ClientError> {
 
     let updated_step1: ConfigV1_1_20_2 = old_config.into();
     let (updated_step2, gateway_config) = updated_step1.upgrade()?;
+    let old_paths = updated_step2.storage_paths.clone();
+
     let updated_step3: ConfigV1_1_33 = updated_step2.into();
     let updated = updated_step3.try_upgrade()?;
 
-    migrate_gateway_details(&updated, Some(gateway_config))?;
+    v1_1_33::migrate_gateway_details(
+        &old_paths.common_paths,
+        &updated.storage_paths.common_paths,
+        Some(gateway_config),
+    )
+    .await?;
 
     updated.save_to_default_location()?;
     Ok(true)
 }
 
-fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, Socks5ClientError> {
+async fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, Socks5ClientError> {
     // explicitly load it as v1.1.20_2 (which is incompatible with the current one, i.e. +1.1.21)
     let Ok(old_config) = ConfigV1_1_20_2::read_from_default_path(id) else {
         // if we failed to load it, there might have been nothing to upgrade
@@ -253,16 +237,23 @@ fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, Socks5ClientError> {
     info!("It is going to get updated to the current specification.");
 
     let (updated_step1, gateway_config) = old_config.upgrade()?;
+    let old_paths = updated_step1.storage_paths.clone();
+
     let updated_step2: ConfigV1_1_33 = updated_step1.into();
     let updated = updated_step2.try_upgrade()?;
 
-    migrate_gateway_details(&updated, Some(gateway_config))?;
+    v1_1_33::migrate_gateway_details(
+        &old_paths.common_paths,
+        &updated.storage_paths.common_paths,
+        Some(gateway_config),
+    )
+    .await?;
 
     updated.save_to_default_location()?;
     Ok(true)
 }
 
-fn try_upgrade_v1_1_30_config(id: &str) -> Result<bool, Socks5ClientError> {
+async fn try_upgrade_v1_1_30_config(id: &str) -> Result<bool, Socks5ClientError> {
     // explicitly load it as v1.1.30 (which is incompatible with the current one, i.e. +1.1.31)
     let Ok(old_config) = ConfigV1_1_30::read_from_default_path(id) else {
         // if we failed to load it, there might have been nothing to upgrade
@@ -272,15 +263,23 @@ fn try_upgrade_v1_1_30_config(id: &str) -> Result<bool, Socks5ClientError> {
     info!("It seems the client is using <= v1.1.30 config template.");
     info!("It is going to get updated to the current specification.");
 
+    let old_paths = old_config.storage_paths.clone();
+
     let updated_step1: ConfigV1_1_33 = old_config.into();
     let updated = updated_step1.try_upgrade()?;
-    migrate_gateway_details(&updated, None)?;
+
+    v1_1_33::migrate_gateway_details(
+        &old_paths.common_paths,
+        &updated.storage_paths.common_paths,
+        None,
+    )
+    .await?;
 
     updated.save_to_default_location()?;
     Ok(true)
 }
 
-fn try_upgrade_v1_1_33_config(id: &str) -> Result<bool, Socks5ClientError> {
+async fn try_upgrade_v1_1_33_config(id: &str) -> Result<bool, Socks5ClientError> {
     // explicitly load it as v1.1.33 (which is incompatible with the current one, i.e. +1.1.34)
     let Ok(old_config) = ConfigV1_1_33::read_from_default_path(id) else {
         // if we failed to load it, there might have been nothing to upgrade
@@ -290,35 +289,42 @@ fn try_upgrade_v1_1_33_config(id: &str) -> Result<bool, Socks5ClientError> {
     info!("It seems the client is using <= v1.1.33 config template.");
     info!("It is going to get updated to the current specification.");
 
+    let old_paths = old_config.storage_paths.clone();
+
     let updated = old_config.try_upgrade()?;
 
-    migrate_gateway_details(&updated, None)?;
+    v1_1_33::migrate_gateway_details(
+        &old_paths.common_paths,
+        &updated.storage_paths.common_paths,
+        None,
+    )
+    .await?;
 
     updated.save_to_default_location()?;
     Ok(true)
 }
 
-fn try_upgrade_config(id: &str) -> Result<(), Socks5ClientError> {
-    if try_upgrade_v1_1_13_config(id)? {
+async fn try_upgrade_config(id: &str) -> Result<(), Socks5ClientError> {
+    if try_upgrade_v1_1_13_config(id).await? {
         return Ok(());
     }
-    if try_upgrade_v1_1_20_config(id)? {
+    if try_upgrade_v1_1_20_config(id).await? {
         return Ok(());
     }
-    if try_upgrade_v1_1_20_2_config(id)? {
+    if try_upgrade_v1_1_20_2_config(id).await? {
         return Ok(());
     }
-    if try_upgrade_v1_1_30_config(id)? {
+    if try_upgrade_v1_1_30_config(id).await? {
         return Ok(());
     }
-    if try_upgrade_v1_1_33_config(id)? {
+    if try_upgrade_v1_1_33_config(id).await? {
         return Ok(());
     }
 
     Ok(())
 }
 
-fn try_load_current_config(id: &str) -> Result<Config, Socks5ClientError> {
+async fn try_load_current_config(id: &str) -> Result<Config, Socks5ClientError> {
     // try to load the config as is
     if let Ok(cfg) = Config::read_from_default_path(id) {
         return if !cfg.validate() {
@@ -329,7 +335,7 @@ fn try_load_current_config(id: &str) -> Result<Config, Socks5ClientError> {
     }
 
     // we couldn't load it - try upgrading it from older revisions
-    try_upgrade_config(id)?;
+    try_upgrade_config(id).await?;
 
     let config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,

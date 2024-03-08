@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::default_config_filepath;
 use crate::config::old_config_v1_1_33::{ConfigV1_1_33, SocksClientPathsV1_1_33};
-use crate::config::{default_config_filepath, Config};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::read_config_from_toml_file;
 use nym_socks5_client_core::config::old_config_v1_1_30::ConfigV1_1_30 as CoreConfigV1_1_30;

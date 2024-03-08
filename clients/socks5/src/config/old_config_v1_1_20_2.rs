@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::old_config_v1_1_30::ConfigV1_1_30;
-use crate::{
-    config::{default_config_filepath, persistence::SocksClientPaths},
-    error::Socks5ClientError,
-};
+use crate::config::old_config_v1_1_33::SocksClientPathsV1_1_33;
+use crate::{config::default_config_filepath, error::Socks5ClientError};
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
-use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::config::old_config_v1_1_33::OldGatewayEndpointConfigV1_1_33;
 use nym_config::read_config_from_toml_file;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::Path;
 
-use crate::config::old_config_v1_1_33::SocksClientPathsV1_1_33;
 pub use nym_socks5_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as CoreConfigV1_1_20_2;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
@@ -44,7 +41,9 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> Result<(ConfigV1_1_30, GatewayEndpointConfig), Socks5ClientError> {
+    pub fn upgrade(
+        self,
+    ) -> Result<(ConfigV1_1_30, OldGatewayEndpointConfigV1_1_33), Socks5ClientError> {
         let gateway_details = self.core.base.client.gateway_endpoint.clone().into();
         let config = ConfigV1_1_30 {
             core: self.core.into(),

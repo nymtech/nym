@@ -43,6 +43,7 @@ where
     };
 
     let state = nym_bandwidth_controller::acquire::deposit(client, amount.clone()).await?;
+    info!("Deposit done");
 
     if nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, client, persistent_storage)
         .await
@@ -130,15 +131,21 @@ where
     let mut recovered_amount: u128 = 0;
     for voucher in recovery_storage.unconsumed_vouchers()? {
         let voucher_value = match voucher.typ() {
-            CredentialType::Voucher => voucher.get_bandwidth_attribute(),
+            CredentialType::TicketBook => voucher.value(),
             CredentialType::FreePass => {
                 error!("unimplemented recovery of free pass credentials");
                 continue;
             }
         };
-        recovered_amount += voucher_value.parse::<u128>()?;
+        recovered_amount += voucher_value;
 
         let voucher_name = RecoveryStorage::voucher_filename(&voucher);
+
+        if voucher.check_expiration_date() {
+            //We did change the expiration
+            warn!("Deposit {} was made with a different expiration date, it's validity will be shorter than the max one", voucher_name);
+        }
+
         let state = State::new(voucher);
 
         if let Err(e) =

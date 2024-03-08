@@ -8,13 +8,15 @@ Our alpha testing round is done with participants at live workshop events. This 
 
 Follow the simple [automated script](#automated-script-for-cli-installation) below to install and run NymVPN CLI. If you prefer to do a manual setup follow the steps in the guide for [Linux](cli-linux.md) or [MacOS](cli-mac.md).
 
+Visit NymVPN alpha latest [release page]({{nym_vpn_releases}}) to check sha sums or download the binaries directly.
+
 ## Automated Script for CLI Installation
 
-We wrote a [script](https://gist.github.com/serinko/d65450653d6bbafacbcee71c9cb8fb31) which does download of the CLI, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
+We wrote a [script](https://gist.github.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af) which does download of the CLI, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
 
 1. Open a terminal window in a directory where you want the script and NymVPN CLI binary be downloaded and run
 ```sh
-curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/serinko/d65450653d6bbafacbcee71c9cb8fb31/raw/0cbcdd18f7ee94f559692b936061248ebbbf2773/execute-nym-vpn-cli-binary.sh && chmod u+x execute-nym-vpn-cli-binary.sh && sudo -E ./execute-nym-vpn-cli-binary.sh
+curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/raw/df78e30101c7357b57b311e06d5487e15d3335cb/execute-nym-vpn-cli-binary.sh && chmod u+x execute-nym-vpn-cli-binary.sh && sudo -E ./execute-nym-vpn-cli-binary.sh
 ```
 
 2. Follow the prompts in the program

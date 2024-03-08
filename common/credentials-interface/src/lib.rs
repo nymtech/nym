@@ -80,11 +80,13 @@ impl Display for CredentialType {
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
-    pub pedersen_commitments_openings: Vec<Scalar>,
+    pub withdrawal_request: WithdrawalRequest,
 
-    pub blind_sign_request: BlindSignRequest,
+    pub request_info: RequestInfo,
 
-    pub public_attributes_plain: Vec<String>,
+    pub ecash_pub_key: PublicKeyUser,
+
+    pub expiration_date: u64,
 
     pub typ: CredentialType,
 }

@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::Socks5ClientCoreError;
+use crate::error::{Socks5ClientCoreError, Socks5ClientCoreStatusMessage};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
@@ -136,7 +136,8 @@ impl MixnetResponseListener {
                     if let Some(received_responses) = received_responses {
                         for reconstructed_message in received_responses {
                             if let Err(err) = self.on_message(reconstructed_message) {
-                                self.shutdown.send_status_msg(Box::new(err));
+                                let msg = Socks5ClientCoreStatusMessage::from(err);
+                                self.shutdown.send_status_msg(Box::new(msg));
                             }
                         }
                     } else {

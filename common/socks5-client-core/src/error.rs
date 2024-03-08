@@ -1,6 +1,7 @@
 use crate::socks::types::SocksProxyError;
 use nym_client_core::error::ClientCoreError;
 use nym_socks5_requests::{ConnectionError, ConnectionId};
+use nym_task::manager::TaskStatusTrait;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientCoreError {
@@ -19,6 +20,14 @@ pub enum Socks5ClientCoreError {
         error: String,
     },
 }
+
+#[derive(thiserror::Error, Debug)]
+pub enum Socks5ClientCoreStatusMessage {
+    #[error(transparent)]
+    Socks5Error(#[from] Socks5ClientCoreError),
+}
+
+// impl TaskStatusTrait for Socks5ClientCoreStatusMessage {}
 
 impl From<ConnectionError> for Socks5ClientCoreError {
     fn from(value: ConnectionError) -> Self {

@@ -4,6 +4,7 @@
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
+use nym_task::manager::TaskStatusTrait;
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::NymTopologyError;
 use nym_validator_client::ValidatorClientError;
@@ -165,3 +166,14 @@ pub enum ClientCoreStatusMessage {
     #[error("The connected gateway is very slow, or the connection to it is very slow")]
     GatewayIsVerySlow,
 }
+
+// impl TaskStatusTrait for ClientCoreStatusMessage {}
+// impl<T: std::fmt::Debug + std::fmt::Display + Send + Sync + Any + 'static> TaskStatusTrait for T {
+//     fn as_any(&self) -> &dyn Any {
+//         self
+//     }
+//
+//     fn as_any_mut(&mut self) -> &mut dyn Any {
+//         self
+//     }
+// }

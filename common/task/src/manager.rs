@@ -3,6 +3,7 @@
 
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use log::{log, Level};
+use std::any::Any;
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{error::Error, time::Duration};
@@ -23,7 +24,7 @@ pub(crate) type SentError = Box<dyn Error + Send + Sync>;
 type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
 
-pub type SentStatus = Box<dyn Error + Send + Sync>;
+pub type SentStatus = Box<dyn TaskStatusTrait + Send + Sync>;
 pub type StatusSender = futures::channel::mpsc::Sender<SentStatus>;
 pub type StatusReceiver = futures::channel::mpsc::Receiver<SentStatus>;
 
@@ -47,6 +48,30 @@ pub enum TaskStatus {
     #[error("Ready")]
     Ready,
 }
+
+pub trait TaskStatusTrait:
+    std::fmt::Debug + std::fmt::Display + Send + Sync + 'static + Any
+{
+    // As Any requires 'static, it implicitly enforces the 'static lifetime here as well.
+
+    // This method tries to cast the trait object back to a reference of its concrete type.
+    fn as_any(&self) -> &dyn Any;
+
+    // Optionally, for downcasting to mutable references.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T: std::fmt::Debug + std::fmt::Display + Send + Sync + Any + 'static> TaskStatusTrait for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+// impl TaskStatusTrait for TaskStatus {}
 
 /// Listens to status and error messages from tasks, as well as notifying them to gracefully
 /// shutdown. Keeps track of if task stop unexpectedly, such as in a panic.

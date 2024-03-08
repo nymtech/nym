@@ -27,6 +27,16 @@ pub struct GatewayRegistration {
     pub registration_timestamp: OffsetDateTime,
 }
 
+impl<'a> From<&'a GatewayRegistration> for RawRegisteredGateway {
+    fn from(value: &'a GatewayRegistration) -> Self {
+        RawRegisteredGateway {
+            gateway_id_bs58: value.details.gateway_id().to_base58_string(),
+            registration_timestamp: value.registration_timestamp,
+            gateway_type: value.details.typ().to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum GatewayDetails {
     /// Standard details of a remote gateway
@@ -83,6 +93,13 @@ impl GatewayDetails {
     pub fn is_custom(&self) -> bool {
         matches!(self, GatewayDetails::Custom(..))
     }
+
+    pub fn typ(&self) -> GatewayType {
+        match self {
+            GatewayDetails::Remote(_) => GatewayType::Remote,
+            GatewayDetails::Custom(_) => GatewayType::Custom,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -114,6 +131,12 @@ impl Display for GatewayType {
             GatewayType::Custom => CUSTOM_GATEWAY_TYPE.fmt(f),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+pub struct RawActiveGateway {
+    pub active_gateway_id_bs58: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -205,8 +228,8 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
     }
 }
 
-impl From<RemoteGatewayDetails> for RawRemoteGatewayDetails {
-    fn from(value: RemoteGatewayDetails) -> Self {
+impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
+    fn from(value: &'a RemoteGatewayDetails) -> Self {
         RawRemoteGatewayDetails {
             gateway_id_bs58: value.gateway_id.to_base58_string(),
             derived_aes128_ctr_blake3_hmac_keys_bs58: value
@@ -214,7 +237,7 @@ impl From<RemoteGatewayDetails> for RawRemoteGatewayDetails {
                 .to_base58_string(),
             gateway_owner_address: value.gateway_owner_address.to_string(),
             gateway_listener: value.gateway_listener.to_string(),
-            wg_tun_address: value.wg_tun_address.map(|addr| addr.to_string()),
+            wg_tun_address: value.wg_tun_address.as_ref().map(|addr| addr.to_string()),
         }
     }
 }
@@ -260,11 +283,12 @@ impl TryFrom<RawCustomGatewayDetails> for CustomGatewayDetails {
     }
 }
 
-impl From<CustomGatewayDetails> for RawCustomGatewayDetails {
-    fn from(value: CustomGatewayDetails) -> Self {
+impl<'a> From<&'a CustomGatewayDetails> for RawCustomGatewayDetails {
+    fn from(value: &'a CustomGatewayDetails) -> Self {
         RawCustomGatewayDetails {
             gateway_id_bs58: value.gateway_id.to_base58_string(),
-            data: value.data,
+            // I don't know what to feel about that clone here given it might contain possibly sensitive data
+            data: value.data.clone(),
         }
     }
 }

@@ -4,9 +4,7 @@
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::error::ClientCoreError;
-use nym_client_core_gateways_storage::{
-    ActiveGateway, GatewayRegistration, GatewaysDetailsStore, GatewaysDetailsStoreExt,
-};
+use nym_client_core_gateways_storage::{ActiveGateway, GatewayRegistration, GatewaysDetailsStore};
 use nym_crypto::asymmetric::identity;
 
 // helpers for error wrapping

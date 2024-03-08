@@ -37,6 +37,18 @@ pub trait GatewaysDetailsStore {
     /// Returns details of all registered gateways.
     async fn all_gateways(&self) -> Result<Vec<GatewayRegistration>, Self::StorageError>;
 
+    /// Return identity keys of all registered gateways.
+    async fn all_gateways_identities(
+        &self,
+    ) -> Result<Vec<identity::PublicKey>, Self::StorageError> {
+        Ok(self
+            .all_gateways()
+            .await?
+            .into_iter()
+            .map(|gateway| gateway.details.gateway_id())
+            .collect())
+    }
+
     /// Check if the gateway with the provided id already exists in the store.
     async fn has_gateway_details(&self, gateway_id: &str) -> Result<bool, Self::StorageError>;
 
@@ -55,22 +67,3 @@ pub trait GatewaysDetailsStore {
     /// Remove given gateway details from the underlying store.
     async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError>;
 }
-
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait GatewaysDetailsStoreExt: GatewaysDetailsStore {
-    async fn all_gateways_identities(
-        &self,
-    ) -> Result<Vec<identity::PublicKey>, Self::StorageError> {
-        Ok(self
-            .all_gateways()
-            .await?
-            .into_iter()
-            .map(|gateway| gateway.details.gateway_id())
-            .collect())
-    }
-}
-
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T> GatewaysDetailsStoreExt for T where T: GatewaysDetailsStore {}

@@ -1,7 +1,12 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::backend::fs_backend::error::StorageError;
+use crate::{
+    backend::fs_backend::error::StorageError,
+    types::{
+        RawActiveGateway, RawCustomGatewayDetails, RawRegisteredGateway, RawRemoteGatewayDetails,
+    },
+};
 use log::{error, info};
 use sqlx::ConnectOptions;
 use std::path::Path;
@@ -46,5 +51,90 @@ impl StorageManager {
 
         info!("Database migration finished!");
         Ok(StorageManager { connection_pool })
+    }
+
+    pub(crate) async fn get_active_gateway(&self) -> Result<RawActiveGateway, sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn set_active_gateway(
+        &self,
+        gateway_id: Option<&str>,
+    ) -> Result<(), sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn maybe_get_registered_gateway(
+        &self,
+        gateway_id: &str,
+    ) -> Result<Option<RawRegisteredGateway>, sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn must_get_registered_gateway(
+        &self,
+        gateway_id: &str,
+    ) -> Result<RawRegisteredGateway, sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn set_registered_gateway(
+        &self,
+        registered_gateway: &RawRegisteredGateway,
+    ) -> Result<(), sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn remove_registered_gateway(
+        &self,
+        gateway_id: &str,
+    ) -> Result<(), sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn get_remote_gateway_details(
+        &self,
+        gateway_id: &str,
+    ) -> Result<RawRemoteGatewayDetails, sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn set_remote_gateway_details(
+        &self,
+        remote: &RawRemoteGatewayDetails,
+    ) -> Result<(), sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn remove_remote_gateway_details(
+        &self,
+        gateway_id: &str,
+    ) -> Result<(), sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn get_custom_gateway_details(
+        &self,
+        gateway_id: &str,
+    ) -> Result<RawCustomGatewayDetails, sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn set_custom_gateway_details(
+        &self,
+        custom: &RawCustomGatewayDetails,
+    ) -> Result<(), sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn remove_custom_gateway_details(
+        &self,
+        gateway_id: &str,
+    ) -> Result<(), sqlx::Error> {
+        todo!()
+    }
+
+    pub(crate) async fn registered_gateways(&self) -> Result<Vec<String>, sqlx::Error> {
+        todo!()
     }
 }

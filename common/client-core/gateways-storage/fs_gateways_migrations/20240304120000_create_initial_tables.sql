@@ -34,3 +34,6 @@ CREATE TABLE custom_gateway_details
     data            BLOB
 );
 
+
+INSERT INTO active_gateway(id, active_gateway_id_bs58)
+values (0, NULL);

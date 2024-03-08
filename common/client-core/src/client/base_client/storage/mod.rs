@@ -28,7 +28,7 @@ use nym_credential_storage::persistent_storage::PersistentStorage as PersistentC
 
 pub use nym_client_core_gateways_storage::{
     CustomGatewayDetails, GatewayDetails, GatewayRegistration, GatewayType, GatewaysDetailsStore,
-    GatewaysDetailsStoreExt, InMemGatewaysDetails, RegisteredGateway, RemoteGatewayDetails,
+    InMemGatewaysDetails, RegisteredGateway, RemoteGatewayDetails,
 };
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-gateways-storage"))]

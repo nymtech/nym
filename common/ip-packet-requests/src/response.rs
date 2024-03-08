@@ -116,24 +116,30 @@ impl IpPacketResponse {
     ) -> Self {
         Self {
             version: CURRENT_VERSION,
-            data: IpPacketResponseData::Error(ErrorResponse {
+            data: IpPacketResponseData::Info(InfoResponse {
                 request_id,
                 reply_to,
-                reply: ErrorResponseReply::VersionMismatch {
+                reply: InfoResponseReply::VersionMismatch {
                     request_version,
                     response_version: our_version,
                 },
+                level: InfoLevel::Error,
             }),
         }
     }
 
-    pub fn new_data_error_response(reply_to: Recipient, reply: ErrorResponseReply) -> Self {
+    pub fn new_data_info_response(
+        reply_to: Recipient,
+        reply: InfoResponseReply,
+        level: InfoLevel,
+    ) -> Self {
         Self {
             version: CURRENT_VERSION,
-            data: IpPacketResponseData::Error(ErrorResponse {
+            data: IpPacketResponseData::Info(InfoResponse {
                 request_id: 0,
                 reply_to,
                 reply,
+                level,
             }),
         }
     }
@@ -147,7 +153,7 @@ impl IpPacketResponse {
             IpPacketResponseData::Data(_) => None,
             IpPacketResponseData::Pong(response) => Some(response.request_id),
             IpPacketResponseData::Health(response) => Some(response.request_id),
-            IpPacketResponseData::Error(response) => Some(response.request_id),
+            IpPacketResponseData::Info(response) => Some(response.request_id),
         }
     }
 
@@ -160,7 +166,7 @@ impl IpPacketResponse {
             IpPacketResponseData::Data(_) => None,
             IpPacketResponseData::Pong(response) => Some(&response.reply_to),
             IpPacketResponseData::Health(response) => Some(&response.reply_to),
-            IpPacketResponseData::Error(response) => Some(&response.reply_to),
+            IpPacketResponseData::Info(response) => Some(&response.reply_to),
         }
     }
 
@@ -201,8 +207,8 @@ pub enum IpPacketResponseData {
     // Response for a health request
     Health(HealthResponse),
 
-    // Error response
-    Error(ErrorResponse),
+    // Info response. This can be anything from informative messages to errors
+    Info(InfoResponse),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -338,14 +344,15 @@ pub struct HealthResponseReply {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ErrorResponse {
+pub struct InfoResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
-    pub reply: ErrorResponseReply,
+    pub reply: InfoResponseReply,
+    pub level: InfoLevel,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
-pub enum ErrorResponseReply {
+pub enum InfoResponseReply {
     #[error("{msg}")]
     Generic { msg: String },
     #[error(
@@ -357,4 +364,11 @@ pub enum ErrorResponseReply {
     },
     #[error("destination failed exit policy filter check: {dst}")]
     ExitPolicyFilterCheckFailed { dst: String },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum InfoLevel {
+    Info,
+    Warn,
+    Error,
 }

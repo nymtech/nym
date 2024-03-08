@@ -661,6 +661,9 @@ where
                 TaskStatus::Ready => {
                     log::debug!("Socks5 connected");
                 }
+                TaskStatus::ReadyWithGateway(gateway) => {
+                    log::debug!("Socks5 connected to {gateway}");
+                }
             }
         } else {
             return Err(Error::new_unsupported(

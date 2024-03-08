@@ -46,6 +46,8 @@ enum TaskError {
 pub enum TaskStatus {
     #[error("Ready")]
     Ready,
+    #[error("Ready and connected to gateway: {0}")]
+    ReadyWithGateway(String),
 }
 
 /// Listens to status and error messages from tasks, as well as notifying them to gracefully

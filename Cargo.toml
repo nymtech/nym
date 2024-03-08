@@ -61,6 +61,7 @@ members = [
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
+    "common/nym_offline_compact_ecash",
     "common/nym-id",
     "common/nym-metrics",
     "common/nymsphinx",

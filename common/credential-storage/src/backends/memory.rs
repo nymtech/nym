@@ -1,6 +1,8 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::models::CoinIndicesSignature;
+use crate::models::StoredIssuedCredential;
 use crate::models::{CredentialUsage, StoredIssuedCredential};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -8,6 +10,7 @@ use tokio::sync::RwLock;
 #[derive(Clone)]
 pub struct CoconutCredentialManager {
     inner: Arc<RwLock<CoconutCredentialManagerInner>>,
+    coin_indices_sig: Arc<RwLock<Vec<CoinIndicesSignature>>>,
 }
 
 #[derive(Default)]
@@ -30,6 +33,7 @@ impl CoconutCredentialManager {
     pub fn new() -> Self {
         CoconutCredentialManager {
             inner: Default::default(),
+            coin_indices_sig: Default::default(),
         }
     }
 
@@ -116,6 +120,40 @@ impl CoconutCredentialManager {
             credential_id: id,
             gateway_id_bs58: gateway_id.to_string(),
         });
+    }
+
+    /// Inserts provided coin_indices_signatures into the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_id`: Id of the epoch.
+    /// * `coin_indices_signatures` : The coin indices signatures for the epoch
+    pub async fn insert_coin_indices_sig(&self, epoch_id: String, coin_indices_sig: String) {
+        let mut signatures = self.coin_indices_sig.write().await;
+        signatures.push(CoinIndicesSignature {
+            epoch_id,
+            signatures: coin_indices_sig,
+        });
+    }
+
+    /// Check if coin indices signatures are present for a given epoch
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_id`: Id of the epoch.
+    pub async fn is_coin_indices_sig_present(&self, epoch_id: String) -> bool {
+        let sigs = self.coin_indices_sig.read().await;
+        sigs.iter().any(|s| s.epoch_id == epoch_id)
+    }
+
+    /// Get coin_indices_signatures of a given epoch.
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_id`: Id of the epoch.
+    pub async fn get_coin_indices_sig(&self, epoch_id: String) -> Option<CoinIndicesSignature> {
+        let sigs = self.coin_indices_sig.read().await;
+        sigs.iter().find(|s| s.epoch_id == epoch_id).cloned()
     }
 
     /// Marks the specified credential as expired

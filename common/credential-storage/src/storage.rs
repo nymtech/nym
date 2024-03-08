@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::models::CoinIndicesSignature;
 use crate::models::{StorableIssuedCredential, StoredIssuedCredential};
 use async_trait::async_trait;
 use std::error::Error;
@@ -33,6 +34,37 @@ pub trait Storage: Send + Sync {
         gateway_id: &str,
     ) -> Result<(), Self::StorageError>;
 
+    /// Inserts provided coin_indices_signatures into the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_id`: Id of the epoch.
+    /// * `coin_indices_signatures` : The coin indices signatures for the epoch
+    async fn insert_coin_indices_sig(
+        &self,
+        epoch_id: String,
+        coin_indices_sig: String,
+    ) -> Result<(), Self::StorageError>;
+
+    /// Check if coin indices signatures are present for a given epoch
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_id`: Id of the epoch.
+    async fn is_coin_indices_sig_present(
+        &self,
+        epoch_id: String,
+    ) -> Result<bool, Self::StorageError>;
+
+    /// Get coin_indices_signatures of a given epoch.
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_id`: Id of the epoch.
+    async fn get_coin_indices_sig(
+        &self,
+        epoch_id: String,
+    ) -> Result<CoinIndicesSignature, Self::StorageError>;
     /// Marks the specified credential as expired
     ///
     /// # Arguments

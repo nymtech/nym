@@ -42,3 +42,9 @@ pub struct CredentialUsage {
     pub credential_id: i64,
     pub gateway_id_bs58: String,
 }
+
+#[derive(Clone)]
+pub struct CoinIndicesSignature {
+    pub epoch_id: String,
+    pub signatures: String,
+}

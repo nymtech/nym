@@ -26,7 +26,7 @@ curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tom
 To start the application again, reconnect your wifi and run
 ```sh
 # Linux .AppImage
-sudo -E ~/nym-vpn-latest/nym-vpn-desktop_{{nym_vpn_gui_version}}_ubuntu-22.04_x86_64/nym-vpn_{{nym_vpn_gui_version}}_amd64.AppImage
+sudo -E ~/nym-vpn-latest/nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_ubuntu-22.04_x86_64/nym-vpn_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_amd64.AppImage
 
 # Linux .deb
 sudo -E nym-vpn

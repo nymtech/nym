@@ -24,14 +24,14 @@ mkdir -p "$HOME/nym-vpn-latest"
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-# echo "da4c0bf8e8b52658312d341fa3581954cfcb6efd516d9a448c76d042a454b5df  nym-vpn-desktop_0.0.3_macos_x86_64.zip" | shasum -a 256 -c
+# echo "da4c0bf8e8b52658312d341fa3581954cfcb6efd516d9a448c76d042a454b5df  nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_macos_x86_64.zip" | shasum -a 256 -c
 ```
 
 3. Extract the downloaded file manually or by a command:
 ```sh
 tar -xvf <BINARY>.tar.gz
 # for example
-# tar -xvf nym-vpn-desktop_{{nym_vpn_gui_version}}_macos_aarch64.tar.gz
+# tar -xvf nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_macos_aarch64.tar.gz
 ```
 <!-- seems redundant
 5. Move to the application content directory:

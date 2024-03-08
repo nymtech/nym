@@ -9,24 +9,28 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for Debian based Linux
-2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releasesl}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+
+2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-# echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_{{nym_vpn_cli_version}}_ubuntu-22.04_amd64.zip" | shasum -a 256 -c
+# echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_<!-- cmdrun scripts/nym_vpn_cli_version.sh -->_ubuntu-22.04_amd64.tar.gz" | shasum -a 256 -c
 ```
-1. Extract files:
+
+3. Extract files:
 ```sh
-tar -xvf <BINARY>
+tar -xvf <BINARY>.tar.gz
 # for example
-# tar -xvf nym-vpn-cli_{{nym_vpn_cli_version}}_ubuntu-22.04_x86_64.tar.gz
+# tar -xvf nym-vpn-cli_<!-- cmdrun scripts/nym_vpn_cli_version.sh -->_ubuntu-22.04_x86_64.tar.gz
 ```
-2. Make executable by running:
+
+4. Make executable by running:
 ```sh
 # make sure you are in the right sub-directory
 chmod u+x ./nym-vpn-cli
 ```
+
 5. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
 ```sh
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env

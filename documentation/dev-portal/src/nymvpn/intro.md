@@ -44,7 +44,7 @@ The client can optionally do the first hop (local client to Entry Gateway) using
 ## NymVPN Resources & Guides
 
 * [NymVPN webpage](https://nymvpn.com)
-* [Alpha release page]({{nym_vpn_latest_binary_url}})
+* [Alpha release page]({{nym_vpn_releases}})
 * [NymVPN application (GUI) guide](gui.md)
 * [NymVPN Command Line Interface (CLI) guide](cli.md)
 * [Troubleshooting](troubleshooting.md)

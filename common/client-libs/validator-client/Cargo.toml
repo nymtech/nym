@@ -32,7 +32,7 @@ url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["sync", "time"] }
 futures = { workspace = true }
 
-nym-coconut = { path = "../../nymcoconut" }
+nym-compact-ecash = { path = "../../nym_offline_compact_ecash" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 

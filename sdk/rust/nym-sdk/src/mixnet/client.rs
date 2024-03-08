@@ -443,8 +443,16 @@ where
     async fn has_active_gateway(&self) -> bool {
         let storage = self.storage.gateway_details_store();
 
-        if storage.active_gateway().await.is_ok() {
-            return true;
+        match storage.active_gateway().await {
+            Err(err) => {
+                warn!("failed to query for the current active gateway: {err}");
+                return false;
+            }
+            Ok(active) => {
+                if active.registration.is_some() {
+                    return true;
+                }
+            }
         }
 
         match get_all_registered_identities(storage).await {

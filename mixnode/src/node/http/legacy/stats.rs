@@ -17,7 +17,7 @@ pub(crate) async fn metrics(
     Query(_params): Query<StatsQueryParams>,
     State(stats): State<SharedNodeStats>,
 ) -> String {
-    let response = generate_stats(true, stats).await;
+    let response = generate_full_stats(stats).await;
     match response {
         NodeStatsResponse::Full(full) => full,
         NodeStatsResponse::Simple(_) => unreachable!(),
@@ -35,10 +35,15 @@ pub(crate) async fn stats(
     output.to_response(response)
 }
 
+async fn generate_full_stats(stats: SharedNodeStats) -> NodeStatsResponse {
+    let snapshot_data = stats.clone_data().await;
+    NodeStatsResponse::Full(snapshot_data.prom().await)
+}
+
 async fn generate_stats(full: bool, stats: SharedNodeStats) -> NodeStatsResponse {
     let snapshot_data = stats.clone_data().await;
     if full {
-        NodeStatsResponse::Full(snapshot_data.prom().await)
+        generate_full_stats(stats).await
     } else {
         NodeStatsResponse::Simple(snapshot_data.simplify())
     }

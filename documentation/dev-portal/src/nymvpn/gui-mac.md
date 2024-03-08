@@ -31,7 +31,7 @@ echo "<SHA_STRING>" | shasum -a 256 -c
 ```sh
 tar -xvf <BINARY>.tar.gz
 # for example
-# tar -xvf nym-vpn-desktop_0.0.4_macos_aarch64.tar.gz
+# tar -xvf nym-vpn-desktop_{{nym_vpn_gui_version}}_macos_aarch64.tar.gz
 ```
 <!-- seems redundant
 5. Move to the application content directory:

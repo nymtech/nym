@@ -24,20 +24,20 @@ echo "<SHA_STRING>" | shasum -a 256 -c
 ```sh
 tar -xvf <BINARY>.tar.gz
 # for example
-# tar -xvf nym-vpn-desktop_0.0.4_ubuntu-22.04_x86_64.tar.gz
+# tar -xvf nym-vpn-desktop_{{nym_vpn_gui_version}}_ubuntu-22.04_x86_64.tar.gz
 ```
 
 4. If you prefer to run `.AppImage` make executable by running:
 ```sh
 # make sure you cd into the right sub-directory after extraction
-chmod u+x ./nym-vpn_0.0.5_amd64.AppImage
+chmod u+x ./nym-vpn_{{nym_vpn_gui_version}}_amd64.AppImage
 ```
 5. If you prefer to use the `.deb` version for installation (works on Debian based Linux only), open terminal in the same directory and run:
 ```sh
 # make sure you cd into the right sub-directory after extraction
-sudo dpkg -i ./nym-vpn_0.0.5_amd64.deb
+sudo dpkg -i ./nym-vpn_{{nym_vpn_gui_version}}_amd64.deb
 # or
-sudo apt-get install -f ./nym-vpn_0.0.5_amd64.deb
+sudo apt-get install -f ./nym-vpn_{{nym_vpn_gui_version}}_amd64.deb
 ```
 
 NymVPN alpha version runs over Nym testnet (called sandbox), a little extra configuration is needed for the application to work.
@@ -71,7 +71,7 @@ Open terminal and run:
 
 ```sh
 # .AppImage must be run from the same directory as the binary
-sudo -E ./nym-vpn_0.0.5_amd64.AppImage
+sudo -E ./nym-vpn_{{nym_vpn_gui_version}}_amd64.AppImage
 
 # .deb installation shall be executable from anywhere as
 sudo -E nym-vpn

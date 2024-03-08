@@ -10,7 +10,7 @@ use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as BaseClientConfigV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_30::ConfigV1_1_30 as BaseConfigV1_1_30;
-use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::config::old_config_v1_1_33::OldGatewayEndpointConfigV1_1_33;
 use nym_config::read_config_from_toml_file;
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -61,7 +61,9 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> Result<(ConfigV1_1_33, GatewayEndpointConfig), NetworkRequesterError> {
+    pub fn upgrade(
+        self,
+    ) -> Result<(ConfigV1_1_33, OldGatewayEndpointConfigV1_1_33), NetworkRequesterError> {
         trace!("Upgrading from v1.1.20_2");
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
         let nr_description = self

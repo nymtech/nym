@@ -4,7 +4,6 @@
 use crate::cli::try_load_current_config;
 use crate::error::NetworkRequesterError;
 use clap::ArgGroup;
-
 use nym_id::import_credential;
 use std::fs;
 use std::path::PathBuf;
@@ -34,7 +33,7 @@ pub(crate) struct Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), NetworkRequesterError> {
-    let config = try_load_current_config(&args.id)?;
+    let config = try_load_current_config(&args.id).await?;
 
     let credentials_store = nym_credential_storage::initialise_persistent_storage(
         &config.storage_paths.common_paths.credentials_database,

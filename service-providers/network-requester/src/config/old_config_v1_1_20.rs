@@ -4,7 +4,6 @@
 use crate::config::old_config_v1_1_20_2::{
     ConfigV1_1_20_2, DebugV1_1_20_2, NetworkRequesterPathsV1_1_20_2,
 };
-use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::disk_persistence::old_v1_1_33::ClientKeysPathsV1_1_33;
 use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;

@@ -26,8 +26,8 @@ impl InitialisableClient for NetworkRequesterInit {
     type InitArgs = Init;
     type Config = Config;
 
-    fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
-        try_upgrade_config(id)
+    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
+        try_upgrade_config(id).await
     }
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error> {

@@ -66,7 +66,7 @@ impl From<Run> for OverrideConfig {
 }
 
 pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
-    let mut config = try_load_current_config(&args.common_args.id)?;
+    let mut config = try_load_current_config(&args.common_args.id).await?;
     config = override_config(config, OverrideConfig::from(args.clone()));
     log::debug!("Using config: {:#?}", config);
 

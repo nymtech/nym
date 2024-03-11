@@ -43,7 +43,7 @@ impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
     }
 }
 
-impl <'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
+impl<'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
     fn from(value: &'a GatewayRegistration) -> Self {
         let GatewayDetails::Remote(remote_details) = &value.details else {
             panic!("somehow obtained custom gateway registration in wasm!")

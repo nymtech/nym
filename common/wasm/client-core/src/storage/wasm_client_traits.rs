@@ -172,7 +172,7 @@ pub trait WasmClientStorage: BaseWasmStorage {
         // a 'temporary' hack
         // (proper solution: make sure to insert empty value during db creation)
         Ok(RawActiveGateway {
-            active_gateway_id_bs58: maybe_active.map(|a| a.active_gateway_id_bs58).flatten(),
+            active_gateway_id_bs58: maybe_active.and_then(|a| a.active_gateway_id_bs58),
         })
     }
 

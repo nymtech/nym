@@ -5,8 +5,6 @@ use nym_client_core::config::disk_persistence::CommonClientPaths;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-
-
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 pub struct ClientPaths {
     #[serde(flatten)]

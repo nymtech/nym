@@ -46,6 +46,8 @@ If you are running NymVPN on mac OS for the first time, you may see this alert m
 
 3. Possibly you may have to confirm again upon running the application
 
+<!--
+
 #### Missing `jq` error
 
 In case of missing `jq` on Linux (Debian) install it with:
@@ -84,3 +86,4 @@ NEW_ENDPOINT="http://localhost:8000/data.json"
 python3 -m http.server 8000
 ```
 6. Continue with the steps listed in [testing section](testing.md)
+-->

@@ -163,10 +163,14 @@ impl TaskManager {
         self.notify_tx.send(())
     }
 
-    pub async fn start_status_listener(&mut self, mut sender: StatusSender) {
+    pub async fn start_status_listener(
+        &mut self,
+        mut sender: StatusSender,
+        start_status: TaskStatus,
+    ) {
         // Announce that we are operational. This means that in the application where this is used,
         // everything is up and running and ready to go.
-        if let Err(msg) = sender.send(Box::new(TaskStatus::Ready)).await {
+        if let Err(msg) = sender.send(Box::new(start_status)).await {
             log::error!("Error sending status message: {}", msg);
         };
 

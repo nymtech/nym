@@ -19,8 +19,13 @@ jobs:
     name: Calculate hash for assets in release
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
+      - name: Checkout nym-hash-releases code
+        uses: actions/checkout@v4
+        with:
+          repository: nymtech/nym
+          ref: develop
+          sparse-checkout: |
+            .github/actions/nym-hash-releases
       - uses: actions/setup-node@v3
         with:
           node-version: 18

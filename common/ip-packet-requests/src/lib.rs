@@ -8,7 +8,8 @@ pub mod response;
 
 // version 3: initial version
 // version 4: IPv6 support
-pub const CURRENT_VERSION: u8 = 4;
+// version 5: Add severity level to info response
+pub const CURRENT_VERSION: u8 = 5;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {

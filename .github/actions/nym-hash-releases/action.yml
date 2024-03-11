@@ -19,7 +19,7 @@ outputs:
     description: 'A string containing JSON with the release asset hashes and signatures'
 runs:
   using: 'node16'
-  main: 'index.js'
+  main: 'release.js'
 branding:
   icon: 'hash'
   color: 'green'

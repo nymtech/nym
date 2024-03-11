@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "local": "node run-local.mjs"
+    "local": "node run-local.mjs",
+    "build": "npx rollup index.js --file release.js --format cjs"
   },
   "dependencies": {
     "@actions/core": "^1.10.0",

@@ -6,7 +6,9 @@ use crate::config::template::CONFIG_TEMPLATE;
 use crate::config::upgrade::try_upgrade_config;
 use crate::error::{BackendError, Result};
 use nym_client_core::client::base_client::non_wasm_helpers::setup_fs_gateways_storage;
-use nym_client_core::client::base_client::storage::{GatewayDetails, RemoteGatewayDetails};
+use nym_client_core::client::base_client::storage::gateways_storage::{
+    GatewayDetails, RemoteGatewayDetails,
+};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::generate_new_client_keys;

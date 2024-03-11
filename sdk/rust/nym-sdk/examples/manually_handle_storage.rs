@@ -1,9 +1,6 @@
-use nym_client_core::client::base_client::storage::{
-    ActiveGateway, BadGateway, GatewayRegistration, GatewaysDetailsStore,
-};
 use nym_sdk::mixnet::{
-    self, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage, KeyStore, MixnetClientStorage,
-    MixnetMessageSender,
+    self, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage,
+    GatewayRegistration, GatewaysDetailsStore, KeyStore, MixnetClientStorage, MixnetMessageSender,
 };
 use nym_topology::provider_trait::async_trait;
 

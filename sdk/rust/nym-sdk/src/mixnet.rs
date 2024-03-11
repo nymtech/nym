@@ -44,7 +44,12 @@ pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
 pub use nym_client_core::{
     client::{
-        base_client::storage::{Ephemeral, MixnetClientStorage, OnDiskPersistent},
+        base_client::storage::{
+            gateways_storage::{
+                ActiveGateway, BadGateway, GatewayRegistration, GatewaysDetailsStore,
+            },
+            Ephemeral, MixnetClientStorage, OnDiskPersistent,
+        },
         inbound_messages::InputMessage,
         key_manager::{
             persistence::{InMemEphemeralKeys, KeyStore, OnDiskKeys},

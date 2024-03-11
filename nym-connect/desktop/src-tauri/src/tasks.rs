@@ -1,5 +1,7 @@
 use futures::{channel::mpsc, StreamExt};
-use nym_client_core::client::base_client::storage::{GatewayDetails, GatewaysDetailsStore};
+use nym_client_core::client::base_client::storage::gateways_storage::{
+    GatewayDetails, GatewaysDetailsStore,
+};
 use nym_client_core::{
     client::base_client::storage::{MixnetClientStorage, OnDiskPersistent},
     config::{GroupBy, TopologyStructure},

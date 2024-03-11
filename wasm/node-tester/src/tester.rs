@@ -20,16 +20,16 @@ use tokio::sync::Mutex as AsyncMutex;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
+use wasm_client_core::client::base_client::storage::gateways_storage::GatewayDetails;
 use wasm_client_core::client::mix_traffic::transceiver::PacketRouter;
 use wasm_client_core::helpers::{
     current_network_topology_async, setup_from_topology, EphemeralCredentialStorage,
 };
-use wasm_client_core::init::types::GatewayDetails;
 use wasm_client_core::storage::ClientStorage;
 use wasm_client_core::topology::SerializableNymTopology;
 use wasm_client_core::{
-    nym_task, BandwidthController, GatewayClient, GatewayConfig, IdentityKey, InitialisationResult,
-    ManagedKeys, NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient, Recipient,
+    nym_task, BandwidthController, ClientKeys, GatewayClient, GatewayConfig, IdentityKey,
+    InitialisationResult, NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient, Recipient,
 };
 use wasm_utils::check_promise_result;
 use wasm_utils::error::PromisableResult;
@@ -77,10 +77,10 @@ pub struct NymNodeTesterBuilder {
         Option<BandwidthController<QueryReqwestRpcNyxdClient, EphemeralCredentialStorage>>,
 }
 
-fn address(keys: &ManagedKeys, gateway_identity: NodeIdentity) -> Recipient {
+fn address(keys: &ClientKeys, gateway_identity: NodeIdentity) -> Recipient {
     Recipient::new(
-        *keys.identity_public_key(),
-        *keys.encryption_public_key(),
+        *keys.identity_keypair().public_key(),
+        *keys.encryption_keypair().public_key(),
         gateway_identity,
     )
 }
@@ -161,13 +161,14 @@ impl NymNodeTesterBuilder {
 
         let client_store = ClientStorage::new_async(&storage_id, None).await?;
         let initialisation_result = self.gateway_info(&client_store).await?;
-        let GatewayDetails::Configured(gateway_endpoint) = initialisation_result.gateway_details
+        let GatewayDetails::Remote(gateway_info) =
+            initialisation_result.gateway_registration.details
         else {
             // don't bother supporting it
             panic!("unsupported custom gateway configuration in wasm node tester")
         };
 
-        let managed_keys = initialisation_result.managed_keys;
+        let managed_keys = initialisation_result.client_keys;
 
         let (mixnet_message_sender, mixnet_message_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -179,8 +180,7 @@ impl NymNodeTesterBuilder {
             gateway_task.fork("packet_router"),
         );
 
-        let gateway_config: GatewayConfig = gateway_endpoint.try_into()?;
-        let gateway_identity = gateway_config.gateway_identity;
+        let gateway_identity = gateway_info.gateway_id;
 
         let mut gateway_client =
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
@@ -190,10 +190,15 @@ impl NymNodeTesterBuilder {
                     gateway_task,
                 )
             } else {
+                let cfg = GatewayConfig::new(
+                    gateway_info.gateway_id,
+                    Some(gateway_info.gateway_owner_address.to_string()),
+                    gateway_info.gateway_listener.to_string(),
+                );
                 GatewayClient::new(
-                    gateway_config,
+                    cfg,
                     managed_keys.identity_keypair(),
-                    Some(managed_keys.must_get_gateway_shared_key()),
+                    Some(gateway_info.derived_aes128_ctr_blake3_hmac_keys),
                     packet_router,
                     self.bandwidth_controller.take(),
                     gateway_task,

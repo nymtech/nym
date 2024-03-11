@@ -189,6 +189,7 @@ impl NymTopology {
     pub fn find_node_key_by_mix_host(
         &self,
         mix_host: SocketAddr,
+        check_port: bool,
     ) -> Result<Option<String>, NymTopologyError> {
         for node in self.described_nodes.iter() {
             let (sphinx_key, socket_addresses, description) = match node {
@@ -208,8 +209,16 @@ impl NymTopology {
                 }
             };
             if let Some(sock_addr) = socket_addresses {
-                let ip_addresses = sock_addr.iter().map(|addr| addr.ip()).collect::<Vec<_>>();
-                if ip_addresses.contains(&mix_host.ip()) {
+                let existing_node = if check_port {
+                    //Initiator side, we know the port should be correct as well
+                    sock_addr.contains(&mix_host)
+                } else {
+                    //responder side, we don't know the port.
+                    //SW This can lead to some troubles if two nodes shares the same IP and one support Noise but not the other. This in only for the progressive update though
+                    let ip_addresses = sock_addr.iter().map(|addr| addr.ip()).collect::<Vec<_>>();
+                    ip_addresses.contains(&mix_host.ip())
+                };
+                if existing_node {
                     //we have our node
                     if let Some(d) = description {
                         if d.noise_information.supported {

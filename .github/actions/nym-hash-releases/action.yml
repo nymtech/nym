@@ -26,8 +26,8 @@ outputs:
   hashes:
     description: 'A string containing JSON with the release asset hashes and signatures'
 runs:
-  using: 'node16'
-  main: 'release.js'
+  using: 'node20'
+  main: 'dist/index.js'
 branding:
   icon: 'hash'
   color: 'green'

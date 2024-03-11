@@ -2,17 +2,6 @@
   "name": "nym-hash-release",
   "version": "1.0.0",
   "description": "Generate hashes and signatures for assets in Nym releases",
-  "main": "index.js",
-  "scripts": {
-    "local": "node run-local.mjs",
-    "build": "npx rollup index.js --file release.js --format cjs"
-  },
-  "dependencies": {
-    "@actions/core": "^1.10.0",
-    "@actions/github": "^5.1.1",
-    "@octokit/auth-action": "^4.0.0",
-    "@octokit/rest": "^20.0.1",
-    "hasha": "^5.2.0",
-    "node-fetch": "^3.2.10"
-  }
+  "main": "dist/index.js",
+  "type": "module"
 }

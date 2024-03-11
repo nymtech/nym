@@ -23,6 +23,7 @@ use nym_client_core::init::types::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
+use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
 
 use anyhow::anyhow;
@@ -177,7 +178,9 @@ where
             ))?;
 
         // Listen to status messages from task, that we forward back to the caller
-        shutdown.start_status_listener(sender).await;
+        shutdown
+            .start_status_listener(sender, TaskStatus::Ready)
+            .await;
 
         let res = tokio::select! {
             biased;

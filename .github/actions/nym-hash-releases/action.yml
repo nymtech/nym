@@ -14,6 +14,14 @@ inputs:
     description: 'The tag/release to process. Uses the release id when trigger from a release.'
     required: false
     default: ''
+  repo:
+    description: 'The repo to use. Defaults to "nym"'.
+    required: false
+    default: 'nym'
+  owner:
+    description: 'The repo owner to use. Defaults to "nymtech"'.
+    required: false
+    default: 'nymtech'
 outputs:
   hashes:
     description: 'A string containing JSON with the release asset hashes and signatures'

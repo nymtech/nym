@@ -142,7 +142,7 @@ export async function createHashes({ assets, algorithm, filename, cache }) {
     return output;
 }
 
-export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algorithm = 'sha256', filename = 'hashes.json', cache = false, upload = true }) {
+export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algorithm = 'sha256', filename = 'hashes.json', cache = false, upload = true, owner = 'nymtech', repo = 'nym' }) {
     console.log("🚀🚀🚀 Getting releases");
 
     let auth;
@@ -157,8 +157,6 @@ export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrI
         auth: process.env.GITHUB_TOKEN,
         request: { fetch }
     });
-    const owner = "nymtech";
-    const repo = "nym";
 
     let releases;
     if(cache) {

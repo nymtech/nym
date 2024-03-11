@@ -144,7 +144,7 @@ async function createHashes({ assets, algorithm, filename, cache }) {
     return output;
 }
 
-async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algorithm = 'sha256', filename = 'hashes.json', cache = false, upload = true }) {
+async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algorithm = 'sha256', filename = 'hashes.json', cache = false, upload = true, owner = 'nymtech', repo = 'nym' }) {
     console.log("🚀🚀🚀 Getting releases");
     if(process.env.GITHUB_TOKEN) {
         console.log('Using GITHUB_TOKEN for auth');
@@ -156,8 +156,6 @@ async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algo
         auth: process.env.GITHUB_TOKEN,
         request: { fetch }
     });
-    const owner = "nymtech";
-    const repo = "nym";
 
     let releases;
     if(cache) {
@@ -281,13 +279,15 @@ async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algo
 
 const algorithm = core.getInput('hash-type');
 const filename = core.getInput("file-name");
+const owner = core.getInput("owner");
+const repo = core.getInput("repo");
 
 async function main() {
 // use the release id from the payload if it is set
     const releaseTagOrNameOrId = core.getInput("release-tag-or-name-or-id") || github.context.payload.release?.id;
 
     try {
-        await createHashesFromReleaseTagOrNameOrId({releaseTagOrNameOrId, algorithm, filename});
+        await createHashesFromReleaseTagOrNameOrId({releaseTagOrNameOrId, algorithm, filename, owner, repo});
     } catch (error) {
         core.setFailed(error.message);
     }

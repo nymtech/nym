@@ -42,6 +42,9 @@ pub(crate) struct Init {
 
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
+
+    #[clap(long)]
+    metrics_key: Option<String>,
 }
 
 impl From<Init> for OverrideConfig {
@@ -53,6 +56,7 @@ impl From<Init> for OverrideConfig {
             verloc_port: init_config.verloc_port,
             http_api_port: init_config.http_api_port,
             nym_apis: init_config.nym_apis,
+            metrics_key: init_config.metrics_key,
         }
     }
 }

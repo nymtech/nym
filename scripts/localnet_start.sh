@@ -20,13 +20,13 @@ echo "Using $localnetdir for the localnet"
 
 # initialise mixnet
 echo "initialising mixnode1..."
-cargo run --release --bin nym-mixnode -- init --id "mix1-$suffix" --host 127.0.0.1 --mix-port 10001 --verloc-port 20001 --http-api-port 30001 --output=json >>"$localnetdir/mix1.json"
+cargo run --release --bin nym-mixnode -- init --id "mix1-$suffix" --host 127.0.0.1 --mix-port 10001 --verloc-port 20001 --http-api-port 30001 --metrics-key=lala --output=json >>"$localnetdir/mix1.json"
 
 echo "initialising mixnode2..."
-cargo run --release --bin nym-mixnode -- init --id "mix2-$suffix" --host 127.0.0.1 --mix-port 10002 --verloc-port 20002 --http-api-port 30002 --output=json >>"$localnetdir/mix2.json"
+cargo run --release --bin nym-mixnode -- init --id "mix2-$suffix" --host 127.0.0.1 --mix-port 10002 --verloc-port 20002 --http-api-port 30002 --metrics-key=lala --output=json >>"$localnetdir/mix2.json"
 
 echo "initialising mixnode3..."
-cargo run --release --bin nym-mixnode -- init --id "mix3-$suffix" --host 127.0.0.1 --mix-port 10003 --verloc-port 20003 --http-api-port 30003 --output=json >>"$localnetdir/mix3.json"
+cargo run --release --bin nym-mixnode -- init --id "mix3-$suffix" --host 127.0.0.1 --mix-port 10003 --verloc-port 20003 --http-api-port 30003 --metrics-key=lala --output=json >>"$localnetdir/mix3.json"
 
 echo "initialising gateway..."
 cargo run --release --bin nym-gateway -- init --id "gateway-$suffix" --host 127.0.0.1 --mix-port 10004 --clients-port 9000 --output=json >>"$localnetdir/gateway.json"

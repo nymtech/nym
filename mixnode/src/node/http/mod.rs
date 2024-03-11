@@ -65,6 +65,12 @@ impl<'a> HttpApiBuilder<'a> {
     }
 
     #[must_use]
+    pub(crate) fn with_metrics_key(mut self, metrics_key: Option<&String>) -> Self {
+        self.legacy_mixnode.metrics_key = metrics_key.map(|k| k.to_string());
+        self
+    }
+
+    #[must_use]
     pub(crate) fn with_verloc(mut self, verloc: VerlocState) -> Self {
         self.legacy_mixnode.verloc = verloc;
         self

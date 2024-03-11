@@ -16,10 +16,10 @@ def make_prom_target(mixnode):
     return {
         "targets": [f"{host}:{port}"],
         "labels": {
-            "host": host,
+            "mix_node_host": host,
             "identity_key": mix_node.get("identity_key", None),
             "sphinx_key": mix_node.get("sphinx_key", None),
-            "version": mix_node.get("version", None),
+            "mix_node_version": mix_node.get("version", None),
         },
     }
 

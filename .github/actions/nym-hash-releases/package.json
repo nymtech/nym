@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Generate hashes and signatures for assets in Nym releases",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "local": "node run-local.mjs",
     "build": "npx rollup index.js --file release.js --format cjs"

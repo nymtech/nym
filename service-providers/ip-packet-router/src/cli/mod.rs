@@ -1,14 +1,12 @@
-use clap::{CommandFactory, Parser, Subcommand};
-use log::{error, trace};
-use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_bin_common::{bin_info, version_checker};
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::config::GatewayEndpointConfig;
-use nym_client_core::error::ClientCoreError;
-use std::sync::OnceLock;
-
 use crate::config::{BaseClientConfig, Config};
 use crate::error::IpPacketRouterError;
+use clap::{CommandFactory, Parser, Subcommand};
+use log::{error, info, trace};
+use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_bin_common::{bin_info, version_checker};
+use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
+use nym_ip_packet_router::config::old_config_v1::ConfigV1;
+use std::sync::OnceLock;
 
 mod build_info;
 mod init;
@@ -105,36 +103,41 @@ pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {
     Ok(())
 }
 
-// Unused until we need to start implementing config upgrades
-#[allow(unused)]
-fn persist_gateway_details(
-    config: &Config,
-    details: GatewayEndpointConfig,
-) -> Result<(), IpPacketRouterError> {
-    let details_store =
-        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-    let keys_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
-    let shared_keys = keys_store.ephemeral_load_gateway_keys().map_err(|source| {
-        IpPacketRouterError::ClientCoreError(ClientCoreError::KeyStoreError {
-            source: Box::new(source),
-        })
-    })?;
-    let persisted_details = PersistedGatewayDetails::new(details.into(), Some(&shared_keys))?;
-    details_store
-        .store_to_disk(&persisted_details)
-        .map_err(|source| {
-            IpPacketRouterError::ClientCoreError(ClientCoreError::GatewaysDetailsStoreError {
-                source: Box::new(source),
-            })
-        })
+async fn try_upgrade_v1_config(id: &str) -> Result<bool, IpPacketRouterError> {
+    // explicitly load it as v1 (which is incompatible with the current one)
+    let Ok(old_config) = ConfigV1::read_from_default_path(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using v1 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let old_paths = old_config.storage_paths.clone();
+    let updated = old_config.try_upgrade()?;
+
+    v1_1_33::migrate_gateway_details(
+        &old_paths.common_paths,
+        &updated.storage_paths.common_paths,
+        None,
+    )
+    .await?;
+
+    updated.save_to_default_location()?;
+    Ok(true)
 }
 
-fn try_upgrade_config(_id: &str) -> Result<(), IpPacketRouterError> {
+async fn try_upgrade_config(id: &str) -> Result<(), IpPacketRouterError> {
     trace!("Attempting to upgrade config");
+
+    if try_upgrade_v1_config(id).await? {
+        return Ok(());
+    }
+
     Ok(())
 }
 
-fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError> {
+async fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError> {
     // try to load the config as is
     if let Ok(cfg) = Config::read_from_default_path(id) {
         return if !cfg.validate() {
@@ -145,7 +148,7 @@ fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError> {
     }
 
     // we couldn't load it - try upgrading it from older revisions
-    try_upgrade_config(id)?;
+    try_upgrade_config(id).await?;
 
     let config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,

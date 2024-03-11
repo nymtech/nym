@@ -22,6 +22,7 @@ use crate::config::persistence::IpPacketRouterPaths;
 
 use self::template::CONFIG_TEMPLATE;
 
+pub mod old_config_v1;
 mod persistence;
 mod template;
 

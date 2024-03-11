@@ -539,7 +539,7 @@ mod converting_mixes_to_vec {
                 mix_id: 42,
                 owner: "N/A".to_string(),
                 host: "3.3.3.3".parse().unwrap(),
-                mix_host: "3.3.3.3:1789".parse().unwrap(),
+                mix_hosts: vec!["3.3.3.3:1789".parse().unwrap()],
                 identity_key: identity::PublicKey::from_base58_string(
                     "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
                 )

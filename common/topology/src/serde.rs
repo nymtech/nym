@@ -135,13 +135,13 @@ impl TryFrom<SerializableMixNode> for mix::Node {
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = mix::Node::extract_mix_host(&host, mix_port)?;
+        let mix_hosts = mix::Node::extract_mix_host(&host, mix_port)?;
 
         Ok(mix::Node {
             mix_id: value.mix_id,
             owner: value.owner,
             host,
-            mix_host,
+            mix_hosts,
             identity_key: identity::PublicKey::from_base58_string(&value.identity_key)
                 .map_err(MixnodeConversionError::from)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&value.sphinx_key)
@@ -159,7 +159,7 @@ impl<'a> From<&'a mix::Node> for SerializableMixNode {
             mix_id: value.mix_id,
             owner: value.owner.clone(),
             host: value.host.to_string(),
-            mix_port: Some(value.mix_host.port()),
+            mix_port: Some(value.mix_hosts[0].port()),
             identity_key: value.identity_key.to_base58_string(),
             sphinx_key: value.sphinx_key.to_base58_string(),
             layer: value.layer.into(),
@@ -182,7 +182,7 @@ pub struct SerializableGateway {
     // (thank you wasm)
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
     #[serde(alias = "explicit_ip")]
-    pub explicit_ip: Option<IpAddr>,
+    pub explicit_ips: Option<Vec<IpAddr>>,
 
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
     #[serde(alias = "mix_port")]
@@ -221,8 +221,11 @@ impl TryFrom<SerializableGateway> for gateway::Node {
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = if let Some(explicit_ip) = value.explicit_ip {
-            SocketAddr::new(explicit_ip, mix_port)
+        let mix_hosts = if let Some(explicit_ips) = value.explicit_ips {
+            explicit_ips
+                .iter()
+                .map(|explicit_ip| SocketAddr::new(*explicit_ip, mix_port))
+                .collect()
         } else {
             gateway::Node::extract_mix_host(&host, mix_port)?
         };
@@ -230,7 +233,7 @@ impl TryFrom<SerializableGateway> for gateway::Node {
         Ok(gateway::Node {
             owner: value.owner,
             host,
-            mix_host,
+            mix_hosts,
             clients_ws_port,
             clients_wss_port: value.clients_wss_port,
             identity_key: identity::PublicKey::from_base58_string(&value.identity_key)
@@ -247,8 +250,8 @@ impl<'a> From<&'a gateway::Node> for SerializableGateway {
         SerializableGateway {
             owner: value.owner.clone(),
             host: value.host.to_string(),
-            explicit_ip: Some(value.mix_host.ip()),
-            mix_port: Some(value.mix_host.port()),
+            explicit_ips: Some(value.mix_hosts.iter().map(|addr| addr.ip()).collect()),
+            mix_port: Some(value.mix_hosts[0].port()),
             clients_ws_port: Some(value.clients_ws_port),
             clients_wss_port: value.clients_wss_port,
             identity_key: value.identity_key.to_base58_string(),

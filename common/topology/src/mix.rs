@@ -36,7 +36,7 @@ pub struct Node {
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
-    pub mix_host: SocketAddr,
+    pub mix_hosts: Vec<SocketAddr>,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub layer: Layer,
@@ -49,7 +49,7 @@ impl std::fmt::Debug for Node {
             .field("mix_id", &self.mix_id)
             .field("owner", &self.owner)
             .field("host", &self.host)
-            .field("mix_host", &self.mix_host)
+            .field("mix_hosts", &self.mix_hosts)
             .field("identity_key", &self.identity_key.to_base58_string())
             .field("sphinx_key", &self.sphinx_key.to_base58_string())
             .field("layer", &self.layer)
@@ -70,13 +70,12 @@ impl Node {
     pub fn extract_mix_host(
         host: &NetworkAddress,
         mix_port: u16,
-    ) -> Result<SocketAddr, MixnodeConversionError> {
-        Ok(host.to_socket_addrs(mix_port).map_err(|err| {
-            MixnodeConversionError::InvalidAddress {
+    ) -> Result<Vec<SocketAddr>, MixnodeConversionError> {
+        host.to_socket_addrs(mix_port)
+            .map_err(|err| MixnodeConversionError::InvalidAddress {
                 value: host.to_string(),
                 source: err,
-            }
-        })?[0])
+            })
     }
 }
 
@@ -89,7 +88,7 @@ impl filter::Versioned for Node {
 
 impl<'a> From<&'a Node> for SphinxNode {
     fn from(node: &'a Node) -> Self {
-        let node_address_bytes = NymNodeRoutingAddress::from(node.mix_host)
+        let node_address_bytes = NymNodeRoutingAddress::from(node.mix_hosts[0])
             .try_into()
             .unwrap();
 
@@ -105,13 +104,13 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = Self::extract_mix_host(&host, bond.mix_node.mix_port)?;
+        let mix_hosts = Self::extract_mix_host(&host, bond.mix_node.mix_port)?;
 
         Ok(Node {
             mix_id: bond.mix_id,
             owner: bond.owner.as_str().to_owned(),
             host,
-            mix_host,
+            mix_hosts,
             identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
             layer: bond.layer,

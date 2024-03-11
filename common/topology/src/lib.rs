@@ -211,11 +211,10 @@ impl NymTopology {
                 let ip_addresses = sock_addr.iter().map(|addr| addr.ip()).collect::<Vec<_>>();
                 if ip_addresses.contains(&mix_host.ip()) {
                     //we have our node
-                    if description.is_some()
-                        && description.as_ref().unwrap().noise_information.supported
-                    //SAFETY: We checked that `description` wasn't None
-                    {
-                        return Ok(Some(sphinx_key.to_string()));
+                    if let Some(d) = description {
+                        if d.noise_information.supported {
+                            return Ok(Some(sphinx_key.to_string()));
+                        }
                     }
                     return Ok(None);
                 }

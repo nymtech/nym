@@ -34,8 +34,8 @@ pub struct Node {
     pub mix_id: MixId,
     pub owner: String,
     pub host: NetworkAddress,
-    // we're keeping this as separate resolved field since we do not want to be resolving the potential
-    // hostname every time we want to construct a path via this node
+    // we're keeping all resolved IPs as a separate field since we do not want to be resolving the potential
+    // hostname every time we want to construct a path via this node. When we need one, we default to the first one
     pub mix_hosts: Vec<SocketAddr>,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519

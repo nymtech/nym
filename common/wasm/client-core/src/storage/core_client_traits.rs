@@ -7,7 +7,10 @@ use crate::helpers::setup_reply_surb_storage_backend;
 use crate::storage::wasm_client_traits::WasmClientStorage;
 use crate::storage::ClientStorage;
 use async_trait::async_trait;
-use nym_client_core::client::base_client::storage::MixnetClientStorage;
+use nym_client_core::client::base_client::storage::{
+    gateways_storage::{ActiveGateway, GatewayRegistration, GatewaysDetailsStore},
+    MixnetClientStorage,
+};
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::key_manager::ClientKeys;
 use nym_client_core::client::replies::reply_storage::browser_backend;
@@ -72,12 +75,10 @@ impl KeyStore for ClientStorage {
         let identity_keypair = self.must_read_identity_keypair().await?;
         let encryption_keypair = self.must_read_encryption_keypair().await?;
         let ack_keypair = self.must_read_ack_key().await?;
-        let gateway_shared_key = self.must_read_gateway_shared_key().await?;
 
         Ok(ClientKeys::from_keys(
             identity_keypair,
             encryption_keypair,
-            Some(gateway_shared_key),
             ack_keypair,
         ))
     }
@@ -91,25 +92,57 @@ impl KeyStore for ClientStorage {
             .await?;
         self.store_ack_key(&keys.ack_key()).await?;
 
-        if let Some(shared_keys) = keys.gateway_shared_key() {
-            self.store_gateway_shared_key(&shared_keys).await?;
-        }
         Ok(())
     }
 }
 
 #[async_trait(?Send)]
-impl GatewayDetailsStore for ClientStorage {
+impl GatewaysDetailsStore for ClientStorage {
     type StorageError = WasmCoreError;
 
-    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError> {
-        self.must_read_gateway_details().await
+    async fn active_gateway(&self) -> Result<ActiveGateway, Self::StorageError> {
+        let raw_active = self.get_active_gateway_id().await?;
+        let registration = match raw_active.active_gateway_id_bs58 {
+            None => None,
+            Some(gateway_id) => Some(self.load_gateway_details(&gateway_id).await?),
+        };
+
+        Ok(ActiveGateway { registration })
+    }
+
+    async fn set_active_gateway(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
+        <Self as WasmClientStorage>::set_active_gateway(self, Some(gateway_id)).await?;
+        Ok(())
+    }
+
+    async fn all_gateways(&self) -> Result<Vec<GatewayRegistration>, Self::StorageError> {
+        todo!()
+        // let identities = self.all
+    }
+
+    async fn has_gateway_details(&self, gateway_id: &str) -> Result<bool, Self::StorageError> {
+        self.has_registered_gateway(gateway_id).await
+    }
+
+    async fn load_gateway_details(
+        &self,
+        gateway_id: &str,
+    ) -> Result<GatewayRegistration, Self::StorageError> {
+        Ok(self
+            .must_get_registered_gateway(gateway_id)
+            .await?
+            .try_into()?)
     }
 
     async fn store_gateway_details(
         &self,
-        details: &PersistedGatewayDetails,
+        details: &GatewayRegistration,
     ) -> Result<(), Self::StorageError> {
-        <Self as WasmClientStorage>::store_gateway_details(self, details).await
+        let raw_registration = details.into();
+        self.store_registered_gateway(&raw_registration).await
+    }
+
+    async fn remove_gateway_details(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
+        self.remove_registered_gateway(gateway_id).await
     }
 }

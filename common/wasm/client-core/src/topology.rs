@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_client_core::config::GatewayEndpointConfig;
 use nym_topology::SerializableTopologyError;
 use nym_validator_client::client::IdentityKeyRef;
 use wasm_utils::console_log;
@@ -16,10 +15,6 @@ pub type WasmTopologyError = SerializableTopologyError;
 // helper trait to define extra functionality on the external type that we used to have here before
 pub trait SerializableTopologyExt {
     fn print(&self);
-
-    fn ensure_contains(&self, gateway_config: &GatewayEndpointConfig) -> bool {
-        self.ensure_contains_gateway_id(&gateway_config.gateway_id)
-    }
 
     fn ensure_contains_gateway_id(&self, gateway_id: IdentityKeyRef) -> bool;
 }

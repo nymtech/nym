@@ -12,10 +12,7 @@ pub mod error;
 pub mod types;
 
 // todo: export port types
-pub use crate::types::{
-    ActiveGateway, CustomGatewayDetails, GatewayDetails, GatewayRegistration, GatewayType,
-    RegisteredGateway, RemoteGatewayDetails,
-};
+pub use crate::types::*;
 pub use backend::mem_backend::{InMemGatewaysDetails, InMemStorageError};
 pub use error::BadGateway;
 

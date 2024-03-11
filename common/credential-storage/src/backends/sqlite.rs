@@ -27,19 +27,52 @@ impl CoconutCredentialManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO coconut_credentials(serialization_revision, credential_type, credential_data, epoch_id, consumed, expired)
-                VALUES (?, ?, ?, ?, false, false)
+                INSERT INTO coconut_credentials(serialization_revision, credential_type, credential_data, epoch_id, expired)
+                VALUES (?, ?, ?, ?, false)
             "#,
             serialization_revision, credential_type, credential_data, epoch_id
         ).execute(&self.connection_pool).await?;
         Ok(())
     }
 
-    pub async fn get_next_unspent_credential(
+    pub async fn get_next_unspect_freepass(
+        &self,
+        gateway_id: &str,
+    ) -> Result<Option<StoredIssuedCredential>, sqlx::Error> {
+        // get a credential of freepass type that doesn't appear in `credential_usage` for the provided gateway_id
+        sqlx::query_as(
+            r#"
+                SELECT * 
+                FROM coconut_credentials
+                WHERE coconut_credentials.credential_type == "FreeBandwidthPass"
+                      AND NOT EXISTS (SELECT 1
+                                      FROM   credential_usage
+                                      WHERE  credential_usage.credential_id = coconut_credential.id
+                                             AND credential_usage.gateway_id_bs58 == ?)
+                ORDER BY coconut_credentials.id
+                LIMIT 1
+            "#,
+        )
+        .bind(gateway_id)
+        .fetch_optional(&self.connection_pool)
+        .await
+    }
+
+    pub async fn get_next_unspect_bandwidth_voucher(
         &self,
     ) -> Result<Option<StoredIssuedCredential>, sqlx::Error> {
+        // get a credential of bandwidth voucher type that doesn't appear in `credential_usage` for any gateway_id
         sqlx::query_as(
-            "SELECT * FROM coconut_credentials WHERE NOT consumed AND NOT expired LIMIT 1",
+            r#"
+                SELECT * 
+                FROM coconut_credentials
+                WHERE coconut_credentials.credential_type == "BandwidthVoucher"
+                      AND NOT EXISTS (SELECT 1
+                                      FROM   credential_usage
+                                      WHERE  credential_usage.credential_id = coconut_credential.id)
+                ORDER BY coconut_credentials.id
+                LIMIT 1
+            "#,
         )
         .fetch_optional(&self.connection_pool)
         .await
@@ -50,10 +83,16 @@ impl CoconutCredentialManager {
     /// # Arguments
     ///
     /// * `id`: Database id.
-    pub async fn consume_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
+    /// * `gateway_id`: id of the gateway that received the credential
+    pub async fn consume_coconut_credential(
+        &self,
+        id: i64,
+        gateway_id: &str,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "UPDATE coconut_credentials SET consumed = TRUE WHERE id = ?",
-            id
+            "INSERT INTO credential_usage (credential_id, gateway_id_bs58) VALUES (?, ?)",
+            id,
+            gateway_id
         )
         .execute(&self.connection_pool)
         .await?;

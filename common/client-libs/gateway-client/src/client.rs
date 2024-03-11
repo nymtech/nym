@@ -626,11 +626,13 @@ impl<C, St> GatewayClient<C, St> {
             });
         }
 
+        let gateway_id = self.gateway_identity().to_base58_string();
+
         let prepared_credential = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_bandwidth_credential()
+            .prepare_bandwidth_credential(&gateway_id)
             .await?;
 
         self.claim_coconut_bandwidth(prepared_credential.data)
@@ -638,7 +640,7 @@ impl<C, St> GatewayClient<C, St> {
         self.bandwidth_controller
             .as_ref()
             .unwrap()
-            .consume_credential(prepared_credential.credential_id)
+            .consume_credential(prepared_credential.credential_id, &gateway_id)
             .await?;
 
         Ok(())

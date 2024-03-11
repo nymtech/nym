@@ -26,7 +26,6 @@ pub struct StoredIssuedCredential {
     pub credential_type: String,
 
     pub epoch_id: u32,
-    pub consumed: bool,
     pub expired: bool,
 }
 
@@ -36,4 +35,10 @@ pub struct StorableIssuedCredential<'a> {
     pub credential_type: String,
 
     pub epoch_id: u32,
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+pub struct CredentialUsage {
+    pub credential_id: i64,
+    pub gateway_id_bs58: String,
 }

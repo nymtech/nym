@@ -18,6 +18,7 @@ pub trait Storage: Send + Sync {
     /// that is also not marked as expired
     async fn get_next_unspent_credential(
         &self,
+        gateway_id: &str,
     ) -> Result<Option<StoredIssuedCredential>, Self::StorageError>;
 
     /// Marks as consumed in the database the specified credential.
@@ -25,7 +26,12 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `id`: Id of the credential to be consumed.
-    async fn consume_coconut_credential(&self, id: i64) -> Result<(), Self::StorageError>;
+    /// * `gateway_id`: id of the gateway that received the credential.
+    async fn consume_coconut_credential(
+        &self,
+        id: i64,
+        gateway_id: &str,
+    ) -> Result<(), Self::StorageError>;
 
     /// Marks the specified credential as expired
     ///

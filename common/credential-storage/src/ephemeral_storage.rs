@@ -44,16 +44,30 @@ impl Storage for EphemeralStorage {
 
     async fn get_next_unspent_credential(
         &self,
+        gateway_id: &str,
     ) -> Result<Option<StoredIssuedCredential>, Self::StorageError> {
+        // first try to get a free pass if available, otherwise fallback to bandwidth voucher
+        let maybe_freepass = self
+            .coconut_credential_manager
+            .get_next_unspect_freepass(gateway_id)
+            .await;
+        if maybe_freepass.is_some() {
+            return Ok(maybe_freepass);
+        }
+
         Ok(self
             .coconut_credential_manager
-            .get_next_unspent_credential()
+            .get_next_unspect_bandwidth_voucher()
             .await)
     }
 
-    async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError> {
+    async fn consume_coconut_credential(
+        &self,
+        id: i64,
+        gateway_id: &str,
+    ) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .consume_coconut_credential(id)
+            .consume_coconut_credential(id, gateway_id)
             .await;
 
         Ok(())

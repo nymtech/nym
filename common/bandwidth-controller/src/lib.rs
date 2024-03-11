@@ -49,6 +49,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
     /// It marks any retrieved intermediate credentials as expired.
     pub async fn get_next_usable_credential(
         &self,
+        gateway_id: &str,
     ) -> Result<RetrievedCredential, BandwidthControllerError>
     where
         <St as Storage>::StorageError: Send + Sync + 'static,
@@ -56,7 +57,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         loop {
             let Some(maybe_next) = self
                 .storage
-                .get_next_unspent_credential()
+                .get_next_unspent_credential(gateway_id)
                 .await
                 .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?
             else {
@@ -114,12 +115,13 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
     pub async fn prepare_bandwidth_credential(
         &self,
+        gateway_id: &str,
     ) -> Result<PreparedCredential, BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        let retrieved_credential = self.get_next_usable_credential().await?;
+        let retrieved_credential = self.get_next_usable_credential(gateway_id).await?;
 
         let epoch_id = retrieved_credential.credential.epoch_id();
         let credential_id = retrieved_credential.credential_id;
@@ -137,14 +139,16 @@ impl<C, St: Storage> BandwidthController<C, St> {
         })
     }
 
-    pub async fn consume_credential(&self, id: i64) -> Result<(), BandwidthControllerError>
+    pub async fn consume_credential(
+        &self,
+        id: i64,
+        gateway_id: &str,
+    ) -> Result<(), BandwidthControllerError>
     where
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        // JS: shouldn't we send some contract/validator/gateway message here to actually, you know,
-        // consume it?
         self.storage
-            .consume_coconut_credential(id)
+            .consume_coconut_credential(id, gateway_id)
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))
     }

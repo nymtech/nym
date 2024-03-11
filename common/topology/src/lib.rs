@@ -191,25 +191,33 @@ impl NymTopology {
         mix_host: SocketAddr,
     ) -> Result<Option<String>, NymTopologyError> {
         for node in self.described_nodes.iter() {
-            let sphinx_key = match node {
-                DescribedNymNode::Gateway(g) => &g.bond.gateway.sphinx_key,
-                DescribedNymNode::Mixnode(m) => &m.bond.mix_node.sphinx_key,
+            let (sphinx_key, socket_addresses, description) = match node {
+                DescribedNymNode::Gateway(g) => {
+                    let sphinx_key = &g.bond.gateway.sphinx_key;
+                    let gateway_node: Option<gateway::Node> = (&g.bond).try_into().ok();
+                    let mix_hosts = gateway_node.map(|node| node.mix_hosts);
+                    let description = &g.self_described;
+                    (sphinx_key, mix_hosts, description)
+                }
+                DescribedNymNode::Mixnode(m) => {
+                    let sphinx_key = &m.bond.mix_node.sphinx_key;
+                    let mix_node: Option<mix::Node> = (&m.bond).try_into().ok();
+                    let mix_hosts = mix_node.map(|node| node.mix_hosts);
+                    let description = &m.self_described;
+                    (sphinx_key, mix_hosts, description)
+                }
             };
-            if let Some(description) = match node {
-                DescribedNymNode::Gateway(g) => &g.self_described,
-                DescribedNymNode::Mixnode(m) => &m.self_described,
-            } {
-                if description
-                    .host_information
-                    .ip_address
-                    .contains(&mix_host.ip())
-                {
+            if let Some(sock_addr) = socket_addresses {
+                let ip_addresses = sock_addr.iter().map(|addr| addr.ip()).collect::<Vec<_>>();
+                if ip_addresses.contains(&mix_host.ip()) {
                     //we have our node
-                    if description.noise_information.supported {
+                    if description.is_some()
+                        && description.as_ref().unwrap().noise_information.supported
+                    //SAFETY: We checked that `description` wasn't None
+                    {
                         return Ok(Some(sphinx_key.to_string()));
-                    } else {
-                        return Ok(None);
                     }
+                    return Ok(None);
                 }
             }
         }

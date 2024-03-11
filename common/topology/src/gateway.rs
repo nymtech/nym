@@ -48,7 +48,7 @@ pub struct Node {
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
-    pub mix_host: SocketAddr,
+    pub mix_hosts: Vec<SocketAddr>,
 
     // #[serde(alias = "clients_port")]
     pub clients_ws_port: u16,
@@ -66,7 +66,7 @@ impl std::fmt::Debug for Node {
         f.debug_struct("gateway::Node")
             .field("host", &self.host)
             .field("owner", &self.owner)
-            .field("mix_host", &self.mix_host)
+            .field("mix_hosts", &self.mix_hosts)
             .field("clients_ws_port", &self.clients_ws_port)
             .field("clients_wss_port", &self.clients_wss_port)
             .field("identity_key", &self.identity_key.to_base58_string())
@@ -88,13 +88,12 @@ impl Node {
     pub fn extract_mix_host(
         host: &NetworkAddress,
         mix_port: u16,
-    ) -> Result<SocketAddr, GatewayConversionError> {
-        Ok(host.to_socket_addrs(mix_port).map_err(|err| {
-            GatewayConversionError::InvalidAddress {
+    ) -> Result<Vec<SocketAddr>, GatewayConversionError> {
+        host.to_socket_addrs(mix_port)
+            .map_err(|err| GatewayConversionError::InvalidAddress {
                 value: host.to_string(),
                 source: err,
-            }
-        })?[0])
+            })
     }
 
     pub fn identity(&self) -> &NodeIdentity {
@@ -135,7 +134,7 @@ impl filter::Versioned for Node {
 
 impl<'a> From<&'a Node> for SphinxNode {
     fn from(node: &'a Node) -> Self {
-        let node_address_bytes = NymNodeRoutingAddress::from(node.mix_host)
+        let node_address_bytes = NymNodeRoutingAddress::from(node.mix_hosts[0])
             .try_into()
             .unwrap();
 
@@ -151,12 +150,12 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = Self::extract_mix_host(&host, bond.gateway.mix_port)?;
+        let mix_hosts = Self::extract_mix_host(&host, bond.gateway.mix_port)?;
 
         Ok(Node {
             owner: bond.owner.as_str().to_owned(),
             host,
-            mix_host,
+            mix_hosts,
             clients_ws_port: bond.gateway.clients_port,
             clients_wss_port: None,
             identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
@@ -196,12 +195,15 @@ impl<'a> TryFrom<&'a DescribedGateway> for Node {
 
         // get ip from the self-reported values so we wouldn't need to do any hostname resolution
         // (which doesn't really work in wasm)
-        let mix_host = SocketAddr::new(ips[0], value.bond.gateway.mix_port);
+        let mix_hosts = ips
+            .iter()
+            .map(|ip| SocketAddr::new(*ip, value.bond.gateway.mix_port))
+            .collect();
 
         Ok(Node {
             owner: value.bond.owner.as_str().to_owned(),
             host,
-            mix_host,
+            mix_hosts,
             clients_ws_port: self_described.mixnet_websockets.unwrap().ws_port, //SW gateway have that field
             clients_wss_port: self_described.mixnet_websockets.unwrap().wss_port, //SW gateway have that field
             identity_key: identity::PublicKey::from_base58_string(

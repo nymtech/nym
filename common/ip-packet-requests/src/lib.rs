@@ -25,7 +25,7 @@ impl IpPair {
 
 impl Display for IpPair {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "IPv4: {}, IPV6: {}", self.ipv4, self.ipv6)
+        write!(f, "IPv4: {}, IPv6: {}", self.ipv4, self.ipv6)
     }
 }
 

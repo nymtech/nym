@@ -24,6 +24,22 @@ where
         })
 }
 
+pub async fn get_active_gateway_identity<D>(
+    details_store: &D,
+) -> Result<Option<identity::PublicKey>, ClientCoreError>
+where
+    D: GatewaysDetailsStore,
+    D::StorageError: Send + Sync + 'static,
+{
+    details_store
+        .active_gateway()
+        .await
+        .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
+            source: Box::new(source),
+        })
+        .map(|a| a.registration.map(|r| r.details.gateway_id()))
+}
+
 pub async fn get_all_registered_identities<D>(
     details_store: &D,
 ) -> Result<Vec<identity::PublicKey>, ClientCoreError>

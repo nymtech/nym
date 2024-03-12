@@ -3,8 +3,10 @@
 
 use crate::cli_helpers::{CliClient, CliClientConfig};
 use crate::client::base_client::non_wasm_helpers::setup_fs_gateways_storage;
-use crate::client::base_client::storage::helpers::get_gateway_registrations;
-use nym_client_core_gateways_storage::{GatewayDetails, GatewayRegistration, GatewayType};
+use crate::client::base_client::storage::helpers::{
+    get_active_gateway_identity, get_gateway_registrations,
+};
+use nym_client_core_gateways_storage::{GatewayDetails, GatewayType};
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -23,12 +25,6 @@ pub struct CommonClientListGatewaysArgs {
 #[serde(transparent)]
 pub struct RegisteredGateways(Vec<GatewayInfo>);
 
-impl From<Vec<GatewayRegistration>> for RegisteredGateways {
-    fn from(value: Vec<GatewayRegistration>) -> Self {
-        RegisteredGateways(value.into_iter().map(Into::into).collect())
-    }
-}
-
 impl Display for RegisteredGateways {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for (i, gateway) in self.0.iter().enumerate() {
@@ -42,35 +38,18 @@ impl Display for RegisteredGateways {
 pub struct GatewayInfo {
     pub registration: OffsetDateTime,
     pub identity: identity::PublicKey,
+    pub active: bool,
 
     pub typ: String,
     pub endpoint: Option<Url>,
     pub wg_tun_address: Option<Url>,
 }
 
-impl From<GatewayRegistration> for GatewayInfo {
-    fn from(value: GatewayRegistration) -> Self {
-        match value.details {
-            GatewayDetails::Remote(remote_details) => GatewayInfo {
-                registration: value.registration_timestamp,
-                identity: remote_details.gateway_id,
-                typ: GatewayType::Remote.to_string(),
-                endpoint: Some(remote_details.gateway_listener),
-                wg_tun_address: remote_details.wg_tun_address,
-            },
-            GatewayDetails::Custom(_) => GatewayInfo {
-                registration: value.registration_timestamp,
-                identity: value.details.gateway_id(),
-                typ: value.details.typ().to_string(),
-                endpoint: None,
-                wg_tun_address: None,
-            },
-        }
-    }
-}
-
 impl Display for GatewayInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        if self.active {
+            write!(f, "[ACTIVE] ")?;
+        }
         write!(
             f,
             "{} gateway '{}' registered at: {}",
@@ -100,7 +79,30 @@ where
 
     let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
-    let gateways = get_gateway_registrations(&details_store).await?;
+    let active_gateway = get_active_gateway_identity(&details_store).await?;
 
-    Ok(gateways.into())
+    let gateways = get_gateway_registrations(&details_store).await?;
+    let mut info = Vec::with_capacity(gateways.len());
+    for gateway in gateways {
+        match gateway.details {
+            GatewayDetails::Remote(remote_details) => info.push(GatewayInfo {
+                registration: gateway.registration_timestamp,
+                identity: remote_details.gateway_id,
+                active: active_gateway == Some(remote_details.gateway_id),
+                typ: GatewayType::Remote.to_string(),
+                endpoint: Some(remote_details.gateway_listener),
+                wg_tun_address: remote_details.wg_tun_address,
+            }),
+            GatewayDetails::Custom(_) => info.push(GatewayInfo {
+                registration: gateway.registration_timestamp,
+                identity: gateway.details.gateway_id(),
+                active: active_gateway == Some(gateway.details.gateway_id()),
+                typ: gateway.details.typ().to_string(),
+                endpoint: None,
+                wg_tun_address: None,
+            }),
+        };
+    }
+
+    Ok(RegisteredGateways(info))
 }

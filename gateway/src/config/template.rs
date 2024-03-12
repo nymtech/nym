@@ -33,6 +33,9 @@ id = '{{ gateway.id }}'
 # the mixnet, or if it also accepts non-paying clients
 only_coconut_credentials = {{ gateway.only_coconut_credentials }}
 
+# Indicates whether this gateway is using offline mode for credential verification
+offline_credential_verification = {{ gateway.offline_credential_verification }}
+
 # Socket address to which this gateway will bind to and will be listening for packets.
 listening_address = '{{ gateway.listening_address }}'
 

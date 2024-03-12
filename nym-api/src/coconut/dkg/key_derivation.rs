@@ -10,10 +10,11 @@ use crate::coconut::keys::KeyPairWithEpoch;
 use crate::coconut::state::bandwidth_credential_params;
 use cosmwasm_std::Addr;
 use log::debug;
-use nym_coconut::KeyPair as CoconutKeyPair;
-use nym_coconut::{check_vk_pairing, Base58, SecretKey, VerificationKey};
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId, NodeIndex};
+use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
+use nym_compact_ecash::utils::check_vk_pairing;
+use nym_compact_ecash::{Base58, KeyPairAuth, VerificationKeyAuth};
 use nym_dkg::{
     bte::{self, decrypt_share},
     combine_shares, try_recover_verification_keys, Dealing,
@@ -75,7 +76,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         dealer: &Addr,
         epoch_receivers: &BTreeMap<NodeIndex, bte::PublicKey>,
         raw_dealings: HashMap<DealingIndex, Vec<u8>>,
-        prior_public_key: Option<VerificationKey>,
+        prior_public_key: Option<VerificationKeyAuth>,
     ) -> Result<Result<Vec<(DealingIndex, Dealing)>, DealerRejectionReason>, KeyDerivationError>
     {
         let threshold = self.state.threshold(epoch_id)?;
@@ -155,7 +156,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         &self,
         epoch_id: EpochId,
         dealer: &Addr,
-    ) -> Result<Option<VerificationKey>, KeyDerivationError> {
+    ) -> Result<Option<VerificationKeyAuth>, KeyDerivationError> {
         let Some(previous_epoch) = epoch_id.checked_sub(1) else {
             return Err(KeyDerivationError::ZerothEpochResharing);
         };
@@ -176,7 +177,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // since this share appears as 'verified' on the chain, it means the consensus of dealers confirmed its validity
         // and thus they must have been able to parse it, so the unwrap/expect here is fine
         Ok(Some(
-            VerificationKey::try_from_bs58(&share.share)
+            VerificationKeyAuth::try_from_bs58(&share.share)
                 .expect("failed to deserialize VERIFIED key"),
         ))
     }
@@ -424,8 +425,8 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // SAFETY:
         // we know we had a non-empty map of dealings and thus, at the very least, we must have derived a single secret
         // (i.e. the x-element)
-        let sk = SecretKey::create_from_raw(derived_x.unwrap(), derived_secrets);
-        let derived_vk = sk.verification_key(bandwidth_credential_params());
+        let sk = SecretKeyAuth::create_from_raw(derived_x.unwrap(), derived_secrets);
+        let derived_vk = sk.verification_key(bandwidth_credential_params().grp());
 
         // make the key we derived out of the decrypted shares matches the partial key
         // (cryptographically there shouldn't be any reason for the mismatch,
@@ -436,21 +437,25 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             .derived_partials_for(receiver_index)
             .ok_or(KeyDerivationError::NoSelfPartialKey { receiver_index })?;
 
-        if !check_vk_pairing(bandwidth_credential_params(), &derived_partial, &derived_vk) {
+        if !check_vk_pairing(
+            bandwidth_credential_params().grp(),
+            &derived_partial,
+            &derived_vk,
+        ) {
             // can't do anything, we got all dealings, we derived all keys, but somehow they don't match
             error!("our derived key does not match the expected partials!");
             return Ok(Err(DerivationFailure::MismatchedPartialKey));
         }
 
         Ok(Ok(KeyPairWithEpoch::new(
-            CoconutKeyPair::from_keys(sk, derived_vk),
+            KeyPairAuth::from_keys(sk, derived_vk),
             epoch_id,
         )))
     }
 
     async fn submit_partial_verification_key(
         &self,
-        key: &VerificationKey,
+        key: &VerificationKeyAuth,
         resharing: bool,
     ) -> Result<u64, KeyDerivationError> {
         fn extract_proposal_id_from_logs(
@@ -558,7 +563,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                 debug!("we have already generated keys for this epoch but failed to send them to the contract");
 
                 let proposal_id = self
-                    .submit_partial_verification_key(keys.keys.verification_key(), resharing)
+                    .submit_partial_verification_key(&keys.keys.verification_key(), resharing)
                     .await?;
                 Ok(Some(proposal_id))
             } else {
@@ -657,7 +662,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         }
 
         let proposal_id = self
-            .submit_partial_verification_key(coconut_keypair.keys.verification_key(), resharing)
+            .submit_partial_verification_key(&coconut_keypair.keys.verification_key(), resharing)
             .await?;
 
         self.state.set_coconut_keypair(coconut_keypair).await;

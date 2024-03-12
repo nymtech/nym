@@ -53,7 +53,7 @@ impl RecoveryStorage {
 
     pub fn voucher_filename(voucher: &IssuanceBandwidthCredential) -> String {
         let prefix = voucher.typ().to_string();
-        let suffix = voucher.blinded_serial_number_bs58();
+        let suffix = voucher.ecash_pubkey_bs58();
         format!("{prefix}-{suffix}.{DUMPED_VOUCHER_EXTENSION}")
     }
 

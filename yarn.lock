@@ -1267,6 +1267,26 @@
     bfs-path "^1.0.2"
     cross-fetch "^3.1.5"
 
+"@chain-registry/cosmostation@1.26.0":
+  version "1.26.0"
+  resolved "https://registry.yarnpkg.com/@chain-registry/cosmostation/-/cosmostation-1.26.0.tgz#0d3967b8d320168a5c9c7b56b3352dcf3f2945b0"
+  integrity sha512-MmjThpQ0U0EJF66UJzPy67iKC9hY7ljrpGtQOPfeYGB/lUlKZTsE/mgF2XkKGUf7wJK8LugOqU5Zul7C1/ZA4Q==
+  dependencies:
+    "@babel/runtime" "^7.21.0"
+    "@chain-registry/types" "^0.17.0"
+    "@chain-registry/utils" "^1.15.0"
+    "@cosmostation/extension-client" "0.1.15"
+
+"@chain-registry/cosmostation@^1.26.0":
+  version "1.32.1"
+  resolved "https://registry.yarnpkg.com/@chain-registry/cosmostation/-/cosmostation-1.32.1.tgz#bdf079a4f45b5c884a33c48fb0b8d4eeaa26a743"
+  integrity sha512-U8YUkXKWQWmBbAJILXYqEFMnYES4fs+t8iriy6LucSyhICUs1nniMlulm04PYuiIy+bX0BpP5nlNp/CK/yzQkw==
+  dependencies:
+    "@babel/runtime" "^7.21.0"
+    "@chain-registry/types" "^0.18.1"
+    "@chain-registry/utils" "^1.18.2"
+    "@cosmostation/extension-client" "0.1.15"
+
 "@chain-registry/keplr@1.28.0":
   version "1.28.0"
   resolved "https://registry.yarnpkg.com/@chain-registry/keplr/-/keplr-1.28.0.tgz#c53d52ff0487eb6798722eb1cf5bd4dc82a141be"
@@ -1291,6 +1311,23 @@
   integrity sha512-jRFOKOMIAcA5Qp5cXEiAPyXs13WbSP19kvcb8qm5vaRwXvHMufPd/ZxLC80yq/LB62FeZeaVYfsjorLf3M6tTw==
   dependencies:
     "@babel/runtime" "^7.21.0"
+
+"@chain-registry/types@^0.18.1":
+  version "0.18.1"
+  resolved "https://registry.yarnpkg.com/@chain-registry/types/-/types-0.18.1.tgz#bd926ddf204f2ae986a79b42f0cfe85764e2977a"
+  integrity sha512-H/UnOyd7WdcWHa2FGKxy4MclDDFrbE2rFwaUh9oubNJOey7UBI4dNF10oZIWM/1by15LUgDz45fVbh6uA6W5Tg==
+  dependencies:
+    "@babel/runtime" "^7.21.0"
+
+"@chain-registry/utils@^1.15.0", "@chain-registry/utils@^1.18.2":
+  version "1.18.2"
+  resolved "https://registry.yarnpkg.com/@chain-registry/utils/-/utils-1.18.2.tgz#fa67e8179afad45011c031a1181824133412e6c6"
+  integrity sha512-X1vBFxdMVRGFW/6fLUQgJ4aG/2RaDYDDEeDA5/x/MlssGtdSBEyytd7M9zO0uS51QYy1ysIhkG3OyZLoyGdurg==
+  dependencies:
+    "@babel/runtime" "^7.21.0"
+    "@chain-registry/types" "^0.18.1"
+    bignumber.js "9.1.1"
+    sha.js "^2.4.11"
 
 "@chain-registry/utils@^1.18.0":
   version "1.18.0"
@@ -1893,6 +1930,32 @@
     events "3.3.0"
     uuid "^9.0.1"
 
+"@cosmos-kit/cosmostation-extension@^2.7.10":
+  version "2.7.10"
+  resolved "https://registry.yarnpkg.com/@cosmos-kit/cosmostation-extension/-/cosmostation-extension-2.7.10.tgz#2120fa826c692732e7c539a35141df0f8e832876"
+  integrity sha512-x0rBk4Ht6uicfZxIXRbwUi5WHrvKsI11oXbf9bYL9nRBfRTgpbO6zIW9791oTVjiJLzHbKaBQoqh1R233YcHbg==
+  dependencies:
+    "@chain-registry/cosmostation" "^1.26.0"
+    "@cosmos-kit/core" "^2.8.9"
+    cosmjs-types "^0.9.0"
+
+"@cosmos-kit/cosmostation-mobile@^2.6.9":
+  version "2.6.9"
+  resolved "https://registry.yarnpkg.com/@cosmos-kit/cosmostation-mobile/-/cosmostation-mobile-2.6.9.tgz#1c304ac12cccc05de93c9ed927243d51087426f6"
+  integrity sha512-GjZetNMFrz2oLisdp14ahxftkwPz5v1OYRGvD4MLTdMSA71JUTzX8A4At4uo4M7nwG09H1yQ2/CLQy9XGVRinA==
+  dependencies:
+    "@chain-registry/cosmostation" "1.26.0"
+    "@cosmos-kit/core" "^2.8.9"
+    "@cosmos-kit/walletconnect" "^2.5.9"
+
+"@cosmos-kit/cosmostation@^2.6.10":
+  version "2.6.10"
+  resolved "https://registry.yarnpkg.com/@cosmos-kit/cosmostation/-/cosmostation-2.6.10.tgz#406d93a29c154e988f4d60425d8edbba4f0cd455"
+  integrity sha512-DWR28fnkv04yr5Eyo/CS7yOiYr3cwld9lE/F2qGIYGb2Tw/eUWhKSl05+2ly8S15xoKOXT7wxXOsFIXYYUQ8/g==
+  dependencies:
+    "@cosmos-kit/cosmostation-extension" "^2.7.10"
+    "@cosmos-kit/cosmostation-mobile" "^2.6.9"
+
 "@cosmos-kit/keplr-extension@^2.7.9":
   version "2.7.9"
   resolved "https://registry.yarnpkg.com/@cosmos-kit/keplr-extension/-/keplr-extension-2.7.9.tgz#16586c94452a5e65713cdead07446447c511fa0e"
@@ -1957,6 +2020,11 @@
     "@walletconnect/sign-client" "^2.9.0"
     "@walletconnect/utils" "^2.9.0"
     events "3.3.0"
+
+"@cosmostation/extension-client@0.1.15":
+  version "0.1.15"
+  resolved "https://registry.yarnpkg.com/@cosmostation/extension-client/-/extension-client-0.1.15.tgz#cdc6d8fce42217704c1c0d5814f0ee7ce27e8dab"
+  integrity sha512-HlXYJjFrNpjiV/GUKhri1UL8/bhlOIFFLpRF78YDSqq16x0+plIqx5CAvEusFcKTDpVfpeD5sfUHiKvP7euNFg==
 
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
@@ -3390,6 +3458,11 @@
   version "16.10.0"
   resolved "https://registry.yarnpkg.com/@nx/nx-win32-x64-msvc/-/nx-win32-x64-msvc-16.10.0.tgz#7410a51d0f8be631eec9552f01b2e5946285927c"
   integrity sha512-5iV2NKZnzxJwZZ4DM5JVbRG/nkhAbzEskKaLBB82PmYGKzaDHuMHP1lcPoD/rtYMlowZgNA/RQndfKvPBPwmXA==
+
+"@nymproject/contract-clients@^1.2.4-rc.1":
+  version "1.2.4-rc.1"
+  resolved "https://registry.yarnpkg.com/@nymproject/contract-clients/-/contract-clients-1.2.4-rc.1.tgz#10b385f63d8b33beea6bf47d948fc7cc0c6c2357"
+  integrity sha512-WMiEIHNxc9oTZ8GxAE8278ifpNJ2AIZHEw4JifN1WRhn2XViYaDDJaPCA3o0p+WGRySmqdurHmployr3iUEz1Q==
 
 "@nymproject/node-tester@^1.0.0", "@nymproject/node-tester@^1.2.3":
   version "1.2.3"

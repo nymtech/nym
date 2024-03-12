@@ -10,7 +10,19 @@ use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::coconut::helpers::issued_credential_plaintext;
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_coconut::{BlindedSignature, VerificationKey};
+use nym_compact_ecash::{
+    constants,
+    scheme::expiration_date_signatures::{sign_expiration_date, ExpirationDateSignature},
+    setup::{setup, CoinIndexSignature},
+    utils::BlindedSignature,
+    VerificationKeyAuth,
+};
+use nym_credentials::{coconut::utils::cred_exp_date_timestamp, CredentialSpendingData};
+
+use super::{
+    error::CoconutError,
+    helpers::{CoinIndexSignatureCache, ExpirationDateSignatureCache},
+};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::{AccountId, Hash, TxResponse};
@@ -29,6 +41,8 @@ pub struct State {
     pub(crate) identity_keypair: identity::KeyPair,
     pub(crate) comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     pub(crate) storage: NymApiStorage,
+    coin_indices_sigs_cache: Arc<CoinIndexSignatureCache>,
+    exp_date_sigs_cache: Arc<ExpirationDateSignatureCache>,
     pub(crate) freepass_nonce: Arc<RwLock<[u8; 16]>>,
 }
 
@@ -59,6 +73,8 @@ impl State {
             identity_keypair,
             comm_channel,
             storage,
+            coin_indices_sigs_cache: Arc::new(CoinIndexSignatureCache::new()),
+            exp_date_sigs_cache: Arc::new(ExpirationDateSignatureCache::new()),
             freepass_nonce: Arc::new(RwLock::new(nonce)),
         }
     }
@@ -152,5 +168,95 @@ impl State {
         self.comm_channel
             .aggregated_verification_key(epoch_id)
             .await
+    }
+
+    pub async fn store_credential(
+        &self,
+        credential: &CredentialSpendingData,
+        gateway_addr: &AccountId,
+    ) -> Result<()> {
+        self.storage
+            .insert_credential(credential, gateway_addr)
+            .await
+            .map_err(|err| err.into())
+    }
+
+    pub async fn get_coin_indices_signatures(&self) -> Result<Vec<CoinIndexSignature>> {
+        let current_epoch = self.client.get_current_epoch().await?;
+        match self
+            .coin_indices_sigs_cache
+            .get_signatures(current_epoch.epoch_id)
+            .await
+        {
+            Some(signatures) => Ok(signatures),
+            None => {
+                let ecash_params = setup(constants::NB_TICKETS);
+                let verification_key = self.verification_key(current_epoch.epoch_id).await?;
+                let maybe_keypair_guard = self.coconut_keypair.get().await;
+                let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
+                    return Err(CoconutError::KeyPairNotDerivedYet);
+                };
+                let Some(signing_key) = keypair_guard.as_ref() else {
+                    return Err(CoconutError::KeyPairNotDerivedYet);
+                };
+                Ok(self
+                    .coin_indices_sigs_cache
+                    .refresh_signatures(
+                        current_epoch.epoch_id,
+                        &ecash_params,
+                        &verification_key,
+                        &signing_key.keys.secret_key(),
+                    )
+                    .await)
+            }
+        }
+    }
+
+    pub async fn get_exp_date_signatures(&self) -> Result<Vec<ExpirationDateSignature>> {
+        let current_epoch = self.client.get_current_epoch().await?;
+        let expiration_ts = cred_exp_date_timestamp();
+        match self
+            .exp_date_sigs_cache
+            .get_signatures(current_epoch.epoch_id, expiration_ts)
+            .await
+        {
+            Some(signatures) => Ok(signatures),
+            None => {
+                let maybe_keypair_guard = self.coconut_keypair.get().await;
+                let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
+                    return Err(CoconutError::KeyPairNotDerivedYet);
+                };
+                let Some(signing_key) = keypair_guard.as_ref() else {
+                    return Err(CoconutError::KeyPairNotDerivedYet);
+                };
+                Ok(self
+                    .exp_date_sigs_cache
+                    .refresh_signatures(
+                        current_epoch.epoch_id,
+                        expiration_ts,
+                        &signing_key.keys.secret_key(),
+                    )
+                    .await)
+            }
+        }
+    }
+
+    //this one gives the signatures for a particular day. No cache because it's only gonna be used for recovery attempt and freepasses
+    pub async fn get_exp_date_signatures_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<Vec<ExpirationDateSignature>> {
+        let maybe_keypair_guard = self.coconut_keypair.get().await;
+        let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
+            return Err(CoconutError::KeyPairNotDerivedYet);
+        };
+        let Some(signing_key) = keypair_guard.as_ref() else {
+            return Err(CoconutError::KeyPairNotDerivedYet);
+        };
+
+        Ok(sign_expiration_date(
+            &signing_key.keys.secret_key(),
+            timestamp,
+        ))
     }
 }

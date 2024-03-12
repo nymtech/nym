@@ -2,6 +2,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, info, trace};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::{bin_info, version_checker};
+use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_ip_packet_router::config::old_config_v1::ConfigV1;
@@ -10,6 +11,7 @@ use nym_ip_packet_router::error::IpPacketRouterError;
 use std::sync::OnceLock;
 
 mod build_info;
+mod import_credential;
 mod init;
 mod list_gateways;
 mod run;
@@ -60,6 +62,9 @@ pub(crate) enum Commands {
     /// Run the network requester with the provided configuration and optionally override
     /// parameters.
     Run(run::Run),
+
+    /// Import a pre-generated credential
+    ImportCredential(CommonClientImportCredentialArgs),
 
     /// List all registered with gateways
     ListGateways(list_gateways::Args),
@@ -116,6 +121,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
+        Commands::ImportCredential(m) => import_credential::execute(m).await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::Sign(m) => sign::execute(&m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),

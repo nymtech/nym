@@ -14,6 +14,7 @@ use log::{error, info, trace};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
+use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_config::OptionalSet;
@@ -76,7 +77,7 @@ pub(crate) enum Commands {
     Sign(sign::Sign),
 
     /// Import a pre-generated credential
-    ImportCredential(import_credential::Args),
+    ImportCredential(CommonClientImportCredentialArgs),
 
     /// List all registered with gateways
     ListGateways(list_gateways::Args),

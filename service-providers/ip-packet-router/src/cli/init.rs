@@ -1,4 +1,4 @@
-use crate::cli::{override_config, try_upgrade_config, OverrideConfig};
+use crate::cli::{override_config, CliIpPacketRouterClient, OverrideConfig};
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_init::{

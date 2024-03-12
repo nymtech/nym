@@ -13,6 +13,7 @@ use clap::{Parser, Subcommand};
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
@@ -74,7 +75,7 @@ pub(crate) enum Commands {
     Run(run::Run),
 
     /// Import a pre-generated credential
-    ImportCredential(import_credential::Args),
+    ImportCredential(CommonClientImportCredentialArgs),
 
     /// List all registered with gateways
     ListGateways(list_gateways::Args),

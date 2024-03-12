@@ -11,6 +11,7 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 base64 = "0.21.2"
+bs58 = { workspace = true }
 cfg-if = "1.0.0"
 clap = { workspace = true, optional = true }
 futures = { workspace = true }
@@ -30,6 +31,7 @@ time = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
+nym-id = { path = "../nym-id" }
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
 nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }

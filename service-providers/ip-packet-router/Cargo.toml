@@ -32,6 +32,7 @@ nym-tun = { path = "../../common/tun" }
 nym-types = { path = "../../common/types" }
 nym-wireguard = { path = "../../common/wireguard" }
 nym-wireguard-types = { path = "../../common/wireguard-types" }
+nym-id = { path = "../../common/nym-id" }
 rand = "0.8.5"
 reqwest.workspace = true
 serde = { workspace = true, features = ["derive"] }

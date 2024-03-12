@@ -6,8 +6,9 @@ use crate::rewarder::epoch::Epoch;
 use crate::rewarder::helpers::api_client;
 use crate::rewarder::nyxd_client::NyxdClient;
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use nym_coconut::{Base58, VerificationKey};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
+use nym_compact_ecash::Base58;
+use nym_compact_ecash::VerificationKeyAuth;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::{AccountId, Coin};
 use std::collections::{HashMap, HashSet};
@@ -341,7 +342,7 @@ pub struct CredentialIssuer {
     // pub public_key: identity::PublicKey,
     pub operator_account: AccountId,
     pub api_runner: String,
-    pub verification_key: VerificationKey,
+    pub verification_key: VerificationKeyAuth,
 }
 
 impl TryFrom<ContractVKShare> for CredentialIssuer {
@@ -351,12 +352,12 @@ impl TryFrom<ContractVKShare> for CredentialIssuer {
         Ok(CredentialIssuer {
             operator_account: addr_to_account_id(value.owner.clone()),
             api_runner: value.announce_address,
-            verification_key: VerificationKey::try_from_bs58(value.share).map_err(|source| {
-                NymRewarderError::MalformedPartialVerificationKey {
+            verification_key: VerificationKeyAuth::try_from_bs58(value.share).map_err(
+                |source| NymRewarderError::MalformedPartialVerificationKey {
                     runner: value.owner.to_string(),
                     source,
-                }
-            })?,
+                },
+            )?,
         })
     }
 }

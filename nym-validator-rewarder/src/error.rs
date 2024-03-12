@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::RewardingRatios;
-use nym_coconut::CoconutError;
+use nym_compact_ecash::error::CompactEcashError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::tx::ErrorReport;
@@ -112,14 +112,14 @@ pub enum NymRewarderError {
     MalformedCredentialCommitment {
         raw: String,
         #[source]
-        source: CoconutError,
+        source: CompactEcashError,
     },
 
     #[error("the partial verification key for runner {runner} is malformed: {source}")]
     MalformedPartialVerificationKey {
         runner: String,
         #[source]
-        source: CoconutError,
+        source: CompactEcashError,
     },
 
     #[error("could not verify the blinded credential")]

@@ -30,7 +30,7 @@ use crate::node::{
         active_clients::ActiveClientsStore,
         websocket::{
             connection_handler::{
-                coconut::CoconutVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
+                coconut::EcashVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
                 SocketStream,
             },
             message_receiver::{IsActive, IsActiveRequestSender},
@@ -90,11 +90,12 @@ pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
     local_identity: Arc<identity::KeyPair>,
     pub(crate) only_coconut_credentials: bool,
+    pub(crate) offline_credential_verification: bool,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
-    pub(crate) coconut_verifier: Arc<CoconutVerifier>,
+    pub(crate) ecash_verifier: Arc<EcashVerifier>,
 
     // currently unused (but populated)
     pub(crate) negotiated_protocol: Option<u8>,
@@ -114,21 +115,23 @@ where
         rng: R,
         conn: S,
         only_coconut_credentials: bool,
+        offline_credential_verification: bool,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        coconut_verifier: Arc<CoconutVerifier>,
+        ecash_verifier: Arc<EcashVerifier>,
     ) -> Self {
         FreshHandler {
             rng,
             active_clients_store,
             only_coconut_credentials,
+            offline_credential_verification,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
             storage,
-            coconut_verifier,
+            ecash_verifier,
             negotiated_protocol: None,
         }
     }

@@ -225,7 +225,8 @@ pub async fn verify_bandwidth_credential(
     let epoch_id = credential_data.epoch_id;
     let theta = &credential_data.verify_credential_request;
 
-    let voucher_value: u64 = if credential_data.typ.is_voucher() {
+    let voucher_value: u64 = if credential_data.typ.is_ticketbook() {
+        //SW NOTE : technically a voucher, but that's there only for backwards compatibility
         credential_data
             .get_bandwidth_attribute()
             .ok_or(CoconutError::MissingBandwidthValue)?
@@ -266,9 +267,11 @@ pub async fn verify_bandwidth_credential(
             status: format!("{:?}", credential_status),
         });
     }
-    let verification_key = state.verification_key(epoch_id).await?;
-    let params = bandwidth_credential_params();
-    let mut vote_yes = credential_data.verify(params, &verification_key);
+    let verification_key = to_coconut(&state.verification_key(epoch_id).await?)?;
+    //4 is legacy from old coconut credential
+    // safety: the unwrap is fine here as 4 is non-zero
+    let params = CoconutParameters::new(4).unwrap();
+    let mut vote_yes = credential_data.verify(&params, &verification_key);
 
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(voucher_value as u128, state.mix_denom.clone());
@@ -281,6 +284,106 @@ pub async fn verify_bandwidth_credential(
     accepted_vote_err(ret)?;
 
     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
+}
+
+#[post("/verify-online-credential", data = "<verify_credential_body>")]
+pub async fn verify_online_credential(
+    verify_credential_body: Json<OnlineVerifyCredentialBody>,
+    state: &RocketState<State>,
+) -> Result<Json<VerifyCredentialResponse>> {
+    let proposal_id = verify_credential_body.proposal_id;
+    let credential_data = &verify_credential_body.credential;
+    let epoch_id = credential_data.epoch_id;
+    let payment = &credential_data.payment;
+
+    let voucher_value: u64 = if credential_data.typ.is_ticketbook() {
+        credential_data.value
+    } else {
+        return Err(CoconutError::NotABandwidthVoucher {
+            typ: credential_data.typ,
+        });
+    };
+
+    // TODO: introduce a check to make sure we haven't already voted for this proposal to prevent DDOS
+
+    let proposal = state.client.get_proposal(proposal_id).await?;
+
+    // Proposal description is the blinded serial number
+    if !payment.has_serial_number(&proposal.description)? {
+        return Err(CoconutError::IncorrectProposal {
+            reason: String::from("incorrect blinded serial number in description"),
+        });
+    }
+    let proposed_release_funds =
+        funds_from_cosmos_msgs(proposal.msgs).ok_or(CoconutError::IncorrectProposal {
+            reason: String::from("action is not to release funds"),
+        })?;
+    // Credential has not been spent before, and is on its way of being spent
+    let credential_status = state
+        .client
+        .get_spent_credential(payment.serial_number_bs58())
+        .await?
+        .spend_credential
+        .ok_or(CoconutError::InvalidCredentialStatus {
+            status: String::from("Inexistent"),
+        })?
+        .status();
+    if credential_status != SpendCredentialStatus::InProgress {
+        return Err(CoconutError::InvalidCredentialStatus {
+            status: format!("{:?}", credential_status),
+        });
+    }
+
+    let verification_key = state.verification_key(epoch_id).await?;
+    let params = bandwidth_credential_params();
+    let mut vote_yes = credential_data
+        .verify(params, &verification_key, today_timestamp())
+        .map_err(|_| {
+            CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
+        })?;
+
+    vote_yes &= Coin::from(proposed_release_funds)
+        == Coin::new(voucher_value as u128, state.mix_denom.clone());
+
+    // Vote yes or no on the proposal based on the verification result
+    let ret = state
+        .client
+        .vote_proposal(proposal_id, vote_yes, None)
+        .await;
+    accepted_vote_err(ret)?;
+
+    Ok(Json(VerifyCredentialResponse::new(vote_yes)))
+}
+
+#[post("/verify-offline-credential", data = "<verify_credential_body>")]
+pub async fn verify_offline_credential(
+    verify_credential_body: Json<OfflineVerifyCredentialBody>,
+    state: &RocketState<State>,
+) -> Result<Json<VerifyCredentialResponse>> {
+    let credential_data = &verify_credential_body.credential;
+    let epoch_id = credential_data.epoch_id;
+
+    let verification_key = state.verification_key(epoch_id).await?;
+    let params = bandwidth_credential_params();
+
+    if credential_data
+        .verify(params, &verification_key, today_timestamp())
+        .is_err()
+    {
+        return Err(CoconutError::CompactEcashInternalError(
+            CompactEcashError::PaymentVerification,
+        ));
+    }
+
+    //store credential
+    state
+        .store_credential(
+            &verify_credential_body.credential,
+            &verify_credential_body.gateway_cosmos_addr,
+        )
+        .await?;
+
+    Ok(Json(VerifyCredentialResponse::new(true)))
 }
 
 #[get("/epoch-credentials/<epoch>")]

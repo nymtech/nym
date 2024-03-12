@@ -56,6 +56,8 @@ where
                 api_routes::post_free_pass,
                 api_routes::post_blind_sign,
                 api_routes::verify_bandwidth_credential,
+                api_routes::verify_online_credential,
+                api_routes::verify_offline_credential,
                 api_routes::expiration_date_signatures,
                 api_routes::expiration_date_signatures_timestamp,
                 api_routes::coin_indices_signatures,

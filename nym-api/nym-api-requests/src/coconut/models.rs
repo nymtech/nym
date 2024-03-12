@@ -16,7 +16,7 @@ use tendermint::hash::Hash;
 #[derive(Serialize, Deserialize)]
 pub struct VerifyCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
-    pub credential_data: CredentialSpendingData,
+    pub credential_data: OldCredentialSpendingData,
 
     /// Multisig proposal for releasing funds for the provided bandwidth credential
     pub proposal_id: u64,
@@ -27,12 +27,57 @@ pub struct VerifyCredentialBody {
 
 impl VerifyCredentialBody {
     pub fn new(
-        credential_data: CredentialSpendingData,
+        credential_data: OldCredentialSpendingData,
         proposal_id: u64,
         gateway_cosmos_addr: AccountId,
     ) -> VerifyCredentialBody {
         VerifyCredentialBody {
             credential_data,
+            proposal_id,
+            gateway_cosmos_addr,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct OfflineVerifyCredentialBody {
+    pub credential: CredentialSpendingData,
+
+    pub gateway_cosmos_addr: AccountId,
+}
+
+impl OfflineVerifyCredentialBody {
+    pub fn new(
+        credential: CredentialSpendingData,
+        gateway_cosmos_addr: AccountId,
+    ) -> OfflineVerifyCredentialBody {
+        OfflineVerifyCredentialBody {
+            credential,
+            gateway_cosmos_addr,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OnlineVerifyCredentialBody {
+    /// The cryptographic material required for spending the underlying credential.
+    pub credential: CredentialSpendingData,
+
+    /// Multisig proposal for releasing funds for the provided bandwidth credential
+    pub proposal_id: u64,
+
+    /// Cosmos address of the spender of the credential
+    pub gateway_cosmos_addr: AccountId,
+}
+
+impl OnlineVerifyCredentialBody {
+    pub fn new(
+        credential: CredentialSpendingData,
+        proposal_id: u64,
+        gateway_cosmos_addr: AccountId,
+    ) -> OnlineVerifyCredentialBody {
+        OnlineVerifyCredentialBody {
+            credential,
             proposal_id,
             gateway_cosmos_addr,
         }

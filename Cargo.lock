@@ -5854,6 +5854,7 @@ dependencies = [
  "futures",
  "generic-array 0.14.7",
  "log",
+ "nym-compact-ecash",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",

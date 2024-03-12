@@ -463,8 +463,11 @@ pub const ETH_ERC20_APPROVE_FUNCTION_NAME: &str = "approve";
 /// How much bandwidth (in bytes) one token can buy
 pub const BYTES_PER_UTOKEN: u64 = 1024;
 
+/// How much bandwidth (in bytes) one ticket can buy
+pub const TICKET_BANDWIDTH_VALUE: u64 = 100 * 1024 * 1024; // 100 MB
+
 /// How much bandwidth (in bytes) one freepass provides
-pub const BYTES_PER_FREEPASS: u64 = 1024 * 1024 * 1024; // 1GB
+pub const BYTES_PER_FREEPASS: u64 = 10 * 1024 * 1024; // 10 MB
 
 /// Threshold for claiming more bandwidth: 1 MB
 pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;

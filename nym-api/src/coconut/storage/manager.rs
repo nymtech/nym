@@ -97,7 +97,7 @@ pub trait CoconutStorageManagerExt {
         bs58_partial_credential: String,
         bs58_signature: String,
         joined_private_commitments: String,
-        joined_public_attributes: String,
+        expiration_date: i64,
     ) -> Result<i64, sqlx::Error>;
 
     /// Attempts to retrieve issued credentials from the data store using provided ids.    
@@ -287,7 +287,7 @@ impl CoconutStorageManagerExt for StorageManager {
         sqlx::query_as!(
             IssuedCredential,
             r#"
-                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, joined_public_attributes
+                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, expiration_date as "expiration_date: i64"
                 FROM issued_credential
                 WHERE id = ?
             "#,
@@ -309,7 +309,7 @@ impl CoconutStorageManagerExt for StorageManager {
         sqlx::query_as!(
             IssuedCredential,
             r#"
-                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, joined_public_attributes
+                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, expiration_date as "expiration_date: i64"
                 FROM issued_credential
                 WHERE tx_hash = ?
             "#,
@@ -331,16 +331,16 @@ impl CoconutStorageManagerExt for StorageManager {
         bs58_partial_credential: String,
         bs58_signature: String,
         joined_private_commitments: String,
-        joined_public_attributes: String,
+        expiration_date: i64,
     ) -> Result<i64, sqlx::Error> {
         let row_id = sqlx::query!(
             r#"
                 INSERT INTO issued_credential
-                (epoch_id, tx_hash, bs58_partial_credential, bs58_signature, joined_private_commitments, joined_public_attributes)
+                (epoch_id, tx_hash, bs58_partial_credential, bs58_signature, joined_private_commitments, expiration_date)
                 VALUES
                 (?, ?, ?, ?, ?, ?)
             "#,
-            epoch_id, tx_hash, bs58_partial_credential, bs58_signature, joined_private_commitments, joined_public_attributes
+            epoch_id, tx_hash, bs58_partial_credential, bs58_signature, joined_private_commitments, expiration_date
         ).execute(&self.connection_pool).await?.last_insert_rowid();
 
         Ok(row_id)
@@ -381,7 +381,7 @@ impl CoconutStorageManagerExt for StorageManager {
         sqlx::query_as!(
             IssuedCredential,
             r#"
-                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, joined_public_attributes
+                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, expiration_date as "expiration_date: i64"
                 FROM issued_credential
                 WHERE id > ?
                 ORDER BY id

@@ -11,17 +11,8 @@ use nym_ip_packet_router::{
 use serde::Serialize;
 use std::{fmt::Display, fs, path::PathBuf};
 
-struct IpPacketRouterInit;
-
-impl InitialisableClient for IpPacketRouterInit {
-    const NAME: &'static str = "ip packet router";
-    type Error = IpPacketRouterError;
+impl InitialisableClient for CliIpPacketRouterClient {
     type InitArgs = Init;
-    type Config = Config;
-
-    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
-        try_upgrade_config(id).await
-    }
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error> {
         fs::create_dir_all(default_data_directory(id))?;
@@ -97,7 +88,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), IpPacketRouterError> {
     eprintln!("Initialising client...");
 
     let output = args.output;
-    let res = initialise_client::<IpPacketRouterInit>(args).await?;
+    let res = initialise_client::<CliIpPacketRouterClient>(args).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

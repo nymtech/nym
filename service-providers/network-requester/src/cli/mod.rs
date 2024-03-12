@@ -14,6 +14,7 @@ use log::{error, info, trace};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
+use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_config::OptionalSet;
 use std::sync::OnceLock;
@@ -23,6 +24,18 @@ mod import_credential;
 mod init;
 mod run;
 mod sign;
+
+pub(crate) struct CliNetworkRequesterClient;
+
+impl CliClient for CliNetworkRequesterClient {
+    const NAME: &'static str = "network requester";
+    type Error = NetworkRequesterError;
+    type Config = Config;
+
+    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
+        try_upgrade_config(id).await
+    }
+}
 
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();

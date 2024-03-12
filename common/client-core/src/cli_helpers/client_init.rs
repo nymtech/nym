@@ -1,7 +1,7 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::disk_persistence::CommonClientPaths;
+use crate::cli_helpers::traits::{CliClient, CliClientConfig};
 use crate::error::ClientCoreError;
 use crate::{
     client::{
@@ -18,33 +18,18 @@ use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::identity;
 use nym_topology::NymTopology;
 use rand::rngs::OsRng;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // we can suppress this warning (as suggested by linter itself) since we're only using it in our own code
 #[allow(async_fn_in_trait)]
-pub trait InitialisableClient {
-    const NAME: &'static str;
-    type Error: From<ClientCoreError>;
+pub trait InitialisableClient: CliClient {
     type InitArgs: AsRef<CommonClientInitArgs>;
-    type Config: ClientConfig;
-
-    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error>;
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error>;
 
     fn default_config_path(id: &str) -> PathBuf;
 
     fn construct_config(init_args: &Self::InitArgs) -> Self::Config;
-}
-
-pub trait ClientConfig {
-    fn common_paths(&self) -> &CommonClientPaths;
-
-    fn core_config(&self) -> &crate::config::Config;
-
-    fn default_store_location(&self) -> PathBuf;
-
-    fn save_to<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()>;
 }
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
@@ -125,7 +110,7 @@ pub async fn initialise_client<C>(
 ) -> Result<InitResultsWithConfig<C::Config>, C::Error>
 where
     C: InitialisableClient,
-    <C as InitialisableClient>::Config: std::fmt::Debug,
+    <C as CliClient>::Config: std::fmt::Debug,
     <C as InitialisableClient>::InitArgs: std::fmt::Debug,
 {
     info!("initialising {} client", C::NAME);

@@ -4,7 +4,7 @@
 use crate::client::config::persistence::ClientPaths;
 use crate::client::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::cli_helpers::client_init::ClientConfig;
+use nym_client_core::cli_helpers::CliClientConfig;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::{
@@ -75,7 +75,7 @@ impl NymConfigTemplate for Config {
     }
 }
 
-impl ClientConfig for Config {
+impl CliClientConfig for Config {
     fn common_paths(&self) -> &CommonClientPaths {
         &self.storage_paths.common_paths
     }

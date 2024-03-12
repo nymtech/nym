@@ -13,6 +13,7 @@ use clap::{Parser, Subcommand};
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_client_core::config::{GroupBy, TopologyStructure};
@@ -26,6 +27,18 @@ pub(crate) mod build_info;
 mod import_credential;
 pub mod init;
 pub(crate) mod run;
+
+pub(crate) struct CliSocks5Client;
+
+impl CliClient for CliSocks5Client {
+    const NAME: &'static str = "socks5";
+    type Error = Socks5ClientError;
+    type Config = Config;
+
+    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
+        try_upgrade_config(id).await
+    }
+}
 
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();

@@ -4,7 +4,7 @@
 use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::cli_helpers::client_init::ClientConfig;
+use nym_client_core::cli_helpers::CliClientConfig;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
@@ -85,7 +85,7 @@ impl NymConfigTemplate for Config {
     }
 }
 
-impl ClientConfig for Config {
+impl CliClientConfig for Config {
     fn common_paths(&self) -> &CommonClientPaths {
         &self.storage_paths.common_paths
     }

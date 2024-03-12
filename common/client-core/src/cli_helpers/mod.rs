@@ -3,3 +3,7 @@
 
 pub mod client_init;
 pub mod client_run;
+pub mod traits;
+
+pub use client_init::InitialisableClient;
+pub use traits::{CliClient, CliClientConfig};

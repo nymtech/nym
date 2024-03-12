@@ -12,6 +12,7 @@ use clap::{Parser, Subcommand};
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_config::OptionalSet;
 use std::error::Error;
@@ -22,6 +23,18 @@ pub(crate) mod build_info;
 pub(crate) mod import_credential;
 pub(crate) mod init;
 pub(crate) mod run;
+
+pub(crate) struct CliNativeClient;
+
+impl CliClient for CliNativeClient {
+    const NAME: &'static str = "native";
+    type Error = ClientError;
+    type Config = Config;
+
+    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
+        try_upgrade_config(id).await
+    }
+}
 
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();

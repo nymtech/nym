@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::try_upgrade_config;
+use crate::commands::CliSocks5Client;
 use crate::config::{
     default_config_directory, default_config_filepath, default_data_directory, Config,
 };
@@ -21,17 +21,8 @@ use std::fs;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 
-struct Socks5ClientInit;
-
-impl InitialisableClient for Socks5ClientInit {
-    const NAME: &'static str = "socks5";
-    type Error = Socks5ClientError;
+impl InitialisableClient for CliSocks5Client {
     type InitArgs = Init;
-    type Config = Config;
-
-    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
-        try_upgrade_config(id).await
-    }
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error> {
         fs::create_dir_all(default_data_directory(id))?;
@@ -139,7 +130,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), Socks5ClientError> {
     eprintln!("Initialising client...");
 
     let output = args.output;
-    let res = initialise_client::<Socks5ClientInit>(args).await?;
+    let res = initialise_client::<CliSocks5Client>(args).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

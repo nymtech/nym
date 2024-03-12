@@ -1,11 +1,11 @@
-use crate::config::{BaseClientConfig, Config};
-use crate::error::IpPacketRouterError;
 use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, info, trace};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::{bin_info, version_checker};
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_ip_packet_router::config::old_config_v1::ConfigV1;
+use nym_ip_packet_router::config::{BaseClientConfig, Config};
+use nym_ip_packet_router::error::IpPacketRouterError;
 use std::sync::OnceLock;
 
 mod build_info;

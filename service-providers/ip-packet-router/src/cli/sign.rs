@@ -1,10 +1,10 @@
 use crate::cli::{try_load_current_config, version_check};
-use crate::error::IpPacketRouterError;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::error::ClientCoreError;
 use nym_crypto::asymmetric::identity;
+use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_types::helpers::ConsoleSigningOutput;
 
 #[derive(Args, Clone)]

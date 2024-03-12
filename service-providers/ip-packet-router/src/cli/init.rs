@@ -1,17 +1,15 @@
-use std::{fmt::Display, fs, path::PathBuf};
-
+use crate::cli::{override_config, try_upgrade_config, OverrideConfig};
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_init::{
     initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
 };
-use serde::Serialize;
-
-use crate::{
-    cli::{override_config, try_upgrade_config, OverrideConfig},
+use nym_ip_packet_router::{
     config::{default_config_directory, default_config_filepath, default_data_directory, Config},
     error::IpPacketRouterError,
 };
+use serde::Serialize;
+use std::{fmt::Display, fs, path::PathBuf};
 
 struct IpPacketRouterInit;
 

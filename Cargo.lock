@@ -5765,6 +5765,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "bs58 0.5.0",
+ "chrono",
  "clap 4.4.7",
  "colored",
  "dashmap",

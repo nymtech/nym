@@ -28,6 +28,21 @@ pub trait Storage: Send + Sync {
     /// * `id`: Id of the credential to be consumed.
     async fn consume_coconut_credential(&self, id: i64) -> Result<(), Self::StorageError>;
 
+    /// Update in the database the specified credential.
+    ///
+    /// # Arguments
+    ///
+    /// * `bandwidth_credential` : New credential
+    /// * `id`: Id of the credential to be updated.
+    /// * `consumed`: if the credential is consumed or not
+    ///
+    async fn update_issued_credential<'a>(
+        &self,
+        bandwidth_credential: StorableIssuedCredential<'a>,
+        id: i64,
+        consumed: bool,
+    ) -> Result<(), Self::StorageError>;
+
     /// Inserts provided coin_indices_signatures into the database.
     ///
     /// # Arguments

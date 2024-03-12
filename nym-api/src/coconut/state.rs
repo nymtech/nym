@@ -104,7 +104,7 @@ impl State {
             request_body.tx_hash,
             blinded_signature,
             &encoded_commitments,
-            &request_body.public_attributes_plain,
+            request_body.expiration_date.try_into().unwrap(), //will fail in approx 290 billion years
         );
 
         let signature = self.identity_keypair.private_key().sign(plaintext);
@@ -120,7 +120,7 @@ impl State {
                 blinded_signature,
                 signature,
                 encoded_commitments,
-                request_body.public_attributes_plain,
+                request_body.expiration_date.try_into().unwrap(), //will fail in approx 290 billion years
             )
             .await?;
 
@@ -148,7 +148,7 @@ impl State {
         Ok(())
     }
 
-    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
+    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth> {
         self.comm_channel
             .aggregated_verification_key(epoch_id)
             .await

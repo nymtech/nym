@@ -4,8 +4,9 @@
 use crate::coconut::helpers::issued_credential_plaintext;
 use cosmrs::AccountId;
 use nym_credentials_interface::{
-    hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, Bytable, CoconutError,
-    CredentialSpendingData, VerificationKey,
+    BlindedSignature, CompactEcashError, CredentialSpendingData, OldCredentialSpendingData,
+    PartialCoinIndexSignature, PartialExpirationDateSignature, PublicKeyUser, VerificationKeyAuth,
+    WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
@@ -54,7 +55,7 @@ impl VerifyCredentialResponse {
 //  All strings are base58 encoded representations of structs
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BlindSignRequestBody {
-    pub inner_sign_request: BlindSignRequest,
+    pub inner_sign_request: WithdrawalRequest,
 
     /// Hash of the deposit transaction
     pub tx_hash: Hash,
@@ -62,41 +63,33 @@ pub struct BlindSignRequestBody {
     /// Signature on the inner sign request and the tx hash
     pub signature: identity::Signature,
 
-    pub public_attributes_plain: Vec<String>,
+    pub ecash_pubkey: PublicKeyUser,
+
+    pub expiration_date: u64,
 }
 
 impl BlindSignRequestBody {
     pub fn new(
-        inner_sign_request: BlindSignRequest,
+        inner_sign_request: WithdrawalRequest,
         tx_hash: Hash,
         signature: identity::Signature,
-        public_attributes_plain: Vec<String>,
+        ecash_pubkey: PublicKeyUser,
+        expiration_date: u64,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
             inner_sign_request,
             tx_hash,
             signature,
-            public_attributes_plain,
+            ecash_pubkey,
+            expiration_date,
         }
     }
 
-    pub fn attributes(&self) -> u32 {
-        (self.public_attributes_plain.len() + self.inner_sign_request.num_private_attributes())
-            as u32
-    }
-
-    pub fn public_attributes_hashed(&self) -> Vec<Attribute> {
-        self.public_attributes_plain
-            .iter()
-            .map(hash_to_scalar)
-            .collect()
-    }
-
     pub fn encode_commitments(&self) -> Vec<String> {
-        use nym_credentials_interface::Base58;
+        use nym_compact_ecash::Base58;
 
         self.inner_sign_request
-            .get_private_attributes_pedersen_commitments()
+            .get_private_attributes_commitments()
             .iter()
             .map(|c| c.to_bs58())
             .collect()
@@ -122,16 +115,16 @@ impl BlindedSignatureResponse {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CoconutError> {
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CompactEcashError> {
         let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.blinded_signature.to_byte_vec()
+        self.blinded_signature.to_bytes().to_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CompactEcashError> {
         Ok(BlindedSignatureResponse {
             blinded_signature: BlindedSignature::from_bytes(bytes)?,
         })
@@ -187,11 +180,11 @@ impl FreePassRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct VerificationKeyResponse {
-    pub key: VerificationKey,
+    pub key: VerificationKeyAuth,
 }
 
 impl VerificationKeyResponse {
-    pub fn new(key: VerificationKey) -> VerificationKeyResponse {
+    pub fn new(key: VerificationKeyAuth) -> VerificationKeyResponse {
         VerificationKeyResponse { key }
     }
 }
@@ -204,6 +197,32 @@ pub struct CosmosAddressResponse {
 impl CosmosAddressResponse {
     pub fn new(addr: AccountId) -> CosmosAddressResponse {
         CosmosAddressResponse { addr }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PartialExpirationDateSignatureResponse {
+    pub signs: Vec<PartialExpirationDateSignature>,
+}
+
+impl PartialExpirationDateSignatureResponse {
+    pub fn new(signs: &[PartialExpirationDateSignature]) -> PartialExpirationDateSignatureResponse {
+        PartialExpirationDateSignatureResponse {
+            signs: signs.to_owned(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PartialCoinIndicesSignatureResponse {
+    pub signs: Vec<PartialCoinIndexSignature>,
+}
+
+impl PartialCoinIndicesSignatureResponse {
+    pub fn new(signs: &[PartialCoinIndexSignature]) -> PartialCoinIndicesSignatureResponse {
+        PartialCoinIndicesSignatureResponse {
+            signs: signs.to_owned(),
+        }
     }
 }
 

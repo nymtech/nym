@@ -6,5 +6,6 @@ pub mod models;
 
 pub use models::{
     BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody, FreePassRequest,
-    VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    OfflineVerifyCredentialBody, OnlineVerifyCredentialBody, PartialCoinIndicesSignatureResponse,
+    PartialExpirationDateSignatureResponse, VerificationKeyResponse, VerifyCredentialResponse,
 };

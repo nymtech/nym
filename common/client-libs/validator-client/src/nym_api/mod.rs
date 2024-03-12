@@ -11,7 +11,9 @@ pub use nym_api_requests::{
             IssuedCredentialResponse, IssuedCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
+        OfflineVerifyCredentialBody, OnlineVerifyCredentialBody,
         PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
+        VerifyCredentialResponse,
     },
     models::{
         ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -31,7 +33,7 @@ use nym_service_provider_directory_common::response::ServicesListResponse;
 pub mod error;
 pub mod routes;
 
-use nym_api_requests::coconut::models::FreePassNonceResponse;
+use nym_api_requests::coconut::models::{FreePassNonceResponse, VerifyCredentialBody};
 use nym_api_requests::coconut::FreePassRequest;
 pub use nym_http_api_client::Client;
 
@@ -432,6 +434,40 @@ pub trait NymApiClientExt: ApiClient {
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
                 routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    async fn verify_offline_credential(
+        &self,
+        request_body: &OfflineVerifyCredentialBody,
+    ) -> Result<VerifyCredentialResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::ECASH_VERIFY_OFFLINE_CREDENTIAL,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    async fn verify_online_credential(
+        &self,
+        request_body: &OnlineVerifyCredentialBody,
+    ) -> Result<VerifyCredentialResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::ECASH_VERIFY_ONLINE_CREDENTIAL,
             ],
             NO_PARAMS,
             request_body,

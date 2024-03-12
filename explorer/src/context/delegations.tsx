@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { Delegation, PendingEpochEvent, PendingEpochEventKind } from '@nymproject/contract-clients/Mixnet.types';
 import { ExecuteResult } from '@cosmjs/cosmwasm-stargate';
-import { Delegation, PendingEpochEventKind } from '@nymproject/contract-clients/Mixnet.types';
 import { useWalletContext } from './wallet';
 import { useMainContext } from './main';
 
@@ -70,7 +70,7 @@ export const DelegationsProvider = ({ children }: { children: React.ReactNode })
     const response = await nymQueryClient.getPendingEpochEvents({});
     const pendingEvents: PendingEvent[] = [];
 
-    response.events.forEach((e) => {
+    response.events.forEach((e: PendingEpochEvent) => {
       const event = getEventsByAddress(e.event.kind, address);
       if (event) {
         pendingEvents.push(event);
@@ -113,7 +113,7 @@ export const DelegationsProvider = ({ children }: { children: React.ReactNode })
 
     // Get rewards for each delegation
     const rewardsResponse = await Promise.all(
-      delegationsResponse.delegations.map((d) => handleGetDelegationRewards(d.mix_id)),
+      delegationsResponse.delegations.map((d: Delegation) => handleGetDelegationRewards(d.mix_id)),
     );
 
     // Get all pending events
@@ -122,10 +122,10 @@ export const DelegationsProvider = ({ children }: { children: React.ReactNode })
     const delegationsWithRewards: DelegationWithRewards[] = [];
 
     // Merge delegations with rewards and pending events
-    delegationsResponse.delegations.forEach((d, index) => {
+    delegationsResponse.delegations.forEach((d: Delegation, index: number) => {
       delegationsWithRewards.push({
         ...d,
-        pending: pendingEvents?.find((e) => (e?.mixId === d.mix_id ? e.kind : undefined)),
+        pending: pendingEvents?.find((e: PendingEvent) => (e?.mixId === d.mix_id ? e.kind : undefined)),
         identityKey: mixnodes?.find((m) => m.mix_id === d.mix_id)?.mix_node.identity_key || '',
         rewards: rewardsResponse[index]?.amount_earned_detailed || '0',
       });
@@ -133,7 +133,7 @@ export const DelegationsProvider = ({ children }: { children: React.ReactNode })
 
     // Add pending events that are not in the delegations list
     pendingEvents?.forEach((e) => {
-      if (e && !delegationsWithRewards.find((d) => d.mix_id === e.mixId)) {
+      if (e && !delegationsWithRewards.find((d: DelegationWithRewards) => d.mix_id === e.mixId)) {
         delegationsWithRewards.push({
           mix_id: e.mixId,
           height: 0,
@@ -165,7 +165,7 @@ export const DelegationsProvider = ({ children }: { children: React.ReactNode })
     try {
       const tx = await nymClient?.delegateToMixnode({ mixId }, fee, 'Delegation from Nym Explorer', uNymFunds);
 
-      return tx;
+      return tx as unknown as ExecuteResult;
     } catch (e) {
       console.error('Failed to delegate to mixnode', e);
       throw e;
@@ -175,7 +175,7 @@ export const DelegationsProvider = ({ children }: { children: React.ReactNode })
   const handleUndelegate = async (mixId: number) => {
     const tx = await nymClient?.undelegateFromMixnode({ mixId }, fee);
 
-    return tx;
+    return tx as unknown as ExecuteResult;
   };
 
   const contextValue: DelegationsState = useMemo(

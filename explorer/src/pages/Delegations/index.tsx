@@ -179,7 +179,9 @@ const DelegationsPage = () => {
           {...confirmationModalProps}
           open={Boolean(confirmationModalProps)}
           onClose={async () => {
-            await handleGetDelegations();
+            if (confirmationModalProps.status === 'success') {
+              await handleGetDelegations();
+            }
             setConfirmationModalProps(undefined);
           }}
         />

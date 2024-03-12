@@ -17,21 +17,21 @@ mkdir -p "$HOME/nym-vpn-latest"
 ```
 -->
 
-1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for your version of MacOS
+1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for your version of MacOS
 
-2. Recommended (skip this point if you don't want to verify): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+2. Recommended (skip this point if you don't want to verify): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-# echo "da4c0bf8e8b52658312d341fa3581954cfcb6efd516d9a448c76d042a454b5df  nym-vpn-desktop_0.0.3_macos_x86_64.zip" | shasum -a 256 -c
+# echo "da4c0bf8e8b52658312d341fa3581954cfcb6efd516d9a448c76d042a454b5df  nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_macos_x86_64.zip" | shasum -a 256 -c
 ```
 
 3. Extract the downloaded file manually or by a command:
 ```sh
-tar -xvf <BINARY>
+tar -xvf <BINARY>.tar.gz
 # for example
-# tar -xvf nym-vpn-desktop_0.0.4_macos_aarch64.tar.gz
+# tar -xvf nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_macos_aarch64.tar.gz
 ```
 <!-- seems redundant
 5. Move to the application content directory:
@@ -71,7 +71,7 @@ env_config_file = "sandbox.env"
 ```
 Alternatively do it by using this command:
 ```sh
-echo "env_config_file = sandbox.env" > /Applications/nym-vpn.app/Contents/MacOS//config.toml
+echo "env_config_file = sandbox.env" > /Applications/nym-vpn.app/Contents/MacOS/config.toml
 ```
 ## Run NymVPN
 

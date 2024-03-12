@@ -12,33 +12,35 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 
 ### Installation
 
-1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for Debian based Linux
-2. Required (if you don't want to check shasum, skip this point): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for Debian based Linux
+
+2. Required (if you don't want to check shasum, skip this point): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-# echo "a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_0.0.3_ubuntu-22.04_x86_64.zip" | shasum -a 256 -c
+# echo "a5f91f20d587975e30b6a75d3a9e195234cf1269eac278139a5b9c39b039e807  nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_ubuntu-22.04_x86_64.tar.gz" | shasum -a 256 -c
 ```
+
 3. Extract files:
 ```sh
-tar -xvf <BINARY>
+tar -xvf <BINARY>.tar.gz
 # for example
-# tar -xvf nym-vpn-desktop_0.0.4_ubuntu-22.04_x86_64.tar.gz
+# tar -xvf nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_ubuntu-22.04_x86_64.tar.gz
 ```
 
 4. If you prefer to run `.AppImage` make executable by running:
 ```sh
 # make sure you cd into the right sub-directory after extraction
-chmod u+x ./appimage/nym-vpn_0.0.4_amd64.AppImage
+chmod u+x ./nym-vpn_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_amd64.AppImage
 ```
+
 5. If you prefer to use the `.deb` version for installation (works on Debian based Linux only), open terminal in the same directory and run:
 ```sh
-cd deb
-
-sudo dpkg -i ./nym-vpn_0.0.4_amd64.deb
+# make sure you cd into the right sub-directory after extraction
+sudo dpkg -i ./nym-vpn_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_amd64.deb
 # or
-sudo apt-get install -f ./nym-vpn_0.0.4_amd64.deb
+sudo apt-get install -f ./nym-vpn_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_amd64.deb
 ```
 
 NymVPN alpha version runs over Nym testnet (called sandbox), a little extra configuration is needed for the application to work.
@@ -72,7 +74,7 @@ Open terminal and run:
 
 ```sh
 # .AppImage must be run from the same directory as the binary
-sudo -E ./nym-vpn_0.0.4_amd64.AppImage
+sudo -E ./nym-vpn_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_amd64.AppImage
 
 # .deb installation shall be executable from anywhere as
 sudo -E nym-vpn

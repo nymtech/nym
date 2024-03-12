@@ -650,7 +650,9 @@ where
 
         // TODO: more graceful handling here, surely both variants should work... I think?
         if let TaskHandle::Internal(task_manager) = &mut started_client.task_handle {
-            task_manager.start_status_listener(socks5_status_tx).await;
+            task_manager
+                .start_status_listener(socks5_status_tx, TaskStatus::Ready)
+                .await;
             match socks5_status_rx
                 .next()
                 .await
@@ -660,6 +662,9 @@ where
             {
                 TaskStatus::Ready => {
                     log::debug!("Socks5 connected");
+                }
+                TaskStatus::ReadyWithGateway(gateway) => {
+                    log::debug!("Socks5 connected to {gateway}");
                 }
             }
         } else {

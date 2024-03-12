@@ -5,10 +5,9 @@ Our alpha testing round is done with participants at live workshop events. This 
 
 **If you commit to test NymVPN alpha, please start with the [user research form]({{nym_vpn_form_url}}) where all the steps will be provided**. If you disagree with any of the conditions listed, please leave this page.
 ```
-
-NymVPN CLI is a fundamental way to run the client for different purposes, currently it is a must for users who want to run the [testing scripts](testing.md).
-
 Follow the simple [automated script](#automated-script-for-cli-installation) below to install and run NymVPN CLI. If you prefer to do a manual setup follow the steps in the guide for [Linux](cli-linux.md) or [MacOS](cli-mac.md).
+
+Visit NymVPN alpha latest [release page]({{nym_vpn_releases}}) to check sha sums or download the binaries directly.
 
 ## Automated Script for CLI Installation
 
@@ -16,22 +15,12 @@ We wrote a [script](https://gist.github.com/serinko/d65450653d6bbafacbcee71c9cb8
 
 1. Open a terminal window in a directory where you want the script and NymVPN CLI binary be downloaded and run
 ```sh
-curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/serinko/d65450653d6bbafacbcee71c9cb8fb31/raw/0cbcdd18f7ee94f559692b936061248ebbbf2773/execute-nym-vpn-cli-binary.sh
+curl -o execute-nym-vpn-cli-binary.sh -L https://gist.githubusercontent.com/serinko/d65450653d6bbafacbcee71c9cb8fb31/raw/4b70371fb000fd08910c0f778e78566d002e1319/execute-nym-vpn-cli-binary.sh && chmod u+x execute-nym-vpn-cli-binary.sh && sudo -E ./execute-nym-vpn-cli-binary.sh
 ```
 
-2. Make the script executable
-```sh
-chmod u+x execute-nym-vpn-cli-binary.sh
-```
+2. Follow the prompts in the program
 
-3. Start the script, turn off any VPN and run
-```sh
-sudo -E ./execute-nym-vpn-cli-binary.sh
-```
-
-4. Follow the prompts in the program
-
-5. The script will automatically start the client. Make sure to **turn off any other VPNs** and follow the prompts:
+3. The script will automatically start the client. Make sure to **turn off any other VPNs** and follow the prompts:
 
 * It prints a JSON view of existing Gateways and prompt you to:
     - *Make sure to use two different Gateways for entry and exit!*

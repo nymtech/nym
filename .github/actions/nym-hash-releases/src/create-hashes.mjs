@@ -142,7 +142,7 @@ export async function createHashes({ assets, algorithm, filename, cache }) {
     return output;
 }
 
-export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algorithm = 'sha256', filename = 'hashes.json', cache = false, upload = true }) {
+export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algorithm = 'sha256', filename = 'hashes.json', cache = false, upload = true, owner = 'nymtech', repo = 'nym' }) {
     console.log("🚀🚀🚀 Getting releases");
 
     let auth;
@@ -157,8 +157,6 @@ export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrI
         auth: process.env.GITHUB_TOKEN,
         request: { fetch }
     });
-    const owner = "nymtech";
-    const repo = "nym";
 
     let releases;
     if(cache) {
@@ -212,7 +210,13 @@ export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrI
 
     releasesToProcess.forEach(release => {
         const {tag_name, name} = release;
-        const tagComponents = tag_name.split('-v');
+        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+\.\S+)/);
+
+        if(!matches || matches.length < 2) {
+            return;
+        }
+
+        const tagComponents = matches.slice(1);
         const componentName = tagComponents[0];
         const componentVersion = 'v' + tagComponents[1];
 

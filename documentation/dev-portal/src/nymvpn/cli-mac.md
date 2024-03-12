@@ -8,19 +8,19 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for MacOS
-2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_latest_binary_url}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for MacOS
+2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-# echo "96623ccc69bc4cc0e4e3e18528b6dae6be69f645d0a592d926a3158ce2d0c269  nym-vpn-cli_0.1.0_macos_x86_64.zip" | shasum -a 256 -c
+# echo "96623ccc69bc4cc0e4e3e18528b6dae6be69f645d0a592d926a3158ce2d0c269  nym-vpn-cli_<!-- cmdrun scripts/nym_vpn_cli_version.sh -->_macos_x86_64.zip" | shasum -a 256 -c
 ```
 3. Extract files:
 ```sh
 tar -xvf <BINARY>
 # for example
-# tar -xvf nym-vpn-cli_0.0.2_macos_aarch64.tar.gz
+# tar -xvf nym-vpn-cli_<!-- cmdrun scripts/nym_vpn_cli_version.sh -->_macos_aarch64.tar.gz
 ```
 4. Make executable by running:
 ```sh

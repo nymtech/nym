@@ -7,7 +7,7 @@ use crate::{
         RawActiveGateway, RawCustomGatewayDetails, RawRegisteredGateway, RawRemoteGatewayDetails,
     },
 };
-use log::{error, info};
+use log::{debug, error};
 use sqlx::ConnectOptions;
 use std::path::Path;
 
@@ -49,7 +49,7 @@ impl StorageManager {
                 error!("Failed to initialize SQLx database: {err}");
             })?;
 
-        info!("Database migration finished!");
+        debug!("Database migration finished!");
         Ok(StorageManager { connection_pool })
     }
 

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { makeStyles } from '@mui/styles';
-import { DataGrid, GridColDef, useGridApiContext, useGridState } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridEventListener, useGridApiContext, useGridState } from '@mui/x-data-grid';
 import Pagination from '@mui/material/Pagination';
 import { LinearProgress } from '@mui/material';
 import { GridInitialStateCommunity } from '@mui/x-data-grid/models/gridStateCommunity';
@@ -36,6 +36,7 @@ type DataGridProps = {
   rows: any;
   loading?: boolean;
   initialState?: GridInitialStateCommunity;
+  onRowClick?: GridEventListener<'rowClick'> | undefined;
 };
 export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
   rows,
@@ -44,11 +45,13 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
   pagination,
   pageSize,
   initialState,
+  onRowClick,
 }) => {
   if (loading) return <LinearProgress />;
 
   return (
     <DataGrid
+      onRowClick={onRowClick}
       pagination={pagination}
       rows={rows}
       components={{
@@ -84,7 +87,6 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
       }}
     />
   );
-  return null;
 };
 
 UniversalDataGrid.defaultProps = {

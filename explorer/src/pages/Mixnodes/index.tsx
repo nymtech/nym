@@ -1,10 +1,9 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Stack, Card, Grid, Box } from '@mui/material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Stack, Card, Grid, Box, Button } from '@mui/material';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
-import { useWallet } from '@cosmos-kit/react';
 import { useMainContext } from '@src/context/main';
 import {
   DelegateIconButton,
@@ -25,6 +24,8 @@ import { NYM_BIG_DIPPER } from '@src/api/constants';
 import { currencyToString } from '@src/utils/currency';
 import { splice } from '@src/utils';
 import { useGetMixNodeStatusColor, useIsMobile } from '@src/hooks';
+import { useWalletContext } from '@src/context/wallet';
+import { DelegationsProvider } from '@src/context/delegations';
 
 export const PageMixnodes: FCWithChildren = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
@@ -39,7 +40,7 @@ export const PageMixnodes: FCWithChildren = () => {
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
 
   const navigate = useNavigate();
-  const wallet = useWallet();
+  const { isWalletConnected } = useWalletContext();
   const isMobile = useIsMobile();
 
   const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
@@ -85,7 +86,7 @@ export const PageMixnodes: FCWithChildren = () => {
   };
 
   const handleOnDelegate = ({ identityKey, mixId }: { identityKey: string; mixId: number }) => {
-    if (wallet.status !== 'Connected') {
+    if (!isWalletConnected) {
       setConfirmationModalProps({
         status: 'info',
         message: 'Please connect your wallet to delegate',
@@ -349,8 +350,10 @@ export const PageMixnodes: FCWithChildren = () => {
   };
 
   return (
-    <>
-      <Title text="Mixnodes" />
+    <DelegationsProvider>
+      <Box mb={2}>
+        <Title text="Mixnodes" />
+      </Box>
       <Grid container>
         <Grid item xs={12}>
           <Card
@@ -362,6 +365,13 @@ export const PageMixnodes: FCWithChildren = () => {
             <TableToolbar
               childrenBefore={
                 <MixNodeStatusDropdown sx={{ mr: 2 }} status={status} onSelectionChanged={handleMixnodeStatusChanged} />
+              }
+              childrenAfter={
+                isWalletConnected && (
+                  <Button fullWidth size="large" variant="outlined" color="primary" component={Link} to="/delegations">
+                    Delegations
+                  </Button>
+                )
               }
               onChangeSearch={handleSearch}
               onChangePageSize={handlePageSize}
@@ -382,7 +392,9 @@ export const PageMixnodes: FCWithChildren = () => {
 
       {itemSelectedForDelegation && (
         <DelegateModal
-          onClose={() => setItemSelectedForDelegation(undefined)}
+          onClose={() => {
+            setItemSelectedForDelegation(undefined);
+          }}
           header="Delegate"
           buttonText="Delegate stake"
           denom="nym"
@@ -398,10 +410,12 @@ export const PageMixnodes: FCWithChildren = () => {
           open={Boolean(confirmationModalProps)}
           onClose={async () => {
             setConfirmationModalProps(undefined);
-            // await fetchBalance();
+            if (confirmationModalProps.status === 'success') {
+              navigate('/delegations');
+            }
           }}
         />
       )}
-    </>
+    </DelegationsProvider>
   );
 };

@@ -232,7 +232,9 @@ export const PageGateways: FCWithChildren = () => {
   if (gateways?.data) {
     return (
       <>
-        <Title text="Gateways" />
+        <Box mb={2}>
+          <Title text="Gateways" />
+        </Box>
         <Grid container>
           <Grid item xs={12}>
             <Card

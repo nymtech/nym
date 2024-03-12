@@ -9,9 +9,9 @@ use crate::coconut::dkg::state::State;
 use crate::coconut::keys::KeyPair;
 use crate::coconut::tests::{DummyClient, SharedFakeChain};
 use cosmwasm_std::Addr;
-use nym_coconut::VerificationKey;
 use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
 use nym_coconut_dkg_common::types::{DealerDetails, EpochId};
+use nym_compact_ecash::VerificationKeyAuth;
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_dkg::{NodeIndex, Threshold};
@@ -276,7 +276,7 @@ impl TestingDkgController {
         Addr::unchecked(self.address().await.as_ref())
     }
 
-    pub(crate) async fn unchecked_coconut_vk(&self) -> VerificationKey {
+    pub(crate) async fn unchecked_coconut_vk(&self) -> VerificationKeyAuth {
         self.state
             .unchecked_coconut_keypair()
             .await

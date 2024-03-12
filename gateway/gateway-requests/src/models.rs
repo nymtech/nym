@@ -286,7 +286,9 @@ mod tests {
         identify::{generate_coin_indices_signatures, generate_expiration_date_signatures},
         issue, ttp_keygen, PayInfo,
     };
-    use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
+    use nym_credentials::coconut::{
+        bandwidth::bandwidth_credential_params, utils::freepass_exp_date_timestamp,
+    };
     use nym_credentials::IssuanceBandwidthCredential;
     use nym_credentials_interface::{
         prove_bandwidth_credential, Attribute, CoconutBase58, CoconutParameters, CoconutSignature,
@@ -349,7 +351,7 @@ mod tests {
         let params = bandwidth_credential_params();
         let keypair = ttp_keygen(params.grp(), 1, 1).unwrap().remove(0);
 
-        let issuance = IssuanceBandwidthCredential::new_freepass(42);
+        let issuance = IssuanceBandwidthCredential::new_freepass(freepass_exp_date_timestamp());
         let sig_req = issuance.prepare_for_signing();
         let exp_date_sigs = generate_expiration_date_signatures(
             params,
@@ -365,7 +367,7 @@ mod tests {
             keypair.secret_key(),
             sig_req.ecash_pub_key.clone(),
             &sig_req.withdrawal_request,
-            42,
+            freepass_exp_date_timestamp(),
         )
         .unwrap();
 

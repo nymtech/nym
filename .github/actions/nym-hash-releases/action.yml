@@ -14,12 +14,20 @@ inputs:
     description: 'The tag/release to process. Uses the release id when trigger from a release.'
     required: false
     default: ''
+  repo:
+    description: 'The repo to use. Defaults to "nym".'
+    required: false
+    default: 'nym'
+  owner:
+    description: 'The repo owner to use. Defaults to "nymtech".'
+    required: false
+    default: 'nymtech'
 outputs:
   hashes:
     description: 'A string containing JSON with the release asset hashes and signatures'
 runs:
-  using: 'node16'
-  main: 'index.js'
+  using: 'node20'
+  main: 'dist/index.js'
 branding:
   icon: 'hash'
   color: 'green'

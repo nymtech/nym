@@ -39,4 +39,7 @@ pub enum StorageError {
 
     #[error(transparent)]
     MalformedGateway(#[from] BadGateway),
+
+    #[error("gateway {gateway_id} does not exist in the storage")]
+    GatewayDoesNotExist { gateway_id: String },
 }

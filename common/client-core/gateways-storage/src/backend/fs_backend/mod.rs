@@ -49,6 +49,11 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
     }
 
     async fn set_active_gateway(&self, gateway_id: &str) -> Result<(), Self::StorageError> {
+        if !self.manager.has_registered_gateway(gateway_id).await? {
+            return Err(StorageError::GatewayDoesNotExist {
+                gateway_id: gateway_id.to_string(),
+            });
+        }
         Ok(self.manager.set_active_gateway(Some(gateway_id)).await?)
     }
 

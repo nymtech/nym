@@ -29,6 +29,7 @@ mod import_credential;
 pub mod init;
 mod list_gateways;
 pub(crate) mod run;
+mod switch_gateway;
 
 pub(crate) struct CliSocks5Client;
 
@@ -80,6 +81,9 @@ pub(crate) enum Commands {
     /// List all registered with gateways
     ListGateways(list_gateways::Args),
 
+    /// Change the currently active gateway. Note that you must have already registered with the new gateway!
+    SwitchGateway(switch_gateway::Args),
+
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
 
@@ -113,6 +117,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
         Commands::Run(m) => run::execute(m).await?,
         Commands::ImportCredential(m) => import_credential::execute(m).await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
+        Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

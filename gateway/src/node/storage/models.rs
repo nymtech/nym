@@ -43,6 +43,13 @@ impl From<Option<PersistedBandwidth>> for AvailableBandwidth {
     }
 }
 
+pub(crate) struct PendingStoredCredential {
+    pub(crate) id: i64,
+    pub(crate) credential: String,
+    pub(crate) address: String,
+    pub(crate) api_url: String,
+}
+
 #[derive(Debug, Clone, FromRow)]
 pub struct SpentCredential {
     #[allow(dead_code)]

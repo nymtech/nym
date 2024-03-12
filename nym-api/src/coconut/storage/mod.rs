@@ -6,7 +6,6 @@ use crate::coconut::storage::models::{join_attributes, EpochCredentials, IssuedC
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::coconut::models::Pagination;
-use nym_coconut::{Base58, BlindedSignature};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::utils::BlindedSignature;
 use nym_compact_ecash::Base58;
@@ -55,7 +54,7 @@ pub trait CoconutStorageExt {
         partial_credential: &BlindedSignature,
         signature: identity::Signature,
         private_commitments: Vec<String>,
-        public_attributes: Vec<String>,
+        expiration_date: i64,
     ) -> Result<i64, NymApiStorageError>;
 
     async fn get_issued_credentials(
@@ -131,7 +130,7 @@ impl CoconutStorageExt for NymApiStorage {
         partial_credential: &BlindedSignature,
         signature: identity::Signature,
         private_commitments: Vec<String>,
-        public_attributes: Vec<String>,
+        expiration_date: i64,
     ) -> Result<i64, NymApiStorageError> {
         Ok(self
             .manager
@@ -141,7 +140,7 @@ impl CoconutStorageExt for NymApiStorage {
                 partial_credential.to_bs58(),
                 signature.to_base58_string(),
                 join_attributes(private_commitments),
-                join_attributes(public_attributes),
+                expiration_date,
             )
             .await?)
     }

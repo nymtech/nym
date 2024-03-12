@@ -331,7 +331,7 @@ pub struct IssuedCredential {
     // so that nym-api wouldn't need to parse the value out of its storage
     pub blinded_partial_credential: BlindedSignature,
     pub bs58_encoded_private_attributes_commitments: Vec<String>,
-    pub public_attributes: Vec<String>,
+    pub expiration_date: i64,
 }
 
 impl IssuedCredential {
@@ -342,7 +342,7 @@ impl IssuedCredential {
             self.tx_hash,
             &self.blinded_partial_credential,
             &self.bs58_encoded_private_attributes_commitments,
-            &self.public_attributes,
+            self.expiration_date,
         )
     }
 }

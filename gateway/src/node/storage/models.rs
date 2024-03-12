@@ -21,6 +21,13 @@ pub(crate) struct PersistedBandwidth {
     pub(crate) available: i64,
 }
 
+pub(crate) struct PendingStoredCredential {
+    pub(crate) id: i64,
+    pub(crate) credential: String,
+    pub(crate) address: String,
+    pub(crate) api_url: String,
+}
+
 #[derive(Debug, Clone, FromRow)]
 pub(crate) struct SpentCredential {
     #[allow(dead_code)]

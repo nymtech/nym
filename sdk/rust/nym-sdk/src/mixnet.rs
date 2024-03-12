@@ -39,7 +39,7 @@ mod socks5_client;
 mod traits;
 
 pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
-pub use config::{Config, KeyMode};
+pub use config::{Config, KeyMode, RequestGateway};
 pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
 pub use nym_client_core::{

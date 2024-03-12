@@ -1,4 +1,6 @@
-use nym_client_core::config::{Client as ClientConfig, DebugConfig};
+use nym_client_core::{
+    config::{Client as ClientConfig, DebugConfig},
+};
 use nym_network_defaults::NymNetworkDetails;
 use nym_socks5_client_core::config::BaseClientConfig;
 use url::Url;
@@ -20,12 +22,20 @@ impl KeyMode {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum RequestGateway {
+    UserChosen(String),
+    LatencyBased,
+}
+
 /// Config struct for [`crate::mixnet::MixnetClient`]
 #[derive(Default)]
 pub struct Config {
     /// If the user has explicitly specified a gateway.
-    pub user_chosen_gateway: Option<String>,
+    // pub user_chosen_gateway: Option<String>,
+    pub user_chosen_gateway: Option<RequestGateway>,
 
+    // pub latency_based_entry_gateway_selection: Option<bool>,
     /// Determines how to handle existing key files found.
     pub key_mode: KeyMode,
 

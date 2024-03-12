@@ -1,7 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{connection_state::BuilderState, Config, StoragePaths};
+use super::{connection_state::BuilderState, Config, RequestGateway, StoragePaths};
 use crate::bandwidth::BandwidthAcquireClient;
 use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
@@ -21,7 +21,9 @@ use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::config::DebugConfig;
 use nym_client_core::init::helpers::current_gateways;
-use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_client_core::init::types::{
+    GatewaySelectionSpecification, GatewaySelectionSpecificationInput, GatewaySetup,
+};
 use nym_client_core::{
     client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
@@ -155,10 +157,22 @@ where
 
     /// Request a specific gateway instead of a random one.
     #[must_use]
-    pub fn request_gateway(mut self, user_chosen_gateway: String) -> Self {
+    // pub fn request_gateway(mut self, user_chosen_gateway: String) -> Self {
+    pub fn request_gateway(mut self, user_chosen_gateway: RequestGateway) -> Self {
         self.config.user_chosen_gateway = Some(user_chosen_gateway);
         self
     }
+
+    /*
+    /// When a random entry gateway is selected, we skew the probability of selection towards
+    /// gateways with lower latency.
+    /// If a specific requested gateway is selected, this will en up doing nothing.
+    #[must_use]
+    pub fn latency_based_selection(mut self, latency_based_selection: bool) -> Self {
+        self.config.latency_based_entry_gateway_selection = Some(latency_based_selection);
+        self
+    }
+    */
 
     /// Use a specific network instead of the default (mainnet) one.
     #[must_use]
@@ -466,9 +480,9 @@ where
         let gateway_setup = if self.has_valid_gateway_info().await {
             GatewaySetup::MustLoad
         } else {
-            let selection_spec = GatewaySelectionSpecification::new(
-                self.config.user_chosen_gateway.clone(),
-                None,
+            let gateway_selection = map_maybe_user_chosen_gateway_to_gateway_selection_specification_input(&self.config.user_chosen_gateway);
+            let selection_spec = GatewaySelectionSpecification::new_from_input(
+                gateway_selection,
                 self.force_tls,
             );
 
@@ -529,11 +543,13 @@ where
         let known_gateway = self.has_valid_gateway_info().await;
 
         let mut base_builder: BaseClientBuilder<_, _> = if !known_gateway {
-            let selection_spec = GatewaySelectionSpecification::new(
-                self.config.user_chosen_gateway,
-                None,
-                self.force_tls,
-            );
+            let gateway_selection =
+                map_maybe_user_chosen_gateway_to_gateway_selection_specification_input(
+                    &self.config.user_chosen_gateway,
+                );
+            let selection_spec =
+                GatewaySelectionSpecification::new_from_input(gateway_selection, self.force_tls);
+            log::error!("Gateway selection specification: {:?}", selection_spec);
 
             let mut rng = OsRng;
             let mut available_gateways = current_gateways(&mut rng, &nym_api_endpoints).await?;
@@ -745,5 +761,19 @@ impl IncludedSurbs {
 
     pub fn expose_self_address() -> Self {
         Self::ExposeSelfAddress
+    }
+}
+
+fn map_maybe_user_chosen_gateway_to_gateway_selection_specification_input(
+    user_chosen_gateway: &Option<RequestGateway>,
+) -> GatewaySelectionSpecificationInput {
+    match user_chosen_gateway {
+        Some(selection) => match selection {
+            RequestGateway::UserChosen(selection) => {
+                GatewaySelectionSpecificationInput::GatewayIdentity(selection.clone())
+            }
+            RequestGateway::LatencyBased => GatewaySelectionSpecificationInput::LatencyBased,
+        },
+        None => GatewaySelectionSpecificationInput::Uniform,
     }
 }

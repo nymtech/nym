@@ -8,7 +8,7 @@ import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { Footer } from './Footer';
 import { ExpandableButton } from './Nav';
-import { ConnectKeplrWallet } from './ConnectKeplrWallet';
+import { ConnectKeplrWallet } from './Wallet/ConnectKeplrWallet';
 import NetworkTitle from './NetworkTitle';
 
 export const MobileNav: FCWithChildren = ({ children }) => {
@@ -23,8 +23,8 @@ export const MobileNav: FCWithChildren = ({ children }) => {
     setDrawerOpen(!drawerOpen);
   };
 
-  const handleClick = (id: number) => {
-    updateNavState(id);
+  const handleClick = (url: string) => {
+    updateNavState(url);
     toggleDrawer();
   };
 
@@ -103,7 +103,6 @@ export const MobileNav: FCWithChildren = ({ children }) => {
             {navState.map((props) => (
               <ExpandableButton
                 key={props.url}
-                id={props.id}
                 title={props.title}
                 openDrawer={openDrawer}
                 url={props.url}

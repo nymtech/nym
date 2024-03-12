@@ -39,6 +39,20 @@ where
         })
 }
 
+pub async fn get_gateway_registrations<D>(
+    details_store: &D,
+) -> Result<Vec<GatewayRegistration>, ClientCoreError>
+where
+    D: GatewaysDetailsStore + Sync,
+    D::StorageError: Send + Sync + 'static,
+{
+    details_store.all_gateways().await.map_err(|source| {
+        ClientCoreError::GatewaysDetailsStoreError {
+            source: Box::new(source),
+        }
+    })
+}
+
 pub async fn store_gateway_details<D>(
     details_store: &D,
     details: &GatewayRegistration,

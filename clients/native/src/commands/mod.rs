@@ -22,6 +22,7 @@ use std::sync::OnceLock;
 pub(crate) mod build_info;
 pub(crate) mod import_credential;
 pub(crate) mod init;
+mod list_gateways;
 pub(crate) mod run;
 
 pub(crate) struct CliNativeClient;
@@ -33,6 +34,10 @@ impl CliClient for CliNativeClient {
 
     async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
         try_upgrade_config(id).await
+    }
+
+    async fn try_load_current_config(id: &str) -> Result<Self::Config, Self::Error> {
+        try_load_current_config(id).await
     }
 }
 
@@ -67,6 +72,9 @@ pub(crate) enum Commands {
     /// Import a pre-generated credential
     ImportCredential(import_credential::Args),
 
+    /// List all registered with gateways
+    ListGateways(list_gateways::Args),
+
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
 
@@ -96,6 +104,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
         Commands::ImportCredential(m) => import_credential::execute(m).await?,
+        Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

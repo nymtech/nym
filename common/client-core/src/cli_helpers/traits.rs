@@ -13,6 +13,8 @@ pub trait CliClient {
     type Config: CliClientConfig;
 
     async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error>;
+
+    async fn try_load_current_config(id: &str) -> Result<Self::Config, Self::Error>;
 }
 
 pub trait CliClientConfig {

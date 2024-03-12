@@ -11,6 +11,7 @@ use std::sync::OnceLock;
 
 mod build_info;
 mod init;
+mod list_gateways;
 mod run;
 mod sign;
 
@@ -23,6 +24,10 @@ impl CliClient for CliIpPacketRouterClient {
 
     async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
         try_upgrade_config(id).await
+    }
+
+    async fn try_load_current_config(id: &str) -> Result<Self::Config, Self::Error> {
+        try_load_current_config(id).await
     }
 }
 
@@ -55,6 +60,9 @@ pub(crate) enum Commands {
     /// Run the network requester with the provided configuration and optionally override
     /// parameters.
     Run(run::Run),
+
+    /// List all registered with gateways
+    ListGateways(list_gateways::Args),
 
     /// Sign to prove ownership of this network requester
     Sign(sign::Sign),
@@ -108,6 +116,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
+        Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::Sign(m) => sign::execute(&m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),

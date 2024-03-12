@@ -561,14 +561,14 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn claim_coconut_bandwidth(
+    async fn claim_ecash_bandwidth(
         &mut self,
         credential: CredentialSpendingData,
     ) -> Result<(), GatewayClientError> {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
-        let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential_v2(
+        let msg = ClientControlRequest::new_enc_ecash_credential(
             credential,
             self.shared_key.as_ref().unwrap(),
             iv,
@@ -626,22 +626,21 @@ impl<C, St> GatewayClient<C, St> {
                 negotiated_protocol: Some(gateway_protocol),
             });
         }
-
-        let gateway_id = self.gateway_identity().to_base58_string();
-
         let prepared_credential = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_bandwidth_credential(&gateway_id)
+            .prepare_ecash_credential(self.gateway_identity.to_bytes())
             .await?;
 
-        self.claim_coconut_bandwidth(prepared_credential.data)
-            .await?;
+        self.claim_ecash_bandwidth(prepared_credential.data).await?;
         self.bandwidth_controller
             .as_ref()
             .unwrap()
-            .consume_credential(prepared_credential.credential_id, &gateway_id)
+            .update_ecash_wallet(
+                prepared_credential.updated_credential,
+                prepared_credential.credential_id,
+            )
             .await?;
 
         Ok(())

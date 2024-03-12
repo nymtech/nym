@@ -8,8 +8,11 @@ use crate::support::storage::NymApiStorage;
 use nym_api_requests::coconut::models::Pagination;
 use nym_coconut::{Base58, BlindedSignature};
 use nym_coconut_dkg_common::types::EpochId;
+use nym_compact_ecash::utils::BlindedSignature;
+use nym_compact_ecash::Base58;
+use nym_credentials::CredentialSpendingData;
 use nym_crypto::asymmetric::identity;
-use nym_validator_client::nyxd::Hash;
+use nym_validator_client::nyxd::{AccountId, Hash};
 
 pub(crate) mod manager;
 pub(crate) mod models;
@@ -64,6 +67,12 @@ pub trait CoconutStorageExt {
         &self,
         pagination: Pagination<i64>,
     ) -> Result<Vec<IssuedCredential>, NymApiStorageError>;
+
+    async fn insert_credential(
+        &self,
+        credential: &CredentialSpendingData,
+        gateway_addr: &AccountId,
+    ) -> Result<(), NymApiStorageError>;
 
     async fn increment_issued_freepasses(&self) -> Result<(), NymApiStorageError>;
 }
@@ -165,6 +174,17 @@ impl CoconutStorageExt for NymApiStorage {
             .manager
             .get_issued_credentials_paged(start_after, limit)
             .await?)
+    }
+
+    async fn insert_credential(
+        &self,
+        credential: &CredentialSpendingData,
+        gateway_addr: &AccountId,
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .insert_credential(credential.to_bs58(), gateway_addr.to_string())
+            .await
+            .map_err(|err| err.into())
     }
 
     async fn increment_issued_freepasses(&self) -> Result<(), NymApiStorageError> {

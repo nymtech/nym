@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Box, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, DecCoin } from '@nymproject/types';
-import { useChain } from '@cosmos-kit/react';
+import { useWalletContext } from '@src/context/wallet';
+import { useDelegationsContext } from '@src/context/delegations';
 import { SimpleModal } from './SimpleModal';
 import { ModalListItem } from './ModalListItem';
 import { DelegationModalProps } from './DelegationModal';
-import { unymToNym, validateAmount } from '../../utils/currency';
+import { validateAmount } from '../../utils/currency';
 import { urls } from '../../utils';
-import { NYM_MIXNET_CONTRACT } from '../../api/constants';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -31,25 +31,9 @@ export const DelegateModal: FCWithChildren<{
   const [amount, setAmount] = useState<DecCoin | undefined>({ amount: '10', denom: 'nym' });
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
-  const [balance, setBalance] = useState<{
-    status: 'loading' | 'success';
-    data?: string;
-  }>({ status: 'loading', data: undefined });
 
-  const { address, getCosmWasmClient, getSigningCosmWasmClient } = useChain('nyx');
-
-  const getBalance = async (walletAddress: string) => {
-    const account = await getCosmWasmClient();
-    const uNYMBalance = await account.getBalance(walletAddress, 'unym');
-    const NYMBalance = unymToNym(uNYMBalance.amount);
-
-    setBalance({ status: 'success', data: NYMBalance });
-  };
-  useEffect(() => {
-    if (address) {
-      getBalance(address);
-    }
-  }, [address]);
+  const { address, balance } = useWalletContext();
+  const { handleDelegate } = useDelegationsContext();
 
   const validate = async () => {
     let newValidatedValue = true;
@@ -59,7 +43,6 @@ export const DelegateModal: FCWithChildren<{
       newValidatedValue = false;
       errorAmountMessage = 'Please enter a valid amount';
     }
-    console.log(amount, MIN_AMOUNT_TO_DELEGATE);
 
     if (amount && +amount.amount < MIN_AMOUNT_TO_DELEGATE) {
       errorAmountMessage = `Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${denom.toUpperCase()}`;
@@ -81,32 +64,13 @@ export const DelegateModal: FCWithChildren<{
 
   const delegateToMixnode = async ({
     delegationMixId,
-    delgationAddress,
     delegationAmount,
   }: {
     delegationMixId: number;
-    delgationAddress: string;
     delegationAmount: string;
   }) => {
-    const amountToDelegate = (Number(delegationAmount) * 1000000).toString();
-    const uNymFunds = [{ amount: amountToDelegate, denom: 'unym' }];
-    const memo: string = 'test delegation';
-    const fee = { gas: '1000000', amount: [{ amount: '1000000', denom: 'unym' }] };
-
     try {
-      const signerClient = await getSigningCosmWasmClient();
-      const tx = await signerClient.execute(
-        delgationAddress,
-        NYM_MIXNET_CONTRACT,
-        {
-          delegate_to_mixnode: {
-            mix_id: delegationMixId,
-          },
-        },
-        fee,
-        memo,
-        uNymFunds,
-      );
+      const tx = await handleDelegate(delegationMixId, delegationAmount);
       return tx;
     } catch (e) {
       console.error('Failed to delegateToMixnode', e);
@@ -126,9 +90,12 @@ export const DelegateModal: FCWithChildren<{
 
         const tx = await delegateToMixnode({
           delegationMixId: mixId,
-          delgationAddress: address,
           delegationAmount: amount.amount,
         });
+
+        if (!tx) {
+          throw new Error('Failed to delegate');
+        }
 
         onOk({
           status: 'success',
@@ -138,7 +105,7 @@ export const DelegateModal: FCWithChildren<{
           ],
         });
       } catch (e) {
-        console.error('Failed to addDelegation', e);
+        console.error('Failed to delegate', e);
         onOk({
           status: 'error',
           message: (e as Error).message,

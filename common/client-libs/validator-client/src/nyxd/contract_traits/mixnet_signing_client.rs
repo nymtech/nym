@@ -695,6 +695,46 @@ pub trait MixnetSigningClient {
         )
         .await
     }
+
+    async fn admin_add_mixnode(
+        &self,
+        mix_node: MixNode,
+        cost_params: MixNodeCostParams,
+        owner: String,
+        pledge: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::UncheckedImportMixnode {
+                mix_node,
+                cost_params,
+                owner,
+                pledge: pledge.into(),
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn admin_add_gateway(
+        &self,
+        gateway: Gateway,
+        owner: String,
+        pledge: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::UncheckedImportGateway {
+                gateway,
+                owner,
+                pledge: pledge.into(),
+            },
+            vec![],
+        )
+        .await
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -734,6 +774,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
+    use nym_mixnet_contract_common::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -933,6 +974,21 @@ mod tests {
             MixnetExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 client.testing_resolve_all_pending_events(None).ignore()
             }
+            ExecuteMsg::UncheckedImportMixnode {
+                mix_node,
+                cost_params,
+                owner,
+                pledge,
+            } => client
+                .admin_add_mixnode(mix_node, cost_params, owner, pledge.into(), None)
+                .ignore(),
+            ExecuteMsg::UncheckedImportGateway {
+                gateway,
+                owner,
+                pledge,
+            } => client
+                .admin_add_gateway(gateway, owner, pledge.into(), None)
+                .ignore(),
         };
     }
 }

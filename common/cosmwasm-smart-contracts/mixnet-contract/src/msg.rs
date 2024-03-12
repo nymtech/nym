@@ -274,6 +274,19 @@ pub enum ExecuteMsg {
     TestingResolveAllPendingEvents {
         limit: Option<u32>,
     },
+
+    // speedtest:
+    UncheckedImportMixnode {
+        mix_node: MixNode,
+        cost_params: MixNodeCostParams,
+        owner: String,
+        pledge: Coin,
+    },
+    UncheckedImportGateway {
+        gateway: Gateway,
+        owner: String,
+        pledge: Coin,
+    },
 }
 
 impl ExecuteMsg {
@@ -385,6 +398,9 @@ impl ExecuteMsg {
             ExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 "resolving all pending events".into()
             }
+
+            ExecuteMsg::UncheckedImportMixnode { .. } => "unchecked import mixnode".into(),
+            ExecuteMsg::UncheckedImportGateway { .. } => "unchecked import gateway".into(),
         }
     }
 }

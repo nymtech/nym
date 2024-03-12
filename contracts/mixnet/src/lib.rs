@@ -19,3 +19,5 @@ mod support;
 
 #[cfg(feature = "contract-testing")]
 mod testing;
+
+mod speedtest_tmp;

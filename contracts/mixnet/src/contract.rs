@@ -6,6 +6,7 @@ use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
 use crate::rewards::storage as rewards_storage;
+use crate::speedtest_tmp::{admin_add_gateway, admin_add_mixnode};
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
@@ -372,6 +373,18 @@ pub fn execute(
         ExecuteMsg::TestingResolveAllPendingEvents { limit } => {
             crate::testing::transactions::try_resolve_all_pending_events(deps, env, limit)
         }
+
+        ExecuteMsg::UncheckedImportMixnode {
+            mix_node,
+            cost_params,
+            owner,
+            pledge,
+        } => admin_add_mixnode(deps, env, info, mix_node, cost_params, pledge, owner),
+        ExecuteMsg::UncheckedImportGateway {
+            gateway,
+            owner,
+            pledge,
+        } => admin_add_gateway(deps, env, info, gateway, pledge, owner),
     }
 }
 

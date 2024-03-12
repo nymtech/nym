@@ -82,6 +82,18 @@ impl Storage for EphemeralStorage {
         Ok(())
     }
 
+    async fn update_issued_credential<'a>(
+        &self,
+        bandwidth_credential: StorableIssuedCredential<'a>,
+        id: i64,
+        consumed: bool,
+    ) -> Result<(), StorageError> {
+        self.coconut_credential_manager
+            .update_issued_credential(bandwidth_credential.credential_data, id, consumed)
+            .await;
+        Ok(())
+    }
+
     async fn insert_coin_indices_sig(
         &self,
         epoch_id: String,

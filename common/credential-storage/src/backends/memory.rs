@@ -122,6 +122,14 @@ impl CoconutCredentialManager {
         });
     }
 
+    pub async fn update_issued_credential(&self, credential_data: &[u8], id: i64, consumed: bool) {
+        let mut creds = self.inner.write().await;
+        if let Some(cred) = creds.data.get_mut(id as usize) {
+            cred.credential_data = credential_data.to_vec();
+            cred.consumed = consumed;
+        }
+    }
+
     /// Inserts provided coin_indices_signatures into the database.
     ///
     /// # Arguments

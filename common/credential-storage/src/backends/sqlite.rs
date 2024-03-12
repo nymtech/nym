@@ -100,6 +100,22 @@ impl CoconutCredentialManager {
         Ok(())
     }
 
+    pub async fn update_issued_credential(
+        &self,
+        credential_data: &[u8],
+        id: i64,
+        consumed: bool,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE coconut_credentials SET credential_data = ?, consumed = ? WHERE id = ?",
+            credential_data,
+            consumed,
+            id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
     /// Marks the specified credential as expired
     ///
     /// # Arguments

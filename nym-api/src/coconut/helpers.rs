@@ -77,4 +77,109 @@ pub(crate) fn blind_sign<C: CredentialRequest>(
         request.expiration_date(),
     )?)
 }
+
+pub(crate) struct CoinIndexSignatureCache {
+    pub(crate) epoch_id: AtomicU64,
+    pub(crate) signatures: RwLock<Option<Vec<CoinIndexSignature>>>,
+}
+
+impl CoinIndexSignatureCache {
+    pub(crate) fn new() -> Self {
+        CoinIndexSignatureCache {
+            epoch_id: AtomicU64::new(u64::MAX),
+            signatures: RwLock::new(None),
+        }
+    }
+    // if the epoch id cached is the one expected, return the cached signatures, else return None
+    pub(crate) async fn get_signatures(
+        &self,
+        expected_epoch_id: u64,
+    ) -> Option<Vec<CoinIndexSignature>> {
+        if self.epoch_id.load(Ordering::Acquire) == expected_epoch_id {
+            let signatures = self.signatures.read().await;
+            signatures.clone()
+        } else {
+            None
+        }
+    }
+
+    // refreshes (if needed) and returns the signatures.
+    pub(crate) async fn refresh_signatures(
+        &self,
+        expected_epoch_id: u64,
+        ecash_parameters: &Parameters,
+        verification_key: &VerificationKeyAuth,
+        secret_key: &SecretKeyAuth,
+    ) -> Vec<CoinIndexSignature> {
+        let mut signatures = self.signatures.write().await;
+
+        //if this fails, it means someone else updated the signatures in the meantime
+        // => We don't have to update them, and we know they exist
+        // (this check can spare us some signing)
+        if self.epoch_id.load(Ordering::Acquire) != expected_epoch_id {
+            *signatures = Some(sign_coin_indices(
+                ecash_parameters,
+                verification_key,
+                secret_key,
+            ));
+            self.epoch_id.store(expected_epoch_id, Ordering::Release);
+        }
+
+        signatures.clone().unwrap() // Either we or someone else update the signatures, so they must be there
+    }
+}
+
+pub(crate) struct ExpirationDateSignatureCache {
+    pub(crate) epoch_id: AtomicU64,
+    pub(crate) expiration_date: AtomicU64,
+    pub(crate) signatures: RwLock<Option<Vec<ExpirationDateSignature>>>,
+}
+
+impl ExpirationDateSignatureCache {
+    pub(crate) fn new() -> Self {
+        ExpirationDateSignatureCache {
+            epoch_id: AtomicU64::new(u64::MAX),
+            expiration_date: AtomicU64::new(u64::MAX),
+            signatures: RwLock::new(None),
+        }
+    }
+    // if the epoch id cached and expiration_date cached are the ones expected, return the cached signatures, else return None
+    pub(crate) async fn get_signatures(
+        &self,
+        expected_epoch_id: u64,
+        expected_exp_date: u64,
+    ) -> Option<Vec<ExpirationDateSignature>> {
+        if self.epoch_id.load(Ordering::Acquire) == expected_epoch_id
+            && self.expiration_date.load(Ordering::Acquire) == expected_exp_date
+        {
+            let signatures = self.signatures.read().await;
+            signatures.clone()
+        } else {
+            None
+        }
+    }
+
+    // refreshes (if needed) and returns the signatures.
+    pub(crate) async fn refresh_signatures(
+        &self,
+        expected_epoch_id: u64,
+        expected_exp_date: u64,
+        secret_key: &SecretKeyAuth,
+    ) -> Vec<ExpirationDateSignature> {
+        let mut signatures = self.signatures.write().await;
+
+        //if this fails, it means someone else updated the signatures in the meantime
+        // => We don't have to update them, and we know they exist
+        // (this check can spare us some signing)
+        if self.epoch_id.load(Ordering::Acquire) != expected_epoch_id
+            || self.expiration_date.load(Ordering::Acquire) != expected_exp_date
+        {
+            *signatures = Some(sign_expiration_date(secret_key, expected_exp_date));
+            self.epoch_id.store(expected_epoch_id, Ordering::Release);
+            self.expiration_date
+                .store(expected_exp_date, Ordering::Release);
+        }
+
+        signatures.clone().unwrap() // Either we or someone else update the signatures, so they must be there
+    }
 }

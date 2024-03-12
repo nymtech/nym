@@ -7,21 +7,26 @@ use crate::coconut::helpers::{accepted_vote_err, blind_sign};
 use crate::coconut::state::State;
 use crate::coconut::storage::CoconutStorageExt;
 use k256::ecdsa::signature::Verifier;
+use nym_api_requests::coconut::models::VerifyCredentialBody;
 use nym_api_requests::coconut::models::{
     CredentialsRequestBody, EpochCredentialsResponse, FreePassNonceResponse, FreePassRequest,
     IssuedCredentialResponse, IssuedCredentialsResponse,
 };
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, OfflineVerifyCredentialBody,
+    OnlineVerifyCredentialBody, PartialCoinIndicesSignatureResponse,
+    PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
 };
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
-use nym_credentials::coconut::bandwidth::freepass::MAX_FREE_PASS_VALIDITY;
-use nym_credentials::coconut::bandwidth::{
-    bandwidth_credential_params, CredentialType, IssuanceBandwidthCredential,
+use nym_compact_ecash::error::CompactEcashError;
+use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
+use nym_credentials::coconut::utils::{
+    cred_exp_date_timestamp, freepass_exp_date_timestamp, today_timestamp,
 };
+use nym_credentials_interface::{to_coconut, CoconutParameters};
 use nym_validator_client::nyxd::Coin;
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -185,14 +190,6 @@ pub async fn post_blind_sign(
     debug!("Received blind sign request");
     trace!("body: {:?}", blind_sign_request_body);
 
-    // early check: does the request have the expected number of public attributes?
-    debug!("performing basic request validation");
-    if blind_sign_request_body.public_attributes_plain.len()
-        != IssuanceBandwidthCredential::PUBLIC_ATTRIBUTES as usize
-    {
-        return Err(CoconutError::InconsistentPublicAttributes);
-    }
-
     // check if we already issued a credential for this tx hash
     debug!(
         "checking if we have already issued credential for this tx_hash (hash: {})",
@@ -221,6 +218,13 @@ pub async fn post_blind_sign(
         .get_transaction(blind_sign_request_body.tx_hash)
         .await?;
 
+    //check expiration date validity
+    if blind_sign_request_body.expiration_date > cred_exp_date_timestamp() {
+        return Err(
+            CompactEcashError::ExpirationDate("Invalid expiration date".to_string()).into(),
+        );
+    }
+
     // check validity of the request
     debug!("fully validating received request");
     state.validate_request(&blind_sign_request_body, tx).await?;
@@ -229,7 +233,7 @@ pub async fn post_blind_sign(
     debug!("producing the partial credential");
     let blinded_signature = blind_sign(
         blind_sign_request_body.deref(),
-        signing_key.keys.secret_key(),
+        &signing_key.keys.secret_key(),
     )?;
 
     // store the information locally
@@ -370,4 +374,36 @@ pub async fn issued_credentials(
     };
 
     build_credentials_response(credentials).map(Json)
+}
+
+#[get("/expiration-date-signatures")]
+pub async fn expiration_date_signatures(
+    state: &RocketState<State>,
+) -> Result<Json<PartialExpirationDateSignatureResponse>> {
+    let expiration_date_signatures = state.get_exp_date_signatures().await?;
+
+    Ok(Json(PartialExpirationDateSignatureResponse::new(
+        &expiration_date_signatures,
+    )))
+}
+
+#[get("/expiration-date-signatures/<timestamp>")]
+pub async fn expiration_date_signatures_timestamp(
+    timestamp: u64,
+    state: &RocketState<State>,
+) -> Result<Json<PartialExpirationDateSignatureResponse>> {
+    let expiration_date_signatures = state.get_exp_date_signatures_timestamp(timestamp).await?;
+    Ok(Json(PartialExpirationDateSignatureResponse::new(
+        &expiration_date_signatures,
+    )))
+}
+
+#[get("/coin-indices-signatures")]
+pub async fn coin_indices_signatures(
+    state: &RocketState<State>,
+) -> Result<Json<PartialCoinIndicesSignatureResponse>> {
+    let coin_indices_signatures = state.get_coin_indices_signatures().await?;
+    Ok(Json(PartialCoinIndicesSignatureResponse::new(
+        &coin_indices_signatures,
+    )))
 }

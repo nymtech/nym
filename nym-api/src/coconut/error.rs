@@ -133,6 +133,9 @@ pub enum CoconutError {
     #[error("coconut internal error: {0}")]
     CoconutInternalError(#[from] nym_coconut::CoconutError),
 
+    #[error("Compact ecash internal error - {0}")]
+    CompactEcashInternalError(#[from] nym_compact_ecash::error::CompactEcashError),
+
     #[error("could not find a deposit event in the transaction provided")]
     DepositEventNotFound,
 

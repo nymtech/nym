@@ -25,7 +25,7 @@ def add_mixnode(base_network, base_dir, mix_id):
         template["Mixnode"]["bond"]["mix_id"] = mix_id
         template["Mixnode"]["self_described"]["host_information"]["keys"]["ed25519"] = mix_data["identity_key"]
         template["Mixnode"]["self_described"]["host_information"]["keys"]["x25519"] = mix_data["sphinx_key"]
-        base_network["describedNodes"][mix_id] = template
+        base_network["described_nodes"][mix_id] = template
         return base_network
 
 
@@ -49,7 +49,7 @@ def add_gateway(base_network, base_dir):
         template["Gateway"]["bond"]["gateway"]["host"] = gateway_data["bind_address"]
         template["Gateway"]["self_described"]["host_information"]["keys"]["ed25519"] = gateway_data["identity_key"]
         template["Gateway"]["self_described"]["host_information"]["keys"]["x25519"] = gateway_data["sphinx_key"]
-        base_network["describedNodes"][0] = template
+        base_network["described_nodes"][0] = template
         return base_network
 
 
@@ -61,7 +61,7 @@ def main(args):
             "3": [{}],
         },
         "gateways": [{}],
-        "describedNodes":[{}, {}, {}, {}]
+        "described_nodes":[{}, {}, {}, {}]
     }
 
     base_dir = args[0]

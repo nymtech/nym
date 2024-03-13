@@ -58,6 +58,7 @@ pub struct SerializableNymTopology {
     //SW NOTE : make this an option to keep backwards compatibility. Noise with fallback needs that to work though
     // Once fallback is removed, we only need a list of unfiltered nodes that can be constructed from mixnodes and gateways
     // depending on the usecase of this struct
+    #[serde(alias = "described_nodes")]
     pub described_nodes: Option<Vec<DescribedNymNode>>, //DescribedNymNode is already Serialize and Deserialize
 }
 

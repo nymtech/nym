@@ -32,6 +32,7 @@ use nym_node::wireguard::types::GatewayClientRegistry;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
+use nym_topology::HardcodedTopologyProvider;
 use nym_topology_control::accessor::TopologyAccessor;
 use nym_topology_control::nym_api_provider::NymApiTopologyProvider;
 use nym_topology_control::TopologyRefresher;
@@ -42,7 +43,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use url::Url;
 
@@ -138,6 +139,7 @@ pub(crate) struct Gateway<St = PersistentStorage> {
     storage: St,
 
     client_registry: Arc<GatewayClientRegistry>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
 }
 
 impl<St> Gateway<St> {
@@ -156,6 +158,7 @@ impl<St> Gateway<St> {
             network_requester_opts,
             ip_packet_router_opts,
             client_registry: Arc::new(DashMap::new()),
+            custom_topology_provider: None,
         })
     }
 
@@ -176,7 +179,20 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
             client_registry: Arc::new(DashMap::new()),
+            custom_topology_provider: None,
         }
+    }
+
+    pub fn with_stored_topology<P: AsRef<Path>>(mut self, file: P) -> Result<Self, GatewayError> {
+        self.custom_topology_provider = Some(Box::new(
+            HardcodedTopologyProvider::new_from_file(&file).map_err(|source| {
+                GatewayError::CustomTopologyLoadFailure {
+                    file_path: file.as_ref().to_path_buf(),
+                    source,
+                }
+            })?,
+        ));
+        Ok(self)
     }
 
     fn start_mix_socket_listener(
@@ -448,12 +464,15 @@ impl<St> Gateway<St> {
         .map_err(Into::into)
     }
 
-    fn setup_topology_provider(nym_api_urls: Vec<Url>) -> Box<dyn TopologyProvider + Send + Sync> {
+    fn setup_topology_provider(
+        custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+        nym_api_urls: Vec<Url>,
+    ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
-        Box::new(NymApiTopologyProvider::new(
+        custom_provider.unwrap_or(Box::new(NymApiTopologyProvider::new(
             nym_api_urls,
             env!("CARGO_PKG_VERSION").to_string(),
-        ))
+        )))
     }
 
     // future responsible for periodically polling directory server and updating
@@ -506,7 +525,7 @@ impl<St> Gateway<St> {
         }))
     }
 
-    pub async fn run(self) -> anyhow::Result<()>
+    pub async fn run(mut self) -> anyhow::Result<()>
     where
         St: Storage + Clone + 'static,
     {
@@ -523,7 +542,10 @@ impl<St> Gateway<St> {
             CoconutVerifier::new(nyxd_client).await
         }?;
 
-        let topology_provider = Self::setup_topology_provider(self.config.get_nym_api_endpoints());
+        let topology_provider = Self::setup_topology_provider(
+            self.custom_topology_provider.take(),
+            self.config.get_nym_api_endpoints(),
+        );
 
         let shared_topology_access = TopologyAccessor::new();
 

@@ -3,6 +3,7 @@ name = "nym-noise"
 version = "0.1.0"
 authors = ["Simon Wicky <simon@nymtech.net>"]
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 snow = "0.9.2"

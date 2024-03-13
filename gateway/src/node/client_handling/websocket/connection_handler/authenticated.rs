@@ -600,7 +600,7 @@ where
                         None => break,
                         Some(Ok(socket_msg)) => socket_msg,
                         Some(Err(err)) => {
-                            error!("failed to obtain message from websocket stream! stopping connection handler: {err}");
+                            debug!("failed to obtain message from websocket stream! stopping connection handler: {err}");
                             break;
                         }
                     };
@@ -611,7 +611,7 @@ where
 
                     if let Some(response) = self.handle_request(socket_msg).await {
                         if let Err(err) = self.inner.send_websocket_message(response).await {
-                            warn!(
+                            debug!(
                                 "Failed to send message over websocket: {err}. Assuming the connection is dead.",
                             );
                             break;
@@ -621,13 +621,13 @@ where
                 mix_messages = self.mix_receiver.next() => {
                     let mix_messages = match mix_messages {
                         None => {
-                            warn!("mix receiver was closed! Assuming the connection is dead.");
+                            debug!("mix receiver was closed! Assuming the connection is dead.");
                             break;
                         }
                         Some(mix_messages) => mix_messages,
                     };
                     if let Err(err) = self.inner.push_packets_to_client(&self.client.shared_keys, mix_messages).await {
-                        warn!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
+                        debug!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;
                     }
                 }

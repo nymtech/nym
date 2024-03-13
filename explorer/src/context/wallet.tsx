@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useChain } from '@cosmos-kit/react';
 import { Wallet } from '@cosmos-kit/core';
-
 import { unymToNym } from '@src/utils/currency';
 import { useNymClient } from '@src/hooks';
 import { MixnetClient, MixnetQueryClient } from '@nymproject/contract-clients/Mixnet.client';
+import { COSMOS_KIT_USE_CHAIN } from '@src/api/constants';
 
 interface WalletState {
   balance: { status: 'loading' | 'success'; data?: string };
@@ -37,7 +37,7 @@ export const WalletProvider = ({ children }: { children: React.ReactNode }) => {
   const [balance, setBalance] = useState<WalletState['balance']>({ status: 'loading', data: undefined });
 
   const { connect, disconnect, wallet, address, isWalletConnected, isWalletConnecting, getCosmWasmClient } =
-    useChain('nyx');
+    useChain(COSMOS_KIT_USE_CHAIN);
 
   const { nymClient, nymQueryClient } = useNymClient(address);
 

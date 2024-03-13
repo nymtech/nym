@@ -11,6 +11,7 @@ use nym_bin_common::bin_info;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_bin_common::output_format::OutputFormat;
 use nym_network_defaults::setup_env;
+use std::io::IsTerminal;
 use std::sync::OnceLock;
 
 mod commands;
@@ -52,11 +53,12 @@ async fn main() -> anyhow::Result<()> {
     }
 
     commands::execute(args).await.map_err(|err| {
-        if atty::is(atty::Stream::Stdout) {
+        if std::io::stdout().is_terminal() {
             let error_message = format!("{err}").red();
             error!("{error_message}");
             error!("Exiting...");
         }
+
         err
     })
 }

@@ -5073,7 +5073,6 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.6.0"
 dependencies = [
- "atty",
  "clap 4.4.7",
  "clap_complete",
  "clap_complete_fig",
@@ -5587,7 +5586,6 @@ version = "1.1.33"
 dependencies = [
  "anyhow",
  "async-trait",
- "atty",
  "bip39",
  "bs58 0.5.0",
  "clap 4.4.7",
@@ -6056,6 +6054,7 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
+ "clap 4.4.7",
  "colored",
  "dashmap",
  "fastrand 2.0.1",
@@ -6063,6 +6062,7 @@ dependencies = [
  "hyper 0.14.27",
  "ipnetwork 0.16.0",
  "mime",
+ "nym-bin-common",
  "nym-config",
  "nym-crypto",
  "nym-node-requests",

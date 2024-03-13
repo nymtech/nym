@@ -18,7 +18,6 @@ rust-version = "1.70"
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-atty = "0.2"
 bip39 = { workspace = true }
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }

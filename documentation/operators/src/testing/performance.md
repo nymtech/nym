@@ -13,7 +13,7 @@ Nym therefore calls out the decentralised community of operators to join the Per
 5. Increase quality of Nym Nodes
 6. Show each operator a way to monitor their nodes in a distributed fashion
 
-## How Does Performance Testing Work
+## Performance Testing Work Flow
 
 * Nym runs a paraLlel network environment [validator.performance.nymte.ch]({{performance_validator}}) with a chain ID `perf`
 * Operators of Nym Nodes (currently `nym-mixnode` and `nym-gateway`) join by following easy steps on [performance testing web page]({{perfomance_testing_webpage}}), including simplified node authentication signature (while keep running on mainnet simultaneously)

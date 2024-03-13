@@ -26,7 +26,6 @@ pub async fn upgrade_noise_initiator(
 ) -> Result<Connection, NoiseError> {
     trace!("Perform Noise Handshake, initiator side");
 
-    //In case the local key cannot be known by the remote party, e.g. in a client-gateway connection
     let secret = [
         NOISE_PSK_PREFIX.to_vec(),
         remote_pub_key.to_bytes().to_vec(),
@@ -89,7 +88,6 @@ pub async fn upgrade_noise_responder(
 ) -> Result<Connection, NoiseError> {
     trace!("Perform Noise Handshake, responder side");
 
-    //If the remote_key cannot be kwnown, e.g. in a client-gateway connection
     let secret = [
         NOISE_PSK_PREFIX.to_vec(),
         local_public_key.to_bytes().to_vec(),
@@ -125,7 +123,6 @@ pub async fn upgrade_noise_responder_with_topology(
         }
     };
 
-    //SW : for private gateway, we could try to perform the handshake without that key?
     match topology.find_node_key_by_mix_host(initiator_addr, false) {
         Ok(Some(_)) => {
             //Existing node supporting Noise

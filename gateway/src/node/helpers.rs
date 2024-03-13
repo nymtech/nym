@@ -64,12 +64,9 @@ pub(crate) async fn node_details(
                 identity_key: nr_identity_public_key.to_base58_string(),
                 encryption_key: nr_encryption_key.to_base58_string(),
                 open_proxy: cfg.network_requester.open_proxy,
-                exit_policy: !cfg.network_requester.use_deprecated_allow_list,
                 enabled_statistics: cfg.network_requester.enabled_statistics,
                 address: address.to_string(),
                 config_path: display_path(nr_cfg_path),
-                allow_list_path: display_path(&cfg.storage_paths.allowed_list_location),
-                unknown_list_path: display_path(&cfg.storage_paths.unknown_list_location),
             })
         } else {
             None

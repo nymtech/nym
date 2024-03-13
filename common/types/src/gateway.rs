@@ -124,15 +124,12 @@ pub struct GatewayNetworkRequesterDetails {
     pub encryption_key: String,
 
     pub open_proxy: bool,
-    pub exit_policy: bool,
     pub enabled_statistics: bool,
 
     // just a convenience wrapper around all the keys
     pub address: String,
 
     pub config_path: String,
-    pub allow_list_path: String,
-    pub unknown_list_path: String,
 }
 
 impl fmt::Display for GatewayNetworkRequesterDetails {
@@ -146,11 +143,7 @@ impl fmt::Display for GatewayNetworkRequesterDetails {
         writeln!(f, "\taddress: {}", self.address)?;
 
         writeln!(f, "\tuses open proxy: {}", self.open_proxy)?;
-        writeln!(f, "\tuses exit policy: {}", self.exit_policy)?;
-        writeln!(f, "\tsends statistics: {}", self.enabled_statistics)?;
-
-        writeln!(f, "\tallow list path: {}", self.allow_list_path)?;
-        writeln!(f, "\tunknown list path: {}", self.unknown_list_path)
+        writeln!(f, "\tsends statistics: {}", self.enabled_statistics)
     }
 }
 

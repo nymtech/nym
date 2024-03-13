@@ -133,12 +133,6 @@ pub struct Init {
     )]
     medium_toggle: bool,
 
-    /// Specifies whether this network requester will run using the default ExitPolicy
-    /// as opposed to the allow list.
-    /// Note: this setting will become the default in the future releases.
-    #[clap(long)]
-    with_exit_policy: Option<bool>,
-
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -173,7 +167,6 @@ impl<'a> From<&'a Init> for OverrideNetworkRequesterConfig {
             no_cover: value.no_cover,
             medium_toggle: value.medium_toggle,
             open_proxy: value.open_proxy,
-            enable_exit_policy: value.with_exit_policy,
             enable_statistics: value.enable_statistics,
             statistics_recipient: value.statistics_recipient.clone(),
         }
@@ -303,7 +296,6 @@ mod tests {
             fastmode: false,
             no_cover: false,
             medium_toggle: false,
-            with_exit_policy: None,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 

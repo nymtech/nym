@@ -167,12 +167,6 @@ impl Config {
     }
 
     #[must_use]
-    pub fn with_old_allow_list(mut self, use_old_allow_list: bool) -> Self {
-        self.network_requester.use_deprecated_allow_list = use_old_allow_list;
-        self
-    }
-
-    #[must_use]
     pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
         self.network_requester.enabled_statistics = enabled_statistics;
         self
@@ -251,6 +245,7 @@ pub struct NetworkRequester {
     /// Specifies whether this network requester should be using the deprecated allow-list,
     /// as opposed to the new ExitPolicy.
     /// Note: this field will be removed in a near future.
+    #[deprecated]
     pub use_deprecated_allow_list: bool,
 
     /// Specifies the url for an upstream source of the exit policy used by this node.

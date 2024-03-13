@@ -327,9 +327,6 @@ impl NRServiceProviderBuilder {
         });
 
         let request_filter = RequestFilter::new(&self.config).await?;
-        request_filter
-            .start_update_tasks(&self.config.network_requester_debug, &shutdown)
-            .await;
 
         let mut service_provider = NRServiceProvider {
             config: self.config,
@@ -605,20 +602,14 @@ impl NRServiceProvider {
                 QueryResponse::Description("Description (placeholder)".to_string()),
             ),
             QueryRequest::ExitPolicy => {
-                let response = match self.request_filter.current_exit_policy_filter() {
-                    Some(exit_policy_filter) => QueryResponse::ExitPolicy {
-                        enabled: true,
-                        upstream: exit_policy_filter
-                            .upstream()
-                            .map(|u| u.to_string())
-                            .unwrap_or_default(),
-                        policy: Some(exit_policy_filter.policy().clone()),
-                    },
-                    None => QueryResponse::ExitPolicy {
-                        enabled: false,
-                        upstream: "".to_string(),
-                        policy: None,
-                    },
+                let exit_policy_filter = self.request_filter.current_exit_policy_filter();
+                let response = QueryResponse::ExitPolicy {
+                    enabled: true,
+                    upstream: exit_policy_filter
+                        .upstream()
+                        .map(|u| u.to_string())
+                        .unwrap_or_default(),
+                    policy: Some(exit_policy_filter.policy().clone()),
                 };
 
                 Socks5Response::new_query(protocol_version, response)

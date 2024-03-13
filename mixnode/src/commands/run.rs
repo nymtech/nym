@@ -11,6 +11,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
 use nym_validator_client::nyxd;
 use std::net::IpAddr;
+use std::path::PathBuf;
 #[derive(Args, Clone)]
 pub(crate) struct Run {
     /// Id of the nym-mixnode we want to run
@@ -41,6 +42,10 @@ pub(crate) struct Run {
     // the alias here is included for backwards compatibility (1.1.4 and before)
     #[clap(long, alias = "validators", value_delimiter = ',')]
     nym_apis: Option<Vec<url::Url>>,
+
+    /// Path to .json file containing custom network specification.
+    #[arg(long, group = "network", hide = true)]
+    pub custom_mixnet: Option<PathBuf>,
 
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
@@ -90,6 +95,10 @@ pub(crate) async fn execute(args: &Run) -> anyhow::Result<()> {
         "\nTo bond your mixnode you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
     mixnode.print_node_details(args.output);
+
+    if let Some(custom_mixnet) = &args.custom_mixnet {
+        mixnode = mixnode.with_stored_topology(custom_mixnet)?;
+    }
 
     mixnode.run().await?;
     Ok(())

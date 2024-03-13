@@ -82,11 +82,11 @@ pub struct Init {
     statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long, conflicts_with = "with_ip_packet_router")]
+    #[clap(long)]
     with_network_requester: bool,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long, hide = true, conflicts_with = "with_network_requester")]
+    #[clap(long, hide = true)]
     with_ip_packet_router: bool,
 
     // ##### NETWORK REQUESTER FLAGS #####

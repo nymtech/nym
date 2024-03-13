@@ -40,12 +40,6 @@ pub(crate) struct Run {
         conflicts_with = "fastmode"
     )]
     medium_toggle: bool,
-
-    /// Specifies whether this network requester will run using the default ExitPolicy
-    /// as opposed to the allow list.
-    /// Note: this setting will become the default in the future releases.
-    #[clap(long)]
-    with_exit_policy: Option<bool>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -57,7 +51,6 @@ impl From<Run> for OverrideConfig {
             medium_toggle: run_config.medium_toggle,
             nyxd_urls: run_config.common_args.nyxd_urls,
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
-            enable_exit_policy: run_config.with_exit_policy,
             open_proxy: run_config.open_proxy,
             enable_statistics: run_config.enable_statistics,
             statistics_recipient: run_config.statistics_recipient,

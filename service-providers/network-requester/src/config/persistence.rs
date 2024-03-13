@@ -16,10 +16,12 @@ pub struct NetworkRequesterPaths {
 
     /// Deprecated
     /// Location of the file containing our allow.list
+    #[deprecated]
     pub allowed_list_location: PathBuf,
 
     /// Deprecated
     /// Location of the file containing our unknown.list
+    #[deprecated]
     pub unknown_list_location: PathBuf,
 
     /// Location of the file containing our description

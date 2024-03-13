@@ -1,6 +1,7 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Config;
 use crate::error::NetworkRequesterError;
 use log::trace;
 use nym_exit_policy::client::get_exit_policy;
@@ -15,6 +16,12 @@ pub struct ExitPolicyRequestFilter {
     policy: ExitPolicy,
 }
 
+impl From<ExitPolicy> for ExitPolicyRequestFilter {
+    fn from(value: ExitPolicy) -> Self {
+        ExitPolicyRequestFilter::new_from_policy(value)
+    }
+}
+
 impl ExitPolicyRequestFilter {
     pub(crate) async fn new_upstream(url: impl IntoUrl) -> Result<Self, NetworkRequesterError> {
         let url = url
@@ -27,7 +34,21 @@ impl ExitPolicyRequestFilter {
         })
     }
 
-    pub(crate) fn new(policy: ExitPolicy) -> Self {
+    pub(crate) async fn new(config: &Config) -> Result<Self, NetworkRequesterError> {
+        let policy_filter = if config.network_requester.open_proxy {
+            ExitPolicyRequestFilter::new_from_policy(ExitPolicy::new_open())
+        } else {
+            let upstream_url = config
+                .network_requester
+                .upstream_exit_policy_url
+                .as_ref()
+                .ok_or(NetworkRequesterError::NoUpstreamExitPolicy)?;
+            ExitPolicyRequestFilter::new_upstream(upstream_url.clone()).await?
+        };
+        Ok(policy_filter)
+    }
+
+    pub fn new_from_policy(policy: ExitPolicy) -> Self {
         ExitPolicyRequestFilter {
             upstream: None,
             policy,

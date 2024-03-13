@@ -16,7 +16,7 @@ license = "GPL-3.0"
 [dependencies]
 anyhow = { workspace = true }
 bytes = "1.5.0"
-clap = { workspace = true, features = ["cargo"] }
+clap = { workspace = true, features = ["cargo", "env"] }
 colored = "2"
 ipnetwork = "0.16"
 rand = "0.7.3"
@@ -47,8 +47,9 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing", "output_format"]}
 nym-config = { path = "../common/config" }
-nym-crypto = { path = "../common/crypto", features = ["asymmetric" ]}
+nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"]}
 nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"]}
+nym-pemstore = { path = "../common/pemstore" }
 nym-task = { path = "../common/task" }
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", features = ["verify"] }

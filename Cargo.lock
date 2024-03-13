@@ -6066,6 +6066,7 @@ dependencies = [
  "nym-config",
  "nym-crypto",
  "nym-node-requests",
+ "nym-pemstore",
  "nym-task",
  "nym-wireguard",
  "nym-wireguard-types",

@@ -1,18 +1,120 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::persistence::NymNodePaths;
+use crate::config::template::CONFIG_TEMPLATE;
+use crate::error::NymNodeError;
 use nym_config::defaults::{DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT};
+use nym_config::{
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+};
 use serde::{Deserialize, Serialize};
 use serde_helpers::*;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use tracing::debug;
 
 pub mod persistence;
 mod serde_helpers;
+mod template;
+mod upgrade_helpers;
+
+const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
 pub const DEFAULT_WIREGUARD_PORT: u16 = WG_PORT;
 pub const DEFAULT_WIREGUARD_PREFIX: u8 = 16;
 pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
+
+/// Derive default path to nym-node's config directory.
+/// It should get resolved to `$HOME/.nym/nym-nodes/<id>/config`
+pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+    must_get_home()
+        .join(NYM_DIR)
+        .join(DEFAULT_NYMNODES_DIR)
+        .join(id)
+        .join(DEFAULT_CONFIG_DIR)
+}
+
+/// Derive default path to nym-node's config file.
+/// It should get resolved to `$HOME/.nym/nym-nodes/<id>/config/config.toml`
+pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
+}
+
+/// Derive default path to nym-node's data directory where files, such as keys, are stored.
+/// It should get resolved to `$HOME/.nym/nym-nodes/<id>/data`
+pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+    must_get_home()
+        .join(NYM_DIR)
+        .join(DEFAULT_NYMNODES_DIR)
+        .join(id)
+        .join(DEFAULT_DATA_DIR)
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Config {
+    // additional metadata holding on-disk location of this config file
+    #[serde(skip)]
+    pub(crate) save_path: Option<PathBuf>,
+
+    pub id: String,
+
+    pub storage_paths: NymNodePaths,
+}
+
+// from<config> for gateway_config and from<config> for mixnode_config
+
+impl NymConfigTemplate for Config {
+    fn template(&self) -> &'static str {
+        CONFIG_TEMPLATE
+    }
+}
+
+impl Config {
+    pub fn save(&self) -> Result<(), NymNodeError> {
+        let save_location = self.save_location();
+        debug!(
+            "attempting to save config file to '{}'",
+            save_location.display()
+        );
+        save_formatted_config_to_file(self, &save_location).map_err(|source| {
+            NymNodeError::ConfigSaveFailure {
+                id: self.id.clone(),
+                path: save_location,
+                source,
+            }
+        })
+    }
+
+    pub fn save_location(&self) -> PathBuf {
+        self.save_path
+            .clone()
+            .unwrap_or(self.default_save_location())
+    }
+
+    pub fn default_save_location(&self) -> PathBuf {
+        default_config_filepath(&self.id)
+    }
+
+    // simple wrapper that reads config file and assigns path location
+    fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
+        let path = path.as_ref();
+        let mut loaded: Config =
+            read_config_from_toml_file(path).map_err(|source| NymNodeError::ConfigLoadFailure {
+                path: path.to_path_buf(),
+                source,
+            })?;
+        loaded.save_path = Some(path.to_path_buf());
+        debug!("loaded config file from {}", path.display());
+        Ok(loaded)
+    }
+
+    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
+        Self::read_from_path(path)
+    }
+}
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

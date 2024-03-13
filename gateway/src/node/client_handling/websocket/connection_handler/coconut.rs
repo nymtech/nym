@@ -36,6 +36,7 @@ pub(crate) struct CoconutVerifier {
 impl CoconutVerifier {
     pub async fn new(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
+        only_coconut_credentials: bool,
     ) -> Result<Self, RequestHandlingError> {
         let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
         let address = nyxd_client.address();
@@ -45,9 +46,17 @@ impl CoconutVerifier {
 
         // don't make it a hard failure in case we're running on mainnet (where DKG hasn't been deployed yet)
         if nyxd_client.dkg_contract_address().is_none() {
-            error!(
-                "DKG contract address is not available - no coconut credentials will be redeemable"
-            );
+            if !only_coconut_credentials {
+                warn!(
+                    "the DKG contract address is not available - \
+                no coconut credentials will be redeemable \
+                (if the DKG ceremony hasn't been run yet this warning is expected)"
+                );
+            } else {
+                // if we require coconut credentials, we MUST have DKG contract available
+                return Err(RequestHandlingError::UnavailableDkgContract);
+            }
+
             return Ok(CoconutVerifier {
                 address,
                 nyxd_client: RwLock::new(nyxd_client),
@@ -60,6 +69,10 @@ impl CoconutVerifier {
         let Ok(current_epoch) = nyxd_client.get_current_epoch().await else {
             // another case of somebody putting a placeholder address that doesn't exist
             error!("the specified DKG contract address is invalid - no coconut credentials will be redeemable");
+            if only_coconut_credentials {
+                // if we require coconut credentials, we MUST have DKG contract available
+                return Err(RequestHandlingError::UnavailableDkgContract);
+            }
             return Ok(CoconutVerifier {
                 address,
                 nyxd_client: RwLock::new(nyxd_client),

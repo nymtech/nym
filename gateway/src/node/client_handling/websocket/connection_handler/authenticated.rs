@@ -92,6 +92,9 @@ pub(crate) enum RequestHandlingError {
 
     #[error("the provided credential did not have a bandwidth attribute")]
     MissingBandwidthAttribute,
+
+    #[error("the DKG contract is unavailable")]
+    UnavailableDkgContract,
 }
 
 impl RequestHandlingError {

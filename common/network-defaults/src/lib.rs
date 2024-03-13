@@ -79,7 +79,13 @@ impl NymNetworkDetails {
     pub fn new_from_env() -> Self {
         fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
             match var(env) {
-                Ok(var) => Some(var),
+                Ok(var) => {
+                    if var.is_empty() {
+                        None
+                    } else {
+                        Some(var)
+                    }
+                }
                 Err(VarError::NotPresent) => None,
                 err => panic!("Unable to set: {:?}", err),
             }
@@ -113,28 +119,15 @@ impl NymNetworkDetails {
                 Some(var(var_names::NYM_API).expect("nym api not set")),
                 get_optional_env(var_names::NYXD_WEBSOCKET),
             ))
-            .with_mixnet_contract(Some(
-                var(var_names::MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set"),
+            .with_mixnet_contract(get_optional_env(var_names::MIXNET_CONTRACT_ADDRESS))
+            .with_vesting_contract(get_optional_env(var_names::VESTING_CONTRACT_ADDRESS))
+            .with_coconut_bandwidth_contract(get_optional_env(
+                var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
             ))
-            .with_vesting_contract(Some(
-                var(var_names::VESTING_CONTRACT_ADDRESS).expect("vesting contract not set"),
-            ))
-            .with_coconut_bandwidth_contract(Some(
-                var(var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
-                    .expect("coconut bandwidth contract not set"),
-            ))
-            .with_group_contract(Some(
-                var(var_names::GROUP_CONTRACT_ADDRESS).expect("group contract not set"),
-            ))
-            .with_multisig_contract(Some(
-                var(var_names::MULTISIG_CONTRACT_ADDRESS).expect("multisig contract not set"),
-            ))
-            .with_coconut_dkg_contract(Some(
-                var(var_names::COCONUT_DKG_CONTRACT_ADDRESS).expect("coconut dkg contract not set"),
-            ))
-            .with_ephemera_contract(Some(
-                var(var_names::EPHEMERA_CONTRACT_ADDRESS).expect("ephemera contract not set"),
-            ))
+            .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
+            .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
+            .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
+            .with_ephemera_contract(get_optional_env(var_names::EPHEMERA_CONTRACT_ADDRESS))
             .with_service_provider_directory_contract(get_optional_env(
                 var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ))

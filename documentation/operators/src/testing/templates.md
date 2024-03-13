@@ -22,8 +22,8 @@ Long term involved operator Pawnflake, an author of [ExploreNYM](https://explore
 
 ## Guides to Setup Own Metrics
 
-A List of different scripts, templates and guides for easier navigation:
+A list of different scripts, templates and guides for easier navigation:
 
 * [Nym-node CPU cron service](https://gist.github.com/tommyv1987/97e939a7adf491333d686a8eaa68d4bd) - an easy bash script by Nym core developer [@tommy1987](https://gist.github.com/tommyv1987), designed to monitor a CPU usage of your node, running locally.
-* [Nym script `prom_targets.py`](https://github.com/nymtech/nym/blob/promethus-is-our-friend/scripts/prom_targets.py) is a useful python program to request data from API and can be run on its own or plugged to more sophisticated flows.
+* Nym script [`prom_targets.py`](https://github.com/nymtech/nym/blob/promethus-is-our-friend/scripts/prom_targets.py) is a useful python program to request data from API and can be run on its own or plugged to more sophisticated flows.
 * [Prometheus and Grafana](prometheus-grafana.md)

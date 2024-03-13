@@ -119,11 +119,15 @@ pub struct NymTopology {
 }
 
 impl NymTopology {
-    pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
+    pub fn new(
+        mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
+        gateways: Vec<gateway::Node>,
+        described_nodes: Vec<DescribedNymNode>,
+    ) -> Self {
         NymTopology {
             mixes: mixes.clone(),
             gateways: gateways.clone(),
-            described_nodes: Vec::new(),
+            described_nodes: described_nodes.clone(),
         }
     }
 
@@ -140,7 +144,11 @@ impl NymTopology {
         self
     }
 
-    pub fn new_unordered(unordered_mixes: Vec<mix::Node>, gateways: Vec<gateway::Node>) -> Self {
+    pub fn new_unordered(
+        unordered_mixes: Vec<mix::Node>,
+        gateways: Vec<gateway::Node>,
+        described_nodes: Vec<DescribedNymNode>,
+    ) -> Self {
         let mut mixes = BTreeMap::new();
         for node in unordered_mixes.into_iter() {
             let layer = node.layer as MixLayer;
@@ -148,7 +156,7 @@ impl NymTopology {
             layer_entry.push(node)
         }
 
-        NymTopology::new(mixes, gateways)
+        NymTopology::new(mixes, gateways, described_nodes)
     }
 
     #[cfg(feature = "serializable")]
@@ -160,8 +168,9 @@ impl NymTopology {
     pub fn from_detailed(
         mix_details: Vec<MixNodeDetails>,
         gateway_bonds: Vec<GatewayBond>,
+        described_nodes: Vec<DescribedNymNode>,
     ) -> Self {
-        nym_topology_from_detailed(mix_details, gateway_bonds)
+        nym_topology_from_detailed(mix_details, gateway_bonds, described_nodes)
     }
 
     pub fn find_mix(&self, mix_id: MixId) -> Option<&mix::Node> {
@@ -492,6 +501,7 @@ impl IntoGatewayNode for DescribedGateway {
 pub fn nym_topology_from_detailed<G>(
     mix_details: Vec<MixNodeDetails>,
     gateway_bonds: Vec<G>,
+    described_nodes: Vec<DescribedNymNode>,
 ) -> NymTopology
 where
     G: IntoGatewayNode,
@@ -535,7 +545,7 @@ where
         }
     }
 
-    NymTopology::new(mixes, gateways)
+    NymTopology::new(mixes, gateways, described_nodes)
 }
 
 #[cfg(test)]
@@ -582,7 +592,7 @@ mod converting_mixes_to_vec {
             mixes.insert(1, vec![node1, node2]);
             mixes.insert(2, vec![node3]);
 
-            let topology = NymTopology::new(mixes, vec![]);
+            let topology = NymTopology::new(mixes, vec![], vec![]);
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec.iter().any(|node| node.owner == "N/A"));
         }
@@ -594,7 +604,7 @@ mod converting_mixes_to_vec {
 
         #[test]
         fn returns_an_empty_vec() {
-            let topology = NymTopology::new(BTreeMap::new(), vec![]);
+            let topology = NymTopology::new(BTreeMap::new(), vec![], vec![]);
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec.is_empty());
         }

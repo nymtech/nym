@@ -294,6 +294,14 @@ impl GeoAwareTopologyProvider {
             Ok(gateways) => gateways,
         };
 
+        let nodes_described = match self.validator_client.get_cached_described_nodes().await {
+            Err(err) => {
+                error!("failed to get described nodes - {err}");
+                return None;
+            }
+            Ok(epoch) => epoch,
+        };
+
         // Also fetch mixnodes cached by explorer-api, with the purpose of getting their
         // geolocation.
         debug!("Fetching mixnodes from explorer-api...");
@@ -353,7 +361,7 @@ impl GeoAwareTopologyProvider {
             .filter(|m| filtered_mixnode_ids.contains(&m.mix_id()))
             .collect::<Vec<_>>();
 
-        let topology = nym_topology_from_detailed(mixnodes, gateways)
+        let topology = nym_topology_from_detailed(mixnodes, gateways, nodes_described)
             .filter_system_version(&self.client_version);
 
         // TODO: return real error type

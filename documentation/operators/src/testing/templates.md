@@ -14,7 +14,7 @@ For the initial performance test Nym core developers plan to run instances of Pr
 Before granting access to anyones servers we would like to encourage operators to understand what degree of control they committing to.
 ```
 
-At Nym we always support community builders to create their tools and share with others. While we create connections based on trust and reputation we also recognize the underlying problem with giving permision to data access to *anyone* based on trust.
+At Nym we always support community builders to create their tools and share with others. While we create connections based on trust and reputation we also recognize the underlying problem with giving permission to data access to *anyone* based on trust.
 
 **ExploreNym**
 
@@ -25,5 +25,5 @@ Long term involved operator Pawnflake, an author of [ExploreNYM](https://explore
 A list of different scripts, templates and guides for easier navigation:
 
 * [Nym-node CPU cron service](https://gist.github.com/tommyv1987/97e939a7adf491333d686a8eaa68d4bd) - an easy bash script by Nym core developer [@tommy1987](https://gist.github.com/tommyv1987), designed to monitor a CPU usage of your node, running locally.
-* Nym script [`prom_targets.py`](https://github.com/nymtech/nym/blob/promethus-is-our-friend/scripts/prom_targets.py) is a useful python program to request data from API and can be run on its own or plugged to more sophisticated flows.
+* Nym's script [`prom_targets.py`](https://github.com/nymtech/nym/blob/promethus-is-our-friend/scripts/prom_targets.py) is a useful python program to request data from API and can be run on its own or plugged to more sophisticated flows.
 * [Prometheus and Grafana](prometheus-grafana.md)

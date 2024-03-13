@@ -42,10 +42,10 @@ echo "the full network file is located at $networkfile"
 echo "starting the mixnet..."
 tmux start-server
 
-tmux new-session -d -s localnet -n Mixnet -d "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix1-$suffix \""
-tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix2-$suffix \""
-tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix3-$suffix \""
-tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-gateway -- run --id gateway-$suffix --local \""
+tmux new-session -d -s localnet -n Mixnet -d "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix1-$suffix --custom-mixnet \"$networkfile\" \""
+tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix2-$suffix --custom-mixnet \"$networkfile\" \""
+tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix3-$suffix --custom-mixnet \"$networkfile\" \""
+tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-gateway -- run --id gateway-$suffix --local --custom-mixnet \"$networkfile\" \""
 
 while ! nc -z localhost 9000; do
   echo "waiting for nym-gateway to launch on port 9000..."

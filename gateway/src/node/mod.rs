@@ -7,7 +7,7 @@ use crate::commands::helpers::{
     override_ip_packet_router_config, override_network_requester_config,
     OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig,
 };
-use crate::config::Config;
+use crate::config::{Config, Topology};
 use crate::error::GatewayError;
 use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
@@ -31,6 +31,12 @@ use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilte
 use nym_node::wireguard::types::GatewayClientRegistry;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
+use nym_topology::provider_trait::TopologyProvider;
+use nym_topology_control::accessor::TopologyAccessor;
+use nym_topology_control::nym_api_provider::NymApiTopologyProvider;
+use nym_topology_control::TopologyRefresher;
+use nym_topology_control::TopologyRefresherConfig;
+use nym_validator_client::NymApiClient;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -38,6 +44,7 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use url::Url;
 
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
@@ -176,6 +183,8 @@ impl<St> Gateway<St> {
         &self,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) where
         St: Storage + Clone + 'static,
@@ -190,6 +199,9 @@ impl<St> Gateway<St> {
             self.storage.clone(),
             ack_sender,
             active_clients_store,
+            topology_access,
+            api_client,
+            Arc::clone(&self.sphinx_keypair),
         );
 
         let listening_address = SocketAddr::new(
@@ -243,15 +255,26 @@ impl<St> Gateway<St> {
         );
     }
 
-    fn start_packet_forwarder(&self, shutdown: TaskClient) -> MixForwardingSender {
+    fn start_packet_forwarder(
+        &self,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
+        shutdown: TaskClient,
+    ) -> MixForwardingSender {
         info!("Starting mix packet forwarder...");
 
-        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
+        let forwarder_config = nym_mixnet_client::client::Config::new(
             self.config.debug.packet_forwarding_initial_backoff,
             self.config.debug.packet_forwarding_maximum_backoff,
             self.config.debug.initial_connection_timeout,
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
+        );
+        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
+            forwarder_config,
+            topology_access,
+            api_client,
+            Arc::clone(&self.sphinx_keypair),
             shutdown,
         );
 
@@ -425,6 +448,47 @@ impl<St> Gateway<St> {
         .map_err(Into::into)
     }
 
+    fn setup_topology_provider(nym_api_urls: Vec<Url>) -> Box<dyn TopologyProvider + Send + Sync> {
+        // if no custom provider was ... provided ..., create one using nym-api
+        Box::new(NymApiTopologyProvider::new(
+            nym_api_urls,
+            env!("CARGO_PKG_VERSION").to_string(),
+        ))
+    }
+
+    // future responsible for periodically polling directory server and updating
+    // the current global view of topology
+    async fn start_topology_refresher(
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        topology_config: Topology,
+        topology_accessor: TopologyAccessor,
+        mut shutdown: TaskClient,
+    ) {
+        let topology_refresher_config =
+            TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
+
+        let mut topology_refresher = TopologyRefresher::new(
+            topology_refresher_config,
+            topology_accessor,
+            topology_provider,
+        );
+        // before returning, block entire runtime to refresh the current network view so that any
+        // components depending on topology would see a non-empty view
+        info!("Obtaining initial network topology");
+        topology_refresher.try_refresh().await;
+
+        if topology_config.disable_refreshing {
+            // if we're not spawning the refresher, don't cause shutdown immediately
+            info!("The topology refesher is not going to be started");
+            shutdown.mark_as_success();
+        } else {
+            // don't spawn the refresher if we don't want to be refreshing the topology.
+            // only use the initial values obtained
+            info!("Starting topology refresher...");
+            topology_refresher.start_with_shutdown(shutdown);
+        }
+    }
+
     async fn check_if_bonded(&self) -> Result<bool, GatewayError> {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
@@ -459,13 +523,32 @@ impl<St> Gateway<St> {
             CoconutVerifier::new(nyxd_client).await
         }?;
 
-        let mix_forwarding_channel =
-            self.start_packet_forwarder(shutdown.subscribe().named("PacketForwarder"));
+        let topology_provider = Self::setup_topology_provider(self.config.get_nym_api_endpoints());
+
+        let shared_topology_access = TopologyAccessor::new();
+
+        Self::start_topology_refresher(
+            topology_provider,
+            self.config.topology,
+            shared_topology_access.clone(),
+            shutdown.subscribe(),
+        )
+        .await;
+
+        let random_api_client = self.random_api_client()?;
+
+        let mix_forwarding_channel = self.start_packet_forwarder(
+            shared_topology_access.clone(),
+            random_api_client.clone(),
+            shutdown.subscribe().named("PacketForwarder"),
+        );
 
         let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
+            shared_topology_access,
+            random_api_client,
             shutdown.subscribe().named("mixnet_handling::Listener"),
         );
 

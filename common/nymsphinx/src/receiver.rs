@@ -237,7 +237,7 @@ mod message_receiver {
                 mix_id: 123,
                 owner: "foomp1".to_string(),
                 host: "10.20.30.40".parse().unwrap(),
-                mix_host: "10.20.30.40:1789".parse().unwrap(),
+                mix_hosts: vec!["10.20.30.40:1789".parse().unwrap()],
                 identity_key: identity::PublicKey::from_base58_string(
                     "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
                 )
@@ -257,7 +257,7 @@ mod message_receiver {
                 mix_id: 234,
                 owner: "foomp2".to_string(),
                 host: "11.21.31.41".parse().unwrap(),
-                mix_host: "11.21.31.41:1789".parse().unwrap(),
+                mix_hosts: vec!["11.21.31.41:1789".parse().unwrap()],
                 identity_key: identity::PublicKey::from_base58_string(
                     "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
                 )
@@ -277,7 +277,7 @@ mod message_receiver {
                 mix_id: 456,
                 owner: "foomp3".to_string(),
                 host: "12.22.32.42".parse().unwrap(),
-                mix_host: "12.22.32.42:1789".parse().unwrap(),
+                mix_hosts: vec!["12.22.32.42:1789".parse().unwrap()],
                 identity_key: identity::PublicKey::from_base58_string(
                     "GkWDysw4AjESv1KiAiVn7JzzCMJeksxNSXVfr1PpX8wD",
                 )
@@ -297,7 +297,7 @@ mod message_receiver {
             vec![gateway::Node {
                 owner: "foomp4".to_string(),
                 host: "1.2.3.4".parse().unwrap(),
-                mix_host: "1.2.3.4:1789".parse().unwrap(),
+                mix_hosts: vec!["1.2.3.4:1789".parse().unwrap()],
                 clients_ws_port: 9000,
                 clients_wss_port: None,
                 identity_key: identity::PublicKey::from_base58_string(

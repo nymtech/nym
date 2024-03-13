@@ -165,6 +165,9 @@ impl From<ConfigV1_1_31> for Config {
                 message_retrieval_limit: value.debug.message_retrieval_limit,
                 use_legacy_framed_packet_version: value.debug.use_legacy_framed_packet_version,
             },
+            // \/ ADDED
+            topology: Default::default(),
+            // /\ ADDED
         }
     }
 }

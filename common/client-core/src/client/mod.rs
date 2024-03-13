@@ -11,5 +11,4 @@ pub(crate) mod packet_statistics_control;
 pub mod real_messages_control;
 pub mod received_buffer;
 pub mod replies;
-pub mod topology_control;
 pub(crate) mod transmission_buffer;

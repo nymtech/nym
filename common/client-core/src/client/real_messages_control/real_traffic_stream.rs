@@ -5,7 +5,6 @@ use self::sending_delay_controller::SendingDelayController;
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
-use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
 use crate::config;
 use futures::task::{Context, Poll};
@@ -22,6 +21,7 @@ use nym_sphinx::utils::sample_poisson_duration;
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
+use nym_topology_control::TopologyAccessor;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;

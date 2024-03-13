@@ -13,7 +13,7 @@ use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest, VerifyCredentialBody,
     VerifyCredentialResponse,
 };
-use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
+use nym_api_requests::models::{DescribedGateway, DescribedNymNode, MixNodeBondAnnotated};
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
@@ -289,6 +289,18 @@ impl NymApiClient {
         &self,
     ) -> Result<Vec<DescribedGateway>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways_described().await?)
+    }
+
+    pub async fn get_cached_described_nodes(
+        &self,
+    ) -> Result<Vec<DescribedNymNode>, ValidatorClientError> {
+        Ok(self.nym_api.get_nym_nodes_described().await?)
+    }
+
+    pub async fn get_current_epoch_id(
+        &self,
+    ) -> Result<nym_mixnet_contract_common::EpochId, ValidatorClientError> {
+        Ok(self.nym_api.get_current_epoch().await?.current_epoch_id())
     }
 
     pub async fn get_gateway_core_status_count(

@@ -23,7 +23,7 @@ async fn main() {
             mix_id: 63,
             owner: "n1k52k5n45cqt5qpjh8tcwmgqm0wkt355yy0g5vu".to_string(),
             host: "172.105.92.48".parse().unwrap(),
-            mix_host: "172.105.92.48:1789".parse().unwrap(),
+            mix_hosts: vec!["172.105.92.48:1789".parse().unwrap()],
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
                 .parse()
                 .unwrap(),
@@ -40,7 +40,7 @@ async fn main() {
             mix_id: 23,
             owner: "n1fzv4jc7fanl9s0qj02ge2ezk3kts545kjtek47".to_string(),
             host: "178.79.143.65".parse().unwrap(),
-            mix_host: "178.79.143.65:1789".parse().unwrap(),
+            mix_hosts: vec!["178.79.143.65:1789".parse().unwrap()],
             identity_key: "4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz"
                 .parse()
                 .unwrap(),
@@ -57,7 +57,7 @@ async fn main() {
             mix_id: 66,
             owner: "n1ae2pjd7q9p0dea65pqkvcm4x9s264v4fktpyru".to_string(),
             host: "139.162.247.97".parse().unwrap(),
-            mix_host: "139.162.247.97:1789".parse().unwrap(),
+            mix_hosts: vec!["139.162.247.97:1789".parse().unwrap()],
             identity_key: "66UngapebhJRni3Nj52EW1qcNsWYiuonjkWJzHFsmyYY"
                 .parse()
                 .unwrap(),

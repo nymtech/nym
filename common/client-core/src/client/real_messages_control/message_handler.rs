@@ -7,7 +7,6 @@ use crate::client::real_messages_control::real_traffic_stream::{
 };
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
-use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use log::{debug, error, info, trace, warn};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
@@ -20,6 +19,7 @@ use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
 use nym_topology::{NymTopology, NymTopologyError};
+use nym_topology_control::{TopologyAccessor, TopologyReadPermit};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -19,7 +19,7 @@ use std::str::FromStr;
 
 #[cfg(feature = "serializable")]
 use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
-use nym_api_requests::models::DescribedGateway;
+use nym_api_requests::models::{DescribedGateway, DescribedNymNode};
 
 pub mod error;
 pub mod filter;
@@ -115,11 +115,29 @@ pub type MixLayer = u8;
 pub struct NymTopology {
     mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
+    described_nodes: Vec<DescribedNymNode>,
 }
 
 impl NymTopology {
     pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
-        NymTopology { mixes, gateways }
+        NymTopology {
+            mixes: mixes.clone(),
+            gateways: gateways.clone(),
+            described_nodes: Vec::new(),
+        }
+    }
+
+    pub fn empty() -> Self {
+        NymTopology {
+            mixes: BTreeMap::new(),
+            gateways: Vec::new(),
+            described_nodes: Vec::new(),
+        }
+    }
+
+    pub fn with_described_nodes(mut self, described_nodes: Vec<DescribedNymNode>) -> Self {
+        self.described_nodes = described_nodes;
+        self
     }
 
     pub fn new_unordered(unordered_mixes: Vec<mix::Node>, gateways: Vec<gateway::Node>) -> Self {
@@ -130,7 +148,7 @@ impl NymTopology {
             layer_entry.push(node)
         }
 
-        NymTopology { mixes, gateways }
+        NymTopology::new(mixes, gateways)
     }
 
     #[cfg(feature = "serializable")]
@@ -166,6 +184,53 @@ impl NymTopology {
             }
         }
         None
+    }
+
+    pub fn find_node_key_by_mix_host(
+        &self,
+        mix_host: SocketAddr,
+        check_port: bool,
+    ) -> Result<Option<String>, NymTopologyError> {
+        for node in self.described_nodes.iter() {
+            let (sphinx_key, socket_addresses, description) = match node {
+                DescribedNymNode::Gateway(g) => {
+                    let sphinx_key = &g.bond.gateway.sphinx_key;
+                    let gateway_node: Option<gateway::Node> = (&g.bond).try_into().ok();
+                    let mix_hosts = gateway_node.map(|node| node.mix_hosts);
+                    let description = &g.self_described;
+                    (sphinx_key, mix_hosts, description)
+                }
+                DescribedNymNode::Mixnode(m) => {
+                    let sphinx_key = &m.bond.mix_node.sphinx_key;
+                    let mix_node: Option<mix::Node> = (&m.bond).try_into().ok();
+                    let mix_hosts = mix_node.map(|node| node.mix_hosts);
+                    let description = &m.self_described;
+                    (sphinx_key, mix_hosts, description)
+                }
+            };
+            if let Some(sock_addr) = socket_addresses {
+                let existing_node = if check_port {
+                    //Initiator side, we know the port should be correct as well
+                    sock_addr.contains(&mix_host)
+                } else {
+                    //responder side, we don't know the port.
+                    //SW This can lead to some troubles if two nodes shares the same IP and one support Noise but not the other. This in only for the progressive update though
+                    let ip_addresses = sock_addr.iter().map(|addr| addr.ip()).collect::<Vec<_>>();
+                    ip_addresses.contains(&mix_host.ip())
+                };
+                if existing_node {
+                    //we have our node
+                    if let Some(d) = description {
+                        if d.noise_information.supported {
+                            return Ok(Some(sphinx_key.to_string()));
+                        }
+                    }
+                    return Ok(None);
+                }
+            }
+        }
+        //didn't find that node
+        Err(NymTopologyError::NoMixnodesAvailable)
     }
 
     pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::Node> {
@@ -379,6 +444,7 @@ impl NymTopology {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.clone(),
+            described_nodes: self.described_nodes.clone(),
         }
     }
 }
@@ -489,7 +555,7 @@ mod converting_mixes_to_vec {
                 mix_id: 42,
                 owner: "N/A".to_string(),
                 host: "3.3.3.3".parse().unwrap(),
-                mix_host: "3.3.3.3:1789".parse().unwrap(),
+                mix_hosts: vec!["3.3.3.3:1789".parse().unwrap()],
                 identity_key: identity::PublicKey::from_base58_string(
                     "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
                 )

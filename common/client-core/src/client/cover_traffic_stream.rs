@@ -3,7 +3,6 @@
 
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
-use crate::client::topology_control::TopologyAccessor;
 use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -13,6 +12,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::cover::generate_loop_cover_packet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
+use nym_topology_control::TopologyAccessor;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;

@@ -3769,6 +3769,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
+ "nym-topology-control",
  "nym-validator-client",
  "rand 0.7.3",
  "reqwest",
@@ -3872,6 +3873,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
+ "nym-topology-control",
  "nym-validator-client",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -4484,6 +4486,29 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "nym-topology-control"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "gloo-timers",
+ "log",
+ "nym-explorer-client",
+ "nym-network-defaults",
+ "nym-sphinx",
+ "nym-task",
+ "nym-topology",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "tap",
+ "tokio",
+ "tokio-stream",
+ "url",
+ "wasmtimer",
 ]
 
 [[package]]

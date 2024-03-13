@@ -12,7 +12,7 @@ use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
-use nym_node_requests::api::v1::node::models;
+use nym_node_requests::api::v1::node::models::{self, NoiseInformation};
 use nym_node_requests::api::SignedHostInformation;
 use nym_node_requests::routes;
 use std::net::SocketAddr;
@@ -33,6 +33,7 @@ impl Config {
     pub fn new(
         build_information: models::BinaryBuildInformationOwned,
         host_information: SignedHostInformation,
+        noise_information: NoiseInformation,
     ) -> Self {
         Config {
             landing: Default::default(),
@@ -41,6 +42,7 @@ impl Config {
                     node: api::v1::node::Config {
                         build_information,
                         host_information,
+                        noise_information,
                         roles: Default::default(),
                     },
                     gateway: Default::default(),

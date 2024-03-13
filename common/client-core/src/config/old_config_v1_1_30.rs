@@ -1,15 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::topology_control::geo_aware_provider::CountryGroup;
 use crate::config::{
-    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, GroupBy,
-    ReplySurbs, Topology, TopologyStructure, Traffic,
+    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, ReplySurbs,
+    Topology, TopologyStructure, Traffic,
 };
 use nym_sphinx::{
     addressing::clients::Recipient,
     params::{PacketSize, PacketType},
 };
+use nym_topology_control::geo_aware_provider::{CountryGroup, GroupBy};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;

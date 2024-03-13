@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt};
 use log::{debug, error, info};
 use nym_explorer_client::{ExplorerClient, PrettyDetailedMixNodeBond};
 use nym_network_defaults::var_names::EXPLORER_API;
+use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::{
     nym_topology_from_detailed,
     provider_trait::{async_trait, TopologyProvider},
@@ -13,8 +14,6 @@ use rand::{prelude::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use tap::TapOptional;
 use url::Url;
-
-use crate::config::GroupBy;
 
 const MIN_NODES_PER_LAYER: usize = 1;
 
@@ -36,6 +35,22 @@ fn create_explorer_client() -> Option<ExplorerClient> {
     };
 
     Some(client)
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum GroupBy {
+    CountryGroup(CountryGroup),
+    NymAddress(Recipient),
+}
+
+impl std::fmt::Display for GroupBy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GroupBy::CountryGroup(group) => write!(f, "group: {}", group),
+            GroupBy::NymAddress(address) => write!(f, "address: {}", address),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Debug)]

@@ -9,7 +9,7 @@ use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use url::Url;
 
-pub(crate) struct NymApiTopologyProvider {
+pub struct NymApiTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
     nym_api_urls: Vec<Url>,
 
@@ -18,7 +18,7 @@ pub(crate) struct NymApiTopologyProvider {
 }
 
 impl NymApiTopologyProvider {
-    pub(crate) fn new(mut nym_api_urls: Vec<Url>, client_version: String) -> Self {
+    pub fn new(mut nym_api_urls: Vec<Url>, client_version: String) -> Self {
         nym_api_urls.shuffle(&mut thread_rng());
 
         NymApiTopologyProvider {
@@ -77,13 +77,23 @@ impl NymApiTopologyProvider {
             Ok(gateways) => gateways,
         };
 
+        let nodes_described = match self.validator_client.get_cached_described_nodes().await {
+            Err(err) => {
+                error!("failed to get described nodes - {err}");
+                return None;
+            }
+            Ok(epoch) => epoch,
+        };
+
         let topology = nym_topology_from_detailed(mixnodes, gateways)
+            .with_described_nodes(nodes_described.clone())
             .filter_system_version(&self.client_version);
 
         if let Err(err) = self.check_layer_distribution(&topology) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used: {err}");
             self.use_next_nym_api();
-            None
+            let empty_topology = NymTopology::empty().with_described_nodes(nodes_described);
+            Some(empty_topology)
         } else {
             Some(topology)
         }

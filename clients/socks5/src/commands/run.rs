@@ -12,9 +12,9 @@ use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
-use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_socks5_client_core::NymClient;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_topology_control::geo_aware_provider::CountryGroup;
 use std::net::IpAddr;
 
 #[derive(Args, Clone)]

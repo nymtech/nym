@@ -28,6 +28,7 @@ pub mod routes {
             pub const ROLES: &str = "/roles";
             pub const BUILD_INFO: &str = "/build-information";
             pub const HOST_INFO: &str = "/host-information";
+            pub const NOISE_INFO: &str = "/noise";
 
             pub const HEALTH: &str = "/health";
             pub const GATEWAY: &str = "/gateway";
@@ -45,6 +46,7 @@ pub mod routes {
             absolute_route!(mixnode_absolute, v1_absolute(), MIXNODE);
             absolute_route!(network_requester_absolute, v1_absolute(), NETWORK_REQUESTER);
             absolute_route!(ip_packet_router_absolute, v1_absolute(), IP_PACKET_ROUTER);
+            absolute_route!(noise_info_absolute, v1_absolute(), NOISE_INFO);
             absolute_route!(swagger_absolute, v1_absolute(), SWAGGER);
 
             pub mod gateway {

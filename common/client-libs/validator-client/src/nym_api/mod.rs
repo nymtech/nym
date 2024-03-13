@@ -15,16 +15,16 @@ pub use nym_api_requests::{
         VerifyCredentialBody, VerifyCredentialResponse,
     },
     models::{
-        ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
-        GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-        MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-        MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-        StakeSaturationResponse, UptimeResponse,
+        ComputeRewardEstParam, DescribedGateway, DescribedNymNode, GatewayBondAnnotated,
+        GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+        InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+        MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+        RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
     },
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, Interval, MixId};
 use nym_name_service_common::response::NamesListResponse;
 use nym_service_provider_directory_common::response::ServicesListResponse;
 
@@ -97,6 +97,14 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    async fn get_nym_nodes_described(&self) -> Result<Vec<DescribedNymNode>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::NYM_NODES, routes::DESCRIBED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::ACTIVE],
@@ -139,6 +147,14 @@ pub trait NymApiClientExt: ApiClient {
                 &mix_id.to_string(),
                 routes::REPORT,
             ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_current_epoch(&self) -> Result<Interval, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::EPOCH, routes::CURRENT],
             NO_PARAMS,
         )
         .await

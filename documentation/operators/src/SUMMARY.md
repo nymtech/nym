@@ -22,7 +22,7 @@
   - [Manual Node Upgrade](nodes/manual-upgrade.md)
   - [Automatic Node Upgrade: Nymvisor Setup and Usage](nodes/nymvisor-upgrade.md)
 - [Performance Testing](testing/performance.md)
-  - [Setup Templates](testing/templates.md)
+  - [Metrics Monitoring](testing/templates.md)
     - [Prometheus & Grafana](testing/prometheus-grafana.md)
 - [Troubleshooting](nodes/troubleshooting.md)
 

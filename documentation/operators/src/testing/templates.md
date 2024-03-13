@@ -6,7 +6,9 @@ It can be useful for a one time event or limited time period to use the existing
 
 ## Collecting Testing Metrics
 
-For the initial performance test Nym core developers plan to run instances of Prometheus and Grafana in the house. The key insights we seek from these speed tests are primarily internal. We're focused on pinpointing bottlenecks, capacity loads, and monitoring cpu usage on the nodes' machines.
+For the purpose of performance test Nym core developers plan to run instances of Prometheus and Grafana in the house. The key insights we seek from these speed tests are primarily internal. We're focused on pinpointing bottlenecks, capacity loads, and monitoring cpu usage on the nodes' machines.
+
+Live metrics are accessible at [http://grafana.nymtech.net](http://grafana.nymtech.net/).
 
 ### Community Monitoring Tools
 

@@ -4,8 +4,8 @@ Nym Mixnet has been running on mainnet for quite some time already. There is sti
 
 Nym therefore calls out the decentralised community of operators to join the Performance testing events in order to **overall increase quality of Nym Mixnet**. The main takeaways of such event are:
 
-1. Understanding of the network behaviour under full load
-    - How many mixnet client users can all active set entry gateways handle simulatenously?
+1. Understanding of the network behavior under full load
+    - How many mixnet client users can all active set entry gateways handle simultaneously?
     - How much sustained IP traffic can a subset of mainnet nodes sustain?
 2. Needed improvements of Nym Node binaries to improve the throughput on mainnet
 3. Measurement of required machine specs
@@ -15,13 +15,13 @@ Nym therefore calls out the decentralised community of operators to join the Per
 
 ## How Does Performance Testing Work
 
-* Nym runs a parralel network environment [validator.performance.nymte.ch]({{performance_validator}}) with a chain ID `perf`
-* Operators of Nym Nodes (currently `nym-mixnode` and `nym-gateway`) join by following easy steps on [perfomance testing webpage]({{perfomance_testing_webpage}}), including simplified node authentication signature (while keep running on mainnet simultaneously)
+* Nym runs a paraLlel network environment [validator.performance.nymte.ch]({{performance_validator}}) with a chain ID `perf`
+* Operators of Nym Nodes (currently `nym-mixnode` and `nym-gateway`) join by following easy steps on [performance testing web page]({{perfomance_testing_webpage}}), including simplified node authentication signature (while keep running on mainnet simultaneously)
 * Core node data will be fed to a unique mixnet contract for the `perf` side chain
 * Once connected, operators will be asked to swap their binary for the modified version with metrics endpoint
 * Nym starts a new API and start packet transition in high load through these nodes in both settings
 * Nym tracks packet flow through Prometheus and Grafana
-* Nym creats a large number of clients to the [performance validator network]({{performance_validator}}), intensifying the packet traffic
+* Nym creates a large number of clients to the [performance validator network]({{performance_validator}}), intensifying the packet traffic
 * Observe and record the metrics - this will probably put more strain on mainnet as well as many nodes spec is minimal
 
 ## More Information

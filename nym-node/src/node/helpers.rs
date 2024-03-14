@@ -51,7 +51,7 @@ pub(crate) fn load_ed25519_identity_keypair(
     load_keypair(paths, "ed25519-identity")
 }
 
-pub(crate) fn load_ed2519_identity_public_key<P: AsRef<Path>>(
+pub(crate) fn load_ed25519_identity_public_key<P: AsRef<Path>>(
     path: P,
 ) -> Result<identity::PublicKey, NymNodeError> {
     load_key(path, "ed25519-identity-public-key")

@@ -3,19 +3,20 @@
 
 use crate::commands::helpers::{
     initialise_local_ip_packet_router, initialise_local_network_requester,
-    OverrideNetworkRequesterConfig,
 };
-use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
-use crate::node::helpers::node_details;
-use crate::{commands::helpers::OverrideConfig, config::Config, OutputFormat};
+use crate::{commands::helpers::OverrideConfig, OutputFormat};
 use anyhow::bail;
 use clap::Args;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway::config::{
+    default_config_directory, default_config_filepath, default_data_directory, Config,
+};
+use nym_gateway::helpers::node_details;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::{fs, io};
 
-use super::helpers::OverrideIpPacketRouterConfig;
+use nym_gateway::helpers::{OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig};
 
 #[derive(Args, Clone, Debug)]
 pub struct Init {
@@ -204,7 +205,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
     let fresh_config = Config::new(&args.id);
     let nr_opts = (&args).into();
     let ip_opts = (&args).into();
-    let mut config = OverrideConfig::from(args).do_override(fresh_config)?;
+    let config = OverrideConfig::from(args).do_override(fresh_config)?;
 
     // if gateway was already initialised, don't generate new keys, et al.
     if !already_init {
@@ -250,7 +251,6 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
     if let Err(err) = config.save_to_default_location() {
         bail!("failed to save the config file: {err}")
     }
-    config.save_path = Some(config_save_location.clone());
 
     eprintln!(
         "Saved configuration file to {}",
@@ -267,7 +267,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
 mod tests {
     use nym_network_defaults::var_names::BECH32_PREFIX;
 
-    use crate::node::{storage::InMemStorage, Gateway};
+    use nym_gateway::node::{Gateway, InMemStorage};
 
     use super::*;
 

@@ -1,17 +1,84 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::helpers::{
+    load_ed25519_identity_keypair, load_x25519_sphinx_keypair, store_ed25519_identity_keypair,
+    store_x25519_sphinx_keypair,
+};
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnode::node::node_description::NodeDescription;
+use nym_mixnode::MixNode;
+use nym_node::config::mixnode::ephemeral_mixnode_config;
+use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode};
+use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
+use std::sync::Arc;
+use tracing::{debug, error, info, trace};
+
 mod helpers;
 
-use crate::node::helpers::{store_ed25519_identity_keypair, store_x25519_sphinx_keypair};
-use nym_crypto::asymmetric::{encryption, identity};
-use nym_node::config::{Config, NodeMode};
-use nym_node::error::NymNodeError;
-use std::sync::Arc;
-use tracing::{debug, info, trace};
+struct MixnodeData {
+    descriptor: NodeDescription,
+}
+
+impl MixnodeData {
+    fn initialise(config: &MixnodeConfig) -> Result<(), MixnodeError> {
+        NodeDescription::default()
+            .save_to_file(&config.storage_paths.node_description)
+            .map_err(|source| MixnodeError::DescriptionSaveFailure {
+                path: config.storage_paths.node_description.clone(),
+                source,
+            })
+    }
+
+    fn new(config: &MixnodeConfig) -> Result<MixnodeData, MixnodeError> {
+        Ok(MixnodeData {
+            descriptor: NodeDescription::load_from_file(&config.storage_paths.node_description)
+                .map_err(|source| MixnodeError::DescriptionLoadFailure {
+                    path: config.storage_paths.node_description.clone(),
+                    source,
+                })?,
+        })
+    }
+}
+
+struct EntryGatewayData {
+    //
+}
+
+impl EntryGatewayData {
+    fn initialise(config: &EntryGatewayConfig) -> Result<(), MixnodeError> {
+        error!("unimplemented");
+        Ok(())
+    }
+
+    fn new(config: &EntryGatewayConfig) -> Result<EntryGatewayData, EntryGatewayError> {
+        error!("unimplemented");
+        Ok(EntryGatewayData {})
+    }
+}
+
+struct ExitGatewayData {
+    //
+}
+
+impl ExitGatewayData {
+    fn initialise(config: &ExitGatewayConfig) -> Result<(), MixnodeError> {
+        error!("unimplemented");
+        Ok(())
+    }
+
+    fn new(config: &ExitGatewayConfig) -> Result<ExitGatewayData, ExitGatewayError> {
+        error!("unimplemented");
+        Ok(ExitGatewayData {})
+    }
+}
 
 pub(crate) struct NymNode {
     config: Config,
+
+    mixnode: MixnodeData,
+    entry_gateway: EntryGatewayData,
+    exit_gateway: ExitGatewayData,
 
     ed25519_identity_keys: Arc<identity::KeyPair>,
     x25519_sphinx_keys: Arc<encryption::KeyPair>,
@@ -22,6 +89,7 @@ impl NymNode {
         debug!("initialising nym-node with id: {}", config.id);
         let mut rng = rand::rngs::OsRng;
 
+        // global initialisation
         let ed25519_identity_keys = identity::KeyPair::new(&mut rng);
         let x25519_sphinx_keys = encryption::KeyPair::new(&mut rng);
 
@@ -37,16 +105,44 @@ impl NymNode {
             config.storage_paths.keys.x25519_sphinx_storage_paths(),
         )?;
 
+        // mixnode initialisation
+        MixnodeData::initialise(&config.mixnode)?;
+
+        // entry gateway initialisation
+        EntryGatewayData::initialise(&config.entry_gateway)?;
+
+        // exit gateway initialisation
+        ExitGatewayData::initialise(&config.exit_gateway)?;
+
         config.save()
     }
 
     pub(crate) fn new(config: Config) -> Result<Self, NymNodeError> {
-        todo!()
+        Ok(NymNode {
+            ed25519_identity_keys: Arc::new(load_ed25519_identity_keypair(
+                config.storage_paths.keys.ed25519_identity_storage_paths(),
+            )?),
+            x25519_sphinx_keys: Arc::new(load_x25519_sphinx_keypair(
+                config.storage_paths.keys.x25519_sphinx_storage_paths(),
+            )?),
+            mixnode: MixnodeData::new(&config.mixnode)?,
+            entry_gateway: EntryGatewayData::new(&config.entry_gateway)?,
+            exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
+            config,
+        })
     }
 
     async fn run_as_mixnode(self) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in MIXNODE mode");
 
+        let config = ephemeral_mixnode_config(self.config)?;
+        let mut mixnode = MixNode::new_loaded(
+            config,
+            self.mixnode.descriptor,
+            self.ed25519_identity_keys,
+            self.x25519_sphinx_keys,
+        );
+        mixnode.run().await?;
         Ok(())
     }
 

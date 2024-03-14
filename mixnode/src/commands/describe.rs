@@ -74,6 +74,6 @@ pub(crate) fn execute(args: Describe) -> anyhow::Result<()> {
     };
 
     // save the struct
-    NodeDescription::save_to_file(&node_description, config.storage_paths.node_description)?;
+    node_description.save_to_file(config.storage_paths.node_description)?;
     Ok(())
 }

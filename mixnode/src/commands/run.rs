@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::OverrideConfig;
-use crate::commands::{override_config, try_load_current_config, version_check};
+use crate::commands::{override_config, try_load_current_config};
 use anyhow::bail;
 use clap::Args;
 use log::error;
@@ -79,11 +79,6 @@ pub(crate) async fn execute(args: &Run) -> anyhow::Result<()> {
 
     let mut config = try_load_current_config(&args.id)?;
     config = override_config(config, OverrideConfig::from(args.clone()));
-
-    if !version_check(&config) {
-        error!("failed the local version check");
-        bail!("failed the local version check")
-    }
 
     if SPECIAL_ADDRESSES.contains(&config.mixnode.listening_address) {
         show_binding_warning(&config.mixnode.listening_address.to_string());

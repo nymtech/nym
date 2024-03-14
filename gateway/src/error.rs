@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum GatewayError {
+pub enum GatewayError {
     #[error("failed to load {keys} keys from '{}' (private key) and '{}' (public key): {err}", .paths.private_key_path.display(), .paths.public_key_path.display())]
     KeyPairLoadFailure {
         keys: String,

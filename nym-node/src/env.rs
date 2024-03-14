@@ -11,6 +11,33 @@ pub mod vars {
 
     pub const NYMNODE_MODE_ARG: &str = "NYMNODE_MODE";
 
+    // host:
+    pub const NYMNODE_PUBLIC_IPS_ARG: &str = "NYMNODE_PUBLIC_IPS";
+    pub const NYMNODE_HOSTNAME_ARG: &str = "NYMNODE_HOSTNAME";
+
+    // http:
+    pub const NYMNODE_HTTP_BIND_ADDRESS_ARG: &str = "NYMNODE_HTTP_BIND_ADDRESS";
+    pub const NYMNODE_HTTP_LANDING_ASSETS_ARG: &str = "NYMNODE_HTTP_LANDING_ASSETS";
+
+    // mixnet:
+    pub const NYMNODE_MIXNET_BIND_ADDRESS_ARG: &str = "NYMNODE_MIXNET_BIND_ADDRESS";
+    pub const NYMNODE_NYM_APIS_ARG: &str = "NYMNODE_NYM_APIS";
+
+    // wireguard:
+    pub const NYMNODE_WG_ENABLED_ARG: &str = "NYMNODE_WG_ENABLED";
+    pub const NYMNODE_WG_BIND_ADDRESS_ARG: &str = "NYMNODE_WG_BIND_ADDRESS";
+    pub const NYMNODE_WG_ANNOUNCED_PORT_ARG: &str = "NYMNODE_WG_ANNOUNCED_PORT";
+    pub const NYMNODE_WG_PRIVATE_NETWORK_PREFIX_ARG: &str = "NYMNODE_WG_PRIVATE_NETWORK_PREFIX";
+
+    // mixnode:
+    pub const NYMNODE_VERLOC_BIND_ADDRESS_ARG: &str = "NYMNODE_VERLOC_BIND_ADDRESS";
+
+    // entry gateway:
+
+    // exit gateway:
+
+    pub const NYMMONDE_WRITE_CONFIG_CHANGES_ARG: &str = "NYMNODE_WRITE_CONFIG_CHANGES";
+
     // pub const MIXNODE_ID_ARG: &str = "NYM_MIXNODE_ID";
     // pub const MIXNODE_LISTENING_ADDRESS_ARG: &str = "NYM_MIXNODE_LISTENING_ADDRESS";
     // pub const MIXNODE_MIX_PORT_ARG: &str = "NYM_MIXNODE_MIX_PORT";

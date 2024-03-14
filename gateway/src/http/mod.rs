@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::error::GatewayError;
-use crate::node::helpers::load_public_key;
+use crate::helpers::load_public_key;
 use ipnetwork::IpNetwork;
 use log::warn;
 use nym_bin_common::bin_info_owned;

@@ -21,7 +21,7 @@ mod models;
 mod shared_keys;
 
 #[async_trait]
-pub(crate) trait Storage: Send + Sync {
+pub trait Storage: Send + Sync {
     /// Inserts provided derived shared keys into the database.
     /// If keys previously existed for the provided client, they are overwritten with the new data.
     ///
@@ -162,7 +162,7 @@ pub(crate) trait Storage: Send + Sync {
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
-pub(crate) struct PersistentStorage {
+pub struct PersistentStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
@@ -359,9 +359,8 @@ impl Storage for PersistentStorage {
 }
 
 /// In-memory implementation of `Storage`. The intention is primarily in testing environments.
-#[cfg(test)]
 #[derive(Clone)]
-pub(crate) struct InMemStorage;
+pub struct InMemStorage;
 
 //#[cfg(test)]
 //impl InMemStorage {

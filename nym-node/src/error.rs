@@ -4,7 +4,7 @@
 use crate::wireguard::error::WireguardError;
 use nym_node_http_api::NymNodeHttpError;
 use std::io;
-use std::net::{IpAddr, SocketAddr};
+use std::net::IpAddr;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -16,11 +16,14 @@ pub enum NymNodeError {
     #[error("could not derive path to data directory of this nym node")]
     DataDirDerivationFailure,
 
+    #[error("could not derive path to config directory of this nym node")]
+    ConfigDirDerivationFailure,
+
     #[error(transparent)]
     HttpFailure(#[from] NymNodeHttpError),
 
     #[error(
-    "failed to load config file for using path '{}'. detailed message: {source}", path.display()
+    "failed to load config file using path '{}'. detailed message: {source}", path.display()
     )]
     ConfigLoadFailure {
         path: PathBuf,
@@ -81,6 +84,68 @@ pub enum NymNodeError {
         err: io::Error,
     },
 
-    #[error("unimplemented")]
-    Unimplemented,
+    #[error("could not initialise nym-node as '--{name}' has not been specified which is required for a first time setup. (config section: {section})")]
+    MissingInitArg { section: String, name: String },
+
+    #[error("could not build config because required section {section} is missing")]
+    MissingConfigSection { section: String },
+
+    #[error(transparent)]
+    MixnodeFailure(#[from] MixnodeError),
+
+    #[error(transparent)]
+    EntryGatewayFailure(#[from] EntryGatewayError),
+
+    #[error(transparent)]
+    ExitGatewayFailure(#[from] ExitGatewayError),
+}
+
+impl NymNodeError {
+    pub fn missing_section<S: Into<String>>(section: S) -> Self {
+        NymNodeError::MissingConfigSection {
+            section: section.into(),
+        }
+    }
+}
+
+impl From<nym_mixnode::error::MixnodeError> for NymNodeError {
+    fn from(value: nym_mixnode::error::MixnodeError) -> Self {
+        MixnodeError::from(value).into()
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum MixnodeError {
+    #[error("failed to load mixnode description from {}: {source}", path.display())]
+    DescriptionLoadFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("failed to save mixnode description from {}: {source}", path.display())]
+    DescriptionSaveFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("currently it's not supported to have different ip addresses for verloc and mixnet ({verloc_bind_ip} and {mix_bind_ip} were used)")]
+    UnsupportedAddresses {
+        verloc_bind_ip: IpAddr,
+        mix_bind_ip: IpAddr,
+    },
+
+    #[error(transparent)]
+    External(#[from] nym_mixnode::error::MixnodeError),
+}
+
+#[derive(Debug, Error)]
+pub enum EntryGatewayError {
+    //
+}
+
+#[derive(Debug, Error)]
+pub enum ExitGatewayError {
+    //
 }

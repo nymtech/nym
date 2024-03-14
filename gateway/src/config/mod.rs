@@ -12,7 +12,7 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_network_defaults::mainnet;
-use nym_node::config;
+use nym_node::config::{self, deprecated_default_wireguard_config};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::io;
 use std::net::{IpAddr, SocketAddr};
@@ -21,10 +21,10 @@ use std::time::Duration;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-pub(crate) mod old_config_v1_1_20;
-pub(crate) mod old_config_v1_1_28;
-pub(crate) mod old_config_v1_1_29;
-pub(crate) mod old_config_v1_1_31;
+pub mod old_config_v1_1_20;
+pub mod old_config_v1_1_28;
+pub mod old_config_v1_1_29;
+pub mod old_config_v1_1_31;
 pub mod persistence;
 mod template;
 
@@ -93,7 +93,7 @@ pub struct Config {
 
     pub gateway: Gateway,
 
-    #[serde(default)]
+    #[serde(default = "deprecated_default_wireguard_config")]
     // currently not really used for anything useful
     pub wireguard: config::Wireguard,
 
@@ -129,7 +129,7 @@ impl Config {
             },
             http: Default::default(),
             gateway: default_gateway,
-            wireguard: Default::default(),
+            wireguard: deprecated_default_wireguard_config(),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
             ip_packet_router: Default::default(),

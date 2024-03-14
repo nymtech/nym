@@ -1,11 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::cli::commands::{build_info, migrate, run};
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_node::error::NymNodeError;
 use std::sync::OnceLock;
-use crate::cli::commands::{build_info, migrate, run};
 
 mod commands;
 mod helpers;
@@ -56,4 +56,15 @@ pub(crate) enum Commands {
     // Init(init::Args),
     /// Start this nym-node
     Run(run::Args),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cli() {
+        Cli::command().debug_assert();
+    }
 }

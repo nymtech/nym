@@ -1,21 +1,16 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::commands::helpers::{
-    ensure_config_version_compatibility, OverrideConfig, OverrideNetworkRequesterConfig,
-};
-use crate::node::helpers::node_details;
-use crate::support::config::build_config;
+use crate::commands::helpers::{try_load_current_config, try_override_config, OverrideConfig};
 use anyhow::bail;
 use clap::Args;
 use log::warn;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
+use nym_gateway::helpers::{OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig};
 use nym_node::error::NymNodeError;
 use std::net::IpAddr;
 use std::path::PathBuf;
-
-use super::helpers::OverrideIpPacketRouterConfig;
 
 #[derive(Args, Clone)]
 pub struct Run {
@@ -225,8 +220,8 @@ pub async fn execute(args: Run) -> anyhow::Result<()> {
     let nr_opts = (&args).into();
     let ip_opts = (&args).into();
 
-    let config = build_config(id, args)?;
-    ensure_config_version_compatibility(&config)?;
+    let mut config = try_load_current_config(&args.id)?;
+    config = try_override_config(config, args)?;
 
     let public_ips = &config.host.public_ips;
     if public_ips.is_empty() {
@@ -241,9 +236,9 @@ pub async fn execute(args: Run) -> anyhow::Result<()> {
         show_binding_warning(config.gateway.listening_address);
     }
 
-    let node_details = node_details(&config).await?;
     let gateway =
-        crate::node::create_gateway(config, Some(nr_opts), Some(ip_opts), custom_mixnet).await?;
+        nym_gateway::create_gateway(config, Some(nr_opts), Some(ip_opts), custom_mixnet).await?;
+    let node_details = gateway.node_details().await?;
     eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide some of the following: \n ");

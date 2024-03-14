@@ -7,8 +7,8 @@ use axum::{
     extract::{Query, State},
     http::HeaderMap,
 };
+use nym_http_api_common::{FormattedResponse, Output};
 use nym_metrics::metrics;
-use nym_node::http::api::{FormattedResponse, Output};
 use serde::{Deserialize, Serialize};
 
 use super::state::MixnodeAppState;

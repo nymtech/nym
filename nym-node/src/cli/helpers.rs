@@ -30,6 +30,10 @@ pub(crate) struct ConfigArgs {
 }
 
 impl ConfigArgs {
+    pub(crate) fn id(&self) -> &Option<String> {
+        &self.id
+    }
+
     pub(crate) fn config_path(&self) -> PathBuf {
         // SAFETY:
         // if `config_file` hasn't been specified, `id` will default to "DEFAULT_NYMNODE_ID",

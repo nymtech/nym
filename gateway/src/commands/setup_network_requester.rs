@@ -1,12 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::commands::helpers::{
-    initialise_local_network_requester, try_load_current_config, OverrideNetworkRequesterConfig,
-};
-use crate::node::helpers::load_public_key;
+use crate::commands::helpers::{initialise_local_network_requester, try_load_current_config};
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
+use nym_gateway::helpers::{load_public_key, OverrideNetworkRequesterConfig};
 use std::path::PathBuf;
 
 #[derive(Args, Clone)]

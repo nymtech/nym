@@ -1,7 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::paths::MixNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
@@ -27,6 +26,8 @@ pub mod old_config_v1_1_21;
 pub mod old_config_v1_1_32;
 pub mod persistence;
 mod template;
+
+pub use crate::config::persistence::paths::MixNodePaths;
 
 const DEFAULT_MIXNODES_DIR: &str = "mixnodes";
 
@@ -133,6 +134,27 @@ impl Config {
             verloc: Default::default(),
             logging: Default::default(),
             debug: Default::default(),
+        }
+    }
+
+    pub fn externally_loaded(
+        host: impl Into<Host>,
+        http: impl Into<Http>,
+        mixnode: impl Into<MixNode>,
+        storage_paths: impl Into<MixNodePaths>,
+        verloc: impl Into<Verloc>,
+        logging: impl Into<LoggingSettings>,
+        debug: impl Into<Debug>,
+    ) -> Self {
+        Config {
+            save_path: None,
+            host: host.into(),
+            http: http.into(),
+            mixnode: mixnode.into(),
+            storage_paths: storage_paths.into(),
+            verloc: verloc.into(),
+            logging: logging.into(),
+            debug: debug.into(),
         }
     }
 
@@ -253,6 +275,9 @@ pub struct Http {
     /// Path to assets directory of custom landing page of this node.
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub landing_page_assets_path: Option<PathBuf>,
+
+    #[serde(default)]
+    pub metrics_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

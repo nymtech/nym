@@ -16,6 +16,7 @@ license = "GPL-3.0"
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["cargo", "env"] }
+humantime-serde = "1.1.1"
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true

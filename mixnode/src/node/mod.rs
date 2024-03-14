@@ -14,7 +14,6 @@ use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
-use nym_bin_common::version_checker::parse_version;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
@@ -47,6 +46,20 @@ impl MixNode {
             sphinx_keypair: Arc::new(load_sphinx_keys(&config)?),
             config,
         })
+    }
+
+    pub fn new_loaded(
+        config: Config,
+        descriptor: NodeDescription,
+        identity_keypair: Arc<identity::KeyPair>,
+        sphinx_keypair: Arc<encryption::KeyPair>,
+    ) -> Self {
+        MixNode {
+            config,
+            descriptor,
+            identity_keypair,
+            sphinx_keypair,
+        }
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
@@ -150,19 +163,7 @@ impl MixNode {
     fn start_verloc_measurements(&self, shutdown: TaskClient) -> AtomicVerlocResult {
         info!("Starting the round-trip-time measurer...");
 
-        // this is a sanity check to make sure we didn't mess up with the minimum version at some point
-        // and whether the user has run update if they're using old config
-        // if this code exists in the node, it MUST BE compatible
-        let config_version = parse_version(&self.config.mixnode.version)
-            .expect("malformed version in the config file");
-        let minimum_version = parse_version(verloc::MINIMUM_NODE_VERSION).unwrap();
-        if config_version < minimum_version {
-            error!("You seem to have not updated your mixnode configuration file - please run `upgrade` before attempting again");
-            process::exit(1)
-        }
-
         // use the same binding address with the HARDCODED port for time being (I don't like that approach personally)
-
         let listening_address = SocketAddr::new(
             self.config.mixnode.listening_address,
             self.config.mixnode.verloc_port,

@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::helpers::load_ip_packet_router_config;
-use self::storage::PersistentStorage;
-use crate::commands::helpers::{
-    override_ip_packet_router_config, override_network_requester_config,
-    OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig,
-};
 use crate::config::Config;
 use crate::error::GatewayError;
+use crate::helpers::{
+    load_identity_keys, override_ip_packet_router_config, override_network_requester_config,
+    OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig,
+};
 use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
@@ -17,7 +16,6 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
-use crate::node::storage::Storage;
 use anyhow::bail;
 use dashmap::DashMap;
 use futures::channel::{mpsc, oneshot};
@@ -28,6 +26,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
+use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use nym_wireguard_types::registration::GatewayClientRegistry;
 use rand::seq::SliceRandom;
@@ -43,6 +42,8 @@ pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
 
+pub use storage::{InMemStorage, PersistentStorage, Storage};
+
 // TODO: should this struct live here?
 struct StartedNetworkRequester {
     /// Request filter, either an exit policy or the allow list, used by the network requester.
@@ -53,7 +54,7 @@ struct StartedNetworkRequester {
 }
 
 /// Wire up and create Gateway instance
-pub(crate) async fn create_gateway(
+pub async fn create_gateway(
     config: Config,
     nr_config_override: Option<OverrideNetworkRequesterConfig>,
     ip_config_override: Option<OverrideIpPacketRouterConfig>,
@@ -114,7 +115,7 @@ pub struct LocalIpPacketRouterOpts {
     custom_mixnet_path: Option<PathBuf>,
 }
 
-pub(crate) struct Gateway<St = PersistentStorage> {
+pub struct Gateway<St = PersistentStorage> {
     config: Config,
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
@@ -141,7 +142,7 @@ impl<St> Gateway<St> {
     ) -> Result<Self, GatewayError> {
         Ok(Gateway {
             storage,
-            identity_keypair: Arc::new(helpers::load_identity_keys(&config)?),
+            identity_keypair: Arc::new(load_identity_keys(&config)?),
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
             network_requester_opts,
@@ -150,7 +151,6 @@ impl<St> Gateway<St> {
         })
     }
 
-    #[cfg(test)]
     pub async fn new_from_keys_and_storage(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
@@ -168,6 +168,11 @@ impl<St> Gateway<St> {
             storage,
             client_registry: Arc::new(DashMap::new()),
         }
+    }
+
+    pub async fn node_details(&self) -> Result<GatewayNodeDetailsResponse, GatewayError> {
+        // TODO: this is doing redundant key loads, but I guess that's fine for now
+        crate::helpers::node_details(&self.config).await
     }
 
     fn start_mix_socket_listener(

@@ -15,11 +15,6 @@ use std::io::IsTerminal;
 use std::sync::OnceLock;
 
 mod commands;
-mod config;
-pub(crate) mod error;
-mod http;
-mod node;
-pub(crate) mod support;
 
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();

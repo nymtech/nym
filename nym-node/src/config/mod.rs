@@ -1,16 +1,14 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::entry_gateway::EntryGatewayConfig;
-use crate::config::exit_gateway::ExitGatewayConfig;
-use crate::config::mixnode::MixnodeConfig;
 use crate::config::persistence::NymNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
 use clap::ValueEnum;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
-    mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT,
+    mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
+    DEFAULT_VERLOC_LISTENING_PORT, WG_PORT,
 };
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
@@ -24,12 +22,16 @@ use std::path::{Path, PathBuf};
 use tracing::{debug, error};
 use url::Url;
 
-mod entry_gateway;
-mod exit_gateway;
-mod mixnode;
+pub mod entry_gateway;
+pub mod exit_gateway;
+pub mod mixnode;
 pub mod persistence;
 mod template;
 mod upgrade_helpers;
+
+pub use crate::config::entry_gateway::EntryGatewayConfig;
+pub use crate::config::exit_gateway::ExitGatewayConfig;
+pub use crate::config::mixnode::MixnodeConfig;
 
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
@@ -37,6 +39,7 @@ pub const DEFAULT_WIREGUARD_PORT: u16 = WG_PORT;
 pub const DEFAULT_WIREGUARD_PREFIX: u8 = 16;
 pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
 pub const DEFAULT_MIXNET_PORT: u16 = DEFAULT_MIX_LISTENING_PORT;
+pub const DEFAULT_VERLOC_PORT: u16 = DEFAULT_VERLOC_LISTENING_PORT;
 
 /// Derive default path to nym-node's config directory.
 /// It should get resolved to `$HOME/.nym/nym-nodes/<id>/config`
@@ -54,16 +57,6 @@ pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
     default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
 }
 
-/// Derive default path to nym-node's data directory where files, such as keys, are stored.
-/// It should get resolved to `$HOME/.nym/nym-nodes/<id>/data`
-pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
-    must_get_home()
-        .join(NYM_DIR)
-        .join(DEFAULT_NYMNODES_DIR)
-        .join(id)
-        .join(DEFAULT_DATA_DIR)
-}
-
 // a temporary solution until all "types" are run at the same time
 #[derive(Debug, Default, Serialize, Deserialize, ValueEnum, Clone, Copy)]
 pub enum NodeMode {
@@ -76,6 +69,136 @@ pub enum NodeMode {
     ExitGatewayIPR,
 }
 
+pub struct ConfigBuilder {
+    pub id: String,
+
+    pub config_path: PathBuf,
+
+    pub data_dir: PathBuf,
+
+    pub mode: NodeMode,
+
+    pub host: Option<Host>,
+
+    pub http: Option<Http>,
+
+    pub mixnet: Option<Mixnet>,
+
+    pub wireguard: Option<Wireguard>,
+
+    pub storage_paths: Option<NymNodePaths>,
+
+    pub mixnode: Option<MixnodeConfig>,
+
+    pub entry_gateway: Option<EntryGatewayConfig>,
+
+    pub exit_gateway: Option<ExitGatewayConfig>,
+
+    pub logging: Option<LoggingSettings>,
+}
+
+impl ConfigBuilder {
+    pub fn new(id: String, config_path: PathBuf, data_dir: PathBuf) -> Self {
+        ConfigBuilder {
+            id,
+            config_path,
+            data_dir,
+            host: None,
+            http: None,
+            mixnet: None,
+            wireguard: None,
+            mode: NodeMode::default(),
+            storage_paths: None,
+            mixnode: None,
+            entry_gateway: None,
+            exit_gateway: None,
+            logging: None,
+        }
+    }
+
+    pub fn with_mode(mut self, mode: impl Into<NodeMode>) -> Self {
+        self.mode = mode.into();
+        self
+    }
+
+    pub fn with_host(mut self, section: impl Into<Option<Host>>) -> Self {
+        self.host = section.into();
+        self
+    }
+
+    pub fn with_http(mut self, section: impl Into<Option<Http>>) -> Self {
+        self.http = section.into();
+        self
+    }
+
+    pub fn with_mixnet(mut self, section: impl Into<Option<Mixnet>>) -> Self {
+        self.mixnet = section.into();
+        self
+    }
+
+    pub fn with_wireguard(mut self, section: impl Into<Option<Wireguard>>) -> Self {
+        self.wireguard = section.into();
+        self
+    }
+
+    pub fn with_storage_paths(mut self, section: impl Into<Option<NymNodePaths>>) -> Self {
+        self.storage_paths = section.into();
+        self
+    }
+
+    pub fn with_mixnode(mut self, section: impl Into<Option<MixnodeConfig>>) -> Self {
+        self.mixnode = section.into();
+        self
+    }
+
+    pub fn with_entry_gateway(mut self, section: impl Into<Option<EntryGatewayConfig>>) -> Self {
+        self.entry_gateway = section.into();
+        self
+    }
+
+    pub fn with_exit_gateway(mut self, section: impl Into<Option<ExitGatewayConfig>>) -> Self {
+        self.exit_gateway = section.into();
+        self
+    }
+
+    pub fn with_logging(mut self, section: impl Into<Option<LoggingSettings>>) -> Self {
+        self.logging = section.into();
+        self
+    }
+
+    pub fn build(self) -> Result<Config, NymNodeError> {
+        let config_dir = self
+            .config_path
+            .parent()
+            .ok_or(NymNodeError::ConfigDirDerivationFailure)?;
+
+        Ok(Config {
+            id: self.id,
+            mode: self.mode,
+            host: self.host.ok_or(NymNodeError::missing_section("host"))?,
+            http: self.http.unwrap_or_default(),
+            mixnet: self.mixnet.unwrap_or_default(),
+            wireguard: self
+                .wireguard
+                .unwrap_or_else(|| Wireguard::new_default(&self.data_dir)),
+            storage_paths: self
+                .storage_paths
+                .unwrap_or_else(|| NymNodePaths::new(&self.data_dir)),
+            mixnode: self
+                .mixnode
+                .unwrap_or_else(|| MixnodeConfig::new_default(config_dir)),
+            entry_gateway: self
+                .entry_gateway
+                .unwrap_or_else(|| EntryGatewayConfig::new_default(&self.data_dir)),
+            exit_gateway: self
+                .exit_gateway
+                .unwrap_or_else(|| ExitGatewayConfig::new_default(config_dir)),
+            logging: self.logging.unwrap_or_default(),
+            save_path: Some(self.config_path),
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -85,6 +208,8 @@ pub struct Config {
 
     pub id: String,
 
+    pub mode: NodeMode,
+
     pub host: Host,
 
     #[serde(default)]
@@ -92,10 +217,7 @@ pub struct Config {
 
     pub mixnet: Mixnet,
 
-    #[serde(default)]
     pub wireguard: Wireguard,
-
-    pub mode: NodeMode,
 
     pub storage_paths: NymNodePaths,
 
@@ -108,8 +230,6 @@ pub struct Config {
     #[serde(default)]
     pub logging: LoggingSettings,
 }
-
-// from<config> for gateway_config and from<config> for mixnode_config
 
 impl NymConfigTemplate for Config {
     fn template(&self) -> &'static str {
@@ -145,12 +265,6 @@ impl Config {
 
     pub fn default_data_directory<P: AsRef<Path>>(config_path: P) -> Result<PathBuf, NymNodeError> {
         let config_path = config_path.as_ref();
-
-        // the provided path does not point to .toml file
-        if !config_path.is_file() {
-            error!("'{}' does not point to a valid file", config_path.display());
-            return Err(NymNodeError::DataDirDerivationFailure);
-        }
 
         // we got a proper path to the .toml file
         let Some(config_dir) = config_path.parent() else {
@@ -288,7 +402,6 @@ impl Default for Mixnet {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct Wireguard {
     /// Specifies whether the wireguard service is enabled on this node.
@@ -310,8 +423,8 @@ pub struct Wireguard {
     pub storage_paths: persistence::WireguardPaths,
 }
 
-impl Default for Wireguard {
-    fn default() -> Self {
+impl Wireguard {
+    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
         Wireguard {
             enabled: false,
             bind_address: SocketAddr::new(
@@ -320,7 +433,18 @@ impl Default for Wireguard {
             ),
             announced_port: DEFAULT_WIREGUARD_PORT,
             private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
-            storage_paths: persistence::WireguardPaths {},
+            storage_paths: persistence::WireguardPaths::new(data_dir),
         }
+    }
+}
+
+// it's deprecated since once storage paths are populated, no sane global default will exist
+pub fn deprecated_default_wireguard_config() -> Wireguard {
+    Wireguard {
+        enabled: false,
+        bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_WIREGUARD_PORT),
+        announced_port: DEFAULT_WIREGUARD_PORT,
+        private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
+        storage_paths: persistence::WireguardPaths {},
     }
 }

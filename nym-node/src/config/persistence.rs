@@ -140,3 +140,9 @@ impl ExitGatewayPaths {
 pub struct WireguardPaths {
     // pub keys:
 }
+
+impl WireguardPaths {
+    pub fn new<P: AsRef<Path>>(_data_dir: P) -> Self {
+        WireguardPaths {}
+    }
+}

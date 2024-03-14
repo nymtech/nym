@@ -74,6 +74,44 @@ chown -R prometheus:prometheus /var/lib/prometheus
 nano /etc/prometheus/prometheus.yml
 ```
 
+7. Paste the block below to your config `prometheus.yml`, change the line `credentials` and save it (`ctrl` + `x`)
+    - `credentials` value can be found in your node `config.toml` config file under `[http]` header
+```yaml
+# my global config
+global:
+  scrape_interval: 15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+  # scrape_timeout is set to the global default (10s).
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: "prometheus"
+    authorization:
+      credentials: <METRICS_KEY_SET_ON_THE_NODE>
+
+    static_configs:
+      - targets: ["localhost:9090"]
+
+    file_sd_configs:
+    - files:
+      - /tmp/prom_targets.json
+```
+
+
 **References**
 
 * [Prometheus release page](https://prometheus.io/download/)

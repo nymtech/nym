@@ -1,6 +1,6 @@
 # Prometheus & Grafana
 
-The combination of Prometheus and Grafana is a stack used by [Nym team](http://grafana.nymtech.net/)as well as by core community operators like [ExploreNym](https://github.com/ExploreNYM/vps-monitor) or [No Trust Verify](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1).
+The combination of Prometheus and Grafana is a stack used by Nym team for internal monitoring as well as by core community operators like [ExploreNym](https://github.com/ExploreNYM/vps-monitor) or [No Trust Verify](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1).
 
 <!-- Write about adventages of this setup -->
 
@@ -154,10 +154,12 @@ ufw allow 9090/tcp
 ```
 11. Finally you can access Prometheus on `localhost:9090` or `<IP_ADDRESS>:9090`
 
+Further reading on Prometheus functionalities:
+- [Alerting overview](https://prometheus.io/docs/alerting/latest/overview/)
+- [Exporters and Integration](https://prometheus.io/docs/instrumenting/exporters/)
 
 
-
-**References**
+## References and further reading
 
 * [Prometheus release page](https://prometheus.io/download/)
 * [Prometheus documentation](https://prometheus.io/docs/introduction/overview/)

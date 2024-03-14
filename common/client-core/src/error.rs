@@ -153,12 +153,6 @@ pub enum ClientCoreError {
         #[source]
         source: std::io::Error,
     },
-
-    #[error("MetricsError: {source}")]
-    MetricsError {
-        #[from]
-        source: MetricsError,
-    },
 }
 
 /// Set of messages that the client can send to listeners via the task manager
@@ -170,18 +164,4 @@ pub enum ClientCoreStatusMessage {
     // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
     #[error("The connected gateway is very slow, or the connection to it is very slow")]
     GatewayIsVerySlow,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum MetricsError {
-    #[error("Prometheus error: {source}")]
-    PrometheusError {
-        #[from]
-        source: prometheus::Error,
-    },
-    #[error("UTF-8 error: {source}")]
-    Utf8Error {
-        #[from]
-        source: std::string::FromUtf8Error,
-    },
 }

@@ -27,7 +27,7 @@ use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, DebugConfig};
-use crate::error::{ClientCoreError, MetricsError};
+use crate::error::ClientCoreError;
 use crate::init::{
     setup_gateway,
     types::{GatewayDetails, GatewaySetup, InitialisationResult},
@@ -521,13 +521,11 @@ where
         Ok(())
     }
 
-    fn start_packet_statistics_control(
-        shutdown: TaskClient,
-    ) -> Result<PacketStatisticsReporter, MetricsError> {
+    fn start_packet_statistics_control(shutdown: TaskClient) -> PacketStatisticsReporter {
         info!("Starting packet statistics control...");
-        let (packet_statistics_control, packet_stats_reporter) = PacketStatisticsControl::new()?;
+        let (packet_statistics_control, packet_stats_reporter) = PacketStatisticsControl::new();
         packet_statistics_control.start_with_shutdown(shutdown);
-        Ok(packet_stats_reporter)
+        packet_stats_reporter
     }
 
     fn start_mix_traffic_controller(
@@ -658,7 +656,7 @@ where
         .await?;
 
         let packet_stats_reporter =
-            Self::start_packet_statistics_control(shutdown.fork("packet_statistics_control"))?;
+            Self::start_packet_statistics_control(shutdown.fork("packet_statistics_control"));
 
         let gateway_packet_router = PacketRouter::new(
             ack_sender,

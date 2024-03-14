@@ -4,6 +4,7 @@
 use crate::config::{default_config_directory, default_data_directory};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::path::{Path, PathBuf};
+use nym_config::serde_helpers::de_maybe_stringified;
 
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
 pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
@@ -28,18 +29,6 @@ pub fn default_ip_packet_router_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
     default_data_directory(id).join(DEFAULT_IP_PACKET_ROUTER_DATA_DIR)
 }
 
-/// makes sure that an empty path is converted into a `None` as opposed to `Some("")`
-fn de_maybe_path<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let path = PathBuf::deserialize(deserializer)?;
-    if path.as_os_str().is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(path))
-    }
-}
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -52,13 +41,13 @@ pub struct GatewayPaths {
     pub clients_storage: PathBuf,
 
     /// Path to the configuration of the embedded network requester.
-    #[serde(deserialize_with = "de_maybe_path")]
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub network_requester_config: Option<PathBuf>,
     // pub node_description: PathBuf,
 
     // pub cosmos_bip39_mnemonic: PathBuf,
     /// Path to the configuration of the embedded ip packet router.
-    #[serde(deserialize_with = "de_maybe_path")]
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub ip_packet_router_config: Option<PathBuf>,
 }
 

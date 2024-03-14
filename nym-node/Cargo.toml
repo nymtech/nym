@@ -14,7 +14,7 @@ license = "GPL-3.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { workspace = true }
+anyhow.workspace = true
 bytes = "1.5.0"
 clap = { workspace = true, features = ["cargo", "env"] }
 colored = "2"
@@ -22,20 +22,21 @@ ipnetwork = "0.16"
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = "0.9.25"
-serde_json = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 tokio = { workspace = true, features = ["macros", "sync"] }
+url = { workspace = true, features = ["serde"] }
 
 # Wireguard:
 fastrand = "2"
 
 # HTTP API:
-axum = { workspace = true }
+axum.workspace = true
 # useful for `#[axum_macros::debug_handler]`
 #axum-macros = "0.3.8"
 mime = "0.3.17"
-hyper = { workspace = true }
+hyper.workspace = true
 tower = { version = "0.4.13" }
 tower-http = { version = "0.4.4", features = ["fs"] }
 utoipa = { workspace = true, features = ["axum_extras"] }
@@ -55,7 +56,7 @@ nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", features = ["verify"] }
 
 [dev-dependencies]
-dashmap = { workspace = true }
+dashmap.workspace = true
 rand = "0.7.3"
 nym-crypto = { path = "../common/crypto", features = ["rand"]}
 hmac = "0.12.1"

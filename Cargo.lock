@@ -6079,6 +6079,7 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
+ "url",
  "utoipa",
  "utoipa-swagger-ui",
  "x25519-dalek 2.0.0",

@@ -4,10 +4,12 @@
 pub mod vars {
     pub const NYMNODE_ID_ARG: &str = "NYMNODE_ID";
     pub const NYMNODE_CONFIG_PATH_ARG: &str = "NYMNODE_CONFIG";
-    
+
     pub const NYMNODE_DENY_INIT_ARG: &str = "NYMNODE_DENY_INIT";
-    
+
     pub const NYMNODE_INIT_ONLY_ARG: &str = "NYMNODE_INIT_ONLY";
+
+    pub const NYMNODE_MODE_ARG: &str = "NYMNODE_MODE";
 
     // pub const MIXNODE_ID_ARG: &str = "NYM_MIXNODE_ID";
     // pub const MIXNODE_LISTENING_ADDRESS_ARG: &str = "NYM_MIXNODE_LISTENING_ADDRESS";

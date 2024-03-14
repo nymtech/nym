@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::helpers::ConfigArgs;
-use crate::env::vars::{NYMNODE_DENY_INIT_ARG, NYMNODE_INIT_ONLY_ARG};
+use crate::env::vars::{NYMNODE_DENY_INIT_ARG, NYMNODE_INIT_ONLY_ARG, NYMNODE_MODE_ARG};
 use crate::node::NymNode;
-use nym_node::config::Config;
+use nym_node::config::{Config, NodeMode};
 use nym_node::error::NymNodeError;
 use tracing::{debug, trace};
 
@@ -30,6 +30,18 @@ pub(crate) struct Args {
         conflicts_with = "deny_init"
     )]
     init_only: bool,
+
+    /// Specifies the current mode of this nym-node.
+    #[clap(
+        long,
+        value_enum,
+        default_value_t = NodeMode::Mixnode,
+        env = NYMNODE_MODE_ARG
+    )]
+    mode: NodeMode,
+    //     mixnode-args
+    // entry-gateway-args
+    // exit-gateway args
 }
 
 impl Args {

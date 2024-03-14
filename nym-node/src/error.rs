@@ -12,6 +12,9 @@ pub enum NymNodeError {
     #[error("could not find an existing config file at '{}' and fresh node initialisation has been disabled", config_path.display())]
     ForbiddenInitialisation { config_path: PathBuf },
 
+    #[error("could not derive path to data directory of this nym node")]
+    DataDirDerivationFailure,
+
     #[error(
     "failed to load config file for using path '{}'. detailed message: {source}", path.display()
     )]

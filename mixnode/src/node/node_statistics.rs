@@ -119,38 +119,38 @@ impl SharedNodeStats {
 
         guard.packets_received_since_startup.inc_by(new_received);
         for (mix, count) in &new_sent {
-            if let Some(cntr) = guard.packets_sent_since_startup.get(mix) {
-                cntr.inc_by(*count);
-            } else {
-                let counter = Counter::new(
-                    sanitize_metric_name(&format!("packets_sent_{}", mix)),
-                    format!("Packets sent to mix {}, since startup", mix),
-                )
-                .unwrap();
-                guard.registry.register(Box::new(counter.clone())).unwrap();
-                counter.inc_by(*count);
-                guard
-                    .packets_sent_since_startup
-                    .insert(mix.clone(), counter);
-            }
+            // if let Some(cntr) = guard.packets_sent_since_startup.get(mix) {
+            //     cntr.inc_by(*count);
+            // } else {
+            //     let counter = Counter::new(
+            //         sanitize_metric_name(&format!("packets_sent_{}", mix)),
+            //         format!("Packets sent to mix {}, since startup", mix),
+            //     )
+            //     .unwrap();
+            //     guard.registry.register(Box::new(counter.clone())).unwrap();
+            //     counter.inc_by(*count);
+            //     guard
+            //         .packets_sent_since_startup
+            //         .insert(mix.clone(), counter);
+            // }
             guard.packets_sent_since_startup_all.inc_by(*count);
         }
 
         for (mix, count) in &new_dropped {
-            if let Some(cntr) = guard.packets_explicitly_dropped_since_startup.get(mix) {
-                cntr.inc_by(*count);
-            } else {
-                let counter = Counter::new(
-                    sanitize_metric_name(&format!("packets_dropped_{}", mix)),
-                    format!("Packets dropped to mix {}, since startup", mix),
-                )
-                .unwrap();
-                guard.registry.register(Box::new(counter.clone())).unwrap();
-                counter.inc_by(*count);
-                guard
-                    .packets_explicitly_dropped_since_startup
-                    .insert(mix.clone(), counter);
-            }
+            // if let Some(cntr) = guard.packets_explicitly_dropped_since_startup.get(mix) {
+            //     cntr.inc_by(*count);
+            // } else {
+            //     let counter = Counter::new(
+            //         sanitize_metric_name(&format!("packets_dropped_{}", mix)),
+            //         format!("Packets dropped to mix {}, since startup", mix),
+            //     )
+            //     .unwrap();
+            //     guard.registry.register(Box::new(counter.clone())).unwrap();
+            //     counter.inc_by(*count);
+            //     guard
+            //         .packets_explicitly_dropped_since_startup
+            //         .insert(mix.clone(), counter);
+            // }
             guard.packets_dropped_since_startup_all.inc_by(*count);
         }
 

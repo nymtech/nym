@@ -47,6 +47,7 @@ nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }
 nym-metrics = { path = "../common/nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
+nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
 nym-pemstore = { path = "../common/pemstore", version = "0.3.0" }

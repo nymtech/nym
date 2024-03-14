@@ -12,12 +12,12 @@ use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT,
 };
+use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
     must_get_home, parse_urls, read_config_from_toml_file, save_formatted_config_to_file,
     NymConfigTemplate, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use serde::{Deserialize, Serialize};
-use serde_helpers::*;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
@@ -28,7 +28,6 @@ mod entry_gateway;
 mod exit_gateway;
 mod mixnode;
 pub mod persistence;
-mod serde_helpers;
 mod template;
 mod upgrade_helpers;
 
@@ -216,7 +215,7 @@ pub struct Host {
 
     /// Optional hostname of this node, for example nymtech.net.
     // TODO: this is temporary. to be replaced by pulling the data directly from the certs.
-    #[serde(deserialize_with = "de_maybe_string")]
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub hostname: Option<String>,
 }
 
@@ -240,7 +239,7 @@ pub struct Http {
     pub bind_address: SocketAddr,
 
     /// Path to assets directory of custom landing page of this node.
-    #[serde(deserialize_with = "de_maybe_path")]
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub landing_page_assets_path: Option<PathBuf>,
 
     #[serde(default)]

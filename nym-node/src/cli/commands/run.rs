@@ -39,6 +39,8 @@ pub(crate) struct Args {
         env = NYMNODE_MODE_ARG
     )]
     mode: NodeMode,
+
+    write_changes: bool,
     //     mixnode-args
     // entry-gateway-args
     // exit-gateway args

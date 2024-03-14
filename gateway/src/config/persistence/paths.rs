@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::{default_config_directory, default_data_directory};
-use serde::{Deserialize, Deserializer, Serialize};
-use std::path::{Path, PathBuf};
 use nym_config::serde_helpers::de_maybe_stringified;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
 pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
@@ -28,7 +28,6 @@ pub fn default_network_requester_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
 pub fn default_ip_packet_router_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
     default_data_directory(id).join(DEFAULT_IP_PACKET_ROUTER_DATA_DIR)
 }
-
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]

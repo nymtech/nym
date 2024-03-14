@@ -57,7 +57,8 @@ time = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
-nym-node = { path = "../nym-node" }
+nym-node = { path = "../nym-node" } # TEMP
+nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
 
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
@@ -79,6 +80,8 @@ nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 nym-wireguard = { path = "../common/wireguard", optional = true }
+nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
+
 defguard_wireguard_rs = { git = "https://github.com/neacsu/wireguard-rs.git", rev = "c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed", optional = true }
 
 [dev-dependencies]

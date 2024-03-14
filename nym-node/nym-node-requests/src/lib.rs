@@ -7,17 +7,21 @@
 pub mod api;
 pub mod error;
 
+macro_rules! absolute_route {
+    ( $name:ident, $parent:expr, $suffix:expr ) => {
+        pub fn $name() -> String {
+            format!("{}{}", $parent, $suffix)
+        }
+    };
+}
+
 // still thinking how to nicely organise it
 pub mod routes {
-    use crate::absolute_route;
-
     pub const LANDING_PAGE: &str = "/";
     pub const ROOT: &str = "/";
     pub const API: &str = "/api";
 
     pub mod api {
-        use super::*;
-
         pub const V1: &str = "/v1";
 
         absolute_route!(v1_absolute, super::API, V1);
@@ -104,15 +108,6 @@ pub mod routes {
             }
         }
     }
-}
-
-#[macro_export]
-macro_rules! absolute_route {
-    ( $name:ident, $parent:expr, $suffix:expr ) => {
-        pub fn $name() -> String {
-            format!("{}{}", $parent, $suffix)
-        }
-    };
 }
 
 #[cfg(test)]

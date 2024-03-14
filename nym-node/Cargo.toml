@@ -16,49 +16,19 @@ license = "GPL-3.0"
 [dependencies]
 anyhow.workspace = true
 clap = { workspace = true, features = ["cargo", "env"] }
-colored = "2"
-ipnetwork = "0.16"
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["macros", "sync"] }
 url = { workspace = true, features = ["serde"] }
 
-# Wireguard:
-fastrand = "2"
-
-# HTTP API:
-axum.workspace = true
-# useful for `#[axum_macros::debug_handler]`
-#axum-macros = "0.3.8"
-hyper.workspace = true
-tower = { version = "0.4.13" }
-tower-http = { version = "0.4.4", features = ["fs"] }
-utoipa = { workspace = true, features = ["axum_extras"] }
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-
-# if we ever wanted redoc/rapidoc bridges:
-#utoipa-redoc = { version = "0.1.0", features = ["axum"] }
-#utoipa-rapidoc = { version = "0.1.0", features = ["axum"] }
-
 nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing", "output_format"]}
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"]}
-nym-http-api-common = { path = "../common/http-api-common" }
-nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"]}
+nym-node-http-api = { path = "nym-node-http-api" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-task = { path = "../common/task" }
-nym-wireguard = { path = "../common/wireguard" }
-nym-wireguard-types = { path = "../common/wireguard-types", features = ["verify"] }
 
 # nodes:
-#nym-mixnode = { path = "../mixnode" }
-
-[dev-dependencies]
-dashmap.workspace = true
-rand = "0.7.3"
-nym-crypto = { path = "../common/crypto", features = ["rand"]}
-hmac = "0.12.1"
-x25519-dalek = { version = "2.0.0" }
+nym-mixnode = { path = "../mixnode" }

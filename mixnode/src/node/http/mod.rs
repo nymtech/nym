@@ -9,9 +9,9 @@ use crate::node::node_statistics::SharedNodeStats;
 use log::info;
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_node::error::NymNodeError;
-use nym_node::http::api::api_requests;
-use nym_node::http::api::api_requests::SignedHostInformation;
+use nym_node_http_api::api::api_requests;
+use nym_node_http_api::api::api_requests::SignedHostInformation;
+use nym_node_http_api::NymNodeHttpError;
 use nym_task::TaskClient;
 
 pub(crate) mod legacy;
@@ -31,7 +31,7 @@ fn load_host_details(
     };
 
     let signed_info = SignedHostInformation::new(host_info, identity_keypair.private_key())
-        .map_err(NymNodeError::from)?;
+        .map_err(NymNodeHttpError::from)?;
     Ok(signed_info)
 }
 
@@ -92,7 +92,7 @@ impl<'a> HttpApiBuilder<'a> {
         let bind_address = self.mixnode_config.http.bind_address;
         info!("Starting HTTP API on http://{bind_address}",);
 
-        let config = nym_node::http::Config::new(
+        let config = nym_node_http_api::Config::new(
             bin_info_owned!(),
             load_host_details(
                 self.mixnode_config,
@@ -103,7 +103,7 @@ impl<'a> HttpApiBuilder<'a> {
         .with_mixnode(load_mixnode_details(self.mixnode_config)?)
         .with_landing_page_assets(self.mixnode_config.http.landing_page_assets_path.as_ref());
 
-        let router = nym_node::http::NymNodeRouter::new(config, None);
+        let router = nym_node_http_api::NymNodeRouter::new(config, None);
         let server = router
             .with_merged(legacy::routes(self.legacy_mixnode, self.legacy_descriptor))
             .build_server(&bind_address)?

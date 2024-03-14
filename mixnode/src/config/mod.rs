@@ -11,10 +11,10 @@ use nym_config::defaults::{
 };
 use nym_config::helpers::inaddr_any;
 use nym_config::{
-    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
+    serde_helpers::de_maybe_stringified, NymConfigTemplate, DEFAULT_CONFIG_DIR,
+    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_node::config;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -73,8 +73,8 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-fn default_mixnode_http_config() -> config::Http {
-    config::Http {
+fn default_mixnode_http_config() -> Http {
+    Http {
         bind_address: SocketAddr::new(
             IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             DEFAULT_HTTP_API_LISTENING_PORT,
@@ -91,10 +91,10 @@ pub struct Config {
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
-    pub host: config::Host,
+    pub host: Host,
 
     #[serde(default = "default_mixnode_http_config")]
-    pub http: config::Http,
+    pub http: Http,
 
     pub mixnode: MixNode,
 
@@ -122,7 +122,7 @@ impl Config {
 
         Config {
             save_path: None,
-            host: config::Host {
+            host: Host {
                 // this is a very bad default!
                 public_ips: vec![default_mixnode.listening_address],
                 hostname: None,
@@ -218,6 +218,41 @@ impl Config {
     pub fn metrics_key(&self) -> Option<&String> {
         self.http.metrics_key.as_ref()
     }
+}
+
+// TODO: this is very much a WIP. we need proper ssl certificate support here
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Host {
+    /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
+    pub public_ips: Vec<IpAddr>,
+
+    /// Optional hostname of this node, for example nymtech.net.
+    // TODO: this is temporary. to be replaced by pulling the data directly from the certs.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub hostname: Option<String>,
+}
+
+impl Host {
+    pub fn validate(&self) -> bool {
+        if self.public_ips.is_empty() {
+            return false;
+        }
+
+        true
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Http {
+    /// Socket address this node will use for binding its http API.
+    /// default: `0.0.0.0:8000`
+    pub bind_address: SocketAddr,
+
+    /// Path to assets directory of custom landing page of this node.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub landing_page_assets_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

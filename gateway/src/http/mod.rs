@@ -14,9 +14,10 @@ use nym_node::http::api::api_requests;
 use nym_node::http::api::api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node::http::api::api_requests::SignedHostInformation;
 use nym_node::http::router::WireguardAppState;
-use nym_node::wireguard::types::GatewayClientRegistry;
+use nym_node_http_api::NymNodeHttpError;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
+use nym_wireguard_types::registration::GatewayClientRegistry;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
@@ -58,6 +59,7 @@ fn load_host_details(
     };
 
     let signed_info = SignedHostInformation::new(host_info, identity_keypair.private_key())
+        .map_err(NymNodeHttpError::from)
         .map_err(NymNodeError::from)?;
     Ok(signed_info)
 }
@@ -294,7 +296,8 @@ impl<'a> HttpApiBuilder<'a> {
         let router = nym_node::http::NymNodeRouter::new(config, wg_state);
 
         let server = router
-            .build_server(&self.gateway_config.http.bind_address)?
+            .build_server(&self.gateway_config.http.bind_address)
+            .map_err(NymNodeError::from)?
             .with_task_client(task_client);
         tokio::spawn(async move { server.run().await });
         Ok(())

@@ -105,6 +105,7 @@ members = [
     "nym-browser-extension/storage",
     "nym-api/nym-api-requests",
     "nym-node",
+    "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
     "nym-outfox",
     "nym-validator-rewarder",

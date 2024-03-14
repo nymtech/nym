@@ -5,6 +5,7 @@ import { wallets as ledger } from '@cosmos-kit/ledger';
 import { wallets as cosmosstation } from '@cosmos-kit/cosmostation';
 import { assets, chains } from 'chain-registry';
 import { Chain, AssetList } from '@chain-registry/types';
+import { WALLET_CONNECT_PROJECT_ID } from '@src/api/constants';
 
 const nymSandbox: Chain = {
   chain_name: 'sandbox',
@@ -35,12 +36,17 @@ const nymSandboxAssets: AssetList = {
     },
   ],
 };
-
+console.log(WALLET_CONNECT_PROJECT_ID, 'WALLET_CONNECT_PROJECT_ID');
 const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => (
   <ChainProvider
     chains={[...chains, nymSandbox]}
     assetLists={[...assets, nymSandboxAssets]}
     wallets={[...keplr, ...ledger, ...cosmosstation]}
+    walletConnectOptions={{
+      signClient: {
+        projectId: WALLET_CONNECT_PROJECT_ID,
+      },
+    }}
   >
     {children}
   </ChainProvider>

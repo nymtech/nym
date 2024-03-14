@@ -28,3 +28,4 @@ export const NYM_BIG_DIPPER = 'https://mixnet.explorers.guru';
 export const NYM_MIXNET_CONTRACT =
   process.env.NYM_MIXNET_CONTRACT || 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr';
 export const COSMOS_KIT_USE_CHAIN = process.env.COSMOS_KIT_USE_CHAIN || 'sandbox';
+export const WALLET_CONNECT_PROJECT_ID = process.env.REACT_APP_WALLET_CONNECT_PROJECT_ID || '';

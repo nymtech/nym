@@ -26,6 +26,7 @@ cupid = "0.6.1"
 dirs = "4.0"
 futures = { workspace = true }
 humantime-serde = "1.0"
+lazy_static = "1.4"
 log = { workspace = true }
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
@@ -55,6 +56,7 @@ nym-crypto = { path = "../common/crypto" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }
+nym-metrics = { path = "../common/nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }

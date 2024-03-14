@@ -59,7 +59,7 @@ impl SphinxPacketProcessor {
         &self,
         packet: NymPacket,
     ) -> Result<NymProcessedPacket, MixProcessingError> {
-        measure!({
+        measure!("perform_initial_packet_processing", {
             packet.process(&self.sphinx_key).map_err(|err| {
                 debug!("Failed to unwrap NymPacket packet: {err}");
                 MixProcessingError::NymPacketProcessingError(err)
@@ -76,9 +76,8 @@ impl SphinxPacketProcessor {
         &self,
         received: FramedNymPacket,
     ) -> Result<NymProcessedPacket, MixProcessingError> {
-        measure!({
+        measure!("perform_initial_unwrapping", {
             let packet = received.into_inner();
-
             self.perform_initial_packet_processing(packet)
         })
     }
@@ -232,7 +231,7 @@ impl SphinxPacketProcessor {
         received: FramedNymPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // explicit packet size will help to correctly parse final hop
-        measure!({
+        measure!("process_received", {
             let packet_size = received.packet_size();
             let packet_type = received.packet_type();
 

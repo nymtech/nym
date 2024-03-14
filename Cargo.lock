@@ -5718,6 +5718,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-metrics"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "prometheus",
+]
+
+[[package]]
 name = "nym-mixnet-client"
 version = "0.1.0"
 dependencies = [
@@ -5765,11 +5773,13 @@ dependencies = [
  "dirs 4.0.0",
  "futures",
  "humantime-serde",
+ "lazy_static",
  "log",
  "nym-bin-common",
  "nym-config",
  "nym-contracts-common",
  "nym-crypto",
+ "nym-metrics",
  "nym-mixnet-client",
  "nym-mixnode-common",
  "nym-node",

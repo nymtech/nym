@@ -57,6 +57,7 @@ members = [
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
     "common/nym-id",
+    "common/nym-metrics",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -115,6 +116,7 @@ members = [
     #    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
     "wasm/node-tester",
+    "common/nym-metrics",
 ]
 
 default-members = [

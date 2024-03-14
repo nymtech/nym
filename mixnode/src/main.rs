@@ -5,6 +5,7 @@ use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use log::info;
 use nym_bin_common::bin_info;
+use nym_metrics::MetricsController;
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
@@ -15,6 +16,10 @@ use nym_bin_common::setup_tracing;
 use nym_mixnode_common::measure;
 #[cfg(feature = "cpucycles")]
 use tracing::instrument;
+
+lazy_static::lazy_static! {
+    pub static ref REGISTRY: MetricsController = MetricsController::default();
+}
 
 mod commands;
 mod config;
@@ -58,20 +63,15 @@ async fn main() -> anyhow::Result<()> {
 
     cfg_if::cfg_if! {
         if #[cfg(feature = "cpucycles")] {
-            setup_tracing!("mixnode");
             info!("CPU cycles measurement is ON")
         } else {
-            setup_logging();
             info!("CPU cycles measurement is OFF")
         }
     }
 
-    commands::execute(args).await?;
+    setup_logging();
 
-    cfg_if::cfg_if! {
-    if #[cfg(feature = "cpucycles")] {
-        opentelemetry::global::shutdown_tracer_provider();
-    }}
+    commands::execute(args).await?;
 
     Ok(())
 }

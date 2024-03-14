@@ -66,7 +66,7 @@ impl ConnectionHandler {
 
         // all processing such, key caching, etc. was done.
         // however, if it was a forward hop, we still need to delay it
-        measure!({
+        measure!("handle_received_packet", {
             match self.packet_processor.process_received(framed_sphinx_packet) {
                 Err(err) => debug!("We failed to process received sphinx packet - {err}"),
                 Ok(res) => match res {

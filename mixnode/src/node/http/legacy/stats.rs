@@ -1,7 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::node_statistics::{NodeStatsSimple, SharedNodeStats};
+use crate::{
+    node::node_statistics::{NodeStatsSimple, SharedNodeStats},
+    REGISTRY,
+};
 use axum::{
     extract::{Query, State},
     http::HeaderMap,
@@ -22,11 +25,7 @@ pub(crate) async fn metrics(State(state): State<MixnodeAppState>, headers: Heade
     if let Some(metrics_key) = state.metrics_key {
         if let Some(auth) = headers.get("Authorization") {
             if auth.to_str().unwrap_or_default() == format!("Bearer {}", metrics_key) {
-                let response = generate_full_stats(state.stats).await;
-                match response {
-                    NodeStatsResponse::Full(full) => full,
-                    NodeStatsResponse::Simple(_) => unreachable!(),
-                }
+                REGISTRY.to_string()
             } else {
                 "Unauthorized".to_string()
             }
@@ -49,15 +48,10 @@ pub(crate) async fn stats(
     output.to_response(response)
 }
 
-async fn generate_full_stats(stats: SharedNodeStats) -> NodeStatsResponse {
-    let snapshot_data = stats.clone_data().await;
-    NodeStatsResponse::Full(snapshot_data.prom().await)
-}
-
 async fn generate_stats(full: bool, stats: SharedNodeStats) -> NodeStatsResponse {
     let snapshot_data = stats.clone_data().await;
     if full {
-        generate_full_stats(stats).await
+        NodeStatsResponse::Full(REGISTRY.to_string())
     } else {
         NodeStatsResponse::Simple(snapshot_data.simplify())
     }

@@ -15,20 +15,17 @@ pub fn cpu_cycles() -> Result<i64, Box<dyn std::error::Error>> {
 
 #[macro_export]
 macro_rules! measure {
-    ( $x:expr ) => {{
+    ( $name:expr, $x:expr ) => {{
         cfg_if::cfg_if! {
             if #[cfg(feature = "cpucycles")] {
                 let start_cycles = $crate::cpu_cycles();
                 // if the block needs to return something, we can return it
                 let r = $x;
                 let end_cycles = $crate::cpu_cycles();
-                let name = if let Some(meta) = tracing::Span::current().metadata() {
-                    meta.name()
-                } else {
-                    "measure"
-                };
                 match (start_cycles, end_cycles) {
-                    (Ok(start), Ok(end)) => log::trace!("{} cpucycles: {}", name, end - start),
+                    (Ok(start), Ok(end)) => {
+                        // name.incr_by(end - start)
+                    },
                     (Err(e), _) => error!("{e}"),
                     (_, Err(e)) => error!("{e}"),
                 }

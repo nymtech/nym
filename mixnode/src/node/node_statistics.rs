@@ -1,12 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::REGISTRY;
+
 use super::TaskClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::{debug, info, trace};
-use prometheus::{Counter, Encoder as _, TextEncoder};
+use prometheus::Counter;
 use regex::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -30,7 +32,6 @@ impl SharedNodeStats {
     pub(crate) fn new() -> Self {
         let now = SystemTime::now();
 
-        let registry = prometheus::Registry::new();
         let packets_received_since_startup = Counter::new(
             "packets_received_since_startup",
             "Packets received since startup",
@@ -49,17 +50,11 @@ impl SharedNodeStats {
         )
         .unwrap();
 
-        registry
-            .register(Box::new(packets_sent_since_startup_all.clone()))
-            .unwrap();
+        REGISTRY.register(Box::new(packets_sent_since_startup_all.clone()));
 
-        registry
-            .register(Box::new(packets_dropped_since_startup_all.clone()))
-            .unwrap();
+        REGISTRY.register(Box::new(packets_dropped_since_startup_all.clone()));
 
-        registry
-            .register(Box::new(packets_received_since_startup.clone()))
-            .unwrap();
+        REGISTRY.register(Box::new(packets_received_since_startup.clone()));
 
         SharedNodeStats {
             inner: Arc::new(RwLock::new(NodeStats {
@@ -71,7 +66,6 @@ impl SharedNodeStats {
                 packets_received_since_last_update: 0.,
                 packets_sent_since_last_update: HashMap::new(),
                 packets_explicitly_dropped_since_last_update: HashMap::new(),
-                registry,
             })),
         }
     }
@@ -125,12 +119,10 @@ pub struct NodeStats {
     packets_sent_since_last_update: PacketsMap,
     // we know for sure we dropped packets to those destinations
     packets_explicitly_dropped_since_last_update: PacketsMap,
-    pub registry: prometheus::Registry,
 }
 
 impl Default for NodeStats {
     fn default() -> Self {
-        let registry = prometheus::Registry::new();
         let packets_received_since_startup = Counter::new(
             "packets_received_since_startup",
             "Packets received since startup",
@@ -148,17 +140,9 @@ impl Default for NodeStats {
         )
         .unwrap();
 
-        registry
-            .register(Box::new(packets_sent_since_startup_all.clone()))
-            .unwrap();
-
-        registry
-            .register(Box::new(packets_dropped_since_startup_all.clone()))
-            .unwrap();
-
-        registry
-            .register(Box::new(packets_received_since_startup.clone()))
-            .unwrap();
+        REGISTRY.register(Box::new(packets_sent_since_startup_all.clone()));
+        REGISTRY.register(Box::new(packets_dropped_since_startup_all.clone()));
+        REGISTRY.register(Box::new(packets_received_since_startup.clone()));
 
         NodeStats {
             update_time: SystemTime::UNIX_EPOCH,
@@ -169,7 +153,6 @@ impl Default for NodeStats {
             packets_received_since_last_update: 0.,
             packets_sent_since_last_update: Default::default(),
             packets_explicitly_dropped_since_last_update: Default::default(),
-            registry,
         }
     }
 }
@@ -189,14 +172,6 @@ impl NodeStats {
                 .values()
                 .sum(),
         }
-    }
-
-    pub async fn prom(&self) -> String {
-        let mut buffer = vec![];
-        let encoder = TextEncoder::new();
-        let metrics = self.registry.gather();
-        encoder.encode(&metrics, &mut buffer).unwrap();
-        String::from_utf8(buffer).unwrap()
     }
 }
 

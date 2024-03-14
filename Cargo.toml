@@ -50,6 +50,7 @@ members = [
     "common/execute",
     "common/exit-policy",
     "common/http-api-client",
+    "common/http-api-common",
     "common/inclusion-probability",
     "common/ip-packet-requests",
     "common/ledger",

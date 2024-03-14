@@ -39,11 +39,10 @@ url = { workspace = true, features = ["serde"] }
 thiserror = { workspace = true }
 
 # internal
-nym-node = { path = "../nym-node" }
-
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
+nym-http-api-common = { path = "../common/http-api-common" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }
 nym-metrics = { path = "../common/nym-metrics" }

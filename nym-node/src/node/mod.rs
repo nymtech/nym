@@ -46,6 +46,7 @@ impl NymNode {
 
     async fn run_as_mixnode(self) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in MIXNODE mode");
+
         Ok(())
     }
 

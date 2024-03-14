@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use axum::extract::{Query, State};
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_mixnode_common::verloc::{AtomicVerlocResult, VerlocResult};
-use nym_node::http::api::{FormattedResponse, OutputParams};
 
 #[derive(Clone, Default)]
 pub(crate) struct VerlocState {

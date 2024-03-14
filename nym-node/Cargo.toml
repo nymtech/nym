@@ -15,13 +15,11 @@ license = "GPL-3.0"
 
 [dependencies]
 anyhow.workspace = true
-bytes = "1.5.0"
 clap = { workspace = true, features = ["cargo", "env"] }
 colored = "2"
 ipnetwork = "0.16"
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
-serde_yaml = "0.9.25"
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
@@ -35,7 +33,6 @@ fastrand = "2"
 axum.workspace = true
 # useful for `#[axum_macros::debug_handler]`
 #axum-macros = "0.3.8"
-mime = "0.3.17"
 hyper.workspace = true
 tower = { version = "0.4.13" }
 tower-http = { version = "0.4.4", features = ["fs"] }
@@ -49,11 +46,15 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing", "output_format"]}
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"]}
+nym-http-api-common = { path = "../common/http-api-common" }
 nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"]}
 nym-pemstore = { path = "../common/pemstore" }
 nym-task = { path = "../common/task" }
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", features = ["verify"] }
+
+# nodes:
+#nym-mixnode = { path = "../mixnode" }
 
 [dev-dependencies]
 dashmap.workspace = true

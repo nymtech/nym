@@ -24,10 +24,10 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 
-pub(crate) mod helpers;
+pub mod helpers;
 mod http;
 mod listener;
-pub(crate) mod node_description;
+pub mod node_description;
 mod node_statistics;
 mod packet_delayforwarder;
 
@@ -54,7 +54,7 @@ impl MixNode {
     }
 
     /// Prints relevant node details to the console
-    pub(crate) fn print_node_details(&self, output: OutputFormat) {
+    pub fn print_node_details(&self, output: OutputFormat) {
         let node_details = nym_types::mixnode::MixnodeNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),

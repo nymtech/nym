@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::{try_load_current_config, validate_bech32_address_or_exit};
-use crate::node::helpers::load_identity_keys;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
 use log::error;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
+use nym_mixnode::node::helpers::load_identity_keys;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
 

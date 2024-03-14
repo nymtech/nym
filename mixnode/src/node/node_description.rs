@@ -8,10 +8,10 @@ use std::{fs, io};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NodeDescription {
-    pub(crate) name: String,
-    pub(crate) description: String,
-    pub(crate) link: String,
-    pub(crate) location: String,
+    pub name: String,
+    pub description: String,
+    pub link: String,
+    pub location: String,
 }
 
 impl Default for NodeDescription {
@@ -26,7 +26,7 @@ impl Default for NodeDescription {
 }
 
 impl NodeDescription {
-    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> io::Result<NodeDescription> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> io::Result<NodeDescription> {
         // let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
         //     .iter()
         //     .collect();
@@ -36,10 +36,7 @@ impl NodeDescription {
         toml::from_str(&toml).map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
     }
 
-    pub(crate) fn save_to_file<P: AsRef<Path>>(
-        description: &NodeDescription,
-        path: P,
-    ) -> io::Result<()> {
+    pub fn save_to_file<P: AsRef<Path>>(description: &NodeDescription, path: P) -> io::Result<()> {
         // let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
         //     .iter()
         //     .collect();

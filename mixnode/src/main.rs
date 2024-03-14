@@ -10,9 +10,6 @@ use std::sync::OnceLock;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 
 mod commands;
-mod config;
-pub(crate) mod error;
-mod node;
 
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();

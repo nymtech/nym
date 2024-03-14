@@ -3,14 +3,15 @@
 
 use super::OverrideConfig;
 use crate::commands::{override_config, try_load_current_config, version_check};
-use crate::node::MixNode;
 use anyhow::bail;
 use clap::Args;
 use log::error;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
+use nym_mixnode::MixNode;
 use nym_validator_client::nyxd;
 use std::net::IpAddr;
+
 #[derive(Args, Clone)]
 pub(crate) struct Run {
     /// Id of the nym-mixnode we want to run

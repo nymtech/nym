@@ -3,13 +3,13 @@
 
 use super::OverrideConfig;
 use crate::commands::override_config;
-use crate::config::{
-    default_config_directory, default_config_filepath, default_data_directory, Config,
-};
-use crate::node::MixNode;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnode::config::{
+    default_config_directory, default_config_filepath, default_data_directory, Config,
+};
+use nym_mixnode::node::MixNode;
 use std::net::IpAddr;
 use std::{fs, io};
 

@@ -1,9 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::default_config_filepath;
-use crate::error::MixnodeError;
-use crate::{config::Config, Cli};
+use crate::Cli;
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
@@ -13,6 +11,8 @@ use nym_bin_common::version_checker;
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
+use nym_mixnode::config::{default_config_filepath, Config};
+use nym_mixnode::error::MixnodeError;
 use std::net::IpAddr;
 use std::process;
 

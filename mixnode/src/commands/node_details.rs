@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::try_load_current_config;
-use crate::node::MixNode;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
+use nym_mixnode::MixNode;
 
 #[derive(Args)]
 pub(crate) struct NodeDetails {

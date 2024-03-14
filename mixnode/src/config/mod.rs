@@ -23,8 +23,8 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
-pub(crate) mod old_config_v1_1_21;
-pub(crate) mod old_config_v1_1_32;
+pub mod old_config_v1_1_21;
+pub mod old_config_v1_1_32;
 pub mod persistence;
 mod template;
 

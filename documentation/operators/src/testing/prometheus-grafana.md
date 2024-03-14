@@ -15,7 +15,68 @@ The combination of Prometheus and Grafana is a stack used by Nym team for intern
 
 Prometheus collects and stores its metrics as time series data, i.e. metrics information is stored with the timestamp at which it was recorded, alongside optional key-value pairs called labels.
 
-## Prometheus Setup
+## Grafana
+
+## Setup Guides
+
+### ExploreNym Templates
+
+This is a guide to setup and run [ExploreNYM](https://explorenym.net/)'s monitoring flow called [`self-hosted-monitor`](https://github.com/ExploreNYM/self-hosted-monitor) as a local metric system utilising [Prometheus](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) and [Grafana](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) together with [Node Exporter](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) and [Nginx](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh).
+
+According to ExploreNYM the system requirements of the monitor stack are 2 CPU. 4 GB RAM, 20 GB of free disk space.
+
+**Setup of the monitoring part**
+
+This can be setup on another VPS than the node if desired. We recommend to try to set this up on the same VPS as your node as we expect the machine to be strong enough to handle the node with enough capacity reserve for monitor.
+
+1. Install git
+```sh
+apt install git
+```
+
+2. Clone the repository to `~/self-hosted-monitor`
+```sh
+git clone https://github.com/ExploreNYM/self-hosted-monitor ~/self-hosted-monitor
+```
+
+3. Give permissions to [prometheus.sh](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) script and run it to setup Prometheus
+```sh
+chmod +x ~/self-hosted-monitor/prometheus.sh && ~/self-hosted-monitor/prometheus.sh
+```
+
+4.  Give permissions to [grafana.sh](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) script and run it to setup Grafana
+```sh
+chmod +x ~/self-hosted-monitor/grafana.sh && ~/self-hosted-monitor/grafana.sh
+```
+
+5. You can access Grafana at `http://<YOUR_IP_ADDRESS>:3000` if you prefer to use a domain with `https` add the step 6.
+
+6. Give permissions to [nginx-certbot.sh](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) script and run it to setup Nginx and Certbot
+```sh
+chmod +x ~/self-hosted-monitor/nginx-certbot.sh && ~/self-hosted-monitor/nginx-certbot.sh
+```
+
+**Setup of the part to be monitored**
+
+If you run monitoring and node on different VPS, this step needs to be done on the VPS with the running node. In case you do it on the same VPS, skip directly to step 9.
+
+7. Install git
+```sh
+apt install git
+```
+
+8. Clone the repository to `~/self-hosted-monitor`
+```sh
+git clone https://github.com/ExploreNYM/self-hosted-monitor ~/self-hosted-monitor
+```
+9. Give Ppermissions to [node-exporter.sh]() script and run it to setup Node exporter.
+```sh
+chmod +x ~/self-hosted-monitor/node-exporter.sh && ~/self-hosted-monitor/node-exporter.sh
+```
+
+
+
+### Prometheus Setup (step-by-step)
 
 This entire installation shall be done with `root` privileges. If you not `root`, start with `su` command before the following steps.
 

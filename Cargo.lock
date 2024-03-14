@@ -5216,7 +5216,6 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "prometheus",
  "rand 0.7.3",
  "reqwest",
  "serde",

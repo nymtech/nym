@@ -10,7 +10,7 @@ use prometheus::{Counter, Encoder as _, TextEncoder};
 use regex::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -20,33 +20,6 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 type PacketsMap = HashMap<String, f64>;
 type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
-
-#[derive(Default, Clone)]
-struct PromPacketsMap(HashMap<String, Counter>);
-
-impl PromPacketsMap {
-    fn sum(&self) -> f64 {
-        (*self).values().map(|c| c.get()).sum()
-    }
-
-    fn new() -> Self {
-        PromPacketsMap(HashMap::new())
-    }
-}
-
-impl DerefMut for PromPacketsMap {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Deref for PromPacketsMap {
-    type Target = HashMap<String, Counter>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
 
 #[derive(Clone, Default)]
 pub(crate) struct SharedNodeStats {
@@ -95,8 +68,6 @@ impl SharedNodeStats {
                 packets_received_since_startup,
                 packets_sent_since_startup_all,
                 packets_dropped_since_startup_all,
-                packets_sent_since_startup: PromPacketsMap::new(),
-                packets_explicitly_dropped_since_startup: PromPacketsMap::new(),
                 packets_received_since_last_update: 0.,
                 packets_sent_since_last_update: HashMap::new(),
                 packets_explicitly_dropped_since_last_update: HashMap::new(),
@@ -118,39 +89,11 @@ impl SharedNodeStats {
         guard.update_time = snapshot_time;
 
         guard.packets_received_since_startup.inc_by(new_received);
-        for (mix, count) in &new_sent {
-            // if let Some(cntr) = guard.packets_sent_since_startup.get(mix) {
-            //     cntr.inc_by(*count);
-            // } else {
-            //     let counter = Counter::new(
-            //         sanitize_metric_name(&format!("packets_sent_{}", mix)),
-            //         format!("Packets sent to mix {}, since startup", mix),
-            //     )
-            //     .unwrap();
-            //     guard.registry.register(Box::new(counter.clone())).unwrap();
-            //     counter.inc_by(*count);
-            //     guard
-            //         .packets_sent_since_startup
-            //         .insert(mix.clone(), counter);
-            // }
+        for count in new_sent.values() {
             guard.packets_sent_since_startup_all.inc_by(*count);
         }
 
-        for (mix, count) in &new_dropped {
-            // if let Some(cntr) = guard.packets_explicitly_dropped_since_startup.get(mix) {
-            //     cntr.inc_by(*count);
-            // } else {
-            //     let counter = Counter::new(
-            //         sanitize_metric_name(&format!("packets_dropped_{}", mix)),
-            //         format!("Packets dropped to mix {}, since startup", mix),
-            //     )
-            //     .unwrap();
-            //     guard.registry.register(Box::new(counter.clone())).unwrap();
-            //     counter.inc_by(*count);
-            //     guard
-            //         .packets_explicitly_dropped_since_startup
-            //         .insert(mix.clone(), counter);
-            // }
+        for count in new_dropped.values() {
             guard.packets_dropped_since_startup_all.inc_by(*count);
         }
 
@@ -177,21 +120,11 @@ pub struct NodeStats {
     packets_received_since_startup: Counter,
     packets_sent_since_startup_all: Counter,
     packets_dropped_since_startup_all: Counter,
-
-    // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_startup: PromPacketsMap,
-
-    // we know for sure we dropped packets to those destinations
-    packets_explicitly_dropped_since_startup: PromPacketsMap,
-
     packets_received_since_last_update: f64,
-
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
     packets_sent_since_last_update: PacketsMap,
-
     // we know for sure we dropped packets to those destinations
     packets_explicitly_dropped_since_last_update: PacketsMap,
-
     pub registry: prometheus::Registry,
 }
 
@@ -233,8 +166,6 @@ impl Default for NodeStats {
             packets_received_since_startup,
             packets_sent_since_startup_all,
             packets_dropped_since_startup_all,
-            packets_sent_since_startup: Default::default(),
-            packets_explicitly_dropped_since_startup: Default::default(),
             packets_received_since_last_update: 0.,
             packets_sent_since_last_update: Default::default(),
             packets_explicitly_dropped_since_last_update: Default::default(),
@@ -504,14 +435,14 @@ impl PacketStatsConsoleLogger {
 
             info!(
                 "Since startup mixed {} packets! ({} in last {} seconds)",
-                stats.packets_sent_since_startup.sum(),
+                stats.packets_sent_since_startup_all.get(),
                 stats.packets_sent_since_last_update.values().sum::<f64>(),
                 difference_secs,
             );
-            if !stats.packets_explicitly_dropped_since_startup.is_empty() {
+            if stats.packets_dropped_since_startup_all.get() > 0. {
                 info!(
                     "Since startup dropped {} packets! ({} in last {} seconds)",
-                    stats.packets_explicitly_dropped_since_startup.sum(),
+                    stats.packets_dropped_since_startup_all.get(),
                     stats
                         .packets_explicitly_dropped_since_last_update
                         .values()
@@ -528,19 +459,19 @@ impl PacketStatsConsoleLogger {
             );
             trace!(
                 "Since startup sent packets to the following: \n{:#?} \n And in last {} seconds: {:#?})",
-                stats.packets_sent_since_startup.sum(),
+                stats.packets_sent_since_startup_all.get(),
                 difference_secs,
                 stats.packets_sent_since_last_update
             );
         } else {
             info!(
                 "Since startup mixed {} packets!",
-                stats.packets_sent_since_startup.sum(),
+                stats.packets_sent_since_startup_all.get(),
             );
-            if !stats.packets_explicitly_dropped_since_startup.is_empty() {
+            if stats.packets_dropped_since_startup_all.get() > 0. {
                 info!(
                     "Since startup dropped {} packets!",
-                    stats.packets_explicitly_dropped_since_startup.sum(),
+                    stats.packets_dropped_since_startup_all.get(),
                 );
             }
 
@@ -549,8 +480,8 @@ impl PacketStatsConsoleLogger {
                 stats.packets_received_since_startup.get()
             );
             trace!(
-                "Since startup sent packets to the following: \n{:#?}",
-                stats.packets_sent_since_startup.sum()
+                "Since startup sent packets {}",
+                stats.packets_sent_since_startup_all.get()
             );
         }
     }
@@ -640,6 +571,7 @@ impl Controller {
     }
 }
 
+#[allow(dead_code)]
 fn sanitize_metric_name(name: &str) -> String {
     let re = Regex::new(r"[^a-zA-Z0-9_]").unwrap();
     re.replace_all(name, "_").to_string()
@@ -680,14 +612,10 @@ mod tests {
 
         // Get output (stats)
         let stats = node_stats_pointer.read().await;
-        assert_eq!(
-            &stats.packets_sent_since_startup.get("foo").unwrap().get(),
-            &2.
-        );
-        assert_eq!(&stats.packets_sent_since_startup.len(), &1);
+        assert_eq!(&stats.packets_sent_since_startup_all.get(), &2.);
         assert_eq!(&stats.packets_sent_since_last_update.get("foo"), &Some(&2.));
         assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
         assert_eq!(&stats.packets_received_since_startup.get(), &0.);
-        assert!(&stats.packets_explicitly_dropped_since_startup.is_empty());
+        assert_eq!(&stats.packets_dropped_since_startup_all.get(), &0.);
     }
 }

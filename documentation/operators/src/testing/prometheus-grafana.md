@@ -111,6 +111,51 @@ scrape_configs:
       - /tmp/prom_targets.json
 ```
 
+8. Create Prometheus systemd service by saving the block below to as `/etc/systemd/system/prometheus.service`:
+
+```sh
+nano /etc/systemd/system/prometheus.service
+```
+
+```sh
+[Unit]
+Description=Prometheus
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/prometheus \
+    --config.file /etc/prometheus/prometheus.yml \
+    --storage.tsdb.path /var/lib/prometheus/ \
+    --web.console.templates=/etc/prometheus/consoles \
+    --web.console.libraries=/etc/prometheus/console_libraries
+
+[Install]
+WantedBy=multi-user.target
+```
+
+9. Reload, enable, start and check Prometheus service
+```sh
+systemctl daemon-reload
+systemctl enable prometheus
+systemctl start prometheus
+systemctl status prometheus
+
+# to observe journal log, run
+journalctl -f -u prometheus
+```
+
+10. Open port for Prometheus web interface
+```sh
+ufw allow 9090/tcp
+```
+11. Finally you can access Prometheus on `localhost:9090` or `<IP_ADDRESS>:9090`
+
+
+
 
 **References**
 

@@ -14,6 +14,8 @@ use std::convert::TryFrom;
 
 use super::version_check;
 
+use pledge::pledge;
+
 #[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text", "contract_msg"])))]
 pub(crate) struct Sign {
@@ -113,6 +115,8 @@ fn print_signed_contract_msg(
 }
 
 pub(crate) fn execute(args: &Sign) -> anyhow::Result<()> {
+    pledge("stdio rpath", None).unwrap();
+
     let config = try_load_current_config(&args.id)?;
 
     if !version_check(&config) {
@@ -128,6 +132,8 @@ pub(crate) fn execute(args: &Sign) -> anyhow::Result<()> {
         }
     };
     let identity_keypair = load_identity_keys(&config)?;
+
+    pledge("stdio", None).unwrap();
 
     match signed_target {
         SignedTarget::Text(text) => {

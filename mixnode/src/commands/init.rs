@@ -13,6 +13,8 @@ use nym_crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use std::{fs, io};
 
+use pledge::pledge;
+
 #[derive(Args, Clone)]
 pub(crate) struct Init {
     /// Id of the mixnode we want to create config for
@@ -63,6 +65,8 @@ fn init_paths(id: &str) -> io::Result<()> {
 }
 
 pub(crate) fn execute(args: &Init) -> anyhow::Result<()> {
+    pledge("stdio rpath cpath wpath fattr", None).unwrap();
+
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = override_config_fields.id.clone();
     eprintln!("Initialising mixnode {id}...");

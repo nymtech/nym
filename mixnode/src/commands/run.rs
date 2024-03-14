@@ -11,6 +11,10 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
 use nym_validator_client::nyxd;
 use std::net::IpAddr;
+
+use pledge::pledge;
+use unveil::unveil;
+
 #[derive(Args, Clone)]
 pub(crate) struct Run {
     /// Id of the nym-mixnode we want to run
@@ -70,10 +74,29 @@ fn show_binding_warning(address: &str) {
 }
 
 pub(crate) async fn execute(args: &Run) -> anyhow::Result<()> {
+    pledge("stdio rpath inet dns unveil", None).unwrap();
+
     eprintln!("Starting mixnode {}...", args.id);
 
     let mut config = try_load_current_config(&args.id)?;
     config = override_config(config, OverrideConfig::from(args.clone()));
+
+    unveil("/etc/ssl", "r")
+    .or_else(unveil::Error::ignore_platform).unwrap();
+
+    unveil(config.storage_paths.node_description.display().to_string(), "r")
+    .or_else(unveil::Error::ignore_platform).unwrap();
+
+    unveil(config.storage_paths.keys.private_identity_key().display().to_string(), "r")
+    .or_else(unveil::Error::ignore_platform).unwrap();
+    unveil(config.storage_paths.keys.public_identity_key().display().to_string(), "r")
+    .or_else(unveil::Error::ignore_platform).unwrap();
+    unveil(config.storage_paths.keys.private_encryption_key().display().to_string(), "r")
+    .or_else(unveil::Error::ignore_platform).unwrap();
+    unveil(config.storage_paths.keys.public_encryption_key().display().to_string(), "r")
+    .or_else(unveil::Error::ignore_platform).unwrap();
+
+    pledge("stdio rpath inet dns", None).unwrap();
 
     if !version_check(&config) {
         error!("failed the local version check");

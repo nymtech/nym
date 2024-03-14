@@ -61,6 +61,8 @@ nym-topology = { path = "../common/topology" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 cpu-cycles = { path = "../cpu-cycles", optional = true }
+unveil = "0.3.2"
+pledge = "0.4.2"
 
 [dev-dependencies]
 tokio = { workspace = true, features = [

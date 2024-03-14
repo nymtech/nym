@@ -3,13 +3,28 @@ import os
 import requests
 import json
 from datetime import datetime
+from collections import namedtuple
+
+Config = namedtuple("Config", ["port", "outfile", "outlink"])
 
 
-def make_prom_target(mixnode):
+def config_to_targets(config, mixnodes):
+    prom_targets = [make_prom_target(mixnode, config.port) for mixnode in mixnodes]
+    with open(config.outfile, "w") as f:
+        json.dump(prom_targets, f)
+
+    os.chmod(config.outfile, 0o777)
+    os.rename(config.outfile, config.outlink)
+    os.chmod(config.outlink, 0o777)
+
+    print(f"Prometheus -> {len(prom_targets)} targets written to {config.outlink}")
+
+
+def make_prom_target(mixnode, port=None):
     bond_info = mixnode.get("bond_information", {})
     mix_node = bond_info.get("mix_node", {})
     host = mix_node.get("host", None)
-    port = mix_node.get("http_api_port", None)
+    port = port if port else mix_node.get("http_api_port", None)
     if host is None or port is None:
         return None
 
@@ -36,16 +51,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     nym_api = args.apiurl
-    outlink = "/tmp/prom_targets.json"
-    outfile = f"/tmp/temp_targets.json"
+
+    targets = [
+        Config(None, "/tmp/temp_targets_mix.json", "/tmp/prom_targets_mix.json"),
+        Config(9100, "/tmp/temp_targets_node.json", "/tmp/prom_targets_node.json"),
+    ]
 
     mixnodes = requests.get(f"{nym_api}/api/v1/mixnodes").json()
-    prom_targets = [make_prom_target(mixnode) for mixnode in mixnodes]
-    with open(outfile, "w") as f:
-        json.dump(prom_targets, f)
-    
-    os.chmod(outfile , 0o777)
-    os.rename(outfile, outlink)
-    os.chmod(outlink , 0o777)
-    
-    print(f"Prometheus -> {len(prom_targets)} targets written to {outfile}")
+
+    for config in targets:
+        config_to_targets(config, mixnodes)

@@ -11,9 +11,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::embedded_network_requester::{
-    LocalNetworkRequesterHandle, MessageRouter,
-};
+use crate::node::client_handling::embedded_clients::{LocalNetworkRequesterHandle, MessageRouter};
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};

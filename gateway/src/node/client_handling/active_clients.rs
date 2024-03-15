@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender};
-use crate::node::client_handling::embedded_network_requester::LocalNetworkRequesterHandle;
+use crate::node::client_handling::embedded_clients::LocalNetworkRequesterHandle;
 use dashmap::DashMap;
 use log::warn;
 use nym_sphinx::DestinationAddressBytes;

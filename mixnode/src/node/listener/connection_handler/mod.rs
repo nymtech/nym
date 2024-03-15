@@ -9,7 +9,7 @@ use crate::node::TaskClient;
 use futures::StreamExt;
 use log::debug;
 use log::{error, info, warn};
-use nym_metrics::measure;
+use nym_metrics::nanos;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -59,7 +59,7 @@ impl ConnectionHandler {
 
         // all processing such, key caching, etc. was done.
         // however, if it was a forward hop, we still need to delay it
-        measure!("handle_received_packet", {
+        nanos!("handle_received_packet", {
             match self.packet_processor.process_received(framed_sphinx_packet) {
                 Err(err) => debug!("We failed to process received sphinx packet - {err}"),
                 Ok(res) => match res {

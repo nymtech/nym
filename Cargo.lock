@@ -1430,14 +1430,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cpu-cycles"
-version = "0.1.0"
-dependencies = [
- "cfg-if",
- "libc",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5721,8 +5713,6 @@ dependencies = [
 name = "nym-metrics"
 version = "0.1.0"
 dependencies = [
- "cfg-if",
- "cpu-cycles",
  "dashmap",
  "lazy_static",
  "log",
@@ -5773,7 +5763,6 @@ dependencies = [
  "cfg-if",
  "clap 4.4.7",
  "colored",
- "cpu-cycles",
  "cupid",
  "dirs 4.0.0",
  "futures",

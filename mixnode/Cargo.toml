@@ -57,7 +57,6 @@ nym-types = { path = "../common/types" }
 nym-topology = { path = "../common/topology" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
-cpu-cycles = { path = "../cpu-cycles", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = [
@@ -69,12 +68,6 @@ tokio = { workspace = true, features = [
 
 nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
-
-[features]
-cpucycles = [
-    "nym-metrics/cpucycles",
-    "nym-mixnode-common/cpucycles" 
-]
 
 [package.metadata.deb]
 name = "nym-mixnode"

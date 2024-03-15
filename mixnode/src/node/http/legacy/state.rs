@@ -10,6 +10,7 @@ use axum::extract::FromRef;
 pub(crate) struct MixnodeAppState {
     pub(crate) verloc: VerlocState,
     pub(crate) stats: SharedNodeStats,
+    pub(crate) metrics_key: Option<String>,
 }
 
 impl FromRef<MixnodeAppState> for VerlocState {

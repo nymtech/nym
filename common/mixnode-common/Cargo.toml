@@ -25,9 +25,6 @@ tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true }
 thiserror = { workspace = true }
 
-## tracing
-tracing = { version = "0.1.37", optional = true }
-
 nym-crypto = { path = "../crypto" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-sphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
@@ -39,9 +36,4 @@ nym-sphinx-types = { path = "../nymsphinx/types" }
 nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }
 nym-bin-common = { path = "../bin-common" }
-
-cfg-if = "1.0.0"
-cpu-cycles = { path = "../../cpu-cycles", optional = true }
-
-[features]
-cpucycles = ["cpu-cycles", "tracing"]
+nym-metrics = { path = "../nym-metrics" }

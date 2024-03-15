@@ -44,6 +44,9 @@ pub(crate) struct Run {
 
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
+
+    #[clap(long)]
+    metrics_key: Option<String>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -55,6 +58,7 @@ impl From<Run> for OverrideConfig {
             verloc_port: run_config.verloc_port,
             http_api_port: run_config.http_api_port,
             nym_apis: run_config.nym_apis,
+            metrics_key: run_config.metrics_key,
         }
     }
 }

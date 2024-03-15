@@ -32,7 +32,7 @@ members = [
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
-#    "common/cosmwasm-smart-contracts/ephemera",
+    #    "common/cosmwasm-smart-contracts/ephemera",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
@@ -57,6 +57,7 @@ members = [
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
     "common/nym-id",
+    "common/nym-metrics",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -112,9 +113,10 @@ members = [
     "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
-#    "wasm/full-nym-wasm",
+    #    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
     "wasm/node-tester",
+    "common/nym-metrics",
 ]
 
 default-members = [
@@ -130,7 +132,16 @@ default-members = [
     "nym-validator-rewarder",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "nym-vpn/ui/src-tauri", "cpu-cycles", "sdk/ffi/cpp"]
+exclude = [
+    "explorer",
+    "contracts",
+    "nym-wallet",
+    "nym-connect/mobile/src-tauri",
+    "nym-connect/desktop",
+    "nym-vpn/ui/src-tauri",
+    "cpu-cycles",
+    "sdk/ffi/cpp",
+]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]
@@ -180,10 +191,12 @@ utoipa-swagger-ui = "3.1.5"
 url = "2.4"
 zeroize = "1.6.0"
 
+prometheus = { version = "0.13.0" }
+
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
-bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch ="feature/gt-serialization-0.8.0" }
+bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch = "feature/gt-serialization-0.8.0" }
 group = "0.13.0"
 ff = "0.13.0"
 
@@ -208,9 +221,9 @@ cw-controllers = { version = "=1.1.0" }
 bip32 = "0.5.1"
 
 # temporarily using a fork again (yay.) because we need staking and slashing support
-cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch ="nym-temp/all-validator-features" }
+cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" }
 #cosmrs = {  git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" } # unfortuntely we need a fork by yours truly to get the staking support
-tendermint = "0.34" # same version as used by cosmrs
+tendermint = "0.34"     # same version as used by cosmrs
 tendermint-rpc = "0.34" # same version as used by cosmrs
 prost = "0.12"
 

@@ -3,18 +3,11 @@
 
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
-use log::info;
 use nym_bin_common::bin_info;
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
-#[cfg(feature = "cpucycles")]
-use nym_bin_common::setup_tracing;
-#[cfg(feature = "cpucycles")]
-use nym_mixnode_common::measure;
-#[cfg(feature = "cpucycles")]
-use tracing::instrument;
 
 mod commands;
 mod config;
@@ -41,12 +34,6 @@ struct Cli {
     command: commands::Commands,
 }
 
-#[cfg(feature = "cpucycles")]
-#[instrument(fields(cpucycles))]
-fn test_function() {
-    measure!({})
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
@@ -56,22 +43,9 @@ async fn main() -> anyhow::Result<()> {
         maybe_print_banner(crate_name!(), crate_version!());
     }
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "cpucycles")] {
-            setup_tracing!("mixnode");
-            info!("CPU cycles measurement is ON")
-        } else {
-            setup_logging();
-            info!("CPU cycles measurement is OFF")
-        }
-    }
+    setup_logging();
 
     commands::execute(args).await?;
-
-    cfg_if::cfg_if! {
-    if #[cfg(feature = "cpucycles")] {
-        opentelemetry::global::shutdown_tracer_provider();
-    }}
 
     Ok(())
 }

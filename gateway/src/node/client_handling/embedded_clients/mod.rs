@@ -28,17 +28,6 @@ impl LocalEmbeddedClientHandle {
         }
     }
 
-    // TODO: generalize this whole thing to be general. And change the name(s).
-    pub(crate) fn new_ip(
-        start_data: nym_ip_packet_router::OnStartData,
-        mix_message_sender: MixMessageSender,
-    ) -> Self {
-        Self {
-            address: start_data.address,
-            mix_message_sender,
-        }
-    }
-
     pub(crate) fn client_destination(&self) -> DestinationAddressBytes {
         self.address.identity().derive_destination_address()
     }

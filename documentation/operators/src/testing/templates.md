@@ -18,7 +18,7 @@ Make sure you understand and properly evaluate what degree of control you give p
 
 #### ExploreNYM Tools
 
-Long term involved operator Pawnflake, an author of [ExploreNYM](https://explorenym.net/) explorer setup a monitoring flow, which can be used by other operators called [`self-hosted-monitor`](https://github.com/ExploreNYM/self-hosted-monitor). It utilises bash scripts to enable operators setup [Prometheus](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) and [Grafana](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) together with [Node Exporter](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) and [Nginx](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) to run setup their metrics monitoring stack locally.
+Long term involved operator Pawnflake, an author of [ExploreNYM](https://explorenym.net/) explorer setup a monitoring flow, which can be used by other operators called [`self-hosted-monitor`](https://github.com/ExploreNYM/self-hosted-monitor). It utilises bash scripts to enable operators setup [Prometheus](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) and [Grafana](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) together with [Node Exporter](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) and [Nginx](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) to run their metrics monitoring stack locally.
 
 In collaboration with ExploreNYM we published a [step by step guide](prometheus-grafana.md#explorenym-templates) to setup their monitoring flow.
 

@@ -24,7 +24,7 @@ macro_rules! measure {
                 let end_cycles = $crate::cpu_cycles();
                 match (start_cycles, end_cycles) {
                     (Ok(start), Ok(end)) => {
-                        let metric = nym_metrics::REGISTRY.inc_by($name, (end - start) as f64);
+                        nym_metrics::REGISTRY.inc_by($name, (end - start) as f64);
                     },
                     (Err(e), _) => error!("{e}"),
                     (_, Err(e)) => error!("{e}"),

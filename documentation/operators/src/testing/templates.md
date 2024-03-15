@@ -2,7 +2,7 @@
 
 At Nym as well as several core community operators had setup metrics monitors for a clear overview of node performance.
 
-It is useful for a one time event or limited period to use the existing metric infrastructure stack  Nym developers. For the purpose of maximal privacy and decentralisation of the data - preventing Nym Mixnet from any global adversary take-over - we created these pages as a source of mutual empowerment, a place where operators can share and learn new skills to **setup metrics monitors on their own infrastructure**.
+It is useful for a one time event or limited period to use the existing metric infrastructure stack  Nym developers. For the purpose of maximal privacy and decentralisation of the data - preventing Nym Mixnet from any global adversary takeover - we created these pages as a source of mutual empowerment, a place where operators can share and learn new skills to **setup metrics monitors on their own infrastructure**.
 
 ## Collecting Testing Metrics
 
@@ -19,10 +19,9 @@ Make sure you understand and properly evaluate what degree of control you give p
 
 Long term involved operator Pawnflake, an author of [ExploreNYM](https://explorenym.net/) explorer setup a monitoring flow, which can be used by other operators called [`self-hosted-monitor`](https://github.com/ExploreNYM/self-hosted-monitor). It utilises bash scripts to enable operators setup [Prometheus](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) and [Grafana](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) together with [Node Exporter](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) and [Nginx](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) to run setup their metrics monitoring stack locally.
 
-In collaboration with ExploreNYM we published a [step by step guide](
+In collaboration with ExploreNYM we published a [step by step guide](prometheus-grafana.md#explorenym-templates) to setup their monitoring flow.
 
-
-ExploreNYM also has a network measuring instance called `enym-monitor`. This setup is very simple for users, however it means that their data are aggregataded all on one  server and that is a design we would like to discourage from.
+ExploreNYM also has a network measuring instance called `enym-monitor`. This setup is very simple for users, however it means that their data are aggregated all on one  server and that is a design we would like to discourage from.
 
 ## Guides to Setup Own Metrics
 

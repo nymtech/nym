@@ -21,11 +21,15 @@ Prometheus collects and stores its metrics as time series data, i.e. metrics inf
 
 ### ExploreNym Templates
 
+```admonish warning
+This setup and the scripts included were not written by Nym developers. As always do your own audit before installing any scripts on your machine and familiarize yourself with the security risks involved when opening ports or allowing http acces.
+```
+
 This is a guide to setup and run [ExploreNYM](https://explorenym.net/)'s monitoring flow called [`self-hosted-monitor`](https://github.com/ExploreNYM/self-hosted-monitor) as a local metric system utilising [Prometheus](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) and [Grafana](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) together with [Node Exporter](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) and [Nginx](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh).
 
 According to ExploreNYM the system requirements of the monitor stack are 2 CPU. 4 GB RAM, 20 GB of free disk space.
 
-**Setup of the monitoring part**
+#### Setup of the monitoring part
 
 This can be setup on another VPS than the node if desired. We recommend to try to set this up on the same VPS as your node as we expect the machine to be strong enough to handle the node with enough capacity reserve for monitor.
 
@@ -49,32 +53,69 @@ chmod +x ~/self-hosted-monitor/prometheus.sh && ~/self-hosted-monitor/prometheus
 chmod +x ~/self-hosted-monitor/grafana.sh && ~/self-hosted-monitor/grafana.sh
 ```
 
-5. You can access Grafana at `http://<YOUR_IP_ADDRESS>:3000` if you prefer to use a domain with `https` add the step 6.
+5. Open port `3000` to allow access to Grafana
+```sh
+sudo ufw allow 3000
+```
 
-6. Give permissions to [nginx-certbot.sh](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) script and run it to setup Nginx and Certbot
+6. You can access Grafana at `http://<YOUR_IP_ADDRESS>:3000` if you have an registered domain and prefer to use  it with `https` add the step 7.
+
+7. Give permissions to [nginx-certbot.sh](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) script and run it to setup Nginx and Certbot
 ```sh
 chmod +x ~/self-hosted-monitor/nginx-certbot.sh && ~/self-hosted-monitor/nginx-certbot.sh
 ```
 
-**Setup of the part to be monitored**
+#### Setup of the part to be monitored
 
 If you run monitoring and node on different VPS, this step needs to be done on the VPS with the running node. In case you do it on the same VPS, skip directly to step 9.
 
-7. Install git
+8. Install git
 ```sh
 apt install git
 ```
 
-8. Clone the repository to `~/self-hosted-monitor`
+9. Clone the repository to `~/self-hosted-monitor`
 ```sh
 git clone https://github.com/ExploreNYM/self-hosted-monitor ~/self-hosted-monitor
 ```
-9. Give Ppermissions to [node-exporter.sh]() script and run it to setup Node exporter.
+10. Give permissions to [node-exporter.sh]() script and run it to setup Node exporter.
 ```sh
 chmod +x ~/self-hosted-monitor/node-exporter.sh && ~/self-hosted-monitor/node-exporter.sh
 ```
 
+#### Setup Grafana Dashboard
 
+11. Open a browser at `http://<YOUR_IP_ADDRESS>:3000` or `https://<YOUR_DOMAIN>:3000`, entry username `admin` and password `admin` and setup new credentials on prompt
+
+12. Setup Data source by opening the menu -> `Connections` -> `Data sources` -> `+ Add new data source` -> `Prometheus`
+
+![](../images/grafana/add-data-sources.png)
+![](../images/grafana/add-data-source-prometheus.png)
+
+13. In the field *Connection* next to `Prometheus server URL` enter `http://localhost:9090` (regardless if you accessing Grafana via `http` or `https` as this is for internal connection on the server). When you are done in the bottom `Save & Test`
+
+14. In the menu open `Dashboards` -> `+ Create dashboard` -> `Import dashboard`
+
+![](../images/grafana/import-dashboard.png)
+
+15. ID field -> enter `1860` -> `Load`
+
+![](../images/grafana/id-1860.png)
+
+16. In *Import dashboard* page select Prometheus in the bottom and finally `Import`
+
+![](../images/grafana/add-prometheus.png)
+
+17. Now you have your Prometheus panels in Grafana dashboard, we are going to share a quick way to load the live metrics very soon
+
+### Full Own Setup
+
+We are working on an entirely manual setup and will publish it in the coming days.
+
+<!--
+TODO:
+- change point 17 with a solution to load the metrics data to grafana/prometheus
+- finalize the self setup bellow and uncomment
 
 ### Prometheus Setup (step-by-step)
 
@@ -219,7 +260,7 @@ Further reading on Prometheus functionalities:
 - [Alerting overview](https://prometheus.io/docs/alerting/latest/overview/)
 - [Exporters and Integration](https://prometheus.io/docs/instrumenting/exporters/)
 
-
+-->
 ## References and further reading
 
 * [Prometheus release page](https://prometheus.io/download/)

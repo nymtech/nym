@@ -330,12 +330,11 @@ impl<St> Gateway<St> {
 
         // if network requester is enabled, configuration file must be provided!
         let Some(ip_opts) = &self.ip_packet_router_opts else {
-            log::error!("IP packet router is enabled but no configuration file was provided!");
             return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
         };
 
         // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
-        let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
+        let (ipr_mix_sender, ipr_mix_receiver) = mpsc::unbounded();
         let router_shutdown = shutdown.fork("message_router");
 
         let (router_tx, mut router_rx) = oneshot::channel();
@@ -346,7 +345,6 @@ impl<St> Gateway<St> {
             router_tx,
         );
 
-        // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut ip_packet_router =
             nym_ip_packet_router::IpPacketRouter::new(ip_opts.config.clone())
@@ -377,13 +375,11 @@ impl<St> Gateway<St> {
             return Err(GatewayError::IpPacketRouterStartupFailure);
         };
 
-        MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
-        info!(
-            "the local ip packet router is running on {}",
-            start_data.address
-        );
+        MessageRouter::new(ipr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
+        let address = start_data.address;
 
-        Ok(LocalEmbeddedClientHandle::new_ip(start_data, nr_mix_sender))
+        info!("the local ip packet router is running on {address}");
+        Ok(LocalEmbeddedClientHandle::new(address, ipr_mix_sender))
     }
 
     async fn wait_for_interrupt(

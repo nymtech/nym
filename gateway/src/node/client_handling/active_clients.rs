@@ -12,7 +12,7 @@ enum ActiveClient {
     /// Handle to a remote client connected via a network socket.
     Remote(ClientIncomingChannels),
 
-    /// Handle to a locally (inside the same process) running network requester client.
+    /// Handle to a locally (inside the same process) running client.
     Embedded(LocalEmbeddedClientHandle),
 }
 
@@ -149,13 +149,14 @@ impl ActiveClientsStore {
         }
     }
 
-    /// Inserts a handle to the embedded network requester
-    pub(crate) fn insert_embedded(&self, local_nr_handle: LocalEmbeddedClientHandle) {
-        let key = local_nr_handle.client_destination();
-        let entry = ActiveClient::Embedded(local_nr_handle);
+    /// Inserts a handle to the embedded client
+    pub(crate) fn insert_embedded(&self, local_client_handle: LocalEmbeddedClientHandle) {
+        let key = local_client_handle.client_destination();
+        let entry = ActiveClient::Embedded(local_client_handle);
         if self.inner.insert(key, entry).is_some() {
-            // this is literally impossible since we're starting local NR before even spawning the websocket listener task
-            panic!("somehow we already had a client with the same address as our local NR!")
+            // this is literally impossible since we're starting the local embedded client before
+            // even spawning the websocket listener task
+            panic!("somehow we already had a client with the same address as our local embedded client!")
         }
     }
 

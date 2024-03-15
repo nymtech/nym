@@ -48,7 +48,7 @@ impl LocalEmbeddedClientHandle {
 // calling the method. however, this would have caused slightly more complexity and more overhead
 // (due to more data being copied to every [mix] connection)
 //
-/// task responsible for receiving messages for locally embedded client from multiple mix
+/// task responsible for receiving messages for locally embedded clients from multiple mix
 /// connections and forwarding them via the router. kinda equivalent of a client socket handler
 pub(crate) struct MessageRouter {
     mix_receiver: MixMessageReceiver,
@@ -71,7 +71,7 @@ impl MessageRouter {
         if let Err(err) = self.packet_router.route_received(messages) {
             // TODO: what should we do here? I don't think this could/should ever fail.
             // is panicking the appropriate thing to do then?
-            error!("failed to route packets to local NR: {err}")
+            error!("failed to route packets to local embedded client: {err}")
         }
     }
 

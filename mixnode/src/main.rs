@@ -44,6 +44,8 @@ async fn main() -> anyhow::Result<()> {
         maybe_print_banner(crate_name!(), crate_version!());
     }
 
+    setup_logging();
+
     cfg_if::cfg_if! {
         if #[cfg(feature = "cpucycles")] {
             info!("CPU cycles measurement is ON")
@@ -51,8 +53,6 @@ async fn main() -> anyhow::Result<()> {
             info!("CPU cycles measurement is OFF")
         }
     }
-
-    setup_logging();
 
     commands::execute(args).await?;
 

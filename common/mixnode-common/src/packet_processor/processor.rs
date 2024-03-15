@@ -15,8 +15,6 @@ use nym_sphinx_types::{
 };
 use std::convert::TryFrom;
 use std::sync::Arc;
-#[cfg(feature = "cpucycles")]
-use tracing::instrument;
 
 type ForwardAck = MixPacket;
 
@@ -51,10 +49,6 @@ impl SphinxPacketProcessor {
     }
 
     /// Performs a fresh sphinx unwrapping using no cache.
-    #[cfg_attr(
-        feature = "cpucycles",
-        instrument(skip(self, packet), fields(cpucycles))
-    )]
     fn perform_initial_packet_processing(
         &self,
         packet: NymPacket,
@@ -68,10 +62,6 @@ impl SphinxPacketProcessor {
     }
 
     /// Takes the received framed packet and tries to unwrap it from the sphinx encryption.
-    #[cfg_attr(
-        feature = "cpucycles",
-        instrument(skip(self, received), fields(cpucycles))
-    )]
     fn perform_initial_unwrapping(
         &self,
         received: FramedNymPacket,
@@ -222,10 +212,6 @@ impl SphinxPacketProcessor {
         }
     }
 
-    #[cfg_attr(
-        feature = "cpucycles",
-        instrument(skip(self, received), fields(cpucycles))
-    )]
     pub fn process_received(
         &self,
         received: FramedNymPacket,

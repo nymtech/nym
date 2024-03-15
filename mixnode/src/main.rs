@@ -10,11 +10,7 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 #[cfg(feature = "cpucycles")]
-use nym_bin_common::setup_tracing;
-#[cfg(feature = "cpucycles")]
 use nym_mixnode_common::measure;
-#[cfg(feature = "cpucycles")]
-use tracing::instrument;
 
 mod commands;
 mod config;
@@ -39,12 +35,6 @@ struct Cli {
 
     #[clap(subcommand)]
     command: commands::Commands,
-}
-
-#[cfg(feature = "cpucycles")]
-#[instrument(fields(cpucycles))]
-fn test_function() {
-    measure!({})
 }
 
 #[tokio::main]

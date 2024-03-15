@@ -5795,7 +5795,6 @@ dependencies = [
  "nym-topology",
  "nym-types",
  "nym-validator-client",
- "opentelemetry",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -5804,7 +5803,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml 0.5.11",
- "tracing",
  "url",
 ]
 
@@ -5835,7 +5833,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tracing",
  "url",
 ]
 

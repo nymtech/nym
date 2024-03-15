@@ -19,14 +19,14 @@ futures = { workspace = true }
 humantime-serde = "1.0"
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-reqwest = { workspace = true, features = ["rustls"] }
+reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = "0.10.6"
 tap = "1.0.1"
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tungstenite = { workspace = true, default-features = false, features = ["rustls"] }
+tungstenite = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["macros"]}
 time = "0.3.17"
 zeroize = { workspace = true }

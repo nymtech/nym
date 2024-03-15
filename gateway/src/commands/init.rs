@@ -17,7 +17,7 @@ use std::{fs, io};
 
 use super::helpers::OverrideIpPacketRouterConfig;
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Debug)]
 pub struct Init {
     /// Id of the gateway we want to create config for
     #[clap(long)]

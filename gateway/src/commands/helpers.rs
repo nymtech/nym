@@ -99,7 +99,7 @@ impl OverrideConfig {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct OverrideNetworkRequesterConfig {
     pub(crate) fastmode: bool,
     pub(crate) no_cover: bool,
@@ -112,7 +112,7 @@ pub(crate) struct OverrideNetworkRequesterConfig {
     pub(crate) statistics_recipient: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct OverrideIpPacketRouterConfig {
     // TODO
 }

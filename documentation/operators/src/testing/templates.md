@@ -15,7 +15,8 @@ Individual operators, noide families and squads are the foundation of distribute
 ```admonish warning
 Make sure you understand and properly evaluate what degree of control you give permission to before granting access to your data to any tools running on someone else's servers.
 ```
-**ExploreNym**
+
+#### ExploreNYM Tools
 
 Long term involved operator Pawnflake, an author of [ExploreNYM](https://explorenym.net/) explorer setup a monitoring flow, which can be used by other operators called [`self-hosted-monitor`](https://github.com/ExploreNYM/self-hosted-monitor). It utilises bash scripts to enable operators setup [Prometheus](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus.sh) and [Grafana](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/grafana.sh) together with [Node Exporter](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) and [Nginx](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) to run setup their metrics monitoring stack locally.
 

@@ -37,3 +37,7 @@ nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }
 nym-bin-common = { path = "../bin-common" }
 nym-metrics = { path = "../nym-metrics" }
+
+
+[features]
+cpucycles = ["nym-metrics/cpucycles"]

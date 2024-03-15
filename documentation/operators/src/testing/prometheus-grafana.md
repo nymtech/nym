@@ -1,12 +1,12 @@
 # Prometheus & Grafana
 
-The combination of Prometheus and Grafana is a stack used by Nym team for internal monitoring as well as by core community operators like [ExploreNym](https://github.com/ExploreNYM/vps-monitor) or [No Trust Verify](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1).
+The combination of Prometheus and Grafana is a common stack used by Nym team for internal monitoring as well as by core community operators like [ExploreNym](https://github.com/ExploreNYM/vps-monitor) or [No Trust Verify](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1).
 
 <!-- Write about adventages of this setup -->
 
 ## Prometheus
 
-[Prometheus](https://prometheus.io) is a free and open-source monitoring systems. It allows operators to have their metrics, events, and alerts under full control. This ecosystem offers multiple advantages:
+[Prometheus](https://prometheus.io) is a free and open source monitoring systems. It allows operators to have their metrics, events, and alerts under full control. This ecosystem offers multiple advantages:
 
 - collects and records metrics from servers, containers, and applications
 - provides a [flexible query language (PromQL)](https://prometheus.io/docs/prometheus/latest/querying/basics/)
@@ -33,7 +33,7 @@ According to ExploreNYM the system requirements of the monitor stack are 2 CPU. 
 
 #### Setup of the monitoring part
 
-This can be setup on another VPS than the node if desired. We recommend to try to set this up on the same VPS as your node as we expect the machine to be strong enough to handle the node with enough capacity reserve for monitor.
+This can be setup on another VPS than the node if desired. We recommend to try to set this up on the same VPS, as your node as we expect the machine to be strong enough to handle the node with enough capacity reserve for monitor.
 
 1. Install git
 ```sh
@@ -60,7 +60,7 @@ chmod +x ~/self-hosted-monitor/grafana.sh && ~/self-hosted-monitor/grafana.sh
 sudo ufw allow 3000
 ```
 
-6. You can access Grafana at `http://<YOUR_IP_ADDRESS>:3000` if you have an registered domain and prefer to use  it with `https` add the step 7.
+6. You can now access Grafana at `http://<YOUR_IP_ADDRESS>:3000`. If you have a registered domain and prefer to use  it with `https` add the step 7.
 
 7. Give permissions to [nginx-certbot.sh](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) script and run it to setup Nginx and Certbot
 ```sh
@@ -69,7 +69,7 @@ chmod +x ~/self-hosted-monitor/nginx-certbot.sh && ~/self-hosted-monitor/nginx-c
 
 #### Setup of the part to be monitored
 
-If you run monitoring and node on different VPS, this step needs to be done on the VPS with the running node. In case you do it on the same VPS, skip directly to step 9.
+If you run a monitoring stack and your node on two different VPS, the steps 8 and 9 need to be done on the VPS with the running node. In case you do it on the same VPS, skip directly to step 10 and continue.
 
 8. Install git
 ```sh
@@ -87,9 +87,9 @@ chmod +x ~/self-hosted-monitor/node-exporter.sh && ~/self-hosted-monitor/node-ex
 
 #### Setup Grafana Dashboard
 
-11. Open a browser at `http://<YOUR_IP_ADDRESS>:3000` or `https://<YOUR_DOMAIN>:3000`, entry username `admin` and password `admin` and setup new credentials on prompt
+11. Open a browser at `http://<YOUR_IP_ADDRESS>:3000` or `https://<YOUR_DOMAIN>:3000`, entrer username `admin` and password `admin` and setup new credentials on prompt
 
-12. Setup Data source by opening the menu -> `Connections` -> `Data sources` -> `+ Add new data source` -> `Prometheus`
+12. Setup *Data source* by opening menu -> `Connections` -> `Data sources` -> `+ Add new data source` -> `Prometheus`
 
 ![](../images/grafana/add-data-sources.png)
 ![](../images/grafana/add-data-source-prometheus.png)
@@ -112,7 +112,7 @@ chmod +x ~/self-hosted-monitor/node-exporter.sh && ~/self-hosted-monitor/node-ex
 
 ### Full Own Setup
 
-We are working on an entirely manual setup and will publish it in the coming days.
+We are working on a detailed guide for an entirely manual setup and will publish it in the coming days.
 
 <!--
 TODO:

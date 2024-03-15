@@ -15,7 +15,7 @@ Nym therefore calls out the decentralised community of operators to join the Per
 
 ## Performance Testing Work Flow
 
-* Nym runs a paraLlel network environment [validator.performance.nymte.ch]({{performance_validator}}) with a chain ID `perf`
+* Nym runs a paralel network environment [validator.performance.nymte.ch]({{performance_validator}}) with a chain ID `perf`
 * Operators of Nym Nodes (currently `nym-mixnode` and `nym-gateway`) join by following easy steps on [performance testing web page]({{perfomance_testing_webpage}}), including simplified node authentication signature (while keep running on mainnet simultaneously)
 * Core node data will be fed to a unique mixnet contract for the `perf` side chain
 * Once connected, operators will be asked to swap their binary for the modified version with metrics endpoint

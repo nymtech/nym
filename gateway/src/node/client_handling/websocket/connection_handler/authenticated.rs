@@ -278,8 +278,7 @@ where
         }
 
         let was_freepass = match credential.data.typ {
-            CredentialType::TicketBook => {
-                //Not really a ticketbook, but it's for backwards compatibility
+            CredentialType::Voucher => {
                 trace!("the credential is a bandwidth voucher. attempting to release the funds");
                 let api_clients = self
                     .inner
@@ -297,6 +296,10 @@ where
                 info!("received a free pass credential");
 
                 true
+            }
+            CredentialType::TicketBook => {
+                error!("Ecash payment within an old spending request - that should never happen");
+                return Err(RequestHandlingError::IllegalRequest);
             }
         };
 
@@ -425,6 +428,10 @@ where
                 info!("received a free pass credential");
 
                 true
+            }
+            CredentialType::Voucher => {
+                error!("Old coconut payment within an ecash spending request - that should never happen");
+                return Err(RequestHandlingError::IllegalRequest);
             }
         };
 

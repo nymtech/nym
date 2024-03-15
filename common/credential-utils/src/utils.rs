@@ -132,6 +132,10 @@ where
     for voucher in recovery_storage.unconsumed_vouchers()? {
         let voucher_value = match voucher.typ() {
             CredentialType::TicketBook => voucher.value(),
+            CredentialType::Voucher => {
+                error!("Impossible to recover old coconut voucher");
+                continue;
+            }
             CredentialType::FreePass => {
                 error!("unimplemented recovery of free pass credentials");
                 continue;

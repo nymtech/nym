@@ -225,8 +225,7 @@ pub async fn verify_bandwidth_credential(
     let epoch_id = credential_data.epoch_id;
     let theta = &credential_data.verify_credential_request;
 
-    let voucher_value: u64 = if credential_data.typ.is_ticketbook() {
-        //SW NOTE : technically a voucher, but that's there only for backwards compatibility
+    let voucher_value: u64 = if credential_data.typ.is_voucher() {
         credential_data
             .get_bandwidth_attribute()
             .ok_or(CoconutError::MissingBandwidthValue)?

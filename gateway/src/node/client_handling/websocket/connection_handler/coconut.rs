@@ -438,7 +438,7 @@ impl EcashVerifier {
         api_clients: &[CoconutApiClient],
         credential: OldCredentialSpendingRequest,
     ) -> Result<(), RequestHandlingError> {
-        if !credential.data.typ.is_ticketbook() {
+        if !credential.data.typ.is_voucher() {
             unimplemented!()
         }
 

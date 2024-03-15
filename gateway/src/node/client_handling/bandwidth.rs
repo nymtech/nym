@@ -54,13 +54,16 @@ impl Bandwidth {
             CredentialType::FreePass => Bandwidth {
                 value: nym_network_defaults::BYTES_PER_FREEPASS,
             },
+            CredentialType::Voucher => {
+                unimplemented!()
+            }
         }
     }
 
     pub fn try_from_raw_value(value: &str, typ: CredentialType) -> Result<Self, BandwidthError> {
         let bandwidth_value =
             match typ {
-                CredentialType::TicketBook => {
+                CredentialType::Voucher => {
                     let token_value: u64 = value
                         .parse()
                         .map_err(|source| BandwidthError::VoucherValueParsingFailure { source })?;
@@ -82,6 +85,9 @@ impl Bandwidth {
                         return Err(BandwidthError::ExpiredFreePass { expiry_date });
                     }
                     nym_network_defaults::BYTES_PER_FREEPASS
+                }
+                CredentialType::TicketBook => {
+                    unimplemented!()
                 }
             };
 

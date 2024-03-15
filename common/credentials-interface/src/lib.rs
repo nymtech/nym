@@ -21,6 +21,7 @@ pub use nym_compact_ecash::{
     WithdrawalRequest,
 };
 
+pub const VOUCHER_INFO_TYPE: &str = "BandwidthVoucher";
 pub const ECASH_INFO_TYPE: &str = "TicketBook";
 pub const FREE_PASS_INFO_TYPE: &str = "FreeBandwidthPass";
 
@@ -34,6 +35,7 @@ pub struct UnknownCredentialType(String);
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum CredentialType {
+    Voucher,
     TicketBook,
     FreePass,
 }
@@ -46,6 +48,8 @@ impl FromStr for CredentialType {
             Ok(CredentialType::TicketBook)
         } else if s == FREE_PASS_INFO_TYPE {
             Ok(CredentialType::FreePass)
+        } else if s == VOUCHER_INFO_TYPE {
+            Ok(CredentialType::Voucher)
         } else {
             Err(UnknownCredentialType(s.to_string()))
         }
@@ -56,6 +60,7 @@ impl CredentialType {
     pub fn validate(&self, type_plain: &str) -> bool {
         match self {
             CredentialType::TicketBook => type_plain == ECASH_INFO_TYPE,
+            CredentialType::Voucher => type_plain == VOUCHER_INFO_TYPE,
             CredentialType::FreePass => type_plain == FREE_PASS_INFO_TYPE,
         }
     }
@@ -67,12 +72,17 @@ impl CredentialType {
     pub fn is_ticketbook(&self) -> bool {
         matches!(self, CredentialType::TicketBook)
     }
+
+    pub fn is_voucher(&self) -> bool {
+        matches!(self, CredentialType::Voucher)
+    }
 }
 
 impl Display for CredentialType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             CredentialType::TicketBook => ECASH_INFO_TYPE.fmt(f),
+            CredentialType::Voucher => VOUCHER_INFO_TYPE.fmt(f),
             CredentialType::FreePass => FREE_PASS_INFO_TYPE.fmt(f),
         }
     }

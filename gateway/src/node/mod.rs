@@ -80,7 +80,7 @@ pub(crate) async fn create_gateway(
             let cfg = load_ip_packet_router_config(&config.gateway.id, path)?;
             Some(override_ip_packet_router_config(cfg, ip_config_override))
         } else {
-            // if NR is enabled, the config path must be specified
+            // if IPR is enabled, the config path must be specified
             return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
         }
     } else {
@@ -504,8 +504,6 @@ impl<St> Gateway<St> {
             None
         };
 
-        // NOTE: this is mutually exclusive with the network requester (for now). This is reflected
-        // in the command line arguments as well.
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_packet_router(

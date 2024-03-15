@@ -7273,6 +7273,7 @@ checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
 dependencies = [
  "futures-util",
  "log",
+ "rustls 0.21.7",
  "tokio",
  "tungstenite",
 ]
@@ -7454,6 +7455,7 @@ dependencies = [
  "httparse",
  "log",
  "rand 0.8.5",
+ "rustls 0.21.7",
  "sha1",
  "thiserror",
  "url",

@@ -36,7 +36,7 @@ const nymSandboxAssets: AssetList = {
     },
   ],
 };
-console.log(WALLET_CONNECT_PROJECT_ID, 'WALLET_CONNECT_PROJECT_ID');
+
 const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => (
   <ChainProvider
     chains={[...chains, nymSandbox]}

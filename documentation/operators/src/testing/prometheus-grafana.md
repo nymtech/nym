@@ -17,6 +17,8 @@ Prometheus collects and stores its metrics as time series data, i.e. metrics inf
 
 ## Grafana
 
+[Grafana](https://grafana.com/docs/grafana/latest/) is an open-source analytics and interactive front end. It is widely used for its easy to manage dashboards with visualizations like graphs, charts and alerts, all connected to live data sources.
+
 ## Setup Guides
 
 ### ExploreNym Templates

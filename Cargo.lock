@@ -5721,6 +5721,8 @@ dependencies = [
 name = "nym-metrics"
 version = "0.1.0"
 dependencies = [
+ "cfg-if",
+ "cpu-cycles",
  "dashmap",
  "lazy_static",
  "log",
@@ -5811,8 +5813,6 @@ name = "nym-mixnode-common"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "cfg-if",
- "cpu-cycles",
  "futures",
  "humantime-serde",
  "log",

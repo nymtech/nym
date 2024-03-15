@@ -9,7 +9,7 @@ use crate::node::TaskClient;
 use futures::StreamExt;
 use log::debug;
 use log::{error, info, warn};
-use nym_mixnode_common::measure;
+use nym_metrics::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;

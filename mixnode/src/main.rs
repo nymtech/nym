@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 #[allow(unused_imports)]
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 #[cfg(feature = "cpucycles")]
-use nym_mixnode_common::measure;
+use nym_metrics::measure;
 
 mod commands;
 mod config;

@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::measure;
 use crate::packet_processor::error::MixProcessingError;
 use log::*;
+use nym_metrics::measure;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_forwarding::packet::MixPacket;

@@ -1,3 +1,4 @@
+pub use cfg_if;
 use dashmap::DashMap;
 use log::{debug, warn};
 use regex::Regex;
@@ -5,8 +6,38 @@ use std::fmt;
 
 use prometheus::{core::Collector, Counter, Encoder as _, Gauge, Registry, TextEncoder};
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+pub fn cpu_cycles() -> Result<i64, Box<dyn std::error::Error>> {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "cpucycles")] {
+            Ok(cpu_cycles::cpucycles()?)
+        } else {
+            Err("`cpucycles` feature is not turned on!".into())
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! measure {
+    ( $name:expr, $x:expr ) => {{
+        $crate::cfg_if::cfg_if! {
+            if #[cfg(feature = "cpucycles")] {
+                let start_cycles = $crate::cpu_cycles();
+                // if the block needs to return something, we can return it
+                let r = $x;
+                let end_cycles = $crate::cpu_cycles();
+                match (start_cycles, end_cycles) {
+                    (Ok(start), Ok(end)) => {
+                        $crate::REGISTRY.inc_by($name, (end - start) as f64);
+                    },
+                    (Err(e), _) => error!("{e}"),
+                    (_, Err(e)) => error!("{e}"),
+                }
+                r
+            } else {
+                $x
+            }
+        }
+    }};
 }
 
 lazy_static::lazy_static! {

@@ -72,7 +72,7 @@ nym-sphinx-params = { path = "../common/nymsphinx/params" }
 
 [features]
 cpucycles = [
-    "nym-mixnode-common/cpucycles", 
+    "nym-metrics/cpucycles", 
 ]
 
 [package.metadata.deb]

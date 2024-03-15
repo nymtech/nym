@@ -5760,7 +5760,6 @@ dependencies = [
  "anyhow",
  "axum",
  "bs58 0.5.0",
- "cfg-if",
  "clap 4.4.7",
  "colored",
  "cupid",

@@ -36,7 +36,6 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { workspace = true, features = ["codec"] }
 toml = "0.5.8"
 url = { workspace = true, features = ["serde"] }
-cfg-if = "1.0.0"
 thiserror = { workspace = true }
 
 # internal

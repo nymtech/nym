@@ -3,7 +3,6 @@
 
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
-use log::info;
 use nym_bin_common::bin_info;
 use std::sync::OnceLock;
 
@@ -45,14 +44,6 @@ async fn main() -> anyhow::Result<()> {
     }
 
     setup_logging();
-
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "cpucycles")] {
-            info!("CPU cycles measurement is ON")
-        } else {
-            info!("CPU cycles measurement is OFF")
-        }
-    }
 
     commands::execute(args).await?;
 

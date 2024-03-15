@@ -9,12 +9,12 @@ use prometheus::{core::Collector, Counter, Encoder as _, Gauge, Registry, TextEn
 
 #[macro_export]
 macro_rules! nanos {
-    ( $name:expr, $x:expr ) => {{
+    ( $name:literal, $x:expr ) => {{
         let start = $crate::Instant::now();
         // if the block needs to return something, we can return it
         let r = $x;
         let duration = start.elapsed().as_nanos() as f64;
-        $crate::REGISTRY.inc_by($name, duration);
+        $crate::REGISTRY.inc_by(&format!("{}_nanos", $name), duration);
         r
     }};
 }

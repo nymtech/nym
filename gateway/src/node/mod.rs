@@ -11,7 +11,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::embedded_clients::{LocalNetworkRequesterHandle, MessageRouter};
+use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
@@ -49,7 +49,7 @@ struct StartedNetworkRequester {
     used_request_filter: RequestFilter,
 
     /// Handle to interact with the local network requester
-    handle: LocalNetworkRequesterHandle,
+    handle: LocalEmbeddedClientHandle,
 }
 
 /// Wire up and create Gateway instance
@@ -317,7 +317,7 @@ impl<St> Gateway<St> {
         info!("the local network requester is running on {address}",);
         Ok(StartedNetworkRequester {
             used_request_filter: start_data.request_filter,
-            handle: LocalNetworkRequesterHandle::new(address, nr_mix_sender),
+            handle: LocalEmbeddedClientHandle::new(address, nr_mix_sender),
         })
     }
 
@@ -325,7 +325,7 @@ impl<St> Gateway<St> {
         &self,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
-    ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
+    ) -> Result<LocalEmbeddedClientHandle, GatewayError> {
         info!("Starting IP packet provider...");
 
         // if network requester is enabled, configuration file must be provided!
@@ -383,10 +383,7 @@ impl<St> Gateway<St> {
             start_data.address
         );
 
-        Ok(LocalNetworkRequesterHandle::new_ip(
-            start_data,
-            nr_mix_sender,
-        ))
+        Ok(LocalEmbeddedClientHandle::new_ip(start_data, nr_mix_sender))
     }
 
     async fn wait_for_interrupt(

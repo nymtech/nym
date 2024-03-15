@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender};
-use crate::node::client_handling::embedded_clients::LocalNetworkRequesterHandle;
+use crate::node::client_handling::embedded_clients::LocalEmbeddedClientHandle;
 use dashmap::DashMap;
 use log::warn;
 use nym_sphinx::DestinationAddressBytes;
@@ -13,7 +13,7 @@ enum ActiveClient {
     Remote(ClientIncomingChannels),
 
     /// Handle to a locally (inside the same process) running network requester client.
-    Embedded(LocalNetworkRequesterHandle),
+    Embedded(LocalEmbeddedClientHandle),
 }
 
 impl ActiveClient {
@@ -150,7 +150,7 @@ impl ActiveClientsStore {
     }
 
     /// Inserts a handle to the embedded network requester
-    pub(crate) fn insert_embedded(&self, local_nr_handle: LocalNetworkRequesterHandle) {
+    pub(crate) fn insert_embedded(&self, local_nr_handle: LocalEmbeddedClientHandle) {
         let key = local_nr_handle.client_destination();
         let entry = ActiveClient::Embedded(local_nr_handle);
         if self.inner.insert(key, entry).is_some() {

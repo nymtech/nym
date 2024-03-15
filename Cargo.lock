@@ -5721,8 +5721,11 @@ dependencies = [
 name = "nym-metrics"
 version = "0.1.0"
 dependencies = [
+ "dashmap",
+ "lazy_static",
  "log",
  "prometheus",
+ "regex",
 ]
 
 [[package]]
@@ -5793,9 +5796,7 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "opentelemetry",
- "prometheus",
  "rand 0.7.3",
- "regex",
  "serde",
  "serde_json",
  "sysinfo",

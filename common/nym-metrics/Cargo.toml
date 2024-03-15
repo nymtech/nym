@@ -13,3 +13,7 @@ license.workspace = true
 [dependencies]
 prometheus = { workspace = true }
 log = { workspace = true }
+dashmap = { workspace = true }
+regex = "1.1"
+lazy_static = "1.4"
+

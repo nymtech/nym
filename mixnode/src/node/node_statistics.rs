@@ -8,8 +8,6 @@ use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::{debug, info, trace};
-use prometheus::Counter;
-use regex::Regex;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -32,37 +30,13 @@ impl SharedNodeStats {
     pub(crate) fn new() -> Self {
         let now = SystemTime::now();
 
-        let packets_received_since_startup = Counter::new(
-            "packets_received_since_startup",
-            "Packets received since startup",
-        )
-        .unwrap();
-
-        let packets_sent_since_startup_all = Counter::new(
-            "packets_sent_since_startup_all",
-            "Packets sent since startup",
-        )
-        .unwrap();
-
-        let packets_dropped_since_startup_all = Counter::new(
-            "packets_dropped_since_startup_all",
-            "Packets dropped since startup",
-        )
-        .unwrap();
-
-        REGISTRY.register(Box::new(packets_sent_since_startup_all.clone()));
-
-        REGISTRY.register(Box::new(packets_dropped_since_startup_all.clone()));
-
-        REGISTRY.register(Box::new(packets_received_since_startup.clone()));
-
         SharedNodeStats {
             inner: Arc::new(RwLock::new(NodeStats {
                 update_time: now,
                 previous_update_time: now,
-                packets_received_since_startup,
-                packets_sent_since_startup_all,
-                packets_dropped_since_startup_all,
+                packets_received_since_startup: 0.,
+                packets_sent_since_startup_all: 0.,
+                packets_dropped_since_startup_all: 0.,
                 packets_received_since_last_update: 0.,
                 packets_sent_since_last_update: HashMap::new(),
                 packets_explicitly_dropped_since_last_update: HashMap::new(),
@@ -82,14 +56,21 @@ impl SharedNodeStats {
         guard.previous_update_time = guard.update_time;
         guard.update_time = snapshot_time;
 
-        guard.packets_received_since_startup.inc_by(new_received);
+        guard.packets_received_since_startup += new_received;
         for count in new_sent.values() {
-            guard.packets_sent_since_startup_all.inc_by(*count);
+            guard.packets_sent_since_startup_all += count;
         }
 
         for count in new_dropped.values() {
-            guard.packets_dropped_since_startup_all.inc_by(*count);
+            guard.packets_dropped_since_startup_all += count;
         }
+
+        REGISTRY.inc_by("packets_received_since_startup", new_received);
+        REGISTRY.inc_by("packets_sent_since_startup_all", new_sent.values().sum());
+        REGISTRY.inc_by(
+            "packets_dropped_since_startup_all",
+            new_dropped.values().sum(),
+        );
 
         guard.packets_received_since_last_update = new_received;
         guard.packets_sent_since_last_update = new_sent;
@@ -111,9 +92,9 @@ pub struct NodeStats {
 
     previous_update_time: SystemTime,
 
-    packets_received_since_startup: Counter,
-    packets_sent_since_startup_all: Counter,
-    packets_dropped_since_startup_all: Counter,
+    packets_received_since_startup: f64,
+    packets_sent_since_startup_all: f64,
+    packets_dropped_since_startup_all: f64,
     packets_received_since_last_update: f64,
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
     packets_sent_since_last_update: PacketsMap,
@@ -123,33 +104,12 @@ pub struct NodeStats {
 
 impl Default for NodeStats {
     fn default() -> Self {
-        let packets_received_since_startup = Counter::new(
-            "packets_received_since_startup",
-            "Packets received since startup",
-        )
-        .unwrap();
-        let packets_sent_since_startup_all = Counter::new(
-            "packets_sent_since_startup_all",
-            "Packets sent since startup",
-        )
-        .unwrap();
-
-        let packets_dropped_since_startup_all = Counter::new(
-            "packets_dropped_since_startup_all",
-            "Packets dropped since startup",
-        )
-        .unwrap();
-
-        REGISTRY.register(Box::new(packets_sent_since_startup_all.clone()));
-        REGISTRY.register(Box::new(packets_dropped_since_startup_all.clone()));
-        REGISTRY.register(Box::new(packets_received_since_startup.clone()));
-
         NodeStats {
             update_time: SystemTime::UNIX_EPOCH,
             previous_update_time: SystemTime::UNIX_EPOCH,
-            packets_received_since_startup,
-            packets_sent_since_startup_all,
-            packets_dropped_since_startup_all,
+            packets_received_since_startup: 0.,
+            packets_sent_since_startup_all: 0.,
+            packets_dropped_since_startup_all: 0.,
             packets_received_since_last_update: 0.,
             packets_sent_since_last_update: Default::default(),
             packets_explicitly_dropped_since_last_update: Default::default(),
@@ -162,9 +122,9 @@ impl NodeStats {
         NodeStatsSimple {
             update_time: self.update_time,
             previous_update_time: self.previous_update_time,
-            packets_received_since_startup: self.packets_received_since_startup.get(),
-            packets_sent_since_startup: self.packets_sent_since_startup_all.get(),
-            packets_explicitly_dropped_since_startup: self.packets_dropped_since_startup_all.get(),
+            packets_received_since_startup: self.packets_received_since_startup,
+            packets_sent_since_startup: self.packets_sent_since_startup_all,
+            packets_explicitly_dropped_since_startup: self.packets_dropped_since_startup_all,
             packets_received_since_last_update: self.packets_received_since_last_update,
             packets_sent_since_last_update: self.packets_sent_since_last_update.values().sum(),
             packets_explicitly_dropped_since_last_update: self
@@ -410,14 +370,14 @@ impl PacketStatsConsoleLogger {
 
             info!(
                 "Since startup mixed {} packets! ({} in last {} seconds)",
-                stats.packets_sent_since_startup_all.get(),
+                stats.packets_sent_since_startup_all,
                 stats.packets_sent_since_last_update.values().sum::<f64>(),
                 difference_secs,
             );
-            if stats.packets_dropped_since_startup_all.get() > 0. {
+            if stats.packets_dropped_since_startup_all > 0. {
                 info!(
                     "Since startup dropped {} packets! ({} in last {} seconds)",
-                    stats.packets_dropped_since_startup_all.get(),
+                    stats.packets_dropped_since_startup_all,
                     stats
                         .packets_explicitly_dropped_since_last_update
                         .values()
@@ -428,35 +388,35 @@ impl PacketStatsConsoleLogger {
 
             debug!(
                 "Since startup received {} packets ({} in last {} seconds)",
-                stats.packets_received_since_startup.get(),
+                stats.packets_received_since_startup,
                 stats.packets_received_since_last_update,
                 difference_secs,
             );
             trace!(
                 "Since startup sent packets to the following: \n{:#?} \n And in last {} seconds: {:#?})",
-                stats.packets_sent_since_startup_all.get(),
+                stats.packets_sent_since_startup_all,
                 difference_secs,
                 stats.packets_sent_since_last_update
             );
         } else {
             info!(
                 "Since startup mixed {} packets!",
-                stats.packets_sent_since_startup_all.get(),
+                stats.packets_sent_since_startup_all,
             );
-            if stats.packets_dropped_since_startup_all.get() > 0. {
+            if stats.packets_dropped_since_startup_all > 0. {
                 info!(
                     "Since startup dropped {} packets!",
-                    stats.packets_dropped_since_startup_all.get(),
+                    stats.packets_dropped_since_startup_all,
                 );
             }
 
             debug!(
                 "Since startup received {} packets",
-                stats.packets_received_since_startup.get()
+                stats.packets_received_since_startup
             );
             trace!(
                 "Since startup sent packets {}",
-                stats.packets_sent_since_startup_all.get()
+                stats.packets_sent_since_startup_all
             );
         }
     }
@@ -546,24 +506,10 @@ impl Controller {
     }
 }
 
-#[allow(dead_code)]
-fn sanitize_metric_name(name: &str) -> String {
-    let re = Regex::new(r"[^a-zA-Z0-9_]").unwrap();
-    re.replace_all(name, "_").to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use nym_task::TaskManager;
-
-    #[test]
-    fn test_sanitization() {
-        assert_eq!(
-            sanitize_metric_name("packets_sent_34.242.65.133:1789"),
-            "packets_sent_34_242_65_133_1789"
-        )
-    }
 
     #[tokio::test]
     async fn node_stats_reported_are_received() {
@@ -587,10 +533,11 @@ mod tests {
 
         // Get output (stats)
         let stats = node_stats_pointer.read().await;
-        assert_eq!(&stats.packets_sent_since_startup_all.get(), &2.);
+        assert_eq!(&stats.packets_sent_since_startup_all, &2.);
         assert_eq!(&stats.packets_sent_since_last_update.get("foo"), &Some(&2.));
         assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
-        assert_eq!(&stats.packets_received_since_startup.get(), &0.);
-        assert_eq!(&stats.packets_dropped_since_startup_all.get(), &0.);
+        assert_eq!(&stats.packets_received_since_startup, &0.);
+        assert_eq!(&stats.packets_dropped_since_startup_all, &0.);
+        assert_eq!(REGISTRY.to_string(), "# HELP packets_dropped_since_startup_all packets_dropped_since_startup_all\n# TYPE packets_dropped_since_startup_all counter\npackets_dropped_since_startup_all 0\n# HELP packets_received_since_startup packets_received_since_startup\n# TYPE packets_received_since_startup counter\npackets_received_since_startup 0\n# HELP packets_sent_since_startup_all packets_sent_since_startup_all\n# TYPE packets_sent_since_startup_all counter\npackets_sent_since_startup_all 2\n")
     }
 }

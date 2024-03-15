@@ -24,6 +24,7 @@ macro_rules! measure {
                 let end_cycles = $crate::cpu_cycles();
                 match (start_cycles, end_cycles) {
                     (Ok(start), Ok(end)) => {
+                        let metric = $crate::REGISTRY.get_or_register($name);
                         // name.incr_by(end - start)
                     },
                     (Err(e), _) => error!("{e}"),

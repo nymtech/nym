@@ -1,15 +1,59 @@
-use log::debug;
+use dashmap::DashMap;
+use log::{debug, warn};
+use regex::Regex;
 use std::fmt;
 
-use prometheus::{core::Collector, Encoder as _, Registry, TextEncoder};
+use prometheus::{core::Collector, Counter, Encoder as _, Gauge, Registry, TextEncoder};
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
 
+lazy_static::lazy_static! {
+    pub static ref RE: Regex = Regex::new(r"[^a-zA-Z0-9_]").unwrap();
+}
+
 #[derive(Default)]
 pub struct MetricsController {
     registry: Registry,
+    registry_index: DashMap<String, Metric>,
+}
+
+enum Metric {
+    C(Box<Counter>),
+    G(Box<Gauge>),
+}
+
+fn fq_name(c: &dyn Collector) -> String {
+    c.desc()
+        .first()
+        .map(|d| d.fq_name.clone())
+        .unwrap_or_default()
+}
+
+impl Metric {
+    fn fq_name(&self) -> String {
+        match self {
+            Metric::C(c) => fq_name(c.as_ref()),
+            Metric::G(g) => fq_name(g.as_ref()),
+        }
+    }
+
+    fn inc_by(&self, value: f64) {
+        match self {
+            Metric::C(c) => c.inc_by(value),
+            Metric::G(g) => g.add(value),
+        }
+    }
+
+    fn set(&self, value: f64) {
+        match self {
+            Metric::C(_c) => {
+                warn!("Cannot set value for counter {:?}", self.fq_name());
+            }
+            Metric::G(g) => g.set(value),
+        }
+    }
 }
 
 impl fmt::Display for MetricsController {
@@ -30,14 +74,75 @@ impl fmt::Display for MetricsController {
 }
 
 impl MetricsController {
-    pub fn register(&self, metric: Box<dyn Collector>) {
+    pub fn set(&self, name: &str, value: f64) {
+        if let Some(metric) = self.registry_index.get(name) {
+            metric.set(value);
+        } else {
+            let gauge = match Gauge::new(sanitize_metric_name(name), name) {
+                Ok(g) => g,
+                Err(e) => {
+                    debug!("Failed to create gauge {:?}:\n{}", name, e);
+                    return;
+                }
+            };
+            self.register_gauge(Box::new(gauge));
+            self.set(name, value)
+        }
+    }
+
+    pub fn inc_by(&self, name: &str, value: f64) {
+        if let Some(metric) = self.registry_index.get(name) {
+            metric.inc_by(value);
+        } else {
+            let counter = match Counter::new(sanitize_metric_name(name), name) {
+                Ok(c) => c,
+                Err(e) => {
+                    debug!("Failed to create counter {:?}:\n{}", name, e);
+                    return;
+                }
+            };
+            self.register_counter(Box::new(counter));
+            self.inc_by(name, value)
+        }
+    }
+
+    fn register_gauge(&self, metric: Box<Gauge>) {
         let fq_name = metric
             .desc()
             .first()
             .map(|d| d.fq_name.clone())
             .unwrap_or_default();
-        match self.registry.register(metric) {
-            Ok(_) => {}
+
+        if self.registry_index.contains_key(&fq_name) {
+            return;
+        }
+
+        match self.registry.register(metric.clone()) {
+            Ok(_) => {
+                self.registry_index
+                    .insert(fq_name, Metric::G(metric.clone()));
+            }
+            Err(e) => {
+                debug!("Failed to register {:?}:\n{}", fq_name, e)
+            }
+        }
+    }
+
+    fn register_counter(&self, metric: Box<Counter>) {
+        let fq_name = metric
+            .desc()
+            .first()
+            .map(|d| d.fq_name.clone())
+            .unwrap_or_default();
+
+        if self.registry_index.contains_key(&fq_name) {
+            return;
+        }
+        match self.registry.register(metric.clone()) {
+            Ok(_) => {
+                self.registry_index
+                    .insert(fq_name, Metric::C(metric.clone()));
+            }
             Err(e) => {
                 debug!("Failed to register {:?}:\n{}", fq_name, e)
             }
@@ -45,13 +150,20 @@ impl MetricsController {
     }
 }
 
+#[inline(always)]
+fn sanitize_metric_name(name: &str) -> String {
+    RE.replace_all(name, "_").to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+    fn test_sanitization() {
+        assert_eq!(
+            sanitize_metric_name("packets_sent_34.242.65.133:1789"),
+            "packets_sent_34_242_65_133_1789"
+        )
     }
 }

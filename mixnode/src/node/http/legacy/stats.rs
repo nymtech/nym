@@ -1,14 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::{
-    node::node_statistics::{NodeStatsSimple, SharedNodeStats},
-    REGISTRY,
-};
+use crate::node::node_statistics::{NodeStatsSimple, SharedNodeStats};
+
 use axum::{
     extract::{Query, State},
     http::HeaderMap,
 };
+use nym_metrics::REGISTRY;
 use nym_node::http::api::{FormattedResponse, Output};
 use serde::{Deserialize, Serialize};
 

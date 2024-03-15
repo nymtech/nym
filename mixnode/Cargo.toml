@@ -77,10 +77,7 @@ nym-sphinx-params = { path = "../common/nymsphinx/params" }
 
 [features]
 cpucycles = [
-    "nym-mixnode-common/cpucycles",
-    "tracing",
-    "opentelemetry",
-    "nym-bin-common/tracing",
+    "nym-mixnode-common/cpucycles", 
 ]
 
 [package.metadata.deb]

@@ -11,6 +11,7 @@ pub fn add(left: usize, right: usize) -> usize {
 
 lazy_static::lazy_static! {
     pub static ref RE: Regex = Regex::new(r"[^a-zA-Z0-9_]").unwrap();
+    pub static ref REGISTRY: MetricsController = MetricsController::default();
 }
 
 #[derive(Default)]

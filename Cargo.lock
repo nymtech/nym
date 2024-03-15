@@ -5820,6 +5820,7 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-crypto",
+ "nym-metrics",
  "nym-network-defaults",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",

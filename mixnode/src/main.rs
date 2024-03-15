@@ -5,7 +5,6 @@ use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use log::info;
 use nym_bin_common::bin_info;
-use nym_metrics::MetricsController;
 use std::sync::OnceLock;
 
 #[allow(unused_imports)]
@@ -16,10 +15,6 @@ use nym_bin_common::setup_tracing;
 use nym_mixnode_common::measure;
 #[cfg(feature = "cpucycles")]
 use tracing::instrument;
-
-lazy_static::lazy_static! {
-    pub static ref REGISTRY: MetricsController = MetricsController::default();
-}
 
 mod commands;
 mod config;

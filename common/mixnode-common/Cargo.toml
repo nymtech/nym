@@ -39,6 +39,7 @@ nym-sphinx-types = { path = "../nymsphinx/types" }
 nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }
 nym-bin-common = { path = "../bin-common" }
+nym-metrics = { path = "../nym-metrics" }
 
 cfg-if = "1.0.0"
 cpu-cycles = { path = "../../cpu-cycles", optional = true }

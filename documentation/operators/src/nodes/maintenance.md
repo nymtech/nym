@@ -682,6 +682,8 @@ Which should return:
 
 Proxying various full node services through port 80 can then be done by creating a file with the following at `/etc/nginx/sites-enabled/nyxd-webrequests.conf`:
 
+Setting up a reverse proxy using a webserver such as Nginx allows you to easily configure SSL certificates for the endpoints. When running on mainnet, it is recommended to encrypt all web traffic to your node.
+
 ```sh
 ### To expose RPC server
 server {

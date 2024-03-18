@@ -8,6 +8,20 @@ pub use std::time::Instant;
 use prometheus::{core::Collector, Counter, Encoder as _, Gauge, Registry, TextEncoder};
 
 #[macro_export]
+macro_rules! count {
+    ($name:literal, $x:expr) => {
+        $crate::REGISTRY.inc_by($name, $x);
+    };
+}
+
+#[macro_export]
+macro_rules! metrics {
+    () => {
+        $crate::REGISTRY.to_string();
+    };
+}
+
+#[macro_export]
 macro_rules! nanos {
     ( $name:literal, $x:expr ) => {{
         let start = $crate::Instant::now();

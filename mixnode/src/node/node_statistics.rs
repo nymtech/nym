@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_metrics::REGISTRY;
+use nym_metrics::count;
 
 use super::TaskClient;
 use futures::channel::mpsc;
@@ -65,11 +65,11 @@ impl SharedNodeStats {
             guard.packets_dropped_since_startup_all += count;
         }
 
-        REGISTRY.inc_by("packets_received_since_startup", new_received);
-        REGISTRY.inc_by("packets_sent_since_startup_all", new_sent.values().sum());
-        REGISTRY.inc_by(
+        count!("packets_received_since_startup", new_received);
+        count!("packets_sent_since_startup_all", new_sent.values().sum());
+        count!(
             "packets_dropped_since_startup_all",
-            new_dropped.values().sum(),
+            new_dropped.values().sum()
         );
 
         guard.packets_received_since_last_update = new_received;
@@ -509,6 +509,7 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_metrics::metrics;
     use nym_task::TaskManager;
 
     #[tokio::test]
@@ -538,6 +539,6 @@ mod tests {
         assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
         assert_eq!(&stats.packets_received_since_startup, &0.);
         assert_eq!(&stats.packets_dropped_since_startup_all, &0.);
-        assert_eq!(REGISTRY.to_string(), "# HELP packets_dropped_since_startup_all packets_dropped_since_startup_all\n# TYPE packets_dropped_since_startup_all counter\npackets_dropped_since_startup_all 0\n# HELP packets_received_since_startup packets_received_since_startup\n# TYPE packets_received_since_startup counter\npackets_received_since_startup 0\n# HELP packets_sent_since_startup_all packets_sent_since_startup_all\n# TYPE packets_sent_since_startup_all counter\npackets_sent_since_startup_all 2\n")
+        assert_eq!(metrics!(), "# HELP packets_dropped_since_startup_all packets_dropped_since_startup_all\n# TYPE packets_dropped_since_startup_all counter\npackets_dropped_since_startup_all 0\n# HELP packets_received_since_startup packets_received_since_startup\n# TYPE packets_received_since_startup counter\npackets_received_since_startup 0\n# HELP packets_sent_since_startup_all packets_sent_since_startup_all\n# TYPE packets_sent_since_startup_all counter\npackets_sent_since_startup_all 2\n")
     }
 }

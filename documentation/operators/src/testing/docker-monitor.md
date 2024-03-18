@@ -3,6 +3,8 @@
 2. Add grafana setup
 3. Add prometheus setup
 4. Add node exporter setup
+5. Add how to view it in the browser
+6. Additionally add how to spin up an ansible template
 -->
 
 # Setup Prometheus and Grafana in a Docker

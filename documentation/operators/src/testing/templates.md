@@ -2,7 +2,7 @@
 
 At Nym as well as several core community operators had setup metrics monitors for a clear overview of node performance.
 
-It is benefitial for a one time event or a limited period to connect nodes to the existing monitoring infrastructure system that Nym developers built to collect useful metrics. For the purpose of maximal privacy and decentralisation of the data - preventing Nym Mixnet from any global adversary takeover - we created these pages as a source of mutual empowerment, a place where operators can share and learn new skills to **setup metrics monitors on their own infrastructure**.
+It is beneficial for a one time event or a limited period to connect nodes to the existing monitoring infrastructure system that Nym developers built to collect useful metrics. For the purpose of maximal privacy and decentralisation of the data - preventing Nym Mixnet from any global adversary takeover - we created these pages as a source of mutual empowerment, a place where operators can share and learn new skills to **setup metrics monitors on their own infrastructure**.
 
 ## Collecting Testing Metrics
 

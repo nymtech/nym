@@ -1,4 +1,4 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
@@ -9,11 +9,10 @@ use log::warn;
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_requester::RequestFilter;
-use nym_node::error::NymNodeError;
-use nym_node::http::api::api_requests;
-use nym_node::http::api::api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy;
-use nym_node::http::api::api_requests::SignedHostInformation;
-use nym_node::http::router::WireguardAppState;
+use nym_node_http_api::api::api_requests;
+use nym_node_http_api::api::api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy;
+use nym_node_http_api::api::api_requests::SignedHostInformation;
+use nym_node_http_api::router::WireguardAppState;
 use nym_node_http_api::NymNodeHttpError;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
@@ -59,8 +58,7 @@ fn load_host_details(
     };
 
     let signed_info = SignedHostInformation::new(host_info, identity_keypair.private_key())
-        .map_err(NymNodeHttpError::from)
-        .map_err(NymNodeError::from)?;
+        .map_err(NymNodeHttpError::from)?;
     Ok(signed_info)
 }
 
@@ -250,7 +248,7 @@ impl<'a> HttpApiBuilder<'a> {
         // but in the grand scheme of things performance penalty is negligible since it's only happening on startup
         // and makes the code a bit nicer to manage. on top of it, all of it will refactored anyway at some point
         // (famous last words, eh? - 22.09.23)
-        let mut config = nym_node::http::Config::new(
+        let mut config = nym_node_http_api::Config::new(
             bin_info_owned!(),
             load_host_details(
                 self.gateway_config,
@@ -293,11 +291,10 @@ impl<'a> HttpApiBuilder<'a> {
             .ok()
         });
 
-        let router = nym_node::http::NymNodeRouter::new(config, wg_state);
+        let router = nym_node_http_api::NymNodeRouter::new(config, wg_state);
 
         let server = router
-            .build_server(&self.gateway_config.http.bind_address)
-            .map_err(NymNodeError::from)?
+            .build_server(&self.gateway_config.http.bind_address)?
             .with_task_client(task_client);
         tokio::spawn(async move { server.run().await });
         Ok(())

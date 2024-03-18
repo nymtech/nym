@@ -8,6 +8,7 @@ use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::ValidatorClientError;
 use std::io;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -131,9 +132,14 @@ pub enum GatewayError {
         source: NyxdError,
     },
 
-    // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
+    #[error("this node hasn't set any valid public addresses to announce. Please modify [host.public_ips] section of your config")]
+    NoPublicIps,
+
+    #[error("this node attempted to announce an invalid public address: {address}. Please modify [host.public_ips] section of your config. Alternatively, if you wanted to use it in the local setting, run the node with the '--local' flag.")]
+    InvalidPublicIp { address: IpAddr },
+
     #[error(transparent)]
-    NymNodeError(#[from] nym_node::error::NymNodeError),
+    NymNodeHttpError(#[from] nym_node_http_api::NymNodeHttpError),
 
     #[error("there was an issue with wireguard IP network: {source}")]
     IpNetworkError {

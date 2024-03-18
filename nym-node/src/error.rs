@@ -142,10 +142,12 @@ pub enum MixnodeError {
 
 #[derive(Debug, Error)]
 pub enum EntryGatewayError {
-    //
+    #[error(transparent)]
+    External(#[from] nym_gateway::GatewayError),
 }
 
 #[derive(Debug, Error)]
 pub enum ExitGatewayError {
-    //
+    #[error(transparent)]
+    External(#[from] nym_gateway::GatewayError),
 }

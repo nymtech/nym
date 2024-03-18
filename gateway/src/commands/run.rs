@@ -8,7 +8,7 @@ use log::warn;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
 use nym_gateway::helpers::{OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig};
-use nym_node::error::NymNodeError;
+use nym_gateway::GatewayError;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
@@ -191,7 +191,7 @@ fn check_public_ips(ips: &[IpAddr], local: bool) -> anyhow::Result<()> {
     for ip in ips {
         if SPECIAL_ADDRESSES.contains(ip) {
             if !local {
-                return Err(NymNodeError::InvalidPublicIp { address: *ip }.into());
+                return Err(GatewayError::InvalidPublicIp { address: *ip }.into());
             }
             suspicious_ip.push(ip);
         }
@@ -225,7 +225,7 @@ pub async fn execute(args: Run) -> anyhow::Result<()> {
 
     let public_ips = &config.host.public_ips;
     if public_ips.is_empty() {
-        return Err(NymNodeError::NoPublicIps.into());
+        return Err(GatewayError::NoPublicIps.into());
     }
     check_public_ips(public_ips, local)?;
     if config.gateway.clients_wss_port.is_some() && config.host.hostname.is_none() {

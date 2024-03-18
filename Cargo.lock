@@ -5201,6 +5201,7 @@ dependencies = [
  "nym-explorer-client",
  "nym-gateway-client",
  "nym-gateway-requests",
+ "nym-metrics",
  "nym-network-defaults",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",

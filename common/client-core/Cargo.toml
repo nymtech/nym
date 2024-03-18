@@ -38,6 +38,7 @@ nym-crypto = { path = "../crypto" }
 nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
 nym-gateway-requests = { path = "../../gateway/gateway-requests" }
+nym-metrics = { path = "../nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-pemstore = { path = "../pemstore" }

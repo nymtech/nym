@@ -8,9 +8,16 @@ pub use std::time::Instant;
 use prometheus::{core::Collector, Counter, Encoder as _, Gauge, Registry, TextEncoder};
 
 #[macro_export]
-macro_rules! count {
+macro_rules! inc_by {
     ($name:literal, $x:expr) => {
-        $crate::REGISTRY.inc_by($name, $x);
+        $crate::REGISTRY.inc_by($name, $x as f64);
+    };
+}
+
+#[macro_export]
+macro_rules! inc {
+    ($name:literal) => {
+        $crate::REGISTRY.inc($name);
     };
 }
 
@@ -57,6 +64,7 @@ fn fq_name(c: &dyn Collector) -> String {
 }
 
 impl Metric {
+    #[inline(always)]
     fn fq_name(&self) -> String {
         match self {
             Metric::C(c) => fq_name(c.as_ref()),
@@ -64,6 +72,15 @@ impl Metric {
         }
     }
 
+    #[inline(always)]
+    fn inc(&self) {
+        match self {
+            Metric::C(c) => c.inc(),
+            Metric::G(g) => g.inc(),
+        }
+    }
+
+    #[inline(always)]
     fn inc_by(&self, value: f64) {
         match self {
             Metric::C(c) => c.inc_by(value),
@@ -71,6 +88,7 @@ impl Metric {
         }
     }
 
+    #[inline(always)]
     fn set(&self, value: f64) {
         match self {
             Metric::C(_c) => {
@@ -83,14 +101,8 @@ impl Metric {
 
 impl fmt::Display for MetricsController {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut buffer = vec![];
-        let encoder = TextEncoder::new();
-        let metrics = self.registry.gather();
-        match encoder.encode(&metrics, &mut buffer) {
-            Ok(_) => {}
-            Err(e) => return write!(f, "Error encoding metrics to buffer: {}", e),
-        }
-        let output = match String::from_utf8(buffer) {
+        let metrics = self.gather();
+        let output = match String::from_utf8(metrics) {
             Ok(output) => output,
             Err(e) => return write!(f, "Error decoding metrics to String: {}", e),
         };
@@ -99,6 +111,26 @@ impl fmt::Display for MetricsController {
 }
 
 impl MetricsController {
+    #[inline(always)]
+    pub fn gather(&self) -> Vec<u8> {
+        let mut buffer = vec![];
+        let encoder = TextEncoder::new();
+        let metrics = self.registry.gather();
+        match encoder.encode(&metrics, &mut buffer) {
+            Ok(_) => {}
+            Err(e) => error!("Error encoding metrics to buffer: {}", e),
+        }
+        buffer
+    }
+
+    pub fn to_writer(&self, writer: &mut dyn std::io::Write) {
+        let metrics = self.gather();
+        match writer.write_all(&metrics) {
+            Ok(_) => {}
+            Err(e) => error!("Error writing metrics to writer: {}", e),
+        }
+    }
+
     pub fn set(&self, name: &str, value: f64) {
         if let Some(metric) = self.registry_index.get(name) {
             metric.set(value);
@@ -112,6 +144,22 @@ impl MetricsController {
             };
             self.register_gauge(Box::new(gauge));
             self.set(name, value)
+        }
+    }
+
+    pub fn inc(&self, name: &str) {
+        if let Some(metric) = self.registry_index.get(name) {
+            metric.inc();
+        } else {
+            let counter = match Counter::new(sanitize_metric_name(name), name) {
+                Ok(c) => c,
+                Err(e) => {
+                    debug!("Failed to create counter {:?}:\n{}", name, e);
+                    return;
+                }
+            };
+            self.register_counter(Box::new(counter));
+            self.inc(name)
         }
     }
 

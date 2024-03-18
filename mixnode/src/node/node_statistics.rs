@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_metrics::count;
+use nym_metrics::inc_by;
 
 use super::TaskClient;
 use futures::channel::mpsc;
@@ -65,11 +65,14 @@ impl SharedNodeStats {
             guard.packets_dropped_since_startup_all += count;
         }
 
-        count!("packets_received_since_startup", new_received);
-        count!("packets_sent_since_startup_all", new_sent.values().sum());
-        count!(
+        inc_by!("packets_received_since_startup", new_received);
+        inc_by!(
+            "packets_sent_since_startup_all",
+            new_sent.values().sum::<f64>()
+        );
+        inc_by!(
             "packets_dropped_since_startup_all",
-            new_dropped.values().sum()
+            new_dropped.values().sum::<f64>()
         );
 
         guard.packets_received_since_last_update = new_received;

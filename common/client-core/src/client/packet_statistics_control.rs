@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use nym_metrics::{inc, inc_by, metrics};
 use si_scale::helpers::bibytes2;
 
 use crate::spawn_future;
@@ -53,42 +54,60 @@ impl PacketStatistics {
             PacketStatisticsEvent::RealPacketSent(packet_size) => {
                 self.real_packets_sent += 1;
                 self.real_packets_sent_size += packet_size;
+                inc!("real_packets_sent");
+                inc_by!("real_packets_sent_size", packet_size);
             }
             PacketStatisticsEvent::CoverPacketSent(packet_size) => {
                 self.cover_packets_sent += 1;
                 self.cover_packets_sent_size += packet_size;
+                inc!("cover_packets_sent");
+                inc_by!("cover_packets_sent_size", packet_size);
             }
             PacketStatisticsEvent::RealPacketReceived(packet_size) => {
                 self.real_packets_received += 1;
                 self.real_packets_received_size += packet_size;
+                inc!("real_packets_received");
+                inc_by!("real_packets_received_size", packet_size);
             }
             PacketStatisticsEvent::CoverPacketReceived(packet_size) => {
                 self.cover_packets_received += 1;
                 self.cover_packets_received_size += packet_size;
+                inc!("cover_packets_received");
+                inc_by!("cover_packets_received_size", packet_size);
             }
             PacketStatisticsEvent::AckReceived(packet_size) => {
                 self.total_acks_received += 1;
                 self.total_acks_received_size += packet_size;
+                inc!("total_acks_received");
+                inc_by!("total_acks_received_size", packet_size);
             }
             PacketStatisticsEvent::RealAckReceived(packet_size) => {
                 self.real_acks_received += 1;
                 self.real_acks_received_size += packet_size;
+                inc!("real_acks_received");
+                inc_by!("real_acks_received_size", packet_size);
             }
             PacketStatisticsEvent::CoverAckReceived(packet_size) => {
                 self.cover_acks_received += 1;
                 self.cover_acks_received_size += packet_size;
+                inc!("cover_acks_received");
+                inc_by!("cover_acks_received_size", packet_size);
             }
             PacketStatisticsEvent::RealPacketQueued => {
                 self.real_packets_queued += 1;
+                inc!("real_packets_queued");
             }
             PacketStatisticsEvent::RetransmissionQueued => {
                 self.retransmissions_queued += 1;
+                inc!("retransmissions_queued");
             }
             PacketStatisticsEvent::ReplySurbRequestQueued => {
                 self.reply_surbs_queued += 1;
+                inc!("reply_surbs_queued");
             }
             PacketStatisticsEvent::AdditionalReplySurbRequestQueued => {
                 self.additional_reply_surbs_queued += 1;
+                inc!("additional_reply_surbs_queued");
             }
         }
     }

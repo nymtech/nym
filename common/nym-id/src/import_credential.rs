@@ -4,7 +4,6 @@
 use crate::NymIdError;
 use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
 use nym_credentials::IssuedBandwidthCredential;
 use tracing::{debug, warn};
 use zeroize::Zeroizing;
@@ -28,22 +27,18 @@ where
         "attempting to import credential of type {}",
         credential.typ()
     );
+    debug!(
+        "with expiration date at {}",
+        credential.expiration_date_formatted()
+    );
 
-    match credential.variant_data() {
-        BandwidthCredentialIssuedDataVariant::Voucher(voucher_info) => {
-            debug!("with value of {}", voucher_info.value())
-        }
-        BandwidthCredentialIssuedDataVariant::FreePass(freepass_info) => {
-            debug!("with expiry at {}", freepass_info.expiry_date());
-            if freepass_info.expired() {
-                warn!("the free pass has already expired!");
+    if credential.expired() {
+        warn!("the credential has already expired!");
 
-                // technically we can import it, but the gateway will just reject it so what's the point
-                return Err(NymIdError::ExpiredCredentialImport {
-                    expiration: freepass_info.expiry_date(),
-                });
-            }
-        }
+        // technically we can import it, but the gateway will just reject it so what's the point
+        return Err(NymIdError::ExpiredCredentialImport {
+            expiration: credential.expiration_date_formatted(),
+        });
     }
 
     // SAFETY:

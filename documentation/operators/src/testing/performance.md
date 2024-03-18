@@ -26,5 +26,5 @@ Nym therefore calls out the decentralised community of operators to join the Per
 
 ## More Information
 
-* What happens after the test or what operators get for participating is shared up to date on the [performance testing webpage]({{performance_testing_webpage}})
+* What happens after the test or what operators get for participating is shared up to date on the [performance testing web page]({{performance_testing_webpage}})
 * Visit our guides to [setup metrics template](templates.md) and learn how to operate them in self-custodial way

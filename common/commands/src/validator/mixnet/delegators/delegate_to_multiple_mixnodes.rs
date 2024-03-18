@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bigdecimal::{BigDecimal, FromPrimitive, ToPrimitive};
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -10,7 +9,7 @@ use std::fs::OpenOptions;
 use clap::Parser;
 use comfy_table::Table;
 use csv::WriterBuilder;
-use log::{info, warn};
+use log::info;
 use nym_mixnet_contract_common::ExecuteMsg;
 use nym_mixnet_contract_common::ExecuteMsg::{DelegateToMixnode, UndelegateFromMixnode};
 
@@ -65,20 +64,12 @@ impl InputFileReader {
                 anyhow::bail!("Incorrect format: {}", line);
             }
             let mix_id = tokens[0].trim().to_string();
-            let input_amount = BigDecimal::parse_bytes(tokens[1].trim().as_bytes(), 10)
-                .ok_or_else(|| anyhow::anyhow!("Invalid number format"))?;
-            let scaled_amount = input_amount.with_scale(6);
+            let input_amount = tokens[1]
+                .trim()
+                .parse::<u128>()
+                .map_err(|_| anyhow::anyhow!("'{}' has an invalid amount", line))?;
 
-            if scaled_amount > BigDecimal::from(1_000_000) {
-                warn!("Delegation amount is high. Please make sure your input is in NYM and not unym denomination");
-            }
-
-            let smallest_unit_multiplier = BigDecimal::from_u64(1_000_000).unwrap(); // For 6 decimal places
-            let amount_in_smallest_unit = scaled_amount * smallest_unit_multiplier;
-
-            let amount = amount_in_smallest_unit.to_u128().ok_or_else(|| {
-                anyhow::anyhow!("Amount after scaling cannot be represented in u128")
-            })?;
+            let micro_nym_amount = input_amount * 1_000_000;
 
             if !mix_id_set.insert(mix_id.clone()) {
                 anyhow::bail!("Duplicate mix_id found: {}", mix_id);
@@ -87,7 +78,7 @@ impl InputFileReader {
             rows.push(InputFileRow {
                 mix_id,
                 amount: Coin {
-                    amount,
+                    amount: micro_nym_amount,
                     denom: "unym".to_string(),
                 },
             });
@@ -337,7 +328,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
                 delegation_msgs,
                 None,
                 format!(
-                    "Delegatations to {} nodes via nym-cli",
+                    "Delegatation to {} nodes via nym-cli",
                     undelegation_msgs.len()
                 ),
             )

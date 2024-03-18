@@ -30,7 +30,7 @@ assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
 wallet_release_version = "1.2.8"
-perfomance_testing_webpage = "https://nymtech.net/events/fast-and-furious"
+performance_testing_webpage = "https://nymtech.net/events/fast-and-furious"
 performance_validator = "http://validator.performance.nymte.ch/"
 
 # dependencies

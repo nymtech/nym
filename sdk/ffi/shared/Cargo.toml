@@ -1,23 +1,27 @@
 [package]
-name = "nym-cpp-ffi"
-version = "0.1.1"
+name = "nym-ffi-shared"
+version = "0.1.0"
 edition = "2021"
 
-[lib]
-name = "nym_cpp_ffi"
-crate-type = ["cdylib"]
-
+# TODO change to load relative + remove this from the workspace exclude list
 [dependencies]
 # Async runtime
 tokio = { version = "1", features = ["full"] }
-# Nym clients, addressing, packet format, common tools (logging), ffi shared
+# Nym clients, addressing, packet format, common tools (logging)
 nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
 nym-bin-common = { git = "https://github.com/nymtech/nym", branch = "master" }
 nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym", branch = "master" }
-nym-ffi-shared = { path = "../shared" }
+# static var macro
 lazy_static = "1.4.0"
 # error handling
 anyhow = "1.0.75"
 # base58 en/decoding
 bs58 = "0.5.0"
+# UDL test
+uniffi = { version = "0.25.2", features = ["cli"] }
+
+[build-dependencies]
+uniffi = { version = "0.25.2", features = ["build" ] }
+uniffi_build = { version = "0.25.2", features=["builtin-bindgen"] }
+
 

@@ -6,8 +6,10 @@ use crate::node::helpers::{
     store_x25519_sphinx_keypair,
 };
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway::Gateway;
 use nym_mixnode::node::node_description::NodeDescription;
 use nym_mixnode::MixNode;
+use nym_node::config::entry_gateway::ephemeral_entry_gateway_config;
 use nym_node::config::mixnode::ephemeral_mixnode_config;
 use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode};
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
@@ -44,6 +46,7 @@ impl MixnodeData {
 
 struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
+    client_storage: nym_gateway::node::PersistentStorage,
 }
 
 impl EntryGatewayData {
@@ -61,9 +64,15 @@ impl EntryGatewayData {
         Ok(())
     }
 
-    fn new(config: &EntryGatewayConfig) -> Result<EntryGatewayData, EntryGatewayError> {
+    async fn new(config: &EntryGatewayConfig) -> Result<EntryGatewayData, EntryGatewayError> {
         Ok(EntryGatewayData {
             mnemonic: config.storage_paths.load_mnemonic_from_file()?,
+            client_storage: nym_gateway::node::PersistentStorage::init(
+                &config.storage_paths.clients_storage,
+                config.debug.message_retrieval_limit,
+            )
+            .await
+            .map_err(nym_gateway::GatewayError::from)?,
         })
     }
 }
@@ -131,7 +140,7 @@ impl NymNode {
         config.save()
     }
 
-    pub(crate) fn new(config: Config) -> Result<Self, NymNodeError> {
+    pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
         Ok(NymNode {
             ed25519_identity_keys: Arc::new(load_ed25519_identity_keypair(
                 config.storage_paths.keys.ed25519_identity_storage_paths(),
@@ -140,7 +149,7 @@ impl NymNode {
                 config.storage_paths.keys.x25519_sphinx_storage_paths(),
             )?),
             mixnode: MixnodeData::new(&config.mixnode)?,
-            entry_gateway: EntryGatewayData::new(&config.entry_gateway)?,
+            entry_gateway: EntryGatewayData::new(&config.entry_gateway).await?,
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
             config,
         })
@@ -162,7 +171,21 @@ impl NymNode {
 
     async fn run_as_entry_gateway(self) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in ENTRY GATEWAY mode");
-        Ok(())
+
+        let config = ephemeral_entry_gateway_config(self.config, self.entry_gateway.mnemonic)?;
+        let entry_gateway = Gateway::new_loaded(
+            config,
+            None,
+            None,
+            self.ed25519_identity_keys,
+            self.x25519_sphinx_keys,
+            self.entry_gateway.client_storage,
+        );
+
+        entry_gateway
+            .run()
+            .await
+            .map_err(|source| NymNodeError::EntryGatewayFailure(source.into()))
     }
 
     async fn run_as_exit_gateway(self, ipr: bool) -> Result<(), NymNodeError> {

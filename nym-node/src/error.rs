@@ -162,6 +162,12 @@ pub enum EntryGatewayError {
         source: bip39::Error,
     },
 
+    #[error("currently it's not supported to have different ip addresses for clients and mixnet ({clients_bind_ip} and {mix_bind_ip} were used)")]
+    UnsupportedAddresses {
+        clients_bind_ip: IpAddr,
+        mix_bind_ip: IpAddr,
+    },
+
     #[error(transparent)]
     External(#[from] nym_gateway::GatewayError),
 }

@@ -3,14 +3,12 @@
 
 use crate::cli::helpers::ConfigArgs;
 use crate::env::vars::*;
-use crate::node::NymNode;
 use nym_node::config;
 use nym_node::config::persistence::NymNodePaths;
 use nym_node::config::{Config, ConfigBuilder, NodeMode};
 use nym_node::error::NymNodeError;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
-use tracing::{debug, trace};
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 

@@ -1,7 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::paths::{GatewayPaths, WireguardPaths};
 use crate::config::template::CONFIG_TEMPLATE;
 use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
@@ -20,6 +19,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
+
+pub use crate::config::persistence::paths::{GatewayPaths, WireguardPaths};
 
 pub mod old_config_v1_1_20;
 pub mod old_config_v1_1_28;
@@ -122,6 +123,32 @@ impl Config {
             ip_packet_router: Default::default(),
             logging: Default::default(),
             debug: Default::default(),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn externally_loaded(
+        host: impl Into<Host>,
+        http: impl Into<Http>,
+        gateway: impl Into<Gateway>,
+        wireguard: impl Into<Wireguard>,
+        storage_paths: impl Into<GatewayPaths>,
+        network_requester: impl Into<NetworkRequester>,
+        ip_packet_router: impl Into<IpPacketRouter>,
+        logging: impl Into<LoggingSettings>,
+        debug: impl Into<Debug>,
+    ) -> Self {
+        Config {
+            save_path: None,
+            host: host.into(),
+            http: http.into(),
+            gateway: gateway.into(),
+            wireguard: wireguard.into(),
+            storage_paths: storage_paths.into(),
+            network_requester: network_requester.into(),
+            ip_packet_router: ip_packet_router.into(),
+            logging: logging.into(),
+            debug: debug.into(),
         }
     }
 

@@ -61,6 +61,20 @@ impl GatewayPaths {
         }
     }
 
+    pub fn new_empty() -> Self {
+        GatewayPaths {
+            keys: KeysPaths {
+                private_identity_key_file: Default::default(),
+                public_identity_key_file: Default::default(),
+                private_sphinx_key_file: Default::default(),
+                public_sphinx_key_file: Default::default(),
+            },
+            clients_storage: Default::default(),
+            network_requester_config: None,
+            ip_packet_router_config: None,
+        }
+    }
+
     #[must_use]
     pub fn with_network_requester_config<P: AsRef<Path>>(mut self, path: P) -> Self {
         self.network_requester_config = Some(path.as_ref().into());
@@ -160,4 +174,10 @@ impl KeysPaths {
 #[serde(deny_unknown_fields)]
 pub struct WireguardPaths {
     // pub keys:
+}
+
+impl WireguardPaths {
+    pub fn new_empty() -> Self {
+        WireguardPaths {}
+    }
 }

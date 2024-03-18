@@ -12,6 +12,8 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use thiserror::Error;
 
+pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
+
 #[derive(Debug, Error)]
 pub enum GatewayError {
     #[error("failed to load {keys} keys from '{}' (private key) and '{}' (public key): {err}", .paths.private_key_path.display(), .paths.public_key_path.display())]
@@ -130,6 +132,18 @@ pub enum GatewayError {
     ValidatorFailure {
         #[from]
         source: NyxdError,
+    },
+
+    #[error(transparent)]
+    ClientRequestFailure {
+        #[from]
+        source: RequestHandlingError,
+    },
+
+    #[error("failed to catch an interrupt: {source}")]
+    ShutdownFailure {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
     },
 
     #[error("this node hasn't set any valid public addresses to announce. Please modify [host.public_ips] section of your config")]

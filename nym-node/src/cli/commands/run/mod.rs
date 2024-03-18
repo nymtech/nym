@@ -42,5 +42,5 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         Config::read_from_toml_file(config_path)?
     };
 
-    NymNode::new(config)?.run().await
+    NymNode::new(config).await?.run().await
 }

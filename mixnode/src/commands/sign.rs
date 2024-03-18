@@ -11,8 +11,6 @@ use nym_mixnode::node::helpers::load_identity_keys;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
 
-use super::version_check;
-
 #[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text", "contract_msg"])))]
 pub(crate) struct Sign {
@@ -113,11 +111,6 @@ fn print_signed_contract_msg(
 
 pub(crate) fn execute(args: &Sign) -> anyhow::Result<()> {
     let config = try_load_current_config(&args.id)?;
-
-    if !version_check(&config) {
-        error!("failed the local version check");
-        bail!("failed the local version check")
-    }
 
     let signed_target = match SignedTarget::try_from(args.clone()) {
         Ok(s) => s,

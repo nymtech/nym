@@ -16,7 +16,6 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
-use anyhow::bail;
 use dashmap::DashMap;
 use futures::channel::{mpsc, oneshot};
 use log::*;
@@ -151,20 +150,20 @@ impl<St> Gateway<St> {
         })
     }
 
-    pub async fn new_from_keys_and_storage(
+    pub fn new_loaded(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
         ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
-        identity_keypair: identity::KeyPair,
-        sphinx_keypair: encryption::KeyPair,
+        identity_keypair: Arc<identity::KeyPair>,
+        sphinx_keypair: Arc<encryption::KeyPair>,
         storage: St,
     ) -> Self {
         Gateway {
             config,
             network_requester_opts,
             ip_packet_router_opts,
-            identity_keypair: Arc::new(identity_keypair),
-            sphinx_keypair: Arc::new(sphinx_keypair),
+            identity_keypair,
+            sphinx_keypair,
             storage,
             client_registry: Arc::new(DashMap::new()),
         }
@@ -438,7 +437,7 @@ impl<St> Gateway<St> {
         }))
     }
 
-    pub async fn run(self) -> anyhow::Result<()>
+    pub async fn run(self) -> Result<(), GatewayError>
     where
         St: Storage + Clone + 'static,
     {
@@ -535,9 +534,9 @@ impl<St> Gateway<St> {
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
-        if let Err(err) = Self::wait_for_interrupt(shutdown).await {
+        if let Err(source) = Self::wait_for_interrupt(shutdown).await {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-            bail!("{err}")
+            return Err(GatewayError::ShutdownFailure { source });
         }
         #[cfg(all(feature = "wireguard", target_os = "linux"))]
         if let Some(wg_api) = wg_api {

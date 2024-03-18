@@ -5634,7 +5634,6 @@ dependencies = [
  "nym-mixnode-common",
  "nym-network-defaults",
  "nym-network-requester",
- "nym-node",
  "nym-node-http-api",
  "nym-pemstore",
  "nym-sphinx",
@@ -5645,7 +5644,6 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-types",
  "once_cell",
- "pretty_env_logger",
  "rand 0.7.3",
  "rand 0.8.5",
  "serde",
@@ -6065,11 +6063,13 @@ name = "nym-node"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bip39",
  "clap 4.4.7",
  "humantime-serde",
  "nym-bin-common",
  "nym-config",
  "nym-crypto",
+ "nym-gateway",
  "nym-mixnode",
  "nym-node-http-api",
  "nym-pemstore",
@@ -6080,6 +6080,7 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "zeroize",
 ]
 
 [[package]]

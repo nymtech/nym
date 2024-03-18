@@ -313,14 +313,7 @@ mod tests {
         };
 
         // The test is really if this instantiates with InMemStorage without panics
-        let _gateway = Gateway::new_from_keys_and_storage(
-            config,
-            None,
-            None,
-            identity_keys,
-            sphinx_keys,
-            InMemStorage,
-        )
-        .await;
+        let _gateway =
+            Gateway::new_loaded(config, None, None, identity_keys, sphinx_keys, InMemStorage);
     }
 }

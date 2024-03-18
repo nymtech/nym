@@ -61,11 +61,15 @@ pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
 #[derive(Debug, Default, Serialize, Deserialize, ValueEnum, Clone, Copy)]
 pub enum NodeMode {
     #[default]
+    #[clap(alias = "mix")]
     Mixnode,
+
+    #[clap(alias = "entry", alias = "gateway")]
     EntryGateway,
 
     // those will be combined once some bugs are squashed
     ExitGatewayNR,
+
     ExitGatewayIPR,
 }
 

@@ -18,4 +18,7 @@ pub enum StorageError {
 
     #[error("No unused credential in database. You need to buy at least one")]
     NoCredential,
+
+    #[error("No signatures for that epoch in the database")]
+    NoSignatures,
 }

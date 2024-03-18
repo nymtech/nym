@@ -37,3 +37,9 @@ pub struct StorableIssuedCredential<'a> {
 
     pub epoch_id: u32,
 }
+
+#[derive(Clone)]
+pub struct CoinIndicesSignature {
+    pub epoch_id: String,
+    pub signatures: String,
+}

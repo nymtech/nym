@@ -26,7 +26,7 @@ impl<'a> GatewayHandshake<'a> {
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
     {
-        let mut state = State::new(rng, ws_stream, identity, None);
+        let mut state = State::new(rng, ws_stream, identity, None, true);
         GatewayHandshake {
             handshake_future: Box::pin(async move {
                 // If any step along the way failed (that are non-network related),

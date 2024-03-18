@@ -30,11 +30,19 @@ pub async fn client_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
+    expects_credential_usage: bool,
 ) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
-    ClientHandshake::new(rng, ws_stream, identity, gateway_pubkey).await
+    ClientHandshake::new(
+        rng,
+        ws_stream,
+        identity,
+        gateway_pubkey,
+        expects_credential_usage,
+    )
+    .await
 }
 
 #[cfg(not(target_arch = "wasm32"))]

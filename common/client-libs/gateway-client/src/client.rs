@@ -20,7 +20,7 @@ use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressByt
 use nym_gateway_requests::iv::IV;
 use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V1_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
     CURRENT_PROTOCOL_VERSION,
 };
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
@@ -438,6 +438,7 @@ impl<C, St> GatewayClient<C, St> {
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
+                !self.disabled_credentials_mode,
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),
@@ -494,8 +495,13 @@ impl<C, St> GatewayClient<C, St> {
             .derive_destination_address();
         let encrypted_address = EncryptedAddressBytes::new(&self_address, shared_key, &iv);
 
-        let msg =
-            ClientControlRequest::new_authenticate(self_address, encrypted_address, iv).into();
+        let msg = ClientControlRequest::new_authenticate(
+            self_address,
+            encrypted_address,
+            iv,
+            !self.disabled_credentials_mode,
+        )
+        .into();
 
         match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate {
@@ -599,7 +605,7 @@ impl<C, St> GatewayClient<C, St> {
             });
         };
 
-        if gateway_protocol < CREDENTIAL_UPDATE_V1_PROTOCOL_VERSION {
+        if gateway_protocol < CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION {
             return Err(GatewayClientError::OutdatedGatewayCredentialVersion {
                 negotiated_protocol: Some(gateway_protocol),
             });

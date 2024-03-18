@@ -5605,7 +5605,9 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
  "tungstenite",
+ "wasmtimer",
  "zeroize",
 ]
 

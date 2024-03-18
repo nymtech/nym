@@ -188,8 +188,8 @@ impl NymNode {
             .map_err(|source| NymNodeError::EntryGatewayFailure(source.into()))
     }
 
-    async fn run_as_exit_gateway(self, ipr: bool) -> Result<(), NymNodeError> {
-        info!("going to start the nym-node in EXIT GATEWAY mode (ipr: {ipr})");
+    async fn run_as_exit_gateway(self) -> Result<(), NymNodeError> {
+        info!("going to start the nym-node in EXIT GATEWAY mode");
         Ok(())
     }
 
@@ -197,8 +197,7 @@ impl NymNode {
         match self.config.mode {
             NodeMode::Mixnode => self.run_as_mixnode().await,
             NodeMode::EntryGateway => self.run_as_entry_gateway().await,
-            NodeMode::ExitGatewayNR => self.run_as_exit_gateway(false).await,
-            NodeMode::ExitGatewayIPR => self.run_as_exit_gateway(true).await,
+            NodeMode::ExitGateway => self.run_as_exit_gateway().await,
         }
     }
 }

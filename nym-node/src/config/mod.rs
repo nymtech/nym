@@ -67,10 +67,8 @@ pub enum NodeMode {
     #[clap(alias = "entry", alias = "gateway")]
     EntryGateway,
 
-    // those will be combined once some bugs are squashed
-    ExitGatewayNR,
-
-    ExitGatewayIPR,
+    #[clap(alias = "exit")]
+    ExitGateway,
 }
 
 pub struct ConfigBuilder {

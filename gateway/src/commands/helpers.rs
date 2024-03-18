@@ -88,18 +88,19 @@ impl OverrideConfig {
         if config.network_requester.enabled
             && config.storage_paths.network_requester_config.is_none()
         {
-            Ok(config.with_default_network_requester_config_path())
-        } else if config.ip_packet_router.enabled
-            && config.storage_paths.ip_packet_router_config.is_none()
-        {
-            Ok(config.with_default_ip_packet_router_config_path())
-        } else {
-            Ok(config)
+            config = config.with_default_network_requester_config_path();
         }
+
+        if config.ip_packet_router.enabled && config.storage_paths.ip_packet_router_config.is_none()
+        {
+            config = config.with_default_ip_packet_router_config_path();
+        }
+
+        Ok(config)
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct OverrideNetworkRequesterConfig {
     pub(crate) fastmode: bool,
     pub(crate) no_cover: bool,
@@ -112,7 +113,7 @@ pub(crate) struct OverrideNetworkRequesterConfig {
     pub(crate) statistics_recipient: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(crate) struct OverrideIpPacketRouterConfig {
     // TODO
 }

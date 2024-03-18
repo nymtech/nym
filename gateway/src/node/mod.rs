@@ -11,9 +11,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::embedded_network_requester::{
-    LocalNetworkRequesterHandle, MessageRouter,
-};
+use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
@@ -51,7 +49,7 @@ struct StartedNetworkRequester {
     used_request_filter: RequestFilter,
 
     /// Handle to interact with the local network requester
-    handle: LocalNetworkRequesterHandle,
+    handle: LocalEmbeddedClientHandle,
 }
 
 /// Wire up and create Gateway instance
@@ -80,7 +78,7 @@ pub(crate) async fn create_gateway(
             let cfg = load_ip_packet_router_config(&config.gateway.id, path)?;
             Some(override_ip_packet_router_config(cfg, ip_config_override))
         } else {
-            // if NR is enabled, the config path must be specified
+            // if IPR is enabled, the config path must be specified
             return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
         }
     } else {
@@ -319,7 +317,7 @@ impl<St> Gateway<St> {
         info!("the local network requester is running on {address}",);
         Ok(StartedNetworkRequester {
             used_request_filter: start_data.request_filter,
-            handle: LocalNetworkRequesterHandle::new(address, nr_mix_sender),
+            handle: LocalEmbeddedClientHandle::new(address, nr_mix_sender),
         })
     }
 
@@ -327,17 +325,16 @@ impl<St> Gateway<St> {
         &self,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
-    ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
+    ) -> Result<LocalEmbeddedClientHandle, GatewayError> {
         info!("Starting IP packet provider...");
 
         // if network requester is enabled, configuration file must be provided!
         let Some(ip_opts) = &self.ip_packet_router_opts else {
-            log::error!("IP packet router is enabled but no configuration file was provided!");
             return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
         };
 
         // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
-        let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
+        let (ipr_mix_sender, ipr_mix_receiver) = mpsc::unbounded();
         let router_shutdown = shutdown.fork("message_router");
 
         let (router_tx, mut router_rx) = oneshot::channel();
@@ -348,7 +345,6 @@ impl<St> Gateway<St> {
             router_tx,
         );
 
-        // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut ip_packet_router =
             nym_ip_packet_router::IpPacketRouter::new(ip_opts.config.clone())
@@ -379,16 +375,11 @@ impl<St> Gateway<St> {
             return Err(GatewayError::IpPacketRouterStartupFailure);
         };
 
-        MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
-        info!(
-            "the local ip packet router is running on {}",
-            start_data.address
-        );
+        MessageRouter::new(ipr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
+        let address = start_data.address;
 
-        Ok(LocalNetworkRequesterHandle::new_ip(
-            start_data,
-            nr_mix_sender,
-        ))
+        info!("the local ip packet router is running on {address}");
+        Ok(LocalEmbeddedClientHandle::new(address, ipr_mix_sender))
     }
 
     async fn wait_for_interrupt(
@@ -504,8 +495,6 @@ impl<St> Gateway<St> {
             None
         };
 
-        // NOTE: this is mutually exclusive with the network requester (for now). This is reflected
-        // in the command line arguments as well.
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_packet_router(

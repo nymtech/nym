@@ -15,6 +15,7 @@ license = "GPL-3.0"
 
 [dependencies]
 anyhow.workspace = true
+bip39 = { workspace = true, features = ["zeroize"] }
 clap = { workspace = true, features = ["cargo", "env"] }
 humantime-serde = "1.1.1"
 rand = "0.7.3"
@@ -23,6 +24,7 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["macros", "sync"] }
 url = { workspace = true, features = ["serde"] }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing", "output_format"]}
 nym-config = { path = "../common/config" }

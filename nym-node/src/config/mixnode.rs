@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::persistence::MixnodePaths;
-use crate::config::{Config, DEFAULT_VERLOC_PORT};
+use crate::config::Config;
 use crate::error::MixnodeError;
 use clap::crate_version;
+use nym_config::defaults::DEFAULT_VERLOC_LISTENING_PORT;
+use nym_config::helpers::inaddr_any;
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
+
+pub const DEFAULT_VERLOC_PORT: u16 = DEFAULT_VERLOC_LISTENING_PORT;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -46,7 +50,7 @@ pub struct Verloc {
 impl Default for Verloc {
     fn default() -> Self {
         Verloc {
-            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_VERLOC_PORT),
+            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_VERLOC_PORT),
             debug: Default::default(),
         }
     }
@@ -131,32 +135,11 @@ pub struct Debug {
     /// Delay between each subsequent node statistics being updated
     #[serde(with = "humantime_serde")]
     pub node_stats_updating_delay: Duration,
-
-    /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
-    /// forwarding sphinx packets.
-    #[serde(with = "humantime_serde")]
-    pub packet_forwarding_initial_backoff: Duration,
-
-    /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
-    /// forwarding sphinx packets.
-    #[serde(with = "humantime_serde")]
-    pub packet_forwarding_maximum_backoff: Duration,
-
-    /// Timeout for establishing initial connection when trying to forward a sphinx packet.
-    #[serde(with = "humantime_serde")]
-    pub initial_connection_timeout: Duration,
-
-    /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
-    pub maximum_connection_buffer_size: usize,
 }
 
 impl Debug {
     const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
     const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000);
-    const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
-    const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
-    const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
-    const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 }
 
 impl Default for Debug {
@@ -164,24 +147,6 @@ impl Default for Debug {
         Debug {
             node_stats_logging_delay: Debug::DEFAULT_NODE_STATS_LOGGING_DELAY,
             node_stats_updating_delay: Debug::DEFAULT_NODE_STATS_UPDATING_DELAY,
-            packet_forwarding_initial_backoff: Debug::DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
-            packet_forwarding_maximum_backoff: Debug::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
-            initial_connection_timeout: Debug::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
-            maximum_connection_buffer_size: Debug::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
-        }
-    }
-}
-
-impl From<Debug> for nym_mixnode::config::Debug {
-    fn from(value: Debug) -> Self {
-        nym_mixnode::config::Debug {
-            node_stats_logging_delay: value.node_stats_logging_delay,
-            node_stats_updating_delay: value.node_stats_updating_delay,
-            packet_forwarding_initial_backoff: value.packet_forwarding_initial_backoff,
-            packet_forwarding_maximum_backoff: value.packet_forwarding_maximum_backoff,
-            initial_connection_timeout: value.initial_connection_timeout,
-            maximum_connection_buffer_size: value.maximum_connection_buffer_size,
-            use_legacy_framed_packet_version: false,
         }
     }
 }
@@ -232,6 +197,20 @@ pub fn ephemeral_mixnode_config(
         nym_mixnode::config::MixNodePaths::new_empty(),
         config.mixnode.verloc.debug,
         config.logging,
-        config.mixnode.debug,
+        nym_mixnode::config::Debug {
+            node_stats_logging_delay: config.mixnode.debug.node_stats_logging_delay,
+            node_stats_updating_delay: config.mixnode.debug.node_stats_updating_delay,
+            packet_forwarding_initial_backoff: config
+                .mixnet
+                .debug
+                .packet_forwarding_initial_backoff,
+            packet_forwarding_maximum_backoff: config
+                .mixnet
+                .debug
+                .packet_forwarding_maximum_backoff,
+            initial_connection_timeout: config.mixnet.debug.initial_connection_timeout,
+            maximum_connection_buffer_size: config.mixnet.debug.maximum_connection_buffer_size,
+            use_legacy_framed_packet_version: false,
+        },
     ))
 }

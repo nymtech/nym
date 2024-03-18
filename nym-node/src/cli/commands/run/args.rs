@@ -12,6 +12,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use tracing::{debug, trace};
 use url::Url;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -74,6 +75,12 @@ pub(crate) struct Args {
 
     #[clap(flatten)]
     exit_gateway: ExitGatewayArgs,
+}
+
+impl Args {
+    pub(super) fn take_mnemonic(&mut self) -> Option<Zeroizing<bip39::Mnemonic>> {
+        self.entry_gateway.mnemonic.take().map(Zeroizing::new)
+    }
 }
 
 #[derive(clap::Args, Debug)]
@@ -291,9 +298,47 @@ impl MixnodeArgs {
     }
 }
 
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args, Debug, Zeroize, ZeroizeOnDrop)]
 struct EntryGatewayArgs {
-    //
+    /// Socket address this node will use for binding its client websocket API.
+    /// default: `0.0.0.0:9000`
+    #[clap(
+        long,
+        env = NYMNODE_ENTRY_BIND_ADDRESS_ARG
+    )]
+    #[zeroize(skip)]
+    entry_bind_address: Option<SocketAddr>,
+
+    /// Custom announced port for listening for websocket client traffic.
+    /// If unspecified, the value from the `bind_address` will be used instead
+    #[clap(
+        long,
+        env = NYMNODE_ENTRY_ANNOUNCE_WS_PORT_ARG
+    )]
+    announce_ws_port: Option<u16>,
+
+    /// If applicable, announced port for listening for secure websocket client traffic.
+    #[clap(
+        long,
+        env = NYMNODE_ENTRY_ANNOUNCE_WSS_PORT_ARG
+    )]
+    announce_wss_port: Option<u16>,
+
+    /// Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet
+    /// or if it also accepts non-paying clients
+    #[clap(
+        long,
+        env = NYMNODE_ENFORCE_ZK_NYMS_ARG
+    )]
+    enforce_zk_nyms: Option<bool>,
+
+    /// Custom cosmos wallet mnemonic used for zk-nym redemption.
+    /// If no value is provided, a fresh mnemonic is going to be generated.
+    #[clap(
+        long,
+        env = NYMNODE_MNEMONIC_ARG
+    )]
+    mnemonic: Option<bip39::Mnemonic>,
 }
 
 impl EntryGatewayArgs {
@@ -309,6 +354,18 @@ impl EntryGatewayArgs {
         self,
         mut section: config::EntryGatewayConfig,
     ) -> config::EntryGatewayConfig {
+        /*
+            entry_bind_address: Option<SocketAddr>,
+
+
+        announce_ws_port: Option<u16>,
+
+        announce_wss_port: Option<u16>,
+
+        enforce_zk_nyms: Option<bool>,
+
+        mnemonic: Option<bip39::Mnemonic>,
+             */
         section
     }
 }

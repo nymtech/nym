@@ -142,6 +142,26 @@ pub enum MixnodeError {
 
 #[derive(Debug, Error)]
 pub enum EntryGatewayError {
+    #[error("failed to load entry gateway account mnemonic from {}: {source}", path.display())]
+    MnemonicLoadFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("failed to save entry gateway account mnemonic from {}: {source}", path.display())]
+    MnemonicSaveFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("the stored mnemonic is malformed: {source}")]
+    MalformedBip39Mnemonic {
+        #[from]
+        source: bip39::Error,
+    },
+
     #[error(transparent)]
     External(#[from] nym_gateway::GatewayError),
 }

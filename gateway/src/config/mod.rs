@@ -7,13 +7,13 @@ use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_config::helpers::inaddr_any;
-use nym_config::serde_helpers::de_maybe_stringified;
+use nym_config::serde_helpers::{de_maybe_port, de_maybe_stringified};
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_network_defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
@@ -40,18 +40,6 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
-
-fn de_maybe_port<'de, D>(deserializer: D) -> Result<Option<u16>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let port = u16::deserialize(deserializer)?;
-    if port == 0 {
-        Ok(None)
-    } else {
-        Ok(Some(port))
-    }
-}
 
 /// Derive default path to gateway's config directory.
 /// It should get resolved to `$HOME/.nym/gateways/<id>/config`
@@ -493,9 +481,11 @@ pub struct Debug {
 
     /// Delay between each subsequent presence data being sent.
     #[serde(with = "humantime_serde")]
+    // DEAD FIELD
     pub presence_sending_delay: Duration,
 
     /// Length of filenames for new client messages.
+    // DEAD FIELD
     pub stored_messages_filename_length: u16,
 
     /// Number of messages from offline client that can be pulled at once from the storage.

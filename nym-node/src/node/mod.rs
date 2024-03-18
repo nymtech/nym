@@ -13,6 +13,7 @@ use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeCon
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use std::sync::Arc;
 use tracing::{debug, error, info, trace};
+use zeroize::Zeroizing;
 
 mod helpers;
 
@@ -42,18 +43,28 @@ impl MixnodeData {
 }
 
 struct EntryGatewayData {
-    //
+    mnemonic: Zeroizing<bip39::Mnemonic>,
 }
 
 impl EntryGatewayData {
-    fn initialise(config: &EntryGatewayConfig) -> Result<(), MixnodeError> {
-        error!("unimplemented");
+    fn initialise(
+        config: &EntryGatewayConfig,
+        custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
+    ) -> Result<(), EntryGatewayError> {
+        // SAFETY:
+        // this unwrap is fine as 24 word count is a valid argument for generating entropy for a new bip39 mnemonic
+        #[allow(clippy::unwrap_used)]
+        let mnemonic = custom_mnemonic
+            .unwrap_or_else(|| Zeroizing::new(bip39::Mnemonic::generate(24).unwrap()));
+        config.storage_paths.save_mnemonic_to_file(&mnemonic)?;
+
         Ok(())
     }
 
     fn new(config: &EntryGatewayConfig) -> Result<EntryGatewayData, EntryGatewayError> {
-        error!("unimplemented");
-        Ok(EntryGatewayData {})
+        Ok(EntryGatewayData {
+            mnemonic: config.storage_paths.load_mnemonic_from_file()?,
+        })
     }
 }
 
@@ -62,7 +73,7 @@ struct ExitGatewayData {
 }
 
 impl ExitGatewayData {
-    fn initialise(config: &ExitGatewayConfig) -> Result<(), MixnodeError> {
+    fn initialise(config: &ExitGatewayConfig) -> Result<(), ExitGatewayError> {
         error!("unimplemented");
         Ok(())
     }
@@ -85,7 +96,10 @@ pub(crate) struct NymNode {
 }
 
 impl NymNode {
-    pub(crate) fn initialise(config: &Config) -> Result<(), NymNodeError> {
+    pub(crate) fn initialise(
+        config: &Config,
+        custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
+    ) -> Result<(), NymNodeError> {
         debug!("initialising nym-node with id: {}", config.id);
         let mut rng = rand::rngs::OsRng;
 
@@ -109,7 +123,7 @@ impl NymNode {
         MixnodeData::initialise(&config.mixnode)?;
 
         // entry gateway initialisation
-        EntryGatewayData::initialise(&config.entry_gateway)?;
+        EntryGatewayData::initialise(&config.entry_gateway, custom_mnemonic)?;
 
         // exit gateway initialisation
         ExitGatewayData::initialise(&config.exit_gateway)?;

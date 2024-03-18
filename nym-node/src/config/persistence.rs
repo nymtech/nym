@@ -1,8 +1,13 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::error::EntryGatewayError;
 use serde::{Deserialize, Serialize};
+use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
+use tracing::info;
+use zeroize::Zeroizing;
 
 // Global:
 pub const DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME: &str = "ed25519_identity";
@@ -15,6 +20,7 @@ pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
 // Entry Gateway:
 pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "clients.sqlite";
+pub const DEFAULT_MNEMONIC_FILENAME: &str = "cosmos_mnemonic";
 
 // Exit Gateway:
 pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
@@ -105,13 +111,54 @@ pub struct EntryGatewayPaths {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys and available client bandwidths.
     pub clients_storage: PathBuf,
+
+    /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
+    pub cosmos_mnemonic: PathBuf,
 }
 
 impl EntryGatewayPaths {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         EntryGatewayPaths {
             clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
+            cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
         }
+    }
+
+    pub fn load_mnemonic_from_file(&self) -> Result<Zeroizing<bip39::Mnemonic>, EntryGatewayError> {
+        let stringified =
+            Zeroizing::new(fs::read_to_string(&self.cosmos_mnemonic).map_err(|source| {
+                EntryGatewayError::MnemonicLoadFailure {
+                    path: self.cosmos_mnemonic.clone(),
+                    source,
+                }
+            })?);
+
+        Ok(Zeroizing::new(bip39::Mnemonic::parse::<&str>(
+            stringified.as_ref(),
+        )?))
+    }
+
+    pub fn save_mnemonic_to_file(
+        &self,
+        mnemonic: &bip39::Mnemonic,
+    ) -> Result<(), EntryGatewayError> {
+        // wrapper for io errors
+        fn _save_to_file(path: &Path, mnemonic: &bip39::Mnemonic) -> io::Result<()> {
+            if let Some(parent) = path.parent() {
+                create_dir_all(parent)?;
+            }
+            info!("saving entry gateway mnemonic to '{}'", path.display());
+
+            let stringified = Zeroizing::new(mnemonic.to_string());
+            fs::write(path, &stringified)
+        }
+
+        _save_to_file(&self.cosmos_mnemonic, mnemonic).map_err(|source| {
+            EntryGatewayError::MnemonicSaveFailure {
+                path: self.cosmos_mnemonic.clone(),
+                source,
+            }
+        })
     }
 }
 

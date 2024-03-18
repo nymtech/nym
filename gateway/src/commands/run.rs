@@ -22,12 +22,12 @@ pub struct Run {
     #[arg(long, alias = "host")]
     listening_address: Option<IpAddr>,
 
-    /// Comma separated list of public ip addresses that will announced to the nym-api and subsequently to the clients.
+    /// Comma separated list of public ip addresses that will be announced to the nym-api and subsequently to the clients.
     /// In nearly all circumstances, it's going to be identical to the address you're going to use for bonding.
     #[arg(long, value_delimiter = ',')]
     public_ips: Option<Vec<IpAddr>>,
 
-    /// Optional hostname associated with this gateway that will announced to the nym-api and subsequently to the clients
+    /// Optional hostname associated with this gateway that will be announced to the nym-api and subsequently to the clients
     #[arg(long)]
     hostname: Option<String>,
 

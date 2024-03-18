@@ -7,9 +7,9 @@ use crate::error::NymNodeError;
 use clap::ValueEnum;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
-    mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT,
-    DEFAULT_VERLOC_LISTENING_PORT, WG_PORT,
+    mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT,
 };
+use nym_config::helpers::inaddr_any;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
     must_get_home, parse_urls, read_config_from_toml_file, save_formatted_config_to_file,
@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tracing::{debug, error};
 use url::Url;
 
@@ -39,7 +40,6 @@ pub const DEFAULT_WIREGUARD_PORT: u16 = WG_PORT;
 pub const DEFAULT_WIREGUARD_PREFIX: u8 = 16;
 pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
 pub const DEFAULT_MIXNET_PORT: u16 = DEFAULT_MIX_LISTENING_PORT;
-pub const DEFAULT_VERLOC_PORT: u16 = DEFAULT_VERLOC_LISTENING_PORT;
 
 /// Derive default path to nym-node's config directory.
 /// It should get resolved to `$HOME/.nym/nym-nodes/<id>/config`
@@ -363,7 +363,7 @@ pub struct Http {
 impl Default for Http {
     fn default() -> Self {
         Http {
-            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_HTTP_PORT),
+            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
             metrics_key: None,
         }
@@ -380,6 +380,52 @@ pub struct Mixnet {
 
     /// Addresses to nym APIs from which the node gets the view of the network.
     pub nym_api_urls: Vec<Url>,
+
+    /// Addresses to nyxd which the node uses to interact with the chain.
+    pub nyxd_urls: Vec<Url>,
+
+    #[serde(default)]
+    pub debug: MixnetDebug,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+#[serde(deny_unknown_fields)]
+pub struct MixnetDebug {
+    /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
+    /// forwarding sphinx packets.
+    #[serde(with = "humantime_serde")]
+    pub packet_forwarding_initial_backoff: Duration,
+
+    /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
+    /// forwarding sphinx packets.
+    #[serde(with = "humantime_serde")]
+    pub packet_forwarding_maximum_backoff: Duration,
+
+    /// Timeout for establishing initial connection when trying to forward a sphinx packet.
+    #[serde(with = "humantime_serde")]
+    pub initial_connection_timeout: Duration,
+
+    /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
+    pub maximum_connection_buffer_size: usize,
+}
+
+impl MixnetDebug {
+    const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
+    const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
+    const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
+    const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
+}
+
+impl Default for MixnetDebug {
+    fn default() -> Self {
+        MixnetDebug {
+            packet_forwarding_initial_backoff: Self::DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
+            packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
+            initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
+            maximum_connection_buffer_size: Self::DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
+        }
+    }
 }
 
 impl Default for Mixnet {
@@ -394,9 +440,18 @@ impl Default for Mixnet {
             vec![mainnet::NYM_API.parse().expect("Invalid default API URL")]
         };
 
+        #[allow(clippy::expect_used)]
+        let nyxd_urls = if let Ok(env_value) = env::var(var_names::NYXD) {
+            parse_urls(&env_value)
+        } else {
+            vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")]
+        };
+
         Mixnet {
-            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_MIXNET_PORT),
+            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_MIXNET_PORT),
             nym_api_urls,
+            nyxd_urls,
+            debug: Default::default(),
         }
     }
 }
@@ -442,7 +497,7 @@ impl Wireguard {
 pub fn deprecated_default_wireguard_config() -> Wireguard {
     Wireguard {
         enabled: false,
-        bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_WIREGUARD_PORT),
+        bind_address: SocketAddr::new(inaddr_any(), DEFAULT_WIREGUARD_PORT),
         announced_port: DEFAULT_WIREGUARD_PORT,
         private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
         storage_paths: persistence::WireguardPaths {},

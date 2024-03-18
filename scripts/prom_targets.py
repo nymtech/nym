@@ -2,14 +2,19 @@ import argparse
 import os
 import requests
 import json
-from datetime import datetime
 from collections import namedtuple
 
-Config = namedtuple("Config", ["port", "outfile", "outlink"])
+Config = namedtuple("Config", ["port", "outfile", "outlink", "env"])
+
+
+def validate_config_entry(entry):
+    return entry.get("nym_api") and entry.get("env")
 
 
 def config_to_targets(config, mixnodes):
-    prom_targets = [make_prom_target(mixnode, config.port) for mixnode in mixnodes]
+    prom_targets = [
+        make_prom_target(config.env, mixnode, config.port) for mixnode in mixnodes
+    ]
     with open(config.outfile, "w") as f:
         json.dump(prom_targets, f)
 
@@ -20,7 +25,7 @@ def config_to_targets(config, mixnodes):
     print(f"Prometheus -> {len(prom_targets)} targets written to {config.outlink}")
 
 
-def make_prom_target(mixnode, port=None):
+def make_prom_target(env, mixnode, port=None):
     bond_info = mixnode.get("bond_information", {})
     mix_node = bond_info.get("mix_node", {})
     host = mix_node.get("host", None)
@@ -35,6 +40,7 @@ def make_prom_target(mixnode, port=None):
             "identity_key": mix_node.get("identity_key", None),
             "sphinx_key": mix_node.get("sphinx_key", None),
             "mix_node_version": mix_node.get("version", None),
+            "mixnet_env": env,
         },
     }
 
@@ -44,20 +50,39 @@ if __name__ == "__main__":
         description="Create prometheus targets for rewarded set mixnodes."
     )
     parser.add_argument(
-        "apiurl",
+        "config",
         type=str,
-        help="Nym Api url",
+        help="Config file, see scripts/prom_targets_config.json",
     )
 
     args = parser.parse_args()
-    nym_api = args.apiurl
+    config_file = args.config
 
-    targets = [
-        Config(None, "/tmp/temp_targets_mix.json", "/tmp/prom_targets_mix.json"),
-        Config(9100, "/tmp/temp_targets_node.json", "/tmp/prom_targets_node.json"),
-    ]
+    with open(config_file, "r") as f:
+        config = json.load(f)
 
-    mixnodes = requests.get(f"{nym_api}/api/v1/mixnodes").json()
+    for entry in config:
 
-    for config in targets:
-        config_to_targets(config, mixnodes)
+        if not validate_config_entry(entry):
+            print(f"Invalid config entry: {entry}")
+            continue
+
+        targets = [
+            Config(
+                None,
+                "/tmp/temp_targets_mix.json",
+                f"/tmp/prom_targets_mix_{entry['env']}.json",
+                entry["env"],
+            ),
+            Config(
+                9100,
+                "/tmp/temp_targets_node.json",
+                f"/tmp/prom_targets_node_{entry['env']}.json",
+                entry["env"],
+            ),
+        ]
+
+        mixnodes = requests.get(f"{entry['nym_api']}/api/v1/mixnodes").json()
+
+        for config in targets:
+            config_to_targets(config, mixnodes)

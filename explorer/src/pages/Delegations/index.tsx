@@ -184,6 +184,12 @@ const DelegationsPage = () => {
             }
             setConfirmationModalProps(undefined);
           }}
+          sx={{
+            width: {
+              xs: '90%',
+              sm: 600,
+            },
+          }}
         />
       )}
       <Box display="flex" justifyContent="space-between" alignItems="center">

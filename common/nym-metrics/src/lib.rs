@@ -1,23 +1,37 @@
 use dashmap::DashMap;
 pub use log::error;
 use log::{debug, warn};
-use regex::Regex;
 use std::fmt;
 pub use std::time::Instant;
 
 use prometheus::{core::Collector, Counter, Encoder as _, Gauge, Registry, TextEncoder};
 
 #[macro_export]
+macro_rules! prepend_package_name {
+    ($name: literal) => {
+        &format!(
+            "{}_{}",
+            std::module_path!()
+                .split("::")
+                .next()
+                .unwrap_or("x")
+                .to_string(),
+            $name
+        )
+    };
+}
+
+#[macro_export]
 macro_rules! inc_by {
     ($name:literal, $x:expr) => {
-        $crate::REGISTRY.inc_by($name, $x as f64);
+        $crate::REGISTRY.inc_by($crate::prepend_package_name!($name), $x as f64);
     };
 }
 
 #[macro_export]
 macro_rules! inc {
     ($name:literal) => {
-        $crate::REGISTRY.inc($name);
+        $crate::REGISTRY.inc($crate::prepend_package_name!($name));
     };
 }
 
@@ -35,13 +49,13 @@ macro_rules! nanos {
         // if the block needs to return something, we can return it
         let r = $x;
         let duration = start.elapsed().as_nanos() as f64;
+        let name = $crate::prepend_package_name!($name);
         $crate::REGISTRY.inc_by(&format!("{}_nanos", $name), duration);
         r
     }};
 }
 
 lazy_static::lazy_static! {
-    pub static ref RE: Regex = Regex::new(r"[^a-zA-Z0-9_]").unwrap();
     pub static ref REGISTRY: MetricsController = MetricsController::default();
 }
 
@@ -223,9 +237,31 @@ impl MetricsController {
     }
 }
 
-#[inline(always)]
 fn sanitize_metric_name(name: &str) -> String {
-    RE.replace_all(name, "_").to_string()
+    // The first character must be [a-zA-Z_:], and all subsequent characters must be [a-zA-Z0-9_:].
+    let mut out = String::with_capacity(name.len());
+    let mut is_invalid: fn(char) -> bool = invalid_metric_name_start_character;
+    for c in name.chars() {
+        if is_invalid(c) {
+            out.push('_');
+        } else {
+            out.push(c);
+        }
+        is_invalid = invalid_metric_name_character;
+    }
+    out
+}
+
+#[inline]
+fn invalid_metric_name_start_character(c: char) -> bool {
+    // Essentially, needs to match the regex pattern of [a-zA-Z_:].
+    !(c.is_ascii_alphabetic() || c == '_' || c == ':')
+}
+
+#[inline]
+fn invalid_metric_name_character(c: char) -> bool {
+    // Essentially, needs to match the regex pattern of [a-zA-Z0-9_:].
+    !(c.is_ascii_alphanumeric() || c == '_' || c == ':')
 }
 
 #[cfg(test)]
@@ -236,7 +272,7 @@ mod tests {
     fn test_sanitization() {
         assert_eq!(
             sanitize_metric_name("packets_sent_34.242.65.133:1789"),
-            "packets_sent_34_242_65_133_1789"
+            "packets_sent_34_242_65_133:1789"
         )
     }
 }

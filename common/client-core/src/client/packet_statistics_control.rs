@@ -512,9 +512,13 @@ impl PacketStatisticsControl {
             } else {
                 let metrics_port = 18000;
                 let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
-                let listener = Some(TcpListener::bind(addr)
-                .await
-                .unwrap_or_else(|_ | panic!("Cannot bind metrics server to {metrics_port}!")));
+                let listener = match TcpListener::bind(addr).await {
+                    Ok(listener) => Some(listener),
+                    Err(err) => {
+                        log::error!("Failed to bind metrics server: {:?}", err);
+                        None
+                    }
+                };
             }
         }
 

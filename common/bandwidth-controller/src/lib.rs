@@ -7,7 +7,7 @@ use log::info;
 use log::{error, warn};
 
 use nym_credential_storage::models::StorableIssuedCredential;
-use nym_credentials::coconut::utils::obtain_coin_indices_signatures;
+use nym_credentials::coconut::utils::{obtain_coin_indices_signatures, signatures_to_string};
 use nym_credentials_interface::{constants, PayInfo, VerificationKeyAuth};
 
 use nym_credential_storage::storage::Storage;
@@ -150,8 +150,20 @@ impl<C, St: Storage> BandwidthController<C, St> {
                     .await?
                     .ok_or(BandwidthControllerError::NoThreshold)?;
 
-                obtain_coin_indices_signatures(&ecash_api_client, &verification_key, threshold)
-                    .await?
+                let coin_indices_signatures =
+                    obtain_coin_indices_signatures(&ecash_api_client, &verification_key, threshold)
+                        .await?;
+
+                self.storage
+                    .insert_coin_indices_sig(
+                        epoch_id.to_string(),
+                        signatures_to_string(&coin_indices_signatures),
+                    )
+                    .await
+                    .map_err(|err| {
+                        BandwidthControllerError::CredentialStorageError(Box::new(err))
+                    })?;
+                coin_indices_signatures
             }
         };
 

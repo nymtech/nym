@@ -363,18 +363,19 @@ impl EntryGatewayArgs {
         self,
         mut section: config::EntryGatewayConfig,
     ) -> config::EntryGatewayConfig {
-        /*
-            entry_bind_address: Option<SocketAddr>,
+        if let Some(bind_address) = self.entry_bind_address {
+            section.bind_address = bind_address
+        }
+        if let Some(ws_port) = self.announce_ws_port {
+            section.announce_ws_port = Some(ws_port)
+        }
+        if let Some(wss_port) = self.announce_wss_port {
+            section.announce_wss_port = Some(wss_port)
+        }
+        if let Some(enforce_zk_nyms) = self.enforce_zk_nyms {
+            section.enforce_zk_nyms = enforce_zk_nyms
+        }
 
-
-        announce_ws_port: Option<u16>,
-
-        announce_wss_port: Option<u16>,
-
-        enforce_zk_nyms: Option<bool>,
-
-        mnemonic: Option<bip39::Mnemonic>,
-             */
         section
     }
 }

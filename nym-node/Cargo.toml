@@ -37,4 +37,5 @@ nym-task = { path = "../common/task" }
 # nodes:
 nym-mixnode = { path = "../mixnode" }
 nym-gateway = { path = "../gateway" }
-# todo: ideally we'd also import ipr and nr here and do embedding at this level
+nym-network-requester = { path = "../service-providers/network-requester" }
+nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }

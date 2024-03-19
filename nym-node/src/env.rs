@@ -9,6 +9,8 @@ pub mod vars {
 
     pub const NYMNODE_INIT_ONLY_ARG: &str = "NYMNODE_INIT_ONLY";
 
+    pub const NYMMONDE_WRITE_CONFIG_CHANGES_ARG: &str = "NYMNODE_WRITE_CONFIG_CHANGES";
+
     pub const NYMNODE_MODE_ARG: &str = "NYMNODE_MODE";
 
     // host:
@@ -41,14 +43,7 @@ pub mod vars {
     pub const NYMNODE_MNEMONIC_ARG: &str = "NYMNODE_MNEMONIC";
 
     // exit gateway:
+    pub const NYMNODE_UPSTREAM_EXIT_POLICY_ARG: &str = "NYMNODE_UPSTREAM_EXIT_POLICY";
+    pub const NYMNODE_OPEN_PROXY_ARG: &str = "NYMNODE_OPEN_PROXY";
 
-    pub const NYMMONDE_WRITE_CONFIG_CHANGES_ARG: &str = "NYMNODE_WRITE_CONFIG_CHANGES";
-
-    // pub const MIXNODE_ID_ARG: &str = "NYM_MIXNODE_ID";
-    // pub const MIXNODE_LISTENING_ADDRESS_ARG: &str = "NYM_MIXNODE_LISTENING_ADDRESS";
-    // pub const MIXNODE_MIX_PORT_ARG: &str = "NYM_MIXNODE_MIX_PORT";
-    // pub const MIXNODE_VERLOC_PORT_ARG: &str = "NYM_MIXNODE_VERLOC_PORT";
-    // pub const MIXNODE_HTTP_API_PORT_ARG: &str = "NYM_MIXNODE_HTTP_API_PORT";
-    // pub const MIXNODE_NYM_APIS_ARG: &str = "NYM_MIXNODE_NYM_APIS";
-    // pub const MIXNODE_OUTPUT_ARG: &str = "NYM_MIXNODE_OUTPUT";
 }

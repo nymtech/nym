@@ -14,6 +14,7 @@ use nym_node::config::exit_gateway::ephemeral_exit_gateway_config;
 use nym_node::config::mixnode::ephemeral_mixnode_config;
 use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode};
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
+use rand::rngs::OsRng;
 use std::sync::Arc;
 use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
@@ -79,12 +80,33 @@ impl EntryGatewayData {
 }
 
 struct ExitGatewayData {
-    //
+    // ideally we'd be storing all the keys here, but unfortunately due to how the service providers
+    // are currently implemented, they will be loading the data themselves from the provided paths
 }
 
 impl ExitGatewayData {
     fn initialise(config: &ExitGatewayConfig) -> Result<(), ExitGatewayError> {
-        error!("unimplemented");
+        // generate all the keys for NR and IPR
+        let mut rng = OsRng;
+
+        // NR:
+        // let ed25519_identity_keys = identity::KeyPair::new(&mut rng);
+        // let x25519_sphinx_keys = encryption::KeyPair::new(&mut rng);
+
+        // trace!("attempting to store ed25519 identity keypair");
+        // store_ed25519_identity_keypair(
+        //     &ed25519_identity_keys,
+        //     config.storage_paths.network_requester.ed25519_identity_storage_paths(),
+        // )?;
+        //
+        // trace!("attempting to store x25519 sphinx keypair");
+        // store_x25519_sphinx_keypair(
+        //     &x25519_sphinx_keys,
+        //     config.storage_paths.network_requester.x25519_sphinx_storage_paths(),
+        // )?;
+
+        // IPR:
+
         Ok(())
     }
 

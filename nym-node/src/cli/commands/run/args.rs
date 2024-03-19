@@ -375,7 +375,20 @@ impl EntryGatewayArgs {
 
 #[derive(clap::Args, Debug)]
 struct ExitGatewayArgs {
-    //
+    /// Specifies the url for an upstream source of the exit policy used by this node.
+    #[clap(
+        long,
+        env = NYMNODE_UPSTREAM_EXIT_POLICY_ARG,
+    )]
+    upstream_exit_policy_url: Option<Url>,
+
+    /// Specifies whether this exit node should run in 'open-proxy' mode
+    /// and thus would attempt to resolve **ANY** request it receives.
+    #[clap(
+        long,
+        env = NYMNODE_OPEN_PROXY_ARG,
+    )]
+    open_proxy: Option<bool>,
 }
 
 impl ExitGatewayArgs {
@@ -391,6 +404,13 @@ impl ExitGatewayArgs {
         self,
         mut section: config::ExitGatewayConfig,
     ) -> config::ExitGatewayConfig {
+        if let Some(upstream_exit_policy) = self.upstream_exit_policy_url {
+            section.upstream_exit_policy_url = Some(upstream_exit_policy)
+        }
+        if let Some(open_proxy) = self.open_proxy {
+            section.open_proxy = open_proxy
+        }
+
         section
     }
 }

@@ -15,7 +15,7 @@ pub use tracing_subscriber;
 #[cfg(feature = "tracing")]
 pub use tracing_tree;
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoggingSettings {
     // well, we need to implement something here at some point...

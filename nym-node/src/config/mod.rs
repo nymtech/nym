@@ -25,10 +25,11 @@ use url::Url;
 
 pub mod entry_gateway;
 pub mod exit_gateway;
+pub mod helpers;
 pub mod mixnode;
 pub mod persistence;
 mod template;
-mod upgrade_helpers;
+pub mod upgrade_helpers;
 
 pub use crate::config::entry_gateway::EntryGatewayConfig;
 pub use crate::config::exit_gateway::ExitGatewayConfig;

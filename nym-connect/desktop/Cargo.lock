@@ -3765,6 +3765,7 @@ dependencies = [
  "humantime-serde",
  "log",
  "nym-bandwidth-controller",
+ "nym-client-core-config-types",
  "nym-client-core-gateways-storage",
  "nym-client-core-surb-storage",
  "nym-config",
@@ -3800,6 +3801,21 @@ dependencies = [
  "wasm-utils",
  "wasmtimer",
  "zeroize",
+]
+
+[[package]]
+name = "nym-client-core-config-types"
+version = "0.1.0"
+dependencies = [
+ "humantime-serde",
+ "nym-config",
+ "nym-country-group",
+ "nym-pemstore",
+ "nym-sphinx-addressing",
+ "nym-sphinx-params",
+ "serde",
+ "thiserror",
+ "url",
 ]
 
 [[package]]

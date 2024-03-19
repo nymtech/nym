@@ -1,9 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::helpers::ephemeral_gateway_config;
 use crate::config::persistence::ExitGatewayPaths;
 use crate::config::Config;
 use crate::error::ExitGatewayError;
+use clap::crate_version;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_gateway::node::{LocalIpPacketRouterOpts, LocalNetworkRequesterOpts};
@@ -32,12 +34,13 @@ pub struct ExitGatewayConfig {
 
 impl ExitGatewayConfig {
     pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
-        todo!()
-        // ExitGatewayConfig {
-        //     storage_paths: ExitGatewayPaths::new(data_dir),
-        //     network_requester: Default::default(),
-        //     ip_packet_router: Default::default(),
-        // }
+        ExitGatewayConfig {
+            storage_paths: ExitGatewayPaths::new(data_dir),
+            open_proxy: false,
+            upstream_exit_policy_url: None,
+            network_requester: Default::default(),
+            ip_packet_router: Default::default(),
+        }
     }
 }
 
@@ -45,6 +48,15 @@ impl ExitGatewayConfig {
 pub struct NetworkRequester {
     #[serde(default)]
     pub debug: NetworkRequesterDebug,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for NetworkRequester {
+    fn default() -> Self {
+        NetworkRequester {
+            debug: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -66,7 +78,11 @@ pub struct NetworkRequesterDebug {
 
 impl Default for NetworkRequesterDebug {
     fn default() -> Self {
-        todo!()
+        NetworkRequesterDebug {
+            enabled: true,
+            disable_poisson_rate: true,
+            client_debug: Default::default(),
+        }
     }
 }
 
@@ -74,6 +90,15 @@ impl Default for NetworkRequesterDebug {
 pub struct IpPacketRouter {
     #[serde(default)]
     pub debug: IpPacketRouterDebug,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for IpPacketRouter {
+    fn default() -> Self {
+        IpPacketRouter {
+            debug: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -96,7 +121,11 @@ pub struct IpPacketRouterDebug {
 
 impl Default for IpPacketRouterDebug {
     fn default() -> Self {
-        todo!()
+        IpPacketRouterDebug {
+            enabled: true,
+            disable_poisson_rate: true,
+            client_debug: Default::default(),
+        }
     }
 }
 
@@ -106,9 +135,85 @@ pub struct EphemeralConfig {
     pub ipr_opts: LocalIpPacketRouterOpts,
 }
 
+fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
+    nym_client_core_config_types::Client {
+        version: format!("{}-nym-node", crate_version!()),
+        id: config.id.clone(),
+        // irrelevant field - no need for credentials in embedded mode
+        disabled_credentials_mode: true,
+        nyxd_urls: config.mixnet.nyxd_urls.clone(),
+        nym_api_urls: config.mixnet.nym_api_urls.clone(),
+    }
+}
+
+// that function is rather disgusting, but I hope it's not going to live for too long
 pub fn ephemeral_exit_gateway_config(
     config: Config,
     mnemonic: Zeroizing<bip39::Mnemonic>,
 ) -> Result<EphemeralConfig, ExitGatewayError> {
-    todo!()
+    Ok(EphemeralConfig {
+        nr_opts: LocalNetworkRequesterOpts {
+            config: nym_network_requester::Config {
+                base: nym_client_core_config_types::Config {
+                    client: base_client_config(&config),
+                    debug: config.exit_gateway.network_requester.debug.client_debug,
+                },
+                network_requester: nym_network_requester::config::NetworkRequester {
+                    open_proxy: config.exit_gateway.open_proxy,
+                    enabled_statistics: false,
+                    statistics_recipient: None,
+                    disable_poisson_rate: config
+                        .exit_gateway
+                        .network_requester
+                        .debug
+                        .disable_poisson_rate,
+                    use_deprecated_allow_list: false,
+                    upstream_exit_policy_url: config.exit_gateway.upstream_exit_policy_url.clone(),
+                },
+                storage_paths: nym_network_requester::config::NetworkRequesterPaths {
+                    common_paths: config
+                        .exit_gateway
+                        .storage_paths
+                        .network_requester
+                        .to_common_client_paths(),
+
+                    // irrelevant fields; we're not going to be using allow.list and nr description is dead anyway
+                    allowed_list_location: Default::default(),
+                    unknown_list_location: Default::default(),
+                    nr_description: Default::default(),
+                },
+                network_requester_debug: Default::default(),
+                logging: config.logging,
+            },
+            custom_mixnet_path: None,
+        },
+        ipr_opts: LocalIpPacketRouterOpts {
+            config: nym_ip_packet_router::Config {
+                base: nym_client_core_config_types::Config {
+                    client: base_client_config(&config),
+                    debug: config.exit_gateway.ip_packet_router.debug.client_debug,
+                },
+                ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
+                    disable_poisson_rate: config
+                        .exit_gateway
+                        .ip_packet_router
+                        .debug
+                        .disable_poisson_rate,
+                    upstream_exit_policy_url: config.exit_gateway.upstream_exit_policy_url.clone(),
+                },
+                storage_paths: nym_ip_packet_router::config::IpPacketRouterPaths {
+                    common_paths: config
+                        .exit_gateway
+                        .storage_paths
+                        .ip_packet_router
+                        .to_common_client_paths(),
+                    ip_packet_router_description: Default::default(),
+                },
+
+                logging: config.logging,
+            },
+            custom_mixnet_path: None,
+        },
+        gateway: ephemeral_gateway_config(config, mnemonic)?,
+    })
 }

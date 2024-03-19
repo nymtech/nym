@@ -102,16 +102,16 @@ pub async fn create_gateway(
 
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
-    config: nym_network_requester::Config,
+    pub config: nym_network_requester::Config,
 
-    custom_mixnet_path: Option<PathBuf>,
+    pub custom_mixnet_path: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
 pub struct LocalIpPacketRouterOpts {
-    config: nym_ip_packet_router::Config,
+    pub config: nym_ip_packet_router::Config,
 
-    custom_mixnet_path: Option<PathBuf>,
+    pub custom_mixnet_path: Option<PathBuf>,
 }
 
 pub struct Gateway<St = PersistentStorage> {

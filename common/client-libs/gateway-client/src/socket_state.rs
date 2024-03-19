@@ -10,8 +10,10 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::ServerResponse;
 use nym_task::TaskClient;
 use std::os::raw::c_int as RawFd;
+use std::sync::atomic::AtomicI64;
 use std::sync::Arc;
 use tungstenite::Message;
 
@@ -59,7 +61,11 @@ pub(crate) struct PartiallyDelegated {
 }
 
 impl PartiallyDelegated {
-    fn recover_received_plaintexts(ws_msgs: Vec<Message>, shared_key: &SharedKeys) -> Vec<Vec<u8>> {
+    fn recover_received_plaintexts(
+        ws_msgs: Vec<Message>,
+        shared_key: &SharedKeys,
+        bandwidth_remaining: Arc<AtomicI64>,
+    ) -> Vec<Vec<u8>> {
         let mut plaintexts = Vec::with_capacity(ws_msgs.len());
         for ws_msg in ws_msgs {
             match ws_msg {
@@ -80,6 +86,13 @@ impl PartiallyDelegated {
                     "received a text message - probably a response to some previous query! - {}",
                     text
                 );
+                    if let Ok(ServerResponse::Send {
+                        remaining_bandwidth,
+                    }) = ServerResponse::try_from(text)
+                    {
+                        bandwidth_remaining
+                            .store(remaining_bandwidth, std::sync::atomic::Ordering::Release)
+                    }
                     continue;
                 }
                 _ => continue,
@@ -92,8 +105,10 @@ impl PartiallyDelegated {
         ws_msgs: Vec<Message>,
         packet_router: &PacketRouter,
         shared_key: &SharedKeys,
+        bandwidth_remaining: Arc<AtomicI64>,
     ) -> Result<(), GatewayClientError> {
-        let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key);
+        let plaintexts =
+            Self::recover_received_plaintexts(ws_msgs, shared_key, bandwidth_remaining);
         packet_router.route_received(plaintexts)
     }
 
@@ -101,6 +116,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
+        bandwidth_remaining: Arc<AtomicI64>,
         mut shutdown: TaskClient,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
@@ -132,7 +148,7 @@ impl PartiallyDelegated {
                             Ok(msgs) => msgs
                         };
 
-                        if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref()) {
+                        if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref(), bandwidth_remaining.clone()) {
                             log::warn!("Route socket messages failed: {err}");
                         }
                     }

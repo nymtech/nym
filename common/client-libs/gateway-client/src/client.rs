@@ -29,6 +29,7 @@ use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
@@ -67,7 +68,7 @@ pub struct GatewayConfig {
 pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
-    bandwidth_remaining: i64,
+    bandwidth_remaining: Arc<AtomicI64>,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
@@ -106,7 +107,7 @@ impl<C, St> GatewayClient<C, St> {
         GatewayClient {
             authenticated: false,
             disabled_credentials_mode: true,
-            bandwidth_remaining: 0,
+            bandwidth_remaining: Arc::new(AtomicI64::new(0)),
             gateway_address: config.gateway_listener,
             gateway_identity: config.gateway_identity,
             local_identity,
@@ -166,7 +167,7 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     pub fn remaining_bandwidth(&self) -> i64 {
-        self.bandwidth_remaining
+        self.bandwidth_remaining.load(Ordering::Acquire)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -372,6 +373,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         msg: Message,
     ) -> Result<(), GatewayClientError> {
+        //SW NOTE : check bandwidth here
         match self.connection {
             SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
@@ -505,7 +507,8 @@ impl<C, St> GatewayClient<C, St> {
             } => {
                 self.check_gateway_protocol(protocol_version)?;
                 self.authenticated = status;
-                self.bandwidth_remaining = bandwidth_remaining;
+                self.bandwidth_remaining
+                    .store(bandwidth_remaining, Ordering::Release);
                 self.negotiated_protocol = protocol_version;
                 Ok(())
             }
@@ -552,22 +555,25 @@ impl<C, St> GatewayClient<C, St> {
             iv,
         )
         .into();
-        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+        let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => Err(GatewayClientError::UnexpectedResponse),
         }?;
+        self.bandwidth_remaining
+            .store(bandwidth_remaining, Ordering::Release);
         Ok(())
     }
 
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         let msg = ClientControlRequest::ClaimFreeTestnetBandwidth.into();
-        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+        let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => Err(GatewayClientError::UnexpectedResponse),
         }?;
-
+        self.bandwidth_remaining
+            .store(bandwidth_remaining, Ordering::Release);
         Ok(())
     }
 
@@ -640,10 +646,12 @@ impl<C, St> GatewayClient<C, St> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
+        let bandwidth_remaining = self.bandwidth_remaining.load(Ordering::Acquire);
+        if self.estimate_required_bandwidth(&packets) > bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth(
+                //SW NOTE query bandwidth here as well
                 self.estimate_required_bandwidth(&packets),
-                self.bandwidth_remaining,
+                bandwidth_remaining,
             ));
         }
         if !self.connection.is_established() {
@@ -711,10 +719,12 @@ impl<C, St> GatewayClient<C, St> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if (mix_packet.packet().len() as i64) > self.bandwidth_remaining {
+        let bandwidth_remaining = self.bandwidth_remaining.load(Ordering::Acquire);
+        if (mix_packet.packet().len() as i64) > bandwidth_remaining {
+            //SW : NOTE claim ecash_bandwidth there?
             return Err(GatewayClientError::NotEnoughBandwidth(
                 mix_packet.packet().len() as i64,
-                self.bandwidth_remaining,
+                bandwidth_remaining,
             ));
         }
         if !self.connection.is_established() {
@@ -770,6 +780,7 @@ impl<C, St> GatewayClient<C, St> {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
+                        self.bandwidth_remaining.clone(),
                         self.shutdown.clone(),
                     )
                 }
@@ -810,10 +821,10 @@ impl<C, St> GatewayClient<C, St> {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
-
-        if self.bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+        let bandwidth_remaining = self.bandwidth_remaining.load(Ordering::Acquire);
+        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
             info!("Claiming more bandwidth for your tokens. This will use {} token(s) from your wallet. \
-            Stop the process now if you don't want that to happen.", TOKENS_TO_BURN);
+            Stop the process now if you don't want that to happen.", TOKENS_TO_BURN); //SW NOTE info message a bit outdated
             self.claim_bandwidth().await?;
         }
 
@@ -845,7 +856,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         GatewayClient {
             authenticated: false,
             disabled_credentials_mode: true,
-            bandwidth_remaining: 0,
+            bandwidth_remaining: Arc::new(AtomicI64::new(0)),
             gateway_address: config.gateway_listener,
             gateway_identity: config.gateway_identity,
             local_identity,

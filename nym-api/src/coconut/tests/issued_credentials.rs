@@ -148,6 +148,7 @@ async fn issued_credential() {
         cred1.to_bytes(),
         issued1.credential.blinded_partial_credential.to_bytes()
     );
+
     assert_eq!(
         request1.encode_commitments(),
         issued1
@@ -155,8 +156,8 @@ async fn issued_credential() {
             .bs58_encoded_private_attributes_commitments
     );
     assert_eq!(
-        voucher1.get_plain_public_attributes(),
-        issued1.credential.public_attributes
+        voucher1.expiration_date(),
+        issued1.credential.expiration_date as u64
     );
 
     assert_eq!(2, issued2.credential.id);
@@ -166,6 +167,7 @@ async fn issued_credential() {
         cred2.to_bytes(),
         issued2.credential.blinded_partial_credential.to_bytes()
     );
+
     assert_eq!(
         request2.encode_commitments(),
         issued2
@@ -173,8 +175,8 @@ async fn issued_credential() {
             .bs58_encoded_private_attributes_commitments
     );
     assert_eq!(
-        voucher2.get_plain_public_attributes(),
-        issued2.credential.public_attributes
+        voucher2.expiration_date(),
+        issued2.credential.expiration_date as u64
     );
 }
 

@@ -30,6 +30,7 @@
     "@cosmos-kit/core": "^2.8.9",
     "@cosmos-kit/cosmostation": "^2.6.10",
     "@cosmos-kit/keplr": "^2.6.9",
+    "@cosmos-kit/leap": "^2.6.12",
     "@cosmos-kit/ledger": "^2.6.9",
     "@cosmos-kit/react": "^2.10.10",
     "@emotion/react": "^11.4.1",

@@ -163,7 +163,7 @@ pub fn ephemeral_mixnode_config(
     let http = nym_mixnode::config::Http {
         bind_address: config.http.bind_address,
         landing_page_assets_path: config.http.landing_page_assets_path,
-        metrics_key: config.http.metrics_key,
+        metrics_key: config.http.access_token,
     };
 
     let verloc_bind_ip = config.mixnode.verloc.bind_address.ip();

@@ -358,8 +358,10 @@ pub struct Http {
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub landing_page_assets_path: Option<PathBuf>,
 
+    /// An optional bearer token for accessing certain http endpoints.
+    /// Currently only used for obtaining mixnode's stats.
     #[serde(default)]
-    pub metrics_key: Option<String>,
+    pub access_token: Option<String>,
 }
 
 impl Default for Http {
@@ -367,7 +369,7 @@ impl Default for Http {
         Http {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
-            metrics_key: None,
+            access_token: None,
         }
     }
 }

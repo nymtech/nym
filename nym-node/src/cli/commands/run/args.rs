@@ -149,6 +149,14 @@ struct HttpArgs {
         env = NYMNODE_HTTP_LANDING_ASSETS_ARG
     )]
     landing_page_assets_path: Option<PathBuf>,
+
+    /// An optional bearer token for accessing certain http endpoints.
+    /// Currently only used for obtaining mixnode's stats.
+    #[clap(
+        long,
+        env = NYMNODE_HTTP_ACCESS_TOKEN_ARG
+    )]
+    http_access_token: Option<String>,
 }
 
 impl HttpArgs {
@@ -163,6 +171,9 @@ impl HttpArgs {
         }
         if let Some(landing_page_assets_path) = self.landing_page_assets_path {
             section.landing_page_assets_path = Some(landing_page_assets_path)
+        }
+        if let Some(access_token) = self.http_access_token {
+            section.access_token = Some(access_token)
         }
         section
     }

@@ -32,4 +32,7 @@ nym-credentials-interface = { path = "../../common/credentials-interface" }
 workspace = true
 default-features = false
 
+[dev-dependencies]
+nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" } # we need specific imports in tests
+
 

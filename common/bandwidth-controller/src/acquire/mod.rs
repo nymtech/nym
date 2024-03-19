@@ -92,7 +92,7 @@ where
         storage
             .insert_coin_indices_sig(
                 epoch_id.to_string(),
-                signatures_to_string(coin_indices_signatures),
+                signatures_to_string(&coin_indices_signatures),
             )
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;

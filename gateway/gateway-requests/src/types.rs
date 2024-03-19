@@ -3,12 +3,14 @@
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
-use crate::models::{CredentialSpendingRequest, OldV1Credential};
+use crate::models::{CredentialSpendingRequest, OldCredentialSpendingRequest, OldV1Credential};
 use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION};
 use log::error;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
-use nym_credentials_interface::{CoconutError, UnknownCredentialType};
+use nym_credentials_interface::{
+    CoconutError, CompactEcashError, OldCredentialSpendingData, UnknownCredentialType,
+};
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use nym_crypto::symmetric::stream_cipher;
@@ -105,6 +107,9 @@ pub enum GatewayRequestsError {
         source: MixPacketFormattingError,
     },
 
+    #[error("failed to deserialize provided credential: {0}")]
+    EcashCredentialDeserializationFailure(#[from] CompactEcashError),
+
     #[error("failed to deserialize provided credential: EOF")]
     CredentialDeserializationFailureEOF,
 
@@ -144,6 +149,10 @@ pub enum ClientControlRequest {
         iv: Vec<u8>,
     },
     BandwidthCredentialV2 {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
+    EcashCredential {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
@@ -189,11 +198,11 @@ impl ClientControlRequest {
     }
 
     pub fn new_enc_coconut_bandwidth_credential_v2(
-        credential: CredentialSpendingData,
+        credential: OldCredentialSpendingData,
         shared_key: &SharedKeys,
         iv: IV,
     ) -> Self {
-        let cred = CredentialSpendingRequest::new(credential);
+        let cred = OldCredentialSpendingRequest::new(credential);
         let serialized_credential = cred.to_bytes();
         let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
@@ -207,9 +216,34 @@ impl ClientControlRequest {
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
         iv: IV,
+    ) -> Result<OldCredentialSpendingRequest, GatewayRequestsError> {
+        let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        OldCredentialSpendingRequest::try_from_bytes(&credential_bytes)
+            .map_err(|_| GatewayRequestsError::MalformedEncryption)
+    }
+
+    pub fn new_enc_ecash_credential(
+        credential: CredentialSpendingData,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Self {
+        let cred = CredentialSpendingRequest::new(credential);
+        let serialized_credential = cred.to_bytes();
+        let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
+
+        ClientControlRequest::EcashCredential {
+            enc_credential,
+            iv: iv.to_bytes(),
+        }
+    }
+
+    pub fn try_from_enc_ecash_credential(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+        iv: IV,
     ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
         let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
-        CredentialSpendingRequest::try_from_bytes(&credential_bytes)
+        CredentialSpendingRequest::try_from_bytes(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }

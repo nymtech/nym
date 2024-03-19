@@ -46,10 +46,21 @@ impl Bandwidth {
         Bandwidth { value }
     }
 
+    pub fn get_for_type(typ: CredentialType) -> Self {
+        match typ {
+            CredentialType::TicketBook => Bandwidth {
+                value: nym_network_defaults::TICKET_BANDWIDTH_VALUE,
+            },
+            CredentialType::FreePass => Bandwidth {
+                value: nym_network_defaults::BYTES_PER_FREEPASS,
+            },
+        }
+    }
+
     pub fn try_from_raw_value(value: &str, typ: CredentialType) -> Result<Self, BandwidthError> {
         let bandwidth_value =
             match typ {
-                CredentialType::Voucher => {
+                CredentialType::TicketBook => {
                     let token_value: u64 = value
                         .parse()
                         .map_err(|source| BandwidthError::VoucherValueParsingFailure { source })?;

@@ -182,7 +182,7 @@ pub async fn obtain_aggregate_signature(
     voucher.aggregate_signature_shares(&verification_key, &wallets, request)
 }
 
-pub fn signatures_to_string<B>(sigs: Vec<B>) -> String
+pub fn signatures_to_string<B>(sigs: &[B]) -> String
 where
     B: Base58,
 {

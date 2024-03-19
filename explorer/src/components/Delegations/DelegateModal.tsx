@@ -73,7 +73,7 @@ export const DelegateModal: FCWithChildren<{
       const tx = await handleDelegate(delegationMixId, delegationAmount);
       return tx;
     } catch (e) {
-      console.error('Failed to delegateToMixnode', e);
+      console.error('Failed to delegate to mixnode', e);
       throw e;
     }
   };

@@ -47,6 +47,13 @@ const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => (
         projectId: WALLET_CONNECT_PROJECT_ID,
       },
     }}
+    endpointOptions={{
+      endpoints: {
+        nyx: {
+          rpc: ['https://rpc.nyx.nodes.guru'],
+        },
+      },
+    }}
   >
     {children}
   </ChainProvider>

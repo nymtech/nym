@@ -3,8 +3,20 @@ use std::{
     time::{Duration, Instant},
 };
 
+use log::warn;
 use nym_metrics::{inc, inc_by, metrics};
 use si_scale::helpers::bibytes2;
+
+// Metrics server
+use http_body_util::Full;
+use hyper::body::Bytes;
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
+use hyper::{Request, Response};
+use hyper_util::rt::TokioIo;
+use std::convert::Infallible;
+use std::net::SocketAddr;
+use tokio::net::TcpListener;
 
 use crate::spawn_future;
 
@@ -484,6 +496,12 @@ impl PacketStatisticsControl {
         let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
         let mut snapshot_interval = tokio::time::interval(snapshot_interval);
 
+        let metrics_port = 18000;
+        let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
+        let listener = TcpListener::bind(addr)
+            .await
+            .expect(&format!("Cannot bind metrics server to {metrics_port}!"));
+
         loop {
             tokio::select! {
                 stats_event = self.stats_rx.recv() => match stats_event {
@@ -496,6 +514,22 @@ impl PacketStatisticsControl {
                         break;
                     }
                 },
+                result = listener.accept() => {
+                    if let Ok((stream, _)) = result {
+                        let io = TokioIo::new(stream);
+
+                        tokio::task::spawn(async move {
+                            if let Err(err) = http1::Builder::new()
+                                .serve_connection(io, service_fn(serve_metrics))
+                                .await
+                            {
+                                warn!("Error serving connection: {:?}", err);
+                            }
+                        });
+                    } else {
+                        warn!("Error accepting connection");
+                    }
+                }
                 _ = snapshot_interval.tick() => {
                     self.update_history();
                     self.update_rates();
@@ -519,4 +553,10 @@ impl PacketStatisticsControl {
             self.run_with_shutdown(task_client).await;
         })
     }
+}
+
+async fn serve_metrics(
+    _: Request<hyper::body::Incoming>,
+) -> Result<Response<Full<Bytes>>, Infallible> {
+    Ok(Response::new(Full::new(Bytes::from(metrics!()))))
 }

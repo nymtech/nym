@@ -7,13 +7,58 @@ from collections import namedtuple
 Config = namedtuple("Config", ["port", "outfile", "outlink", "env"])
 
 
+def gateway_targets(entry):
+    targets = [
+        # Config(
+        #     None,
+        #     "/tmp/temp_targets_gateway.json",
+        #     f"/tmp/prom_targets_gateway_{entry['env']}.json",
+        #     entry["env"],
+        # ),
+        Config(
+            9100,
+            "/tmp/temp_targets_gateway_node.json",
+            f"/tmp/prom_targets_gateway_node_{entry['env']}.json",
+            entry["env"],
+        ),
+    ]
+
+    gateways = requests.get(f"{entry['nym_api']}/api/v1/gateways").json()
+
+    for config in targets:
+        config_to_targets(config, gateways, {"kind": "gateway"})
+
+
+def mixnode_targets(entry):
+    targets = [
+        Config(
+            None,
+            "/tmp/temp_targets_mix.json",
+            f"/tmp/prom_targets_mix_{entry['env']}.json",
+            entry["env"],
+        ),
+        Config(
+            9100,
+            "/tmp/temp_targets_node.json",
+            f"/tmp/prom_targets_node_{entry['env']}.json",
+            entry["env"],
+        ),
+    ]
+
+    mixnodes = requests.get(f"{entry['nym_api']}/api/v1/mixnodes").json()
+
+    for config in targets:
+        config_to_targets(config, mixnodes, {"kind": "mixnode"})
+
+
 def validate_config_entry(entry):
     return entry.get("nym_api") and entry.get("env")
 
 
-def config_to_targets(config, mixnodes):
+def config_to_targets(config, mixnodes, labels=None):
     prom_targets = [
-        make_prom_target(config.env, mixnode, config.port) for mixnode in mixnodes
+        make_prom_target(config.env, mixnode, config.port, labels)
+        for mixnode in mixnodes
     ]
     with open(config.outfile, "w") as f:
         json.dump(prom_targets, f)
@@ -25,7 +70,7 @@ def config_to_targets(config, mixnodes):
     print(f"Prometheus -> {len(prom_targets)} targets written to {config.outlink}")
 
 
-def make_prom_target(env, mixnode, port=None):
+def make_prom_target(env, mixnode, port=None, labels=None):
     bond_info = mixnode.get("bond_information", {})
     mix_node = bond_info.get("mix_node", {})
     host = mix_node.get("host", None)
@@ -33,7 +78,7 @@ def make_prom_target(env, mixnode, port=None):
     if host is None or port is None:
         return None
 
-    return {
+    target = {
         "targets": [f"{host}:{port}"],
         "labels": {
             "mix_node_host": host,
@@ -43,6 +88,11 @@ def make_prom_target(env, mixnode, port=None):
             "mixnet_env": env,
         },
     }
+
+    for k, v in labels.items():
+        target["labels"][k] = v
+
+    return target
 
 
 if __name__ == "__main__":
@@ -62,27 +112,6 @@ if __name__ == "__main__":
         config = json.load(f)
 
     for entry in config:
+        mixnode_targets(entry)
 
-        if not validate_config_entry(entry):
-            print(f"Invalid config entry: {entry}")
-            continue
-
-        targets = [
-            Config(
-                None,
-                "/tmp/temp_targets_mix.json",
-                f"/tmp/prom_targets_mix_{entry['env']}.json",
-                entry["env"],
-            ),
-            Config(
-                9100,
-                "/tmp/temp_targets_node.json",
-                f"/tmp/prom_targets_node_{entry['env']}.json",
-                entry["env"],
-            ),
-        ]
-
-        mixnodes = requests.get(f"{entry['nym_api']}/api/v1/mixnodes").json()
-
-        for config in targets:
-            config_to_targets(config, mixnodes)
+        gateway_targets(entry)

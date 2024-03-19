@@ -510,21 +510,25 @@ impl PacketStatisticsControl {
                 log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
                 let listener = None;
             } else {
-                // let metrics_port = 18000;
-                let addr = SocketAddr::from(([0, 0, 0, 0], 0));
+                let mut metrics_port = 18000;
+                let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
+                let listener: Option<TcpListener>;
+                loop {
+                    match TcpListener::bind(addr).await {
+                        Ok(l) => {
+                            info!("###############################");
+                            info!("Metrics endpoint is at: {:?}", l.local_addr());
+                            info!("###############################");
+                            listener = Some(l);
+                            break;
+                        },
+                        Err(err) => {
+                            log::warn!("Failed to bind metrics server: {:?}", err);
+                            metrics_port += 1;
+                        }
+                    };
+                }
 
-                let listener = match TcpListener::bind(addr).await {
-                    Ok(listener) => {
-                        info!("###############################");
-                        info!("Metrics endpoint is at: {:?}", listener.local_addr());
-                        info!("###############################");
-                        Some(listener)
-                    },
-                    Err(err) => {
-                        log::error!("Failed to bind metrics server: {:?}", err);
-                        None
-                    }
-                };
             }
         }
 

@@ -51,7 +51,7 @@ si-scale = "0.2.2"
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
-version = "1.2"
+version = "1"
 features = ["server", "http1"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.http-body-util]

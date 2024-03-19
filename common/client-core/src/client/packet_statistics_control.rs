@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use log::warn;
+use log::{info, warn};
 use nym_metrics::{inc, inc_by, metrics};
 use si_scale::helpers::bibytes2;
 
@@ -510,10 +510,16 @@ impl PacketStatisticsControl {
                 log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
                 let listener = None;
             } else {
-                let metrics_port = 18000;
-                let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
+                // let metrics_port = 18000;
+                let addr = SocketAddr::from(([0, 0, 0, 0], 0));
+
                 let listener = match TcpListener::bind(addr).await {
-                    Ok(listener) => Some(listener),
+                    Ok(listener) => {
+                        info!("###############################");
+                        info!("Metrics endpoint is at: {:?}", listener.local_addr());
+                        info!("###############################");
+                        Some(listener)
+                    },
                     Err(err) => {
                         log::error!("Failed to bind metrics server: {:?}", err);
                         None

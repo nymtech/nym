@@ -1,10 +1,11 @@
 <!--TODO
-1. Explain in Prometheus setup how to get the metrics key and how to add it to the node config
-2. Add grafana setup
-3. Add prometheus setup
-4. Add node exporter setup
-5. Add how to view it in the browser
-6. Additionally add how to spin up an ansible template
+1. Add a few points of advantages why to run it in this way (clean, remote from environment -> safer,  can use dockerhub etc etc)
+2. Explain in Prometheus setup (in config step) how to get the metrics key and how to add it to the node config (that will be documented in node-setup.md)
+3. Add grafana setup
+4. Add prometheus setup
+5. Add node exporter setup
+6. Add how to view it in the browser (possible to use the setup from explorenym guide
+7. Additionally add how to spin up an ansible template
 -->
 
 # Setup Prometheus and Grafana in a Docker
@@ -16,7 +17,7 @@ This setup may seem more complex than running a few scripts, but it has certain 
 
 
 
-## Prometheus Setup (step-by-step)
+## Prometheus Setup
 
 This entire installation shall be done with `root` privileges. If you not `root`, start with `su` command before the following steps.
 

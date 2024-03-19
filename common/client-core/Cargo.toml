@@ -31,11 +31,6 @@ tokio = { workspace = true, features = ["macros"] }
 time = "0.3.17"
 zeroize = { workspace = true }
 
-# For serving metrics
-hyper = { version = "1", features = ["full"] }
-http-body-util = "0.1"
-hyper-util = { version = "0.1", features = ["full"] }
-
 # internal
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
 nym-config = { path = "../config" }
@@ -53,6 +48,19 @@ nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 si-scale = "0.2.2"
+
+### For serving prometheus metrics
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
+version = "1.2"
+features = ["server", "http1"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.http-body-util]
+version = "0.1"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper-util]
+version = "0.1"
+features = ["tokio"]
+###
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 version = "0.1.11"

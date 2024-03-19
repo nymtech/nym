@@ -8,14 +8,23 @@ use nym_metrics::{inc, inc_by, metrics};
 use si_scale::helpers::bibytes2;
 
 // Metrics server
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use http_body_util::Full;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use hyper::body::Bytes;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use hyper::server::conn::http1;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use hyper::service::service_fn;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use hyper::{Request, Response};
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use hyper_util::rt::TokioIo;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::convert::Infallible;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::net::SocketAddr;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use tokio::net::TcpListener;
 
 use crate::spawn_future;
@@ -496,11 +505,18 @@ impl PacketStatisticsControl {
         let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
         let mut snapshot_interval = tokio::time::interval(snapshot_interval);
 
-        let metrics_port = 18000;
-        let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
-        let listener = TcpListener::bind(addr)
-            .await
-            .expect(&format!("Cannot bind metrics server to {metrics_port}!"));
+        cfg_if::cfg_if! {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
+                log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
+                let listener = None;
+            } else {
+                let metrics_port = 18000;
+                let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
+                let listener = Some(TcpListener::bind(addr)
+                .await
+                .unwrap_or_else(|_ | panic!("Cannot bind metrics server to {metrics_port}!")));
+            }
+        }
 
         loop {
             tokio::select! {
@@ -514,7 +530,8 @@ impl PacketStatisticsControl {
                         break;
                     }
                 },
-                result = listener.accept() => {
+                // conditional will disable the branch if we're in wasm32-unknown-unknown
+                result = listener.as_ref().unwrap().accept(), if listener.is_some() => {
                     if let Ok((stream, _)) = result {
                         let io = TokioIo::new(stream);
 

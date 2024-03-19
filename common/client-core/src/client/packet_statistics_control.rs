@@ -511,9 +511,9 @@ impl PacketStatisticsControl {
                 let listener = None;
             } else {
                 let mut metrics_port = 18000;
-                let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
                 let listener: Option<TcpListener>;
                 loop {
+                    let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
                     match TcpListener::bind(addr).await {
                         Ok(l) => {
                             info!("###############################");

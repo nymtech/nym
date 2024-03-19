@@ -1,12 +1,11 @@
 import React from 'react';
 import { ChainProvider } from '@cosmos-kit/react';
-import { wallets as keplr } from '@cosmos-kit/keplr';
+import { wallets as keplr } from '@cosmos-kit/keplr-extension';
 import { wallets as ledger } from '@cosmos-kit/ledger';
-import { wallets as cosmosstation } from '@cosmos-kit/cosmostation';
-import { wallets as leap } from '@cosmos-kit/leap';
+import { wallets as cosmosstation } from '@cosmos-kit/cosmostation-extension';
+import { wallets as leap } from '@cosmos-kit/leap-extension';
 import { assets, chains } from 'chain-registry';
 import { Chain, AssetList } from '@chain-registry/types';
-import { WALLET_CONNECT_PROJECT_ID } from '@src/api/constants';
 
 const nymSandbox: Chain = {
   chain_name: 'sandbox',
@@ -43,15 +42,10 @@ const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => (
     chains={[...chains, nymSandbox]}
     assetLists={[...assets, nymSandboxAssets]}
     wallets={[...keplr, ...ledger, ...cosmosstation, ...leap]}
-    walletConnectOptions={{
-      signClient: {
-        projectId: WALLET_CONNECT_PROJECT_ID,
-      },
-    }}
     endpointOptions={{
       endpoints: {
         nyx: {
-          rpc: ['https://rpc.nyx.nodes.guru'],
+          rpc: ['https://rpc.nymtech.net'],
         },
       },
     }}

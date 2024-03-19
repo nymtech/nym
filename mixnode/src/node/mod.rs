@@ -19,6 +19,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
+use nym_topology::HardcodedTopologyProvider;
 use nym_topology_control::accessor::TopologyAccessor;
 use nym_topology_control::nym_api_provider::NymApiTopologyProvider;
 use nym_topology_control::TopologyRefresher;
@@ -27,6 +28,7 @@ use nym_validator_client::NymApiClient;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::process;
 use std::sync::Arc;
 use url::Url;
@@ -44,6 +46,7 @@ pub struct MixNode {
     descriptor: NodeDescription,
     identity_keypair: Arc<identity::KeyPair>,
     sphinx_keypair: Arc<encryption::KeyPair>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
 }
 
 impl MixNode {
@@ -53,6 +56,7 @@ impl MixNode {
             identity_keypair: Arc::new(load_identity_keys(&config)?),
             sphinx_keypair: Arc::new(load_sphinx_keys(&config)?),
             config,
+            custom_topology_provider: None,
         })
     }
 
@@ -73,6 +77,18 @@ impl MixNode {
         };
 
         println!("{}", output.format(&node_details));
+    }
+
+    pub fn with_stored_topology<P: AsRef<Path>>(mut self, file: P) -> Result<Self, MixnodeError> {
+        self.custom_topology_provider = Some(Box::new(
+            HardcodedTopologyProvider::new_from_file(&file).map_err(|source| {
+                MixnodeError::CustomTopologyLoadFailure {
+                    file_path: file.as_ref().to_path_buf(),
+                    source,
+                }
+            })?,
+        ));
+        Ok(self)
     }
 
     fn start_http_api(
@@ -207,12 +223,15 @@ impl MixNode {
         atomic_verloc_results
     }
 
-    fn setup_topology_provider(nym_api_urls: Vec<Url>) -> Box<dyn TopologyProvider + Send + Sync> {
+    fn setup_topology_provider(
+        custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+        nym_api_urls: Vec<Url>,
+    ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
-        Box::new(NymApiTopologyProvider::new(
+        custom_provider.unwrap_or(Box::new(NymApiTopologyProvider::new(
             nym_api_urls,
             env!("CARGO_PKG_VERSION").to_string(),
-        ))
+        )))
     }
 
     // future responsible for periodically polling directory server and updating
@@ -295,7 +314,10 @@ impl MixNode {
         let (node_stats_pointer, node_stats_update_sender) = self
             .start_node_stats_controller(shutdown.subscribe().named("node_statistics::Controller"));
 
-        let topology_provider = Self::setup_topology_provider(self.config.get_nym_api_endpoints());
+        let topology_provider = Self::setup_topology_provider(
+            self.custom_topology_provider.take(),
+            self.config.get_nym_api_endpoints(),
+        );
         let shared_topology_access = TopologyAccessor::new();
         Self::start_topology_refresher(
             topology_provider,

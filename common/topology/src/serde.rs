@@ -4,6 +4,7 @@
 use crate::gateway::GatewayConversionError;
 use crate::mix::MixnodeConversionError;
 use crate::{gateway, mix, MixLayer, NymTopology};
+use nym_api_requests::models::DescribedNymNode;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
@@ -53,6 +54,12 @@ impl From<SerializableTopologyError> for JsValue {
 pub struct SerializableNymTopology {
     pub mixnodes: BTreeMap<MixLayer, Vec<SerializableMixNode>>,
     pub gateways: Vec<SerializableGateway>,
+
+    //SW NOTE : make this an option to keep backwards compatibility. Noise with fallback needs that to work though
+    // Once fallback is removed, we only need a list of unfiltered nodes that can be constructed from mixnodes and gateways
+    // depending on the usecase of this struct
+    #[serde(alias = "described_nodes")]
+    pub described_nodes: Option<Vec<DescribedNymNode>>, //DescribedNymNode is already Serialize and Deserialize
 }
 
 impl TryFrom<SerializableNymTopology> for NymTopology {
@@ -76,7 +83,11 @@ impl TryFrom<SerializableNymTopology> for NymTopology {
             .map(TryInto::try_into)
             .collect::<Result<_, _>>()?;
 
-        Ok(NymTopology::new(converted_mixes, gateways))
+        Ok(NymTopology::new(
+            converted_mixes,
+            gateways,
+            value.described_nodes.unwrap_or_default(),
+        ))
     }
 }
 
@@ -89,6 +100,7 @@ impl From<NymTopology> for SerializableNymTopology {
                 .map(|(&l, nodes)| (l, nodes.iter().map(Into::into).collect()))
                 .collect(),
             gateways: value.gateways().iter().map(Into::into).collect(),
+            described_nodes: Some(value.described_nodes),
         }
     }
 }
@@ -181,7 +193,7 @@ pub struct SerializableGateway {
     // optional ip address in the case of host being a hostname that can't be resolved
     // (thank you wasm)
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
-    #[serde(alias = "explicit_ip")]
+    #[serde(alias = "explicit_ips")]
     pub explicit_ips: Option<Vec<IpAddr>>,
 
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]

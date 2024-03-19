@@ -40,6 +40,15 @@ pub(crate) enum GatewayError {
     },
 
     #[error(
+        "failed to load custom topology using path '{}'. detailed message: {source}", file_path.display()
+        )]
+    CustomTopologyLoadFailure {
+        file_path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error(
     "failed to load config file for network requester (gateway-id: '{id}') using path '{}'. detailed message: {source}", path.display()
     )]
     NetworkRequesterConfigLoadFailure {

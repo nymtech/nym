@@ -85,8 +85,7 @@ impl NymApiTopologyProvider {
             Ok(epoch) => epoch,
         };
 
-        let topology = nym_topology_from_detailed(mixnodes, gateways)
-            .with_described_nodes(nodes_described.clone())
+        let topology = nym_topology_from_detailed(mixnodes, gateways, nodes_described.clone())
             .filter_system_version(&self.client_version);
 
         if let Err(err) = self.check_layer_distribution(&topology) {

@@ -24,5 +24,8 @@ pub enum Socks5ClientError {
     ClientCoreError(#[from] ClientCoreError),
 
     #[error(transparent)]
+    ConfigUpgradeFailure(#[from] nym_client_core::config::ConfigUpgradeFailure),
+
+    #[error(transparent)]
     NymIdError(#[from] NymIdError),
 }

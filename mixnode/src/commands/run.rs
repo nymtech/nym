@@ -3,9 +3,7 @@
 
 use super::OverrideConfig;
 use crate::commands::{override_config, try_load_current_config};
-use anyhow::bail;
 use clap::Args;
-use log::error;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
 use nym_mixnode::MixNode;

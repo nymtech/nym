@@ -100,13 +100,6 @@ struct HostArgs {
     hostname: Option<String>,
 }
 
-trait Foo {
-    type Section;
-
-    fn build_config_section(self) -> Result<Self::Section, NymNodeError>;
-    fn override_config_section(self, section: &mut Self::Section);
-}
-
 impl HostArgs {
     // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
     fn build_config_section(self) -> Result<config::Host, NymNodeError> {
@@ -389,9 +382,9 @@ impl ExitGatewayArgs {
     // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
     fn build_config_section<P: AsRef<Path>>(
         self,
-        config_dir: P,
+        data_dir: P,
     ) -> Result<config::ExitGatewayConfig, NymNodeError> {
-        Ok(self.override_config_section(config::ExitGatewayConfig::new_default(config_dir)))
+        Ok(self.override_config_section(config::ExitGatewayConfig::new_default(data_dir)))
     }
 
     fn override_config_section(
@@ -428,7 +421,7 @@ impl Args {
             .with_storage_paths(NymNodePaths::new(&data_dir))
             .with_mixnode(self.mixnode.build_config_section(config_dir)?)
             .with_entry_gateway(self.entry_gateway.build_config_section(&data_dir)?)
-            .with_exit_gateway(self.exit_gateway.build_config_section(config_dir)?)
+            .with_exit_gateway(self.exit_gateway.build_config_section(&data_dir)?)
             .build()
     }
 

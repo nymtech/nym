@@ -14,7 +14,7 @@ pub mod vars {
     // host:
     pub const NYMNODE_PUBLIC_IPS_ARG: &str = "NYMNODE_PUBLIC_IPS";
     pub const NYMNODE_HOSTNAME_ARG: &str = "NYMNODE_HOSTNAME";
-    pub const NYMNODE_ACCESS_TOKEN_ARG: &str = "NYMNODE_HTTP_ACCESS_TOKEN";
+    pub const NYMNODE_HTTP_ACCESS_TOKEN_ARG: &str = "NYMNODE_HTTP_ACCESS_TOKEN";
 
     // http:
     pub const NYMNODE_HTTP_BIND_ADDRESS_ARG: &str = "NYMNODE_HTTP_BIND_ADDRESS";

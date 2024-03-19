@@ -1,6 +1,7 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::exit_gateway::IpPacketRouter;
 use crate::error::EntryGatewayError;
 use serde::{Deserialize, Serialize};
 use std::fs::create_dir_all;
@@ -23,8 +24,20 @@ pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "clients.sqlite";
 pub const DEFAULT_MNEMONIC_FILENAME: &str = "cosmos_mnemonic";
 
 // Exit Gateway:
-pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
-pub const DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME: &str = "ip_packet_router_config.toml";
+pub const DEFAULT_ED25519_NR_PRIVATE_IDENTITY_KEY_FILENAME: &str = "ed25519_nr_identity";
+pub const DEFAULT_ED25519_NR_PUBLIC_IDENTITY_KEY_FILENAME: &str = "ed25519_nr_identity.pub";
+pub const DEFAULT_X25519_NR_PRIVATE_DH_KEY_FILENAME: &str = "x25519_nr_dh";
+pub const DEFAULT_X25519_NR_PUBLIC_DH_KEY_FILENAME: &str = "x25519_nr_dh.pub";
+pub const DEFAULT_NR_REPLY_SURB_DB_FILENAME: &str = "nr_persistent_reply_store.sqlite";
+
+pub const DEFAULT_ED25519_IPR_PRIVATE_IDENTITY_KEY_FILENAME: &str = "ed25519_ipr_identity";
+pub const DEFAULT_ED25519_IPR_PUBLIC_IDENTITY_KEY_FILENAME: &str = "ed25519_ipr_identity.pub";
+pub const DEFAULT_X25519_IPR_PRIVATE_DH_KEY_FILENAME: &str = "x25519_ipr_dh";
+pub const DEFAULT_X25519_IPR_PUBLIC_DH_KEY_FILENAME: &str = "x25519_ipr_dh.pub";
+pub const DEFAULT_IPR_REPLY_SURB_DB_FILENAME: &str = "ipr_persistent_reply_store.sqlite";
+
+// pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
+// pub const DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME: &str = "ip_packet_router_config.toml";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -165,19 +178,93 @@ impl EntryGatewayPaths {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExitGatewayPaths {
-    /// Path to the configuration of the embedded network requester.
-    pub network_requester_config: PathBuf,
+    pub network_requester: NetworkRequesterPaths,
 
-    /// Path to the configuration of the embedded ip packet router.
-    pub ip_packet_router_config: PathBuf,
+    pub ip_packet_router: IpPacketRouterPaths,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct NetworkRequesterPaths {
+    // NR:
+    /// Path to file containing network requester ed25519 identity private key.
+    pub private_ed25519_identity_key_file: PathBuf,
+
+    /// Path to file containing network requester ed25519 identity public key.
+    pub public_ed25519_identity_key_file: PathBuf,
+
+    /// Path to file containing network requester x25519 diffie hellman private key.
+    pub private_x25519_diffie_hellman_key_file: PathBuf,
+
+    /// Path to file containing network requester x25519 diffie hellman public key.
+    pub public_x25519_diffie_hellman_key_file: PathBuf,
+
+    /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+    pub reply_surb_database: PathBuf,
+    // GW: only ephemeral
+}
+
+impl NetworkRequesterPaths {
+    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
+        let data_dir = data_dir.as_ref();
+        NetworkRequesterPaths {
+            private_ed25519_identity_key_file: data_dir
+                .join(DEFAULT_ED25519_NR_PRIVATE_IDENTITY_KEY_FILENAME),
+            public_ed25519_identity_key_file: data_dir
+                .join(DEFAULT_ED25519_NR_PUBLIC_IDENTITY_KEY_FILENAME),
+            private_x25519_diffie_hellman_key_file: data_dir
+                .join(DEFAULT_X25519_NR_PRIVATE_DH_KEY_FILENAME),
+            public_x25519_diffie_hellman_key_file: data_dir
+                .join(DEFAULT_X25519_NR_PUBLIC_DH_KEY_FILENAME),
+            reply_surb_database: data_dir.join(DEFAULT_NR_REPLY_SURB_DB_FILENAME),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct IpPacketRouterPaths {
+    // IPR:
+    /// Path to file containing ip packet router ed25519 identity private key.
+    pub private_ed25519_identity_key_file: PathBuf,
+
+    /// Path to file containing ip packet router ed25519 identity public key.
+    pub public_ed25519_identity_key_file: PathBuf,
+
+    /// Path to file containing ip packet router x25519 diffie hellman private key.
+    pub private_x25519_diffie_hellman_key_file: PathBuf,
+
+    /// Path to file containing ip packet router x25519 diffie hellman public key.
+    pub public_x25519_diffie_hellman_key_file: PathBuf,
+
+    /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+    pub reply_surb_database: PathBuf,
+    // GW: only ephemeral
+}
+
+impl IpPacketRouterPaths {
+    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
+        let data_dir = data_dir.as_ref();
+        IpPacketRouterPaths {
+            private_ed25519_identity_key_file: data_dir
+                .join(DEFAULT_ED25519_IPR_PRIVATE_IDENTITY_KEY_FILENAME),
+            public_ed25519_identity_key_file: data_dir
+                .join(DEFAULT_ED25519_IPR_PUBLIC_IDENTITY_KEY_FILENAME),
+            private_x25519_diffie_hellman_key_file: data_dir
+                .join(DEFAULT_X25519_IPR_PRIVATE_DH_KEY_FILENAME),
+            public_x25519_diffie_hellman_key_file: data_dir
+                .join(DEFAULT_X25519_IPR_PUBLIC_DH_KEY_FILENAME),
+            reply_surb_database: data_dir.join(DEFAULT_IPR_REPLY_SURB_DB_FILENAME),
+        }
+    }
 }
 
 impl ExitGatewayPaths {
-    pub fn new<P: AsRef<Path>>(config_dir: P) -> Self {
-        let config_dir = config_dir.as_ref();
+    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
+        let data_dir = data_dir.as_ref();
         ExitGatewayPaths {
-            network_requester_config: config_dir.join(DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME),
-            ip_packet_router_config: config_dir.join(DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME),
+            network_requester: NetworkRequesterPaths::new(data_dir),
+            ip_packet_router: IpPacketRouterPaths::new(data_dir),
         }
     }
 }

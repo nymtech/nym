@@ -1,16 +1,20 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::disk_persistence::keys_paths::ClientKeysPaths;
-use crate::config::disk_persistence::{CommonClientPaths, DEFAULT_GATEWAYS_DETAILS_DB_FILENAME};
-use crate::error::ClientCoreError;
+use crate::disk_persistence::ClientKeysPaths;
+use crate::disk_persistence::{CommonClientPaths, DEFAULT_GATEWAYS_DETAILS_DB_FILENAME};
+use crate::error::ConfigUpgradeFailure;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 pub const DEFAULT_GATEWAY_DETAILS_FILENAME: &str = "gateway_details.json";
 
+// aliases for backwards compatibility
+pub type CommonClientPathsV1_1_33 = CommonClientPathsV2;
+pub type ClientKeysPathsV1_1_33 = ClientKeysPathsV2;
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-pub struct ClientKeysPathsV1_1_33 {
+pub struct ClientKeysPathsV2 {
     /// Path to file containing private identity key.
     pub private_identity_key_file: PathBuf,
 
@@ -32,7 +36,7 @@ pub struct ClientKeysPathsV1_1_33 {
     pub ack_key_file: PathBuf,
 }
 
-impl ClientKeysPathsV1_1_33 {
+impl ClientKeysPathsV2 {
     pub fn upgrade(self) -> ClientKeysPaths {
         ClientKeysPaths {
             private_identity_key_file: self.private_identity_key_file,
@@ -46,8 +50,8 @@ impl ClientKeysPathsV1_1_33 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct CommonClientPathsV1_1_33 {
-    pub keys: ClientKeysPathsV1_1_33,
+pub struct CommonClientPathsV2 {
+    pub keys: ClientKeysPathsV2,
 
     /// Path to the file containing information about gateway used by this client,
     /// i.e. details such as its public key, owner address or the network information.
@@ -60,15 +64,16 @@ pub struct CommonClientPathsV1_1_33 {
     pub reply_surb_database: PathBuf,
 }
 
-impl CommonClientPathsV1_1_33 {
+impl CommonClientPathsV2 {
     // note that during the upgrade process, the caller will need to extract the key and gateway details
     // manually and resave them in the new database
-    pub fn upgrade_default(self) -> Result<CommonClientPaths, ClientCoreError> {
-        let data_dir = self.gateway_details.parent().ok_or_else(|| {
-            ClientCoreError::ConfigFileUpgradeFailure {
+    pub fn upgrade_default(self) -> Result<CommonClientPaths, ConfigUpgradeFailure> {
+        let data_dir = self
+            .gateway_details
+            .parent()
+            .ok_or_else(|| ConfigUpgradeFailure {
                 current_version: "1.1.33".to_string(),
-            }
-        })?;
+            })?;
 
         Ok(CommonClientPaths {
             keys: self.keys.upgrade(),

@@ -1,22 +1,27 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::old_config_v1_1_20::{
-    AcknowledgementsV1_1_20, ClientV1_1_20, ConfigV1_1_20, CoverTrafficV1_1_20, DebugConfigV1_1_20,
-    GatewayConnectionV1_1_20, LoggingV1_1_20, ReplySurbsV1_1_20, TopologyV1_1_20, TrafficV1_1_20,
-    DEFAULT_ACK_WAIT_ADDITION, DEFAULT_ACK_WAIT_MULTIPLIER, DEFAULT_AVERAGE_PACKET_DELAY,
-    DEFAULT_GATEWAY_RESPONSE_TIMEOUT, DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
-    DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE, DEFAULT_MAXIMUM_REPLY_KEY_AGE,
-    DEFAULT_MAXIMUM_REPLY_SURB_AGE, DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
-    DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE, DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
+use crate::old::v2::{
+    AcknowledgementsV2, ClientV2, ConfigV2, CoverTrafficV2, DebugConfigV2, GatewayConnectionV2,
+    LoggingV2, ReplySurbsV2, TopologyV2, TrafficV2, DEFAULT_ACK_WAIT_ADDITION,
+    DEFAULT_ACK_WAIT_MULTIPLIER, DEFAULT_AVERAGE_PACKET_DELAY, DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
+    DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY, DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
+    DEFAULT_MAXIMUM_REPLY_KEY_AGE, DEFAULT_MAXIMUM_REPLY_SURB_AGE,
+    DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD, DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
+    DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
     DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD, DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
     DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE, DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
     DEFAULT_TOPOLOGY_REFRESH_RATE, DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
 };
-use nym_sphinx::params::PacketSize;
+use nym_sphinx_params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::time::Duration;
+
+// aliases for backwards compatibility
+pub type OldConfigV1_1_13<T> = ConfigV1<T>;
+pub type OldLoggingV1_1_13 = LoggingV1;
+pub type OldDebugConfigV1_1_13 = DebugConfigV1;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -38,28 +43,28 @@ impl From<ExtendedPacketSize> for PacketSize {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct OldConfigV1_1_13<T> {
-    pub client: ClientV1_1_20<T>,
+pub struct ConfigV1<T> {
+    pub client: ClientV2<T>,
 
     #[serde(default)]
-    pub logging: OldLoggingV1_1_13,
+    pub logging: LoggingV1,
     #[serde(default)]
-    pub debug: OldDebugConfigV1_1_13,
+    pub debug: DebugConfigV1,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct OldLoggingV1_1_13 {}
+pub struct LoggingV1 {}
 
-impl From<OldLoggingV1_1_13> for LoggingV1_1_20 {
-    fn from(_value: OldLoggingV1_1_13) -> Self {
-        LoggingV1_1_20 {}
+impl From<LoggingV1> for LoggingV2 {
+    fn from(_value: LoggingV1) -> Self {
+        LoggingV2 {}
     }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct OldDebugConfigV1_1_13 {
+pub struct DebugConfigV1 {
     #[serde(with = "humantime_serde")]
     pub average_packet_delay: Duration,
 
@@ -114,10 +119,10 @@ pub struct OldDebugConfigV1_1_13 {
     pub maximum_reply_key_age: Duration,
 }
 
-impl From<OldDebugConfigV1_1_13> for DebugConfigV1_1_20 {
-    fn from(value: OldDebugConfigV1_1_13) -> Self {
-        DebugConfigV1_1_20 {
-            traffic: TrafficV1_1_20 {
+impl From<DebugConfigV1> for DebugConfigV2 {
+    fn from(value: DebugConfigV1) -> Self {
+        DebugConfigV2 {
+            traffic: TrafficV2 {
                 average_packet_delay: value.average_packet_delay,
                 message_sending_average_delay: value.message_sending_average_delay,
                 disable_main_poisson_packet_distribution: value
@@ -125,25 +130,25 @@ impl From<OldDebugConfigV1_1_13> for DebugConfigV1_1_20 {
                 primary_packet_size: PacketSize::RegularPacket,
                 secondary_packet_size: value.use_extended_packet_size.map(Into::into),
             },
-            cover_traffic: CoverTrafficV1_1_20 {
+            cover_traffic: CoverTrafficV2 {
                 loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,
                 disable_loop_cover_traffic_stream: value.disable_loop_cover_traffic_stream,
-                ..CoverTrafficV1_1_20::default()
+                ..CoverTrafficV2::default()
             },
-            gateway_connection: GatewayConnectionV1_1_20 {
+            gateway_connection: GatewayConnectionV2 {
                 gateway_response_timeout: value.gateway_response_timeout,
             },
-            acknowledgements: AcknowledgementsV1_1_20 {
+            acknowledgements: AcknowledgementsV2 {
                 average_ack_delay: value.average_ack_delay,
                 ack_wait_multiplier: value.ack_wait_multiplier,
                 ack_wait_addition: value.ack_wait_addition,
             },
-            topology: TopologyV1_1_20 {
+            topology: TopologyV2 {
                 topology_refresh_rate: value.topology_refresh_rate,
                 topology_resolution_timeout: value.topology_resolution_timeout,
                 disable_refreshing: false,
             },
-            reply_surbs: ReplySurbsV1_1_20 {
+            reply_surbs: ReplySurbsV2 {
                 minimum_reply_surb_storage_threshold: value.minimum_reply_surb_storage_threshold,
                 maximum_reply_surb_storage_threshold: value.maximum_reply_surb_storage_threshold,
                 minimum_reply_surb_request_size: value.minimum_reply_surb_request_size,
@@ -161,9 +166,9 @@ impl From<OldDebugConfigV1_1_13> for DebugConfigV1_1_20 {
     }
 }
 
-impl Default for OldDebugConfigV1_1_13 {
+impl Default for DebugConfigV1 {
     fn default() -> Self {
-        OldDebugConfigV1_1_13 {
+        DebugConfigV1 {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
@@ -190,10 +195,10 @@ impl Default for OldDebugConfigV1_1_13 {
     }
 }
 
-impl<T, U> From<OldConfigV1_1_13<T>> for ConfigV1_1_20<U> {
-    fn from(value: OldConfigV1_1_13<T>) -> Self {
-        ConfigV1_1_20 {
-            client: ClientV1_1_20 {
+impl<T, U> From<ConfigV1<T>> for ConfigV2<U> {
+    fn from(value: ConfigV1<T>) -> Self {
+        ConfigV2 {
+            client: ClientV2 {
                 version: value.client.version,
                 id: value.client.id,
                 disabled_credentials_mode: value.client.disabled_credentials_mode,

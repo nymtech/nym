@@ -1,15 +1,12 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::topology_control::geo_aware_provider::CountryGroup;
-use crate::config::{
-    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, GroupBy,
-    ReplySurbs, Topology, TopologyStructure, Traffic,
+use crate::{
+    Acknowledgements, Client, Config, CountryGroup, CoverTraffic, DebugConfig, GatewayConnection,
+    GroupBy, ReplySurbs, Topology, TopologyStructure, Traffic,
 };
-use nym_sphinx::{
-    addressing::clients::Recipient,
-    params::{PacketSize, PacketType},
-};
+use nym_sphinx_addressing::Recipient;
+use nym_sphinx_params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
@@ -55,8 +52,21 @@ const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 6
 // 24 hours
 const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
+// aliases for backwards compatibility
+pub type ConfigV1_1_33 = ConfigV5;
+pub type ClientV1_1_33 = ClientV5;
+pub type DebugConfigV1_1_33 = DebugConfigV5;
+pub type OldGatewayEndpointConfigV1_1_33 = GatewayEndpointConfigV5;
+
+pub type TrafficV1_1_33 = TrafficV5;
+pub type CoverTrafficV1_1_33 = CoverTrafficV5;
+pub type GatewayConnectionV1_1_33 = GatewayConnectionV5;
+pub type AcknowledgementsV1_1_33 = AcknowledgementsV5;
+pub type TopologyV1_1_33 = TopologyV5;
+pub type ReplySurbsV1_1_33 = ReplySurbsV5;
+
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-pub struct OldGatewayEndpointConfigV1_1_33 {
+pub struct GatewayEndpointConfigV5 {
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.
     pub gateway_id: String,
@@ -70,15 +80,15 @@ pub struct OldGatewayEndpointConfigV1_1_33 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_33 {
-    pub client: ClientV1_1_33,
+pub struct ConfigV5 {
+    pub client: ClientV5,
 
     #[serde(default)]
-    pub debug: DebugConfigV1_1_33,
+    pub debug: DebugConfigV5,
 }
 
-impl From<ConfigV1_1_33> for Config {
-    fn from(value: ConfigV1_1_33) -> Self {
+impl From<ConfigV5> for Config {
+    fn from(value: ConfigV5) -> Self {
         Config {
             client: Client {
                 version: value.client.version,
@@ -178,7 +188,7 @@ impl From<ConfigV1_1_33> for Config {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 // note: the deny_unknown_fields is VITAL here to allow upgrades from v1.1.20_2
 #[serde(deny_unknown_fields)]
-pub struct ClientV1_1_33 {
+pub struct ClientV5 {
     /// Version of the client for which this configuration was created.
     pub version: String,
 
@@ -202,7 +212,7 @@ pub struct ClientV1_1_33 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct TrafficV1_1_33 {
+pub struct TrafficV5 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
@@ -233,9 +243,9 @@ pub struct TrafficV1_1_33 {
     pub packet_type: PacketType,
 }
 
-impl Default for TrafficV1_1_33 {
+impl Default for TrafficV5 {
     fn default() -> Self {
-        TrafficV1_1_33 {
+        TrafficV5 {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             disable_main_poisson_packet_distribution: false,
@@ -248,7 +258,7 @@ impl Default for TrafficV1_1_33 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct CoverTrafficV1_1_33 {
+pub struct CoverTrafficV5 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
     #[serde(with = "humantime_serde")]
@@ -263,9 +273,9 @@ pub struct CoverTrafficV1_1_33 {
     pub disable_loop_cover_traffic_stream: bool,
 }
 
-impl Default for CoverTrafficV1_1_33 {
+impl Default for CoverTrafficV5 {
     fn default() -> Self {
-        CoverTrafficV1_1_33 {
+        CoverTrafficV5 {
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
             cover_traffic_primary_size_ratio: DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO,
             disable_loop_cover_traffic_stream: false,
@@ -275,16 +285,16 @@ impl Default for CoverTrafficV1_1_33 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct GatewayConnectionV1_1_33 {
+pub struct GatewayConnectionV5 {
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
     #[serde(with = "humantime_serde")]
     pub gateway_response_timeout: Duration,
 }
 
-impl Default for GatewayConnectionV1_1_33 {
+impl Default for GatewayConnectionV5 {
     fn default() -> Self {
-        GatewayConnectionV1_1_33 {
+        GatewayConnectionV5 {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
         }
     }
@@ -292,7 +302,7 @@ impl Default for GatewayConnectionV1_1_33 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct AcknowledgementsV1_1_33 {
+pub struct AcknowledgementsV5 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
@@ -312,9 +322,9 @@ pub struct AcknowledgementsV1_1_33 {
     pub ack_wait_addition: Duration,
 }
 
-impl Default for AcknowledgementsV1_1_33 {
+impl Default for AcknowledgementsV5 {
     fn default() -> Self {
-        AcknowledgementsV1_1_33 {
+        AcknowledgementsV5 {
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
             ack_wait_addition: DEFAULT_ACK_WAIT_ADDITION,
@@ -324,7 +334,7 @@ impl Default for AcknowledgementsV1_1_33 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct TopologyV1_1_33 {
+pub struct TopologyV5 {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
     #[serde(with = "humantime_serde")]
@@ -347,68 +357,66 @@ pub struct TopologyV1_1_33 {
     pub max_startup_gateway_waiting_period: Duration,
 
     /// Specifies the mixnode topology to be used for sending packets.
-    pub topology_structure: TopologyStructureV1_1_33,
+    pub topology_structure: TopologyStructureV5,
 }
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum TopologyStructureV1_1_33 {
+pub enum TopologyStructureV5 {
     #[default]
     NymApi,
-    GeoAware(GroupByV1_1_33),
+    GeoAware(GroupByV5),
 }
 
-impl From<TopologyStructureV1_1_33> for TopologyStructure {
-    fn from(value: TopologyStructureV1_1_33) -> Self {
+impl From<TopologyStructureV5> for TopologyStructure {
+    fn from(value: TopologyStructureV5) -> Self {
         match value {
-            TopologyStructureV1_1_33::NymApi => TopologyStructure::NymApi,
-            TopologyStructureV1_1_33::GeoAware(group_by) => {
-                TopologyStructure::GeoAware(group_by.into())
-            }
+            TopologyStructureV5::NymApi => TopologyStructure::NymApi,
+            TopologyStructureV5::GeoAware(group_by) => TopologyStructure::GeoAware(group_by.into()),
         }
     }
 }
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum GroupByV1_1_33 {
+pub enum GroupByV5 {
     CountryGroup(CountryGroup),
     NymAddress(Recipient),
 }
 
-impl From<GroupByV1_1_33> for GroupBy {
-    fn from(value: GroupByV1_1_33) -> Self {
+impl From<GroupByV5> for GroupBy {
+    fn from(value: GroupByV5) -> Self {
         match value {
-            GroupByV1_1_33::CountryGroup(country) => GroupBy::CountryGroup(country),
-            GroupByV1_1_33::NymAddress(addr) => GroupBy::NymAddress(addr),
+            GroupByV5::CountryGroup(country) => GroupBy::CountryGroup(country),
+            GroupByV5::NymAddress(addr) => GroupBy::NymAddress(addr),
         }
     }
 }
 
-impl std::fmt::Display for GroupByV1_1_33 {
+impl std::fmt::Display for GroupByV5 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GroupByV1_1_33::CountryGroup(group) => write!(f, "group: {}", group),
-            GroupByV1_1_33::NymAddress(address) => write!(f, "address: {}", address),
+            GroupByV5::CountryGroup(group) => write!(f, "group: {}", group),
+            GroupByV5::NymAddress(address) => write!(f, "address: {}", address),
         }
     }
 }
 
-impl Default for TopologyV1_1_33 {
+impl Default for TopologyV5 {
     fn default() -> Self {
-        TopologyV1_1_33 {
+        TopologyV5 {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
             max_startup_gateway_waiting_period: DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD,
-            topology_structure: TopologyStructureV1_1_33::default(),
+            topology_structure: TopologyStructureV5::default(),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct ReplySurbsV1_1_33 {
+pub struct ReplySurbsV5 {
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.
     pub minimum_reply_surb_storage_threshold: usize,
@@ -450,9 +458,9 @@ pub struct ReplySurbsV1_1_33 {
     pub surb_mix_hops: Option<u8>,
 }
 
-impl Default for ReplySurbsV1_1_33 {
+impl Default for ReplySurbsV5 {
     fn default() -> Self {
-        ReplySurbsV1_1_33 {
+        ReplySurbsV5 {
             minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
@@ -470,22 +478,22 @@ impl Default for ReplySurbsV1_1_33 {
 
 #[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct DebugConfigV1_1_33 {
+pub struct DebugConfigV5 {
     /// Defines all configuration options related to traffic streams.
-    pub traffic: TrafficV1_1_33,
+    pub traffic: TrafficV5,
 
     /// Defines all configuration options related to cover traffic stream(s).
-    pub cover_traffic: CoverTrafficV1_1_33,
+    pub cover_traffic: CoverTrafficV5,
 
     /// Defines all configuration options related to the gateway connection.
-    pub gateway_connection: GatewayConnectionV1_1_33,
+    pub gateway_connection: GatewayConnectionV5,
 
     /// Defines all configuration options related to acknowledgements, such as delays or wait timeouts.
-    pub acknowledgements: AcknowledgementsV1_1_33,
+    pub acknowledgements: AcknowledgementsV5,
 
     /// Defines all configuration options related topology, such as refresh rates or timeouts.
-    pub topology: TopologyV1_1_33,
+    pub topology: TopologyV5,
 
     /// Defines all configuration options related to reply SURBs.
-    pub reply_surbs: ReplySurbsV1_1_33,
+    pub reply_surbs: ReplySurbsV5,
 }

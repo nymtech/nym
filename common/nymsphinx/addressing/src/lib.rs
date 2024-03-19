@@ -3,3 +3,6 @@
 
 pub mod clients;
 pub mod nodes;
+
+pub use clients::Recipient;
+pub use nodes::NodeIdentity;

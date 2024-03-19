@@ -24,6 +24,7 @@ members = [
     "common/bandwidth-controller",
     "common/bin-common",
     "common/client-core",
+    "common/client-core/config-types",
     "common/client-core/surb-storage",
     "common/client-core/gateways-storage",
     "common/client-libs/gateway-client",
@@ -41,6 +42,7 @@ members = [
     "common/cosmwasm-smart-contracts/name-service",
     "common/cosmwasm-smart-contracts/service-provider-directory",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/country-group",
     "common/credential-storage",
     "common/credentials",
     "common/credential-utils",
@@ -120,7 +122,6 @@ members = [
     #    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
     "wasm/node-tester",
-    "common/nym-metrics",
 ]
 
 default-members = [
@@ -134,6 +135,7 @@ default-members = [
     "tools/nymvisor",
     "explorer-api",
     "nym-validator-rewarder",
+    "nym-node"
 ]
 
 exclude = [

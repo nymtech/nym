@@ -1,0 +1,25 @@
+[package]
+name = "nym-client-core-config-types"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+humantime-serde = "1.0"
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+url = { workspace = true, features = ["serde"] }
+
+nym-config = { path = "../../config" }
+
+nym-country-group = { path = "../../country-group" }
+nym-pemstore = { path = "../../pemstore", optional = true }
+
+# those are pulling so many deps T.T
+nym-sphinx-params = { path = "../../nymsphinx/params" }
+nym-sphinx-addressing = { path = "../../nymsphinx/addressing" }
+
+
+[features]
+disk-persistence = ["nym-pemstore"]

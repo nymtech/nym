@@ -194,7 +194,7 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| EntryGatewayConfig::new_default(&self.data_dir)),
             exit_gateway: self
                 .exit_gateway
-                .unwrap_or_else(|| ExitGatewayConfig::new_default(config_dir)),
+                .unwrap_or_else(|| ExitGatewayConfig::new_default(&self.data_dir)),
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
         })

@@ -244,5 +244,6 @@ pub async fn execute(args: Run) -> anyhow::Result<()> {
          Select the correct version and install it to your machine. You will need to provide some of the following: \n ");
     output.to_stdout(&node_details);
 
-    gateway.run().await
+    gateway.run().await?;
+    Ok(())
 }

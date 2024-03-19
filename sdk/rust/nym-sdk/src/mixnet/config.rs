@@ -50,6 +50,7 @@ impl Config {
         BaseClientConfig::from_client_config(
             ClientConfig::new(
                 DEFAULT_SDK_CLIENT_ID,
+                env!("CARGO_PKG_VERSION"),
                 !self.enabled_credentials_mode,
                 nyxd_endpoints,
                 nym_api_endpoints,

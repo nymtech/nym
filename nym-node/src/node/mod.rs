@@ -10,6 +10,7 @@ use nym_gateway::Gateway;
 use nym_mixnode::node::node_description::NodeDescription;
 use nym_mixnode::MixNode;
 use nym_node::config::entry_gateway::ephemeral_entry_gateway_config;
+use nym_node::config::exit_gateway::ephemeral_exit_gateway_config;
 use nym_node::config::mixnode::ephemeral_mixnode_config;
 use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode};
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
@@ -190,7 +191,22 @@ impl NymNode {
 
     async fn run_as_exit_gateway(self) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in EXIT GATEWAY mode");
-        Ok(())
+
+        let config = ephemeral_exit_gateway_config(self.config, self.entry_gateway.mnemonic)?;
+
+        let exit_gateway = Gateway::new_loaded(
+            config.gateway,
+            Some(config.nr_opts),
+            Some(config.ipr_opts),
+            self.ed25519_identity_keys,
+            self.x25519_sphinx_keys,
+            self.entry_gateway.client_storage,
+        );
+
+        exit_gateway
+            .run()
+            .await
+            .map_err(|source| NymNodeError::ExitGatewayFailure(source.into()))
     }
 
     pub(crate) async fn run(self) -> Result<(), NymNodeError> {

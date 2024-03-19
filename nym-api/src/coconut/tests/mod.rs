@@ -15,7 +15,6 @@ use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
 use nym_api_requests::coconut::models::{IssuedCredentialBody, IssuedCredentialResponse};
 use nym_api_requests::coconut::{BlindSignRequestBody, BlindedSignatureResponse};
-use nym_coconut::{BlindedSignature, Parameters, VerificationKey};
 use nym_coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
@@ -34,10 +33,13 @@ use nym_coconut_dkg_common::types::{
     EpochId, EpochState, PartialContractDealingData, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use nym_compact_ecash::setup::GroupParameters;
+use nym_compact_ecash::utils::BlindedSignature;
+use nym_compact_ecash::{ttp_keygen, VerificationKeyAuth};
 use nym_contracts_common::IdentityKey;
 use nym_credentials::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
-use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_credentials::IssuanceBandwidthCredential;
+use nym_credentials_interface::CredentialType;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_dkg::{NodeIndex, Threshold};
 use nym_validator_client::nym_api::routes::{
@@ -1188,11 +1190,11 @@ impl super::client::Client for DummyClient {
 #[derive(Clone, Debug)]
 pub struct DummyCommunicationChannel {
     current_epoch: Arc<AtomicU64>,
-    aggregated_verification_key: VerificationKey,
+    aggregated_verification_key: VerificationKeyAuth,
 }
 
 impl DummyCommunicationChannel {
-    pub fn new(aggregated_verification_key: VerificationKey) -> Self {
+    pub fn new(aggregated_verification_key: VerificationKeyAuth) -> Self {
         DummyCommunicationChannel {
             current_epoch: Arc::new(AtomicU64::new(1)),
             aggregated_verification_key,
@@ -1211,7 +1213,7 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
         Ok(self.current_epoch.load(Ordering::Relaxed))
     }
 
-    async fn aggregated_verification_key(&self, _epoch_id: EpochId) -> Result<VerificationKey> {
+    async fn aggregated_verification_key(&self, _epoch_id: EpochId) -> Result<VerificationKeyAuth> {
         Ok(self.aggregated_verification_key.clone())
     }
 }
@@ -1253,12 +1255,12 @@ pub fn deposit_tx_fixture(voucher_data: &BandwidthVoucherIssuanceData) -> TxResp
                 attributes: vec![
                     EventAttribute {
                         key: DEPOSIT_VALUE.to_string(),
-                        value: voucher_data.value_plain(),
+                        value: voucher_data.value().to_string(),
                         index: false,
                     },
                     EventAttribute {
                         key: DEPOSIT_INFO.to_string(),
-                        value: CredentialType::Voucher.to_string(),
+                        value: CredentialType::TicketBook.to_string(),
                         index: false,
                     },
                     EventAttribute {
@@ -1317,6 +1319,7 @@ pub fn voucher_fixture<C: Into<Coin>>(
     let enc_priv =
         encryption::PrivateKey::from_bytes(&encryption_keypair.private_key().to_bytes()).unwrap();
 
+    // (voucher, request)
     IssuanceBandwidthCredential::new_voucher(amount.into(), tx_hash, id_priv, enc_priv)
 }
 
@@ -1338,8 +1341,8 @@ struct TestFixture {
 impl TestFixture {
     async fn new() -> Self {
         let mut rng = crate::coconut::tests::fixtures::test_rng_07([69u8; 32]);
-        let params = Parameters::new(4).unwrap();
-        let coconut_keypair = nym_coconut::ttp_keygen(&params, 1, 1).unwrap().remove(0);
+        let coconut_params = GroupParameters::new();
+        let coconut_keypair = ttp_keygen(&coconut_params, 1, 1).unwrap().remove(0);
         let identity = identity::KeyPair::new(&mut rng);
         let epoch = Arc::new(AtomicU64::new(1));
         let comm_channel =
@@ -1457,11 +1460,14 @@ impl TestFixture {
 mod credential_tests {
     use super::*;
     use crate::coconut::tests::helpers::init_chain;
-    use nym_api_requests::coconut::{VerifyCredentialBody, VerifyCredentialResponse};
-    use nym_coconut::{blind_sign, hash_to_scalar, ttp_keygen};
+    use nym_api_requests::coconut::{OnlineVerifyCredentialBody, VerifyCredentialResponse};
     use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredential;
+    use nym_compact_ecash::{
+        identify::{generate_coin_indices_signatures, generate_expiration_date_signatures},
+        issue, ttp_keygen, PayInfo,
+    };
     use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
-    use nym_validator_client::nym_api::routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL;
+    use nym_validator_client::nym_api::routes::ECASH_VERIFY_ONLINE_CREDENTIAL;
 
     #[tokio::test]
     async fn already_issued() {
@@ -1478,10 +1484,17 @@ mod credential_tests {
 
         let sig = blinded_signature_fixture();
         let commitments = request_body.encode_commitments();
-        let public = request_body.public_attributes_plain.clone();
+        let expiration_date = request_body.expiration_date as i64;
         test_fixture
             .storage
-            .store_issued_credential(42, tx_hash, &sig, dummy_signature(), commitments, public)
+            .store_issued_credential(
+                42,
+                tx_hash,
+                &sig,
+                dummy_signature(),
+                commitments,
+                expiration_date,
+            )
             .await
             .unwrap();
 
@@ -1521,7 +1534,7 @@ mod credential_tests {
             AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
             Default::default(),
         );
-        let params = Parameters::new(4).unwrap();
+        let params = GroupParameters::new();
         let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
         let tmp_dir = tempdir().unwrap();
 
@@ -1558,7 +1571,7 @@ mod credential_tests {
         let request_body = voucher_data.create_blind_sign_request_body(&signing_data);
 
         let commitments = request_body.encode_commitments();
-        let public = request_body.public_attributes_plain.clone();
+        let expiration_date = request_body.expiration_date as i64;
         let sig = blinded_signature_fixture();
         storage
             .store_issued_credential(
@@ -1567,7 +1580,7 @@ mod credential_tests {
                 &sig,
                 dummy_signature(),
                 commitments.clone(),
-                public.clone(),
+                expiration_date,
             )
             .await
             .unwrap();
@@ -1600,7 +1613,7 @@ mod credential_tests {
                 &blinded_signature,
                 dummy_signature(),
                 commitments.clone(),
-                public.clone(),
+                expiration_date,
             )
             .await;
         assert!(storage_err.is_err());
@@ -1617,7 +1630,7 @@ mod credential_tests {
                 &blinded_signature,
                 dummy_signature(),
                 commitments.clone(),
-                public.clone(),
+                expiration_date,
             )
             .await
             .unwrap();
@@ -1640,7 +1653,7 @@ mod credential_tests {
             Hash::from_str("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B")
                 .unwrap();
 
-        let params = Parameters::new(4).unwrap();
+        let params = GroupParameters::new();
         let mut rng = OsRng;
         let nym_api_identity = identity::KeyPair::new(&mut rng);
 
@@ -1734,35 +1747,70 @@ mod credential_tests {
 
         // generate all the credential requests
         let params = bandwidth_credential_params();
-        let key_pair = nym_coconut::keygen(params);
+        let key_pair = ttp_keygen(params.grp(), 1, 1).unwrap().remove(0);
         let epoch = 1;
 
         let voucher_amount = coin(1234, "unym");
+        let payment_amount = coin(
+            voucher_amount.amount.u128() / params.get_total_coins() as u128,
+            "unym",
+        );
         let issuance = voucher_fixture(coin(1234, "unym"), None);
         let sig_req = issuance.prepare_for_signing();
-        let pub_attrs_hashed = sig_req
-            .public_attributes_plain
-            .iter()
-            .map(hash_to_scalar)
-            .collect::<Vec<_>>();
-        let pub_attrs = pub_attrs_hashed.iter().collect::<Vec<_>>();
-        let blind_sig = blind_sign(
+        let exp_date_sigs = generate_expiration_date_signatures(
             params,
-            key_pair.secret_key(),
-            &sig_req.blind_sign_request,
-            &pub_attrs,
+            sig_req.expiration_date,
+            &[key_pair.secret_key()],
+            &vec![key_pair.verification_key()],
+            &key_pair.verification_key(),
+            &[key_pair.index.unwrap()],
         )
         .unwrap();
-        let sig = blind_sig
-            .unblind(
-                key_pair.verification_key(),
-                &sig_req.pedersen_commitments_openings,
+
+        let blind_sig = issue(
+            params.grp(),
+            key_pair.secret_key(),
+            sig_req.ecash_pub_key.clone(),
+            &sig_req.withdrawal_request,
+            sig_req.expiration_date,
+        )
+        .unwrap();
+        let partial_wallet = issuance
+            .unblind_signature(
+                &key_pair.verification_key(),
+                &sig_req,
+                blind_sig,
+                key_pair.index.unwrap(),
             )
             .unwrap();
 
-        let issued = issuance.into_issued_credential(sig, epoch);
-        let spending = issued
-            .prepare_for_spending(key_pair.verification_key())
+        let wallet = issuance
+            .aggregate_signature_shares(
+                &key_pair.verification_key(),
+                &vec![partial_wallet],
+                sig_req,
+            )
+            .unwrap();
+
+        let issued = issuance.into_issued_credential(wallet, exp_date_sigs, epoch);
+
+        let coin_indices_signatures = generate_coin_indices_signatures(
+            params,
+            &[key_pair.secret_key()],
+            &vec![key_pair.verification_key()],
+            &key_pair.verification_key(),
+            &[key_pair.index.unwrap()],
+        )
+        .unwrap();
+        let pay_info = PayInfo {
+            pay_info_bytes: [6u8; 72],
+        };
+        let mut spending = issued
+            .prepare_for_spending(
+                &key_pair.verification_key(),
+                pay_info,
+                coin_indices_signatures,
+            )
             .unwrap();
 
         let storage1 = NymApiStorage::init(db_dir.path().join("storage.db"))
@@ -1796,14 +1844,17 @@ mod credential_tests {
         let proposal_id = 42;
         // The address is not used, so we can use a duplicate
         let gateway_cosmos_addr = validator_address.clone();
-        let req =
-            VerifyCredentialBody::new(spending.clone(), proposal_id, gateway_cosmos_addr.clone());
+        let req = OnlineVerifyCredentialBody::new(
+            spending.clone(),
+            proposal_id,
+            gateway_cosmos_addr.clone(),
+        );
 
         // Test endpoint with not proposal for the proposal id
         let response = client
             .post(format!(
                 "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
             ))
             .json(&req)
             .dispatch()
@@ -1819,7 +1870,9 @@ mod credential_tests {
 
         let mut proposal = Proposal {
             title: String::new(),
-            description: String::from("25mnnoCcUfeizfC85avvroFg2prpEZBgJbJM2SLtkgyyUkoAU3cqJiqWmg8cMHEPjfFf5sQF92SMAM2vbEoLZvUjenvXhadTLdA4TqMYArJpihyqirW2AhGoNehtcdcK5gnH"),
+            description: String::from(
+                "65TETnK13g1sSUVgrMHcwMUBmu2xUyEXQiCiREJxXpacFoR5GbniRHwqdo4VwWv7Sd",
+            ),
             msgs: vec![],
             status: cw3::Status::Open,
             expires: cw_utils::Expiration::Never {},
@@ -1830,7 +1883,7 @@ mod credential_tests {
             votes: Votes::yes(0),
             proposer: Addr::unchecked("proposer"),
             deposit: None,
-            start_height: 0
+            start_height: 0,
         };
 
         // Test the endpoint with a different blinded serial number in the description
@@ -1844,7 +1897,7 @@ mod credential_tests {
         let response = client
             .post(format!(
                 "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
             ))
             .json(&req)
             .dispatch()
@@ -1859,9 +1912,7 @@ mod credential_tests {
         );
 
         // Test the endpoint with no msg in the proposal action
-        proposal.description = spending
-            .verify_credential_request
-            .blinded_serial_number_bs58();
+        proposal.description = spending.payment.serial_number_bs58();
         chain
             .lock()
             .unwrap()
@@ -1871,7 +1922,7 @@ mod credential_tests {
         let response = client
             .post(format!(
                 "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
             ))
             .json(&req)
             .dispatch()
@@ -1886,7 +1937,7 @@ mod credential_tests {
         );
 
         // Test the endpoint without any credential recorded in the Coconut Bandwidth Contract
-        let funds = voucher_amount.clone();
+        let funds = payment_amount.clone();
         let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
             funds: funds.clone(),
         };
@@ -1905,7 +1956,7 @@ mod credential_tests {
         let response = client
             .post(format!(
                 "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
             ))
             .json(&req)
             .dispatch()
@@ -1925,16 +1976,14 @@ mod credential_tests {
             .bandwidth_contract
             .spent_credentials
             .insert(
-                spending
-                    .verify_credential_request
-                    .blinded_serial_number_bs58(),
+                spending.payment.serial_number_bs58(),
                 SpendCredentialResponse::new(None),
             );
 
         let response = client
             .post(format!(
                 "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
             ))
             .json(&req)
             .dispatch()
@@ -1951,9 +2000,7 @@ mod credential_tests {
         // Test the endpoint with a credential that doesn't verify correctly
         let mut spent_credential = SpendCredential::new(
             funds.clone(),
-            spending
-                .verify_credential_request
-                .blinded_serial_number_bs58(),
+            spending.payment.serial_number_bs58(),
             Addr::unchecked("unimportant"),
         );
         chain
@@ -1962,51 +2009,42 @@ mod credential_tests {
             .bandwidth_contract
             .spent_credentials
             .insert(
-                spending
-                    .verify_credential_request
-                    .blinded_serial_number_bs58(),
+                spending.payment.serial_number_bs58(),
                 SpendCredentialResponse::new(Some(spent_credential.clone())),
             );
 
-        // TODO: somehow restore that test
-        // let bad_credential = Credential::new(
-        //     4,
-        //     theta.clone(),
-        //     voucher_value,
-        //     String::from("bad voucher info"),
-        //     0,
-        // );
-        // let bad_req = VerifyCredentialBody::new(
-        //     bad_credential,
-        //     epoch_id,
-        //     proposal_id,
-        //     gateway_cosmos_addr.clone(),
-        // );
-        // let response = client
-        //     .post(format!(
-        //         "/{}/{}/{}/{}",
-        //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        //     ))
-        //     .json(&bad_req)
-        //     .dispatch()
-        //     .await;
-        // assert_eq!(response.status(), Status::Ok);
-        // let verify_credential_response = serde_json::from_str::<VerifyCredentialResponse>(
-        //     &response.into_string().await.unwrap(),
-        // )
-        // .unwrap();
-        // assert!(!verify_credential_response.verification_result);
-        // assert_eq!(
-        //     cw3::Status::Rejected,
-        //     chain
-        //         .lock()
-        //         .unwrap()
-        //         .multisig_contract
-        //         .proposals
-        //         .get(&proposal_id)
-        //         .unwrap()
-        //         .status
-        // );
+        spending.value += 10;
+        let bad_req = OnlineVerifyCredentialBody::new(
+            spending.clone(),
+            proposal_id,
+            gateway_cosmos_addr.clone(),
+        );
+
+        let response = client
+            .post(format!(
+                "/{}/{}/{}/{}",
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
+            ))
+            .json(&bad_req)
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Ok);
+        let verify_credential_response = serde_json::from_str::<VerifyCredentialResponse>(
+            &response.into_string().await.unwrap(),
+        )
+        .unwrap();
+        assert!(!verify_credential_response.verification_result);
+        assert_eq!(
+            cw3::Status::Rejected,
+            chain
+                .lock()
+                .unwrap()
+                .multisig_contract
+                .proposals
+                .get(&proposal_id)
+                .unwrap()
+                .status
+        );
 
         // Test the endpoint with a proposal that has a different value for the funds to be released
         // then what's in the credential
@@ -2030,7 +2068,7 @@ mod credential_tests {
         let response = client
             .post(format!(
                 "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
             ))
             .json(&req)
             .dispatch()
@@ -2054,7 +2092,7 @@ mod credential_tests {
         );
 
         // Test the endpoint with every dependency met
-        let funds = voucher_amount;
+        let funds = payment_amount;
         let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
             funds: funds.clone(),
         };
@@ -2074,7 +2112,7 @@ mod credential_tests {
         let response = client
             .post(format!(
                 "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
             ))
             .json(&req)
             .dispatch()
@@ -2105,15 +2143,13 @@ mod credential_tests {
             .bandwidth_contract
             .spent_credentials
             .insert(
-                spending
-                    .verify_credential_request
-                    .blinded_serial_number_bs58(),
+                spending.payment.serial_number_bs58(),
                 SpendCredentialResponse::new(Some(spent_credential)),
             );
         let response = client
             .post(format!(
                 "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
             ))
             .json(&req)
             .dispatch()

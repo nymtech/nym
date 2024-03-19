@@ -4,10 +4,10 @@
 use crate::coconut::error::Result;
 use crate::nyxd;
 use crate::support::nyxd::ClientInner;
-use nym_coconut::VerificationKey;
 use nym_coconut_dkg_common::types::{Epoch, EpochId};
-use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
-use nym_validator_client::coconut::all_coconut_api_clients;
+use nym_compact_ecash::VerificationKeyAuth;
+use nym_credentials::obtain_aggregate_verification_key;
+use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -18,7 +18,7 @@ use tokio::sync::RwLock;
 #[async_trait]
 pub trait APICommunicationChannel {
     async fn current_epoch(&self) -> Result<EpochId>;
-    async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey>;
+    async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth>;
 }
 
 struct CachedEpoch {
@@ -63,7 +63,7 @@ impl CachedEpoch {
 pub(crate) struct QueryCommunicationChannel {
     nyxd_client: nyxd::Client,
 
-    epoch_keys: RwLock<HashMap<EpochId, VerificationKey>>,
+    epoch_keys: RwLock<HashMap<EpochId, VerificationKeyAuth>>,
     cached_epoch: RwLock<CachedEpoch>,
 }
 
@@ -99,18 +99,18 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         return Ok(guard.current_epoch_id);
     }
 
-    async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
+    async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth> {
         if let Some(vk) = self.epoch_keys.read().await.get(&epoch_id) {
             return Ok(vk.clone());
         }
 
         let mut guard = self.epoch_keys.write().await;
-        let coconut_api_clients = match self.nyxd_client.read().await.deref() {
-            ClientInner::Query(client) => all_coconut_api_clients(client, epoch_id).await?,
-            ClientInner::Signing(client) => all_coconut_api_clients(client, epoch_id).await?,
+        let ecash_api_clients = match self.nyxd_client.read().await.deref() {
+            ClientInner::Query(client) => all_ecash_api_clients(client, epoch_id).await?,
+            ClientInner::Signing(client) => all_ecash_api_clients(client, epoch_id).await?,
         };
 
-        let vk = obtain_aggregate_verification_key(&coconut_api_clients)?;
+        let vk = obtain_aggregate_verification_key(&ecash_api_clients)?;
 
         guard.insert(epoch_id, vk.clone());
 

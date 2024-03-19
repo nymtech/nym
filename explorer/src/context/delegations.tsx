@@ -173,7 +173,7 @@ export const DelegationsProvider = ({ children }: { children: React.ReactNode })
   };
 
   const handleUndelegate = async (mixId: number) => {
-    const tx = await nymClient?.undelegateFromMixnode({ mixId }, fee);
+    const tx = await nymClient?.undelegateFromMixnode({ mixId }, fee, 'Undelegation from Nym Explorer');
 
     return tx as unknown as ExecuteResult;
   };

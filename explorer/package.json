@@ -52,6 +52,7 @@
     "bs58": "^5.0.0",
     "buffer": "^6.0.3",
     "chain-registry": "^1.29.1",
+    "@chain-registry/types": "^0.18.1",
     "cosmjs-types": "^0.9.0",
     "d3-scale": "^4.0.0",
     "date-fns": "^2.24.0",
@@ -70,7 +71,6 @@
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",
-    "@chain-registry/types": "^0.18.1",
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.4",
     "@storybook/addon-actions": "^6.5.8",

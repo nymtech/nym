@@ -13,12 +13,17 @@ TODO
 
 This setup may seem more complex than running a few scripts, but it has certain advantages.
 - Running things in a container
+<!-- ADD DVANTEGES OF DOCKER SETUP -->
 
-## Docker setup
+## Docker, Prometheus and Grafana Metric SETUP
 
+This setup can be done from the same VPS like your node or on a completelly remote machine. In any case it's setup in a Docker container so it works remotely from the environment where your node runs.
 
+### Docker setup
 
-## Prometheus Setup
+<!--INIT AND START DOCKER CONTAINER -->
+
+### Prometheus Setup
 
 This entire installation shall be done with `root` privileges. If you not `root`, start with `su` command before the following steps.
 
@@ -78,7 +83,24 @@ nano /etc/prometheus/prometheus.yml
 ```
 
 7. Paste the block below to your config `prometheus.yml`, change the line `credentials` and save it (`ctrl` + `x`)
-    - `credentials` value can be found in your node `config.toml` config file under `[http]` header
+    - `credentials` value must be the same like in your node `config.toml` config file under `[http]` header
+    - In case you haven't set up yet a `<NODE_METRICS_KEY>` in your node `config.toml`, add it by opening a machine with your node and run [this script](https://gist.github.com/benedettadavico/1299b2c7b8b8282c15eafb1914fb3594) with an arbitrary `<NODE_METRIC_KEY>` of your own choice as an argument, follow these commands with your own **strong passphrase**
+```sh
+# get the script
+curl -L https://gist.githubusercontent.com/benedettadavico/1299b2c7b8b8282c15eafb1914fb3594/raw/500c36037615a515f2f3e007baa25e6a2c277d4a/update_config.sh -o update_config.sh
+
+# make executable
+chmod u+x ./update_config.sh
+
+# run with your own key as argument
+sh ./update_config.sh <NODE_METRIC_KEY>
+
+# for example if you chose my passhphrase to be: "makemoresecurekeythanthis1234"
+# the command would look like this
+# sh ./update_config.sh makemoresecurekeythanthis1234
+```
+  - Add this `<NODE_METRIC_KEY>` string to your monitoring Prometheus config `prometheus.yml` as a value to `credentials`, paste the block below to your `prometheus.yml` as below
+
 ```yaml
 # my global config
 global:
@@ -104,6 +126,7 @@ scrape_configs:
   # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
   - job_name: "prometheus"
     authorization:
+    # CHANGE THIS TO YOUR OWN STRING
       credentials: <METRICS_KEY_SET_ON_THE_NODE>
 
     static_configs:
@@ -161,10 +184,63 @@ Further reading on Prometheus functionalities:
 - [Alerting overview](https://prometheus.io/docs/alerting/latest/overview/)
 - [Exporters and Integration](https://prometheus.io/docs/instrumenting/exporters/)
 
+### Grafana Setup
+
+<!-- SETUP GRAFANA IN A DOCKER -->
+
+## Setup Access on your Node
+
+This part needs to be done on the machine where your node runs
+
+### Node Exporter Setup
+<!-- PROMETHEUS NODE EXPORTER-->
 
 
-## Node-Exporter Setup
+## Grafana Dashboard Access
 
+Finally we need to access Grafana dashboards.
+
+1. Open a browser at `http://<YOUR_IP_ADDRESS>:3000` or `https://<YOUR_DOMAIN>` (depends on your setup), enter username `admin` and password `admin` and setup new credentials on prompt
+
+2. Setup *Data source* by opening menu -> `Connections` -> `Data sources` -> `+ Add new data source` -> `Prometheus`
+
+![](../images/grafana/add-data-sources.png)
+![](../images/grafana/add-data-source-prometheus.png)
+
+3. In the field *Connection* next to `Prometheus server URL` enter `http://localhost:9090` (regardless if you accessing Grafana via `http` or `https` as this is for internal connection on the server). When you are done in the bottom confirm by `Save & Test`
+
+4. In the menu open: `Dashboards` -> `+ Create dashboard` -> `Import dashboard`
+
+![](../images/grafana/import-dashboard.png)
+
+5. ID field: enter `1860` -> `Load`
+
+![](../images/grafana/id-1860.png)
+
+6. In *Import dashboard* page select Prometheus in the bottom and finally `Import`
+
+![](../images/grafana/add-prometheus.png)
+
+Now you have your Prometheus panels displayed via Grafana dashboard for a simple monitoring of your node.
+
+<!--
+## Verification and Troubleshooting
+
+To ensure that your services are running correctly, you can verify that by running `systemctl status <SERVICE>` or run a `journalctl -f -u <SERVICE>` to print service logs. It shall return status `Active: active (running). For example:
+```sh
+# to check if Prometheus service is active
+systemctl status prometheus
+
+# to check if Grafana service is active
+systemctl status grafana-server
+
+# to check if node-exporter service is active
+systemctl status node_exporter
+
+# to run journal log
+journalctl -f -u prometheus # or any other service you want to see
+```
+-->
 
 
 ## Grafana Setup

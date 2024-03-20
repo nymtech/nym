@@ -63,7 +63,7 @@ sudo ufw allow 3000
 chmod +x ~/self-hosted-monitor/nginx-certbot.sh && ~/self-hosted-monitor/nginx-certbot.sh
 ```
 
-8. Give permissions to [`prometheus-target.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus-target.sh) script and run it to add a scrape target. This can be run multiple times to add a new server to be monitored via Prometheus/  
+8. Give permissions to [`prometheus-target.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/prometheus-target.sh) script and run it to add a scrape target. This can be run multiple times to add a new server to be monitored via Prometheus/
 ```sh
 chmod +x ~/self-hosted-monitor/prometheus-target.sh && ~/self-hosted-monitor/prometheus-target.sh
 ```
@@ -103,11 +103,11 @@ Finally we need to access Grafana dashboards.
 
 ![](../images/grafana/import-dashboard.png)
 
-15. ID field: enter `1860` -> `Load`
+16. ID field: enter `1860` -> `Load`
 
 ![](../images/grafana/id-1860.png)
 
-16. In *Import dashboard* page select Prometheus in the bottom and finally `Import`
+17. In *Import dashboard* page select Prometheus in the bottom and finally `Import`
 
 ![](../images/grafana/add-prometheus.png)
 
@@ -119,9 +119,9 @@ To ensure that your services are running correctly, you can verify that by runni
 ```sh
 # to check if Prometheus service is active
 systemctl status prometheus
- 
+
 # to check if Grafana service is active
-systemctl status grafana-server 
+systemctl status grafana-server
 
 # to check if node-exporter service is active
 systemctl status node_exporter
@@ -129,4 +129,3 @@ systemctl status node_exporter
 # to run journal log
 journalctl -f -u prometheus # or any other service you want to see
 ```
-

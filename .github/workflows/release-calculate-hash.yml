@@ -8,8 +8,8 @@ on:
         required: true
         type: string
   workflow_dispatch:
-    release_tag:
-      tag:
+    inputs:
+      release_tag:
         description: 'Release tag'
         required: true
         type: string

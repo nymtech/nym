@@ -23986,8 +23986,10 @@ async function run(assets, algorithm, filename, cache) {
         console.warn("cache is set to 'false', but we we no longer support it")
     }
 
+    const directory = external_path_.resolve(process.env.RUNNER_TEMP || '.tmp', process.env.GITHUB_RUN_ID || '');
+
     try {
-        external_fs_.mkdirSync('.tmp');
+        external_fs_.mkdirSync(directory, { recursive: true });
     } catch(e) {
         // ignore
     }
@@ -24002,7 +24004,7 @@ async function run(assets, algorithm, filename, cache) {
             let sig = null;
 
             // cache in `${WORKING_DIR}/.tmp/`
-            const cacheFilename = __nccwpck_require__.ab + ".tmp/" + asset.name;
+            const cacheFilename = __nccwpck_require__.ab + "src/" + directory + '/' + asset.name;
             if(!external_fs_.existsSync(cacheFilename)) {
                 console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
                 buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));

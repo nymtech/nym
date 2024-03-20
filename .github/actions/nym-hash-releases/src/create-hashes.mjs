@@ -24,8 +24,10 @@ async function run(assets, algorithm, filename, cache) {
         console.warn("cache is set to 'false', but we we no longer support it")
     }
 
+    const directory = path.resolve(process.env.RUNNER_TEMP || '.tmp', process.env.GITHUB_RUN_ID || '');
+
     try {
-        fs.mkdirSync('.tmp');
+        fs.mkdirSync(directory, { recursive: true });
     } catch(e) {
         // ignore
     }
@@ -40,7 +42,7 @@ async function run(assets, algorithm, filename, cache) {
             let sig = null;
 
             // cache in `${WORKING_DIR}/.tmp/`
-            const cacheFilename = path.resolve(`.tmp/${asset.name}`);
+            const cacheFilename = path.resolve(directory, `${asset.name}`);
             if(!fs.existsSync(cacheFilename)) {
                 console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
                 buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));

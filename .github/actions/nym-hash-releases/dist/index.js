@@ -24002,7 +24002,7 @@ async function run(assets, algorithm, filename, cache) {
             let sig = null;
 
             // cache in `${WORKING_DIR}/.tmp/`
-            const cacheFilename = external_path_.resolve(`.tmp/${asset.name}`);
+            const cacheFilename = __nccwpck_require__.ab + ".tmp/" + asset.name;
             if(!external_fs_.existsSync(cacheFilename)) {
                 console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
                 buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));
@@ -24122,8 +24122,8 @@ async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algo
 
     let releases;
     if(cache) {
-        const cacheFilename = external_path_.resolve(`.tmp/releases.json`);
-        if(!external_fs_.existsSync(cacheFilename)) {
+        const cacheFilename = __nccwpck_require__.ab + "releases.json";
+        if(!external_fs_.existsSync(__nccwpck_require__.ab + "releases.json")) {
             releases = await octokit.paginate(
                 octokit.rest.repos.listReleases,
                 {
@@ -24133,10 +24133,10 @@ async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algo
                 },
                 (response) => response.data
             );
-            external_fs_.writeFileSync(cacheFilename, JSON.stringify(releases, null, 2));
+            external_fs_.writeFileSync(__nccwpck_require__.ab + "releases.json", JSON.stringify(releases, null, 2));
         } else {
             console.log('Loading releases from cache...');
-            releases = JSON.parse(external_fs_.readFileSync(cacheFilename));
+            releases = JSON.parse(external_fs_.readFileSync(__nccwpck_require__.ab + "releases.json"));
         }
     } else {
         releases = await octokit.paginate(
@@ -24172,9 +24172,10 @@ async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algo
 
     releasesToProcess.forEach(release => {
         const {tag_name, name} = release;
-        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+\.\S+)/);
+        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+(\.\S+)?)/);
 
         if(!matches || matches.length < 2) {
+            console.warn('Could not match version structure in tag name = ', tag_name);
             return;
         }
 

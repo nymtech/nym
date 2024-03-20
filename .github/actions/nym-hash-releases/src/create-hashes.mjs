@@ -210,9 +210,10 @@ export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrI
 
     releasesToProcess.forEach(release => {
         const {tag_name, name} = release;
-        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+\.\S+)/);
+        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+(\.\S+)?)/);
 
         if(!matches || matches.length < 2) {
+            console.warn('Could not match version structure in tag name = ', tag_name);
             return;
         }
 

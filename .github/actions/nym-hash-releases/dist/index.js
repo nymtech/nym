@@ -23974,8 +23974,8 @@ function getBinInfo(path) {
         external_fs_.chmodSync(path, mode | 0o111)
 
         const cmd = `${path} build-info --output=json`;
-        console.log(`🚚 Running ${cmd}...`);
-        const raw = (0,external_child_process_namespaceObject.execSync)(cmd, { stdio: 'pipe', encoding: "utf8" });
+        console.log(`🚚 Running ${cmd}... (for max of 3 seconds, then SIGTERM)`);
+        const raw = (0,external_child_process_namespaceObject.execSync)(cmd, { stdio: 'pipe', encoding: "utf8", timeout: 3000 });
         const parsed = JSON.parse(raw)
         console.log(`    ✅ ok`);
         return parsed

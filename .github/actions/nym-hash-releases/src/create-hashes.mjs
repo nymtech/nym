@@ -12,8 +12,8 @@ function getBinInfo(path) {
         fs.chmodSync(path, mode | 0o111)
 
         const cmd = `${path} build-info --output=json`;
-        console.log(`🚚 Running ${cmd}...`);
-        const raw = execSync(cmd, { stdio: 'pipe', encoding: "utf8" });
+        console.log(`🚚 Running ${cmd}... (for max of 3 seconds, then SIGTERM)`);
+        const raw = execSync(cmd, { stdio: 'pipe', encoding: "utf8", timeout: 3000 });
         const parsed = JSON.parse(raw)
         console.log(`    ✅ ok`);
         return parsed

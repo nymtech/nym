@@ -12,29 +12,18 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 
 #[derive(Debug)]
-pub(crate) struct LocalNetworkRequesterHandle {
-    /// Nym address of the embedded network requester.
+pub(crate) struct LocalEmbeddedClientHandle {
+    /// Nym address of the embedded client.
     pub(crate) address: Recipient,
 
-    /// Message channel used internally to forward any received mix packets to the network requester.
+    /// Message channel used internally to forward any received mix packets to the client.
     pub(crate) mix_message_sender: MixMessageSender,
 }
 
-impl LocalNetworkRequesterHandle {
+impl LocalEmbeddedClientHandle {
     pub(crate) fn new(address: Recipient, mix_message_sender: MixMessageSender) -> Self {
         Self {
             address,
-            mix_message_sender,
-        }
-    }
-
-    // TODO: generalize this whole thing to be general. And change the name(s).
-    pub(crate) fn new_ip(
-        start_data: nym_ip_packet_router::OnStartData,
-        mix_message_sender: MixMessageSender,
-    ) -> Self {
-        Self {
-            address: start_data.address,
             mix_message_sender,
         }
     }
@@ -48,8 +37,8 @@ impl LocalNetworkRequesterHandle {
 // calling the method. however, this would have caused slightly more complexity and more overhead
 // (due to more data being copied to every [mix] connection)
 //
-/// task responsible for receiving messages for locally NR requester from multiple mix connections
-/// and forwarding them via the router. kinda equivalent of a client socket handler
+/// task responsible for receiving messages for locally embedded clients from multiple mix
+/// connections and forwarding them via the router. kinda equivalent of a client socket handler
 pub(crate) struct MessageRouter {
     mix_receiver: MixMessageReceiver,
     packet_router: PacketRouter,
@@ -71,29 +60,29 @@ impl MessageRouter {
         if let Err(err) = self.packet_router.route_received(messages) {
             // TODO: what should we do here? I don't think this could/should ever fail.
             // is panicking the appropriate thing to do then?
-            error!("failed to route packets to local NR: {err}")
+            error!("failed to route packets to local embedded client: {err}")
         }
     }
 
     pub(crate) async fn run_with_shutdown(mut self, mut shutdown: TaskClient) {
-        debug!("Started embedded network requester message router with graceful shutdown support");
+        debug!("Started embedded client message router with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
                 messages = self.mix_receiver.next() => match messages {
                     Some(messages) => self.handle_received_messages(messages),
                     None => {
-                        log::trace!("embedded_network_requester::MessageRouter: Stopping since channel closed");
+                        log::trace!("embedded_clients::MessageRouter: Stopping since channel closed");
                         break;
                     }
                 },
                 _ = shutdown.recv_with_delay() => {
-                    log::trace!("embedded_network_requester::MessageRouter: Received shutdown");
+                    log::trace!("embedded_clients::MessageRouter: Received shutdown");
                     debug_assert!(shutdown.is_shutdown());
                     break
                 }
             }
         }
 
-        debug!("embedded_network_requester::MessageRouter: Exiting")
+        debug!("embedded_network_clients::MessageRouter: Exiting")
     }
 }

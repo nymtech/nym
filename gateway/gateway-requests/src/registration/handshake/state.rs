@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::registration::handshake::error::HandshakeError;
@@ -15,8 +15,16 @@ use nym_crypto::{
 };
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
+use std::str::FromStr;
+use std::time::Duration;
 use tungstenite::Message as WsMessage;
+
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::timeout;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::timeout;
 
 /// Handshake state.
 pub(crate) struct State<'a, S> {
@@ -36,6 +44,10 @@ pub(crate) struct State<'a, S> {
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<identity::PublicKey>,
+
+    // this field is really out of place here, however, we need to propagate this information somehow
+    // in order to establish correct protocol for backwards compatibility reasons
+    expects_credential_usage: bool,
 }
 
 impl<'a, S> State<'a, S> {
@@ -44,6 +56,7 @@ impl<'a, S> State<'a, S> {
         ws_stream: &'a mut S,
         identity: &'a identity::KeyPair,
         remote_pubkey: Option<identity::PublicKey>,
+        expects_credential_usage: bool,
     ) -> Self {
         let ephemeral_keypair = encryption::KeyPair::new(rng);
         State {
@@ -52,6 +65,7 @@ impl<'a, S> State<'a, S> {
             identity,
             remote_pubkey,
             derived_shared_keys: None,
+            expects_credential_usage,
         }
     }
 
@@ -67,15 +81,8 @@ impl<'a, S> State<'a, S> {
         self.identity
             .public_key()
             .to_bytes()
-            .iter()
-            .cloned()
-            .chain(
-                self.ephemeral_keypair
-                    .public_key()
-                    .to_bytes()
-                    .iter()
-                    .cloned(),
-            )
+            .into_iter()
+            .chain(self.ephemeral_keypair.public_key().to_bytes())
             .collect()
     }
 
@@ -132,9 +139,8 @@ impl<'a, S> State<'a, S> {
             .ephemeral_keypair
             .public_key()
             .to_bytes()
-            .iter()
-            .cloned()
-            .chain(remote_ephemeral_key.to_bytes().iter().cloned())
+            .into_iter()
+            .chain(remote_ephemeral_key.to_bytes())
             .collect();
 
         let signature = self.identity.private_key().sign(message);
@@ -177,15 +183,8 @@ impl<'a, S> State<'a, S> {
         // g^y || g^x, if y is remote and x is local
         let signed_payload: Vec<_> = remote_ephemeral_key
             .to_bytes()
-            .iter()
-            .cloned()
-            .chain(
-                self.ephemeral_keypair
-                    .public_key()
-                    .to_bytes()
-                    .iter()
-                    .cloned(),
-            )
+            .into_iter()
+            .chain(self.ephemeral_keypair.public_key().to_bytes())
             .collect();
 
         self.remote_pubkey
@@ -200,33 +199,54 @@ impl<'a, S> State<'a, S> {
         self.remote_pubkey = Some(remote_pubkey)
     }
 
-    pub(crate) async fn receive_handshake_message(&mut self) -> Result<Vec<u8>, HandshakeError>
+    async fn _receive_handshake_message(&mut self) -> Result<Vec<u8>, HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
     {
         loop {
-            if let Some(msg) = self.ws_stream.next().await {
-                if let Ok(msg) = msg {
-                    match msg {
-                        WsMessage::Text(ws_msg) => match types::RegistrationHandshake::try_from(ws_msg) {
-                            Ok(reg_handshake_msg) => return match reg_handshake_msg {
+            let Some(msg) = self.ws_stream.next().await else {
+                return Err(HandshakeError::ClosedStream);
+            };
+
+            let Ok(msg) = msg else {
+                return Err(HandshakeError::NetworkError);
+            };
+
+            match msg {
+                WsMessage::Text(ref ws_msg) => {
+                    match types::RegistrationHandshake::from_str(ws_msg) {
+                        Ok(reg_handshake_msg) => {
+                            return match reg_handshake_msg {
                                 // hehe, that's a bit disgusting that the type system requires we explicitly ignore the
                                 // protocol_version field that we actually never attach at this point
                                 // yet another reason for the overdue refactor
-                                types::RegistrationHandshake::HandshakePayload {  data, .. } => Ok(data),
-                                types::RegistrationHandshake::HandshakeError { message } => Err(HandshakeError::RemoteError(message)),
-                            },
-                            Err(_) => error!("Received a non-handshake message during the registration handshake! It's getting dropped."),
-                        },
-                        _ => error!("Received non-text message during registration handshake"),
+                                types::RegistrationHandshake::HandshakePayload { data, .. } => {
+                                    Ok(data)
+                                }
+                                types::RegistrationHandshake::HandshakeError { message } => {
+                                    Err(HandshakeError::RemoteError(message))
+                                }
+                            };
+                        }
+                        Err(_) => {
+                            error!("Received a non-handshake message during the registration handshake! It's getting dropped. The received content was: '{msg}'");
+                            continue;
+                        }
                     }
-                } else {
-                    return Err(HandshakeError::NetworkError);
                 }
-            } else {
-                return Err(HandshakeError::ClosedStream);
+                _ => error!("Received non-text message during registration handshake"),
             }
         }
+    }
+
+    pub(crate) async fn receive_handshake_message(&mut self) -> Result<Vec<u8>, HandshakeError>
+    where
+        S: Stream<Item = WsItem> + Unpin,
+    {
+        // TODO: make timeout duration configurable
+        timeout(Duration::from_secs(5), self._receive_handshake_message())
+            .await
+            .map_err(|_| HandshakeError::Timeout)?
     }
 
     // upon receiving this, the receiver should terminate the handshake
@@ -251,7 +271,8 @@ impl<'a, S> State<'a, S> {
     where
         S: Sink<WsMessage> + Unpin,
     {
-        let handshake_message = types::RegistrationHandshake::new_payload(payload);
+        let handshake_message =
+            types::RegistrationHandshake::new_payload(payload, self.expects_credential_usage);
         self.ws_stream
             .send(WsMessage::Text(handshake_message.try_into().unwrap()))
             .await

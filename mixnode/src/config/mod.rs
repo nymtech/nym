@@ -80,6 +80,7 @@ fn default_mixnode_http_config() -> config::Http {
             DEFAULT_HTTP_API_LISTENING_PORT,
         ),
         landing_page_assets_path: None,
+        metrics_key: None,
     }
 }
 
@@ -207,6 +208,15 @@ impl Config {
 
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
         self.mixnode.nym_api_urls.clone()
+    }
+
+    pub fn with_metrics_key(mut self, metrics_key: String) -> Self {
+        self.http.metrics_key = Some(metrics_key);
+        self
+    }
+
+    pub fn metrics_key(&self) -> Option<&String> {
+        self.http.metrics_key.as_ref()
     }
 }
 

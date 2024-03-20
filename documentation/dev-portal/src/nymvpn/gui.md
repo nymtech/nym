@@ -10,23 +10,26 @@ This is the alpha version of NymVPN desktop application (GUI). A demo of how the
 
 Follow the simple [automated script](#automated-script-for-gui-installation) below to install and run NymVPN GUI. If the script didn't work for your distribution or you prefer to do a manual setup follow the steps in the guide for [Linux](gui-linux.md) or [MacOS](gui-mac.md) .
 
-Visit NymVPN alpha latest [release page]({{nym_vpn_latest_binary_url}}) to check sha sums or download the binaries directly.
+Visit NymVPN alpha latest [release page]({{nym_vpn_releases}}) to check sha sums or download the binaries directly.
 
 ## Automated Script for GUI Installation
 
-We wrote a [script](https://gist.github.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e) which does download of dependencies and the application, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically. Turn off all VPNs and follow the steps below.
+We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19) which does download of dependencies and the application, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically. Turn off all VPNs and follow the steps below.
 
 1. Open a terminal window in a directory where you want the script to be downloaded and run
 ```sh
-curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/serinko/e0a9f7ff3d79e974ec6f6783caa1137e/raw/227c8c348a1e58f68cb500e4504b22412177c680/nym-vpn-desktop-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
+curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/6c81619ec26b092dfa174bce79335f4163c657ff/nym-vpn-client-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
 ```
 
 2. Follow the prompts in the program
 
 To start the application again, reconnect your wifi and run
 ```sh
-# Linux
-sudo -E ~/nym-vpn-latest/nym-vpn_0.0.4_amd64.AppImage
+# Linux .AppImage
+sudo -E ~/nym-vpn-latest/nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_ubuntu-22.04_x86_64/nym-vpn_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_amd64.AppImage
+
+# Linux .deb
+sudo -E nym-vpn
 
 # MacOS
 sudo -E $HOME/nym-vpn-latest/nym-vpn

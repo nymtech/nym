@@ -49,6 +49,9 @@ pub struct Http {
     /// Path to assets directory of custom landing page of this node.
     #[serde(deserialize_with = "de_maybe_path")]
     pub landing_page_assets_path: Option<PathBuf>,
+
+    #[serde(default)]
+    pub metrics_key: Option<String>,
 }
 
 impl Default for Http {
@@ -56,6 +59,7 @@ impl Default for Http {
         Http {
             bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
+            metrics_key: None,
         }
     }
 }

@@ -72,11 +72,13 @@ impl MixNode {
         &self,
         atomic_verloc_result: AtomicVerlocResult,
         node_stats_pointer: SharedNodeStats,
+        metrics_key: Option<&String>,
         task_client: TaskClient,
     ) -> Result<(), MixnodeError> {
         HttpApiBuilder::new(&self.config, &self.identity_keypair, &self.sphinx_keypair)
             .with_verloc(VerlocState::new(atomic_verloc_result))
             .with_mixing_stats(node_stats_pointer)
+            .with_metrics_key(metrics_key)
             .with_descriptor(self.descriptor.clone())
             .start(task_client)
     }
@@ -249,6 +251,7 @@ impl MixNode {
         self.start_http_api(
             atomic_verloc_results,
             node_stats_pointer,
+            self.config.metrics_key(),
             shutdown.subscribe().named("http-api"),
         )?;
 

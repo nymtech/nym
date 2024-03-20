@@ -5,7 +5,6 @@ use crate::Cli;
 use clap::CommandFactory;
 use clap::Subcommand;
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use std::error::Error;
 
 pub(crate) mod build_info;
 pub(crate) mod helpers;
@@ -50,7 +49,7 @@ pub(crate) enum Commands {
     GenerateFigSpec,
 }
 
-pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
     let bin_name = "nym-gateway";
 
     match args.command {

@@ -11,7 +11,6 @@ use nym_bin_common::bin_info;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_bin_common::output_format::OutputFormat;
 use nym_network_defaults::setup_env;
-use std::error::Error;
 use std::sync::OnceLock;
 
 mod commands;
@@ -42,7 +41,7 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> anyhow::Result<()> {
     setup_logging();
 
     let args = Cli::parse();

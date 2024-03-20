@@ -6,7 +6,9 @@ use thiserror::Error;
 use url::Url;
 
 // Re-export request types
-pub use nym_explorer_api_requests::{PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond};
+pub use nym_explorer_api_requests::{
+    Location, PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond,
+};
 
 // Paths
 const API_VERSION: &str = "v1";

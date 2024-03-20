@@ -144,6 +144,35 @@ impl IpPacketResponse {
         }
     }
 
+    pub fn new_pong(request_id: u64, reply_to: Recipient) -> Self {
+        Self {
+            version: CURRENT_VERSION,
+            data: IpPacketResponseData::Pong(PongResponse {
+                request_id,
+                reply_to,
+            }),
+        }
+    }
+
+    pub fn new_health_response(
+        request_id: u64,
+        reply_to: Recipient,
+        build_info: nym_bin_common::build_information::BinaryBuildInformationOwned,
+        routable: Option<bool>,
+    ) -> Self {
+        Self {
+            version: CURRENT_VERSION,
+            data: IpPacketResponseData::Health(HealthResponse {
+                request_id,
+                reply_to,
+                reply: HealthResponseReply {
+                    build_info,
+                    routable,
+                },
+            }),
+        }
+    }
+
     pub fn id(&self) -> Option<u64> {
         match &self.data {
             IpPacketResponseData::StaticConnect(response) => Some(response.request_id),

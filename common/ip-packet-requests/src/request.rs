@@ -83,6 +83,20 @@ impl IpPacketRequest {
         }
     }
 
+    pub fn new_ping(reply_to: Recipient) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                version: CURRENT_VERSION,
+                data: IpPacketRequestData::Ping(PingRequest {
+                    request_id,
+                    reply_to,
+                }),
+            },
+            request_id,
+        )
+    }
+
     pub fn id(&self) -> Option<u64> {
         match &self.data {
             IpPacketRequestData::StaticConnect(request) => Some(request.request_id),

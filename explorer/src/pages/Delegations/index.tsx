@@ -12,6 +12,7 @@ import {
   PendingEvent,
   useDelegationsContext,
 } from '@src/context/delegations';
+import { urls } from '@src/utils';
 
 const mapToDelegationsRow = (delegation: DelegationWithRewards, index: number) => ({
   identity: delegation.identityKey,
@@ -80,7 +81,9 @@ const DelegationsPage = () => {
         setConfirmationModalProps({
           status: 'success',
           message: 'Undelegation successful',
-          transactions: [{ url: `${tx.transactionHash}`, hash: tx.transactionHash }],
+          transactions: [
+            { url: `${urls('MAINNET').blockExplorer}/transaction/${tx.transactionHash}`, hash: tx.transactionHash },
+          ],
         });
       }
     } catch (error) {

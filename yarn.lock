@@ -1402,23 +1402,6 @@
     "@cosmjs/utils" "^0.25.6"
     pako "^2.0.2"
 
-"@cosmjs/cosmwasm-stargate@0.29.5":
-  version "0.29.5"
-  resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-stargate/-/cosmwasm-stargate-0.29.5.tgz#3f257da682658833e0f4eb9e8ff758e4d927663a"
-  integrity sha512-TNdSvm2tEE3XMCuxHxquzls56t40hC8qnLeYJWHsY2ECZmRK3KrnpRReEr7N7bLtODToK7X/riYrV0JaYxjrYA==
-  dependencies:
-    "@cosmjs/amino" "^0.29.5"
-    "@cosmjs/crypto" "^0.29.5"
-    "@cosmjs/encoding" "^0.29.5"
-    "@cosmjs/math" "^0.29.5"
-    "@cosmjs/proto-signing" "^0.29.5"
-    "@cosmjs/stargate" "^0.29.5"
-    "@cosmjs/tendermint-rpc" "^0.29.5"
-    "@cosmjs/utils" "^0.29.5"
-    cosmjs-types "^0.5.2"
-    long "^4.0.0"
-    pako "^2.0.2"
-
 "@cosmjs/cosmwasm-stargate@^0.25.5":
   version "0.25.6"
   resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-stargate/-/cosmwasm-stargate-0.25.6.tgz#26a788213833aaffc4bc1a87df650741e0b8fd63"
@@ -1436,6 +1419,23 @@
     long "^4.0.0"
     pako "^2.0.2"
     protobufjs "~6.10.2"
+
+"@cosmjs/cosmwasm-stargate@^0.29.5":
+  version "0.29.5"
+  resolved "https://registry.yarnpkg.com/@cosmjs/cosmwasm-stargate/-/cosmwasm-stargate-0.29.5.tgz#3f257da682658833e0f4eb9e8ff758e4d927663a"
+  integrity sha512-TNdSvm2tEE3XMCuxHxquzls56t40hC8qnLeYJWHsY2ECZmRK3KrnpRReEr7N7bLtODToK7X/riYrV0JaYxjrYA==
+  dependencies:
+    "@cosmjs/amino" "^0.29.5"
+    "@cosmjs/crypto" "^0.29.5"
+    "@cosmjs/encoding" "^0.29.5"
+    "@cosmjs/math" "^0.29.5"
+    "@cosmjs/proto-signing" "^0.29.5"
+    "@cosmjs/stargate" "^0.29.5"
+    "@cosmjs/tendermint-rpc" "^0.29.5"
+    "@cosmjs/utils" "^0.29.5"
+    cosmjs-types "^0.5.2"
+    long "^4.0.0"
+    pako "^2.0.2"
 
 "@cosmjs/cosmwasm-stargate@^0.32.0":
   version "0.32.1"
@@ -1820,22 +1820,6 @@
   dependencies:
     xstream "^11.14.0"
 
-"@cosmjs/tendermint-rpc@0.29.5", "@cosmjs/tendermint-rpc@^0.29.5":
-  version "0.29.5"
-  resolved "https://registry.yarnpkg.com/@cosmjs/tendermint-rpc/-/tendermint-rpc-0.29.5.tgz#f205c10464212bdf843f91bb2e4a093b618cb5c2"
-  integrity sha512-ar80twieuAxsy0x2za/aO3kBr2DFPAXDmk2ikDbmkda+qqfXgl35l9CVAAjKRqd9d+cRvbQyb5M4wy6XQpEV6w==
-  dependencies:
-    "@cosmjs/crypto" "^0.29.5"
-    "@cosmjs/encoding" "^0.29.5"
-    "@cosmjs/json-rpc" "^0.29.5"
-    "@cosmjs/math" "^0.29.5"
-    "@cosmjs/socket" "^0.29.5"
-    "@cosmjs/stream" "^0.29.5"
-    "@cosmjs/utils" "^0.29.5"
-    axios "^0.21.2"
-    readonly-date "^1.0.0"
-    xstream "^11.14.0"
-
 "@cosmjs/tendermint-rpc@^0.25.6":
   version "0.25.6"
   resolved "https://registry.yarnpkg.com/@cosmjs/tendermint-rpc/-/tendermint-rpc-0.25.6.tgz#8198a08b0d0e1d6580618f3f22db83366329c9c3"
@@ -1848,6 +1832,22 @@
     "@cosmjs/socket" "^0.25.6"
     "@cosmjs/stream" "^0.25.6"
     axios "^0.21.1"
+    readonly-date "^1.0.0"
+    xstream "^11.14.0"
+
+"@cosmjs/tendermint-rpc@^0.29.5":
+  version "0.29.5"
+  resolved "https://registry.yarnpkg.com/@cosmjs/tendermint-rpc/-/tendermint-rpc-0.29.5.tgz#f205c10464212bdf843f91bb2e4a093b618cb5c2"
+  integrity sha512-ar80twieuAxsy0x2za/aO3kBr2DFPAXDmk2ikDbmkda+qqfXgl35l9CVAAjKRqd9d+cRvbQyb5M4wy6XQpEV6w==
+  dependencies:
+    "@cosmjs/crypto" "^0.29.5"
+    "@cosmjs/encoding" "^0.29.5"
+    "@cosmjs/json-rpc" "^0.29.5"
+    "@cosmjs/math" "^0.29.5"
+    "@cosmjs/socket" "^0.29.5"
+    "@cosmjs/stream" "^0.29.5"
+    "@cosmjs/utils" "^0.29.5"
+    axios "^0.21.2"
     readonly-date "^1.0.0"
     xstream "^11.14.0"
 

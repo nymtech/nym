@@ -414,6 +414,12 @@ export const PageMixnodes: FCWithChildren = () => {
               navigate('/delegations');
             }
           }}
+          sx={{
+            width: {
+              xs: '90%',
+              sm: 600,
+            },
+          }}
         />
       )}
     </DelegationsProvider>

@@ -28,7 +28,6 @@ After you signed your node (or several) into the Performance testing environment
 curl -o enable_networking_for_nym_nodes.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/0840e1d2ee9949716c45655457d198607dfd3107/enable_networking_for_nym_nodes.sh -L && chmod u+x enable_networking_for_nym_nodes.sh && sudo ./enable_networking_for_nym_nodes.sh
 ```
 
-
 3. If you run Prometheus for [monitoring](templates.md) add a `<NODE_METRICS_KEY>` to your node `config.toml` by running [this script](https://gist.github.com/benedettadavico/1299b2c7b8b8282c15eafb1914fb3594) with an arbitrary `<NODE_METRIC_KEY>` of your own choice as an argument, follow these commands with your own **strong passphrase**
 ```sh
 # get the script
@@ -65,7 +64,7 @@ scrape_configs:
 sudo ufw allow 9000, 9001
 ```
 4. Restart your node, in case you run it as a [`systemd` service](../nodes/maintenance.md#systemd) make sure to run `systemctl daemon-reload` before the restart
-  - Make sure your node runs with root priviledges, either in a root shell or with `sudo` command
+  - Make sure your node runs with root privileges, either in a root shell or with `sudo` command
 
 
 <!--

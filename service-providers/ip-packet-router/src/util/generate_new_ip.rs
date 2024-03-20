@@ -9,7 +9,7 @@ use crate::constants::{TUN_DEVICE_ADDRESS_V4, TUN_DEVICE_ADDRESS_V6};
 fn generate_random_ips_within_subnet() -> IpPair {
     let mut rng = rand::thread_rng();
     // Generate a random number in the range 2-65535
-    let last_bytes: u16 = rand::Rng::gen_range(&mut rng, 2..=65535);
+    let last_bytes: u16 = rand::Rng::gen_range(&mut rng, 1..=65534);
     let before_last_byte = (last_bytes >> 8) as u8;
     let last_byte = (last_bytes & 255) as u8;
     let ipv4 = Ipv4Addr::new(10, 0, before_last_byte, last_byte);

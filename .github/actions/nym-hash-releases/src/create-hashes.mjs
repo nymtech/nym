@@ -11,10 +11,14 @@ function getBinInfo(path) {
         let mode = fs.statSync(path).mode
         fs.chmodSync(path, mode | 0o111)
 
-        const raw = execSync(`${path} build-info --output=json`, { stdio: 'pipe', encoding: "utf8" });
+        const cmd = `${path} build-info --output=json`;
+        console.log(`🚚 Running ${cmd}...`);
+        const raw = execSync(cmd, { stdio: 'pipe', encoding: "utf8" });
         const parsed = JSON.parse(raw)
+        console.log(`    ✅ ok`);
         return parsed
     } catch (_) {
+        console.log(`    ❌ failed`);
         return undefined
     }
 }
@@ -45,11 +49,11 @@ async function run(assets, algorithm, filename, cache) {
             // cache in `${WORKING_DIR}/.tmp/`
             const cacheFilename = path.join(directory, `${asset.name}`);
             if(!fs.existsSync(cacheFilename)) {
-                console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
+                console.log(`⬇️ Downloading ${asset.browser_download_url}... to ${cacheFilename} [${numAwaiting} of ${assets.length}]`);
                 buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));
                 fs.writeFileSync(cacheFilename, buffer);
             } else {
-                console.log(`Loading from ${cacheFilename}`);
+                console.log(`💾 Loading from ${cacheFilename}`);
                 buffer = Buffer.from(fs.readFileSync(cacheFilename));
 
                 // console.log('Reading signature from content');
@@ -134,6 +138,7 @@ async function run(assets, algorithm, filename, cache) {
             }
         }
     }
+    console.log(`Completed hashing ${assets.length} files`);
     return hashes;
 }
 

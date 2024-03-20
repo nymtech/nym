@@ -265,6 +265,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use nym_network_defaults::var_names::BECH32_PREFIX;
 
     use nym_gateway::node::{Gateway, InMemStorage};
@@ -314,6 +315,6 @@ mod tests {
 
         // The test is really if this instantiates with InMemStorage without panics
         let _gateway =
-            Gateway::new_loaded(config, None, None, identity_keys, sphinx_keys, InMemStorage);
+            Gateway::new_loaded(config, None, None, Arc::new(identity_keys), Arc::new(sphinx_keys), InMemStorage);
     }
 }

@@ -82,10 +82,6 @@ nym-wireguard-types = { path = "../common/wireguard-types", default-features = f
 
 defguard_wireguard_rs = { git = "https://github.com/neacsu/wireguard-rs.git", rev = "c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed", optional = true }
 
-[dev-dependencies]
-tower = "0.4.13"
-rand = "0.8.5"
-hyper = "0.14.27"
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

@@ -27,7 +27,7 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         let maybe_custom_mnemonic = args.take_mnemonic();
 
         let config = args.build_config()?;
-        NymNode::initialise(&config, maybe_custom_mnemonic)?;
+        NymNode::initialise(&config, maybe_custom_mnemonic).await?;
         if init_only {
             debug!("returning due to the 'init-only' flag");
             return Ok(());

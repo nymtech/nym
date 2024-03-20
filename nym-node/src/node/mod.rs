@@ -9,6 +9,10 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway::Gateway;
 use nym_mixnode::node::node_description::NodeDescription;
 use nym_mixnode::MixNode;
+use nym_network_requester::{
+    set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
+    GatewayDetails, GatewayRegistration,
+};
 use nym_node::config::entry_gateway::ephemeral_entry_gateway_config;
 use nym_node::config::exit_gateway::ephemeral_exit_gateway_config;
 use nym_node::config::mixnode::ephemeral_mixnode_config;
@@ -19,7 +23,7 @@ use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use std::sync::Arc;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
 
 pub mod helpers;
@@ -110,9 +114,22 @@ impl ExitGatewayData {
         Ok(())
     }
 
-    fn initialise_network_requester<R: RngCore + CryptoRng>(
+    async fn initialise_client_gateway_storage(
+        storage_path: &Path,
+        registration: &GatewayRegistration,
+    ) -> Result<(), ExitGatewayError> {
+        // insert all required information into the gateways store
+        // (I hate that we have to do it, but that's currently the simplest thing to do)
+        let storage = setup_fs_gateways_storage(storage_path).await?;
+        store_gateway_details(&storage, registration).await?;
+        set_active_gateway(&storage, &registration.gateway_id().to_base58_string()).await?;
+        Ok(())
+    }
+
+    async fn initialise_network_requester<R: RngCore + CryptoRng>(
         rng: &mut R,
         config: &ExitGatewayConfig,
+        registration: &GatewayRegistration,
     ) -> Result<(), ExitGatewayError> {
         trace!("initialising network requester keys");
         Self::initialise_client_keys(
@@ -127,12 +144,18 @@ impl ExitGatewayData {
                 .network_requester
                 .x25519_diffie_hellman_storage_paths(),
             &config.storage_paths.network_requester.ack_key_file,
+        )?;
+        Self::initialise_client_gateway_storage(
+            &config.storage_paths.network_requester.gateway_registrations,
+            registration,
         )
+        .await
     }
 
-    fn initialise_ip_packet_router_requester<R: RngCore + CryptoRng>(
+    async fn initialise_ip_packet_router_requester<R: RngCore + CryptoRng>(
         rng: &mut R,
         config: &ExitGatewayConfig,
+        registration: &GatewayRegistration,
     ) -> Result<(), ExitGatewayError> {
         trace!("initialising ip packet router keys");
         Self::initialise_client_keys(
@@ -147,18 +170,28 @@ impl ExitGatewayData {
                 .ip_packet_router
                 .x25519_diffie_hellman_storage_paths(),
             &config.storage_paths.ip_packet_router.ack_key_file,
+        )?;
+        Self::initialise_client_gateway_storage(
+            &config.storage_paths.ip_packet_router.gateway_registrations,
+            registration,
         )
+        .await
     }
 
-    fn initialise(config: &ExitGatewayConfig) -> Result<(), ExitGatewayError> {
+    async fn initialise(
+        config: &ExitGatewayConfig,
+        public_key: identity::PublicKey,
+    ) -> Result<(), ExitGatewayError> {
         // generate all the keys for NR and IPR
         let mut rng = OsRng;
 
+        let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
+
         // NR:
-        Self::initialise_network_requester(&mut rng, config)?;
+        Self::initialise_network_requester(&mut rng, config, &gateway_details).await?;
 
         // IPR:
-        Self::initialise_ip_packet_router_requester(&mut rng, config)?;
+        Self::initialise_ip_packet_router_requester(&mut rng, config, &gateway_details).await?;
 
         Ok(())
     }
@@ -180,7 +213,7 @@ pub(crate) struct NymNode {
 }
 
 impl NymNode {
-    pub(crate) fn initialise(
+    pub(crate) async fn initialise(
         config: &Config,
         custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
     ) -> Result<(), NymNodeError> {
@@ -210,7 +243,8 @@ impl NymNode {
         EntryGatewayData::initialise(&config.entry_gateway, custom_mnemonic)?;
 
         // exit gateway initialisation
-        ExitGatewayData::initialise(&config.exit_gateway)?;
+        ExitGatewayData::initialise(&config.exit_gateway, *ed25519_identity_keys.public_key())
+            .await?;
 
         config.save()
     }

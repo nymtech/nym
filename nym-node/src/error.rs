@@ -8,6 +8,7 @@ use std::io;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use thiserror::Error;
+use nym_ip_packet_router::error::ClientCoreError;
 
 #[derive(Debug, Error)]
 pub enum KeyIOFailure {
@@ -192,6 +193,10 @@ pub enum ExitGatewayError {
     #[error(transparent)]
     UnsupportedAddresses(#[from] UnsupportedGatewayAddresses),
 
+    // TODO: more granular errors
+    #[error(transparent)]
+    ExternalClientCore(#[from] ClientCoreError),
+    
     #[error(transparent)]
     External(#[from] nym_gateway::GatewayError),
 }

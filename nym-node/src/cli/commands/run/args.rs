@@ -39,10 +39,9 @@ pub(crate) struct Args {
     #[clap(
         long,
         value_enum,
-        default_value_t = NodeMode::Mixnode,
         env = NYMNODE_MODE_ARG
     )]
-    pub(crate) mode: NodeMode,
+    pub(crate) mode: Option<NodeMode>,
 
     /// If this node has been initialised before, specify whether to write any new changes to the config file.
     #[clap(
@@ -116,13 +115,14 @@ impl HostArgs {
         })
     }
 
-    fn override_config_section(self, section: &mut config::Host) {
+    fn override_config_section(self, mut section: config::Host) -> config::Host {
         if let Some(public_ips) = self.public_ips {
             section.public_ips = public_ips
         }
         if let Some(hostname) = self.hostname {
             section.hostname = Some(hostname)
         }
+        section
     }
 }
 
@@ -433,7 +433,7 @@ impl Args {
             })?;
 
         ConfigBuilder::new(id, config_path.clone(), data_dir.clone())
-            .with_mode(self.mode)
+            .with_mode(self.mode.unwrap_or_default())
             .with_host(self.host.build_config_section()?)
             .with_http(self.http.build_config_section()?)
             .with_mixnet(self.mixnet.build_config_section()?)
@@ -445,7 +445,17 @@ impl Args {
             .build()
     }
 
-    pub(crate) fn override_config(&self) {
-        todo!()
+    pub(crate) fn override_config(self, mut config: Config) -> Config {
+        if let Some(mode) = self.mode { 
+            config.mode = mode;
+        }
+        config.host = self.host.override_config_section(config.host);
+        config.http = self.http.override_config_section(config.http);
+        config.mixnet = self.mixnet.override_config_section(config.mixnet);
+        config.wireguard = self.wireguard.override_config_section(config.wireguard);
+        config.mixnode = self.mixnode.override_config_section(config.mixnode);
+        config.entry_gateway = self.entry_gateway.override_config_section(config.entry_gateway);
+        config.exit_gateway = self.exit_gateway.override_config_section(config.exit_gateway);
+        config
     }
 }

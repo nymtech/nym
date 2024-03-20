@@ -206,6 +206,7 @@ pub(crate) struct NymNode {
 
     mixnode: MixnodeData,
     entry_gateway: EntryGatewayData,
+    #[allow(dead_code)]
     exit_gateway: ExitGatewayData,
 
     ed25519_identity_keys: Arc<identity::KeyPair>,

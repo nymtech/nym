@@ -37,7 +37,7 @@ impl Cli {
     pub(crate) async fn execute(self) -> Result<(), NymNodeError> {
         match self.command {
             Commands::BuildInfo(args) => build_info::execute(args),
-            Commands::Run(args) => run::execute(args).await,
+            Commands::Run(args) => run::execute(*args).await,
             Commands::Migrate(args) => migrate::execute(args).await,
         }
     }
@@ -55,7 +55,7 @@ pub(crate) enum Commands {
 
     // Init(init::Args),
     /// Start this nym-node
-    Run(run::Args),
+    Run(Box<run::Args>),
 }
 
 #[cfg(test)]

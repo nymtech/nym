@@ -30,6 +30,7 @@ pub(crate) fn store_keypair<T: PemStorableKeyPair>(
     })
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_key<T, P>(path: P, name: impl Into<String>) -> Result<T, KeyIOFailure>
 where
     T: PemStorableKey,
@@ -60,6 +61,7 @@ pub(crate) fn load_ed25519_identity_keypair(
     Ok(load_keypair(paths, "ed25519-identity")?)
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_ed25519_identity_public_key<P: AsRef<Path>>(
     path: P,
 ) -> Result<identity::PublicKey, NymNodeError> {
@@ -72,6 +74,7 @@ pub(crate) fn load_x25519_sphinx_keypair(
     Ok(load_keypair(paths, "x25519-sphinx")?)
 }
 
+#[allow(dead_code)]
 pub(crate) fn load_x25519_sphinx_public_key<P: AsRef<Path>>(
     path: P,
 ) -> Result<encryption::PublicKey, NymNodeError> {

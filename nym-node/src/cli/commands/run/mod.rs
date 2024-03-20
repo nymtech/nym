@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::NymNode;
-use nym_node::config::Config;
+use nym_node::config::upgrade_helpers::try_load_current_config;
 use nym_node::error::NymNodeError;
 use tracing::{debug, info, trace};
 
@@ -12,7 +12,6 @@ pub(crate) use args::Args;
 
 pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     trace!("passed arguments: {args:#?}");
-    println!("passed arguments: {args:#?}");
 
     let config_path = args.config.config_path();
 
@@ -39,7 +38,8 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
             "attempting to load nym-node configuration from {}",
             config_path.display()
         );
-        Config::read_from_toml_file(config_path)?
+        let config = try_load_current_config(config_path).await?;
+        args.override_config(config)
     };
 
     NymNode::new(config).await?.run().await

@@ -682,6 +682,8 @@ Which should return:
 
 Proxying various full node services through port 80 can then be done by creating a file with the following at `/etc/nginx/sites-enabled/nyxd-webrequests.conf`:
 
+Setting up a reverse proxy using a webserver such as Nginx allows you to easily configure SSL certificates for the endpoints. When running on mainnet, it is recommended to encrypt all web traffic to your node.
+
 ```sh
 ### To expose RPC server
 server {
@@ -695,6 +697,14 @@ server {
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
   }
+
+  location /websocket {
+      proxy_pass http://127.0.0.1:26657;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "Upgrade";
+      proxy_set_header Host $host;
+    }
 }
 
 ### To expose Cosmos API server

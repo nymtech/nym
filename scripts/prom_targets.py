@@ -72,7 +72,9 @@ def config_to_targets(config, mixnodes, labels=None):
 
 def make_prom_target(env, mixnode, port=None, labels=None):
     bond_info = mixnode.get("bond_information", {})
-    mix_node = bond_info.get("mix_node", {})
+    mix_node = bond_info.get("mix_node")
+    if mix_node is None:
+        mix_node = mixnode.get("gateway")
     host = mix_node.get("host", None)
     port = port if port else mix_node.get("http_api_port", None)
     if host is None or port is None:

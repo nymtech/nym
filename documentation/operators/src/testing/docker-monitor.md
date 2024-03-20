@@ -1,4 +1,5 @@
-<!--TODO
+<!--
+TODO
 1. Add a few points of advantages why to run it in this way (clean, remote from environment -> safer,  can use dockerhub etc etc)
 2. Explain in Prometheus setup (in config step) how to get the metrics key and how to add it to the node config (that will be documented in node-setup.md)
 3. Add grafana setup
@@ -11,7 +12,7 @@
 # Setup Prometheus and Grafana in a Docker
 
 This setup may seem more complex than running a few scripts, but it has certain advantages.
-- Running things in a container 
+- Running things in a container
 
 ## Docker setup
 
@@ -167,9 +168,3 @@ Further reading on Prometheus functionalities:
 
 
 ## Grafana Setup
-
-
-
-
-
-

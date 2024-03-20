@@ -21,7 +21,6 @@ pub struct MixnodeConfig {
 
     pub verloc: Verloc,
 
-    // TODO: once gateway(s) are integrated, let's see whether they should be combined
     #[serde(default)]
     pub debug: Debug,
 }

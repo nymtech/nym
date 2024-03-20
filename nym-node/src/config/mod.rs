@@ -60,6 +60,7 @@ pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
 
 // a temporary solution until all "types" are run at the same time
 #[derive(Debug, Default, Serialize, Deserialize, ValueEnum, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
 pub enum NodeMode {
     #[default]
     #[clap(alias = "mix")]
@@ -81,12 +82,12 @@ pub struct ConfigBuilder {
 
     pub mode: NodeMode,
 
+    pub mixnet: Option<Mixnet>,
+
     pub host: Option<Host>,
 
     pub http: Option<Http>,
-
-    pub mixnet: Option<Mixnet>,
-
+    
     pub wireguard: Option<Wireguard>,
 
     pub storage_paths: Option<NymNodePaths>,
@@ -209,21 +210,25 @@ pub struct Config {
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
+    /// Human-readable ID of this particular node.
     pub id: String,
 
+    /// Current mode of this nym-node. 
+    /// Expect this field to be changed in the future to allow running the node in multiple modes (i.e. mixnode + gateway)
     pub mode: NodeMode,
 
     pub host: Host,
 
-    #[serde(default)]
-    pub http: Http,
-
     pub mixnet: Mixnet,
 
-    pub wireguard: Wireguard,
-
+    /// Storage paths to persistent nym-node data, such as its long term keys.
     pub storage_paths: NymNodePaths,
 
+    #[serde(default)]
+    pub http: Http,
+    
+    pub wireguard: Wireguard,
+    
     pub mixnode: MixnodeConfig,
 
     pub entry_gateway: EntryGatewayConfig,
@@ -352,7 +357,6 @@ impl Host {
 pub struct Http {
     /// Socket address this node will use for binding its http API.
     /// default: `0.0.0.0:8080`
-    /// note: for legacy reasons, it defaults to port `8000` for standalone mixnodes.
     pub bind_address: SocketAddr,
 
     /// Path to assets directory of custom landing page of this node.
@@ -386,7 +390,7 @@ pub struct Mixnet {
     /// Addresses to nym APIs from which the node gets the view of the network.
     pub nym_api_urls: Vec<Url>,
 
-    /// Addresses to nyxd which the node uses to interact with the chain.
+    /// Addresses to nyxd which the node uses to interact with the nyx chain.
     pub nyxd_urls: Vec<Url>,
 
     #[serde(default)]

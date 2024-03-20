@@ -190,7 +190,6 @@ pub struct ExitGatewayPaths {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NetworkRequesterPaths {
-    // NR:
     /// Path to file containing network requester ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -270,7 +269,6 @@ impl NetworkRequesterPaths {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct IpPacketRouterPaths {
-    // IPR:
     /// Path to file containing ip packet router ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 

@@ -31,6 +31,7 @@ pub struct EntryGatewayConfig {
     /// Custom announced port for listening for websocket client traffic.
     /// If unspecified, the value from the `bind_address` will be used instead
     /// default: None
+    #[serde(deserialize_with = "de_maybe_port")]
     pub announce_ws_port: Option<u16>,
 
     /// If applicable, announced port for listening for secure websocket client traffic.

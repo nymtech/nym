@@ -23986,7 +23986,8 @@ async function run(assets, algorithm, filename, cache) {
         console.warn("cache is set to 'false', but we we no longer support it")
     }
 
-    const directory = external_path_.resolve(process.env.RUNNER_TEMP || '.tmp', process.env.GITHUB_RUN_ID || '');
+    const directory = external_path_.join(process.env.RUNNER_TEMP || '.tmp', process.env.GITHUB_RUN_ID || '');
+    console.log('Temporary directory: ', directory);
 
     try {
         external_fs_.mkdirSync(directory, { recursive: true });
@@ -24004,7 +24005,7 @@ async function run(assets, algorithm, filename, cache) {
             let sig = null;
 
             // cache in `${WORKING_DIR}/.tmp/`
-            const cacheFilename = __nccwpck_require__.ab + "src/" + directory + '/' + asset.name;
+            const cacheFilename = external_path_.join(directory, `${asset.name}`);
             if(!external_fs_.existsSync(cacheFilename)) {
                 console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
                 buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));

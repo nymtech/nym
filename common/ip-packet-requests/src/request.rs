@@ -97,6 +97,20 @@ impl IpPacketRequest {
         )
     }
 
+    pub fn new_health_request(reply_to: Recipient) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                version: CURRENT_VERSION,
+                data: IpPacketRequestData::Health(HealthRequest {
+                    request_id,
+                    reply_to,
+                }),
+            },
+            request_id,
+        )
+    }
+
     pub fn id(&self) -> Option<u64> {
         match &self.data {
             IpPacketRequestData::StaticConnect(request) => Some(request.request_id),

@@ -8,8 +8,8 @@ on:
         required: true
         type: string
   workflow_dispatch:
-    release_tag:
-      tag:
+    inputs:
+      release_tag:
         description: 'Release tag'
         required: true
         type: string
@@ -24,10 +24,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - name: Install packages
-        run: cd ./.github/actions/nym-hash-releases && npm i
-
-      - uses: ./.github/actions/nym-hash-releases
+      - uses: nymtech/nym/.github/actions/nym-hash-releases@develop
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

@@ -28,6 +28,14 @@ nym-sphinx = { path = "../../common/nymsphinx" }
 nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
+workspace = true
+features = ["time"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
+workspace = true
+features = ["tokio"]
+
 [dependencies.tungstenite]
 workspace = true
 default-features = false

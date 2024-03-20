@@ -186,6 +186,12 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
+    pub fn with_chain_details(mut self, chain_details: ChainDetails) -> Self {
+        self.chain_details = chain_details;
+        self
+    }
+
+    #[must_use]
     pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
         self.chain_details.bech32_account_prefix = prefix.into();
         self
@@ -224,6 +230,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
         self.endpoints = vec![endpoint];
+        self
+    }
+
+    #[must_use]
+    pub fn with_contracts(mut self, contracts: NymContracts) -> Self {
+        self.contracts = contracts;
         self
     }
 

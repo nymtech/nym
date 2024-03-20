@@ -24,11 +24,18 @@ impl<'a> ClientHandshake<'a> {
         ws_stream: &'a mut S,
         identity: &'a nym_crypto::asymmetric::identity::KeyPair,
         gateway_pubkey: identity::PublicKey,
+        expects_credential_usage: bool,
     ) -> Self
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
     {
-        let mut state = State::new(rng, ws_stream, identity, Some(gateway_pubkey));
+        let mut state = State::new(
+            rng,
+            ws_stream,
+            identity,
+            Some(gateway_pubkey),
+            expects_credential_usage,
+        );
 
         ClientHandshake {
             handshake_future: Box::pin(async move {

@@ -17,7 +17,7 @@ use std::{fs, io};
 
 use super::helpers::OverrideIpPacketRouterConfig;
 
-#[derive(Args, Clone)]
+#[derive(Args, Clone, Debug)]
 pub struct Init {
     /// Id of the gateway we want to create config for
     #[clap(long)]
@@ -82,11 +82,11 @@ pub struct Init {
     statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long, conflicts_with = "with_ip_packet_router")]
+    #[clap(long)]
     with_network_requester: bool,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long, hide = true, conflicts_with = "with_network_requester")]
+    #[clap(long, hide = true)]
     with_ip_packet_router: bool,
 
     // ##### NETWORK REQUESTER FLAGS #####
@@ -243,7 +243,9 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
         if config.network_requester.enabled {
             initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
                 .await?;
-        } else if config.ip_packet_router.enabled {
+        }
+
+        if config.ip_packet_router.enabled {
             initialise_local_ip_packet_router(&config, ip_opts, *identity_keys.public_key())
                 .await?;
         }

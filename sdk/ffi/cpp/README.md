@@ -1,8 +1,8 @@
 # C++ FFI 
-> ⚠️ This is an initial version of this library in order to give developers something to experiment with. If you use this code to begin testing out Mixnet integration and run into issues, errors, or have feedback, please feel free to open an issue; feedback from developers trying to use it will help us improve it. If you have questions feel free to reach out via our [Matrix channel]().  
+> ⚠️ This is an initial version of this library in order to give developers something to experiment with. If you use this code to begin testing out Mixnet integration and run into issues, errors, or have feedback, please feel free to open an issue; feedback from developers trying to use it will help us improve it. If you have questions feel free to reach out via our [Matrix channel](https://matrix.to/#/#dev:nymtech.chat).  
 
 This repo contains:
-* `lib.rs`: an initial version of bindings for interacting with the Mixnet via the Rust SDK from C++. 
+* `lib.rs`: an initial version of bindings for interacting with the Mixnet via the Rust SDK from C++. These are essentially match statements wrapping imported functions from the `nym-ffi-shared` lib allowing for nicer [error handling](#error-handling-).  
 * `main.cpp`: an example of using this library, relying on `Boost` for threads. 
 
 The example `.cpp` file is a simple example flow of: 

@@ -2,10 +2,6 @@
 
 [//]: # (> The nym-api binary was built in the [building nym]&#40;../binaries/building-nym.md&#41; section. If you haven't yet built Nym and want to run the code, go there first. You can build just the API with `cargo build --release --bin nym-api`.)
 
-> The `nym-api` binary will be released in the immediate future - we're releasing this document beforehand so that validators have information as soon as possible and get an idea of what to expect. This doc will be expanded over time as we release the API binary itself as well as start enabling functionality.
->
-> You can build the API with `cargo build --release --bin nym-api`.
-
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## What is the Nym API?

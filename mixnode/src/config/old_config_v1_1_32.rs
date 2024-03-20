@@ -95,6 +95,7 @@ impl From<ConfigV1_1_32> for Config {
                     value.mixnode.http_api_port,
                 ),
                 landing_page_assets_path: None,
+                metrics_key: None,
             },
             // /\ ADDED
             mixnode: MixNode {

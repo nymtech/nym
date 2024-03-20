@@ -21,7 +21,7 @@ pub use nym_client_core::{
         mix_traffic::transceiver::*,
     },
     init::{
-        setup_gateway,
+        generate_new_client_keys, setup_gateway,
         types::{GatewaySelectionSpecification, GatewaySetup, InitResults, InitialisationResult},
     },
 };

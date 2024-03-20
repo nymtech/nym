@@ -16,9 +16,12 @@ use nym_network_defaults::mainnet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use nym_network_requester::config::BaseClientConfig;
-use nym_network_requester::{setup_fs_gateways_storage, setup_gateway, GatewaySetup, OnDiskKeys};
+use nym_network_requester::{
+    generate_new_client_keys, setup_fs_gateways_storage, setup_gateway, GatewaySetup, OnDiskKeys,
+};
 use nym_types::gateway::{GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails};
 use nym_validator_client::nyxd::AccountId;
+use rand::rngs::OsRng;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
@@ -275,6 +278,12 @@ pub(crate) async fn initialise_local_network_requester(
     let details_store =
         setup_fs_gateways_storage(&nr_cfg.storage_paths.common_paths.gateway_registrations).await?;
 
+    // if this is a first time client with this particular id is initialised, generated long-term keys
+    if !nr_cfg_path.exists() {
+        let mut rng = OsRng;
+        generate_new_client_keys(&mut rng, &key_store).await?;
+    }
+
     // gateway setup here is way simpler as we're 'connecting' to ourselves
     let init_res = setup_gateway(
         GatewaySetup::new_inbuilt(identity),
@@ -340,6 +349,12 @@ pub(crate) async fn initialise_local_ip_packet_router(
     let key_store = OnDiskKeys::new(ip_cfg.storage_paths.common_paths.keys.clone());
     let details_store =
         setup_fs_gateways_storage(&ip_cfg.storage_paths.common_paths.gateway_registrations).await?;
+
+    // if this is a first time client with this particular id is initialised, generated long-term keys
+    if !ip_cfg_path.exists() {
+        let mut rng = OsRng;
+        generate_new_client_keys(&mut rng, &key_store).await?;
+    }
 
     // gateway setup here is way simpler as we're 'connecting' to ourselves
     let init_res = setup_gateway(

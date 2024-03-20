@@ -172,8 +172,12 @@ impl InitialisationResult {
             *self.client_keys.encryption_keypair().public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            self.gateway_registration.details.gateway_id(),
+            self.gateway_id(),
         )
+    }
+
+    pub fn gateway_id(&self) -> identity::PublicKey {
+        self.gateway_registration.details.gateway_id()
     }
 }
 

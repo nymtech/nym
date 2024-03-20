@@ -17,7 +17,8 @@ use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use nym_network_requester::config::BaseClientConfig;
 use nym_network_requester::{
-    generate_new_client_keys, setup_fs_gateways_storage, setup_gateway, GatewaySetup, OnDiskKeys,
+    generate_new_client_keys, set_active_gateway, setup_fs_gateways_storage, setup_gateway,
+    GatewaySetup, OnDiskKeys,
 };
 use nym_types::gateway::{GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails};
 use nym_validator_client::nyxd::AccountId;
@@ -291,6 +292,7 @@ pub(crate) async fn initialise_local_network_requester(
         &details_store,
     )
     .await?;
+    set_active_gateway(&details_store, &init_res.gateway_id().to_base58_string()).await?;
 
     let address = init_res.client_address();
 
@@ -363,6 +365,7 @@ pub(crate) async fn initialise_local_ip_packet_router(
         &details_store,
     )
     .await?;
+    set_active_gateway(&details_store, &init_res.gateway_id().to_base58_string()).await?;
 
     let address = init_res.client_address();
 

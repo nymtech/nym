@@ -546,19 +546,23 @@ impl PacketStatisticsControl {
                 },
                 // conditional will disable the branch if we're in wasm32-unknown-unknown
                 result = listener.as_ref().unwrap().accept(), if listener.is_some() => {
-                    if let Ok((stream, _)) = result {
-                        let io = TokioIo::new(stream);
+                    cfg_if::cfg_if! {
+                        if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
+                            if let Ok((stream, _)) = result {
+                                let io = TokioIo::new(stream);
 
-                        tokio::task::spawn(async move {
-                            if let Err(err) = http1::Builder::new()
-                                .serve_connection(io, service_fn(serve_metrics))
-                                .await
-                            {
-                                warn!("Error serving connection: {:?}", err);
+                                tokio::task::spawn(async move {
+                                    if let Err(err) = http1::Builder::new()
+                                        .serve_connection(io, service_fn(serve_metrics))
+                                        .await
+                                    {
+                                        warn!("Error serving connection: {:?}", err);
+                                    }
+                                });
+                            } else {
+                                warn!("Error accepting connection");
                             }
-                        });
-                    } else {
-                        warn!("Error accepting connection");
+                        }
                     }
                 }
                 _ = snapshot_interval.tick() => {

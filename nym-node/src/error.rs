@@ -10,6 +10,41 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+pub enum KeyIOFailure {
+    #[error("failed to load {keys} keys from {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
+    KeyPairLoadFailure {
+        keys: String,
+        paths: nym_pemstore::KeyPairPath,
+        #[source]
+        err: io::Error,
+    },
+
+    #[error("failed to load {key} key from '{}': {err}", path.display())]
+    KeyLoadFailure {
+        key: String,
+        path: PathBuf,
+        #[source]
+        err: io::Error,
+    },
+
+    #[error("failed to store {keys} keys to {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
+    KeyPairStoreFailure {
+        keys: String,
+        paths: nym_pemstore::KeyPairPath,
+        #[source]
+        err: io::Error,
+    },
+
+    #[error("failed to store {key} key to '{}': {err}", path.display())]
+    KeyStoreFailure {
+        key: String,
+        path: PathBuf,
+        #[source]
+        err: io::Error,
+    },
+}
+
+#[derive(Debug, Error)]
 pub enum NymNodeError {
     #[error("could not find an existing config file at '{}' and fresh node initialisation has been disabled", config_path.display())]
     ForbiddenInitialisation { config_path: PathBuf },
@@ -61,29 +96,8 @@ pub enum NymNodeError {
         source: nym_crypto::asymmetric::encryption::KeyRecoveryError,
     },
 
-    #[error("failed to load {keys} keys from {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
-    KeyPairLoadFailure {
-        keys: String,
-        paths: nym_pemstore::KeyPairPath,
-        #[source]
-        err: io::Error,
-    },
-
-    #[error("failed to load {key} key from '{}': {err}", path.display())]
-    KeyLoadFailure {
-        key: String,
-        path: PathBuf,
-        #[source]
-        err: io::Error,
-    },
-
-    #[error("failed to store {keys} keys to {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
-    KeyPairStoreFailure {
-        keys: String,
-        paths: nym_pemstore::KeyPairPath,
-        #[source]
-        err: io::Error,
-    },
+    #[error(transparent)]
+    KeyFailure(#[from] KeyIOFailure),
 
     #[error("could not initialise nym-node as '--{name}' has not been specified which is required for a first time setup. (config section: {section})")]
     MissingInitArg { section: String, name: String },
@@ -172,6 +186,9 @@ pub enum EntryGatewayError {
 
 #[derive(Debug, Error)]
 pub enum ExitGatewayError {
+    #[error(transparent)]
+    KeyFailure(#[from] KeyIOFailure),
+
     #[error(transparent)]
     UnsupportedAddresses(#[from] UnsupportedGatewayAddresses),
 

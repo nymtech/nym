@@ -90,15 +90,15 @@ impl KeysPaths {
 
     pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
         nym_pemstore::KeyPairPath::new(
-            &self.public_ed25519_identity_key_file,
             &self.private_ed25519_identity_key_file,
+            &self.public_ed25519_identity_key_file,
         )
     }
 
     pub fn x25519_sphinx_storage_paths(&self) -> nym_pemstore::KeyPairPath {
         nym_pemstore::KeyPairPath::new(
-            &self.public_x25519_sphinx_key_file,
             &self.private_x25519_sphinx_key_file,
+            &self.public_x25519_sphinx_key_file,
         )
     }
 }
@@ -244,6 +244,20 @@ impl NetworkRequesterPaths {
             reply_surb_database: self.reply_surb_database.clone(),
         }
     }
+
+    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_ed25519_identity_key_file,
+            &self.public_ed25519_identity_key_file,
+        )
+    }
+
+    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_x25519_diffie_hellman_key_file,
+            &self.public_x25519_diffie_hellman_key_file,
+        )
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -304,6 +318,20 @@ impl IpPacketRouterPaths {
             credentials_database: Default::default(),
             reply_surb_database: self.reply_surb_database.clone(),
         }
+    }
+
+    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_ed25519_identity_key_file,
+            &self.public_ed25519_identity_key_file,
+        )
+    }
+
+    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_x25519_diffie_hellman_key_file,
+            &self.public_x25519_diffie_hellman_key_file,
+        )
     }
 }
 

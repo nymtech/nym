@@ -3,7 +3,7 @@
 
 use crate::node::helpers::{
     load_ed25519_identity_keypair, load_x25519_sphinx_keypair, store_ed25519_identity_keypair,
-    store_x25519_sphinx_keypair,
+    store_key, store_keypair, store_x25519_sphinx_keypair,
 };
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway::Gateway;
@@ -14,12 +14,15 @@ use nym_node::config::exit_gateway::ephemeral_exit_gateway_config;
 use nym_node::config::mixnode::ephemeral_mixnode_config;
 use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode};
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
+use nym_sphinx_acknowledgements::AckKey;
 use rand::rngs::OsRng;
+use rand::{CryptoRng, RngCore};
+use std::path::Path;
 use std::sync::Arc;
 use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
 
-mod helpers;
+pub mod helpers;
 
 struct MixnodeData {
     descriptor: NodeDescription,
@@ -85,27 +88,77 @@ struct ExitGatewayData {
 }
 
 impl ExitGatewayData {
+    fn initialise_client_keys<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        typ: &str,
+        ed25519_paths: nym_pemstore::KeyPairPath,
+        x25519_paths: nym_pemstore::KeyPairPath,
+        ack_key_path: &Path,
+    ) -> Result<(), ExitGatewayError> {
+        let ed25519_keys = identity::KeyPair::new(rng);
+        let x25519_keys = encryption::KeyPair::new(rng);
+        let aes128ctr_key = AckKey::new(rng);
+
+        store_keypair(
+            &ed25519_keys,
+            ed25519_paths,
+            format!("{typ}-ed25519-identity"),
+        )?;
+        store_keypair(&x25519_keys, x25519_paths, format!("{typ}-x25519-dh"))?;
+        store_key(&aes128ctr_key, ack_key_path, format!("{typ}-ack-key"))?;
+
+        Ok(())
+    }
+
+    fn initialise_network_requester<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        config: &ExitGatewayConfig,
+    ) -> Result<(), ExitGatewayError> {
+        trace!("initialising network requester keys");
+        Self::initialise_client_keys(
+            rng,
+            "network-requester",
+            config
+                .storage_paths
+                .network_requester
+                .ed25519_identity_storage_paths(),
+            config
+                .storage_paths
+                .network_requester
+                .x25519_diffie_hellman_storage_paths(),
+            &config.storage_paths.network_requester.ack_key_file,
+        )
+    }
+
+    fn initialise_ip_packet_router_requester<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        config: &ExitGatewayConfig,
+    ) -> Result<(), ExitGatewayError> {
+        trace!("initialising ip packet router keys");
+        Self::initialise_client_keys(
+            rng,
+            "ip-packet-router",
+            config
+                .storage_paths
+                .ip_packet_router
+                .ed25519_identity_storage_paths(),
+            config
+                .storage_paths
+                .ip_packet_router
+                .x25519_diffie_hellman_storage_paths(),
+            &config.storage_paths.ip_packet_router.ack_key_file,
+        )
+    }
+
     fn initialise(config: &ExitGatewayConfig) -> Result<(), ExitGatewayError> {
         // generate all the keys for NR and IPR
         let mut rng = OsRng;
 
         // NR:
-        // let ed25519_identity_keys = identity::KeyPair::new(&mut rng);
-        // let x25519_sphinx_keys = encryption::KeyPair::new(&mut rng);
-
-        // trace!("attempting to store ed25519 identity keypair");
-        // store_ed25519_identity_keypair(
-        //     &ed25519_identity_keys,
-        //     config.storage_paths.network_requester.ed25519_identity_storage_paths(),
-        // )?;
-        //
-        // trace!("attempting to store x25519 sphinx keypair");
-        // store_x25519_sphinx_keypair(
-        //     &x25519_sphinx_keys,
-        //     config.storage_paths.network_requester.x25519_sphinx_storage_paths(),
-        // )?;
+        Self::initialise_network_requester(&mut rng, config)?;
 
         // IPR:
+        Self::initialise_ip_packet_router_requester(&mut rng, config)?;
 
         Ok(())
     }

@@ -32,6 +32,7 @@ nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-node-http-api = { path = "nym-node-http-api" }
 nym-pemstore = { path = "../common/pemstore" }
+nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
 nym-task = { path = "../common/task" }
 
 # nodes:

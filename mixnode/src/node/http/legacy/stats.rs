@@ -7,7 +7,7 @@ use axum::{
     extract::{Query, State},
     http::HeaderMap,
 };
-use nym_metrics::REGISTRY;
+use nym_metrics::metrics;
 use nym_node::http::api::{FormattedResponse, Output};
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ pub(crate) async fn metrics(State(state): State<MixnodeAppState>, headers: Heade
     if let Some(metrics_key) = state.metrics_key {
         if let Some(auth) = headers.get("Authorization") {
             if auth.to_str().unwrap_or_default() == format!("Bearer {}", metrics_key) {
-                REGISTRY.to_string()
+                metrics!()
             } else {
                 "Unauthorized".to_string()
             }
@@ -50,7 +50,7 @@ pub(crate) async fn stats(
 async fn generate_stats(full: bool, stats: SharedNodeStats) -> NodeStatsResponse {
     let snapshot_data = stats.clone_data().await;
     if full {
-        NodeStatsResponse::Full(REGISTRY.to_string())
+        NodeStatsResponse::Full(metrics!())
     } else {
         NodeStatsResponse::Simple(snapshot_data.simplify())
     }

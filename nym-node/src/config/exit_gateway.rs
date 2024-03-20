@@ -151,69 +151,90 @@ pub fn ephemeral_exit_gateway_config(
     config: Config,
     mnemonic: Zeroizing<bip39::Mnemonic>,
 ) -> Result<EphemeralConfig, ExitGatewayError> {
+    let nr_opts = LocalNetworkRequesterOpts {
+        config: nym_network_requester::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config.exit_gateway.network_requester.debug.client_debug,
+            },
+            network_requester: nym_network_requester::config::NetworkRequester {
+                open_proxy: config.exit_gateway.open_proxy,
+                enabled_statistics: false,
+                statistics_recipient: None,
+                disable_poisson_rate: config
+                    .exit_gateway
+                    .network_requester
+                    .debug
+                    .disable_poisson_rate,
+                use_deprecated_allow_list: false,
+                upstream_exit_policy_url: config.exit_gateway.upstream_exit_policy_url.clone(),
+            },
+            storage_paths: nym_network_requester::config::NetworkRequesterPaths {
+                common_paths: config
+                    .exit_gateway
+                    .storage_paths
+                    .network_requester
+                    .to_common_client_paths(),
+
+                // irrelevant fields; we're not going to be using allow.list and nr description is dead anyway
+                allowed_list_location: Default::default(),
+                unknown_list_location: Default::default(),
+                nr_description: Default::default(),
+            },
+            network_requester_debug: Default::default(),
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
+    let ipr_opts = LocalIpPacketRouterOpts {
+        config: nym_ip_packet_router::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config.exit_gateway.ip_packet_router.debug.client_debug,
+            },
+            ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
+                disable_poisson_rate: config
+                    .exit_gateway
+                    .ip_packet_router
+                    .debug
+                    .disable_poisson_rate,
+                upstream_exit_policy_url: config.exit_gateway.upstream_exit_policy_url.clone(),
+            },
+            storage_paths: nym_ip_packet_router::config::IpPacketRouterPaths {
+                common_paths: config
+                    .exit_gateway
+                    .storage_paths
+                    .ip_packet_router
+                    .to_common_client_paths(),
+                ip_packet_router_description: Default::default(),
+            },
+
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
+    let pub_id_path = config
+        .storage_paths
+        .keys
+        .public_ed25519_identity_key_file
+        .clone();
+    let ipr_enabled = config.exit_gateway.ip_packet_router.debug.enabled;
+    let nr_enabled = config.exit_gateway.network_requester.debug.enabled;
+
+    let mut gateway = ephemeral_gateway_config(config, mnemonic)?;
+    gateway.ip_packet_router.enabled = ipr_enabled;
+    gateway.network_requester.enabled = nr_enabled;
+
+    // this is temporary until http api is fully managed by nymnode itself
+    // (because currently gateway is loading its public key for the second time when starting the API to determine addresses of its clients.
+    // Obviously this doesn't work properly without the valid paths)
+    gateway.storage_paths.keys.public_identity_key_file = pub_id_path;
+
     Ok(EphemeralConfig {
-        nr_opts: LocalNetworkRequesterOpts {
-            config: nym_network_requester::Config {
-                base: nym_client_core_config_types::Config {
-                    client: base_client_config(&config),
-                    debug: config.exit_gateway.network_requester.debug.client_debug,
-                },
-                network_requester: nym_network_requester::config::NetworkRequester {
-                    open_proxy: config.exit_gateway.open_proxy,
-                    enabled_statistics: false,
-                    statistics_recipient: None,
-                    disable_poisson_rate: config
-                        .exit_gateway
-                        .network_requester
-                        .debug
-                        .disable_poisson_rate,
-                    use_deprecated_allow_list: false,
-                    upstream_exit_policy_url: config.exit_gateway.upstream_exit_policy_url.clone(),
-                },
-                storage_paths: nym_network_requester::config::NetworkRequesterPaths {
-                    common_paths: config
-                        .exit_gateway
-                        .storage_paths
-                        .network_requester
-                        .to_common_client_paths(),
-
-                    // irrelevant fields; we're not going to be using allow.list and nr description is dead anyway
-                    allowed_list_location: Default::default(),
-                    unknown_list_location: Default::default(),
-                    nr_description: Default::default(),
-                },
-                network_requester_debug: Default::default(),
-                logging: config.logging,
-            },
-            custom_mixnet_path: None,
-        },
-        ipr_opts: LocalIpPacketRouterOpts {
-            config: nym_ip_packet_router::Config {
-                base: nym_client_core_config_types::Config {
-                    client: base_client_config(&config),
-                    debug: config.exit_gateway.ip_packet_router.debug.client_debug,
-                },
-                ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
-                    disable_poisson_rate: config
-                        .exit_gateway
-                        .ip_packet_router
-                        .debug
-                        .disable_poisson_rate,
-                    upstream_exit_policy_url: config.exit_gateway.upstream_exit_policy_url.clone(),
-                },
-                storage_paths: nym_ip_packet_router::config::IpPacketRouterPaths {
-                    common_paths: config
-                        .exit_gateway
-                        .storage_paths
-                        .ip_packet_router
-                        .to_common_client_paths(),
-                    ip_packet_router_description: Default::default(),
-                },
-
-                logging: config.logging,
-            },
-            custom_mixnet_path: None,
-        },
-        gateway: ephemeral_gateway_config(config, mnemonic)?,
+        nr_opts,
+        ipr_opts,
+        gateway,
     })
 }

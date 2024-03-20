@@ -30,6 +30,7 @@ pub const DEFAULT_X25519_NR_PRIVATE_DH_KEY_FILENAME: &str = "x25519_nr_dh";
 pub const DEFAULT_X25519_NR_PUBLIC_DH_KEY_FILENAME: &str = "x25519_nr_dh.pub";
 pub const DEFAULT_NR_ACK_KEY_FILENAME: &str = "aes128ctr_nr_ack";
 pub const DEFAULT_NR_REPLY_SURB_DB_FILENAME: &str = "nr_persistent_reply_store.sqlite";
+pub const DEFAULT_NR_GATEWAYS_DB_FILENAME: &str = "nr_gateways_info_store.sqlite";
 
 pub const DEFAULT_ED25519_IPR_PRIVATE_IDENTITY_KEY_FILENAME: &str = "ed25519_ipr_identity";
 pub const DEFAULT_ED25519_IPR_PUBLIC_IDENTITY_KEY_FILENAME: &str = "ed25519_ipr_identity.pub";
@@ -37,6 +38,7 @@ pub const DEFAULT_X25519_IPR_PRIVATE_DH_KEY_FILENAME: &str = "x25519_ipr_dh";
 pub const DEFAULT_X25519_IPR_PUBLIC_DH_KEY_FILENAME: &str = "x25519_ipr_dh.pub";
 pub const DEFAULT_IPR_ACK_KEY_FILENAME: &str = "aes128ctr_ipr_ack";
 pub const DEFAULT_IPR_REPLY_SURB_DB_FILENAME: &str = "ipr_persistent_reply_store.sqlite";
+pub const DEFAULT_IPR_GATEWAYS_DB_FILENAME: &str = "ipr_gateways_info_store.sqlite";
 
 // pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
 // pub const DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME: &str = "ip_packet_router_config.toml";
@@ -207,7 +209,12 @@ pub struct NetworkRequesterPaths {
 
     /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
     pub reply_surb_database: PathBuf,
-    // GW: only ephemeral
+
+    /// Normally this is a path to the file containing information about gateways used by this client,
+    /// i.e. details such as their public keys, owner addresses or the network information.
+    /// but in this case it just has the basic information of "we're using custom gateway".
+    /// Due to how clients are started up, this file has to exist.
+    pub gateway_registrations: PathBuf,
 }
 
 impl NetworkRequesterPaths {
@@ -224,6 +231,7 @@ impl NetworkRequesterPaths {
                 .join(DEFAULT_X25519_NR_PUBLIC_DH_KEY_FILENAME),
             ack_key_file: data_dir.join(DEFAULT_NR_ACK_KEY_FILENAME),
             reply_surb_database: data_dir.join(DEFAULT_NR_REPLY_SURB_DB_FILENAME),
+            gateway_registrations: data_dir.join(DEFAULT_NR_GATEWAYS_DB_FILENAME),
         }
     }
 
@@ -236,8 +244,7 @@ impl NetworkRequesterPaths {
                 public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
                 ack_key_file: self.ack_key_file.clone(),
             },
-            // should be able to get away without it
-            gateway_registrations: Default::default(),
+            gateway_registrations: self.gateway_registrations.clone(),
 
             // not needed for embedded providers
             credentials_database: Default::default(),
@@ -282,7 +289,12 @@ pub struct IpPacketRouterPaths {
 
     /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
     pub reply_surb_database: PathBuf,
-    // GW: only ephemeral
+
+    /// Normally this is a path to the file containing information about gateways used by this client,
+    /// i.e. details such as their public keys, owner addresses or the network information.
+    /// but in this case it just has the basic information of "we're using custom gateway".
+    /// Due to how clients are started up, this file has to exist.
+    pub gateway_registrations: PathBuf,
 }
 
 impl IpPacketRouterPaths {
@@ -299,6 +311,7 @@ impl IpPacketRouterPaths {
                 .join(DEFAULT_X25519_IPR_PUBLIC_DH_KEY_FILENAME),
             ack_key_file: data_dir.join(DEFAULT_IPR_ACK_KEY_FILENAME),
             reply_surb_database: data_dir.join(DEFAULT_IPR_REPLY_SURB_DB_FILENAME),
+            gateway_registrations: data_dir.join(DEFAULT_IPR_GATEWAYS_DB_FILENAME),
         }
     }
 
@@ -311,8 +324,7 @@ impl IpPacketRouterPaths {
                 public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
                 ack_key_file: self.ack_key_file.clone(),
             },
-            // should be able to get away without it
-            gateway_registrations: Default::default(),
+            gateway_registrations: self.gateway_registrations.clone(),
 
             // not needed for embedded providers
             credentials_database: Default::default(),

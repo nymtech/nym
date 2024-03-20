@@ -163,8 +163,7 @@ impl ExitGatewayData {
         Ok(())
     }
 
-    fn new(config: &ExitGatewayConfig) -> Result<ExitGatewayData, ExitGatewayError> {
-        error!("unimplemented");
+    fn new(_config: &ExitGatewayConfig) -> Result<ExitGatewayData, ExitGatewayError> {
         Ok(ExitGatewayData {})
     }
 }
@@ -186,7 +185,7 @@ impl NymNode {
         custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
     ) -> Result<(), NymNodeError> {
         debug!("initialising nym-node with id: {}", config.id);
-        let mut rng = rand::rngs::OsRng;
+        let mut rng = OsRng;
 
         // global initialisation
         let ed25519_identity_keys = identity::KeyPair::new(&mut rng);

@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::helpers::load_public_key;
 use ipnetwork::IpNetwork;
-use log::warn;
+use log::{debug, warn};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_requester::RequestFilter;
@@ -242,6 +242,8 @@ impl<'a> HttpApiBuilder<'a> {
     }
 
     pub(crate) fn start(self, task_client: TaskClient) -> Result<(), GatewayError> {
+        debug!("starting http API");
+
         // is it suboptimal to load all the keys, etc for the second time after they've already been
         // retrieved during startup of the rest of the components?
         // yes, a bit.

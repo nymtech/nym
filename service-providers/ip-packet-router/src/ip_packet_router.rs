@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use futures::channel::oneshot;
+use log::error;
 use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver, HardcodedTopologyProvider,
     TopologyProvider,
@@ -107,7 +108,13 @@ impl IpPacketRouter {
 
     #[cfg(not(target_os = "linux"))]
     pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
-        todo!("service provider is not yet supported on this platform")
+        // for debugging purposes, don't crash in debug builds on non-linux platforms
+        if cfg!(debug_assertions) {
+            error!("ip packet router service provider is not yet supported on this platform");
+            Ok(())
+        } else {
+            todo!("service provider is not yet supported on this platform")
+        }
     }
 
     #[cfg(target_os = "linux")]

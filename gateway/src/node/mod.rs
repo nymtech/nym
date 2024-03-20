@@ -507,7 +507,9 @@ impl<St> Gateway<St> {
                 )
                 .await?;
             active_clients_store.insert_embedded(embedded_ip_sp);
-        }
+        } else {
+            info!("embedded ip packet router is disabled");
+        };
 
         HttpApiBuilder::new(
             &self.config,

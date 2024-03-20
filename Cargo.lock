@@ -6111,6 +6111,7 @@ dependencies = [
  "nym-network-requester",
  "nym-node-http-api",
  "nym-pemstore",
+ "nym-sphinx-acknowledgements",
  "nym-task",
  "rand 0.7.3",
  "serde",

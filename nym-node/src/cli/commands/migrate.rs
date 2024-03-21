@@ -22,7 +22,6 @@ use zeroize::Zeroizing;
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum NodeType {
     Mixnode,
-
     Gateway,
 }
 
@@ -36,14 +35,19 @@ impl Display for NodeType {
 }
 
 #[derive(clap::Args, Debug)]
+#[clap(group = clap::ArgGroup::new("old-config").required(true))]
 pub(crate) struct Args {
     /// Type of node (mixnode or gateway) to migrate into a nym-node.
     #[clap(long)]
     node_type: NodeType,
 
-    /// Path to a configuration file of a node that's going to get migrated.
-    #[clap(long)]
-    config_file: PathBuf,
+    /// Id of the node that's going to get migrated
+    #[clap(long, group = "old-config")]
+    id: Option<String>,
+
+    /// Path to a configuration file of the node that's going to get migrated.
+    #[clap(long, group = "old-config")]
+    config_file: Option<PathBuf>,
 
     /// Specify whether to preserve id of the imported node.
     #[clap(long)]
@@ -73,8 +77,21 @@ pub(crate) struct Args {
 }
 
 impl Args {
-    pub(super) fn take_mnemonic(&mut self) -> Option<Zeroizing<bip39::Mnemonic>> {
+    fn take_mnemonic(&mut self) -> Option<Zeroizing<bip39::Mnemonic>> {
         self.entry_gateway.mnemonic.take().map(Zeroizing::new)
+    }
+
+    fn config_path(&self) -> PathBuf {
+        // SAFETY:
+        // if `config_file` hasn't been specified, `id` MUST be available due to clap's ArgGroup
+        #[allow(clippy::unwrap_used)]
+        self.config_file.clone().unwrap_or({
+            let id = self.id.as_ref().unwrap();
+            match self.node_type {
+                NodeType::Mixnode => nym_mixnode::config::default_config_filepath(id),
+                NodeType::Gateway => nym_gateway::config::default_config_filepath(id),
+            }
+        })
     }
 }
 
@@ -128,7 +145,7 @@ fn copy_old_data<P: AsRef<Path>, Q: AsRef<Path>>(
 
 async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
     let maybe_custom_mnemonic = args.take_mnemonic();
-    let config_file = args.config_file;
+    let config_file = args.config_path();
     let preserve_id = args.preserve_id;
 
     info!(
@@ -249,7 +266,7 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
 }
 
 fn migrate_gateway(args: Args) -> Result<(), NymNodeError> {
-    let config_file = args.config_file;
+    let config_file = args.config_path();
     let preserve_id = args.preserve_id;
 
     info!(

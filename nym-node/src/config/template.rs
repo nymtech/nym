@@ -24,6 +24,8 @@ mode = '{{ mode }}'
 
 [host]
 # Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
+# If no values are provided, when this node gets included in the network, 
+# its ip addresses will be populated by whatever value is resolved by associated nym-api.
 public_ips = [
 {{#each host.public_ips }}'{{this}}',{{/each}}
 ]

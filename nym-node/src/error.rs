@@ -3,12 +3,12 @@
 
 use crate::config::helpers::UnsupportedGatewayAddresses;
 use crate::wireguard::error::WireguardError;
+use nym_ip_packet_router::error::ClientCoreError;
 use nym_node_http_api::NymNodeHttpError;
 use std::io;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use thiserror::Error;
-use nym_ip_packet_router::error::ClientCoreError;
 
 #[derive(Debug, Error)]
 pub enum KeyIOFailure {
@@ -103,9 +103,6 @@ pub enum NymNodeError {
     #[error("could not initialise nym-node as '--{name}' has not been specified which is required for a first time setup. (config section: {section})")]
     MissingInitArg { section: String, name: String },
 
-    #[error("could not build config because required section {section} is missing")]
-    MissingConfigSection { section: String },
-
     #[error(transparent)]
     MixnodeFailure(#[from] MixnodeError),
 
@@ -114,14 +111,6 @@ pub enum NymNodeError {
 
     #[error(transparent)]
     ExitGatewayFailure(#[from] ExitGatewayError),
-}
-
-impl NymNodeError {
-    pub fn missing_section<S: Into<String>>(section: S) -> Self {
-        NymNodeError::MissingConfigSection {
-            section: section.into(),
-        }
-    }
 }
 
 impl From<nym_mixnode::error::MixnodeError> for NymNodeError {
@@ -196,7 +185,7 @@ pub enum ExitGatewayError {
     // TODO: more granular errors
     #[error(transparent)]
     ExternalClientCore(#[from] ClientCoreError),
-    
+
     #[error(transparent)]
     External(#[from] nym_gateway::GatewayError),
 }

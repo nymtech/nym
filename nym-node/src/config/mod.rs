@@ -87,7 +87,7 @@ pub struct ConfigBuilder {
     pub host: Option<Host>,
 
     pub http: Option<Http>,
-    
+
     pub wireguard: Option<Wireguard>,
 
     pub storage_paths: Option<NymNodePaths>,
@@ -179,7 +179,7 @@ impl ConfigBuilder {
         Ok(Config {
             id: self.id,
             mode: self.mode,
-            host: self.host.ok_or(NymNodeError::missing_section("host"))?,
+            host: self.host.unwrap_or_default(),
             http: self.http.unwrap_or_default(),
             mixnet: self.mixnet.unwrap_or_default(),
             wireguard: self
@@ -213,7 +213,7 @@ pub struct Config {
     /// Human-readable ID of this particular node.
     pub id: String,
 
-    /// Current mode of this nym-node. 
+    /// Current mode of this nym-node.
     /// Expect this field to be changed in the future to allow running the node in multiple modes (i.e. mixnode + gateway)
     pub mode: NodeMode,
 
@@ -226,9 +226,9 @@ pub struct Config {
 
     #[serde(default)]
     pub http: Http,
-    
+
     pub wireguard: Wireguard,
-    
+
     pub mixnode: MixnodeConfig,
 
     pub entry_gateway: EntryGatewayConfig,
@@ -329,26 +329,19 @@ impl Config {
 }
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct Host {
     /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
+    /// If no values are provided, when this node gets included in the network,
+    /// its ip addresses will be populated by whatever value is resolved by associated nym-api.
     pub public_ips: Vec<IpAddr>,
 
     /// Optional hostname of this node, for example nymtech.net.
     // TODO: this is temporary. to be replaced by pulling the data directly from the certs.
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub hostname: Option<String>,
-}
-
-impl Host {
-    pub fn validate(&self) -> bool {
-        if self.public_ips.is_empty() {
-            return false;
-        }
-
-        true
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

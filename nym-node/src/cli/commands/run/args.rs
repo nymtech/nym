@@ -102,17 +102,7 @@ struct HostArgs {
 impl HostArgs {
     // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
     fn build_config_section(self) -> Result<config::Host, NymNodeError> {
-        let Some(public_ips) = self.public_ips else {
-            return Err(NymNodeError::MissingInitArg {
-                section: "host".to_string(),
-                name: "public-ips".to_string(),
-            });
-        };
-
-        Ok(config::Host {
-            public_ips,
-            hostname: self.hostname,
-        })
+        Ok(self.override_config_section(config::Host::default()))
     }
 
     fn override_config_section(self, mut section: config::Host) -> config::Host {
@@ -446,7 +436,7 @@ impl Args {
     }
 
     pub(crate) fn override_config(self, mut config: Config) -> Config {
-        if let Some(mode) = self.mode { 
+        if let Some(mode) = self.mode {
             config.mode = mode;
         }
         config.host = self.host.override_config_section(config.host);
@@ -454,8 +444,12 @@ impl Args {
         config.mixnet = self.mixnet.override_config_section(config.mixnet);
         config.wireguard = self.wireguard.override_config_section(config.wireguard);
         config.mixnode = self.mixnode.override_config_section(config.mixnode);
-        config.entry_gateway = self.entry_gateway.override_config_section(config.entry_gateway);
-        config.exit_gateway = self.exit_gateway.override_config_section(config.exit_gateway);
+        config.entry_gateway = self
+            .entry_gateway
+            .override_config_section(config.entry_gateway);
+        config.exit_gateway = self
+            .exit_gateway
+            .override_config_section(config.exit_gateway);
         config
     }
 }

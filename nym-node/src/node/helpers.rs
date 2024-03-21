@@ -1,5 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_node::error::{KeyIOFailure, NymNodeError};
@@ -74,7 +74,6 @@ pub(crate) fn load_x25519_sphinx_keypair(
     Ok(load_keypair(paths, "x25519-sphinx")?)
 }
 
-#[allow(dead_code)]
 pub(crate) fn load_x25519_sphinx_public_key<P: AsRef<Path>>(
     path: P,
 ) -> Result<encryption::PublicKey, NymNodeError> {

@@ -78,6 +78,13 @@ pub enum NymNodeError {
         source: io::Error,
     },
 
+    #[error("failed to write bonding information to '{}': {source}", path.display())]
+    BondingInfoWriteFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("this node hasn't set any valid public addresses to announce. Please modify [host.public_ips] section of your config")]
     NoPublicIps,
 

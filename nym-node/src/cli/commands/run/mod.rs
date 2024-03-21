@@ -1,9 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::bonding_information::BondingInformationV1;
 use crate::node::NymNode;
 use nym_node::config::upgrade_helpers::try_load_current_config;
 use nym_node::error::NymNodeError;
+use std::fs;
 use tracing::{debug, info, trace};
 
 mod args;
@@ -14,6 +16,8 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     trace!("passed arguments: {args:#?}");
 
     let config_path = args.config.config_path();
+    let output = args.output;
+    let bonding_info_path = args.bonding_information_output.clone();
 
     let config = if !config_path.exists() {
         debug!("no configuration file found at '{}'", config_path.display());
@@ -42,5 +46,26 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         args.override_config(config)
     };
 
-    NymNode::new(config).await?.run().await
+    let nym_node = NymNode::new(config).await?;
+
+    // if requested, write bonding info
+    if let Some(bonding_info_path) = bonding_info_path {
+        info!(
+            "writing bonding information to '{}'",
+            bonding_info_path.display()
+        );
+        let info = BondingInformationV1::from_data(
+            nym_node.ed25519_identity_key(),
+            nym_node.x25519_sphinx_key(),
+        );
+        let data = output.format(&info);
+        fs::write(&bonding_info_path, data).map_err(|source| {
+            NymNodeError::BondingInfoWriteFailure {
+                path: bonding_info_path,
+                source,
+            }
+        })?;
+    }
+
+    nym_node.run().await
 }

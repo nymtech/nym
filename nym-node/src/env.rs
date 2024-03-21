@@ -3,6 +3,7 @@
 
 pub mod vars {
     pub const NYMNODE_ID_ARG: &str = "NYMNODE_ID";
+    pub const NYMNODE_OUTPUT_ARG: &str = "NYMNODE_OUTPUT";
     pub const NYMNODE_CONFIG_PATH_ARG: &str = "NYMNODE_CONFIG";
 
     pub const NYMNODE_DENY_INIT_ARG: &str = "NYMNODE_DENY_INIT";
@@ -10,6 +11,8 @@ pub mod vars {
     pub const NYMNODE_INIT_ONLY_ARG: &str = "NYMNODE_INIT_ONLY";
 
     pub const NYMMONDE_WRITE_CONFIG_CHANGES_ARG: &str = "NYMNODE_WRITE_CONFIG_CHANGES";
+
+    pub const NYMNODE_BONDING_INFORMATION_OUTPUT_ARG: &str = "NYMNODE_BONDING_INFORMATION_OUTPUT";
 
     pub const NYMNODE_MODE_ARG: &str = "NYMNODE_MODE";
 
@@ -45,5 +48,4 @@ pub mod vars {
     // exit gateway:
     pub const NYMNODE_UPSTREAM_EXIT_POLICY_ARG: &str = "NYMNODE_UPSTREAM_EXIT_POLICY";
     pub const NYMNODE_OPEN_PROXY_ARG: &str = "NYMNODE_OPEN_PROXY";
-
 }

@@ -26,6 +26,7 @@ use std::sync::Arc;
 use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
 
+pub mod bonding_information;
 pub mod helpers;
 
 struct MixnodeData {
@@ -263,6 +264,14 @@ impl NymNode {
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
             config,
         })
+    }
+
+    pub(crate) fn ed25519_identity_key(&self) -> &identity::PublicKey {
+        self.ed25519_identity_keys.public_key()
+    }
+
+    pub(crate) fn x25519_sphinx_key(&self) -> &encryption::PublicKey {
+        self.x25519_sphinx_keys.public_key()
     }
 
     async fn run_as_mixnode(self) -> Result<(), NymNodeError> {

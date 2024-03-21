@@ -3,6 +3,7 @@
 
 use crate::cli::helpers::ConfigArgs;
 use crate::env::vars::*;
+use nym_bin_common::output_format::OutputFormat;
 use nym_node::config;
 use nym_node::config::persistence::NymNodePaths;
 use nym_node::config::{Config, ConfigBuilder, NodeMode};
@@ -51,6 +52,24 @@ pub(crate) struct Args {
         env = NYMMONDE_WRITE_CONFIG_CHANGES_ARG,
     )]
     pub(crate) write_changes: bool,
+
+    /// Specify output file for bonding information of this nym-node, i.e. its encoded keys.
+    /// NOTE: the required bonding information is still a subject to change and this argument should be treated
+    /// only as a preview of future features.
+    #[clap(
+        long,
+        env = NYMNODE_BONDING_INFORMATION_OUTPUT_ARG
+    )]
+    pub(crate) bonding_information_output: Option<PathBuf>,
+
+    /// Specify the output format of the bonding information (`text` or `json`)
+    #[clap(
+        short,
+        long,
+        default_value_t = OutputFormat::default(),
+        env = NYMNODE_OUTPUT_ARG
+    )]
+    pub(crate) output: OutputFormat,
 
     #[clap(flatten)]
     host: HostArgs,

@@ -75,7 +75,7 @@ sudo ufw allow 9000, 9001
 
 ## Troubleshooting
 
-If you come to any errors during the setup see troubleshooting page related to [Mix Nodes](..nodes/troubleshooting.md#mix-nodes) and [Gateways](../nodes/troubleshooting.md#gateways--network-requesters). In case your issue isn't documented ask in our Element [Node Operators channel](https://matrix.to/#/#operators:nymtech.chat) or raise an [issue](https://github.com/nymtech/nym/issues) on Github.
+If you come to any errors during the setup see troubleshooting page related to [Mix Nodes](../nodes/troubleshooting.md#mix-nodes) and [Gateways](../nodes/troubleshooting.md#gateways--network-requesters). In case your issue isn't documented ask in our Element [Node Operators channel](https://matrix.to/#/#operators:nymtech.chat) or raise an [issue](https://github.com/nymtech/nym/issues) on Github.
 
 <!--
 TODO:

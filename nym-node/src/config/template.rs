@@ -33,6 +33,9 @@ public_ips = [
 # (temporary) Optional hostname of this node, for example nymtech.net.
 hostname = '{{ host.hostname }}'
 
+# Optional ISO 3166 alpha-2 two-letter country code of the node's **physical** location
+location = '{{ host.location }}'
+
 [mixnet]
 # Address this node will bind to for listening for mixnet packets
 # default: `0.0.0.0:1789`

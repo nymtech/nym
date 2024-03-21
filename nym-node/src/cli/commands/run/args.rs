@@ -3,6 +3,7 @@
 
 use crate::cli::helpers::ConfigArgs;
 use crate::env::vars::*;
+use celes::Country;
 use nym_bin_common::output_format::OutputFormat;
 use nym_node::config;
 use nym_node::config::persistence::NymNodePaths;
@@ -116,6 +117,15 @@ struct HostArgs {
         env = NYMNODE_HOSTNAME_ARG
     )]
     hostname: Option<String>,
+
+    /// Optional **physical** location of this node's server.
+    /// Either full country name (e.g. 'Poland'), two-letter alpha2 (e.g. 'PL'),
+    /// three-letter alpha3 (e.g. 'POL') or three-digit numeric-3 (e.g. '616') can be provided.
+    #[clap(
+        long,
+        env = NYMNODE_LOCATION_ARG
+    )]
+    location: Option<Country>,
 }
 
 impl HostArgs {
@@ -130,6 +140,9 @@ impl HostArgs {
         }
         if let Some(hostname) = self.hostname {
             section.hostname = Some(hostname)
+        }
+        if let Some(location) = self.location {
+            section.location = Some(location)
         }
         section
     }

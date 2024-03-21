@@ -4,6 +4,7 @@
 use crate::config::persistence::NymNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
+use celes::Country;
 use clap::ValueEnum;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
@@ -342,6 +343,9 @@ pub struct Host {
     // TODO: this is temporary. to be replaced by pulling the data directly from the certs.
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub hostname: Option<String>,
+
+    /// Optional ISO 3166 alpha-2 two-letter country code of the node's **physical** location
+    pub location: Option<Country>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

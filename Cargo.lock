@@ -913,6 +913,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "celes"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39b9a21273925d7cc9e8a9a5f068122341336813c607014f5ef64f82b6acba58"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "cesu8"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6025,6 +6034,7 @@ dependencies = [
  "anyhow",
  "bip39",
  "bs58 0.5.0",
+ "celes",
  "clap 4.4.7",
  "humantime-serde",
  "nym-bin-common",

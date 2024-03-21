@@ -17,6 +17,7 @@ license = "GPL-3.0"
 anyhow.workspace = true
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
+celes = "2.4.0"
 clap = { workspace = true, features = ["cargo", "env"] }
 humantime-serde = "1.1.1"
 rand = "0.7.3"

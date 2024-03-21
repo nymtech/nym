@@ -22,6 +22,7 @@ use hyper_util::rt::TokioIo;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::convert::Infallible;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+#[cfg(feature = "metrics-server")]
 use std::net::SocketAddr;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use tokio::net::TcpListener;
@@ -507,8 +508,8 @@ impl PacketStatisticsControl {
         cfg_if::cfg_if! {
             if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
-                let listener: Option<WasmEmpty> = None;
-            } else {
+                let listener = None;
+            } else if #[cfg(feature = "metrics-server")] {
                 let mut metrics_port = 18000;
                 let listener: Option<TcpListener>;
                 loop {
@@ -527,7 +528,9 @@ impl PacketStatisticsControl {
                         }
                     };
                 }
-
+            } else {
+                log::info!("Metrics server is disabled!");
+                let listener: Option<TcpListener> = None;
             }
         }
 

@@ -99,7 +99,7 @@ export const DelegateModal: FCWithChildren<{
 
         onOk({
           status: 'success',
-          message: 'This operation can take up to one hour to process',
+          message: 'Delegation can take up to one hour to process',
           transactions: [
             { url: `${urls('MAINNET').blockExplorer}/transaction/${tx.transactionHash}`, hash: tx.transactionHash },
           ],

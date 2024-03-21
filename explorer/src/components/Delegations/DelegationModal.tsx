@@ -42,7 +42,12 @@ export const DelegationModal: FCWithChildren<
   }
 
   return (
-    <ConfirmationModal open={open} onConfirm={onClose || (() => {})} title="Delegation successful" confirmButton="Done">
+    <ConfirmationModal
+      open={open}
+      onConfirm={onClose || (() => {})}
+      title="Transaction successful"
+      confirmButton="Done"
+    >
       <Stack alignItems="center" spacing={2} mb={0}>
         {message && <Typography>{message}</Typography>}
         {transactions?.length === 1 && (

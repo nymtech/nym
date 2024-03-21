@@ -81,7 +81,7 @@ const DelegationsPage = () => {
       if (tx) {
         setConfirmationModalProps({
           status: 'success',
-          message: 'Undelegation successful',
+          message: 'Undelegation can take up to one hour to process',
           transactions: [
             { url: `${urls('MAINNET').blockExplorer}/transaction/${tx.transactionHash}`, hash: tx.transactionHash },
           ],

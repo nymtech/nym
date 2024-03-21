@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Box, Button, Card, Chip, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, Chip, Tooltip, Typography } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import { DelegationModal, DelegationModalProps, Title, UniversalDataGrid } from '@src/components';
 import { useWalletContext } from '@src/context/wallet';
@@ -13,6 +13,7 @@ import {
   useDelegationsContext,
 } from '@src/context/delegations';
 import { urls } from '@src/utils';
+import { Link as NymLink } from '@nymproject/react/link/Link';
 
 const mapToDelegationsRow = (delegation: DelegationWithRewards, index: number) => ({
   identity: delegation.identityKey,
@@ -195,6 +196,15 @@ const DelegationsPage = () => {
           }}
         />
       )}
+
+      <Alert severity="info" sx={{ mb: 3, fontSize: 'medium' }}>
+        This is a beta release for mobile delegation via the Nym explorer. If you have any feedback or feature
+        suggestions reach out to us{' '}
+        <NymLink underline="always" href="mailto:support@nymte.ch?subject=explorer delegation feedback / request">
+          here
+        </NymLink>
+        .
+      </Alert>
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Title text="Your Delegations" />
         <Button variant="contained" color="primary" component={Link} to="/network-components/mixnodes">
@@ -209,6 +219,7 @@ const DelegationsPage = () => {
           <ConnectKeplrWallet />
         </Box>
       ) : null}
+
       <Card
         sx={{
           mt: 2,

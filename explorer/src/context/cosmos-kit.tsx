@@ -1,9 +1,6 @@
 import React from 'react';
 import { ChainProvider } from '@cosmos-kit/react';
 import { wallets as keplr } from '@cosmos-kit/keplr-extension';
-import { wallets as ledger } from '@cosmos-kit/ledger';
-import { wallets as cosmosstation } from '@cosmos-kit/cosmostation-extension';
-import { wallets as leap } from '@cosmos-kit/leap-extension';
 import { assets, chains } from 'chain-registry';
 import { Chain, AssetList } from '@chain-registry/types';
 import { VALIDATOR_BASE_URL } from '@src/api/constants';
@@ -57,7 +54,7 @@ const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => {
     <ChainProvider
       chains={chainsFixedUp}
       assetLists={assetsFixedUp}
-      wallets={[...keplr, ...ledger, ...cosmosstation, ...leap]}
+      wallets={[...keplr]}
       endpointOptions={{
         endpoints: {
           nyx: {

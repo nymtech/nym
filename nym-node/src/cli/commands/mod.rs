@@ -4,3 +4,4 @@
 pub(super) mod build_info;
 pub(super) mod migrate;
 pub(super) mod run;
+pub(super) mod sign;

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::commands::{build_info, migrate, run};
+use crate::cli::commands::{build_info, migrate, run, sign};
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_node::error::NymNodeError;
@@ -39,6 +39,7 @@ impl Cli {
             Commands::BuildInfo(args) => build_info::execute(args),
             Commands::Run(args) => run::execute(*args).await,
             Commands::Migrate(args) => migrate::execute(args).await,
+            Commands::Sign(args) => sign::execute(args).await
         }
     }
 }
@@ -53,9 +54,11 @@ pub(crate) enum Commands {
     /// Attempt to migrate an existing mixnode or gateway into a nym-node.
     Migrate(migrate::Args),
 
-    // Init(init::Args),
     /// Start this nym-node
     Run(Box<run::Args>),
+
+    /// Use identity key of this node to sign provided message.
+    Sign(sign::Args),
 }
 
 #[cfg(test)]

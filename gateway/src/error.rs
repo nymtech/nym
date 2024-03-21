@@ -5,7 +5,7 @@ use crate::node::storage::error::StorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::ValidatorClientError;
 use std::io;
 use std::net::IpAddr;
@@ -91,6 +91,9 @@ pub enum GatewayError {
         expected_prefix: String,
         actual_prefix: String,
     },
+
+    #[error("this node has insufficient balance to run as zk-nym entry node since it won't be capable of redeeming received credentials. it's account ({account}) has a balance of only {balance}")]
+    InsufficientNodeBalance { account: AccountId, balance: Coin },
 
     #[error("storage failure: {source}")]
     StorageError {

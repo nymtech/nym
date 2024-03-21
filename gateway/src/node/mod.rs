@@ -26,6 +26,7 @@ use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilte
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
+use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use nym_wireguard_types::registration::GatewayClientRegistry;
 use rand::seq::SliceRandom;
@@ -449,10 +450,26 @@ impl<St> Gateway<St> {
 
         let shutdown = TaskManager::new(10);
 
-        let coconut_verifier = {
-            let nyxd_client = self.random_nyxd_client()?;
-            CoconutVerifier::new(nyxd_client, self.config.gateway.only_coconut_credentials).await
-        }?;
+        let nyxd_client = self.random_nyxd_client()?;
+
+        if self.config.gateway.only_coconut_credentials {
+            debug!("the gateway is running in coconut-only mode - making sure it has enough tokens for credential redemption");
+            let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
+
+            let account = nyxd_client.address();
+            let balance = nyxd_client
+                .get_balance(&account, mix_denom_base.clone())
+                .await?
+                .unwrap_or(Coin::new(0, mix_denom_base));
+
+            // see if we have at least 1nym (i.e. 1'000'000unym)
+            if balance.amount < 1_000_000 {
+                return Err(GatewayError::InsufficientNodeBalance { account, balance });
+            }
+        }
+
+        let coconut_verifier =
+            CoconutVerifier::new(nyxd_client, self.config.gateway.only_coconut_credentials).await?;
 
         let mix_forwarding_channel =
             self.start_packet_forwarder(shutdown.subscribe().named("PacketForwarder"));

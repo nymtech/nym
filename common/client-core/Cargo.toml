@@ -27,7 +27,7 @@ tap = "1.0.1"
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tungstenite = { workspace = true, default-features = false }
-tokio = { workspace = true, features = ["macros"]}
+tokio = { workspace = true, features = ["macros"] }
 time = "0.3.17"
 zeroize = { workspace = true }
 

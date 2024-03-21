@@ -11,10 +11,14 @@ function getBinInfo(path) {
         let mode = fs.statSync(path).mode
         fs.chmodSync(path, mode | 0o111)
 
-        const raw = execSync(`${path} build-info --output=json`, { stdio: 'pipe', encoding: "utf8" });
+        const cmd = `${path} build-info --output=json`;
+        console.log(`🚚 Running ${cmd}... (for max of 3 seconds, then SIGTERM)`);
+        const raw = execSync(cmd, { stdio: 'pipe', encoding: "utf8", timeout: 3000 });
         const parsed = JSON.parse(raw)
+        console.log(`    ✅ ok`);
         return parsed
     } catch (_) {
+        console.log(`    ❌ failed`);
         return undefined
     }
 }
@@ -24,8 +28,11 @@ async function run(assets, algorithm, filename, cache) {
         console.warn("cache is set to 'false', but we we no longer support it")
     }
 
+    const directory = path.join(process.env.RUNNER_TEMP || '.tmp', process.env.GITHUB_RUN_ID || '');
+    console.log('Temporary directory: ', directory);
+
     try {
-        fs.mkdirSync('.tmp');
+        fs.mkdirSync(directory, { recursive: true });
     } catch(e) {
         // ignore
     }
@@ -40,13 +47,13 @@ async function run(assets, algorithm, filename, cache) {
             let sig = null;
 
             // cache in `${WORKING_DIR}/.tmp/`
-            const cacheFilename = path.resolve(`.tmp/${asset.name}`);
+            const cacheFilename = path.join(directory, `${asset.name}`);
             if(!fs.existsSync(cacheFilename)) {
-                console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
+                console.log(`⬇️ Downloading ${asset.browser_download_url}... to ${cacheFilename} [${numAwaiting} of ${assets.length}]`);
                 buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));
                 fs.writeFileSync(cacheFilename, buffer);
             } else {
-                console.log(`Loading from ${cacheFilename}`);
+                console.log(`💾 Loading from ${cacheFilename}`);
                 buffer = Buffer.from(fs.readFileSync(cacheFilename));
 
                 // console.log('Reading signature from content');
@@ -131,6 +138,7 @@ async function run(assets, algorithm, filename, cache) {
             }
         }
     }
+    console.log(`Completed hashing ${assets.length} files`);
     return hashes;
 }
 
@@ -210,9 +218,10 @@ export async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrI
 
     releasesToProcess.forEach(release => {
         const {tag_name, name} = release;
-        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+\.\S+)/);
+        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+(\.\S+)?)/);
 
         if(!matches || matches.length < 2) {
+            console.warn('Could not match version structure in tag name = ', tag_name);
             return;
         }
 

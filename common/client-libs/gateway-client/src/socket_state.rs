@@ -44,9 +44,7 @@ pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
     #[cfg(unix)]
     match _conn.get_ref() {
         MaybeTlsStream::Plain(stream) => Some(stream.as_raw_fd()),
-        &_ => unreachable!(
-            "If tls features are enabled, the inner stream needs to be unpacked into raw fd"
-        ),
+        &_ => None,
     }
     #[cfg(not(unix))]
     None

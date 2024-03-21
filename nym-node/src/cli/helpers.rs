@@ -1,5 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use super::DEFAULT_NYMNODE_ID;
 use crate::env::vars::{NYMNODE_CONFIG_PATH_ARG, NYMNODE_ID_ARG};

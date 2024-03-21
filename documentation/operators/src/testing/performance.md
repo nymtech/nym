@@ -1,5 +1,7 @@
 # Performance Testing
 
+> To configure your node for a testing event, visit [node setup page](node-setup.md).
+
 Nym Mixnet has been running on mainnet for quite some time already. There is still work to be done in order for the network to meet its full potential - mass adoption of privacy on network level through fully distributed Mixnet.
 
 Nym therefore calls out the decentralised community of operators to join the Performance testing events in order to **overall increase quality of Nym Mixnet**. The main takeaways of such event are:

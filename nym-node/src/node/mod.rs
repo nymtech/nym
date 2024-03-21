@@ -54,13 +54,13 @@ impl MixnodeData {
     }
 }
 
-struct EntryGatewayData {
+pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
 }
 
 impl EntryGatewayData {
-    fn initialise(
+    pub fn initialise(
         config: &EntryGatewayConfig,
         custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
     ) -> Result<(), EntryGatewayError> {
@@ -87,7 +87,7 @@ impl EntryGatewayData {
     }
 }
 
-struct ExitGatewayData {
+pub struct ExitGatewayData {
     // ideally we'd be storing all the keys here, but unfortunately due to how the service providers
     // are currently implemented, they will be loading the data themselves from the provided paths
 }
@@ -179,7 +179,7 @@ impl ExitGatewayData {
         .await
     }
 
-    async fn initialise(
+    pub async fn initialise(
         config: &ExitGatewayConfig,
         public_key: identity::PublicKey,
     ) -> Result<(), ExitGatewayError> {

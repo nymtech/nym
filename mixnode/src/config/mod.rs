@@ -167,9 +167,6 @@ impl Config {
         Ok(loaded)
     }
 
-    // currently this is dead code, but once we allow loading configs from custom paths
-    // well, we will have to be using it
-    #[allow(dead_code)]
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         Self::read_from_path(path)
     }

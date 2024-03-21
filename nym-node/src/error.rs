@@ -110,6 +110,9 @@ pub enum NymNodeError {
     #[error("could not initialise nym-node as '--{name}' has not been specified which is required for a first time setup. (config section: {section})")]
     MissingInitArg { section: String, name: String },
 
+    #[error("failed to migrate {node_type}: {message}")]
+    MigrationFailure { node_type: String, message: String },
+
     #[error(transparent)]
     MixnodeFailure(#[from] MixnodeError),
 
@@ -148,7 +151,7 @@ pub enum MixnodeError {
         mix_bind_ip: IpAddr,
     },
 
-    #[error(transparent)]
+    #[error("mixnode failure: {0}")]
     External(#[from] nym_mixnode::error::MixnodeError),
 }
 
@@ -177,7 +180,7 @@ pub enum EntryGatewayError {
     #[error(transparent)]
     UnsupportedAddresses(#[from] UnsupportedGatewayAddresses),
 
-    #[error(transparent)]
+    #[error("entry gateway failure: {0}")]
     External(#[from] nym_gateway::GatewayError),
 }
 
@@ -193,6 +196,6 @@ pub enum ExitGatewayError {
     #[error(transparent)]
     ExternalClientCore(#[from] ClientCoreError),
 
-    #[error(transparent)]
+    #[error("exit gateway failure: {0}")]
     External(#[from] nym_gateway::GatewayError),
 }

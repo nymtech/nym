@@ -15,7 +15,7 @@ warning: build failed, waiting for other jobs to finish...
 error: build failed
 ```
 
-Why does this happen? 
+Why does this happen?
 
 We have scripts which automatically include the Git commit hash and Git tag in the binary for easier debugging later. If you download a .zip and try building from that, it's not a Git repository and build will fail as above.
 
@@ -26,7 +26,7 @@ What to do?
 ```
 git clone https://github.com/nymtech/nym.git
 ```
-* Follow the instructions to build the platform 
+* Follow the instructions to build the platform
 * To upgrade, pause your nodes, in the same terminal window run `git pull`, follow the upgrade instructions and re-start your nodes.
 
 ## General Node Config
@@ -53,21 +53,21 @@ bob@nym:~$ tree /home/nym/.nym/mixnodes/
 > If you `cat` the `public_sphinx.pem` key, the output will be different from the public key you will see on Nym [dashboard](https://sandbox-explorer.nymtech.net/). The reason for this is that `.pem` files are encoded in **base64**, however on the web they are in **base58**. Don't be confused if your keys look different. They are the same keys, just with different encoding :)
 
 
-## Mix Nodes 
+## Mix Nodes
 
 ### How can I tell my node is up and running and mixing traffic?
 
-First of all check the 'Mixnodes' section of either the Nym Network Explorers: 
-* [Mainnet](https://explorer.nymtech.net/) 
-* [Sandbox testnet](https://sandbox-explorer.nymtech.net/) 
+First of all check the 'Mixnodes' section of either the Nym Network Explorers:
+* [Mainnet](https://explorer.nymtech.net/)
+* [Sandbox testnet](https://sandbox-explorer.nymtech.net/)
 
 Enter your **identity key** to find your node. Check the contents of the `Mixnode stats` and `Routing score` sections.
 
-There are 2 community explorers currently, which have been created by [Nodes Guru](https://nodes.guru): 
+There are 2 community explorers currently, which have been created by [Nodes Guru](https://nodes.guru):
 * [Mainnet](https://mixnet.explorers.guru/)
 * [Sandbox testnet](https://sandbox.mixnet.explorers.guru/)
 
-[Here](https://github.com/cosmos/chain-registry/blob/master/nyx/chain.json#L158-L187) is a dictionary with Nyx chain registry entry regarding all explorers.  
+[Here](https://github.com/cosmos/chain-registry/blob/master/nyx/chain.json#L158-L187) is a dictionary with Nyx chain registry entry regarding all explorers.
 
 If you want more information, or if your node isn't showing up on the explorer of your choice and you want to double-check, here are some examples on how to check if the node is configured properly.
 
@@ -151,7 +151,7 @@ PORT     STATE SERVICE
 1789/tcp open  hello
 ```
 
-##### Query online nodes: 
+##### Query online nodes:
 
 ```
 curl --location --request GET 'https://validator.nymtech.net/api/v1/mixnodes/'
@@ -159,7 +159,7 @@ curl --location --request GET 'https://validator.nymtech.net/api/v1/mixnodes/'
 
 Will return a list all nodes currently online.
 
-You can query Gateways by replacing `nym-mixnodes` with `nym-gateways` in the above command, and can query for the Mix Nodes and Gateways on the Sandbox testnet by replacing `validator` with `sandbox-validator`. 
+You can query Gateways by replacing `nym-mixnodes` with `nym-gateways` in the above command, and can query for the Mix Nodes and Gateways on the Sandbox testnet by replacing `validator` with `sandbox-validator`.
 
 
 #### Check with Network API
@@ -299,14 +299,35 @@ You don't have to do any additional configuration for your node to implement thi
 
 ### My Gateway seems to be running but appears offline
 
-Check your [firewall](./maintenance.md#configure-your-firewall) is active and if the necessary ports are open / allowed.
+Check if your [firewall](./maintenance.md#configure-your-firewall) is active and if the necessary ports are open / allowed.
 
 ### My exit Gateway "is still not online..."
 
 The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's important to run it before and during the bonding process. In case it already got blacklisted run it for at several hours. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
 
-You may want to disconnect the Network Requester and let it run as a Gateway alone for some time to regain better routing score and then return to the full [Exit Gateway finctionality](./gateway-setup.md#initialising-gateway-with-network-requester).
+### When enabling `ip_packet_router` (IPR) I get a `client-core error`
 
+This error tells you that you already have IPR keys in your data storage, to activate them you have two options:
+
+1. Open `~/.nym/gateways/<ID>/config/config.toml` and set the correct values
+```toml
+[ip_packer_router_enabled]
+enabled = true
+
+# UNDER [storage_paths] CHANGE
+ip_packet_router_config = '/root/.nym/gateways/<ID>/config/ip_packet_router_config.toml'
+```
+
+2. Remove the IPR data storage and initialise a new one with these commands
+```toml
+rm -rf ~/.nym/gateways/<ID>/data/ip-packet-router-data
+
+./nym-gateway setup-ip-packet-router --id <ID>
+```
+
+### My `ip_packet_router` (IPR) seems to not work
+
+Make sure to run your Gateway with embeded IPR as root. Either in a root shell with your configs in `/root/.nym/` or with a command `sudo -E` which gives root privileges but looks for user config folder.
 
 ## Validators
 
@@ -324,4 +345,3 @@ If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog
 The fastest way to reach one of us or get a help from the community, visit our [Telegram Node Setup Help Chat](https://t.me/nymchan_help_chat) or head to our [Discord](https://Discord.gg/nym).
 
 For more tech heavy question join our [Matrix core community channel](https://matrix.to/#/#general:nymtech.chat), where you can meet other builders and Nym core team members.
-

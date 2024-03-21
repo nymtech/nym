@@ -2,9 +2,9 @@
 
 To join the [Performance testing event]({{performance_testing_webpage}}) node operators need to do proceed with the following tasks:
 
-1. [Sign their node]({{performance_testing_webpage}}) into the testing environment
-2. [Configure their node](#node-configuration) for the test
-3. (Optional) [Setup metric monitoring system](templates.md) to observe node performance at any time
+**1. [Sign their node]({{performance_testing_webpage}}) into the testing environment**
+**2. [Configure their node](#node-configuration) for the test**
+**3. (*Not mandatory*) [Setup metric monitoring system](templates.md) to observe node performance at any time**
 
 ## Node Configuration
 
@@ -13,21 +13,24 @@ To join the [Performance testing event]({{performance_testing_webpage}}) node op
 After you signed your node (or several) into the Performance testing environment, open the machine with (each of) your nodes and follow the steps below to configure your node for the event.
 
 
-1. Download and setup `2024.2-fast-and-furious` binary from our [release page](https://github.com/nymtech/nym/releases/)
+#### 1. Download and upgrade to `v2024.2-fast-and-furious` binary
+  - Download the binary from Nym [release page](https://github.com/nymtech/nym/releases/)
   - Follow the steps to upgrade node on the [maintenance page](../nodes/manual-upgrade.md)
-  - Before you start your node on the binary, follow the steps below
+  - Before you re-start your node, follow the steps below
 
-2. If you run `nym-gateway` proceed with these steps. If not, go to the next point
+
+#### 2. If you run `nym-gateway` proceed with these steps. If not, go to the next point
   - Make sure to have your `nym-gateway` setup as [Nym Exit Gateway](../legal/exit-gateway.md) following the commands [here](../nodes/gateway-setup.md#initialising-exit-gateway)
-  - Enable `[ip_packet_router]` (IPR) in your `~/.nym/gateways/*/config/config.toml` with the command below and then run [this script](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) to enable IPv4 and IPv6
+  - Enable `[ip_packet_router]` (IPR) in your `~/.nym/gateways/*/config/config.toml` and IPv4 and IPv6 with [this script](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) by running the two command below
 ```sh
 # command to enable IPR
-./nym-gateway setup-ip-packet-router --id "nym-gateway" --enabled true
+./nym-gateway setup-ip-packet-router --id <GATEWAY_ID> --enabled true
 
 # script to enable IPv4 and IPv6
 curl -o enable_networking_for_nym_nodes.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/0840e1d2ee9949716c45655457d198607dfd3107/enable_networking_for_nym_nodes.sh -L && chmod u+x enable_networking_for_nym_nodes.sh && sudo ./enable_networking_for_nym_nodes.sh
 ```
 
+<!--
 3. If you run Prometheus for [monitoring](templates.md) add a `<NODE_METRICS_KEY>` to your node `config.toml` by running [this script](https://gist.github.com/benedettadavico/1299b2c7b8b8282c15eafb1914fb3594) with an arbitrary `<NODE_METRIC_KEY>` of your own choice as an argument, follow these commands with your own **strong passphrase**
 ```sh
 # get the script
@@ -63,9 +66,16 @@ scrape_configs:
 ```sh
 sudo ufw allow 9000, 9001
 ```
-4. Restart your node, in case you run it as a [`systemd` service](../nodes/maintenance.md#systemd) make sure to run `systemctl daemon-reload` before the restart
-  - Make sure your node runs with root privileges, either in a root shell or with `sudo` command
+-->
 
+
+#### 3. Restart your node with root privileges
+  - Either in a root shell or with `sudo -E` command
+  - In case you run your node as a [`systemd` service](../nodes/maintenance.md#systemd) make sure to run `systemctl daemon-reload` before the service restart
+
+## Troubleshooting
+
+If you come to any errors during the setup see troubleshooting page related to [Mix Nodes](..nodes/troubleshooting.md#mix-nodes) and [Gateways](../nodes/troubleshooting.md#gateways--network-requesters). In case your issue isn't documented ask in our Element [Node Operators channel](https://matrix.to/#/#operators:nymtech.chat) or raise an [issue](https://github.com/nymtech/nym/issues) on Github.
 
 <!--
 TODO:

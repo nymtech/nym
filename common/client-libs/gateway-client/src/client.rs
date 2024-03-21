@@ -630,30 +630,25 @@ impl<C, St> GatewayClient<C, St> {
         Ok(())
     }
 
-    fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
-        packets
-            .iter()
-            .map(|packet| packet.packet().len())
-            .sum::<usize>() as i64
-    }
-
     pub async fn batch_send_mix_packets(
         &mut self,
         packets: Vec<MixPacket>,
-    ) -> Result<(), GatewayClientError> {
+    ) -> Result<(), GatewayClientError>
+    where
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
+    {
         debug!("Sending {} mix packets", packets.len());
 
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
         let bandwidth_remaining = self.bandwidth_remaining.load(Ordering::Acquire);
-        if self.estimate_required_bandwidth(&packets) > bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth(
-                //SW NOTE query bandwidth here as well
-                self.estimate_required_bandwidth(&packets),
-                bandwidth_remaining,
-            ));
+        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+            self.claim_bandwidth().await?;
         }
+
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -712,21 +707,20 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     // TODO: possibly make responses optional
-    pub async fn send_mix_packet(
-        &mut self,
-        mix_packet: MixPacket,
-    ) -> Result<(), GatewayClientError> {
+    pub async fn send_mix_packet(&mut self, mix_packet: MixPacket) -> Result<(), GatewayClientError>
+    where
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
+    {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
         let bandwidth_remaining = self.bandwidth_remaining.load(Ordering::Acquire);
-        if (mix_packet.packet().len() as i64) > bandwidth_remaining {
-            //SW : NOTE claim ecash_bandwidth there?
-            return Err(GatewayClientError::NotEnoughBandwidth(
-                mix_packet.packet().len() as i64,
-                bandwidth_remaining,
-            ));
+        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+            self.claim_bandwidth().await?;
         }
+
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }

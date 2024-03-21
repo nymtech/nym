@@ -3,10 +3,12 @@
 
 use async_trait::async_trait;
 use log::{debug, error};
+use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use thiserror::Error;
@@ -111,8 +113,9 @@ impl<C, St> RemoteGateway<C, St> {
 
 impl<C, St> GatewayTransceiver for RemoteGateway<C, St>
 where
-    C: Send,
-    St: Send,
+    C: DkgQueryClient + Send + Sync,
+    St: CredentialStorage,
+    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
     fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_client.gateway_identity()
@@ -126,8 +129,9 @@ where
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C, St> GatewaySender for RemoteGateway<C, St>
 where
-    C: Send,
-    St: Send,
+    C: DkgQueryClient + Send + Sync,
+    St: CredentialStorage,
+    <St as CredentialStorage>::StorageError: Send + Sync + 'static,
 {
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
         self.gateway_client

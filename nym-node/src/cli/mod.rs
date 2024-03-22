@@ -6,6 +6,7 @@ use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_node::error::NymNodeError;
 use std::sync::OnceLock;
+use crate::env::vars::{NYMNODE_NO_BANNER_ARG, NYMNODE_CONFIG_ENV_FILE_ARG};
 
 mod commands;
 mod helpers;
@@ -22,11 +23,18 @@ fn pretty_build_info_static() -> &'static str {
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the nym-node and overrides any preconfigured values.
-    #[clap(short, long)]
+    #[clap(
+        short, 
+        long,
+        env = NYMNODE_CONFIG_ENV_FILE_ARG
+    )]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     /// Flag used for disabling the printed banner in tty.
-    #[clap(long)]
+    #[clap(
+        long,
+        env = NYMNODE_NO_BANNER_ARG
+    )]
     pub(crate) no_banner: bool,
 
     #[clap(subcommand)]

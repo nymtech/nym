@@ -9948,7 +9948,9 @@ dependencies = [
  "futures-util",
  "log",
  "rustls 0.21.10",
+ "rustls-native-certs",
  "tokio",
+ "tokio-rustls 0.24.1",
  "tungstenite",
 ]
 

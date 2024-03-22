@@ -49,13 +49,7 @@ workspace = true
 # the choice of this particular tls feature was arbitrary;
 # if you reckon a different one would be more appropriate, feel free to change it
 # features = ["native-tls"]
-# NOTE: when testing I've run into cases where it's needed to add
-# rustls-tls-*-roots feature flags, otherwise we get errors claiming TLS not
-# compiled in. However the current setup works fine when connecting to the
-# latest gateway version, so let's not force a decision for native vs webpki
-# here.
-# features = ["rustls", "rustls-tls-native-roots"]
-features = ["rustls"]
+features = ["rustls-tls-native-roots"]
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]

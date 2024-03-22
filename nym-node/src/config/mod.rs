@@ -204,7 +204,7 @@ impl ConfigBuilder {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     // additional metadata holding on-disk location of this config file
@@ -330,7 +330,7 @@ impl Config {
 }
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct Host {
@@ -348,7 +348,7 @@ pub struct Host {
     pub location: Option<Country>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct Http {
@@ -364,6 +364,18 @@ pub struct Http {
     /// Currently only used for obtaining mixnode's stats.
     #[serde(default)]
     pub access_token: Option<String>,
+    
+    /// Specify whether basic system information should be exposed.
+    /// default: true
+    pub expose_system_info: bool,
+    
+    /// Specify whether basic system hardware information should be exposed.
+    /// default: true
+    pub expose_system_hardware: bool,
+
+    /// Specify whether detailed system crypto hardware information should be exposed.
+    /// default: true
+    pub expose_crypto_hardware: bool,
 }
 
 impl Default for Http {
@@ -372,11 +384,14 @@ impl Default for Http {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
             access_token: None,
+            expose_system_info: true,
+            expose_system_hardware: true,
+            expose_crypto_hardware: true,
         }
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct Mixnet {
@@ -394,7 +409,7 @@ pub struct Mixnet {
     pub debug: MixnetDebug,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct MixnetDebug {
@@ -462,7 +477,7 @@ impl Default for Mixnet {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Wireguard {
     /// Specifies whether the wireguard service is enabled on this node.

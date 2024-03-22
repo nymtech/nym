@@ -42,3 +42,70 @@ pub struct HostKeys {
     /// Currently it corresponds to either mixnode's or gateway's key.
     pub x25519: String,
 }
+
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct HostSystem {
+    /// Name of the operating system of the host machine.
+    pub system_name: Option<String>,
+
+    /// Version of the kernel of the host machine, if applicable.
+    pub kernel_version: Option<String>,
+
+    /// Version of the operating system of the host machine, if applicable.
+    pub os_version: Option<String>,
+
+    /// The CPU architecture of the host machine (eg. x86, amd64, aarch64, ...).
+    pub cpu_arch: Option<String>,
+
+    /// Hardware information of the host machine.
+    pub hardware: Option<Hardware>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Hardware {
+    /// The information of the host CPU.
+    pub cpu: Vec<Cpu>,
+
+    /// Total memory, in bytes, available on the host.
+    pub total_memory: u64,
+
+    /// Detailed information about availability of crypto-specific instructions for future optimisations.
+    pub crypto: Option<CryptoHardware>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Cpu {
+    pub name: String,
+
+    /// The CPU frequency in MHz.
+    pub frequency: u64,
+    
+    pub vendor_id: String,
+    
+    pub brand: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct CryptoHardware {
+    /// Flag to indicate whether the host machine supports AES-NI x86 extension instruction set
+    pub aesni: bool,
+
+    /// Flag to indicate whether the host machine supports AVX2 x86 extension instruction set
+    pub avx2: bool,
+
+    /// Number of SMT logical processors available.
+    pub smt_logical_processor_count: Vec<u32>,
+
+    /// Flag to indicate whether the host machine supports OSXSAVE instruction
+    pub osxsave: bool,
+
+    /// Flag to indicate whether the host machine supports Intel Software Guard Extensions (SGX) set of instruction codes
+    pub sgx: bool,
+
+    /// Flag to indicate whether the host machine supports XSAVE instruction
+    pub xsave: bool,
+}

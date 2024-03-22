@@ -380,7 +380,7 @@ impl ExitGatewayArgs {
         mut section: config::ExitGatewayConfig,
     ) -> config::ExitGatewayConfig {
         if let Some(upstream_exit_policy) = self.upstream_exit_policy_url {
-            section.upstream_exit_policy_url = Some(upstream_exit_policy)
+            section.upstream_exit_policy_url = upstream_exit_policy
         }
         if let Some(open_proxy) = self.open_proxy {
             section.open_proxy = open_proxy

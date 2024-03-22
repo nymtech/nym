@@ -186,6 +186,7 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
             bind_address: cfg.http.bind_address,
             landing_page_assets_path: cfg.http.landing_page_assets_path,
             access_token: cfg.http.metrics_key,
+            ..Default::default()
         }))
         .with_mixnet(args.mixnet.override_config_section(config::Mixnet {
             bind_address: SocketAddr::new(ip, cfg.mixnode.mix_port),
@@ -377,7 +378,13 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                 .override_config_section(config::ExitGatewayConfig {
                     storage_paths: config::persistence::ExitGatewayPaths::new(&data_dir),
                     open_proxy: false,
-                    upstream_exit_policy_url: None,
+                    upstream_exit_policy_url: nr_cfg
+                        .as_ref()
+                        .map(|c| c.network_requester.upstream_exit_policy_url.clone())
+                        .flatten()
+                        .unwrap_or(
+                            config::ExitGatewayConfig::new_default(".").upstream_exit_policy_url,
+                        ),
                     network_requester: config::exit_gateway::NetworkRequester {
                         debug: config::exit_gateway::NetworkRequesterDebug {
                             enabled: cfg.network_requester.enabled,

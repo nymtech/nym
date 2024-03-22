@@ -29,6 +29,10 @@ tokio = { workspace = true, features = ["macros", "sync"] }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
+# system info:
+cupid = "0.6.1"
+sysinfo = "0.30.7"
+
 nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing", "output_format"] }
 nym-client-core-config-types = { path = "../common/client-core/config-types" }
 nym-config = { path = "../common/config" }
@@ -36,6 +40,7 @@ nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 nym-node-http-api = { path = "nym-node-http-api" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
+nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 

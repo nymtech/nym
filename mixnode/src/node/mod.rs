@@ -16,7 +16,7 @@ use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
-use nym_task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskHandle};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -32,6 +32,8 @@ mod packet_delayforwarder;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
+    run_http_server: bool,
+    task_client: Option<TaskClient>,
     config: Config,
     descriptor: NodeDescription,
     identity_keypair: Arc<identity::KeyPair>,
@@ -41,10 +43,12 @@ pub struct MixNode {
 impl MixNode {
     pub fn new(config: Config) -> Result<Self, MixnodeError> {
         Ok(MixNode {
+            run_http_server: false,
             descriptor: Self::load_node_description(&config),
             identity_keypair: Arc::new(load_identity_keys(&config)?),
             sphinx_keypair: Arc::new(load_sphinx_keys(&config)?),
             config,
+            task_client: None,
         })
     }
 
@@ -55,11 +59,21 @@ impl MixNode {
         sphinx_keypair: Arc<encryption::KeyPair>,
     ) -> Self {
         MixNode {
+            run_http_server: false,
+            task_client: None,
             config,
             descriptor,
             identity_keypair,
             sphinx_keypair,
         }
+    }
+
+    pub fn disable_http_server(&mut self) {
+        self.run_http_server = false
+    }
+
+    pub fn set_task_client(&mut self, task_client: TaskClient) {
+        self.task_client = Some(task_client)
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
@@ -218,8 +232,8 @@ impl MixNode {
         })
     }
 
-    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
-        let _res = shutdown.catch_interrupt().await;
+    async fn wait_for_interrupt(&self, shutdown: TaskHandle) {
+        let _res = shutdown.wait_for_shutdown().await;
         log::info!("Stopping nym mixnode");
     }
 
@@ -230,34 +244,42 @@ impl MixNode {
             warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
         }
 
-        let shutdown = TaskManager::default();
+        // Shutdown notifier for signalling tasks to stop
+        let shutdown = self
+            .task_client
+            .take()
+            .map(Into::<TaskHandle>::into)
+            .unwrap_or_default()
+            .name_if_unnamed("mixnode");
 
-        let (node_stats_pointer, node_stats_update_sender) = self
-            .start_node_stats_controller(shutdown.subscribe().named("node_statistics::Controller"));
+        let (node_stats_pointer, node_stats_update_sender) =
+            self.start_node_stats_controller(shutdown.fork("node_statistics::Controller"));
         let delay_forwarding_channel = self.start_packet_delay_forwarder(
             node_stats_update_sender.clone(),
-            shutdown.subscribe().named("DelayForwarder"),
+            shutdown.fork("DelayForwarder"),
         );
         self.start_socket_listener(
             node_stats_update_sender,
             delay_forwarding_channel,
-            shutdown.subscribe().named("Listener"),
+            shutdown.fork("Listener"),
         );
-        let atomic_verloc_results =
-            self.start_verloc_measurements(shutdown.subscribe().named("VerlocMeasurer"));
+        let atomic_verloc_results = self.start_verloc_measurements(shutdown.fork("VerlocMeasurer"));
 
         // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
         // with that of the rest of the tasks.
         // Currently it's runtime is forcefully terminated once the mixnode exits.
-        self.start_http_api(
-            atomic_verloc_results,
-            node_stats_pointer,
-            self.config.metrics_key(),
-            shutdown.subscribe().named("http-api"),
-        )?;
+        if self.run_http_server {
+            self.start_http_api(
+                atomic_verloc_results,
+                node_stats_pointer,
+                self.config.metrics_key(),
+                shutdown.fork("http-api"),
+            )?;
+        }
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
         self.wait_for_interrupt(shutdown).await;
+        
         Ok(())
     }
 }

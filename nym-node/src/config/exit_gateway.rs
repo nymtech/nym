@@ -7,14 +7,14 @@ use crate::config::Config;
 use crate::error::ExitGatewayError;
 use clap::crate_version;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
-use nym_config::serde_helpers::de_maybe_stringified;
+use nym_config::defaults::mainnet;
 use nym_gateway::node::{LocalIpPacketRouterOpts, LocalNetworkRequesterOpts};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 use zeroize::Zeroizing;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExitGatewayConfig {
     pub storage_paths: ExitGatewayPaths,
@@ -24,8 +24,7 @@ pub struct ExitGatewayConfig {
     pub open_proxy: bool,
 
     /// Specifies the url for an upstream source of the exit policy used by this node.
-    #[serde(deserialize_with = "de_maybe_stringified")]
-    pub upstream_exit_policy_url: Option<Url>,
+    pub upstream_exit_policy_url: Url,
 
     pub network_requester: NetworkRequester,
 
@@ -34,17 +33,22 @@ pub struct ExitGatewayConfig {
 
 impl ExitGatewayConfig {
     pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
+        #[allow(clippy::expect_used)]
+        // SAFETY:
+        // we expect our default values to be well-formed
         ExitGatewayConfig {
             storage_paths: ExitGatewayPaths::new(data_dir),
             open_proxy: false,
-            upstream_exit_policy_url: None,
+            upstream_exit_policy_url: mainnet::EXIT_POLICY_URL
+                .parse()
+                .expect("invalid default exit policy URL"),
             network_requester: Default::default(),
             ip_packet_router: Default::default(),
         }
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 pub struct NetworkRequester {
     #[serde(default)]
     pub debug: NetworkRequesterDebug,
@@ -59,7 +63,7 @@ impl Default for NetworkRequester {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 pub struct NetworkRequesterDebug {
     /// Specifies whether network requester service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run **both**
@@ -86,7 +90,7 @@ impl Default for NetworkRequesterDebug {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct IpPacketRouter {
     #[serde(default)]
     pub debug: IpPacketRouterDebug,
@@ -101,7 +105,7 @@ impl Default for IpPacketRouter {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct IpPacketRouterDebug {
     /// Specifies whether ip packet routing service is enabled in this process.
@@ -167,7 +171,9 @@ pub fn ephemeral_exit_gateway_config(
                     .debug
                     .disable_poisson_rate,
                 use_deprecated_allow_list: false,
-                upstream_exit_policy_url: config.exit_gateway.upstream_exit_policy_url.clone(),
+                upstream_exit_policy_url: Some(
+                    config.exit_gateway.upstream_exit_policy_url.clone(),
+                ),
             },
             storage_paths: nym_network_requester::config::NetworkRequesterPaths {
                 common_paths: config
@@ -199,7 +205,9 @@ pub fn ephemeral_exit_gateway_config(
                     .ip_packet_router
                     .debug
                     .disable_poisson_rate,
-                upstream_exit_policy_url: config.exit_gateway.upstream_exit_policy_url.clone(),
+                upstream_exit_policy_url: Some(
+                    config.exit_gateway.upstream_exit_policy_url.clone(),
+                ),
             },
             storage_paths: nym_ip_packet_router::config::IpPacketRouterPaths {
                 common_paths: config

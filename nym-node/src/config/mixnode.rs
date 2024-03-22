@@ -14,7 +14,7 @@ use std::time::Duration;
 
 pub const DEFAULT_VERLOC_PORT: u16 = DEFAULT_VERLOC_LISTENING_PORT;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MixnodeConfig {
     pub storage_paths: MixnodePaths,
@@ -35,7 +35,7 @@ impl MixnodeConfig {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Verloc {
     /// Socket address this node will use for binding its verloc API.
@@ -55,7 +55,7 @@ impl Default for Verloc {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct VerlocDebug {
     /// Specifies number of echo packets sent to each node during a measurement run.
@@ -124,7 +124,7 @@ impl From<VerlocDebug> for nym_mixnode::config::Verloc {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Debug {
     /// Delay between each subsequent node statistics being logged to the console

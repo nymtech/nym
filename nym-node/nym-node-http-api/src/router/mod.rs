@@ -13,6 +13,7 @@ use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models;
+use nym_node_requests::api::v1::node::models::HostSystem;
 use nym_node_requests::api::SignedHostInformation;
 use nym_node_requests::routes;
 use std::net::SocketAddr;
@@ -41,6 +42,7 @@ impl Config {
                     node: api::v1::node::Config {
                         build_information,
                         host_information,
+                        system_info: None,
                         roles: Default::default(),
                     },
                     gateway: Default::default(),
@@ -71,8 +73,19 @@ impl Config {
     }
 
     #[must_use]
+    pub fn with_system_info(mut self, info: HostSystem) -> Self {
+        self.api.v1_config.node.system_info = Some(info);
+        self
+    }
+
+    #[must_use]
     pub fn with_gateway(mut self, gateway: Gateway) -> Self {
         self.api.v1_config.node.roles.gateway_enabled = true;
+        self.with_gateway_details(gateway)
+    }
+
+    #[must_use]
+    pub fn with_gateway_details(mut self, gateway: Gateway) -> Self {
         self.api.v1_config.gateway.details = Some(gateway);
         self
     }
@@ -80,6 +93,11 @@ impl Config {
     #[must_use]
     pub fn with_mixnode(mut self, mixnode: Mixnode) -> Self {
         self.api.v1_config.node.roles.mixnode_enabled = true;
+        self.with_mixnode_details(mixnode)
+    }
+
+    #[must_use]
+    pub fn with_mixnode_details(mut self, mixnode: Mixnode) -> Self {
         self.api.v1_config.mixnode.details = Some(mixnode);
         self
     }
@@ -87,6 +105,11 @@ impl Config {
     #[must_use]
     pub fn with_network_requester(mut self, network_requester: NetworkRequester) -> Self {
         self.api.v1_config.node.roles.network_requester_enabled = true;
+        self.with_network_requester_details(network_requester)
+    }
+
+    #[must_use]
+    pub fn with_network_requester_details(mut self, network_requester: NetworkRequester) -> Self {
         self.api.v1_config.network_requester.details = Some(network_requester);
         self
     }
@@ -100,6 +123,11 @@ impl Config {
     #[must_use]
     pub fn with_ip_packet_router(mut self, ip_packet_router: IpPacketRouter) -> Self {
         self.api.v1_config.node.roles.ip_packet_router_enabled = true;
+        self.with_ip_packet_router_details(ip_packet_router)
+    }
+
+    #[must_use]
+    pub fn with_ip_packet_router_details(mut self, ip_packet_router: IpPacketRouter) -> Self {
         self.api.v1_config.ip_packet_router.details = Some(ip_packet_router);
         self
     }

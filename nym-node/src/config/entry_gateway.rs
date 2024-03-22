@@ -15,7 +15,7 @@ use zeroize::Zeroizing;
 
 pub const DEFAULT_WS_PORT: u16 = DEFAULT_CLIENT_LISTENING_PORT;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EntryGatewayConfig {
     pub storage_paths: EntryGatewayPaths,
@@ -43,7 +43,7 @@ pub struct EntryGatewayConfig {
     pub debug: Debug,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Debug {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.

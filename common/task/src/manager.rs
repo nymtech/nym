@@ -348,7 +348,7 @@ impl TaskClient {
             "unnamed-TaskClient".to_string()
         };
 
-        log!(target: target, level, "{msg}")
+        log!(target: target, level, "{}", format!("[{target}] {msg}"))
     }
 
     #[must_use]

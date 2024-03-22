@@ -30,7 +30,6 @@ pub(crate) fn store_keypair<T: PemStorableKeyPair>(
     })
 }
 
-#[allow(dead_code)]
 pub(crate) fn load_key<T, P>(path: P, name: impl Into<String>) -> Result<T, KeyIOFailure>
 where
     T: PemStorableKey,

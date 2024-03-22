@@ -53,6 +53,7 @@ pub(crate) enum Commands {
 }
 
 // Configuration that can be overridden.
+#[allow(dead_code)]
 struct OverrideConfig {
     id: String,
     host: Option<IpAddr>,

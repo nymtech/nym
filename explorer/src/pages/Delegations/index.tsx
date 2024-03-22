@@ -1,9 +1,8 @@
 import React, { useEffect } from 'react';
-import { Alert, Box, Button, Card, Chip, Tooltip, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, Button, Card, Chip, IconButton, Tooltip, Typography } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import { DelegationModal, DelegationModalProps, Title, UniversalDataGrid } from '@src/components';
 import { useWalletContext } from '@src/context/wallet';
-import { ConnectKeplrWallet } from '@src/components/Wallet/ConnectKeplrWallet';
 import { GridColDef } from '@mui/x-data-grid';
 import { unymToNym } from '@src/utils/currency';
 import {
@@ -13,7 +12,8 @@ import {
   useDelegationsContext,
 } from '@src/context/delegations';
 import { urls } from '@src/utils';
-import { Link as NymLink } from '@nymproject/react/link/Link';
+import { useClipboard } from 'use-clipboard-copy';
+import { Close } from '@mui/icons-material';
 
 const mapToDelegationsRow = (delegation: DelegationWithRewards, index: number) => ({
   identity: delegation.identityKey,
@@ -24,9 +24,37 @@ const mapToDelegationsRow = (delegation: DelegationWithRewards, index: number) =
   pending: delegation.pending,
 });
 
+const Banner = ({ onClose }: { onClose: () => void }) => {
+  const { copy } = useClipboard();
+
+  return (
+    <Alert
+      severity="info"
+      sx={{ mb: 3, fontSize: 'medium', width: '100%' }}
+      action={
+        <IconButton size="small" onClick={onClose}>
+          <Close fontSize="small" />
+        </IconButton>
+      }
+    >
+      <AlertTitle> Mobile Delegations Beta</AlertTitle>
+      <Box>
+        <Typography>
+          This is a beta release for mobile delegations If you have any feedback or feature suggestions contact us at
+          support@nymte.ch
+          <Button size="small" onClick={() => copy('support@nymte.ch')} sx={{ display: 'inline-block' }}>
+            Copy
+          </Button>
+        </Typography>
+      </Box>
+    </Alert>
+  );
+};
+
 const DelegationsPage = () => {
   const [confirmationModalProps, setConfirmationModalProps] = React.useState<DelegationModalProps | undefined>();
   const [isLoading, setIsLoading] = React.useState(false);
+  const [showBanner, setShowBanner] = React.useState(true);
 
   const { isWalletConnected } = useWalletContext();
   const { handleGetDelegations, handleUndelegate, delegations } = useDelegationsContext();
@@ -196,15 +224,7 @@ const DelegationsPage = () => {
           }}
         />
       )}
-
-      <Alert severity="info" sx={{ mb: 3, fontSize: 'medium' }}>
-        This is a beta release for mobile delegation via the Nym explorer. If you have any feedback or feature
-        suggestions reach out to us{' '}
-        <NymLink underline="always" href="mailto:support@nymte.ch?subject=explorer delegation feedback / request">
-          here
-        </NymLink>
-        .
-      </Alert>
+      {showBanner && <Banner onClose={() => setShowBanner(false)} />}
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Title text="Your Delegations" />
         <Button variant="contained" color="primary" component={Link} to="/network-components/mixnodes">
@@ -216,7 +236,6 @@ const DelegationsPage = () => {
           <Typography mb={2} variant="h6">
             Connect your wallet to view your delegations.
           </Typography>
-          <ConnectKeplrWallet />
         </Box>
       ) : null}
 

@@ -76,9 +76,7 @@ impl MessageQueue {
     }
 
     pub(crate) fn pop(&mut self) -> Option<TransportMessage> {
-        let Some(head) = self.queue.first() else {
-            return None;
-        };
+        let head = self.queue.first()?;
 
         if head.nonce == self.next_expected_nonce {
             self.next_expected_nonce = self.next_expected_nonce.wrapping_add(1);

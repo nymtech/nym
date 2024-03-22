@@ -39,7 +39,7 @@ impl Cli {
             Commands::BuildInfo(args) => build_info::execute(args),
             Commands::BondingInformation(args) => bonding_information::execute(args).await,
             Commands::Run(args) => run::execute(*args).await,
-            Commands::Migrate(args) => migrate::execute(args).await,
+            Commands::Migrate(args) => migrate::execute(*args).await,
             Commands::Sign(args) => sign::execute(args).await,
         }
     }
@@ -56,7 +56,7 @@ pub(crate) enum Commands {
     BondingInformation(bonding_information::Args),
 
     /// Attempt to migrate an existing mixnode or gateway into a nym-node.
-    Migrate(migrate::Args),
+    Migrate(Box<migrate::Args>),
 
     /// Start this nym-node
     Run(Box<run::Args>),

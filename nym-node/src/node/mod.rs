@@ -29,12 +29,12 @@ use zeroize::Zeroizing;
 pub mod bonding_information;
 pub mod helpers;
 
-struct MixnodeData {
+pub struct MixnodeData {
     descriptor: NodeDescription,
 }
 
 impl MixnodeData {
-    fn initialise(config: &MixnodeConfig) -> Result<(), MixnodeError> {
+    pub fn initialise(config: &MixnodeConfig) -> Result<(), MixnodeError> {
         NodeDescription::default()
             .save_to_file(&config.storage_paths.node_description)
             .map_err(|source| MixnodeError::DescriptionSaveFailure {
@@ -127,7 +127,7 @@ impl ExitGatewayData {
         Ok(())
     }
 
-    async fn initialise_network_requester<R: RngCore + CryptoRng>(
+    pub async fn initialise_network_requester<R: RngCore + CryptoRng>(
         rng: &mut R,
         config: &ExitGatewayConfig,
         registration: &GatewayRegistration,
@@ -153,7 +153,7 @@ impl ExitGatewayData {
         .await
     }
 
-    async fn initialise_ip_packet_router_requester<R: RngCore + CryptoRng>(
+    pub async fn initialise_ip_packet_router_requester<R: RngCore + CryptoRng>(
         rng: &mut R,
         config: &ExitGatewayConfig,
         registration: &GatewayRegistration,

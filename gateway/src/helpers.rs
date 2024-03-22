@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use crate::node::helpers::{
-    load_ip_packet_router_config, load_keypair, load_network_requester_config,
-};
+use crate::node::helpers::load_keypair;
 use crate::GatewayError;
 use nym_config::OptionalSet;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -16,6 +14,8 @@ use nym_types::gateway::{
     GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails, GatewayNodeDetailsResponse,
 };
 use std::path::Path;
+
+pub use crate::node::helpers::{load_ip_packet_router_config, load_network_requester_config};
 
 fn display_maybe_path<P: AsRef<Path>>(path: Option<P>) -> String {
     path.as_ref()

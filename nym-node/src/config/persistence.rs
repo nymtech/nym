@@ -214,6 +214,7 @@ pub struct NetworkRequesterPaths {
     /// but in this case it just has the basic information of "we're using custom gateway".
     /// Due to how clients are started up, this file has to exist.
     pub gateway_registrations: PathBuf,
+    // it's possible we might have to add credential storage here for return tickets
 }
 
 impl NetworkRequesterPaths {
@@ -293,6 +294,7 @@ pub struct IpPacketRouterPaths {
     /// but in this case it just has the basic information of "we're using custom gateway".
     /// Due to how clients are started up, this file has to exist.
     pub gateway_registrations: PathBuf,
+    // it's possible we might have to add credential storage here for return tickets
 }
 
 impl IpPacketRouterPaths {

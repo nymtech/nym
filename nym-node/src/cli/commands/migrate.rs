@@ -6,12 +6,16 @@ use crate::cli::helpers::{
 };
 use crate::node::helpers::load_ed25519_identity_public_key;
 use clap::ValueEnum;
+use nym_gateway::helpers::{load_ip_packet_router_config, load_network_requester_config};
 use nym_gateway::GatewayError;
 use nym_mixnode::MixnodeError;
+use nym_network_requester::{CustomGatewayDetails, GatewayDetails};
 use nym_node::config;
+use nym_node::config::mixnode::DEFAULT_VERLOC_PORT;
 use nym_node::config::Config;
 use nym_node::config::{default_config_filepath, ConfigBuilder, NodeMode};
-use nym_node::error::{EntryGatewayError, NymNodeError};
+use nym_node::error::{EntryGatewayError, ExitGatewayError, NymNodeError};
+use rand::rngs::OsRng;
 use std::fmt::{Display, Formatter};
 use std::fs;
 use std::net::SocketAddr;
@@ -257,15 +261,17 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
     // exit gateway initialisation
     crate::node::ExitGatewayData::initialise(&config.exit_gateway, ed25519_public_key).await?;
 
+    config.save()?;
+
     info!(
-        "mixnode {} has been migrated into a nym-node! all of it's data can now be deleted",
+        "mixnode {} has been migrated into a nym-node! all of its data can now be deleted",
         cfg.mixnode.id
     );
 
     Ok(())
 }
 
-fn migrate_gateway(args: Args) -> Result<(), NymNodeError> {
+async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
     let config_file = args.config_path();
     let preserve_id = args.preserve_id;
 
@@ -281,15 +287,277 @@ fn migrate_gateway(args: Args) -> Result<(), NymNodeError> {
         })
         .map_err(EntryGatewayError::from)?;
 
+    let nr_cfg = cfg
+        .storage_paths
+        .network_requester_config
+        .as_ref()
+        .map(|nr_cfg| load_network_requester_config("???", nr_cfg).map_err(ExitGatewayError::from))
+        .transpose()?;
+
+    let ipr_cfg = cfg
+        .storage_paths
+        .network_requester_config
+        .as_ref()
+        .map(|ipr_cfg| load_ip_packet_router_config("???", ipr_cfg).map_err(ExitGatewayError::from))
+        .transpose()?;
+
     let nymnode_id = nym_node_id(NodeType::Gateway, &cfg.gateway.id, preserve_id)?;
     let nym_node_config_path = default_config_filepath(&nymnode_id);
     let data_dir = Config::default_data_directory(&nym_node_config_path)?;
 
-    // TODO: exit vs entry will be determined based on if IPR **AND** NR are enabled
-    let config = ConfigBuilder::new(nymnode_id, nym_node_config_path, data_dir);
-    let _ = config;
+    let mode = if cfg.network_requester.enabled && cfg.ip_packet_router.enabled {
+        NodeMode::ExitGateway
+    } else {
+        NodeMode::EntryGateway
+    };
 
-    todo!()
+    // SAFETY:
+    // our default location is never the root directory
+    #[allow(clippy::unwrap_used)]
+    let nym_node_config_dir = nym_node_config_path.parent().unwrap().to_path_buf();
+
+    let ip = cfg.gateway.listening_address;
+
+    // prefer new mnemonic explicitly passed with cli; otherwise use the one already present
+    let mnemonic = args
+        .take_mnemonic()
+        .unwrap_or(Zeroizing::new(cfg.gateway.cosmos_mnemonic.clone()));
+
+    let config = ConfigBuilder::new(nymnode_id, nym_node_config_path, data_dir.clone())
+        .with_mode(mode)
+        .with_host(args.host.override_config_section(config::Host {
+            public_ips: cfg.host.public_ips,
+            hostname: cfg.host.hostname,
+            ..Default::default()
+        }))
+        .with_http(args.http.override_config_section(config::Http {
+            bind_address: cfg.http.bind_address,
+            landing_page_assets_path: cfg.http.landing_page_assets_path,
+            ..Default::default()
+        }))
+        .with_mixnet(args.mixnet.override_config_section(config::Mixnet {
+            bind_address: SocketAddr::new(ip, cfg.gateway.mix_port),
+            nym_api_urls: cfg.gateway.nym_api_urls.clone(),
+            nyxd_urls: cfg.gateway.nyxd_urls.clone(),
+            debug: config::MixnetDebug {
+                packet_forwarding_initial_backoff: cfg.debug.packet_forwarding_initial_backoff,
+                packet_forwarding_maximum_backoff: cfg.debug.packet_forwarding_maximum_backoff,
+                initial_connection_timeout: cfg.debug.initial_connection_timeout,
+                maximum_connection_buffer_size: cfg.debug.maximum_connection_buffer_size,
+            },
+        }))
+        .with_mixnode(args.mixnode.override_config_section(config::MixnodeConfig {
+            verloc: config::mixnode::Verloc {
+                bind_address: SocketAddr::new(ip, DEFAULT_VERLOC_PORT),
+                ..Default::default()
+            },
+            ..config::MixnodeConfig::new_default(nym_node_config_dir)
+        }))
+        .with_wireguard(args.wireguard.override_config_section(config::Wireguard {
+            enabled: cfg.wireguard.enabled,
+            bind_address: cfg.wireguard.bind_address,
+            announced_port: cfg.wireguard.announced_port,
+            private_network_prefix: cfg.wireguard.private_network_prefix,
+            // this is fine as currently the paths stored inside gateway itself are empty
+            storage_paths: config::persistence::WireguardPaths::new(&data_dir),
+        }))
+        .with_entry_gateway(args.entry_gateway.override_config_section(
+            config::EntryGatewayConfig {
+                storage_paths: config::persistence::EntryGatewayPaths::new(&data_dir),
+                enforce_zk_nyms: cfg.gateway.only_coconut_credentials,
+                bind_address: SocketAddr::new(ip, cfg.gateway.clients_port),
+                announce_ws_port: None,
+                announce_wss_port: cfg.gateway.clients_wss_port,
+                debug: config::entry_gateway::Debug {
+                    message_retrieval_limit: cfg.debug.message_retrieval_limit,
+                },
+            },
+        ))
+        .with_exit_gateway(
+            args.exit_gateway
+                .override_config_section(config::ExitGatewayConfig {
+                    storage_paths: config::persistence::ExitGatewayPaths::new(&data_dir),
+                    open_proxy: false,
+                    upstream_exit_policy_url: None,
+                    network_requester: config::exit_gateway::NetworkRequester {
+                        debug: config::exit_gateway::NetworkRequesterDebug {
+                            enabled: cfg.network_requester.enabled,
+                            disable_poisson_rate: nr_cfg
+                                .as_ref()
+                                .map(|c| c.network_requester.disable_poisson_rate)
+                                .unwrap_or(
+                                    config::exit_gateway::NetworkRequesterDebug::default()
+                                        .disable_poisson_rate,
+                                ),
+                            client_debug: nr_cfg.as_ref().map(|c| c.base.debug).unwrap_or_default(),
+                        },
+                    },
+                    ip_packet_router: config::exit_gateway::IpPacketRouter {
+                        debug: config::exit_gateway::IpPacketRouterDebug {
+                            enabled: cfg.ip_packet_router.enabled,
+                            disable_poisson_rate: ipr_cfg
+                                .as_ref()
+                                .map(|c| c.ip_packet_router.disable_poisson_rate)
+                                .unwrap_or(
+                                    config::exit_gateway::IpPacketRouterDebug::default()
+                                        .disable_poisson_rate,
+                                ),
+                            client_debug: ipr_cfg
+                                .as_ref()
+                                .map(|c| c.base.debug)
+                                .unwrap_or_default(),
+                        },
+                    },
+                }),
+        )
+        .build()?;
+
+    // move existing keys and generate missing data
+    info!("attempting to copy gateway keys to their new locations");
+
+    copy_old_data(
+        NodeType::Gateway,
+        cfg.storage_paths.keys.public_identity_key_file,
+        &config.storage_paths.keys.public_ed25519_identity_key_file,
+    )?;
+    copy_old_data(
+        NodeType::Gateway,
+        cfg.storage_paths.keys.private_identity_key_file,
+        &config.storage_paths.keys.private_ed25519_identity_key_file,
+    )?;
+    copy_old_data(
+        NodeType::Gateway,
+        cfg.storage_paths.keys.public_sphinx_key_file,
+        &config.storage_paths.keys.public_x25519_sphinx_key_file,
+    )?;
+    copy_old_data(
+        NodeType::Gateway,
+        cfg.storage_paths.keys.private_sphinx_key_file,
+        &config.storage_paths.keys.private_x25519_sphinx_key_file,
+    )?;
+
+    let ed25519_public_key = load_ed25519_identity_public_key(
+        &config.storage_paths.keys.public_ed25519_identity_key_file,
+    )?;
+
+    // mixnode data initialisation
+    crate::node::MixnodeData::initialise(&config.mixnode)?;
+
+    // selectively initialise exit gateway
+    let gateway_details =
+        GatewayDetails::Custom(CustomGatewayDetails::new(ed25519_public_key)).into();
+    let mut rng = OsRng;
+
+    if let Some(nr_cfg) = nr_cfg {
+        let nr_paths = nr_cfg.storage_paths.common_paths;
+        let new_nr_paths = &config.exit_gateway.storage_paths.network_requester;
+
+        copy_old_data(
+            NodeType::Gateway,
+            nr_paths.keys.public_identity_key_file,
+            &new_nr_paths.public_ed25519_identity_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            nr_paths.keys.private_identity_key_file,
+            &new_nr_paths.private_ed25519_identity_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            nr_paths.keys.public_encryption_key_file,
+            &new_nr_paths.public_x25519_diffie_hellman_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            nr_paths.keys.private_encryption_key_file,
+            &new_nr_paths.private_x25519_diffie_hellman_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            nr_paths.keys.ack_key_file,
+            &new_nr_paths.ack_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            nr_paths.gateway_registrations,
+            &new_nr_paths.gateway_registrations,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            nr_paths.reply_surb_database,
+            &new_nr_paths.reply_surb_database,
+        )?;
+    } else {
+        crate::node::ExitGatewayData::initialise_network_requester(
+            &mut rng,
+            &config.exit_gateway,
+            &gateway_details,
+        )
+        .await?;
+    }
+
+    if let Some(ipr_cfg) = ipr_cfg {
+        let ipr_paths = ipr_cfg.storage_paths.common_paths;
+        let new_ipr_paths = &config.exit_gateway.storage_paths.ip_packet_router;
+
+        copy_old_data(
+            NodeType::Gateway,
+            ipr_paths.keys.public_identity_key_file,
+            &new_ipr_paths.public_ed25519_identity_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            ipr_paths.keys.private_identity_key_file,
+            &new_ipr_paths.private_ed25519_identity_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            ipr_paths.keys.public_encryption_key_file,
+            &new_ipr_paths.public_x25519_diffie_hellman_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            ipr_paths.keys.private_encryption_key_file,
+            &new_ipr_paths.private_x25519_diffie_hellman_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            ipr_paths.keys.ack_key_file,
+            &new_ipr_paths.ack_key_file,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            ipr_paths.gateway_registrations,
+            &new_ipr_paths.gateway_registrations,
+        )?;
+        copy_old_data(
+            NodeType::Gateway,
+            ipr_paths.reply_surb_database,
+            &new_ipr_paths.reply_surb_database,
+        )?;
+    } else {
+        crate::node::ExitGatewayData::initialise_ip_packet_router_requester(
+            &mut rng,
+            &config.exit_gateway,
+            &gateway_details,
+        )
+        .await?;
+    }
+
+    // finally move the mnemonic
+    config
+        .entry_gateway
+        .storage_paths
+        .save_mnemonic_to_file(&mnemonic)?;
+
+    config.save()?;
+
+    info!(
+        "gateway {} has been migrated into a nym-node! all of its data can now be deleted",
+        cfg.gateway.id
+    );
+
+    Ok(())
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), NymNodeError> {
@@ -297,6 +565,6 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymNodeError> {
 
     match args.node_type {
         NodeType::Mixnode => migrate_mixnode(args).await,
-        NodeType::Gateway => migrate_gateway(args),
+        NodeType::Gateway => migrate_gateway(args).await,
     }
 }

@@ -11,7 +11,7 @@ use nym_pemstore::KeyPairPath;
 
 use std::path::Path;
 
-pub(crate) async fn load_network_requester_config<P: AsRef<Path>>(
+pub async fn load_network_requester_config<P: AsRef<Path>>(
     id: &str,
     path: P,
 ) -> Result<nym_network_requester::Config, GatewayError> {
@@ -24,7 +24,7 @@ pub(crate) async fn load_network_requester_config<P: AsRef<Path>>(
     read_network_requester_config(id, path)
 }
 
-pub(crate) async fn load_ip_packet_router_config<P: AsRef<Path>>(
+pub async fn load_ip_packet_router_config<P: AsRef<Path>>(
     id: &str,
     path: P,
 ) -> Result<nym_ip_packet_router::Config, GatewayError> {
@@ -37,7 +37,7 @@ pub(crate) async fn load_ip_packet_router_config<P: AsRef<Path>>(
     read_ip_packet_router_config(id, path)
 }
 
-pub(crate) fn read_network_requester_config<P: AsRef<Path>>(
+pub fn read_network_requester_config<P: AsRef<Path>>(
     id: &str,
     path: P,
 ) -> Result<nym_network_requester::Config, GatewayError> {
@@ -51,7 +51,7 @@ pub(crate) fn read_network_requester_config<P: AsRef<Path>>(
     })
 }
 
-fn read_ip_packet_router_config<P: AsRef<Path>>(
+pub fn read_ip_packet_router_config<P: AsRef<Path>>(
     id: &str,
     path: P,
 ) -> Result<nym_ip_packet_router::Config, GatewayError> {

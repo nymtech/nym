@@ -3,9 +3,12 @@
 
 use crate::commands::helpers::{initialise_local_network_requester, try_load_current_config};
 use clap::Args;
+use log::warn;
 use nym_bin_common::output_format::OutputFormat;
 use nym_gateway::helpers::{load_public_key, OverrideNetworkRequesterConfig};
+use std::io::IsTerminal;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Args, Clone)]
 pub struct CmdArgs {
@@ -75,6 +78,13 @@ impl<'a> From<&'a CmdArgs> for OverrideNetworkRequesterConfig {
 }
 
 pub async fn execute(args: CmdArgs) -> anyhow::Result<()> {
+    warn!("standalone gateways have been deprecated - please consider migrating it to a `nym-node` via `nym-node migrate gateway` command");
+    if std::io::stdout().is_terminal() {
+        // if user is running it in terminal session,
+        // introduce the delay, so they'd notice the message
+        tokio::time::sleep(Duration::from_secs(1)).await
+    }
+
     let mut config = try_load_current_config(&args.id)?;
     let opts = (&args).into();
 

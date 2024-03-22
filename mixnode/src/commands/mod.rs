@@ -5,15 +5,17 @@ use crate::Cli;
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
-use log::error;
+use log::{error, warn};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
 use nym_mixnode::config::{default_config_filepath, Config};
 use nym_mixnode::error::MixnodeError;
+use std::io::IsTerminal;
 use std::net::IpAddr;
 use std::process;
+use std::time::Duration;
 
 mod build_info;
 mod describe;
@@ -63,6 +65,13 @@ struct OverrideConfig {
 
 pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
     let bin_name = "nym-mixnode";
+
+    warn!("standalone mixnodes have been deprecated - please consider migrating it to a `nym-node` via `nym-node migrate mixnode` command");
+    if std::io::stdout().is_terminal() {
+        // if user is running it in terminal session,
+        // introduce the delay, so they'd notice the message
+        tokio::time::sleep(Duration::from_secs(1)).await
+    }
 
     match args.command {
         Commands::Describe(m) => describe::execute(m)?,

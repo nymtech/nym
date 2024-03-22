@@ -42,7 +42,6 @@ impl Display for NodeType {
 #[clap(group = clap::ArgGroup::new("old-config").required(true))]
 pub(crate) struct Args {
     /// Type of node (mixnode or gateway) to migrate into a nym-node.
-    #[clap(long)]
     node_type: NodeType,
 
     /// Id of the node that's going to get migrated

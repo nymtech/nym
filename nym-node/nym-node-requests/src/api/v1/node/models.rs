@@ -82,9 +82,9 @@ pub struct Cpu {
 
     /// The CPU frequency in MHz.
     pub frequency: u64,
-    
+
     pub vendor_id: String,
-    
+
     pub brand: String,
 }
 
@@ -115,7 +115,7 @@ pub struct CryptoHardware {
 pub struct NodeDescription {
     /// moniker defines a human-readable name for the node.
     pub moniker: String,
-    
+
     /// website defines an optional website link.
     pub website: String,
 

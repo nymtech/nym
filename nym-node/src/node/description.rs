@@ -32,7 +32,7 @@ pub fn save_node_description<P: AsRef<Path>>(
             source,
         })?
     }
-    
+
     fs::write(path.as_ref(), serialised).map_err(|source| NymNodeError::DescriptionSaveFailure {
         path: path.as_ref().to_path_buf(),
         source,

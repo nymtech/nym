@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::helpers::{
-    ensure_correct_bech32_prefix, try_load_current_config,
-    try_override_config, OverrideConfig,
+    ensure_correct_bech32_prefix, try_load_current_config, try_override_config, OverrideConfig,
 };
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::api::{FormattedResponse, OutputParams};
+use crate::router::types::RequestError;
 use axum::extract::Query;
 use nym_node_requests::api::v1::node::models::NodeDescription;
-use crate::router::types::RequestError;
 
 /// Returns human-readable description of this node.
 #[utoipa::path(

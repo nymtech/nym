@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::commands::{bonding_information, build_info, migrate, run, sign};
+use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use nym_node::error::NymNodeError;
 use std::sync::OnceLock;
-use crate::env::vars::{NYMNODE_NO_BANNER_ARG, NYMNODE_CONFIG_ENV_FILE_ARG};
 
 mod commands;
 mod helpers;
@@ -24,7 +24,7 @@ fn pretty_build_info_static() -> &'static str {
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the nym-node and overrides any preconfigured values.
     #[clap(
-        short, 
+        short,
         long,
         env = NYMNODE_CONFIG_ENV_FILE_ARG
     )]

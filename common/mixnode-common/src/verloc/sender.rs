@@ -5,6 +5,7 @@ use crate::verloc::error::RttError;
 use crate::verloc::packet::{EchoPacket, ReplyPacket};
 use log::*;
 use nym_crypto::asymmetric::identity;
+use nym_node_http_api::state::metrics::VerlocMeasurement;
 use nym_task::TaskClient;
 use rand::{thread_rng, Rng};
 use std::net::SocketAddr;
@@ -14,7 +15,6 @@ use std::{fmt, io};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
-use nym_node_http_api::state::metrics::VerlocMeasurement;
 
 #[derive(Copy, Clone)]
 pub(crate) struct TestedNode {

@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cupid::TopologyType;
-use sysinfo::System;
 use nym_node_http_api::api::api_requests::v1::node::models::{
     Cpu, CryptoHardware, Hardware, HostSystem,
 };
+use sysinfo::System;
 
 fn crypto_hardware() -> Option<CryptoHardware> {
     let Some(info) = cupid::master() else {

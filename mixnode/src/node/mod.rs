@@ -14,14 +14,14 @@ use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc;
+use nym_mixnode_common::verloc::VerlocMeasurer;
+use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 use nym_task::{TaskClient, TaskHandle};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use nym_mixnode_common::verloc::VerlocMeasurer;
-use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 
 pub mod helpers;
 mod http;
@@ -82,11 +82,11 @@ impl MixNode {
     pub fn set_task_client(&mut self, task_client: TaskClient) {
         self.task_client = Some(task_client)
     }
-    
+
     pub fn set_mixing_stats(&mut self, mixing_stats: SharedMixingStats) {
         self.mixing_stats = Some(mixing_stats);
     }
-    
+
     pub fn set_verloc_stats(&mut self, verloc_stats: SharedVerlocStats) {
         self.verloc_stats = Some(verloc_stats)
     }
@@ -131,7 +131,7 @@ impl MixNode {
     ) -> (SharedMixingStats, node_statistics::UpdateSender) {
         info!("Starting node stats controller...");
         let mixing_stats = self.mixing_stats.take().unwrap_or_default();
-        
+
         let controller = node_statistics::Controller::new(
             self.config.debug.node_stats_logging_delay,
             self.config.debug.node_stats_updating_delay,
@@ -298,7 +298,7 @@ impl MixNode {
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
         self.wait_for_interrupt(shutdown).await;
-        
+
         Ok(())
     }
 }

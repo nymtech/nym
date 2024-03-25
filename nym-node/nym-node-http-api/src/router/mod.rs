@@ -173,7 +173,12 @@ impl NymNodeRouter {
                         Redirect::permanent(&routes::api::v1::metrics::mixing_absolute())
                     }),
                 )
-                .route("/verloc", get(|| async { Redirect::permanent(&routes::api::v1::metrics::verloc_absolute()) }))
+                .route(
+                    "/verloc",
+                    get(|| async {
+                        Redirect::permanent(&routes::api::v1::metrics::verloc_absolute())
+                    }),
+                )
                 .route("/metrics", get(|| async { Redirect::permanent("/") }))
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
                 .nest(

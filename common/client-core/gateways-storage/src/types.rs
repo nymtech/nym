@@ -307,6 +307,9 @@ pub struct CustomGatewayDetails {
 
 impl CustomGatewayDetails {
     pub fn new(gateway_id: identity::PublicKey) -> CustomGatewayDetails {
-        Self { gateway_id, data: None }
+        Self {
+            gateway_id,
+            data: None,
+        }
     }
 }

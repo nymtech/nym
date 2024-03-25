@@ -7,9 +7,9 @@ use axum::{
 };
 use nym_http_api_common::{FormattedResponse, Output};
 use nym_metrics::metrics;
-use serde::{Deserialize, Serialize};
 use nym_node_http_api::api::api_requests::v1::metrics::models::MixingStats;
 use nym_node_http_api::state::metrics::SharedMixingStats;
+use serde::{Deserialize, Serialize};
 
 use super::state::MixnodeAppState;
 

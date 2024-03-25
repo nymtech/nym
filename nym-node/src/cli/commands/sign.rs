@@ -28,17 +28,12 @@ pub struct Args {
     output: OutputFormat,
 }
 
-fn print_signed_text(
-    private_key: &identity::PrivateKey,
-    text: &str,
-    output: OutputFormat,
-) {
+fn print_signed_text(private_key: &identity::PrivateKey, text: &str, output: OutputFormat) {
     eprintln!("Signing the text {text:?} using your node's Ed25519 identity key...",);
 
     let signature = private_key.sign_text(text);
     let sign_output = ConsoleSigningOutput::new(text, signature);
     output.to_stdout(&sign_output);
-
 }
 
 fn print_signed_contract_msg(
@@ -63,7 +58,7 @@ fn print_signed_contract_msg(
         return;
     };
 
-    // SAFETY: 
+    // SAFETY:
     // if this is a valid json, it MUST be a valid string
     #[allow(clippy::unwrap_used)]
     let decoded_string = String::from_utf8(decoded.clone()).unwrap();
@@ -79,7 +74,7 @@ pub async fn execute(args: Args) -> Result<(), NymNodeError> {
     let config = try_load_current_config(args.config.config_path()).await?;
     let identity_keypair =
         load_ed25519_identity_keypair(config.storage_paths.keys.ed25519_identity_storage_paths())?;
-    
+
     // note: due to clap's ArgGroup, one (and only one) of those branches will be called
     if let Some(text) = args.text {
         print_signed_text(identity_keypair.private_key(), &text, args.output);

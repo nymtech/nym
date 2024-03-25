@@ -1,13 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_crypto::asymmetric::identity::{self, serde_helpers::bs58_pubkey};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
-use nym_crypto::asymmetric::{identity::{self, serde_helpers::bs58_pubkey}};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -88,7 +88,7 @@ impl VerlocResultData {
 pub struct VerlocNodeResult {
     #[serde(with = "bs58_pubkey")]
     pub node_identity: identity::PublicKey,
-    
+
     pub latest_measurement: Option<VerlocMeasurement>,
 }
 
@@ -167,9 +167,9 @@ impl VerlocMeasurement {
 
     fn duration_mean(data: &[Duration]) -> Duration {
         if data.is_empty() {
-            return Default::default()
+            return Default::default();
         }
-        
+
         let sum = data.iter().sum::<Duration>();
         let count = data.len() as u32;
 
@@ -178,9 +178,9 @@ impl VerlocMeasurement {
 
     fn duration_standard_deviation(data: &[Duration], mean: Duration) -> Duration {
         if data.is_empty() {
-            return Default::default()
+            return Default::default();
         }
-        
+
         let variance_micros = data
             .iter()
             .map(|&value| {
@@ -208,7 +208,10 @@ impl Display for VerlocMeasurement {
         write!(
             f,
             "rtt min/avg/max/mdev = {} / {} / {} / {}",
-            humantime::format_duration(self.minimum), humantime::format_duration(self.mean), humantime::format_duration(self.maximum), humantime::format_duration(self.standard_deviation)
+            humantime::format_duration(self.minimum),
+            humantime::format_duration(self.mean),
+            humantime::format_duration(self.maximum),
+            humantime::format_duration(self.standard_deviation)
         )
     }
 }

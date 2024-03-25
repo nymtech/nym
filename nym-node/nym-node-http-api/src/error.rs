@@ -17,7 +17,7 @@ pub enum NymNodeHttpError {
         #[from]
         source: nym_node_requests::error::Error,
     },
-    
+
     #[error(transparent)]
     KeyRecoveryError {
         #[from]

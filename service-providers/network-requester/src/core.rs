@@ -279,7 +279,6 @@ impl NRServiceProviderBuilder {
         )
         .await?;
 
-
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);

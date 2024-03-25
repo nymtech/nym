@@ -257,11 +257,10 @@ pub(crate) struct MixnodeArgs {
 
 impl MixnodeArgs {
     // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
-    pub(crate) fn build_config_section<P: AsRef<Path>>(
+    pub(crate) fn build_config_section(
         self,
-        config_dir: P,
     ) -> config::MixnodeConfig {
-        self.override_config_section(config::MixnodeConfig::new_default(config_dir))
+        self.override_config_section(config::MixnodeConfig::new_default())
     }
 
     pub(crate) fn override_config_section(

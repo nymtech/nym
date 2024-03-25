@@ -171,13 +171,8 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn build(self) -> Result<Config, NymNodeError> {
-        let config_dir = self
-            .config_path
-            .parent()
-            .ok_or(NymNodeError::ConfigDirDerivationFailure)?;
-
-        Ok(Config {
+    pub fn build(self) -> Config {
+        Config {
             id: self.id,
             mode: self.mode,
             host: self.host.unwrap_or_default(),
@@ -191,7 +186,7 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| NymNodePaths::new(&self.data_dir)),
             mixnode: self
                 .mixnode
-                .unwrap_or_else(|| MixnodeConfig::new_default(config_dir)),
+                .unwrap_or_else(MixnodeConfig::new_default),
             entry_gateway: self
                 .entry_gateway
                 .unwrap_or_else(|| EntryGatewayConfig::new_default(&self.data_dir)),
@@ -200,7 +195,7 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| ExitGatewayConfig::new_default(&self.data_dir)),
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
-        })
+        }
     }
 }
 

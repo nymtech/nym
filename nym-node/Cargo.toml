@@ -17,7 +17,7 @@ license = "GPL-3.0"
 anyhow.workspace = true
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
-celes = "2.4.0"
+celes = "2.4.0" # country codes
 clap = { workspace = true, features = ["cargo", "env"] }
 humantime-serde = "1.1.1"
 rand = "0.7.3"
@@ -26,6 +26,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["macros", "sync"] }
+toml = "0.8.12"
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 

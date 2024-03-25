@@ -9,7 +9,6 @@ use nym_config::defaults::DEFAULT_VERLOC_LISTENING_PORT;
 use nym_config::helpers::inaddr_any;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use std::path::Path;
 use std::time::Duration;
 
 pub const DEFAULT_VERLOC_PORT: u16 = DEFAULT_VERLOC_LISTENING_PORT;
@@ -26,9 +25,9 @@ pub struct MixnodeConfig {
 }
 
 impl MixnodeConfig {
-    pub fn new_default<P: AsRef<Path>>(config_dir: P) -> Self {
+    pub fn new_default() -> Self {
         MixnodeConfig {
-            storage_paths: MixnodePaths::new(config_dir),
+            storage_paths: MixnodePaths {},
             verloc: Default::default(),
             debug: Default::default(),
         }

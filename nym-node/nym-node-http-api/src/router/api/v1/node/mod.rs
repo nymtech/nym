@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::api::v1::node::build_information::build_information;
+use crate::api::v1::node::description::description;
 use crate::api::v1::node::hardware::host_system;
 use crate::api::v1::node::host_information::host_information;
 use crate::api::v1::node::roles::roles;
@@ -11,6 +12,7 @@ use nym_node_requests::api::v1::node::models;
 use nym_node_requests::routes::api::v1;
 
 pub mod build_information;
+pub mod description;
 pub mod hardware;
 pub mod host_information;
 pub mod roles;
@@ -21,6 +23,7 @@ pub struct Config {
     pub host_information: models::SignedHostInformation,
     pub system_info: Option<models::HostSystem>,
     pub roles: models::NodeRoles,
+    pub description: models::NodeDescription,
 }
 
 pub(super) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {
@@ -51,6 +54,13 @@ pub(super) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router
             get({
                 let system_info = config.system_info;
                 move |query| host_system(system_info, query)
+            }),
+        )
+        .route(
+            v1::NODE_DESCRIPTION,
+            get({
+                let node_description = config.description;
+                move |query| description(node_description, query)
             }),
         )
 }

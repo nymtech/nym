@@ -33,6 +33,7 @@ pub mod routes {
             pub const BUILD_INFO: &str = "/build-information";
             pub const HOST_INFO: &str = "/host-information";
             pub const SYSTEM_INFO: &str = "/system-info";
+            pub const NODE_DESCRIPTION: &str = "/description";
 
             pub const HEALTH: &str = "/health";
             pub const GATEWAY: &str = "/gateway";
@@ -47,6 +48,8 @@ pub mod routes {
             absolute_route!(build_info_absolute, v1_absolute(), BUILD_INFO);
             absolute_route!(host_info_absolute, v1_absolute(), HOST_INFO);
             absolute_route!(system_info_absolute, v1_absolute(), SYSTEM_INFO);
+            absolute_route!(description_absolute, v1_absolute(), NODE_DESCRIPTION);
+
             absolute_route!(gateway_absolute, v1_absolute(), GATEWAY);
             absolute_route!(mixnode_absolute, v1_absolute(), MIXNODE);
             absolute_route!(network_requester_absolute, v1_absolute(), NETWORK_REQUESTER);

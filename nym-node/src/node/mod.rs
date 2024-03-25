@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::description::{load_node_description, save_node_description};
 use crate::node::helpers::{
     load_ed25519_identity_keypair, load_key, load_x25519_sphinx_keypair,
     store_ed25519_identity_keypair, store_key, store_keypair, store_x25519_sphinx_keypair,
@@ -9,7 +10,6 @@ use crate::node::http::{sign_host_details, system_info::get_system_info};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway::Gateway;
-use nym_mixnode::node::node_description::NodeDescription;
 use nym_mixnode::MixNode;
 use nym_network_requester::{
     set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
@@ -21,6 +21,7 @@ use nym_node::config::mixnode::ephemeral_mixnode_config;
 use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode};
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
+use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
@@ -33,31 +34,19 @@ use tracing::{debug, info, trace};
 use zeroize::Zeroizing;
 
 pub mod bonding_information;
+pub mod description;
 pub mod helpers;
 pub(crate) mod http;
 
-pub struct MixnodeData {
-    descriptor: NodeDescription,
-}
+pub struct MixnodeData {}
 
 impl MixnodeData {
-    pub fn initialise(config: &MixnodeConfig) -> Result<(), MixnodeError> {
-        NodeDescription::default()
-            .save_to_file(&config.storage_paths.node_description)
-            .map_err(|source| MixnodeError::DescriptionSaveFailure {
-                path: config.storage_paths.node_description.clone(),
-                source,
-            })
+    pub fn initialise(_config: &MixnodeConfig) -> Result<(), MixnodeError> {
+        Ok(())
     }
 
-    fn new(config: &MixnodeConfig) -> Result<MixnodeData, MixnodeError> {
-        Ok(MixnodeData {
-            descriptor: NodeDescription::load_from_file(&config.storage_paths.node_description)
-                .map_err(|source| MixnodeError::DescriptionLoadFailure {
-                    path: config.storage_paths.node_description.clone(),
-                    source,
-                })?,
-        })
+    fn new(_config: &MixnodeConfig) -> Result<MixnodeData, MixnodeError> {
+        Ok(MixnodeData {})
     }
 }
 
@@ -211,9 +200,13 @@ impl ExitGatewayData {
 
 pub(crate) struct NymNode {
     config: Config,
+    description: NodeDescription,
 
+    #[allow(dead_code)]
     mixnode: MixnodeData,
+
     entry_gateway: EntryGatewayData,
+
     #[allow(dead_code)]
     exit_gateway: ExitGatewayData,
 
@@ -245,6 +238,12 @@ impl NymNode {
             config.storage_paths.keys.x25519_sphinx_storage_paths(),
         )?;
 
+        trace!("creating description file");
+        save_node_description(
+            &config.storage_paths.description,
+            &NodeDescription::default(),
+        )?;
+
         // mixnode initialisation
         MixnodeData::initialise(&config.mixnode)?;
 
@@ -266,6 +265,7 @@ impl NymNode {
             x25519_sphinx_keys: Arc::new(load_x25519_sphinx_keypair(
                 config.storage_paths.keys.x25519_sphinx_storage_paths(),
             )?),
+            description: load_node_description(&config.storage_paths.description)?,
             mixnode: MixnodeData::new(&config.mixnode)?,
             entry_gateway: EntryGatewayData::new(&config.entry_gateway).await?,
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
@@ -287,7 +287,7 @@ impl NymNode {
         let config = ephemeral_mixnode_config(self.config.clone())?;
         let mut mixnode = MixNode::new_loaded(
             config,
-            self.mixnode.descriptor.clone(),
+            Default::default(),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
         );
@@ -436,7 +436,8 @@ impl NymNode {
             .with_gateway_details(gateway_details)
             .with_network_requester_details(nr_details)
             .with_ip_packet_router_details(ipr_details)
-            .with_used_exit_policy(exit_policy_details);
+            .with_used_exit_policy(exit_policy_details)
+            .with_description(self.description.clone());
 
         if self.config.http.expose_system_info {
             config = config.with_system_info(get_system_info(

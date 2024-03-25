@@ -13,7 +13,7 @@ use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models;
-use nym_node_requests::api::v1::node::models::HostSystem;
+use nym_node_requests::api::v1::node::models::{HostSystem, NodeDescription};
 use nym_node_requests::api::SignedHostInformation;
 use nym_node_requests::routes;
 use std::net::SocketAddr;
@@ -44,6 +44,7 @@ impl Config {
                         host_information,
                         system_info: None,
                         roles: Default::default(),
+                        description: Default::default(),
                     },
                     gateway: Default::default(),
                     mixnode: Default::default(),
@@ -75,6 +76,12 @@ impl Config {
     #[must_use]
     pub fn with_system_info(mut self, info: HostSystem) -> Self {
         self.api.v1_config.node.system_info = Some(info);
+        self
+    }
+
+    #[must_use]
+    pub fn with_description(mut self, description: NodeDescription) -> Self {
+        self.api.v1_config.node.description = description;
         self
     }
 

@@ -59,20 +59,36 @@ pub enum NymNodeError {
     #[error(transparent)]
     HttpFailure(#[from] NymNodeHttpError),
 
-    #[error(
-    "failed to load config file using path '{}'. detailed message: {source}", path.display()
-    )]
+    #[error("failed to load config file using path '{}'. detailed message: {source}", path.display())]
     ConfigLoadFailure {
         path: PathBuf,
         #[source]
         source: io::Error,
     },
 
-    #[error(
-    "failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display()
-    )]
+    #[error("failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display())]
     ConfigSaveFailure {
         id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+    
+    #[error("the node description file is malformed: {source}")]
+    MalformedDescriptionFile {
+        #[source]
+        source: toml::de::Error
+    },
+
+    #[error("failed to load description file using path '{}'. detailed message: {source}", path.display())]
+    DescriptionLoadFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("failed to save description file using path '{}'. detailed message: {source}", path.display())]
+    DescriptionSaveFailure {
         path: PathBuf,
         #[source]
         source: io::Error,
@@ -137,14 +153,7 @@ pub enum MixnodeError {
         #[source]
         source: io::Error,
     },
-
-    #[error("failed to save mixnode description from {}: {source}", path.display())]
-    DescriptionSaveFailure {
-        path: PathBuf,
-        #[source]
-        source: io::Error,
-    },
-
+    
     #[error("currently it's not supported to have different ip addresses for verloc and mixnet ({verloc_bind_ip} and {mix_bind_ip} were used)")]
     UnsupportedAddresses {
         verloc_bind_ip: IpAddr,

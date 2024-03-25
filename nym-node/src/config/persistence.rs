@@ -3,6 +3,7 @@
 
 use crate::error::EntryGatewayError;
 use nym_client_core_config_types::disk_persistence::{ClientKeysPaths, CommonClientPaths};
+use nym_mixnode::config::persistence::paths::DEFAULT_DESCRIPTION_FILENAME;
 use serde::{Deserialize, Serialize};
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
@@ -15,9 +16,9 @@ pub const DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME: &str = "ed25519_identit
 pub const DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME: &str = "ed25519_identity.pub";
 pub const DEFAULT_X25519_PRIVATE_SPHINX_KEY_FILENAME: &str = "x25519_sphinx";
 pub const DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME: &str = "x25519_sphinx.pub";
+pub const DEFAULT_NYMNODE_DESCRIPTION_FILENAME: &str = "description.toml";
 
 // Mixnode:
-pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
 // Entry Gateway:
 pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "clients.sqlite";
@@ -40,13 +41,13 @@ pub const DEFAULT_IPR_ACK_KEY_FILENAME: &str = "aes128ctr_ipr_ack";
 pub const DEFAULT_IPR_REPLY_SURB_DB_FILENAME: &str = "ipr_persistent_reply_store.sqlite";
 pub const DEFAULT_IPR_GATEWAYS_DB_FILENAME: &str = "ipr_gateways_info_store.sqlite";
 
-// pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
-// pub const DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME: &str = "ip_packet_router_config.toml";
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NymNodePaths {
     pub keys: KeysPaths,
+
+    /// Path to a file containing basic node description: human-readable name, website, details, etc.
+    pub description: PathBuf,
 }
 
 impl NymNodePaths {
@@ -55,6 +56,7 @@ impl NymNodePaths {
 
         NymNodePaths {
             keys: KeysPaths::new(data_dir),
+            description: data_dir.join(DEFAULT_DESCRIPTION_FILENAME),
         }
     }
 }
@@ -107,20 +109,7 @@ impl KeysPaths {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnodePaths {
-    /// Path to a file containing basic node description: human-readable name, description, link and location.
-    // Artifact of a bygone era. For now leave it here for easier mixnode compatibility;
-    // To be replaced by just putting this information as part of the self-described API.
-    pub node_description: PathBuf,
-}
-
-impl MixnodePaths {
-    pub fn new<P: AsRef<Path>>(config_dir: P) -> Self {
-        MixnodePaths {
-            node_description: config_dir.as_ref().join(DEFAULT_DESCRIPTION_FILENAME),
-        }
-    }
-}
+pub struct MixnodePaths {}
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]

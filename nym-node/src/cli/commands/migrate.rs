@@ -4,6 +4,7 @@
 use crate::cli::helpers::{
     EntryGatewayArgs, ExitGatewayArgs, HostArgs, HttpArgs, MixnetArgs, MixnodeArgs, WireguardArgs,
 };
+use crate::node::description::save_node_description;
 use crate::node::helpers::load_ed25519_identity_public_key;
 use clap::ValueEnum;
 use nym_gateway::helpers::{load_ip_packet_router_config, load_network_requester_config};
@@ -15,6 +16,7 @@ use nym_node::config::mixnode::DEFAULT_VERLOC_PORT;
 use nym_node::config::Config;
 use nym_node::config::{default_config_filepath, ConfigBuilder, NodeMode};
 use nym_node::error::{EntryGatewayError, ExitGatewayError, NymNodeError};
+use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
 use rand::rngs::OsRng;
 use std::fmt::{Display, Formatter};
 use std::fs;
@@ -163,14 +165,19 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
         }
     })?;
 
+    let mixnode_description = nym_mixnode::node::node_description::NodeDescription::load_from_file(
+        &cfg.storage_paths.node_description,
+    )
+    .map_err(
+        |source| nym_node::error::MixnodeError::DescriptionLoadFailure {
+            path: cfg.storage_paths.node_description,
+            source,
+        },
+    )?;
+
     let nymnode_id = nym_node_id(NodeType::Mixnode, &cfg.mixnode.id, preserve_id)?;
     let nym_node_config_path = default_config_filepath(&nymnode_id);
     let data_dir = Config::default_data_directory(&nym_node_config_path)?;
-
-    // SAFETY:
-    // our default location is never the root directory
-    #[allow(clippy::unwrap_used)]
-    let nym_node_config_dir = nym_node_config_path.parent().unwrap().to_path_buf();
 
     let ip = cfg.mixnode.listening_address;
 
@@ -216,20 +223,24 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
                 node_stats_logging_delay: cfg.debug.node_stats_logging_delay,
                 node_stats_updating_delay: cfg.debug.node_stats_updating_delay,
             },
-            ..config::MixnodeConfig::new_default(nym_node_config_dir)
+            ..config::MixnodeConfig::new_default()
         }))
         .with_wireguard(args.wireguard.build_config_section(&data_dir))
         .with_entry_gateway(args.entry_gateway.build_config_section(&data_dir))
         .with_exit_gateway(args.exit_gateway.build_config_section(&data_dir))
-        .build()?;
+        .build();
+
+    // update description
+    let node_description = NodeDescription {
+        moniker: mixnode_description.name,
+        website: mixnode_description.link,
+        security_contact: "".to_string(),
+        details: mixnode_description.description,
+    };
+    save_node_description(&config.storage_paths.description, &node_description)?;
 
     // move existing keys and generate missing data
     info!("attempting to copy mixnode keys to their new locations");
-    copy_old_data(
-        NodeType::Mixnode,
-        cfg.storage_paths.node_description,
-        &config.mixnode.storage_paths.node_description,
-    )?;
     copy_old_data(
         NodeType::Mixnode,
         cfg.storage_paths.keys.public_identity_key_file,
@@ -311,11 +322,6 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
         NodeMode::EntryGateway
     };
 
-    // SAFETY:
-    // our default location is never the root directory
-    #[allow(clippy::unwrap_used)]
-    let nym_node_config_dir = nym_node_config_path.parent().unwrap().to_path_buf();
-
     let ip = cfg.gateway.listening_address;
 
     // prefer new mnemonic explicitly passed with cli; otherwise use the one already present
@@ -351,7 +357,7 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                 bind_address: SocketAddr::new(ip, DEFAULT_VERLOC_PORT),
                 ..Default::default()
             },
-            ..config::MixnodeConfig::new_default(nym_node_config_dir)
+            ..config::MixnodeConfig::new_default()
         }))
         .with_wireguard(args.wireguard.override_config_section(config::Wireguard {
             enabled: cfg.wireguard.enabled,
@@ -380,8 +386,7 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                     open_proxy: false,
                     upstream_exit_policy_url: nr_cfg
                         .as_ref()
-                        .map(|c| c.network_requester.upstream_exit_policy_url.clone())
-                        .flatten()
+                        .and_then(|c| c.network_requester.upstream_exit_policy_url.clone())
                         .unwrap_or(
                             config::ExitGatewayConfig::new_default(".").upstream_exit_policy_url,
                         ),
@@ -416,7 +421,7 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                     },
                 }),
         )
-        .build()?;
+        .build();
 
     // move existing keys and generate missing data
     info!("attempting to copy gateway keys to their new locations");

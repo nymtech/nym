@@ -103,9 +103,6 @@ impl Args {
     pub(crate) fn build_config(self) -> Result<Config, NymNodeError> {
         let config_path = self.config.config_path();
         let data_dir = Config::default_data_directory(&config_path)?;
-        let config_dir = config_path
-            .parent()
-            .ok_or(NymNodeError::ConfigDirDerivationFailure)?;
 
         let id = self
             .config
@@ -116,17 +113,19 @@ impl Args {
                 name: "id".to_string(),
             })?;
 
-        ConfigBuilder::new(id, config_path.clone(), data_dir.clone())
+        let config = ConfigBuilder::new(id, config_path.clone(), data_dir.clone())
             .with_mode(self.mode.unwrap_or_default())
             .with_host(self.host.build_config_section())
             .with_http(self.http.build_config_section())
             .with_mixnet(self.mixnet.build_config_section())
             .with_wireguard(self.wireguard.build_config_section(&data_dir))
             .with_storage_paths(NymNodePaths::new(&data_dir))
-            .with_mixnode(self.mixnode.build_config_section(config_dir))
+            .with_mixnode(self.mixnode.build_config_section())
             .with_entry_gateway(self.entry_gateway.build_config_section(&data_dir))
             .with_exit_gateway(self.exit_gateway.build_config_section(&data_dir))
-            .build()
+            .build();
+
+        Ok(config)
     }
 
     pub(crate) fn override_config(self, mut config: Config) -> Config {

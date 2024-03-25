@@ -109,3 +109,19 @@ pub struct CryptoHardware {
     /// Flag to indicate whether the host machine supports XSAVE instruction
     pub xsave: bool,
 }
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct NodeDescription {
+    /// moniker defines a human-readable name for the node.
+    pub moniker: String,
+    
+    /// website defines an optional website link.
+    pub website: String,
+
+    /// security contact defines an optional email for security contact.
+    pub security_contact: String,
+
+    /// details define other optional details.
+    pub details: String,
+}

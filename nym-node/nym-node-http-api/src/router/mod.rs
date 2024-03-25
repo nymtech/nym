@@ -6,6 +6,8 @@ use crate::error::NymNodeHttpError;
 use crate::middleware::logging;
 use crate::state::AppState;
 use crate::NymNodeHTTPServer;
+use axum::response::Redirect;
+use axum::routing::get;
 use axum::Router;
 use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
@@ -151,6 +153,18 @@ impl NymNodeRouter {
 
         NymNodeRouter {
             inner: Router::new()
+                // redirection for old legacy mixnode routes
+                .route(
+                    "/hardware",
+                    get(|| async { Redirect::permanent(&routes::api::v1::system_info_absolute()) }),
+                )
+                .route(
+                    "/description",
+                    get(|| async { Redirect::permanent(&routes::api::v1::description_absolute()) }),
+                )
+                .route("/stats", get(|| async { Redirect::permanent("/") }))
+                .route("/metrics", get(|| async { Redirect::permanent("/") }))
+                .route("/verloc", get(|| async { Redirect::permanent("/") }))
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
                 .nest(
                     routes::API,

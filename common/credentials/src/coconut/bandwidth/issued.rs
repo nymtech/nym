@@ -171,7 +171,7 @@ impl IssuedBandwidthCredential {
         coin_indices_signatures: Vec<CoinIndexSignature>,
     ) -> Result<CredentialSpendingData, Error> {
         let params = bandwidth_credential_params();
-
+        let spend_date = today_timestamp();
         let (payment, _) = self.wallet.spend(
             params,
             verification_key,
@@ -181,7 +181,7 @@ impl IssuedBandwidthCredential {
             constants::SPEND_TICKETS,
             self.exp_date_sigs(),
             coin_indices_signatures,
-            date_scalar(today_timestamp()),
+            date_scalar(spend_date),
         )?;
 
         let value = match &self.variant_data {
@@ -194,6 +194,7 @@ impl IssuedBandwidthCredential {
         Ok(CredentialSpendingData {
             payment,
             pay_info,
+            spend_date,
             value,
             typ: self.typ(),
             epoch_id: self.epoch_id,

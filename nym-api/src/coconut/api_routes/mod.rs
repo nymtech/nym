@@ -33,7 +33,7 @@ use rand::RngCore;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::ops::Deref;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 mod helpers;
 
@@ -294,6 +294,7 @@ pub async fn verify_online_credential(
     let credential_data = &verify_credential_body.credential;
     let epoch_id = credential_data.epoch_id;
     let payment = &credential_data.payment;
+    let today_date = today_timestamp();
 
     let voucher_value: u64 = if credential_data.typ.is_ticketbook() {
         credential_data.value
@@ -303,6 +304,12 @@ pub async fn verify_online_credential(
         });
     };
 
+    if today_date != credential_data.spend_date {
+        return Err(CoconutError::InvalidSpendDate {
+            expected: today_date,
+            got: credential_data.spend_date,
+        });
+    }
     // TODO: introduce a check to make sure we haven't already voted for this proposal to prevent DDOS
 
     let proposal = state.client.get_proposal(proposal_id).await?;
@@ -336,7 +343,7 @@ pub async fn verify_online_credential(
     let verification_key = state.verification_key(epoch_id).await?;
     let params = bandwidth_credential_params();
     let mut vote_yes = credential_data
-        .verify(params, &verification_key, today_timestamp())
+        .verify(params, &verification_key)
         .map_err(|_| {
             CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
         })?;
@@ -361,14 +368,22 @@ pub async fn verify_offline_credential(
 ) -> Result<Json<VerifyCredentialResponse>> {
     let credential_data = &verify_credential_body.credential;
     let epoch_id = credential_data.epoch_id;
+    let today_date = today_timestamp();
+    let yesterday_date = today_date - Duration::DAY.whole_seconds() as u64;
+
+    //SW NOTE: Offline scheme, but we still need some check on that, so that client and gateway can't collude and send expired credentials.
+    //Let's allow the current day (obviously), and the day before (for late sender or around midnight)
+    if today_date != credential_data.spend_date && yesterday_date != credential_data.spend_date {
+        return Err(CoconutError::InvalidSpendDate {
+            expected: today_date,
+            got: credential_data.spend_date,
+        });
+    }
 
     let verification_key = state.verification_key(epoch_id).await?;
     let params = bandwidth_credential_params();
 
-    if credential_data
-        .verify(params, &verification_key, today_timestamp())
-        .is_err()
-    {
+    if credential_data.verify(params, &verification_key).is_err() {
         return Err(CoconutError::CompactEcashInternalError(
             CompactEcashError::PaymentVerification,
         ));

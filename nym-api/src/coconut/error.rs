@@ -82,6 +82,9 @@ pub enum CoconutError {
     )]
     TooLongFreePass { expiry_date: OffsetDateTime },
 
+    #[error("the spend date provided does not correspnd to today's date. Expected : {expected}, got {got}")]
+    InvalidSpendDate { expected: u64, got: u64 },
+
     #[error("the received bandwidth voucher did not contain deposit value")]
     MissingBandwidthValue,
 

@@ -20,6 +20,7 @@ use futures::{
 };
 use log::*;
 use nym_credentials::coconut::bandwidth::CredentialType;
+use nym_credentials::coconut::utils::today_timestamp;
 use nym_credentials_interface::{to_coconut, CoconutBase58, CoconutError, CoconutParameters};
 use nym_gateway_requests::models::OldCredentialSpendingRequest;
 use nym_gateway_requests::{
@@ -365,6 +366,7 @@ where
             &self.client.shared_keys,
             iv,
         )?;
+        let spend_date = today_timestamp();
 
         // check if the credential hasn't been spent before
         let serial_number_bs58 = credential.data.serial_number_b58();
@@ -378,6 +380,14 @@ where
         if already_spent {
             trace!("the credential has already been spent before");
             return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
+        }
+
+        // check if the spending date is correct
+        if spend_date != credential.data.spend_date {
+            trace!("The provided spend date is incorrect");
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                "Invalid spending date".to_string(),
+            ));
         }
 
         trace!(

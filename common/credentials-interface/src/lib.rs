@@ -107,6 +107,8 @@ pub struct CredentialSpendingData {
 
     pub pay_info: PayInfo,
 
+    pub spend_date: u64,
+
     pub value: u64,
 
     pub typ: CredentialType,
@@ -120,13 +122,12 @@ impl CredentialSpendingData {
         &self,
         params: &Parameters,
         verification_key: &VerificationKeyAuth,
-        spend_date: u64,
     ) -> Result<bool, CompactEcashError> {
         self.payment.spend_verify(
             params,
             verification_key,
             &self.pay_info,
-            date_scalar(spend_date),
+            date_scalar(self.spend_date),
         )
     }
 
@@ -145,6 +146,7 @@ impl CredentialSpendingData {
         bytes.extend_from_slice(&(payment_bytes.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&payment_bytes);
         bytes.extend_from_slice(&self.pay_info.pay_info_bytes); //this is 72 bytes long
+        bytes.extend_from_slice(&self.spend_date.to_be_bytes());
         bytes.extend_from_slice(&self.value.to_be_bytes());
         bytes.extend_from_slice(&(typ_bytes.len() as u32).to_be_bytes());
         bytes.extend_from_slice(typ_bytes);
@@ -154,7 +156,7 @@ impl CredentialSpendingData {
     }
 
     pub fn try_from_bytes(raw: &[u8]) -> Result<Self, CompactEcashError> {
-        if raw.len() < 72 + 8 + 8 + 4 + 4 {
+        if raw.len() < 72 + 8 + 8 + 8 + 4 + 4 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
@@ -172,7 +174,7 @@ impl CredentialSpendingData {
         let payment = Payment::try_from(&raw[index..index + payment_len])?;
         index += payment_len;
 
-        if raw[index..].len() < 72 + 8 + 8 + 4 {
+        if raw[index..].len() < 72 + 8 + 8 + 8 + 4 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
@@ -183,6 +185,10 @@ impl CredentialSpendingData {
             pay_info_bytes: raw[index..index + 72].try_into().unwrap(),
         };
         index += 72;
+
+        //SAFETY : casting a slice of lenght 8 into an array of size 8
+        let spend_date = u64::from_be_bytes(raw[index..index + 8].try_into().unwrap());
+        index += 8;
 
         //SAFETY : casting a slice of lenght 8 into an array of size 8
         let value = u64::from_be_bytes(raw[index..index + 8].try_into().unwrap());
@@ -212,6 +218,7 @@ impl CredentialSpendingData {
         Ok(CredentialSpendingData {
             payment,
             pay_info,
+            spend_date,
             value,
             typ,
             epoch_id,

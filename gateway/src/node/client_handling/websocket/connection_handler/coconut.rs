@@ -10,7 +10,6 @@ use futures::StreamExt;
 use log::*;
 use nym_api_requests::coconut::OfflineVerifyCredentialBody;
 use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
-use nym_credentials::coconut::utils::today_timestamp;
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::{CompactEcashError, PayInfo, VerificationKeyAuth};
 use nym_gateway_requests::models::{CredentialSpendingRequest, OldCredentialSpendingRequest};
@@ -236,11 +235,7 @@ impl EcashVerifier {
         let insert_index = self.verify_pay_info(credential.pay_info.clone()).await?;
 
         credential
-            .verify(
-                bandwidth_credential_params(),
-                aggregated_verification_key,
-                today_timestamp(),
-            )
+            .verify(bandwidth_credential_params(), aggregated_verification_key)
             .map_err(|err| match err {
                 CompactEcashError::ExpirationDate(_) => {
                     RequestHandlingError::InvalidBandwidthCredential(String::from(

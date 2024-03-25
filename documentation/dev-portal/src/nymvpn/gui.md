@@ -18,7 +18,7 @@ We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d
 
 1. Open a terminal window in a directory where you want the script to be downloaded and run
 ```sh
-curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/6c81619ec26b092dfa174bce79335f4163c657ff/nym-vpn-client-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
+curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/702cb6ca032ac50be5e7feb0a9993edf67819669/nym-vpn-client-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
 ```
 
 2. Follow the prompts in the program

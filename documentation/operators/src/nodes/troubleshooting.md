@@ -327,7 +327,20 @@ rm -rf ~/.nym/gateways/<ID>/data/ip-packet-router-data
 
 ### My `ip_packet_router` (IPR) seems to not work
 
-Make sure to run your Gateway with embeded IPR as root. Either in a root shell with your configs in `/root/.nym/` or with a command `sudo -E` which gives root privileges but looks for user config folder.
+There are a few steps to mitigate problems with IPR:
+
+1. Check out the issue right above regarding the Exit Gateway config
+2. Open your browser and checkout the Swager UI page and see if all the roles are Enabled:
+```sh
+# in case of IP
+http://<YOUR_LISTENING_IP_ADDRESS>:8080/api/v1/roles
+
+# in case of hostname domain
+https://<YOUR_DOMAIN>/api/v1/roles
+```
+3. Make sure all your [ports are open](https://nymtech.net/operators/nodes/maintenance.html#configure-your-firewall) properly
+4. Make sure to run your Gateway with embeded IPR as root. Either in a root shell with your configs in `/root/.nym/` or with a command `sudo -E` which gives root privileges but looks for user config folder
+5. If it's all good in the API but you don't see the right tick/badge in the Performance testins list, just wait some time and then try to refresh the page
 
 ## Validators
 

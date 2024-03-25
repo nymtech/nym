@@ -4,7 +4,7 @@ To join the [Performance testing event]({{performance_testing_webpage}}) node op
 
 1. **[Sign their node]({{performance_testing_webpage}}) into the testing environment**
 2. **[Configure their node](#node-configuration) for the test**
-3. (*Not mandatory*) **[Setup metric monitoring system](templates.md)** to observe node performance at any time
+3. (*Not mandatory*) [Setup metric monitoring system](templates.md) to observe node performance at any time
 
 ## Node Configuration
 
@@ -13,8 +13,8 @@ To join the [Performance testing event]({{performance_testing_webpage}}) node op
 After you signed your node (or several) into the Performance testing environment, open the machine with (each of) your nodes and follow the steps below to configure your node for the event.
 
 
-#### 1. Download and upgrade to `v2024.2-fast-and-furious` binary
-  - Download the binary from Nym [release page](https://github.com/nymtech/nym/releases/)
+#### 1. Download and upgrade to `{{performance_testing_release}}` binary
+  - Download the binary from Nym [release page](https://github.com/nymtech/nym/releases/) (use `wget` or `curl` and binary download URL, don't compile from `master`)
   - Follow the steps to upgrade node on the [maintenance page](../nodes/manual-upgrade.md)
   - Before you re-start your node, follow the steps below
 

@@ -7,6 +7,7 @@ use crate::node::helpers::{
     store_ed25519_identity_keypair, store_key, store_keypair, store_x25519_sphinx_keypair,
 };
 use crate::node::http::{sign_host_details, system_info::get_system_info};
+use ipnetwork::IpNetwork;
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway::Gateway;
@@ -22,12 +23,14 @@ use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeCon
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
+use nym_node_http_api::router::WireguardAppState;
 use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 use nym_node_http_api::state::AppState;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{TaskClient, TaskManager};
+use nym_wireguard_types::registration::GatewayClientRegistry;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
@@ -59,6 +62,7 @@ impl MixnodeData {
 pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
+    client_registry: Arc<GatewayClientRegistry>,
 }
 
 impl EntryGatewayData {
@@ -85,6 +89,7 @@ impl EntryGatewayData {
             )
             .await
             .map_err(nym_gateway::GatewayError::from)?,
+            client_registry: Arc::new(Default::default()),
         })
     }
 }
@@ -310,45 +315,47 @@ impl NymNode {
         Ok(())
     }
 
-    async fn run_as_entry_gateway(self) -> Result<(), NymNodeError> {
-        unimplemented!("ignore http");
+    fn start_entry_gateway(&self, task_client: TaskClient) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in ENTRY GATEWAY mode");
 
-        let config = ephemeral_entry_gateway_config(self.config, self.entry_gateway.mnemonic)?;
-        let entry_gateway = Gateway::new_loaded(
+        let config =
+            ephemeral_entry_gateway_config(self.config.clone(), &self.entry_gateway.mnemonic)?;
+        let mut entry_gateway = Gateway::new_loaded(
             config,
             None,
             None,
-            self.ed25519_identity_keys,
-            self.x25519_sphinx_keys,
-            self.entry_gateway.client_storage,
+            self.ed25519_identity_keys.clone(),
+            self.x25519_sphinx_keys.clone(),
+            self.entry_gateway.client_storage.clone(),
         );
+        entry_gateway.disable_http_server();
+        entry_gateway.set_task_client(task_client);
+        entry_gateway.set_wireguard_client_registry(self.entry_gateway.client_registry.clone());
 
-        entry_gateway
-            .run()
-            .await
-            .map_err(|source| NymNodeError::EntryGatewayFailure(source.into()))
+        tokio::spawn(async move { entry_gateway.run().await });
+        Ok(())
     }
 
-    async fn run_as_exit_gateway(self) -> Result<(), NymNodeError> {
-        unimplemented!("ignore http");
+    fn start_exit_gateway(&self, task_client: TaskClient) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in EXIT GATEWAY mode");
 
-        let config = ephemeral_exit_gateway_config(self.config, self.entry_gateway.mnemonic)?;
+        let config =
+            ephemeral_exit_gateway_config(self.config.clone(), &self.entry_gateway.mnemonic)?;
 
-        let exit_gateway = Gateway::new_loaded(
+        let mut exit_gateway = Gateway::new_loaded(
             config.gateway,
             Some(config.nr_opts),
             Some(config.ipr_opts),
-            self.ed25519_identity_keys,
-            self.x25519_sphinx_keys,
-            self.entry_gateway.client_storage,
+            self.ed25519_identity_keys.clone(),
+            self.x25519_sphinx_keys.clone(),
+            self.entry_gateway.client_storage.clone(),
         );
+        exit_gateway.disable_http_server();
+        exit_gateway.set_task_client(task_client);
+        exit_gateway.set_wireguard_client_registry(self.entry_gateway.client_registry.clone());
 
-        exit_gateway
-            .run()
-            .await
-            .map_err(|source| NymNodeError::ExitGatewayFailure(source.into()))
+        tokio::spawn(async move { exit_gateway.run().await });
+        Ok(())
     }
 
     pub(crate) fn build_http_server(&self) -> Result<NymNodeHTTPServer, NymNodeError> {
@@ -442,6 +449,18 @@ impl NymNode {
                 policy: None,
             };
 
+        let wireguard_private_network = IpNetwork::new(
+            self.config.wireguard.private_network_ip,
+            self.config.wireguard.private_network_prefix,
+        )?;
+
+        let wg_state = WireguardAppState::new(
+            self.entry_gateway.client_registry.clone(),
+            Default::default(),
+            self.config.wireguard.bind_address.port(),
+            wireguard_private_network,
+        )?;
+
         let mut config = nym_node_http_api::Config::new(bin_info_owned!(), host_details)
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())
             .with_mixnode_details(mixnode_details)
@@ -471,7 +490,7 @@ impl NymNode {
             .with_verloc_stats(self.verloc_stats.clone())
             .with_metrics_key(self.config.http.access_token.clone());
 
-        Ok(NymNodeRouter::new(config, Some(app_state), None)
+        Ok(NymNodeRouter::new(config, Some(app_state), Some(wg_state))
             .build_server(&self.config.http.bind_address)?)
     }
 
@@ -488,8 +507,16 @@ impl NymNode {
                 let _ = task_manager.catch_interrupt().await;
                 Ok(())
             }
-            NodeMode::EntryGateway => self.run_as_entry_gateway().await,
-            NodeMode::ExitGateway => self.run_as_exit_gateway().await,
+            NodeMode::EntryGateway => {
+                self.start_entry_gateway(task_manager.subscribe_named("entry-gateway"))?;
+                let _ = task_manager.catch_interrupt().await;
+                Ok(())
+            }
+            NodeMode::ExitGateway => {
+                self.start_exit_gateway(task_manager.subscribe_named("exit-gateway"))?;
+                let _ = task_manager.catch_interrupt().await;
+                Ok(())
+            }
         }
     }
 }

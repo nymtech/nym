@@ -13,8 +13,8 @@ use nym_mixnode::MixnodeError;
 use nym_network_requester::{CustomGatewayDetails, GatewayDetails};
 use nym_node::config;
 use nym_node::config::mixnode::DEFAULT_VERLOC_PORT;
-use nym_node::config::Config;
 use nym_node::config::{default_config_filepath, ConfigBuilder, NodeMode};
+use nym_node::config::{Config, DEFAULT_WIREGUARD_NETWORK_IP};
 use nym_node::error::{EntryGatewayError, ExitGatewayError, NymNodeError};
 use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
 use rand::rngs::OsRng;
@@ -362,6 +362,7 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
         .with_wireguard(args.wireguard.override_config_section(config::Wireguard {
             enabled: cfg.wireguard.enabled,
             bind_address: cfg.wireguard.bind_address,
+            private_network_ip: DEFAULT_WIREGUARD_NETWORK_IP,
             announced_port: cfg.wireguard.announced_port,
             private_network_prefix: cfg.wireguard.private_network_prefix,
             // this is fine as currently the paths stored inside gateway itself are empty

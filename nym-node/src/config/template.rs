@@ -93,6 +93,10 @@ enabled = {{ wireguard.enabled }}
 # default: `0.0.0.0:51822`
 bind_address = '{{ wireguard.bind_address }}'
 
+# Ip address of the private wireguard network.
+# default: `10.1.0.0`
+private_network_ip = '{{ wireguard.private_network_ip }}'
+
 # Port announced to external clients wishing to connect to the wireguard interface.
 # Useful in the instances where the node is behind a proxy.
 announced_port = {{ wireguard.announced_port }}

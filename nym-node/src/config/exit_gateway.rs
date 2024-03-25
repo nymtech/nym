@@ -12,7 +12,6 @@ use nym_gateway::node::{LocalIpPacketRouterOpts, LocalNetworkRequesterOpts};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
-use zeroize::Zeroizing;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -153,7 +152,7 @@ fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
 // that function is rather disgusting, but I hope it's not going to live for too long
 pub fn ephemeral_exit_gateway_config(
     config: Config,
-    mnemonic: Zeroizing<bip39::Mnemonic>,
+    mnemonic: &bip39::Mnemonic,
 ) -> Result<EphemeralConfig, ExitGatewayError> {
     let nr_opts = LocalNetworkRequesterOpts {
         config: nym_network_requester::Config {

@@ -20,6 +20,7 @@ bs58.workspace = true
 celes = "2.4.0" # country codes
 clap = { workspace = true, features = ["cargo", "env"] }
 humantime-serde = { workspace = true }
+ipnetwork = "0.16.0"
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
@@ -44,6 +45,7 @@ nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
+nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
 # nodes:
 nym-mixnode = { path = "../mixnode" }

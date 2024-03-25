@@ -39,6 +39,7 @@ pub use crate::config::mixnode::MixnodeConfig;
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
 pub const DEFAULT_WIREGUARD_PORT: u16 = WG_PORT;
+pub const DEFAULT_WIREGUARD_NETWORK_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 1, 0, 0));
 pub const DEFAULT_WIREGUARD_PREFIX: u8 = 16;
 pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
 pub const DEFAULT_MIXNET_PORT: u16 = DEFAULT_MIX_LISTENING_PORT;
@@ -184,9 +185,7 @@ impl ConfigBuilder {
             storage_paths: self
                 .storage_paths
                 .unwrap_or_else(|| NymNodePaths::new(&self.data_dir)),
-            mixnode: self
-                .mixnode
-                .unwrap_or_else(MixnodeConfig::new_default),
+            mixnode: self.mixnode.unwrap_or_else(MixnodeConfig::new_default),
             entry_gateway: self
                 .entry_gateway
                 .unwrap_or_else(|| EntryGatewayConfig::new_default(&self.data_dir)),
@@ -359,11 +358,11 @@ pub struct Http {
     /// Currently only used for obtaining mixnode's stats.
     #[serde(default)]
     pub access_token: Option<String>,
-    
+
     /// Specify whether basic system information should be exposed.
     /// default: true
     pub expose_system_info: bool,
-    
+
     /// Specify whether basic system hardware information should be exposed.
     /// default: true
     pub expose_system_hardware: bool,
@@ -482,6 +481,10 @@ pub struct Wireguard {
     /// default: `0.0.0.0:51822`
     pub bind_address: SocketAddr,
 
+    /// Ip address of the private wireguard network.
+    /// default: `10.1.0.0`
+    pub private_network_ip: IpAddr,
+
     /// Port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
     pub announced_port: u16,
@@ -502,20 +505,10 @@ impl Wireguard {
                 IpAddr::V4(Ipv4Addr::UNSPECIFIED),
                 DEFAULT_WIREGUARD_PORT,
             ),
+            private_network_ip: DEFAULT_WIREGUARD_NETWORK_IP,
             announced_port: DEFAULT_WIREGUARD_PORT,
             private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
             storage_paths: persistence::WireguardPaths::new(data_dir),
         }
-    }
-}
-
-// it's deprecated since once storage paths are populated, no sane global default will exist
-pub fn deprecated_default_wireguard_config() -> Wireguard {
-    Wireguard {
-        enabled: false,
-        bind_address: SocketAddr::new(inaddr_any(), DEFAULT_WIREGUARD_PORT),
-        announced_port: DEFAULT_WIREGUARD_PORT,
-        private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
-        storage_paths: persistence::WireguardPaths {},
     }
 }

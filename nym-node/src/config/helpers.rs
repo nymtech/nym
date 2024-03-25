@@ -4,9 +4,7 @@
 use crate::config::Config;
 use clap::crate_version;
 use std::net::IpAddr;
-use std::ops::Deref;
 use thiserror::Error;
-use zeroize::Zeroizing;
 
 #[derive(Debug, Error)]
 #[error("currently it's not supported to have different ip addresses for clients and mixnet ({clients_bind_ip} and {mix_bind_ip} were used)")]
@@ -18,7 +16,7 @@ pub struct UnsupportedGatewayAddresses {
 // a temporary solution until all nodes are even more tightly integrated
 pub fn ephemeral_gateway_config(
     config: Config,
-    mnemonic: Zeroizing<bip39::Mnemonic>,
+    mnemonic: &bip39::Mnemonic,
 ) -> Result<nym_gateway::config::Config, UnsupportedGatewayAddresses> {
     let host = nym_gateway::config::Host {
         public_ips: config.host.public_ips,
@@ -56,7 +54,7 @@ pub fn ephemeral_gateway_config(
         nyxd_urls: config.mixnet.nyxd_urls,
 
         // that's nasty but can't do anything about it for this temporary solution : (
-        cosmos_mnemonic: mnemonic.deref().clone(),
+        cosmos_mnemonic: mnemonic.clone(),
     };
 
     let wireguard = nym_gateway::config::Wireguard {

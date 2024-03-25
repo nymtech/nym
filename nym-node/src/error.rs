@@ -73,11 +73,11 @@ pub enum NymNodeError {
         #[source]
         source: io::Error,
     },
-    
+
     #[error("the node description file is malformed: {source}")]
     MalformedDescriptionFile {
         #[source]
-        source: toml::de::Error
+        source: toml::de::Error,
     },
 
     #[error("failed to load description file using path '{}'. detailed message: {source}", path.display())]
@@ -129,6 +129,12 @@ pub enum NymNodeError {
     #[error("failed to migrate {node_type}: {message}")]
     MigrationFailure { node_type: String, message: String },
 
+    #[error("there was an issue with wireguard IP network: {source}")]
+    IpNetworkError {
+        #[from]
+        source: ipnetwork::IpNetworkError,
+    },
+
     #[error(transparent)]
     MixnodeFailure(#[from] MixnodeError),
 
@@ -153,7 +159,7 @@ pub enum MixnodeError {
         #[source]
         source: io::Error,
     },
-    
+
     #[error("currently it's not supported to have different ip addresses for verloc and mixnet ({verloc_bind_ip} and {mix_bind_ip} were used)")]
     UnsupportedAddresses {
         verloc_bind_ip: IpAddr,

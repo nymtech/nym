@@ -11,7 +11,6 @@ use nym_config::serde_helpers::de_maybe_port;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::path::Path;
-use zeroize::Zeroizing;
 
 pub const DEFAULT_WS_PORT: u16 = DEFAULT_CLIENT_LISTENING_PORT;
 
@@ -78,7 +77,7 @@ impl EntryGatewayConfig {
 // a temporary solution until all nodes are even more tightly integrated
 pub fn ephemeral_entry_gateway_config(
     config: Config,
-    mnemonic: Zeroizing<bip39::Mnemonic>,
+    mnemonic: &bip39::Mnemonic,
 ) -> Result<nym_gateway::config::Config, EntryGatewayError> {
     Ok(ephemeral_gateway_config(config, mnemonic)?)
 }

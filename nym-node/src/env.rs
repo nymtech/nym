@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub mod vars {
-    pub const NYMNODE_NO_BANNER_ARG:&str = "NYMNODE_NO_BANNER";
-    pub const NYMNODE_CONFIG_ENV_FILE_ARG:&str = "NYMNODE_CONFIG_ENV_FILE_ARG";
+    pub const NYMNODE_NO_BANNER_ARG: &str = "NYMNODE_NO_BANNER";
+    pub const NYMNODE_CONFIG_ENV_FILE_ARG: &str = "NYMNODE_CONFIG_ENV_FILE_ARG";
     pub const NYMNODE_ID_ARG: &str = "NYMNODE_ID";
     pub const NYMNODE_OUTPUT_ARG: &str = "NYMNODE_OUTPUT";
     pub const NYMNODE_CONFIG_PATH_ARG: &str = "NYMNODE_CONFIG";
@@ -35,6 +35,7 @@ pub mod vars {
     // wireguard:
     pub const NYMNODE_WG_ENABLED_ARG: &str = "NYMNODE_WG_ENABLED";
     pub const NYMNODE_WG_BIND_ADDRESS_ARG: &str = "NYMNODE_WG_BIND_ADDRESS";
+    pub const NYMNODE_WG_IP_NETWORK_ARG: &str = "NYMNODE_WG_IP_NETWORK";
     pub const NYMNODE_WG_ANNOUNCED_PORT_ARG: &str = "NYMNODE_WG_ANNOUNCED_PORT";
     pub const NYMNODE_WG_PRIVATE_NETWORK_PREFIX_ARG: &str = "NYMNODE_WG_PRIVATE_NETWORK_PREFIX";
 

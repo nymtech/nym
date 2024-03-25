@@ -468,7 +468,8 @@ impl NymNode {
 
         let app_state = AppState::new()
             .with_mixing_stats(self.mixnode.mixing_stats.clone())
-            .with_verloc_stats(self.verloc_stats.clone());
+            .with_verloc_stats(self.verloc_stats.clone())
+            .with_metrics_key(self.config.http.access_token.clone());
 
         Ok(NymNodeRouter::new(config, Some(app_state), None)
             .build_server(&self.config.http.bind_address)?)

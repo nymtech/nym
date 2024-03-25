@@ -6,7 +6,8 @@ use crate::router::types::{ErrorResponse, RequestError};
 use axum::Router;
 use nym_node_requests::api as api_requests;
 use nym_node_requests::routes::api::v1;
-use utoipa::OpenApi;
+use utoipa::openapi::security::{Http, HttpAuthScheme};
+use utoipa::{openapi::security::SecurityScheme, Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(OpenApi)]
@@ -20,6 +21,7 @@ use utoipa_swagger_ui::SwaggerUi;
         api::v1::node::description::description,
         api::v1::metrics::mixing::mixing_stats,
         api::v1::metrics::verloc::verloc_stats,
+        api::v1::metrics::prometheus::prometheus_metrics,
         api::v1::health::root_health,
         api::v1::gateway::root::root_gateway,
         api::v1::gateway::client_interfaces::client_interfaces,
@@ -74,10 +76,24 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy,
             api_requests::v1::ip_packet_router::models::IpPacketRouter,
         ),
-        responses(RequestError)
-    )
+        responses(RequestError),
+    ),
+    modifiers(&SecurityAddon),
 )]
 pub(crate) struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "prometheus_token",
+                SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
+            )
+        }
+    }
+}
 
 pub(crate) fn route<S: Send + Sync + 'static + Clone>() -> Router<S> {
     // provide absolute path to the openapi.json

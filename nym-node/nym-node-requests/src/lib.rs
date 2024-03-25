@@ -63,9 +63,11 @@ pub mod routes {
 
                 pub const MIXING: &str = "/mixing";
                 pub const VERLOC: &str = "/verloc";
+                pub const PROMETHEUS: &str = "/prometheus";
 
                 absolute_route!(mixing_absolute, metrics_absolute(), MIXING);
                 absolute_route!(verloc_absolute, metrics_absolute(), VERLOC);
+                absolute_route!(prometheus_absolute, metrics_absolute(), PROMETHEUS);
             }
 
             pub mod gateway {

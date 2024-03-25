@@ -37,4 +37,10 @@ impl AppState {
         self.metrics.verloc = verloc_stats;
         self
     }
+
+    #[must_use]
+    pub fn with_metrics_key(mut self, bearer_token: impl Into<Option<String>>) -> Self {
+        self.metrics.prometheus_access_token = bearer_token.into();
+        self
+    }
 }

@@ -20,7 +20,7 @@ use nym_node_requests::api::v1::metrics::models::VerlocStats;
     ),
     params(OutputParams),
 )]
-pub(crate) async fn verloc_stats<'a>(
+pub(crate) async fn verloc_stats(
     Query(output): Query<OutputParams>,
     State(metrics_state): State<MetricsAppState>,
 ) -> VerlocStatsResponse {

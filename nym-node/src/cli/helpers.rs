@@ -116,10 +116,11 @@ pub(crate) struct HttpArgs {
     pub(crate) landing_page_assets_path: Option<PathBuf>,
 
     /// An optional bearer token for accessing certain http endpoints.
-    /// Currently only used for obtaining mixnode's stats.
+    /// Currently only used for prometheus metrics.
     #[clap(
         long,
-        env = NYMNODE_HTTP_ACCESS_TOKEN_ARG
+        env = NYMNODE_HTTP_ACCESS_TOKEN_ARG,
+        alias = "http-bearer-token"
     )]
     pub(crate) http_access_token: Option<String>,
 }
@@ -257,9 +258,7 @@ pub(crate) struct MixnodeArgs {
 
 impl MixnodeArgs {
     // TODO: could we perhaps make a clap error here and call `safe_exit` instead?
-    pub(crate) fn build_config_section(
-        self,
-    ) -> config::MixnodeConfig {
+    pub(crate) fn build_config_section(self) -> config::MixnodeConfig {
         self.override_config_section(config::MixnodeConfig::new_default())
     }
 

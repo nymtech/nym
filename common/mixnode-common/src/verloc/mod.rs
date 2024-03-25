@@ -328,7 +328,6 @@ impl VerlocMeasurer {
             if all_mixes.is_empty() {
                 warn!("There does not seem there are any nodes to measure...")
             }
-            println!("testing {} nodes", all_mixes.len());
 
             // we only care about address and identity
             let tested_nodes = all_mixes
@@ -359,22 +358,17 @@ impl VerlocMeasurer {
                 })
                 .collect::<Vec<_>>();
 
-            println!("AA");
             // on start of each run remove old results
             self.state.start_new_measurements(tested_nodes.len()).await;
 
-            println!("BB");
             if let MeasurementOutcome::Shutdown = self.perform_measurement(tested_nodes).await {
                 log::trace!("Shutting down after aborting measurements");
                 break;
             }
 
-            println!("CC");
             // write current time to "run finished" field
             self.state.finish_measurements().await;
 
-            println!("DD");
-            
             info!(
                 "Finished performing verloc measurements. The next one will happen in {:?}",
                 self.config.testing_interval

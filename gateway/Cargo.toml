@@ -26,7 +26,7 @@ dashmap = { workspace = true }
 dirs = "4.0"
 dotenvy = { workspace = true }
 futures = { workspace = true }
-humantime-serde = "1.0.1"
+humantime-serde = { workspace = true }
 ipnetwork = "0.16"
 log = { workspace = true }
 once_cell = "1.7.2"

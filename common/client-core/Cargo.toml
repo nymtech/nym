@@ -15,7 +15,7 @@ bs58 = { workspace = true }
 cfg-if = "1.0.0"
 clap = { workspace = true, optional = true }
 futures = { workspace = true }
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }

@@ -4,30 +4,29 @@
 use crate::state::metrics::MetricsAppState;
 use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
-use nym_node_requests::api::v1::metrics::models::MixingStats;
+use nym_node_requests::api::v1::metrics::models::VerlocStats;
 
-/// If applicable, returns mixing statistics information of this node.
-/// This information is **PURELY** self-reported and in no way validated.
+/// If applicable, returns verloc statistics information of this node.
 #[utoipa::path(
     get,
-    path = "/mixing",
+    path = "/verloc",
     context_path = "/api/v1/metrics",
     tag = "Metrics",
     responses(
         (status = 200, content(
-            ("application/json" = MixingStats),
-            ("application/yaml" = MixingStats)
+            ("application/json" = VerlocStats),
+            ("application/yaml" = VerlocStats)
         ))
     ),
     params(OutputParams),
 )]
-pub(crate) async fn mixing_stats(
+pub(crate) async fn verloc_stats<'a>(
     Query(output): Query<OutputParams>,
     State(metrics_state): State<MetricsAppState>,
-) -> MixingStatsResponse {
+) -> VerlocStatsResponse {
     let output = output.output.unwrap_or_default();
-    let response = metrics_state.mixing_stats.read().await.as_response();
+    let response = metrics_state.verloc.read().await.as_response();
     output.to_response(response)
 }
 
-pub type MixingStatsResponse = FormattedResponse<MixingStats>;
+pub type VerlocStatsResponse = FormattedResponse<VerlocStats>;

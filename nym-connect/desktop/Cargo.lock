@@ -4250,6 +4250,7 @@ name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.4",
+ "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
@@ -4258,6 +4259,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "time",
 ]
 
 [[package]]

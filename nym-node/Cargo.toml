@@ -19,7 +19,7 @@ bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 celes = "2.4.0" # country codes
 clap = { workspace = true, features = ["cargo", "env"] }
-humantime-serde = "1.1.1"
+humantime-serde = { workspace = true }
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

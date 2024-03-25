@@ -1,7 +1,7 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::state::metrics::{MetricsAppState, SharedMixingStats};
+use crate::state::metrics::{MetricsAppState, SharedMixingStats, SharedVerlocStats};
 use tokio::time::Instant;
 
 pub mod metrics;
@@ -29,6 +29,12 @@ impl AppState {
     #[must_use]
     pub fn with_mixing_stats(mut self, mixing_stats: SharedMixingStats) -> Self {
         self.metrics.mixing_stats = mixing_stats;
+        self
+    }
+
+    #[must_use]
+    pub fn with_verloc_stats(mut self, verloc_stats: SharedVerlocStats) -> Self {
+        self.metrics.verloc = verloc_stats;
         self
     }
 }

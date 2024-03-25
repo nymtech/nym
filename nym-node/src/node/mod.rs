@@ -22,7 +22,7 @@ use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeCon
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
-use nym_node_http_api::state::metrics::SharedMixingStats;
+use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 use nym_node_http_api::state::AppState;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
@@ -208,6 +208,9 @@ pub(crate) struct NymNode {
     config: Config,
     description: NodeDescription,
 
+    // TODO: currently we're only making measurements in 'mixnode' mode; this should be changed
+    verloc_stats: SharedVerlocStats,
+
     #[allow(dead_code)]
     mixnode: MixnodeData,
 
@@ -272,6 +275,7 @@ impl NymNode {
                 config.storage_paths.keys.x25519_sphinx_storage_paths(),
             )?),
             description: load_node_description(&config.storage_paths.description)?,
+            verloc_stats: Default::default(),
             mixnode: MixnodeData::new(&config.mixnode)?,
             entry_gateway: EntryGatewayData::new(&config.entry_gateway).await?,
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
@@ -300,6 +304,7 @@ impl NymNode {
         mixnode.disable_http_server();
         mixnode.set_task_client(task_client);
         mixnode.set_mixing_stats(self.mixnode.mixing_stats.clone());
+        mixnode.set_verloc_stats(self.verloc_stats.clone());
 
         tokio::spawn(async move { mixnode.run().await });
         Ok(())
@@ -461,7 +466,9 @@ impl NymNode {
             }
         }
 
-        let app_state = AppState::new().with_mixing_stats(self.mixnode.mixing_stats.clone());
+        let app_state = AppState::new()
+            .with_mixing_stats(self.mixnode.mixing_stats.clone())
+            .with_verloc_stats(self.verloc_stats.clone());
 
         Ok(NymNodeRouter::new(config, Some(app_state), None)
             .build_server(&self.config.http.bind_address)?)

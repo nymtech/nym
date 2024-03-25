@@ -17,7 +17,7 @@ csv = "1.3.0"
 cw-utils = { workspace = true }
 futures = { workspace = true }
 handlebars = "3.0.1"
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 inquire = "0.6.2"
 k256 = { workspace = true, features = ["ecdsa", "sha256"] }
 log = { workspace = true }

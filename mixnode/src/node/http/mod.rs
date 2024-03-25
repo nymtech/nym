@@ -3,14 +3,13 @@
 
 use crate::config::Config;
 use crate::error::MixnodeError;
-use crate::node::http::legacy::verloc::VerlocState;
 use crate::node::node_description::NodeDescription;
 use log::info;
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::SignedHostInformation;
-use nym_node_http_api::state::metrics::SharedMixingStats;
+use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 use nym_node_http_api::NymNodeHttpError;
 use nym_task::TaskClient;
 
@@ -71,7 +70,7 @@ impl<'a> HttpApiBuilder<'a> {
     }
 
     #[must_use]
-    pub(crate) fn with_verloc(mut self, verloc: VerlocState) -> Self {
+    pub(crate) fn with_verloc(mut self, verloc: SharedVerlocStats) -> Self {
         self.legacy_mixnode.verloc = verloc;
         self
     }

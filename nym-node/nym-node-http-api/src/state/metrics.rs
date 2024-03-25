@@ -3,11 +3,15 @@
 
 use crate::state::AppState;
 use axum::extract::FromRef;
-use nym_node_requests::api::v1::metrics::models::MixingStats;
+use nym_node_requests::api::v1::metrics::models::{
+    MixingStats, VerlocResult, VerlocResultData, VerlocStats,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+
+pub use nym_node_requests::api::v1::metrics::models::{VerlocMeasurement, VerlocNodeResult};
 
 type PacketsMap = HashMap<String, u64>;
 
@@ -89,10 +93,50 @@ impl Default for MixingStatsState {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct SharedVerlocStats {
+    inner: Arc<RwLock<VerlocStatsState>>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct VerlocStatsState {
+    pub current_run_data: VerlocResultData,
+    pub previous_run_data: VerlocResultData,
+}
+
+impl SharedVerlocStats {
+    pub async fn read(&self) -> RwLockReadGuard<'_, VerlocStatsState> {
+        self.inner.read().await
+    }
+
+    pub async fn write(&self) -> RwLockWriteGuard<'_, VerlocStatsState> {
+        self.inner.write().await
+    }
+}
+
+impl VerlocStatsState {
+    pub fn as_response(&self) -> VerlocStats {
+        let previous = if !self.previous_run_data.run_finished() {
+            VerlocResult::Unavailable
+        } else {
+            VerlocResult::Data(self.previous_run_data.clone())
+        };
+
+        let current = if !self.current_run_data.run_finished() {
+            VerlocResult::MeasurementInProgress
+        } else {
+            VerlocResult::Data(self.current_run_data.clone())
+        };
+
+        VerlocStats { previous, current }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct MetricsAppState {
     pub(crate) mixing_stats: SharedMixingStats,
-    // pub(crate) verloc: (),
+
+    pub(crate) verloc: SharedVerlocStats,
 }
 
 impl FromRef<AppState> for MetricsAppState {

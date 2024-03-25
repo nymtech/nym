@@ -4,7 +4,6 @@
 use crate::config::Config;
 use crate::error::MixnodeError;
 use crate::node::helpers::{load_identity_keys, load_sphinx_keys};
-use crate::node::http::legacy::verloc::VerlocState;
 use crate::node::http::HttpApiBuilder;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
@@ -14,14 +13,15 @@ use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSende
 use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
+use nym_mixnode_common::verloc;
 use nym_task::{TaskClient, TaskHandle};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use nym_node_http_api::state::metrics::SharedMixingStats;
+use nym_mixnode_common::verloc::VerlocMeasurer;
+use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 
 pub mod helpers;
 mod http;
@@ -40,6 +40,7 @@ pub struct MixNode {
     run_http_server: bool,
     task_client: Option<TaskClient>,
     mixing_stats: Option<SharedMixingStats>,
+    verloc_stats: Option<SharedVerlocStats>,
 }
 
 impl MixNode {
@@ -52,6 +53,7 @@ impl MixNode {
             config,
             task_client: None,
             mixing_stats: None,
+            verloc_stats: None,
         })
     }
 
@@ -69,6 +71,7 @@ impl MixNode {
             identity_keypair,
             sphinx_keypair,
             mixing_stats: None,
+            verloc_stats: None,
         }
     }
 
@@ -82,6 +85,10 @@ impl MixNode {
     
     pub fn set_mixing_stats(&mut self, mixing_stats: SharedMixingStats) {
         self.mixing_stats = Some(mixing_stats);
+    }
+    
+    pub fn set_verloc_stats(&mut self, verloc_stats: SharedVerlocStats) {
+        self.verloc_stats = Some(verloc_stats)
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
@@ -105,13 +112,13 @@ impl MixNode {
 
     fn start_http_api(
         &self,
-        atomic_verloc_result: AtomicVerlocResult,
+        atomic_verloc_result: SharedVerlocStats,
         node_stats_pointer: SharedMixingStats,
         metrics_key: Option<&String>,
         task_client: TaskClient,
     ) -> Result<(), MixnodeError> {
         HttpApiBuilder::new(&self.config, &self.identity_keypair, &self.sphinx_keypair)
-            .with_verloc(VerlocState::new(atomic_verloc_result))
+            .with_verloc(atomic_verloc_result)
             .with_mixing_stats(node_stats_pointer)
             .with_metrics_key(metrics_key)
             .with_descriptor(self.descriptor.clone())
@@ -184,7 +191,7 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_verloc_measurements(&self, shutdown: TaskClient) -> AtomicVerlocResult {
+    fn start_verloc_measurements(&mut self, shutdown: TaskClient) -> SharedVerlocStats {
         info!("Starting the round-trip-time measurer...");
 
         // use the same binding address with the HARDCODED port for time being (I don't like that approach personally)
@@ -205,11 +212,13 @@ impl MixNode {
             .nym_api_urls(self.config.get_nym_api_endpoints())
             .build();
 
+        let verloc_state = self.verloc_stats.take().unwrap_or_default();
         let mut verloc_measurer =
             VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair), shutdown);
-        let atomic_verloc_results = verloc_measurer.get_verloc_results_pointer();
+        verloc_measurer.set_shared_state(verloc_state.clone());
+
         tokio::spawn(async move { verloc_measurer.run().await });
-        atomic_verloc_results
+        verloc_state
     }
 
     fn random_api_client(&self) -> nym_validator_client::NymApiClient {

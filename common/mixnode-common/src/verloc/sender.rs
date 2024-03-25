@@ -1,8 +1,7 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::verloc::error::RttError;
-use crate::verloc::measurement::Measurement;
 use crate::verloc::packet::{EchoPacket, ReplyPacket};
 use log::*;
 use nym_crypto::asymmetric::identity;
@@ -15,6 +14,7 @@ use std::{fmt, io};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
+use nym_node_http_api::state::metrics::VerlocMeasurement;
 
 #[derive(Copy, Clone)]
 pub(crate) struct TestedNode {
@@ -82,7 +82,7 @@ impl PacketSender {
     pub(super) async fn send_packets_to_node(
         self: Arc<Self>,
         tested_node: TestedNode,
-    ) -> Result<Measurement, RttError> {
+    ) -> Result<VerlocMeasurement, RttError> {
         let mut shutdown_listener = self.shutdown_listener.fork(tested_node.address.to_string());
         shutdown_listener.mark_as_success();
 
@@ -208,6 +208,6 @@ impl PacketSender {
             sleep(self.delay_between_packets).await;
         }
 
-        Ok(Measurement::new(&results))
+        Ok(VerlocMeasurement::new(&results))
     }
 }

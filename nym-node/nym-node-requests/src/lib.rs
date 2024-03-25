@@ -62,8 +62,10 @@ pub mod routes {
                 use super::*;
 
                 pub const MIXING: &str = "/mixing";
+                pub const VERLOC: &str = "/verloc";
 
                 absolute_route!(mixing_absolute, metrics_absolute(), MIXING);
+                absolute_route!(verloc_absolute, metrics_absolute(), VERLOC);
             }
 
             pub mod gateway {

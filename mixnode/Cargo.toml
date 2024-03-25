@@ -25,7 +25,7 @@ colored = "2.0"
 cupid = "0.6.1"
 dirs = "4.0"
 futures = { workspace = true }
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 lazy_static = "1.4"
 log = { workspace = true }
 rand = "0.7.3"

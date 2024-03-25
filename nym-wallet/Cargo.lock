@@ -1276,6 +1276,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f32d04922c60427da6f9fef14d042d9edddef64cb9d4ce0d64d0685fbeb1fd3"
 dependencies = [
  "powerfmt",
+ "serde",
 ]
 
 [[package]]
@@ -3248,6 +3249,7 @@ name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.4",
+ "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
@@ -3256,6 +3258,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "time",
 ]
 
 [[package]]

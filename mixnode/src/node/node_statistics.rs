@@ -4,7 +4,6 @@
 use nym_metrics::inc_by;
 
 use super::TaskClient;
-use axum::async_trait;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
@@ -22,12 +21,10 @@ type PacketsMap = HashMap<String, u64>;
 type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
 
-#[async_trait]
 trait MixingStatsUpdateExt {
     async fn update(&self, new_received: u64, new_sent: PacketsMap, new_dropped: PacketsMap);
 }
 
-#[async_trait]
 impl MixingStatsUpdateExt for SharedMixingStats {
     async fn update(&self, new_received: u64, new_sent: PacketsMap, new_dropped: PacketsMap) {
         let mut guard = self.write().await;

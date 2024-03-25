@@ -12,13 +12,15 @@ license.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
+humantime = "2.1.0"
+humantime-serde = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 thiserror = { workspace = true }
 
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
 nym-exit-policy = { path = "../../common/exit-policy" }
 nym-wireguard-types = { path = "../../common/wireguard-types", default-features = false }
 

@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::verloc::listener::PacketListener;
@@ -9,6 +9,7 @@ use log::*;
 use nym_bin_common::version_checker::{self, parse_version};
 use nym_crypto::asymmetric::identity;
 use nym_network_defaults::mainnet::NYM_API;
+use nym_node_http_api::state::metrics::{SharedVerlocStats, VerlocNodeResult};
 use nym_task::TaskClient;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -20,7 +21,9 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use url::Url;
 
-pub use crate::verloc::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
+use measurement::VerlocStatsUpdateExt;
+
+// pub use crate::verloc::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
 
 pub mod error;
 pub(crate) mod listener;
@@ -179,7 +182,7 @@ pub struct VerlocMeasurer {
     // then it definitely cannot be constructed here and probably will need to be passed from outside,
     // as mixnodes/gateways would already be using an instance of said client.
     validator_client: nym_validator_client::NymApiClient,
-    results: AtomicVerlocResult,
+    state: SharedVerlocStats,
 }
 
 impl VerlocMeasurer {
@@ -210,8 +213,12 @@ impl VerlocMeasurer {
                 config.nym_api_urls[0].clone(),
             ),
             config,
-            results: AtomicVerlocResult::new(),
+            state: SharedVerlocStats::default(),
         }
+    }
+
+    pub fn set_shared_state(&mut self, state: SharedVerlocStats) {
+        self.state = state;
     }
 
     fn use_next_nym_api(&mut self) {
@@ -223,10 +230,6 @@ impl VerlocMeasurer {
         self.currently_used_api = (self.currently_used_api + 1) % self.config.nym_api_urls.len();
         self.validator_client
             .change_nym_api(self.config.nym_api_urls[self.currently_used_api].clone())
-    }
-
-    pub fn get_verloc_results_pointer(&self) -> AtomicVerlocResult {
-        self.results.clone()
     }
 
     fn start_listening(&self) -> JoinHandle<()> {
@@ -270,7 +273,7 @@ impl VerlocMeasurer {
             while !shutdown_listener.is_shutdown() {
                 tokio::select! {
                     measurement_result = measurement_chunk.next() => {
-                        let Some(result) = measurement_result  else {
+                        let Some(result) = measurement_result else {
                             // if the stream has finished, it means we got everything we could have gotten
                             break
                         };
@@ -278,18 +281,16 @@ impl VerlocMeasurer {
                         // if we receive JoinError it means the task failed to get executed, so either there's a bigger issue with tokio
                         // or there was a panic inside the task itself. In either case, we should just terminate ourselves.
                         let execution_result = result.expect("the measurement task panicked!");
+                        let identity = execution_result.1;
+
                         let measurement_result = match execution_result.0 {
                             Err(err) => {
-                                debug!(
-                                    "Failed to perform measurement for {} - {}",
-                                    execution_result.1.to_base58_string(),
-                                    err
-                                );
+                                debug!("Failed to perform measurement for {identity}: {err}");
                                 None
                             }
                             Ok(result) => Some(result),
                         };
-                        chunk_results.push(Verloc::new(execution_result.1, measurement_result));
+                        chunk_results.push(VerlocNodeResult::new(identity, measurement_result));
                     },
                     _ = shutdown_listener.recv() => {
                         trace!("Shutdown received while measuring");
@@ -299,7 +300,7 @@ impl VerlocMeasurer {
             }
 
             // update the results vector with chunks as they become available (by default every 50 nodes)
-            self.results.append_results(chunk_results).await;
+            self.state.append_measurement_results(chunk_results).await;
         }
 
         MeasurementOutcome::Done
@@ -327,6 +328,7 @@ impl VerlocMeasurer {
             if all_mixes.is_empty() {
                 warn!("There does not seem there are any nodes to measure...")
             }
+            println!("testing {} nodes", all_mixes.len());
 
             // we only care about address and identity
             let tested_nodes = all_mixes
@@ -357,17 +359,22 @@ impl VerlocMeasurer {
                 })
                 .collect::<Vec<_>>();
 
+            println!("AA");
             // on start of each run remove old results
-            self.results.reset_results(tested_nodes.len()).await;
+            self.state.start_new_measurements(tested_nodes.len()).await;
 
+            println!("BB");
             if let MeasurementOutcome::Shutdown = self.perform_measurement(tested_nodes).await {
                 log::trace!("Shutting down after aborting measurements");
                 break;
             }
 
+            println!("CC");
             // write current time to "run finished" field
-            self.results.finish_measurements().await;
+            self.state.finish_measurements().await;
 
+            println!("DD");
+            
             info!(
                 "Finished performing verloc measurements. The next one will happen in {:?}",
                 self.config.testing_interval

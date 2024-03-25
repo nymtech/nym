@@ -69,6 +69,10 @@ impl PacketRouter {
         }
         Ok(())
     }
+
+    pub fn mark_as_success(&mut self) {
+        self.shutdown.mark_as_success();
+    }
 }
 
 impl GatewayPacketRouter for PacketRouter {

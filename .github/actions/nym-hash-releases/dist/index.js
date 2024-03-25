@@ -23973,10 +23973,14 @@ function getBinInfo(path) {
         let mode = external_fs_.statSync(path).mode
         external_fs_.chmodSync(path, mode | 0o111)
 
-        const raw = (0,external_child_process_namespaceObject.execSync)(`${path} build-info --output=json`, { stdio: 'pipe', encoding: "utf8" });
+        const cmd = `${path} build-info --output=json`;
+        console.log(`🚚 Running ${cmd}... (for max of 3 seconds, then SIGTERM)`);
+        const raw = (0,external_child_process_namespaceObject.execSync)(cmd, { stdio: 'pipe', encoding: "utf8", timeout: 3000 });
         const parsed = JSON.parse(raw)
+        console.log(`    ✅ ok`);
         return parsed
     } catch (_) {
+        console.log(`    ❌ failed`);
         return undefined
     }
 }
@@ -23986,8 +23990,11 @@ async function run(assets, algorithm, filename, cache) {
         console.warn("cache is set to 'false', but we we no longer support it")
     }
 
+    const directory = external_path_.join(process.env.RUNNER_TEMP || '.tmp', process.env.GITHUB_RUN_ID || '');
+    console.log('Temporary directory: ', directory);
+
     try {
-        external_fs_.mkdirSync('.tmp');
+        external_fs_.mkdirSync(directory, { recursive: true });
     } catch(e) {
         // ignore
     }
@@ -24002,13 +24009,13 @@ async function run(assets, algorithm, filename, cache) {
             let sig = null;
 
             // cache in `${WORKING_DIR}/.tmp/`
-            const cacheFilename = external_path_.resolve(`.tmp/${asset.name}`);
+            const cacheFilename = external_path_.join(directory, `${asset.name}`);
             if(!external_fs_.existsSync(cacheFilename)) {
-                console.log(`Downloading ${asset.browser_download_url}... to ${cacheFilename}`);
+                console.log(`⬇️ Downloading ${asset.browser_download_url}... to ${cacheFilename} [${numAwaiting} of ${assets.length}]`);
                 buffer = Buffer.from(await fetch(asset.browser_download_url).then(res => res.arrayBuffer()));
                 external_fs_.writeFileSync(cacheFilename, buffer);
             } else {
-                console.log(`Loading from ${cacheFilename}`);
+                console.log(`💾 Loading from ${cacheFilename}`);
                 buffer = Buffer.from(external_fs_.readFileSync(cacheFilename));
 
                 // console.log('Reading signature from content');
@@ -24093,6 +24100,7 @@ async function run(assets, algorithm, filename, cache) {
             }
         }
     }
+    console.log(`Completed hashing ${assets.length} files`);
     return hashes;
 }
 
@@ -24122,8 +24130,8 @@ async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algo
 
     let releases;
     if(cache) {
-        const cacheFilename = external_path_.resolve(`.tmp/releases.json`);
-        if(!external_fs_.existsSync(cacheFilename)) {
+        const cacheFilename = __nccwpck_require__.ab + "releases.json";
+        if(!external_fs_.existsSync(__nccwpck_require__.ab + "releases.json")) {
             releases = await octokit.paginate(
                 octokit.rest.repos.listReleases,
                 {
@@ -24133,10 +24141,10 @@ async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algo
                 },
                 (response) => response.data
             );
-            external_fs_.writeFileSync(cacheFilename, JSON.stringify(releases, null, 2));
+            external_fs_.writeFileSync(__nccwpck_require__.ab + "releases.json", JSON.stringify(releases, null, 2));
         } else {
             console.log('Loading releases from cache...');
-            releases = JSON.parse(external_fs_.readFileSync(cacheFilename));
+            releases = JSON.parse(external_fs_.readFileSync(__nccwpck_require__.ab + "releases.json"));
         }
     } else {
         releases = await octokit.paginate(
@@ -24172,9 +24180,10 @@ async function createHashesFromReleaseTagOrNameOrId({ releaseTagOrNameOrId, algo
 
     releasesToProcess.forEach(release => {
         const {tag_name, name} = release;
-        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+\.\S+)/);
+        const matches = tag_name.match(/(\S+)-v([0-9]+\.[0-9]+(\.\S+)?)/);
 
         if(!matches || matches.length < 2) {
+            console.warn('Could not match version structure in tag name = ', tag_name);
             return;
         }
 

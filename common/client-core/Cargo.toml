@@ -72,6 +72,7 @@ features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
 version = "0.20.1"
+features = ["rustls-tls-native-roots"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true

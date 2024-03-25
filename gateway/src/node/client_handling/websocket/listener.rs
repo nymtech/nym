@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::websocket::connection_handler::coconut::EcashVerifier;
+use crate::node::client_handling::websocket::connection_handler::ecash::EcashVerifier;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
 use crate::node::storage::Storage;
 use log::*;

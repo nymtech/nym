@@ -30,7 +30,7 @@ use crate::node::{
         active_clients::ActiveClientsStore,
         websocket::{
             connection_handler::{
-                coconut::EcashVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
+                ecash::EcashVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
                 SocketStream,
             },
             message_receiver::{IsActive, IsActiveRequestSender},

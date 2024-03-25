@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::websocket::connection_handler::coconut::PendingCredential;
+use crate::node::client_handling::websocket::connection_handler::ecash::PendingCredential;
 use crate::node::storage::bandwidth::BandwidthManager;
 use crate::node::storage::credential::CredentialManager;
 use crate::node::storage::error::StorageError;

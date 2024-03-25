@@ -15,7 +15,7 @@ use crate::node::client_handling::embedded_network_requester::{
     LocalNetworkRequesterHandle, MessageRouter,
 };
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::coconut::EcashVerifier;
+use crate::node::client_handling::websocket::connection_handler::ecash::EcashVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;

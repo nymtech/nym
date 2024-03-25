@@ -34,7 +34,7 @@ use tokio::time::{interval, Duration};
 const TIME_RANGE_SEC: i64 = 30;
 const CRED_SENDING_INTERVAL: u64 = 300;
 
-pub(crate) struct EcashVerifier {
+pub struct EcashVerifier {
     address: AccountId,
     nyxd_client: RwLock<DirectSigningHttpRpcNyxdClient>,
 

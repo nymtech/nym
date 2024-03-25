@@ -22,6 +22,8 @@ use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeCon
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
+use nym_node_http_api::state::metrics::SharedMixingStats;
+use nym_node_http_api::state::AppState;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
@@ -38,7 +40,9 @@ pub mod description;
 pub mod helpers;
 pub(crate) mod http;
 
-pub struct MixnodeData {}
+pub struct MixnodeData {
+    mixing_stats: SharedMixingStats,
+}
 
 impl MixnodeData {
     pub fn initialise(_config: &MixnodeConfig) -> Result<(), MixnodeError> {
@@ -46,7 +50,9 @@ impl MixnodeData {
     }
 
     fn new(_config: &MixnodeConfig) -> Result<MixnodeData, MixnodeError> {
-        Ok(MixnodeData {})
+        Ok(MixnodeData {
+            mixing_stats: SharedMixingStats::new(),
+        })
     }
 }
 
@@ -293,6 +299,7 @@ impl NymNode {
         );
         mixnode.disable_http_server();
         mixnode.set_task_client(task_client);
+        mixnode.set_mixing_stats(self.mixnode.mixing_stats.clone());
 
         tokio::spawn(async move { mixnode.run().await });
         Ok(())
@@ -342,7 +349,7 @@ impl NymNode {
     pub(crate) fn build_http_server(&self) -> Result<NymNodeHTTPServer, NymNodeError> {
         let host_details = sign_host_details(
             &self.config,
-            &self.x25519_sphinx_keys.public_key(),
+            self.x25519_sphinx_keys.public_key(),
             &self.ed25519_identity_keys,
         )?;
 
@@ -454,7 +461,10 @@ impl NymNode {
             }
         }
 
-        Ok(NymNodeRouter::new(config, None).build_server(&self.config.http.bind_address)?)
+        let app_state = AppState::new().with_mixing_stats(self.mixnode.mixing_stats.clone());
+
+        Ok(NymNodeRouter::new(config, Some(app_state), None)
+            .build_server(&self.config.http.bind_address)?)
     }
 
     pub(crate) async fn run(self) -> Result<(), NymNodeError> {

@@ -6,12 +6,9 @@ use nym_node::config::Config;
 use nym_node::error::NymNodeError;
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::SignedHostInformation;
-use nym_node_http_api::{NymNodeHTTPServer, NymNodeHttpError};
+use nym_node_http_api::NymNodeHttpError;
 
 pub(crate) mod system_info;
-
-// use nym_node::config::Config;
-// use nym_task::TaskClient;
 
 pub(crate) fn sign_host_details(
     config: &Config,
@@ -31,6 +28,5 @@ pub(crate) fn sign_host_details(
         .map_err(NymNodeHttpError::from)?;
     Ok(signed_info)
 }
-
 
 // pub(crate) fn run_http_api(config: &Config, task_client: TaskClient)

@@ -10,6 +10,7 @@ use nym_node_requests::routes::api::v1;
 pub mod gateway;
 pub mod health;
 pub mod ip_packet_router;
+pub mod metrics;
 pub mod mixnode;
 pub mod network_requester;
 pub mod node;
@@ -18,6 +19,7 @@ pub mod openapi;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub node: node::Config,
+    pub metrics: metrics::Config,
     pub gateway: gateway::Config,
     pub mixnode: mixnode::Config,
     pub network_requester: network_requester::Config,
@@ -27,6 +29,7 @@ pub struct Config {
 pub(super) fn routes(config: Config, initial_wg_state: WireguardAppState) -> Router<AppState> {
     Router::new()
         .route(v1::HEALTH, get(health::root_health))
+        .nest(v1::METRICS, metrics::routes(config.metrics))
         .nest(
             v1::GATEWAY,
             gateway::routes(config.gateway, initial_wg_state),

@@ -11,10 +11,11 @@ axum.workspace = true
 #axum-macros = "0.3.8"
 hyper.workspace = true
 thiserror.workspace = true
+time = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["macros"] }
 tower-http = { version = "0.4.4", features = ["fs"] }
 tracing.workspace = true
-utoipa = { workspace = true, features = ["axum_extras"] }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 colored = "2"

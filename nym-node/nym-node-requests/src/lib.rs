@@ -34,13 +34,14 @@ pub mod routes {
             pub const HOST_INFO: &str = "/host-information";
             pub const SYSTEM_INFO: &str = "/system-info";
             pub const NODE_DESCRIPTION: &str = "/description";
-
             pub const HEALTH: &str = "/health";
+            pub const SWAGGER: &str = "/swagger";
+
             pub const GATEWAY: &str = "/gateway";
             pub const MIXNODE: &str = "/mixnode";
+            pub const METRICS: &str = "/metrics";
             pub const NETWORK_REQUESTER: &str = "/network-requester";
             pub const IP_PACKET_ROUTER: &str = "/ip-packet-router";
-            pub const SWAGGER: &str = "/swagger";
 
             // define helper functions to get absolute routes
             absolute_route!(health_absolute, v1_absolute(), HEALTH);
@@ -52,9 +53,18 @@ pub mod routes {
 
             absolute_route!(gateway_absolute, v1_absolute(), GATEWAY);
             absolute_route!(mixnode_absolute, v1_absolute(), MIXNODE);
+            absolute_route!(metrics_absolute, v1_absolute(), METRICS);
             absolute_route!(network_requester_absolute, v1_absolute(), NETWORK_REQUESTER);
             absolute_route!(ip_packet_router_absolute, v1_absolute(), IP_PACKET_ROUTER);
             absolute_route!(swagger_absolute, v1_absolute(), SWAGGER);
+
+            pub mod metrics {
+                use super::*;
+
+                pub const MIXING: &str = "/mixing";
+
+                absolute_route!(mixing_absolute, metrics_absolute(), MIXING);
+            }
 
             pub mod gateway {
                 use super::*;

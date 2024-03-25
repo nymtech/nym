@@ -10,7 +10,6 @@ use crate::node::listener::connection_handler::packet_processing::PacketProcesso
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
-use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
@@ -22,6 +21,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+use nym_node_http_api::state::metrics::SharedMixingStats;
 
 pub mod helpers;
 mod http;
@@ -32,12 +32,14 @@ mod packet_delayforwarder;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
-    run_http_server: bool,
-    task_client: Option<TaskClient>,
     config: Config,
     descriptor: NodeDescription,
     identity_keypair: Arc<identity::KeyPair>,
     sphinx_keypair: Arc<encryption::KeyPair>,
+
+    run_http_server: bool,
+    task_client: Option<TaskClient>,
+    mixing_stats: Option<SharedMixingStats>,
 }
 
 impl MixNode {
@@ -49,6 +51,7 @@ impl MixNode {
             sphinx_keypair: Arc::new(load_sphinx_keys(&config)?),
             config,
             task_client: None,
+            mixing_stats: None,
         })
     }
 
@@ -65,6 +68,7 @@ impl MixNode {
             descriptor,
             identity_keypair,
             sphinx_keypair,
+            mixing_stats: None,
         }
     }
 
@@ -74,6 +78,10 @@ impl MixNode {
 
     pub fn set_task_client(&mut self, task_client: TaskClient) {
         self.task_client = Some(task_client)
+    }
+    
+    pub fn set_mixing_stats(&mut self, mixing_stats: SharedMixingStats) {
+        self.mixing_stats = Some(mixing_stats);
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
@@ -98,7 +106,7 @@ impl MixNode {
     fn start_http_api(
         &self,
         atomic_verloc_result: AtomicVerlocResult,
-        node_stats_pointer: SharedNodeStats,
+        node_stats_pointer: SharedMixingStats,
         metrics_key: Option<&String>,
         task_client: TaskClient,
     ) -> Result<(), MixnodeError> {
@@ -111,19 +119,21 @@ impl MixNode {
     }
 
     fn start_node_stats_controller(
-        &self,
+        &mut self,
         shutdown: TaskClient,
-    ) -> (SharedNodeStats, node_statistics::UpdateSender) {
+    ) -> (SharedMixingStats, node_statistics::UpdateSender) {
         info!("Starting node stats controller...");
+        let mixing_stats = self.mixing_stats.take().unwrap_or_default();
+        
         let controller = node_statistics::Controller::new(
             self.config.debug.node_stats_logging_delay,
             self.config.debug.node_stats_updating_delay,
+            mixing_stats.clone(),
             shutdown,
         );
-        let node_stats_pointer = controller.get_node_stats_data_pointer();
         let update_sender = controller.start();
 
-        (node_stats_pointer, update_sender)
+        (mixing_stats, update_sender)
     }
 
     fn start_socket_listener(

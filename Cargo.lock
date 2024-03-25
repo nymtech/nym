@@ -390,16 +390,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-file-watcher"
-version = "0.1.0"
-dependencies = [
- "futures",
- "log",
- "notify",
- "tokio",
-]
-
-[[package]]
 name = "async-io"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -557,9 +547,9 @@ dependencies = [
  "bitflags 1.3.2",
  "bytes",
  "futures-util",
- "http",
- "http-body",
- "hyper",
+ "http 0.2.9",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "itoa",
  "matchit",
  "memchr",
@@ -587,8 +577,8 @@ dependencies = [
  "async-trait",
  "bytes",
  "futures-util",
- "http",
- "http-body",
+ "http 0.2.9",
+ "http-body 0.4.5",
  "mime",
  "rustversion",
  "tower-layer",
@@ -3029,7 +3019,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "gloo-utils",
- "http",
+ "http 0.2.9",
  "js-sys",
  "pin-project",
  "serde",
@@ -3098,7 +3088,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "futures-util",
- "http",
+ "http 0.2.9",
  "indexmap 1.9.3",
  "slab",
  "tokio",
@@ -3309,17 +3299,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "http-api-client"
-version = "0.1.0"
+name = "http"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21b9ddb458710bc376481b842f5da65cdf31522de232c1ca8146abce2a358258"
 dependencies = [
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
- "url",
- "wasmtimer",
+ "bytes",
+ "fnv",
+ "itoa",
 ]
 
 [[package]]
@@ -3329,7 +3316,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5f38f16d184e36f2408a55281cd658ecbd3ca05cce6d6510a176eca393e26d1"
 dependencies = [
  "bytes",
- "http",
+ "http 0.2.9",
+ "pin-project-lite 0.2.13",
+]
+
+[[package]]
+name = "http-body"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1cac85db508abc24a2e48553ba12a996e87244a0395ce011e62b37158745d643"
+dependencies = [
+ "bytes",
+ "http 1.1.0",
+]
+
+[[package]]
+name = "http-body-util"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0475f8b2ac86659c21b64320d5d653f9efe42acd2a4e560073ec61a155a34f1d"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "http 1.1.0",
+ "http-body 1.0.0",
  "pin-project-lite 0.2.13",
 ]
 
@@ -3397,8 +3407,8 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
- "http-body",
+ "http 0.2.9",
+ "http-body 0.4.5",
  "httparse",
  "httpdate",
  "itoa",
@@ -3411,14 +3421,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyper"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "186548d73ac615b32a73aafe38fb4f56c0d340e110e5a200bcadbaf2e199263a"
+dependencies = [
+ "bytes",
+ "futures-channel",
+ "futures-util",
+ "http 1.1.0",
+ "http-body 1.0.0",
+ "httparse",
+ "httpdate",
+ "itoa",
+ "pin-project-lite 0.2.13",
+ "smallvec",
+ "tokio",
+]
+
+[[package]]
 name = "hyper-rustls"
 version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d78e1e73ec14cf7375674f74d7dde185c8206fd9dea6fb6295e8a98098aaa97"
 dependencies = [
  "futures-util",
- "http",
- "hyper",
+ "http 0.2.9",
+ "hyper 0.14.27",
  "rustls 0.21.10",
  "tokio",
  "tokio-rustls 0.24.1",
@@ -3430,10 +3459,26 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbb958482e8c7be4bc3cf272a766a2b0bf1a6755e7a6ae777f017a31d11b13b1"
 dependencies = [
- "hyper",
+ "hyper 0.14.27",
  "pin-project-lite 0.2.13",
  "tokio",
  "tokio-io-timeout",
+]
+
+[[package]]
+name = "hyper-util"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca38ef113da30126bbff9cd1705f9273e15d45498615d138b0c20279ac7a76aa"
+dependencies = [
+ "bytes",
+ "futures-util",
+ "http 1.1.0",
+ "http-body 1.0.0",
+ "hyper 1.2.0",
+ "pin-project-lite 0.2.13",
+ "socket2 0.5.4",
+ "tokio",
 ]
 
 [[package]]
@@ -3761,7 +3806,7 @@ dependencies = [
  "curl-sys",
  "event-listener",
  "futures-lite",
- "http",
+ "http 0.2.9",
  "log",
  "once_cell",
  "polling",
@@ -3892,17 +3937,6 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
-name = "ledger"
-version = "0.1.0"
-dependencies = [
- "bip32",
- "k256",
- "ledger-transport",
- "ledger-transport-hid",
- "thiserror",
-]
 
 [[package]]
 name = "ledger-apdu"
@@ -4546,9 +4580,9 @@ version = "1.3.0-rc.0"
 dependencies = [
  "async-trait",
  "futures",
- "http-api-client",
  "js-sys",
  "nym-bin-common",
+ "nym-http-api-client",
  "nym-ordered-buffer",
  "nym-service-providers-common",
  "nym-socks5-requests",
@@ -4574,7 +4608,7 @@ dependencies = [
  "bytes",
  "encoding_rs",
  "futures-util",
- "http",
+ "http 0.2.9",
  "httparse",
  "log",
  "memchr",
@@ -5024,6 +5058,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-async-file-watcher"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+ "notify",
+ "tokio",
+]
+
+[[package]]
 name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
@@ -5209,7 +5253,10 @@ dependencies = [
  "clap 4.4.7",
  "futures",
  "gloo-timers",
+ "http-body-util",
  "humantime-serde",
+ "hyper 1.2.0",
+ "hyper-util",
  "log",
  "nym-bandwidth-controller",
  "nym-client-core-config-types",
@@ -5223,6 +5270,7 @@ dependencies = [
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-id",
+ "nym-metrics",
  "nym-network-defaults",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
@@ -5696,6 +5744,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-http-api-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "url",
+ "wasmtimer",
+]
+
+[[package]]
 name = "nym-http-api-common"
 version = "0.1.0"
 dependencies = [
@@ -5799,6 +5861,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ledger"
+version = "0.1.0"
+dependencies = [
+ "bip32",
+ "k256",
+ "ledger-transport",
+ "ledger-transport-hid",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-metrics"
 version = "0.1.0"
 dependencies = [
@@ -5806,7 +5879,6 @@ dependencies = [
  "lazy_static",
  "log",
  "prometheus",
- "regex",
 ]
 
 [[package]]
@@ -5880,6 +5952,7 @@ dependencies = [
  "serde_json",
  "sysinfo 0.27.8",
  "thiserror",
+ "time",
  "tokio",
  "tokio-util",
  "toml 0.5.11",
@@ -5964,7 +6037,6 @@ version = "1.1.33"
 dependencies = [
  "addr",
  "anyhow",
- "async-file-watcher",
  "async-trait",
  "bs58 0.5.0",
  "clap 4.4.7",
@@ -5973,6 +6045,7 @@ dependencies = [
  "humantime-serde",
  "ipnetwork 0.20.0",
  "log",
+ "nym-async-file-watcher",
  "nym-bin-common",
  "nym-client-core",
  "nym-client-websocket-requests",
@@ -6073,7 +6146,7 @@ dependencies = [
  "dashmap",
  "fastrand 2.0.1",
  "hmac 0.12.1",
- "hyper",
+ "hyper 0.14.27",
  "ipnetwork 0.16.0",
  "nym-crypto",
  "nym-http-api-common",
@@ -6084,6 +6157,7 @@ dependencies = [
  "rand 0.7.3",
  "serde_json",
  "thiserror",
+ "time",
  "tokio",
  "tower",
  "tower-http",
@@ -6099,15 +6173,16 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.21.4",
- "http-api-client",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
+ "nym-http-api-client",
  "nym-wireguard-types",
  "schemars",
  "serde",
  "serde_json",
  "thiserror",
+ "time",
  "tokio",
  "utoipa",
 ]
@@ -6223,7 +6298,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "hex",
- "http",
+ "http 0.2.9",
  "httpcodec",
  "libp2p",
  "log",
@@ -6680,7 +6755,6 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
- "http-api-client",
  "itertools 0.10.5",
  "log",
  "nym-api-requests",
@@ -6691,6 +6765,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-ephemera-common",
  "nym-group-contract-common",
+ "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-name-service-common",
@@ -6816,7 +6891,6 @@ name = "nymvisor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-file-watcher",
  "bytes",
  "clap 4.4.7",
  "dotenvy",
@@ -6826,6 +6900,7 @@ dependencies = [
  "humantime 2.1.0",
  "humantime-serde",
  "nix 0.27.1",
+ "nym-async-file-watcher",
  "nym-bin-common",
  "nym-config",
  "nym-task",
@@ -6963,7 +7038,7 @@ checksum = "a819b71d6530c4297b49b3cae2939ab3a8cc1b9f382826a1bc29dd0ca3864906"
 dependencies = [
  "async-trait",
  "bytes",
- "http",
+ "http 0.2.9",
  "isahc",
  "opentelemetry_api",
 ]
@@ -6977,7 +7052,7 @@ dependencies = [
  "async-trait",
  "futures",
  "futures-executor",
- "http",
+ "http 0.2.9",
  "isahc",
  "once_cell",
  "opentelemetry",
@@ -8158,9 +8233,9 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
- "http-body",
- "hyper",
+ "http 0.2.9",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "hyper-rustls",
  "ipnet",
  "js-sys",
@@ -8319,7 +8394,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfac3a1df83f8d4fc96aa41dba3b86c786417b7fc0f52ec76295df2ba781aa69"
 dependencies = [
- "http",
+ "http 0.2.9",
  "log",
  "regex",
  "rocket",
@@ -8339,8 +8414,8 @@ dependencies = [
  "cookie",
  "either",
  "futures",
- "http",
- "hyper",
+ "http 0.2.9",
+ "hyper 0.14.27",
  "indexmap 2.0.2",
  "log",
  "memchr",
@@ -9144,9 +9219,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.11.1"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "942b4a808e05215192e39f4ab80813e599068285906cc91aa64f923db842bd5a"
+checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "snafu"
@@ -10010,7 +10085,10 @@ checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
 dependencies = [
  "futures-util",
  "log",
+ "rustls 0.21.10",
+ "rustls-native-certs",
  "tokio",
+ "tokio-rustls 0.24.1",
  "tungstenite",
 ]
 
@@ -10113,9 +10191,9 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
- "http-body",
- "hyper",
+ "http 0.2.9",
+ "http-body 0.4.5",
+ "hyper 0.14.27",
  "hyper-timeout",
  "percent-encoding",
  "pin-project",
@@ -10158,8 +10236,8 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
- "http",
- "http-body",
+ "http 0.2.9",
+ "http-body 0.4.5",
  "http-range-header",
  "httpdate",
  "mime",
@@ -10437,7 +10515,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "data-encoding",
- "http",
+ "http 0.2.9",
  "httparse",
  "log",
  "rand 0.8.5",

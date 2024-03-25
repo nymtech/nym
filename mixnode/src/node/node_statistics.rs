@@ -4,54 +4,34 @@
 use nym_metrics::inc_by;
 
 use super::TaskClient;
+use axum::async_trait;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use log::{debug, info, trace};
-use serde::Serialize;
+use nym_node_http_api::state::metrics::SharedMixingStats;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
-use tokio::sync::{RwLock, RwLockReadGuard};
+use std::time::Duration;
+use time::OffsetDateTime;
 
 // convenience aliases
 type PacketsMap = HashMap<String, u64>;
 type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
 
-#[derive(Clone, Default)]
-pub(crate) struct SharedNodeStats {
-    inner: Arc<RwLock<NodeStats>>,
+#[async_trait]
+trait MixingStatsUpdateExt {
+    async fn update(&self, new_received: u64, new_sent: PacketsMap, new_dropped: PacketsMap);
 }
 
-impl SharedNodeStats {
-    pub(crate) fn new() -> Self {
-        let now = SystemTime::now();
-
-        SharedNodeStats {
-            inner: Arc::new(RwLock::new(NodeStats {
-                update_time: now,
-                previous_update_time: now,
-                packets_received_since_startup: 0,
-                packets_sent_since_startup_all: 0,
-                packets_dropped_since_startup_all: 0,
-                packets_received_since_last_update: 0,
-                packets_sent_since_last_update: HashMap::new(),
-                packets_explicitly_dropped_since_last_update: HashMap::new(),
-            })),
-        }
-    }
-
-    pub(crate) async fn update(
-        &self,
-        new_received: u64,
-        new_sent: PacketsMap,
-        new_dropped: PacketsMap,
-    ) {
-        let mut guard = self.inner.write().await;
-        let snapshot_time = SystemTime::now();
+#[async_trait]
+impl MixingStatsUpdateExt for SharedMixingStats {
+    async fn update(&self, new_received: u64, new_sent: PacketsMap, new_dropped: PacketsMap) {
+        let mut guard = self.write().await;
+        let snapshot_time = OffsetDateTime::now_utc();
 
         guard.previous_update_time = guard.update_time;
         guard.update_time = snapshot_time;
@@ -79,88 +59,6 @@ impl SharedNodeStats {
         guard.packets_sent_since_last_update = new_sent;
         guard.packets_explicitly_dropped_since_last_update = new_dropped;
     }
-
-    pub(crate) async fn clone_data(&self) -> NodeStats {
-        self.inner.read().await.clone()
-    }
-
-    async fn read(&self) -> RwLockReadGuard<'_, NodeStats> {
-        self.inner.read().await
-    }
-}
-
-#[derive(Clone)]
-pub struct NodeStats {
-    update_time: SystemTime,
-
-    previous_update_time: SystemTime,
-
-    packets_received_since_startup: u64,
-    packets_sent_since_startup_all: u64,
-    packets_dropped_since_startup_all: u64,
-    packets_received_since_last_update: u64,
-    // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_last_update: PacketsMap,
-    // we know for sure we dropped packets to those destinations
-    packets_explicitly_dropped_since_last_update: PacketsMap,
-}
-
-impl Default for NodeStats {
-    fn default() -> Self {
-        NodeStats {
-            update_time: SystemTime::UNIX_EPOCH,
-            previous_update_time: SystemTime::UNIX_EPOCH,
-            packets_received_since_startup: 0,
-            packets_sent_since_startup_all: 0,
-            packets_dropped_since_startup_all: 0,
-            packets_received_since_last_update: 0,
-            packets_sent_since_last_update: Default::default(),
-            packets_explicitly_dropped_since_last_update: Default::default(),
-        }
-    }
-}
-
-impl NodeStats {
-    pub(crate) fn simplify(&self) -> NodeStatsSimple {
-        NodeStatsSimple {
-            update_time: self.update_time,
-            previous_update_time: self.previous_update_time,
-            packets_received_since_startup: self.packets_received_since_startup,
-            packets_sent_since_startup: self.packets_sent_since_startup_all,
-            packets_explicitly_dropped_since_startup: self.packets_dropped_since_startup_all,
-            packets_received_since_last_update: self.packets_received_since_last_update,
-            packets_sent_since_last_update: self.packets_sent_since_last_update.values().sum(),
-            packets_explicitly_dropped_since_last_update: self
-                .packets_explicitly_dropped_since_last_update
-                .values()
-                .sum(),
-        }
-    }
-}
-
-#[derive(Serialize, Clone)]
-pub struct NodeStatsSimple {
-    #[serde(serialize_with = "humantime_serde::serialize")]
-    update_time: SystemTime,
-
-    #[serde(serialize_with = "humantime_serde::serialize")]
-    previous_update_time: SystemTime,
-
-    packets_received_since_startup: u64,
-
-    // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_startup: u64,
-
-    // we know for sure we dropped those packets
-    packets_explicitly_dropped_since_startup: u64,
-
-    packets_received_since_last_update: u64,
-
-    // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_last_update: u64,
-
-    // we know for sure we dropped those packets
-    packets_explicitly_dropped_since_last_update: u64,
 }
 
 pub(crate) enum PacketEvent {
@@ -305,7 +203,7 @@ impl UpdateSender {
 struct StatsUpdater {
     updating_delay: Duration,
     current_packet_data: CurrentPacketData,
-    current_stats: SharedNodeStats,
+    current_stats: SharedMixingStats,
     shutdown: TaskClient,
 }
 
@@ -313,7 +211,7 @@ impl StatsUpdater {
     fn new(
         updating_delay: Duration,
         current_packet_data: CurrentPacketData,
-        current_stats: SharedNodeStats,
+        current_stats: SharedMixingStats,
         shutdown: TaskClient,
     ) -> Self {
         StatsUpdater {
@@ -347,12 +245,12 @@ impl StatsUpdater {
 // since we have the http endpoint now?
 struct PacketStatsConsoleLogger {
     logging_delay: Duration,
-    stats: SharedNodeStats,
+    stats: SharedMixingStats,
     shutdown: TaskClient,
 }
 
 impl PacketStatsConsoleLogger {
-    fn new(logging_delay: Duration, stats: SharedNodeStats, shutdown: TaskClient) -> Self {
+    fn new(logging_delay: Duration, stats: SharedMixingStats, shutdown: TaskClient) -> Self {
         PacketStatsConsoleLogger {
             logging_delay,
             stats,
@@ -365,9 +263,10 @@ impl PacketStatsConsoleLogger {
 
         // it's super unlikely this will ever fail, but anything involving time is super weird
         // so let's just guard against it
-        if let Ok(time_difference) = stats.update_time.duration_since(stats.previous_update_time) {
+        let time_difference = stats.update_time - stats.previous_update_time;
+        if time_difference.is_positive() {
             // we honestly don't care if it was 30.000828427s or 30.002461449s, 30s is enough
-            let difference_secs = time_difference.as_secs();
+            let difference_secs = time_difference.whole_seconds();
 
             info!(
                 "Since startup mixed {} packets! ({} in last {} seconds)",
@@ -449,20 +348,17 @@ pub struct Controller {
 
     /// Responsible for updating stats at given interval
     stats_updater: StatsUpdater,
-
-    /// Pointer to the current node stats
-    node_stats: SharedNodeStats,
 }
 
 impl Controller {
     pub(crate) fn new(
         logging_delay: Duration,
         stats_updating_delay: Duration,
+        mixing_stats: SharedMixingStats,
         shutdown: TaskClient,
     ) -> Self {
         let (sender, receiver) = mpsc::unbounded();
         let shared_packet_data = CurrentPacketData::new();
-        let shared_node_stats = SharedNodeStats::new();
 
         Controller {
             update_handler: UpdateHandler::new(
@@ -473,22 +369,15 @@ impl Controller {
             update_sender: UpdateSender::new(sender),
             console_logger: PacketStatsConsoleLogger::new(
                 logging_delay,
-                shared_node_stats.clone(),
+                mixing_stats.clone(),
                 shutdown.clone(),
             ),
             stats_updater: StatsUpdater::new(
                 stats_updating_delay,
                 shared_packet_data,
-                shared_node_stats.clone(),
+                mixing_stats.clone(),
                 shutdown,
             ),
-            node_stats: shared_node_stats,
-        }
-    }
-
-    pub(crate) fn get_node_stats_data_pointer(&self) -> SharedNodeStats {
-        SharedNodeStats {
-            inner: Arc::clone(&self.node_stats.inner),
         }
     }
 
@@ -518,10 +407,14 @@ mod tests {
         let logging_delay = Duration::from_millis(20);
         let stats_updating_delay = Duration::from_millis(10);
         let shutdown = TaskManager::default();
-        let node_stats_controller =
-            Controller::new(logging_delay, stats_updating_delay, shutdown.subscribe());
+        let stats = SharedMixingStats::new();
+        let node_stats_controller = Controller::new(
+            logging_delay,
+            stats_updating_delay,
+            stats.clone(),
+            shutdown.subscribe(),
+        );
 
-        let node_stats_pointer = node_stats_controller.get_node_stats_data_pointer();
         let update_sender = node_stats_controller.start();
         tokio::time::pause();
 
@@ -534,7 +427,7 @@ mod tests {
         tokio::task::yield_now().await;
 
         // Get output (stats)
-        let stats = node_stats_pointer.read().await;
+        let stats = stats.read().await;
         assert_eq!(&stats.packets_sent_since_startup_all, &2);
         assert_eq!(&stats.packets_sent_since_last_update.get("foo"), &Some(&2));
         assert_eq!(&stats.packets_sent_since_last_update.len(), &1);

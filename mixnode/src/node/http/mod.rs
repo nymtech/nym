@@ -5,12 +5,12 @@ use crate::config::Config;
 use crate::error::MixnodeError;
 use crate::node::http::legacy::verloc::VerlocState;
 use crate::node::node_description::NodeDescription;
-use crate::node::node_statistics::SharedNodeStats;
 use log::info;
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::SignedHostInformation;
+use nym_node_http_api::state::metrics::SharedMixingStats;
 use nym_node_http_api::NymNodeHttpError;
 use nym_task::TaskClient;
 
@@ -77,7 +77,7 @@ impl<'a> HttpApiBuilder<'a> {
     }
 
     #[must_use]
-    pub(crate) fn with_mixing_stats(mut self, stats: SharedNodeStats) -> Self {
+    pub(crate) fn with_mixing_stats(mut self, stats: SharedMixingStats) -> Self {
         self.legacy_mixnode.stats = stats;
         self
     }
@@ -103,7 +103,7 @@ impl<'a> HttpApiBuilder<'a> {
         .with_mixnode(load_mixnode_details(self.mixnode_config)?)
         .with_landing_page_assets(self.mixnode_config.http.landing_page_assets_path.as_ref());
 
-        let router = nym_node_http_api::NymNodeRouter::new(config, None);
+        let router = nym_node_http_api::NymNodeRouter::new(config, None, None);
         let server = router
             .with_merged(legacy::routes(self.legacy_mixnode, self.legacy_descriptor))
             .build_server(&bind_address)?

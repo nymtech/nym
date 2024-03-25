@@ -293,7 +293,7 @@ impl<'a> HttpApiBuilder<'a> {
             .ok()
         });
 
-        let router = nym_node_http_api::NymNodeRouter::new(config, wg_state);
+        let router = nym_node_http_api::NymNodeRouter::new(config, None, wg_state);
 
         let server = router
             .build_server(&self.gateway_config.http.bind_address)?

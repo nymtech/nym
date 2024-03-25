@@ -15,6 +15,7 @@ base64 = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 thiserror = { workspace = true }
 
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }

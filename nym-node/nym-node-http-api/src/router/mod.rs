@@ -48,6 +48,7 @@ impl Config {
                         roles: Default::default(),
                         description: Default::default(),
                     },
+                    metrics: Default::default(),
                     gateway: Default::default(),
                     mixnode: Default::default(),
                     network_requester: Default::default(),
@@ -148,8 +149,12 @@ pub struct NymNodeRouter {
 
 impl NymNodeRouter {
     // TODO: move the wg state to a builder
-    pub fn new(config: Config, initial_wg_state: Option<WireguardAppState>) -> NymNodeRouter {
-        let state = AppState::new();
+    pub fn new(
+        config: Config,
+        app_state: Option<AppState>,
+        initial_wg_state: Option<WireguardAppState>,
+    ) -> NymNodeRouter {
+        let state = app_state.unwrap_or(AppState::new());
 
         NymNodeRouter {
             inner: Router::new()
@@ -162,7 +167,12 @@ impl NymNodeRouter {
                     "/description",
                     get(|| async { Redirect::permanent(&routes::api::v1::description_absolute()) }),
                 )
-                .route("/stats", get(|| async { Redirect::permanent("/") }))
+                .route(
+                    "/stats",
+                    get(|| async {
+                        Redirect::permanent(&routes::api::v1::metrics::mixing_absolute())
+                    }),
+                )
                 .route("/metrics", get(|| async { Redirect::permanent("/") }))
                 .route("/verloc", get(|| async { Redirect::permanent("/") }))
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))

@@ -174,6 +174,7 @@ impl MixnetClient {
     }
 }
 
+#[derive(Clone)]
 pub struct MixnetClientSender {
     client_input: ClientInput,
     packet_type: Option<PacketType>,

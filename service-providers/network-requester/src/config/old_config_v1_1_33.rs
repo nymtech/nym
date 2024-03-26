@@ -36,6 +36,7 @@ pub struct NetworkRequesterPathsV1_1_33 {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigV1_1_33 {
+    #[serde(flatten)]
     pub base: BaseConfigV1_1_33,
 
     #[serde(default)]

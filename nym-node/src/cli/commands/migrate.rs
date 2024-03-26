@@ -298,19 +298,23 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
         })
         .map_err(EntryGatewayError::from)?;
 
-    let nr_cfg = cfg
-        .storage_paths
-        .network_requester_config
-        .as_ref()
-        .map(|nr_cfg| load_network_requester_config("???", nr_cfg).map_err(ExitGatewayError::from))
-        .transpose()?;
+    let nr_cfg = match &cfg.storage_paths.network_requester_config {
+        None => None,
+        Some(nr_cfg) => Some(
+            load_network_requester_config("???", nr_cfg)
+                .await
+                .map_err(ExitGatewayError::from)?,
+        ),
+    };
 
-    let ipr_cfg = cfg
-        .storage_paths
-        .network_requester_config
-        .as_ref()
-        .map(|ipr_cfg| load_ip_packet_router_config("???", ipr_cfg).map_err(ExitGatewayError::from))
-        .transpose()?;
+    let ipr_cfg = match &cfg.storage_paths.ip_packet_router_config {
+        None => None,
+        Some(ipr_cfg) => Some(
+            load_ip_packet_router_config("???", ipr_cfg)
+                .await
+                .map_err(ExitGatewayError::from)?,
+        ),
+    };
 
     let nymnode_id = nym_node_id(NodeType::Gateway, &cfg.gateway.id, preserve_id)?;
     let nym_node_config_path = default_config_filepath(&nymnode_id);

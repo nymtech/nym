@@ -169,7 +169,6 @@ pub fn ephemeral_exit_gateway_config(
                     .network_requester
                     .debug
                     .disable_poisson_rate,
-                use_deprecated_allow_list: false,
                 upstream_exit_policy_url: Some(
                     config.exit_gateway.upstream_exit_policy_url.clone(),
                 ),
@@ -180,11 +179,6 @@ pub fn ephemeral_exit_gateway_config(
                     .storage_paths
                     .network_requester
                     .to_common_client_paths(),
-
-                // irrelevant fields; we're not going to be using allow.list and nr description is dead anyway
-                allowed_list_location: Default::default(),
-                unknown_list_location: Default::default(),
-                nr_description: Default::default(),
             },
             network_requester_debug: Default::default(),
             logging: config.logging,

@@ -7,7 +7,7 @@ use axum::headers::authorization::Bearer;
 use axum::headers::Authorization;
 use axum::http::StatusCode;
 use axum::TypedHeader;
-use nym_metrics::REGISTRY;
+use nym_metrics::metrics;
 
 /// Returns `prometheus` compatible metrics
 #[utoipa::path(
@@ -41,5 +41,5 @@ pub(crate) async fn prometheus_metrics<'a>(
         return Err(StatusCode::UNAUTHORIZED);
     }
 
-    Ok(REGISTRY.to_string())
+    Ok(metrics!())
 }

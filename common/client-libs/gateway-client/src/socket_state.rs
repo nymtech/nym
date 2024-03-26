@@ -44,9 +44,7 @@ pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
     #[cfg(unix)]
     match _conn.get_ref() {
         MaybeTlsStream::Plain(stream) => Some(stream.as_raw_fd()),
-        &_ => unreachable!(
-            "If tls features are enabled, the inner stream needs to be unpacked into raw fd"
-        ),
+        &_ => None,
     }
     #[cfg(not(unix))]
     None
@@ -99,7 +97,7 @@ impl PartiallyDelegated {
 
     pub(crate) fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
-        packet_router: PacketRouter,
+        mut packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
         mut shutdown: TaskClient,
     ) -> Self {
@@ -142,6 +140,7 @@ impl PartiallyDelegated {
             if match ret_err {
                 Err(err) => stream_sender.send(Err(err)),
                 Ok(_) => {
+                    packet_router.mark_as_success();
                     shutdown.mark_as_success();
                     stream_sender.send(Ok(stream))
                 }

@@ -163,6 +163,10 @@ pub enum GatewayError {
         #[from]
         source: ipnetwork::IpNetworkError,
     },
+
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("failed to remove wireguard interface: {0}")]
+    WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 }
 
 impl From<ClientCoreError> for GatewayError {

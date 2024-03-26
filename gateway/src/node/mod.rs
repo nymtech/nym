@@ -229,7 +229,7 @@ impl<St> Gateway<St> {
     async fn start_wireguard(
         &self,
         shutdown: TaskClient,
-    ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn Error + Send + Sync>> {
+    ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync>> {
         nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
     }
 

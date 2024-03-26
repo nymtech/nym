@@ -1,14 +1,13 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use crate::config::old_config_v1_1_20::{
-    ConfigV1_1_20, DebugV1_1_20, NetworkRequesterPathsV1_1_20,
-};
-use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
-use nym_client_core::config::disk_persistence::old_v1_1_20::CommonClientPathsV1_1_20;
-use nym_client_core::config::old_config_v1_1_19::ConfigV1_1_19 as BaseConfigV1_1_19;
-use nym_client_core::config::old_config_v1_1_20::{
-    ClientV1_1_20, ConfigV1_1_20 as BaseClientConfigV1_1_20,
+use crate::config::old_config_v1_1_20_2::{ConfigV3, DebugV3};
+use crate::config::persistence::old::v1::NetworkRequesterPathsV1;
+use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
+use nym_client_core::config::disk_persistence::old_v1_1_33::ClientKeysPathsV1_1_33;
+use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
+use nym_client_core::config::old_config_v1_1_20_2::{
+    ClientV1_1_20_2, ConfigV1_1_20_2 as BaseClientConfigV1_1_20_2,
 };
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use serde::{Deserialize, Serialize};
@@ -19,22 +18,22 @@ const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 *
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_19 {
+pub struct ConfigV2 {
     #[serde(flatten)]
-    pub base: BaseConfigV1_1_19<ConfigV1_1_19>,
+    pub base: BaseConfigV1_1_20<ConfigV2>,
 
     #[serde(default)]
     pub network_requester: NetworkRequster,
 
     #[serde(default)]
-    pub network_requester_debug: DebugV1_1_19,
+    pub network_requester_debug: DebugV2,
 }
 
-impl From<ConfigV1_1_19> for ConfigV1_1_20 {
-    fn from(value: ConfigV1_1_19) -> Self {
-        ConfigV1_1_20 {
-            base: BaseClientConfigV1_1_20 {
-                client: ClientV1_1_20 {
+impl From<ConfigV2> for ConfigV3 {
+    fn from(value: ConfigV2) -> Self {
+        ConfigV3 {
+            base: BaseClientConfigV1_1_20_2 {
+                client: ClientV1_1_20_2 {
                     version: value.base.client.version,
                     id: value.base.client.id,
                     disabled_credentials_mode: value.base.client.disabled_credentials_mode,
@@ -45,9 +44,9 @@ impl From<ConfigV1_1_19> for ConfigV1_1_20 {
                 debug: Default::default(),
             },
             network_requester: Default::default(),
-            storage_paths: NetworkRequesterPathsV1_1_20 {
-                common_paths: CommonClientPathsV1_1_20 {
-                    keys: ClientKeysPaths {
+            storage_paths: NetworkRequesterPathsV1 {
+                common_paths: CommonClientPathsV1_1_20_2 {
+                    keys: ClientKeysPathsV1_1_33 {
                         private_identity_key_file: value.base.client.private_identity_key_file,
                         public_identity_key_file: value.base.client.public_identity_key_file,
                         private_encryption_key_file: value.base.client.private_encryption_key_file,
@@ -67,12 +66,12 @@ impl From<ConfigV1_1_19> for ConfigV1_1_20 {
     }
 }
 
-impl MigrationNymConfig for ConfigV1_1_19 {
+impl MigrationNymConfig for ConfigV2 {
     fn default_root_directory() -> PathBuf {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
             .join(".nym")
-            .join("service-providers")
+            .join("../../../..")
             .join("network-requester")
     }
 }
@@ -88,9 +87,9 @@ impl Default for NetworkRequster {
     fn default() -> Self {
         // same defaults as we had in <= v1.1.13
         NetworkRequster {
-            allowed_list_location: <ConfigV1_1_19 as MigrationNymConfig>::default_root_directory()
+            allowed_list_location: <ConfigV2 as MigrationNymConfig>::default_root_directory()
                 .join("allowed.list"),
-            unknown_list_location: <ConfigV1_1_19 as MigrationNymConfig>::default_root_directory()
+            unknown_list_location: <ConfigV2 as MigrationNymConfig>::default_root_directory()
                 .join("unknown.list"),
         }
     }
@@ -98,22 +97,22 @@ impl Default for NetworkRequster {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct DebugV1_1_19 {
+pub struct DebugV2 {
     #[serde(with = "humantime_serde")]
     pub standard_list_update_interval: Duration,
 }
 
-impl From<DebugV1_1_19> for DebugV1_1_20 {
-    fn from(value: DebugV1_1_19) -> Self {
-        DebugV1_1_20 {
+impl From<DebugV2> for DebugV3 {
+    fn from(value: DebugV2) -> Self {
+        DebugV3 {
             standard_list_update_interval: value.standard_list_update_interval,
         }
     }
 }
 
-impl Default for DebugV1_1_19 {
+impl Default for DebugV2 {
     fn default() -> Self {
-        DebugV1_1_19 {
+        DebugV2 {
             standard_list_update_interval: DEFAULT_STANDARD_LIST_UPDATE_INTERVAL,
         }
     }

@@ -24,12 +24,15 @@ use url::Url;
 pub use nym_client_core::config::Config as BaseClientConfig;
 
 pub mod helpers;
-pub mod old_config_v1_1_13;
-pub mod old_config_v1_1_20;
-pub mod old_config_v1_1_20_2;
-pub mod old_config_v1_1_33;
+pub mod old;
 mod persistence;
 mod template;
+
+// aliases for backwards compatibility
+pub use old::v1 as old_config_v1_1_13;
+pub use old::v2 as old_config_v1_1_20;
+pub use old::v3 as old_config_v1_1_20_2;
+pub use old::v4 as old_config_v1_1_33;
 
 const DEFAULT_NETWORK_REQUESTERS_DIR: &str = "network-requester";
 

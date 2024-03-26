@@ -5,6 +5,8 @@ use nym_client_core::config::disk_persistence::CommonClientPaths;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+pub mod old;
+
 pub const DEFAULT_ALLOWED_LIST_FILENAME: &str = "allowed.list";
 pub const DEFAULT_UNKNOWN_LIST_FILENAME: &str = "unknown.list";
 pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";

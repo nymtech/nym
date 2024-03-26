@@ -245,12 +245,6 @@ pub struct NetworkRequester {
     /// This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
     pub disable_poisson_rate: bool,
 
-    /// Specifies whether this network requester should be using the deprecated allow-list,
-    /// as opposed to the new ExitPolicy.
-    /// Note: this field will be removed in a near future.
-    #[deprecated]
-    pub use_deprecated_allow_list: bool,
-
     /// Specifies the url for an upstream source of the exit policy used by this node.
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub upstream_exit_policy_url: Option<Url>,
@@ -263,7 +257,6 @@ impl Default for NetworkRequester {
             enabled_statistics: false,
             statistics_recipient: None,
             disable_poisson_rate: true,
-            use_deprecated_allow_list: true,
             upstream_exit_policy_url: Some(
                 mainnet::EXIT_POLICY_URL
                     .parse()

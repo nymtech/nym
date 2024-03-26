@@ -1,10 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::v4::{ConfigV14, DebugV4, NetworkRequesterV4};
+use super::v4::{ConfigV4, DebugV4, NetworkRequesterV4};
 use crate::config::persistence::old::v1::NetworkRequesterPathsV1;
-use crate::config::persistence::old::v2::NetworkRequesterPathsV2;
-use crate::config::persistence::DEFAULT_DESCRIPTION_FILENAME;
+use crate::config::persistence::old::v2::{NetworkRequesterPathsV2, DEFAULT_DESCRIPTION_FILENAME};
 use crate::{config::default_config_filepath, error::NetworkRequesterError};
 use log::trace;
 use nym_bin_common::logging::LoggingSettings;
@@ -50,7 +49,7 @@ impl ConfigV3 {
     // so its returned to be stored elsewhere.
     pub fn upgrade(
         self,
-    ) -> Result<(ConfigV14, OldGatewayEndpointConfigV1_1_33), NetworkRequesterError> {
+    ) -> Result<(ConfigV4, OldGatewayEndpointConfigV1_1_33), NetworkRequesterError> {
         trace!("Upgrading from v1.1.20_2");
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
         let nr_description = self
@@ -61,7 +60,7 @@ impl ConfigV3 {
             .parent()
             .expect("config paths upgrade failure")
             .join(DEFAULT_DESCRIPTION_FILENAME);
-        let config = ConfigV14 {
+        let config = ConfigV4 {
             base: BaseConfigV1_1_30::from(self.base).into(),
             storage_paths: NetworkRequesterPathsV2 {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,

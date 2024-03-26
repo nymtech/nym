@@ -265,7 +265,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
     );
     eprintln!("Gateway configuration completed.\n\n\n");
 
-    output.to_stdout(&node_details(&config)?);
+    output.to_stdout(&node_details(&config).await?);
 
     Ok(())
 }

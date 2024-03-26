@@ -248,7 +248,7 @@ pub async fn execute(args: Run) -> anyhow::Result<()> {
         show_binding_warning(config.gateway.listening_address);
     }
 
-    let node_details = node_details(&config)?;
+    let node_details = node_details(&config).await?;
     let gateway =
         crate::node::create_gateway(config, Some(nr_opts), Some(ip_opts), custom_mixnet).await?;
     eprintln!(

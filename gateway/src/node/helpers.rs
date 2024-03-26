@@ -23,7 +23,9 @@ fn display_path<P: AsRef<Path>>(path: P) -> String {
     path.as_ref().display().to_string()
 }
 
-pub(crate) fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse, GatewayError> {
+pub(crate) async fn node_details(
+    config: &Config,
+) -> Result<GatewayNodeDetailsResponse, GatewayError> {
     let gateway_identity_public_key: identity::PublicKey = load_public_key(
         &config.storage_paths.keys.public_identity_key_file,
         "gateway identity",
@@ -36,7 +38,7 @@ pub(crate) fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse
 
     let network_requester =
         if let Some(nr_cfg_path) = &config.storage_paths.network_requester_config {
-            let cfg = load_network_requester_config(&config.gateway.id, nr_cfg_path)?;
+            let cfg = load_network_requester_config(&config.gateway.id, nr_cfg_path).await?;
 
             let nr_identity_public_key: identity::PublicKey = load_public_key(
                 &cfg.storage_paths.common_paths.keys.public_identity_key_file,
@@ -75,7 +77,7 @@ pub(crate) fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse
 
     let ip_packet_router = if let Some(nr_cfg_path) = &config.storage_paths.ip_packet_router_config
     {
-        let cfg = load_ip_packet_router_config(&config.gateway.id, nr_cfg_path)?;
+        let cfg = load_ip_packet_router_config(&config.gateway.id, nr_cfg_path).await?;
 
         let nr_identity_public_key: identity::PublicKey = load_public_key(
             &cfg.storage_paths.common_paths.keys.public_identity_key_file,
@@ -120,7 +122,33 @@ pub(crate) fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse
     })
 }
 
-pub(crate) fn load_network_requester_config<P: AsRef<Path>>(
+pub(crate) async fn load_network_requester_config<P: AsRef<Path>>(
+    id: &str,
+    path: P,
+) -> Result<nym_network_requester::Config, GatewayError> {
+    let path = path.as_ref();
+    if let Ok(cfg) = read_network_requester_config(id, path) {
+        return Ok(cfg);
+    }
+
+    nym_network_requester::config::helpers::try_upgrade_config(path).await?;
+    read_network_requester_config(id, path)
+}
+
+pub(crate) async fn load_ip_packet_router_config<P: AsRef<Path>>(
+    id: &str,
+    path: P,
+) -> Result<nym_ip_packet_router::Config, GatewayError> {
+    let path = path.as_ref();
+    if let Ok(cfg) = read_ip_packet_router_config(id, path) {
+        return Ok(cfg);
+    }
+
+    nym_ip_packet_router::config::helpers::try_upgrade_config(path).await?;
+    read_ip_packet_router_config(id, path)
+}
+
+fn read_network_requester_config<P: AsRef<Path>>(
     id: &str,
     path: P,
 ) -> Result<nym_network_requester::Config, GatewayError> {
@@ -134,7 +162,7 @@ pub(crate) fn load_network_requester_config<P: AsRef<Path>>(
     })
 }
 
-pub(crate) fn load_ip_packet_router_config<P: AsRef<Path>>(
+fn read_ip_packet_router_config<P: AsRef<Path>>(
     id: &str,
     path: P,
 ) -> Result<nym_ip_packet_router::Config, GatewayError> {

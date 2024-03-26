@@ -1,22 +1,18 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::config::old_config_v1_1_20::ConfigV1_1_20;
-use crate::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
-use crate::config::old_config_v1_1_33::ConfigV1_1_33;
+use crate::config::helpers::try_upgrade_config_by_id;
 use crate::{
     config::{BaseClientConfig, Config},
     error::NetworkRequesterError,
 };
 use clap::{CommandFactory, Parser, Subcommand};
-use log::{error, info, trace};
+use log::error;
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
 use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
-use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_config::OptionalSet;
 use std::sync::OnceLock;
 
@@ -36,7 +32,7 @@ impl CliClient for CliNetworkRequesterClient {
     type Config = Config;
 
     async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
-        try_upgrade_config(id).await
+        try_upgrade_config_by_id(id).await
     }
 
     async fn try_load_current_config(id: &str) -> Result<Self::Config, Self::Error> {
@@ -190,135 +186,6 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     Ok(())
 }
 
-async fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, NetworkRequesterError> {
-    trace!("Trying to load as v1.1.13 config");
-    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
-
-    // explicitly load it as v1.1.13 (which is incompatible with the next step, i.e. 1.1.19)
-    let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(false);
-    };
-    info!("It seems the client is using <= v1.1.13 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let updated_step1: ConfigV1_1_20 = old_config.into();
-    let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
-    let (updated_step3, gateway_config) = updated_step2.upgrade()?;
-    let old_paths = updated_step3.storage_paths.clone();
-    let updated = updated_step3.try_upgrade()?;
-
-    v1_1_33::migrate_gateway_details(
-        &old_paths.common_paths,
-        &updated.storage_paths.common_paths,
-        Some(gateway_config),
-    )
-    .await?;
-
-    updated.save_to_default_location()?;
-    Ok(true)
-}
-
-async fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, NetworkRequesterError> {
-    trace!("Trying to load as v1.1.20 config");
-    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
-
-    // explicitly load it as v1.1.20 (which is incompatible with the current one, i.e. +1.1.21)
-    let Ok(old_config) = ConfigV1_1_20::load_from_file(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(false);
-    };
-
-    info!("It seems the client is using <= v1.1.20 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let updated_step1: ConfigV1_1_20_2 = old_config.into();
-    let (updated_step2, gateway_config) = updated_step1.upgrade()?;
-    let old_paths = updated_step2.storage_paths.clone();
-    let updated = updated_step2.try_upgrade()?;
-
-    v1_1_33::migrate_gateway_details(
-        &old_paths.common_paths,
-        &updated.storage_paths.common_paths,
-        Some(gateway_config),
-    )
-    .await?;
-
-    updated.save_to_default_location()?;
-    Ok(true)
-}
-
-async fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, NetworkRequesterError> {
-    trace!("Trying to load as v1.1.20_2 config");
-
-    // explicitly load it as v1.1.20_2 (which is incompatible with the current one, i.e. +1.1.21)
-    let Ok(old_config) = ConfigV1_1_20_2::read_from_default_path(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(false);
-    };
-    info!("It seems the client is using <= v1.1.20_2 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let (updated_step1, gateway_config) = old_config.upgrade()?;
-    let old_paths = updated_step1.storage_paths.clone();
-    let updated = updated_step1.try_upgrade()?;
-
-    v1_1_33::migrate_gateway_details(
-        &old_paths.common_paths,
-        &updated.storage_paths.common_paths,
-        Some(gateway_config),
-    )
-    .await?;
-
-    updated.save_to_default_location()?;
-    Ok(true)
-}
-
-async fn try_upgrade_v1_1_33_config(id: &str) -> Result<bool, NetworkRequesterError> {
-    // explicitly load it as v1.1.33 (which is incompatible with the current one, i.e. +1.1.34)
-    let Ok(old_config) = ConfigV1_1_33::read_from_default_path(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(false);
-    };
-    info!("It seems the client is using <= v1.1.33 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let old_paths = old_config.storage_paths.clone();
-    let updated = old_config.try_upgrade()?;
-
-    v1_1_33::migrate_gateway_details(
-        &old_paths.common_paths,
-        &updated.storage_paths.common_paths,
-        None,
-    )
-    .await?;
-
-    updated.save_to_default_location()?;
-    Ok(true)
-}
-
-async fn try_upgrade_config(id: &str) -> Result<(), NetworkRequesterError> {
-    trace!("Attempting to upgrade config");
-    if try_upgrade_v1_1_13_config(id).await? {
-        return Ok(());
-    }
-    if try_upgrade_v1_1_20_config(id).await? {
-        return Ok(());
-    }
-    if try_upgrade_v1_1_20_2_config(id).await? {
-        return Ok(());
-    }
-    if try_upgrade_v1_1_33_config(id).await? {
-        return Ok(());
-    }
-
-    Ok(())
-}
-
 async fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterError> {
     // try to load the config as is
     if let Ok(cfg) = Config::read_from_default_path(id) {
@@ -330,7 +197,7 @@ async fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterErr
     }
 
     // we couldn't load it - try upgrading it from older revisions
-    try_upgrade_config(id).await?;
+    try_upgrade_config_by_id(id).await?;
 
     let config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,

@@ -55,6 +55,7 @@ impl ConfigV1_1_20_2 {
         read_config_from_toml_file(path)
     }
 
+    #[allow(dead_code)]
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
         Self::read_from_toml_file(default_config_filepath(id))
     }

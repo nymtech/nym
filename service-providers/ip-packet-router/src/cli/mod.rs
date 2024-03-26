@@ -1,11 +1,10 @@
 use clap::{CommandFactory, Parser, Subcommand};
-use log::{error, info, trace};
+use log::error;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::{bin_info, version_checker};
 use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
-use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
-use nym_ip_packet_router::config::old_config_v1::ConfigV1;
+use nym_ip_packet_router::config::helpers::try_upgrade_config;
 use nym_ip_packet_router::config::{BaseClientConfig, Config};
 use nym_ip_packet_router::error::IpPacketRouterError;
 use std::sync::OnceLock;
@@ -133,40 +132,6 @@ pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }
-    Ok(())
-}
-
-async fn try_upgrade_v1_config(id: &str) -> Result<bool, IpPacketRouterError> {
-    // explicitly load it as v1 (which is incompatible with the current one)
-    let Ok(old_config) = ConfigV1::read_from_default_path(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(false);
-    };
-    info!("It seems the client is using v1 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let old_paths = old_config.storage_paths.clone();
-    let updated = old_config.try_upgrade()?;
-
-    v1_1_33::migrate_gateway_details(
-        &old_paths.common_paths,
-        &updated.storage_paths.common_paths,
-        None,
-    )
-    .await?;
-
-    updated.save_to_default_location()?;
-    Ok(true)
-}
-
-async fn try_upgrade_config(id: &str) -> Result<(), IpPacketRouterError> {
-    trace!("Attempting to upgrade config");
-
-    if try_upgrade_v1_config(id).await? {
-        return Ok(());
-    }
-
     Ok(())
 }
 

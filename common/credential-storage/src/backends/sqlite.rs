@@ -47,7 +47,7 @@ impl CoconutCredentialManager {
                 WHERE coconut_credentials.credential_type == "FreeBandwidthPass"
                       AND NOT EXISTS (SELECT 1
                                       FROM   credential_usage
-                                      WHERE  credential_usage.credential_id = coconut_credential.id
+                                      WHERE  credential_usage.credential_id = coconut_credentials.id
                                              AND credential_usage.gateway_id_bs58 == ?)
                 ORDER BY coconut_credentials.id
                 LIMIT 1
@@ -69,7 +69,7 @@ impl CoconutCredentialManager {
                 WHERE coconut_credentials.credential_type == "BandwidthVoucher"
                       AND NOT EXISTS (SELECT 1
                                       FROM   credential_usage
-                                      WHERE  credential_usage.credential_id = coconut_credential.id)
+                                      WHERE  credential_usage.credential_id = coconut_credentials.id)
                 ORDER BY coconut_credentials.id
                 LIMIT 1
             "#,

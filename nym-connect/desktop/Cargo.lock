@@ -2845,6 +2845,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-api-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "url",
+ "wasmtimer",
+]
+
+[[package]]
 name = "http-body"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3804,6 +3818,7 @@ version = "1.1.15"
 dependencies = [
  "async-trait",
  "base64 0.21.4",
+ "bs58 0.5.0",
  "cfg-if",
  "futures",
  "gloo-timers",
@@ -3821,6 +3836,7 @@ dependencies = [
  "nym-explorer-client",
  "nym-gateway-client",
  "nym-gateway-requests",
+ "nym-id",
  "nym-metrics",
  "nym-network-defaults",
  "nym-nonexhaustive-delayqueue",
@@ -4196,17 +4212,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-http-api-client"
+name = "nym-id"
 version = "0.1.0"
 dependencies = [
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
+ "nym-credential-storage",
+ "nym-credentials",
  "thiserror",
+ "time",
  "tracing",
- "url",
- "wasmtimer",
+ "zeroize",
 ]
 
 [[package]]
@@ -4622,6 +4636,7 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
+ "http-api-client",
  "itertools",
  "log",
  "nym-api-requests",
@@ -4632,7 +4647,6 @@ dependencies = [
  "nym-contracts-common",
  "nym-ephemera-common",
  "nym-group-contract-common",
- "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-name-service-common",

@@ -24,7 +24,7 @@ impl RequestFilter {
     }
 
     pub fn current_exit_policy_filter(&self) -> &ExitPolicyRequestFilter {
-        &*self.inner
+        &self.inner
     }
 
     pub(crate) async fn check_address(&self, address: &RemoteAddress) -> bool {

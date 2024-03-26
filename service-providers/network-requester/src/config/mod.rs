@@ -135,6 +135,7 @@ impl Config {
         default_config_filepath(&self.base.client.id)
     }
 
+    #[allow(dead_code)]
     pub fn save_to_default_location(&self) -> io::Result<()> {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)

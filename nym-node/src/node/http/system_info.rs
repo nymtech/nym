@@ -8,12 +8,8 @@ use nym_node_http_api::api::api_requests::v1::node::models::{
 use sysinfo::System;
 
 fn crypto_hardware() -> Option<CryptoHardware> {
-    let Some(info) = cupid::master() else {
-        return None;
-    };
-    let Some(extended_topology) = info.extended_topology_enumeration() else {
-        return None;
-    };
+    let info = cupid::master()?;
+    let extended_topology = info.extended_topology_enumeration()?;
 
     let smt_logical_processor_count = extended_topology
         .clone()

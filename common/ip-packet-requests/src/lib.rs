@@ -2,9 +2,16 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+// The current version of the protocol.
+// The idea here is that we add new request response types at least one version before we start
+// using them.
+// Also, depending on the version in the client connect message the IPR could respond with a
+// matching older version.
+pub use v6::request;
+pub use v6::response;
+
 pub mod codec;
-pub mod request;
-pub mod response;
+pub mod v6;
 
 // version 3: initial version
 // version 4: IPv6 support

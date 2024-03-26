@@ -1,56 +1,41 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::persistence::old::v2::NetworkRequesterPathsV2;
 use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::Config;
 use crate::config::{default_config_filepath, Debug, NetworkRequester};
 use crate::error::NetworkRequesterError;
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::disk_persistence::old_v1_1_33::CommonClientPathsV1_1_33;
 use nym_client_core::config::old_config_v1_1_33::ConfigV1_1_33 as BaseConfigV1_1_33;
 use nym_config::read_config_from_toml_file;
 use nym_config::serde_helpers::de_maybe_stringified;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 use url::Url;
 
 pub const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
-pub struct NetworkRequesterPathsV1_1_33 {
-    #[serde(flatten)]
-    pub common_paths: CommonClientPathsV1_1_33,
-
-    /// Location of the file containing our allow.list
-    pub allowed_list_location: PathBuf,
-
-    /// Location of the file containing our unknown.list
-    pub unknown_list_location: PathBuf,
-
-    #[serde(default)]
-    pub nr_description: PathBuf,
-}
-
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_33 {
+pub struct ConfigV14 {
     #[serde(flatten)]
     pub base: BaseConfigV1_1_33,
 
     #[serde(default)]
-    pub network_requester: NetworkRequesterV1_1_33,
+    pub network_requester: NetworkRequesterV4,
 
-    pub storage_paths: NetworkRequesterPathsV1_1_33,
+    pub storage_paths: NetworkRequesterPathsV2,
 
     #[serde(default)]
-    pub network_requester_debug: DebugV1_1_33,
+    pub network_requester_debug: DebugV4,
 
     pub logging: LoggingSettings,
 }
 
-impl ConfigV1_1_33 {
+impl ConfigV14 {
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         read_config_from_toml_file(path)
     }
@@ -78,7 +63,7 @@ impl ConfigV1_1_33 {
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct NetworkRequesterV1_1_33 {
+pub struct NetworkRequesterV4 {
     /// specifies whether this network requester should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.
     pub open_proxy: bool,
@@ -103,8 +88,8 @@ pub struct NetworkRequesterV1_1_33 {
     pub upstream_exit_policy_url: Option<Url>,
 }
 
-impl From<NetworkRequesterV1_1_33> for NetworkRequester {
-    fn from(value: NetworkRequesterV1_1_33) -> Self {
+impl From<NetworkRequesterV4> for NetworkRequester {
+    fn from(value: NetworkRequesterV4) -> Self {
         NetworkRequester {
             open_proxy: value.open_proxy,
             enabled_statistics: value.enabled_statistics,
@@ -118,23 +103,23 @@ impl From<NetworkRequesterV1_1_33> for NetworkRequester {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct DebugV1_1_33 {
+pub struct DebugV4 {
     /// Defines how often the standard allow list should get updated
     #[serde(with = "humantime_serde")]
     pub standard_list_update_interval: Duration,
 }
 
-impl From<DebugV1_1_33> for Debug {
-    fn from(value: DebugV1_1_33) -> Self {
+impl From<DebugV4> for Debug {
+    fn from(value: DebugV4) -> Self {
         Debug {
             standard_list_update_interval: value.standard_list_update_interval,
         }
     }
 }
 
-impl Default for DebugV1_1_33 {
+impl Default for DebugV4 {
     fn default() -> Self {
-        DebugV1_1_33 {
+        DebugV4 {
             standard_list_update_interval: DEFAULT_STANDARD_LIST_UPDATE_INTERVAL,
         }
     }

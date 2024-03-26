@@ -3,31 +3,14 @@
 
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub mod old;
-
-pub const DEFAULT_ALLOWED_LIST_FILENAME: &str = "allowed.list";
-pub const DEFAULT_UNKNOWN_LIST_FILENAME: &str = "unknown.list";
-pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 pub struct NetworkRequesterPaths {
     #[serde(flatten)]
     pub common_paths: CommonClientPaths,
-
-    /// Deprecated
-    /// Location of the file containing our allow.list
-    #[deprecated]
-    pub allowed_list_location: PathBuf,
-
-    /// Deprecated
-    /// Location of the file containing our unknown.list
-    #[deprecated]
-    pub unknown_list_location: PathBuf,
-
-    /// Location of the file containing our description
-    pub nr_description: PathBuf,
 }
 
 impl NetworkRequesterPaths {
@@ -36,9 +19,6 @@ impl NetworkRequesterPaths {
 
         NetworkRequesterPaths {
             common_paths: CommonClientPaths::new_base(base_dir),
-            allowed_list_location: base_dir.join(DEFAULT_ALLOWED_LIST_FILENAME),
-            unknown_list_location: base_dir.join(DEFAULT_UNKNOWN_LIST_FILENAME),
-            nr_description: base_dir.join(DEFAULT_DESCRIPTION_FILENAME),
         }
     }
 }

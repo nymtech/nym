@@ -1,15 +1,15 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::default_config_filepath;
-use crate::config::old::v5::{ConfigV5, DebugV5, NetworkRequesterV5};
-use crate::config::persistence::old::v2::NetworkRequesterPathsV2;
 use crate::config::persistence::old::v3::NetworkRequesterPathsV3;
-use crate::error::NetworkRequesterError;
+use crate::config::persistence::NetworkRequesterPaths;
+use crate::config::Config;
+use crate::config::{default_config_filepath, Debug, NetworkRequester};
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::old_config_v1_1_33::ConfigV1_1_33 as BaseConfigV1_1_33;
+use nym_client_core::config::Config as BaseClientConfig;
 use nym_config::read_config_from_toml_file;
 use nym_config::serde_helpers::de_maybe_stringified;
+use nym_network_defaults::mainnet;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::Path;
@@ -18,24 +18,29 @@ use url::Url;
 
 pub const DEFAULT_STANDARD_LIST_UPDATE_INTERVAL: Duration = Duration::from_secs(30 * 60);
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV4 {
+pub struct ConfigV5 {
+    // *sigh* currently we point to the most recent config because that's the one that's 'correct'
+    // but the moment we make breaking changes there, we'll have to update this config too.
+    // I think we should always keep versioned base config, i.e. `ConfigV1`, `ConfigV2`, etc,
+    // and then just make type alias for the current one, i.e. `type Config = ConfigV2`.
+    // then in 'old' configs we could simply use the underlying type as opposed to the alias for easier upgrades.
     #[serde(flatten)]
-    pub base: BaseConfigV1_1_33,
+    pub base: BaseClientConfig,
 
     #[serde(default)]
-    pub network_requester: NetworkRequesterV4,
+    pub network_requester: NetworkRequesterV5,
 
-    pub storage_paths: NetworkRequesterPathsV2,
+    pub storage_paths: NetworkRequesterPathsV3,
 
     #[serde(default)]
-    pub network_requester_debug: DebugV4,
+    pub network_requester_debug: DebugV5,
 
     pub logging: LoggingSettings,
 }
 
-impl ConfigV4 {
+impl ConfigV5 {
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         read_config_from_toml_file(path)
     }
@@ -44,26 +49,25 @@ impl ConfigV4 {
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
         Self::read_from_toml_file(default_config_filepath(id))
     }
+}
 
-    pub fn try_upgrade(self) -> Result<ConfigV5, NetworkRequesterError> {
-        Ok(ConfigV5 {
-            base: self.base.into(),
-            network_requester: self.network_requester.into(),
-            storage_paths: NetworkRequesterPathsV3 {
-                common_paths: self.storage_paths.common_paths.upgrade_default()?,
-                allowed_list_location: self.storage_paths.allowed_list_location,
-                unknown_list_location: self.storage_paths.unknown_list_location,
-                nr_description: self.storage_paths.nr_description,
+impl From<ConfigV5> for Config {
+    fn from(value: ConfigV5) -> Self {
+        Config {
+            base: value.base,
+            network_requester: value.network_requester.into(),
+            storage_paths: NetworkRequesterPaths {
+                common_paths: value.storage_paths.common_paths,
             },
-            network_requester_debug: self.network_requester_debug.into(),
-            logging: self.logging,
-        })
+            network_requester_debug: value.network_requester_debug.into(),
+            logging: value.logging,
+        }
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct NetworkRequesterV4 {
+pub struct NetworkRequesterV5 {
     /// specifies whether this network requester should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.
     pub open_proxy: bool,
@@ -80,7 +84,6 @@ pub struct NetworkRequesterV4 {
 
     /// Specifies whether this network requester should be using the deprecated allow-list,
     /// as opposed to the new ExitPolicy.
-    /// Note: this field will be removed in a near future.
     pub use_deprecated_allow_list: bool,
 
     /// Specifies the url for an upstream source of the exit policy used by this node.
@@ -88,14 +91,30 @@ pub struct NetworkRequesterV4 {
     pub upstream_exit_policy_url: Option<Url>,
 }
 
-impl From<NetworkRequesterV4> for NetworkRequesterV5 {
-    fn from(value: NetworkRequesterV4) -> Self {
+impl Default for NetworkRequesterV5 {
+    fn default() -> Self {
         NetworkRequesterV5 {
+            open_proxy: false,
+            enabled_statistics: false,
+            statistics_recipient: None,
+            disable_poisson_rate: true,
+            use_deprecated_allow_list: true,
+            upstream_exit_policy_url: Some(
+                mainnet::EXIT_POLICY_URL
+                    .parse()
+                    .expect("invalid default exit policy URL"),
+            ),
+        }
+    }
+}
+
+impl From<NetworkRequesterV5> for NetworkRequester {
+    fn from(value: NetworkRequesterV5) -> Self {
+        NetworkRequester {
             open_proxy: value.open_proxy,
             enabled_statistics: value.enabled_statistics,
             statistics_recipient: value.statistics_recipient,
             disable_poisson_rate: value.disable_poisson_rate,
-            use_deprecated_allow_list: value.use_deprecated_allow_list,
             upstream_exit_policy_url: value.upstream_exit_policy_url,
         }
     }
@@ -103,23 +122,24 @@ impl From<NetworkRequesterV4> for NetworkRequesterV5 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct DebugV4 {
+pub struct DebugV5 {
     /// Defines how often the standard allow list should get updated
+    /// Deprecated
     #[serde(with = "humantime_serde")]
     pub standard_list_update_interval: Duration,
 }
 
-impl From<DebugV4> for DebugV5 {
-    fn from(value: DebugV4) -> Self {
-        DebugV5 {
+impl From<DebugV5> for Debug {
+    fn from(value: DebugV5) -> Self {
+        Debug {
             standard_list_update_interval: value.standard_list_update_interval,
         }
     }
 }
 
-impl Default for DebugV4 {
+impl Default for DebugV5 {
     fn default() -> Self {
-        DebugV4 {
+        DebugV5 {
             standard_list_update_interval: DEFAULT_STANDARD_LIST_UPDATE_INTERVAL,
         }
     }

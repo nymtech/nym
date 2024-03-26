@@ -1,15 +1,14 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_client_core::config::disk_persistence::old_v1_1_33::CommonClientPathsV1_1_33;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
-pub struct NetworkRequesterPathsV2 {
+pub struct NetworkRequesterPathsV3 {
     #[serde(flatten)]
-    pub common_paths: CommonClientPathsV1_1_33,
+    pub common_paths: CommonClientPaths,
 
     /// Location of the file containing our allow.list
     pub allowed_list_location: PathBuf,
@@ -17,6 +16,6 @@ pub struct NetworkRequesterPathsV2 {
     /// Location of the file containing our unknown.list
     pub unknown_list_location: PathBuf,
 
-    #[serde(default)]
+    /// Location of the file containing our description
     pub nr_description: PathBuf,
 }

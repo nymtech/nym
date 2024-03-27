@@ -19,6 +19,7 @@ rust-version = "1.56"
 async-trait = { workspace = true }
 bs58 = { workspace = true }
 bip39 = { workspace = true }
+bloomfilter = "1.0.13"
 cfg-if = "1.0"
 clap = { workspace = true, features = ["cargo", "derive"] }
 console-subscriber = { version = "0.1.1", optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"

@@ -484,6 +484,16 @@ pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = UTOKENS_TO_BURN * BYTES_PER_UTOKEN;
 
+// Constants for bloom filter for double spending detection
+//Chosen for FP of
+//Calculator at https://hur.st/bloomfilter/
+pub const BLOOM_NUM_HASHES: u32 = 13;
+pub const BLOOM_BITMAP_SIZE: u64 = 250_000;
+pub const BLOOM_SIP_KEYS: [(u64, u64); 2] = [
+    (12345678910111213141, 1415926535897932384),
+    (7182818284590452353, 3571113171923293137),
+];
+
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
 // as set by validators in their configs

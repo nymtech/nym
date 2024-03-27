@@ -694,6 +694,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bit-vec"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "349f9b6a179ed607305526ca489b34ad0a41aed5f7980fa90eb03160b69598fb"
+
+[[package]]
 name = "bitcoin_hashes"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -791,6 +797,17 @@ name = "block-padding"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
+
+[[package]]
+name = "bloomfilter"
+version = "1.0.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b64d54e47a7f4fd723f082e8f11429f3df6ba8adaeca355a76556f9f0602bbcf"
+dependencies = [
+ "bit-vec",
+ "getrandom 0.2.10",
+ "siphasher",
+]
 
 [[package]]
 name = "bls12_381"
@@ -4964,6 +4981,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bip39",
+ "bloomfilter",
  "bs58 0.5.0",
  "cfg-if",
  "clap 4.4.7",
@@ -5580,6 +5598,7 @@ dependencies = [
  "async-trait",
  "atty",
  "bip39",
+ "bloomfilter",
  "bs58 0.5.0",
  "chrono",
  "clap 4.4.7",
@@ -9086,6 +9105,12 @@ dependencies = [
  "digest 0.10.7",
  "rand_core 0.6.4",
 ]
+
+[[package]]
+name = "siphasher"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 
 [[package]]
 name = "slab"

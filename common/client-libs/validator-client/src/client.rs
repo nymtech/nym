@@ -8,7 +8,9 @@ use crate::{
     nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
     ReqwestRpcClient, ValidatorClientError,
 };
-use nym_api_requests::coconut::models::{FreePassNonceResponse, VerifyCredentialBody};
+use nym_api_requests::coconut::models::{
+    FreePassNonceResponse, SpentCredentialsResponse, VerifyCredentialBody,
+};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest, OfflineVerifyCredentialBody,
     OnlineVerifyCredentialBody, PartialCoinIndicesSignatureResponse,
@@ -364,6 +366,12 @@ impl NymApiClient {
         request_body: &OnlineVerifyCredentialBody,
     ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
         Ok(self.nym_api.verify_online_credential(request_body).await?)
+    }
+
+    pub async fn spent_credentials(
+        &self,
+    ) -> Result<SpentCredentialsResponse, ValidatorClientError> {
+        Ok(self.nym_api.spent_credentials().await?)
     }
 
     pub async fn expiration_date_signatures(

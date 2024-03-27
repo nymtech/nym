@@ -57,6 +57,7 @@ tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true, features = ["serde"] }
 time = { workspace = true }
 zeroize = { workspace = true }
+bloomfilter = "1.0.13"
 
 # internal
 nym-node = { path = "../nym-node" }

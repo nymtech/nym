@@ -372,13 +372,21 @@ where
         let serial_number_bs58 = credential.data.serial_number_b58();
         trace!("processing credential {}", serial_number_bs58);
 
-        let already_spent = self
+        let already_spent_storage = self
             .inner
             .storage
             .contains_credential(serial_number_bs58.clone())
             .await?;
-        if already_spent {
+
+        let already_spent_api = self
+            .inner
+            .ecash_verifier
+            .check_double_spend(&serial_number_bs58)
+            .await;
+
+        if already_spent_storage || already_spent_api {
             trace!("the credential has already been spent before");
+            //SW : NOTE Should we blacklist or something here?
             return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
         }
 

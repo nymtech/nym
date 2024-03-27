@@ -9,7 +9,7 @@ pub use nym_api_requests::{
     coconut::{
         models::{
             EpochCredentialsResponse, IssuedCredential, IssuedCredentialBody,
-            IssuedCredentialResponse, IssuedCredentialsResponse,
+            IssuedCredentialResponse, IssuedCredentialsResponse, SpentCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
         OfflineVerifyCredentialBody, OnlineVerifyCredentialBody,
@@ -471,6 +471,19 @@ pub trait NymApiClientExt: ApiClient {
             ],
             NO_PARAMS,
             request_body,
+        )
+        .await
+    }
+
+    async fn spent_credentials(&self) -> Result<SpentCredentialsResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::SPENT_CREDENTIALS,
+            ],
+            NO_PARAMS,
         )
         .await
     }

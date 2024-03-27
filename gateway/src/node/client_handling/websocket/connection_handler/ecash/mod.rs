@@ -3,6 +3,8 @@
 
 use crate::node::storage::Storage;
 
+use double_spending::DoubleSpendingDetector;
+
 use super::authenticated::RequestHandlingError;
 use chrono::Utc;
 use credential_sender::CredentialSender;
@@ -31,6 +33,7 @@ use std::sync::Mutex;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 mod credential_sender;
+mod double_spending;
 
 const TIME_RANGE_SEC: i64 = 30;
 
@@ -47,6 +50,7 @@ pub struct EcashVerifier {
     pk_bytes: [u8; 32], //bytes represenation of a pub key representing the verifier
     pay_infos: Arc<Mutex<Vec<PayInfo>>>,
     cred_sender: UnboundedSender<PendingCredential>,
+    double_spend_detector: Option<DoubleSpendingDetector>,
 }
 
 impl EcashVerifier {
@@ -59,6 +63,15 @@ impl EcashVerifier {
     ) -> Result<Self, RequestHandlingError> {
         let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
         let address = nyxd_client.address();
+
+        let double_spend_detector = if offline_verification {
+            let inner = DoubleSpendingDetector::new();
+            inner.clone().start(shutdown.clone());
+            Some(inner)
+        } else {
+            None
+        };
+
         let (cred_sender, cred_receiver) = mpsc::unbounded();
         //initialize a credential sender only if we are in offline mode
         if offline_verification {
@@ -85,6 +98,7 @@ impl EcashVerifier {
                 pk_bytes,
                 pay_infos: Arc::new(Mutex::new(Vec::new())),
                 cred_sender,
+                double_spend_detector,
             });
         }
 
@@ -100,6 +114,7 @@ impl EcashVerifier {
                 pk_bytes,
                 pay_infos: Arc::new(Mutex::new(Vec::new())),
                 cred_sender,
+                double_spend_detector,
             });
         };
 
@@ -125,7 +140,12 @@ impl EcashVerifier {
             let aggregated_verification_key =
                 nym_credentials::obtain_aggregate_verification_key(&epoch_api_clients)?;
 
-            api_clients.insert(current_epoch.epoch_id, epoch_api_clients);
+            api_clients.insert(current_epoch.epoch_id, epoch_api_clients.clone());
+            if let Some(detector) = &double_spend_detector {
+                detector
+                    .update_api_client(current_epoch.epoch_id, epoch_api_clients)
+                    .await;
+            }
             master_keys.insert(current_epoch.epoch_id, aggregated_verification_key);
         }
 
@@ -138,6 +158,7 @@ impl EcashVerifier {
             pk_bytes,
             pay_infos: Arc::new(Mutex::new(Vec::new())),
             cred_sender,
+            double_spend_detector,
         })
     }
 
@@ -171,8 +192,11 @@ impl EcashVerifier {
         }
 
         let mut guard = self.api_clients.write().await;
-        guard.insert(epoch_id, api_clients);
+        guard.insert(epoch_id, api_clients.clone());
         let guard = guard.downgrade();
+        if let Some(detector) = &self.double_spend_detector {
+            detector.update_api_client(epoch_id, api_clients).await;
+        }
         trace!("stored api clients for epoch {epoch_id}");
 
         // SAFETY:
@@ -248,7 +272,6 @@ impl EcashVerifier {
             })?;
 
         self.insert_pay_info(credential.pay_info.clone(), insert_index)
-            .await
     }
 
     pub async fn verify_pay_info(&self, pay_info: PayInfo) -> Result<usize, RequestHandlingError> {
@@ -319,11 +342,7 @@ impl EcashVerifier {
         }
     }
 
-    pub async fn insert_pay_info(
-        &self,
-        pay_info: PayInfo,
-        index: usize,
-    ) -> Result<(), RequestHandlingError> {
+    fn insert_pay_info(&self, pay_info: PayInfo, index: usize) -> Result<(), RequestHandlingError> {
         let mut inner = self
             .pay_infos
             .lock()
@@ -334,6 +353,14 @@ impl EcashVerifier {
         }
         inner.insert(index, pay_info);
         Ok(())
+    }
+
+    pub async fn check_double_spend(&self, serial_number_bs58: &String) -> bool {
+        if let Some(double_spend_detector) = &self.double_spend_detector {
+            double_spend_detector.check(serial_number_bs58).await
+        } else {
+            false
+        }
     }
 
     pub async fn post_credential(

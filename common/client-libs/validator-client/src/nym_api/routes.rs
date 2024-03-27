@@ -14,6 +14,7 @@ pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 pub const COCONUT_ROUTES: &str = "coconut";
 pub const BANDWIDTH: &str = "bandwidth";
+pub const SPENT_CREDENTIALS: &str = "spent-credentials";
 
 pub const COCONUT_FREE_PASS: &str = "free-pass";
 pub const COCONUT_FREE_PASS_NONCE: &str = "free-pass-nonce";

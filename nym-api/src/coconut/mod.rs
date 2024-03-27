@@ -61,6 +61,7 @@ where
                 api_routes::expiration_date_signatures,
                 api_routes::expiration_date_signatures_timestamp,
                 api_routes::coin_indices_signatures,
+                api_routes::spent_credentials,
                 api_routes::epoch_credentials,
                 api_routes::issued_credential,
                 api_routes::issued_credentials,

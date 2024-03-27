@@ -8,6 +8,7 @@ use crate::coconut::error::Result;
 use crate::coconut::keys::KeyPair;
 use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
+use bloomfilter::Bloom;
 use nym_api_requests::coconut::helpers::issued_credential_plaintext;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_compact_ecash::{
@@ -17,6 +18,7 @@ use nym_compact_ecash::{
     utils::BlindedSignature,
     VerificationKeyAuth,
 };
+use nym_config::defaults::{BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS};
 use nym_credentials::{coconut::utils::cred_exp_date_timestamp, CredentialSpendingData};
 
 use super::{
@@ -44,6 +46,7 @@ pub struct State {
     coin_indices_sigs_cache: Arc<CoinIndexSignatureCache>,
     exp_date_sigs_cache: Arc<ExpirationDateSignatureCache>,
     pub(crate) freepass_nonce: Arc<RwLock<[u8; 16]>>,
+    spent_credentials: Arc<RwLock<Bloom<String>>>,
 }
 
 impl State {
@@ -65,6 +68,9 @@ impl State {
         let mut nonce = [0u8; 16];
         OsRng.fill_bytes(&mut nonce);
 
+        let bitmap = [0u8; (BLOOM_BITMAP_SIZE / 8) as usize];
+        let bloom_filter =
+            Bloom::from_existing(&bitmap, BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS);
         Self {
             client,
             bandwidth_contract_admin: OnceCell::new(),
@@ -76,6 +82,7 @@ impl State {
             coin_indices_sigs_cache: Arc::new(CoinIndexSignatureCache::new()),
             exp_date_sigs_cache: Arc::new(ExpirationDateSignatureCache::new()),
             freepass_nonce: Arc::new(RwLock::new(nonce)),
+            spent_credentials: Arc::new(RwLock::new(bloom_filter)),
         }
     }
 
@@ -258,5 +265,22 @@ impl State {
             &signing_key.keys.secret_key(),
             timestamp,
         ))
+    }
+
+    pub async fn check_and_add_spent_credentials(&self, serial_number_bs58: &String) -> bool {
+        let mut filter = self.spent_credentials.write().await;
+        filter.check_and_set(serial_number_bs58)
+    }
+
+    pub async fn export_spent_credentials(&self) -> Vec<u8> {
+        let filter = self.spent_credentials.read().await;
+        filter.bitmap()
+    }
+
+    //SW NOTE: will be used eventually
+    #[allow(dead_code)]
+    pub async fn clear_spent_credentials(&self) {
+        let mut filter = self.spent_credentials.write().await;
+        filter.clear()
     }
 }

@@ -7,11 +7,11 @@ use crate::coconut::helpers::{accepted_vote_err, blind_sign};
 use crate::coconut::state::State;
 use crate::coconut::storage::CoconutStorageExt;
 use k256::ecdsa::signature::Verifier;
-use nym_api_requests::coconut::models::VerifyCredentialBody;
 use nym_api_requests::coconut::models::{
     CredentialsRequestBody, EpochCredentialsResponse, FreePassNonceResponse, FreePassRequest,
     IssuedCredentialResponse, IssuedCredentialsResponse,
 };
+use nym_api_requests::coconut::models::{SpentCredentialsResponse, VerifyCredentialBody};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, OfflineVerifyCredentialBody,
     OnlineVerifyCredentialBody, PartialCoinIndicesSignatureResponse,
@@ -380,6 +380,15 @@ pub async fn verify_offline_credential(
         });
     }
 
+    if state
+        .check_and_add_spent_credentials(&credential_data.serial_number_b58())
+        .await
+    {
+        return Err(CoconutError::InvalidCredentialStatus {
+            status: "This credential was already spent".to_string(),
+        });
+    }
+
     let verification_key = state.verification_key(epoch_id).await?;
     let params = bandwidth_credential_params();
 
@@ -398,6 +407,16 @@ pub async fn verify_offline_credential(
         .await?;
 
     Ok(Json(VerifyCredentialResponse::new(true)))
+}
+
+#[get("/spend-credentials")]
+pub async fn spent_credentials(
+    state: &RocketState<State>,
+) -> Result<Json<SpentCredentialsResponse>> {
+    let spent_credentials_export = state.export_spent_credentials().await;
+    Ok(Json(SpentCredentialsResponse::new(
+        spent_credentials_export,
+    )))
 }
 
 #[get("/epoch-credentials/<epoch>")]

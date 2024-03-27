@@ -36,11 +36,16 @@ pub struct HostInformation {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostKeys {
     /// Base58-encoded ed25519 public key of this node. Currently it corresponds to either mixnode's or gateway's identity.
-    pub ed25519: String,
+    #[serde(alias = "ed25519")]
+    pub ed25519_identity: String,
 
     /// Base58-encoded x25519 public key of this node used for sphinx/outfox packet creation.
     /// Currently it corresponds to either mixnode's or gateway's key.
-    pub x25519: String,
+    #[serde(alias = "x25519")]
+    pub x25519_sphinx: String,
+
+    /// Base58-encoded x25519 public key of this node used for the noise protocol.
+    pub x25519_noise: String,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]

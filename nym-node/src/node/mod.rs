@@ -3,13 +3,14 @@
 
 use crate::node::description::{load_node_description, save_node_description};
 use crate::node::helpers::{
-    load_ed25519_identity_keypair, load_key, load_x25519_sphinx_keypair,
-    store_ed25519_identity_keypair, store_key, store_keypair, store_x25519_sphinx_keypair,
+    load_ed25519_identity_keypair, load_key, load_x25519_noise_keypair, load_x25519_sphinx_keypair,
+    store_ed25519_identity_keypair, store_key, store_keypair, store_x25519_noise_keypair,
+    store_x25519_sphinx_keypair,
 };
 use crate::node::http::{sign_host_details, system_info::get_system_info};
 use ipnetwork::IpNetwork;
 use nym_bin_common::bin_info_owned;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{ed25519, encryption, identity, x25519};
 use nym_gateway::Gateway;
 use nym_mixnode::MixNode;
 use nym_network_requester::{
@@ -224,8 +225,12 @@ pub(crate) struct NymNode {
     #[allow(dead_code)]
     exit_gateway: ExitGatewayData,
 
-    ed25519_identity_keys: Arc<identity::KeyPair>,
-    x25519_sphinx_keys: Arc<encryption::KeyPair>,
+    ed25519_identity_keys: Arc<ed25519::KeyPair>,
+    x25519_sphinx_keys: Arc<x25519::KeyPair>,
+
+    // to be used when noise is integrated
+    #[allow(dead_code)]
+    x25519_noise_keys: Arc<x25519::KeyPair>,
 }
 
 impl NymNode {
@@ -237,8 +242,9 @@ impl NymNode {
         let mut rng = OsRng;
 
         // global initialisation
-        let ed25519_identity_keys = identity::KeyPair::new(&mut rng);
-        let x25519_sphinx_keys = encryption::KeyPair::new(&mut rng);
+        let ed25519_identity_keys = ed25519::KeyPair::new(&mut rng);
+        let x25519_sphinx_keys = x25519::KeyPair::new(&mut rng);
+        let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
 
         trace!("attempting to store ed25519 identity keypair");
         store_ed25519_identity_keypair(
@@ -250,6 +256,12 @@ impl NymNode {
         store_x25519_sphinx_keypair(
             &x25519_sphinx_keys,
             config.storage_paths.keys.x25519_sphinx_storage_paths(),
+        )?;
+
+        trace!("attempting to store x25519 noise keypair");
+        store_x25519_noise_keypair(
+            &x25519_noise_keys,
+            config.storage_paths.keys.x25519_noise_storage_paths(),
         )?;
 
         trace!("creating description file");
@@ -278,6 +290,9 @@ impl NymNode {
             )?),
             x25519_sphinx_keys: Arc::new(load_x25519_sphinx_keypair(
                 config.storage_paths.keys.x25519_sphinx_storage_paths(),
+            )?),
+            x25519_noise_keys: Arc::new(load_x25519_noise_keypair(
+                config.storage_paths.keys.x25519_noise_storage_paths(),
             )?),
             description: load_node_description(&config.storage_paths.description)?,
             verloc_stats: Default::default(),
@@ -362,6 +377,7 @@ impl NymNode {
         let host_details = sign_host_details(
             &self.config,
             self.x25519_sphinx_keys.public_key(),
+            self.x25519_noise_keys.public_key(),
             &self.ed25519_identity_keys,
         )?;
 

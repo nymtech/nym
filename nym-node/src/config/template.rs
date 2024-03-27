@@ -67,6 +67,12 @@ private_x25519_sphinx_key_file = '{{ storage_paths.keys.private_x25519_sphinx_ke
 # Path to file containing x25519 sphinx public key.
 public_x25519_sphinx_key_file = '{{ storage_paths.keys.public_x25519_sphinx_key_file }}'
 
+# Path to file containing x25519 noise private key.
+private_x25519_noise_key_file = '{{ storage_paths.keys.private_x25519_noise_key_file }}'
+
+# Path to file containing x25519 noise public key.
+public_x25519_noise_key_file = '{{ storage_paths.keys.public_x25519_noise_key_file }}'
+
 
 ##### http-API nym-node config options #####
 

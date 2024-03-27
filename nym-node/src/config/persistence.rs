@@ -16,6 +16,8 @@ pub const DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME: &str = "ed25519_identit
 pub const DEFAULT_ED25519_PUBLIC_IDENTITY_KEY_FILENAME: &str = "ed25519_identity.pub";
 pub const DEFAULT_X25519_PRIVATE_SPHINX_KEY_FILENAME: &str = "x25519_sphinx";
 pub const DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME: &str = "x25519_sphinx.pub";
+pub const DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME: &str = "x25519_noise";
+pub const DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME: &str = "x25519_noise.pub";
 pub const DEFAULT_NYMNODE_DESCRIPTION_FILENAME: &str = "description.toml";
 
 // Mixnode:
@@ -75,6 +77,12 @@ pub struct KeysPaths {
 
     /// Path to file containing x25519 sphinx public key.
     pub public_x25519_sphinx_key_file: PathBuf,
+
+    /// Path to file containing x25519 noise private key.
+    pub private_x25519_noise_key_file: PathBuf,
+
+    /// Path to file containing x25519 noise public key.
+    pub public_x25519_noise_key_file: PathBuf,
 }
 
 impl KeysPaths {
@@ -89,6 +97,8 @@ impl KeysPaths {
             private_x25519_sphinx_key_file: data_dir
                 .join(DEFAULT_X25519_PRIVATE_SPHINX_KEY_FILENAME),
             public_x25519_sphinx_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME),
+            private_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME),
+            public_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME),
         }
     }
 
@@ -103,6 +113,13 @@ impl KeysPaths {
         nym_pemstore::KeyPairPath::new(
             &self.private_x25519_sphinx_key_file,
             &self.public_x25519_sphinx_key_file,
+        )
+    }
+
+    pub fn x25519_noise_storage_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_x25519_noise_key_file,
+            &self.public_x25519_noise_key_file,
         )
     }
 }

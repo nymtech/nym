@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_node::error::{KeyIOFailure, NymNodeError};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_pemstore::KeyPairPath;
@@ -56,39 +56,52 @@ where
 
 pub(crate) fn load_ed25519_identity_keypair(
     paths: KeyPairPath,
-) -> Result<identity::KeyPair, NymNodeError> {
+) -> Result<ed25519::KeyPair, NymNodeError> {
     Ok(load_keypair(paths, "ed25519-identity")?)
 }
 
 #[allow(dead_code)]
 pub(crate) fn load_ed25519_identity_public_key<P: AsRef<Path>>(
     path: P,
-) -> Result<identity::PublicKey, NymNodeError> {
+) -> Result<ed25519::PublicKey, NymNodeError> {
     Ok(load_key(path, "ed25519-identity-public-key")?)
 }
 
 pub(crate) fn load_x25519_sphinx_keypair(
     paths: KeyPairPath,
-) -> Result<encryption::KeyPair, NymNodeError> {
+) -> Result<x25519::KeyPair, NymNodeError> {
     Ok(load_keypair(paths, "x25519-sphinx")?)
+}
+
+pub(crate) fn load_x25519_noise_keypair(
+    paths: KeyPairPath,
+) -> Result<x25519::KeyPair, NymNodeError> {
+    Ok(load_keypair(paths, "x25519-noise")?)
 }
 
 pub(crate) fn load_x25519_sphinx_public_key<P: AsRef<Path>>(
     path: P,
-) -> Result<encryption::PublicKey, NymNodeError> {
+) -> Result<x25519::PublicKey, NymNodeError> {
     Ok(load_key(path, "x25519-sphinx-public-key")?)
 }
 
 pub(crate) fn store_ed25519_identity_keypair(
-    keys: &identity::KeyPair,
+    keys: &ed25519::KeyPair,
     paths: KeyPairPath,
 ) -> Result<(), NymNodeError> {
     Ok(store_keypair(keys, paths, "ed25519-identity")?)
 }
 
 pub(crate) fn store_x25519_sphinx_keypair(
-    keys: &encryption::KeyPair,
+    keys: &x25519::KeyPair,
     paths: KeyPairPath,
 ) -> Result<(), NymNodeError> {
     Ok(store_keypair(keys, paths, "x25519-sphinx")?)
+}
+
+pub(crate) fn store_x25519_noise_keypair(
+    keys: &x25519::KeyPair,
+    paths: KeyPairPath,
+) -> Result<(), NymNodeError> {
+    Ok(store_keypair(keys, paths, "x25519-noise")?)
 }

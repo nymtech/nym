@@ -6,8 +6,7 @@ use crate::error::ClientCoreError;
 use crate::{
     client::{
         base_client::{
-            non_wasm_helpers::setup_fs_gateways_storage,
-            storage::helpers::{get_all_registered_identities, set_active_gateway},
+            non_wasm_helpers::setup_fs_gateways_storage, storage::helpers::set_active_gateway,
         },
         key_manager::persistence::OnDiskKeys,
     },
@@ -51,16 +50,6 @@ pub struct CommonClientInitArgs {
     /// uniformly.
     #[cfg_attr(feature = "cli", clap(long, conflicts_with = "gateway"))]
     pub latency_based_selection: bool,
-
-    /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
-    /// potentially causing loss of access.
-    #[cfg_attr(feature = "cli", clap(long))]
-    pub force_register_gateway: bool,
-
-    /// If the registration is happening against new gateway,
-    /// specify whether it should be set as the currently active gateway
-    #[cfg_attr(feature = "cli", clap(long, default_value_t = true))]
-    pub set_active: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
     #[cfg_attr(
@@ -118,27 +107,15 @@ where
     let common_args = init_args.as_ref();
     let id = &common_args.id;
 
-    let already_init = if C::default_config_path(id).exists() {
-        // in case we're using old config, try to upgrade it
-        // (if we're using the current version, it's a no-op)
-        C::try_upgrade_outdated_config(id).await?;
+    if C::default_config_path(id).exists() {
         eprintln!("{} client \"{id}\" was already initialised before", C::NAME);
-        true
-    } else {
-        info!(
-            "{} client {id:?} hasn't been initialised before - new keys are going to be generated",
-            C::NAME
-        );
-        C::initialise_storage_paths(id)?;
-        false
-    };
-
-    // Usually you only register with the gateway on the first init, however you can force
-    // re-registering if wanted.
-    let user_wants_force_register = common_args.force_register_gateway;
-    if user_wants_force_register {
-        eprintln!("Instructed to force registering gateway. This might overwrite keys!");
+        return Err(ClientCoreError::AlreadyInitialised {
+            client_id: id.to_string(),
+        }
+        .into());
     }
+
+    C::initialise_storage_paths(id)?;
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway;
@@ -171,24 +148,8 @@ where
     let key_store = OnDiskKeys::new(paths.keys.clone());
     let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
-    // if this is a first time client with this particular id is initialised, generated long-term keys
-    if !already_init {
-        let mut rng = OsRng;
-        crate::init::generate_new_client_keys(&mut rng, &key_store).await?;
-    }
-
-    let registered_gateways = get_all_registered_identities(&details_store).await?;
-
-    // if user provided gateway id (and we can't overwrite data), make sure we're not trying to register
-    // with a known gateway
-    if let Some(user_chosen) = user_chosen_gateway_id {
-        if !common_args.force_register_gateway && registered_gateways.contains(&user_chosen) {
-            return Err(ClientCoreError::AlreadyRegistered {
-                gateway_id: user_chosen.to_base58_string(),
-            }
-            .into());
-        }
-    }
+    let mut rng = OsRng;
+    crate::init::generate_new_client_keys(&mut rng, &key_store).await?;
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
@@ -205,22 +166,10 @@ where
         crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
     };
 
-    // since we're registering with a brand new gateway,
-    // make sure the list of available gateways doesn't overlap the list of known gateways
-    let available_gateways = if common_args.force_register_gateway {
-        // if we're force registering, all bets are off
-        available_gateways
-    } else {
-        available_gateways
-            .into_iter()
-            .filter(|g| !registered_gateways.contains(g.identity()))
-            .collect()
-    };
-
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
-        overwrite_data: common_args.force_register_gateway,
+        overwrite_data: false,
         wg_tun_address: None,
     };
 
@@ -228,24 +177,21 @@ where
         crate::init::setup_gateway(gateway_setup, &key_store, &details_store).await?;
 
     // TODO: ask the service provider we specified for its interface version and set it in the config
-
-    if !already_init {
-        let config_save_location = config.default_store_location();
-        if let Err(err) = config.save_to(&config_save_location) {
-            return Err(ClientCoreError::ConfigSaveFailure {
-                typ: C::NAME.to_string(),
-                id: id.to_string(),
-                path: config_save_location,
-                source: err,
-            }
-            .into());
+    let config_save_location = config.default_store_location();
+    if let Err(err) = config.save_to(&config_save_location) {
+        return Err(ClientCoreError::ConfigSaveFailure {
+            typ: C::NAME.to_string(),
+            id: id.to_string(),
+            path: config_save_location,
+            source: err,
         }
-
-        eprintln!(
-            "Saved configuration file to {}",
-            config_save_location.display()
-        );
+        .into());
     }
+
+    eprintln!(
+        "Saved configuration file to {}",
+        config_save_location.display()
+    );
 
     let address = init_details.client_address();
 
@@ -260,11 +206,7 @@ where
         init_details.gateway_registration.registration_timestamp,
     );
 
-    if init_args.as_ref().set_active {
-        set_active_gateway(&details_store, &init_results.gateway_id).await?;
-    } else {
-        info!("registered with new gateway {} (under address {address}), but this will not be our default address", init_results.gateway_id);
-    }
+    set_active_gateway(&details_store, &init_results.gateway_id).await?;
 
     Ok(InitResultsWithConfig {
         config,

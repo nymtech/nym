@@ -24,6 +24,7 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::sync::OnceLock;
 
+mod add_gateway;
 pub(crate) mod build_info;
 mod import_credential;
 pub mod init;
@@ -81,6 +82,9 @@ pub(crate) enum Commands {
     /// List all registered with gateways
     ListGateways(list_gateways::Args),
 
+    /// Add new gateway to this client
+    AddGateway(add_gateway::Args),
+
     /// Change the currently active gateway. Note that you must have already registered with the new gateway!
     SwitchGateway(switch_gateway::Args),
 
@@ -117,6 +121,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
         Commands::Run(m) => run::execute(m).await?,
         Commands::ImportCredential(m) => import_credential::execute(m).await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
+        Commands::AddGateway(args) => add_gateway::execute(args).await?,
         Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),

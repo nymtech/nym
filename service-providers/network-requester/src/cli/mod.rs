@@ -16,6 +16,7 @@ use nym_client_core::cli_helpers::CliClient;
 use nym_config::OptionalSet;
 use std::sync::OnceLock;
 
+mod add_gateway;
 mod build_info;
 mod import_credential;
 mod init;
@@ -78,6 +79,9 @@ pub(crate) enum Commands {
 
     /// List all registered with gateways
     ListGateways(list_gateways::Args),
+
+    /// Add new gateway to this client
+    AddGateway(add_gateway::Args),
 
     /// Change the currently active gateway. Note that you must have already registered with the new gateway!
     SwitchGateway(switch_gateway::Args),
@@ -178,6 +182,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
         Commands::Sign(m) => sign::execute(&m).await?,
         Commands::ImportCredential(m) => import_credential::execute(m).await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
+        Commands::AddGateway(args) => add_gateway::execute(args).await?,
         Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),

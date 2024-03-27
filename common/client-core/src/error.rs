@@ -198,6 +198,9 @@ pub enum ClientCoreError {
         source: url::ParseError,
     },
 
+    #[error("this client (id: '{client_id}') has already been initialised before. If you want to add additional gateway, use `add-gateway` command")]
+    AlreadyInitialised { client_id: String },
+
     #[error("this client has already registered with gateway {gateway_id}")]
     AlreadyRegistered { gateway_id: String },
 }

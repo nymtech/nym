@@ -123,6 +123,30 @@ pub(crate) struct HttpArgs {
         alias = "http-bearer-token"
     )]
     pub(crate) http_access_token: Option<String>,
+
+    /// Specify whether basic system information should be exposed.
+    /// default: true
+    #[clap(
+        long,
+        env = NYMNODE_HTTP_EXPOSE_SYSTEM_INFO_ARG,
+    )]
+    pub(crate) expose_system_info: Option<bool>,
+
+    /// Specify whether basic system hardware information should be exposed.
+    /// default: true
+    #[clap(
+        long,
+        env = NYMNODE_HTTP_EXPOSE_SYSTEM_HARDWARE_ARG
+    )]
+    pub(crate) expose_system_hardware: Option<bool>,
+
+    /// Specify whether detailed system crypto hardware information should be exposed.
+    /// default: true
+    #[clap(
+        long,
+        env = NYMNODE_HTTP_EXPOSE_CRYPTO_HARDWARE_ARG
+    )]
+    pub(crate) expose_crypto_hardware: Option<bool>,
 }
 
 impl HttpArgs {
@@ -140,6 +164,15 @@ impl HttpArgs {
         }
         if let Some(access_token) = self.http_access_token {
             section.access_token = Some(access_token)
+        }
+        if let Some(expose_system_info) = self.expose_system_info {
+            section.expose_system_info = expose_system_info
+        }
+        if let Some(expose_hardware_info) = self.expose_system_hardware {
+            section.expose_system_hardware = expose_hardware_info
+        }
+        if let Some(expose_crypto_hardware) = self.expose_crypto_hardware {
+            section.expose_crypto_hardware = expose_crypto_hardware
         }
         section
     }

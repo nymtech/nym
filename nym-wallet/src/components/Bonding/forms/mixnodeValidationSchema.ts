@@ -42,17 +42,17 @@ export const mixnodeValidationSchema = Yup.object().shape({
 });
 
 const operatingCostAndPmValidation = {
-  profitMargin: Yup.number().required('Profit Percentage is required').min(7).max(80),
+  profitMargin: Yup.number().required('Profit Percentage is required').min(4).max(80),
   operatorCost: Yup.object().shape({
     amount: Yup.string()
       .required('An operating cost is required')
       // eslint-disable-next-line prefer-arrow-callback
       .test(
         'valid-operating-cost',
-        'A valid amount is required (min 500 - max 2000)',
+        'A valid amount is required (min 40 - max 2000)',
         async function isValidAmount(this, value) {
-          if (value && (!Number(value) || isLessThan(+value, 500) || isGreaterThan(+value, 2000))) {
-            return this.createError({ message: 'A valid amount is required (min 500 - max 2000)' });
+          if (value && (!Number(value) || isLessThan(+value, 40) || isGreaterThan(+value, 2000))) {
+            return this.createError({ message: 'A valid amount is required (min 40 - max 2000)' });
           }
           return true;
         },

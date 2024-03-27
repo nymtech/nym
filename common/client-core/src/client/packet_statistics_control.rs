@@ -27,16 +27,6 @@ use std::net::SocketAddr;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use tokio::net::TcpListener;
 
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-struct DummyListener;
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-impl DummyListener {
-    async fn accept(&self) {
-        log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
-    }
-}
-
 use crate::spawn_future;
 
 // Time interval between reporting packet statistics
@@ -518,7 +508,7 @@ impl PacketStatisticsControl {
         cfg_if::cfg_if! {
             if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
-                let listener: Option<DummyListener> = None;
+                let listener: Option<WasmEmpty> = None;
             } else if #[cfg(feature = "metrics-server")] {
                 let mut metrics_port = 18000;
                 let listener: Option<TcpListener>;

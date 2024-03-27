@@ -82,6 +82,19 @@ landing_page_assets_path = '{{ http.landing_page_assets_path }}'
 # Currently only used for obtaining mixnode's stats.
 access_token = '{{ http.access_token }}'
 
+# Specify whether basic system information should be exposed.
+# default: true
+expose_system_info = {{ http.expose_system_info }}
+
+# Specify whether basic system hardware information should be exposed.
+# This option is superseded by `expose_system_info`
+# default: true
+expose_system_hardware = {{ http.expose_system_hardware }}
+
+# Specify whether detailed system crypto hardware information should be exposed.
+# This option is superseded by `expose_system_hardware`
+# default: true
+expose_crypto_hardware = {{ http.expose_crypto_hardware }}
 
 ##### wireguard-API nym-node config options #####
 

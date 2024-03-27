@@ -364,10 +364,12 @@ pub struct Http {
     pub expose_system_info: bool,
 
     /// Specify whether basic system hardware information should be exposed.
+    /// This option is superseded by `expose_system_info`
     /// default: true
     pub expose_system_hardware: bool,
 
     /// Specify whether detailed system crypto hardware information should be exposed.
+    /// This option is superseded by `expose_system_hardware`
     /// default: true
     pub expose_crypto_hardware: bool,
 }

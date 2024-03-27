@@ -27,8 +27,8 @@ pub struct CommonClientAddGatewayArgs {
 
     /// Explicitly specify id of the gateway to register with.
     /// If unspecified, a random gateway will be chosen instead.
-    #[cfg_attr(feature = "cli", clap(long))]
-    pub gateway: Option<identity::PublicKey>,
+    #[cfg_attr(feature = "cli", clap(long, alias = "gateway"))]
+    pub gateway_id: Option<identity::PublicKey>,
 
     /// Specifies whether the client will attempt to enforce tls connection to the desired gateway.
     #[cfg_attr(feature = "cli", clap(long))]
@@ -86,7 +86,7 @@ where
     }
 
     // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = common_args.gateway;
+    let user_chosen_gateway_id = common_args.gateway_id;
     log::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
 
     let selection_spec = GatewaySelectionSpecification::new(

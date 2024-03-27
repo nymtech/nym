@@ -6,7 +6,6 @@ use crate::error::NetworkRequesterError;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_add_gateway::{add_gateway, CommonClientAddGatewayArgs};
 
-
 #[derive(clap::Args)]
 pub(crate) struct Args {
     #[command(flatten)]

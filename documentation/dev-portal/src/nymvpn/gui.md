@@ -15,9 +15,13 @@ Visit NymVPN alpha latest [release page]({{nym_vpn_releases}}) to check sha sums
 ## Linux AppImage Automated Installation Method
 
 The latest releases contain `appimage.sh` script. This method makes the installation simple for Linux users who want to run NymVPN from AppImmage. Executing the command below will download the binary to `~/.local/bin` and verify the checksum.
-
 ```sh
 curl -fsSL https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-desktop-v<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->/appimage.sh | bash
+```
+
+Run with the command
+```sh
+sudo ~/.local/bin/nym-vpn.appimage
 ```
 
 ## Automated Script for GUI Installation (Linux and Mac)
@@ -26,7 +30,7 @@ We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d
 
 1. Open a terminal window in a directory where you want the script to be downloaded and run
 ```sh
-curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/702cb6ca032ac50be5e7feb0a9993edf67819669/nym-vpn-client-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
+curl -o nym-vpn-desktop-install-run.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/939ac8d0afed69f43739b9cf2e5728454ea2c437/nym-vpn-client-install-run.sh && chmod u+x nym-vpn-desktop-install-run.sh && sudo -E ./nym-vpn-desktop-install-run.sh
 ```
 
 2. Follow the prompts in the program

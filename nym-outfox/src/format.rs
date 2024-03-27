@@ -63,8 +63,6 @@ use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
 use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 
-
-
 use std::ops::Range;
 use std::u8;
 
@@ -78,7 +76,6 @@ use crate::constants::ROUTING_INFORMATION_LENGTH_BY_STAGE;
 use crate::constants::TAGBYTES;
 use crate::error::OutfoxError;
 use crate::lion::*;
-
 
 /// A structure that holds mix packet construction parameters. These incluse the length
 /// of the routing information at each hop, the number of hops, and the payload length.
@@ -317,7 +314,6 @@ impl MixStageParameters {
 #[cfg(test)]
 mod test {
     use super::MixCreationParameters;
-
 
     #[test]
     fn test_to_bytes() {

@@ -29,7 +29,6 @@ use cosmrs::{AccountId, Any, Coin as CosmosCoin};
 use prost::Message;
 use serde::Serialize;
 
-
 pub use cosmrs::abci::GasInfo;
 
 pub type ContractCodeId = u64;

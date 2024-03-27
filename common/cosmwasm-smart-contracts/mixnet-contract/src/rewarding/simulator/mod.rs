@@ -596,7 +596,6 @@ mod tests {
     #[test]
     #[allow(clippy::inconsistent_digit_grouping)]
     fn multiple_nodes_against_known_values() {
-
         // TODO: this test can be further improved by checking values after EVERY interval
         // rather than just checking the final results
 

@@ -96,7 +96,7 @@ impl Display for MixnetEventType {
             MixnetEventType::GatewayConfigUpdate => "gateway_config_update",
         };
 
-        write!(f,"{EVENT_VERSION_PREFIX}{event_name}")
+        write!(f, "{EVENT_VERSION_PREFIX}{event_name}")
     }
 }
 

@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 
-
-
 use self::types::SocksProxyError;
 
 pub mod authentication;

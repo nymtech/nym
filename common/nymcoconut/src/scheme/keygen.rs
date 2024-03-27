@@ -5,8 +5,6 @@ use core::borrow::Borrow;
 use core::iter::Sum;
 use core::ops::{Add, Mul};
 
-
-
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::Curve;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};

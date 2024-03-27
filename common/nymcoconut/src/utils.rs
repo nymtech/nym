@@ -4,7 +4,6 @@
 use core::iter::Sum;
 use core::ops::Mul;
 
-
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Projective, Scalar};
 use ff::Field;

@@ -73,7 +73,6 @@ pub trait Client {
         dealing_index: DealingIndex,
     ) -> Result<DealingStatusResponse>;
 
-  
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>>;
 
     #[allow(dead_code)]

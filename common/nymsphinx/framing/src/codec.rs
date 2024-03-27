@@ -241,7 +241,7 @@ mod packet_encoding {
     mod decode_will_allocate_enough_bytes_for_next_call {
         use super::*;
         use nym_sphinx_params::packet_version::PacketVersion;
-        
+
         #[test]
         fn for_empty_bytes() {
             // empty bytes should allocate for header + ack packet

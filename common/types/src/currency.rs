@@ -396,7 +396,7 @@ impl TryFrom<DecCoin> for Coin {
 #[cfg(test)]
 mod test {
     use super::*;
-    
+
     #[test]
     fn dec_value_scale_down() {
         let dec = DecCoin {

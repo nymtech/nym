@@ -4,7 +4,6 @@
 use crate::verloc::error::RttError;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH, SIGNATURE_LENGTH};
 
-
 pub(crate) struct EchoPacket {
     sequence_number: u64,
     sender: identity::PublicKey,

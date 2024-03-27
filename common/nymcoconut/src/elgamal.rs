@@ -3,8 +3,6 @@
 
 use core::ops::{Deref, Mul};
 
-
-
 use bls12_381::{G1Projective, Scalar};
 use group::Curve;
 use serde_derive::{Deserialize, Serialize};

@@ -411,7 +411,6 @@ mod tests {
         use crate::support::tests::test_helpers::get_bank_send_msg;
         use cosmwasm_std::testing::mock_info;
 
-
         #[test]
         fn for_non_existent_delegation() {
             let test = TestSetup::new();

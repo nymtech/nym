@@ -8,7 +8,6 @@ use crate::CoconutError;
 use bls12_381::{G1Affine, G1Projective, Scalar};
 use group::GroupEncoding;
 
-
 pub trait Bytable
 where
     Self: Sized,

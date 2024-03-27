@@ -8,7 +8,6 @@ use nym_sphinx_params::packet_version::PacketVersion;
 use nym_sphinx_params::PacketType;
 use nym_sphinx_types::NymPacket;
 
-
 #[derive(Debug)]
 pub struct FramedNymPacket {
     /// Contains any metadata helping receiver to handle the underlying packet.

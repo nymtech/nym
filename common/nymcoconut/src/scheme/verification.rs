@@ -13,8 +13,6 @@ use bls12_381::{multi_miller_loop, G1Affine, G2Prepared, G2Projective, Scalar};
 use core::ops::Neg;
 use group::{Curve, Group};
 
-
-
 pub use crate::scheme::double_use::BlindedSerialNumber;
 
 // TODO NAMING: this whole thing

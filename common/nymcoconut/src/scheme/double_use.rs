@@ -7,7 +7,6 @@ use crate::utils::try_deserialize_g2_projective;
 use bls12_381::{G2Affine, G2Projective};
 use group::Curve;
 
-
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 

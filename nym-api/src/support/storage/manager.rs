@@ -8,7 +8,6 @@ use crate::support::storage::models::{
 };
 use nym_mixnet_contract_common::{EpochId, IdentityKey, MixId};
 
-
 #[derive(Clone)]
 pub(crate) struct StorageManager {
     pub(crate) connection_pool: sqlx::SqlitePool,

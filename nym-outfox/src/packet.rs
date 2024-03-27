@@ -1,8 +1,4 @@
-use std::{
-    array::TryFromSliceError,
-    collections::VecDeque,
-    ops::Range,
-};
+use std::{array::TryFromSliceError, collections::VecDeque, ops::Range};
 
 use crate::{
     constants::{DEFAULT_HOPS, MAGIC_SLICE, MIN_PACKET_SIZE, MIX_PARAMS_LEN},

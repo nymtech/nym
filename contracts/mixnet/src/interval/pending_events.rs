@@ -1983,8 +1983,8 @@ mod tests {
 
     #[cfg(test)]
     mod changing_mix_cost_params {
-        use cosmwasm_std::coin;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use cosmwasm_std::coin;
 
         use super::*;
 

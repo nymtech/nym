@@ -1,8 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-
-
 use std::ops::Neg;
 
 use bls12_381::{multi_miller_loop, G1Affine, G1Projective, G2Prepared, Scalar};

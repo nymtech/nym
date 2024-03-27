@@ -17,7 +17,6 @@ use std::collections::BTreeMap;
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
-
 #[cfg(feature = "wasm-serde-types")]
 use tsify::Tsify;
 

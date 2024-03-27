@@ -5,7 +5,6 @@
 
 use std::borrow::Borrow;
 
-
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use digest::generic_array::typenum::Unsigned;
 use digest::Digest;

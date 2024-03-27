@@ -500,9 +500,7 @@ pub mod tests {
     use cosmwasm_std::{Order, StdResult, Uint128};
 
     use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-    use mixnet_contract_common::{
-        EpochState, EpochStatus, ExecuteMsg, LayerDistribution, Percent,
-    };
+    use mixnet_contract_common::{EpochState, EpochStatus, ExecuteMsg, LayerDistribution, Percent};
 
     use crate::contract::execute;
     use crate::mixnet_contract_settings::storage::minimum_mixnode_pledge;

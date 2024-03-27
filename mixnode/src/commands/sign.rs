@@ -11,7 +11,6 @@ use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
 
-
 use super::version_check;
 
 #[derive(Args, Clone)]

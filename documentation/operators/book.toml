@@ -36,10 +36,6 @@ performance_testing_release = "v2024.2-fast-and-furious-v2"
 # dependencies
 prometheus_latest_version = "v2.50.1"
 
-# nym-vpn related variables
-#nym_vpn_latest_binary_url = "https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.4"
-#nym_vpn_form_url = "https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2"
-
 [preprocessor.last-changed]
 command = "mdbook-last-changed"
 renderer = ["html"]

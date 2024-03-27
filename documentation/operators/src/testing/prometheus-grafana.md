@@ -2,7 +2,7 @@
 
 The combination of Prometheus and Grafana is a common stack used by Nym team for internal monitoring as well as by core community operators like [ExploreNym](https://github.com/ExploreNYM/vps-monitor) or [No Trust Verify](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1).
 
-<!-- Write about adventages of this setup -->
+
 
 ## Prometheus
 

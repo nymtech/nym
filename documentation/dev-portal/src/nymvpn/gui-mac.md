@@ -1,7 +1,7 @@
 # NymVPN alpha - Desktop: Guide for Mac OS
 
 ```admonish info
-NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
+NymVPN is an experimental software and it's for testing purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
 ```
 
 ## Preparation
@@ -9,13 +9,6 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ### Installation
-
-<!-- Seems redundant
-1. Create a directory `~/nym-vpn-latest`
-```sh
-mkdir -p "$HOME/nym-vpn-latest"
-```
--->
 
 1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for your version of MacOS
 
@@ -33,27 +26,9 @@ tar -xvf <BINARY>.tar.gz
 # for example
 # tar -xvf nym-vpn-desktop_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_macos_aarch64.tar.gz
 ```
-<!-- seems redundant
-5. Move to the application content directory:
-```sh
-cd "macos/nym-vpn.app/Contents/MacOS"
-
-# if it didn't work, try
-cd "/Applications/nym-vpn.app/Contents/MacOS/"
-```
-6. Make executable
-```sh
-chmod u+x nym-vpn
-```
-
-7. Move `nym-vpn` to your `~/nym-vpn-latest` directory
-```sh
-mv nym-vpn "$HOME/nym-vpn-latest"
-```
--->
 4. Mount the `.dmg` image you extracted by double clicking on it and move it (drag it) to your `/Application` folder
 
-
+<!--
 NymVPN alpha version runs over Nym testnet (called sandbox), a little extra configuration is needed for the application to work.
 
 ### Configuration
@@ -73,6 +48,8 @@ Alternatively do it by using this command:
 ```sh
 echo "env_config_file = sandbox.env" > /Applications/nym-vpn.app/Contents/MacOS/config.toml
 ```
+-->
+
 ## Run NymVPN
 
 **For NymVPN to work, all other VPNs must be switched off!** At this alpha stage of NymVPN, the network connection (wifi) must be reconnected after or in between the testing rounds.

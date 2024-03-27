@@ -4,7 +4,7 @@ use log::{debug, warn};
 use std::fmt;
 pub use std::time::Instant;
 
-use prometheus::{core::Collector, Counter, Encoder as _, Gauge, Registry, TextEncoder};
+use prometheus::{core::Collector, Encoder as _, IntCounter, IntGauge, Registry, TextEncoder};
 
 #[macro_export]
 macro_rules! prepend_package_name {
@@ -24,7 +24,7 @@ macro_rules! prepend_package_name {
 #[macro_export]
 macro_rules! inc_by {
     ($name:literal, $x:expr) => {
-        $crate::REGISTRY.inc_by($crate::prepend_package_name!($name), $x as f64);
+        $crate::REGISTRY.inc_by($crate::prepend_package_name!($name), $x as i64);
     };
 }
 
@@ -48,7 +48,7 @@ macro_rules! nanos {
         let start = $crate::Instant::now();
         // if the block needs to return something, we can return it
         let r = $x;
-        let duration = start.elapsed().as_nanos() as f64;
+        let duration = start.elapsed().as_nanos() as i64;
         let name = $crate::prepend_package_name!($name);
         $crate::REGISTRY.inc_by(&format!("{}_nanos", $name), duration);
         r
@@ -66,8 +66,8 @@ pub struct MetricsController {
 }
 
 enum Metric {
-    C(Box<Counter>),
-    G(Box<Gauge>),
+    C(Box<IntCounter>),
+    G(Box<IntGauge>),
 }
 
 fn fq_name(c: &dyn Collector) -> String {
@@ -95,15 +95,15 @@ impl Metric {
     }
 
     #[inline(always)]
-    fn inc_by(&self, value: f64) {
+    fn inc_by(&self, value: i64) {
         match self {
-            Metric::C(c) => c.inc_by(value),
+            Metric::C(c) => c.inc_by(value as u64),
             Metric::G(g) => g.add(value),
         }
     }
 
     #[inline(always)]
-    fn set(&self, value: f64) {
+    fn set(&self, value: i64) {
         match self {
             Metric::C(_c) => {
                 warn!("Cannot set value for counter {:?}", self.fq_name());
@@ -145,11 +145,11 @@ impl MetricsController {
         }
     }
 
-    pub fn set(&self, name: &str, value: f64) {
+    pub fn set(&self, name: &str, value: i64) {
         if let Some(metric) = self.registry_index.get(name) {
             metric.set(value);
         } else {
-            let gauge = match Gauge::new(sanitize_metric_name(name), name) {
+            let gauge = match IntGauge::new(sanitize_metric_name(name), name) {
                 Ok(g) => g,
                 Err(e) => {
                     debug!("Failed to create gauge {:?}:\n{}", name, e);
@@ -165,7 +165,7 @@ impl MetricsController {
         if let Some(metric) = self.registry_index.get(name) {
             metric.inc();
         } else {
-            let counter = match Counter::new(sanitize_metric_name(name), name) {
+            let counter = match IntCounter::new(sanitize_metric_name(name), name) {
                 Ok(c) => c,
                 Err(e) => {
                     debug!("Failed to create counter {:?}:\n{}", name, e);
@@ -177,11 +177,11 @@ impl MetricsController {
         }
     }
 
-    pub fn inc_by(&self, name: &str, value: f64) {
+    pub fn inc_by(&self, name: &str, value: i64) {
         if let Some(metric) = self.registry_index.get(name) {
             metric.inc_by(value);
         } else {
-            let counter = match Counter::new(sanitize_metric_name(name), name) {
+            let counter = match IntCounter::new(sanitize_metric_name(name), name) {
                 Ok(c) => c,
                 Err(e) => {
                     debug!("Failed to create counter {:?}:\n{}", name, e);
@@ -193,7 +193,7 @@ impl MetricsController {
         }
     }
 
-    fn register_gauge(&self, metric: Box<Gauge>) {
+    fn register_gauge(&self, metric: Box<IntGauge>) {
         let fq_name = metric
             .desc()
             .first()
@@ -215,7 +215,7 @@ impl MetricsController {
         }
     }
 
-    fn register_counter(&self, metric: Box<Counter>) {
+    fn register_counter(&self, metric: Box<IntCounter>) {
         let fq_name = metric
             .desc()
             .first()

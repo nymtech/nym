@@ -14,7 +14,7 @@ Long term involved operator Pawnflake, an author of [ExploreNYM](https://explore
 
 In collaboration with ExploreNYM we published a [step by step guide](#setup) to set this up.
 
-ExploreNYM also has a network measuring instance called `enym-monitor`. This setup is very simple for users, however it means that their data are all aggregated into one server and that is a design we would like to discourage from using as a primary one.
+ExploreNYM also has a network measuring instance called `enym-monitor`. This setup is very simple for users, however it means that their data are all aggregated into one server and that is a design we would like to discourage from using as a primary one because such setup always brings a risk of centralisation of distributed node's data into one computer.
 
 ## Setup
 

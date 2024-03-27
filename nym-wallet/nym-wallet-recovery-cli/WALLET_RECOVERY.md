@@ -13,7 +13,7 @@ This guide provides instructions on how to use the Wallet CLI recovery tool to r
 
 The tool requires specific command-line arguments to specify the password(s) and the file path to your wallet file. The basic structure of the command is as follows:
 
-```plaintext
+```
 nym-recovery-cli --password <YOUR_PASSWORD> --file <PATH_TO_YOUR_WALLET_FILE> [OPTIONS]
 ```
 
@@ -28,13 +28,13 @@ nym-recovery-cli --password <YOUR_PASSWORD> --file <PATH_TO_YOUR_WALLET_FILE> [O
 
 Example:
 
-```bash
+```
 ./nym-recovery-cli --password "mySecurePassword123" --file "/path/to/mywallet.json"
 ```
 
 To try multiple passwords:
 
-```bash
+```
 ./nym-recovery-cli --password "myFirstPassword" --password "mySecondPassword" --file "/path/to/mywallet.json"
 ```
 

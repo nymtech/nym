@@ -23,6 +23,12 @@ impl Default for EphemeralStorage {
     }
 }
 
+impl std::fmt::Debug for EphemeralStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EphemeralStorage {{ .. }}")
+    }
+}
+
 #[async_trait]
 impl Storage for EphemeralStorage {
     type StorageError = StorageError;

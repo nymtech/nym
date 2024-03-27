@@ -179,6 +179,13 @@ impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
 }
 
 #[derive(Clone, Debug)]
+pub enum GatewaySelectionSpecificationInput {
+    GatewayIdentity(String),
+    LatencyBased,
+    Uniform,
+}
+
+#[derive(Clone, Debug)]
 pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     /// Uniformly choose a random remote gateway.
     UniformRemote { must_use_tls: bool },
@@ -226,8 +233,26 @@ impl<T> GatewaySelectionSpecification<T> {
             GatewaySelectionSpecification::UniformRemote { must_use_tls }
         }
     }
+
+    pub fn new_from_input(input: GatewaySelectionSpecificationInput, must_use_tls: bool) -> Self {
+        match input {
+            GatewaySelectionSpecificationInput::GatewayIdentity(identity) => {
+                GatewaySelectionSpecification::Specified {
+                    identity,
+                    must_use_tls,
+                }
+            }
+            GatewaySelectionSpecificationInput::LatencyBased => {
+                GatewaySelectionSpecification::RemoteByLatency { must_use_tls }
+            }
+            GatewaySelectionSpecificationInput::Uniform => {
+                GatewaySelectionSpecification::UniformRemote { must_use_tls }
+            }
+        }
+    }
 }
 
+#[derive(Debug)]
 pub enum GatewaySetup<T = EmptyCustomDetails> {
     /// The gateway specification (details + keys) MUST BE loaded from the underlying storage.
     MustLoad,

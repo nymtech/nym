@@ -17,7 +17,7 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 // convenience aliases
-type PacketsMap = HashMap<String, f64>;
+type PacketsMap = HashMap<String, u64>;
 type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
 
@@ -34,10 +34,10 @@ impl SharedNodeStats {
             inner: Arc::new(RwLock::new(NodeStats {
                 update_time: now,
                 previous_update_time: now,
-                packets_received_since_startup: 0.,
-                packets_sent_since_startup_all: 0.,
-                packets_dropped_since_startup_all: 0.,
-                packets_received_since_last_update: 0.,
+                packets_received_since_startup: 0,
+                packets_sent_since_startup_all: 0,
+                packets_dropped_since_startup_all: 0,
+                packets_received_since_last_update: 0,
                 packets_sent_since_last_update: HashMap::new(),
                 packets_explicitly_dropped_since_last_update: HashMap::new(),
             })),
@@ -46,7 +46,7 @@ impl SharedNodeStats {
 
     pub(crate) async fn update(
         &self,
-        new_received: f64,
+        new_received: u64,
         new_sent: PacketsMap,
         new_dropped: PacketsMap,
     ) {
@@ -68,11 +68,11 @@ impl SharedNodeStats {
         inc_by!("packets_received_since_startup", new_received);
         inc_by!(
             "packets_sent_since_startup_all",
-            new_sent.values().sum::<f64>()
+            new_sent.values().sum::<u64>()
         );
         inc_by!(
             "packets_dropped_since_startup_all",
-            new_dropped.values().sum::<f64>()
+            new_dropped.values().sum::<u64>()
         );
 
         guard.packets_received_since_last_update = new_received;
@@ -95,10 +95,10 @@ pub struct NodeStats {
 
     previous_update_time: SystemTime,
 
-    packets_received_since_startup: f64,
-    packets_sent_since_startup_all: f64,
-    packets_dropped_since_startup_all: f64,
-    packets_received_since_last_update: f64,
+    packets_received_since_startup: u64,
+    packets_sent_since_startup_all: u64,
+    packets_dropped_since_startup_all: u64,
+    packets_received_since_last_update: u64,
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
     packets_sent_since_last_update: PacketsMap,
     // we know for sure we dropped packets to those destinations
@@ -110,10 +110,10 @@ impl Default for NodeStats {
         NodeStats {
             update_time: SystemTime::UNIX_EPOCH,
             previous_update_time: SystemTime::UNIX_EPOCH,
-            packets_received_since_startup: 0.,
-            packets_sent_since_startup_all: 0.,
-            packets_dropped_since_startup_all: 0.,
-            packets_received_since_last_update: 0.,
+            packets_received_since_startup: 0,
+            packets_sent_since_startup_all: 0,
+            packets_dropped_since_startup_all: 0,
+            packets_received_since_last_update: 0,
             packets_sent_since_last_update: Default::default(),
             packets_explicitly_dropped_since_last_update: Default::default(),
         }
@@ -146,21 +146,21 @@ pub struct NodeStatsSimple {
     #[serde(serialize_with = "humantime_serde::serialize")]
     previous_update_time: SystemTime,
 
-    packets_received_since_startup: f64,
+    packets_received_since_startup: u64,
 
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_startup: f64,
+    packets_sent_since_startup: u64,
 
     // we know for sure we dropped those packets
-    packets_explicitly_dropped_since_startup: f64,
+    packets_explicitly_dropped_since_startup: u64,
 
-    packets_received_since_last_update: f64,
+    packets_received_since_last_update: u64,
 
     // note: sent does not imply forwarded. We don't know if it was delivered successfully
-    packets_sent_since_last_update: f64,
+    packets_sent_since_last_update: u64,
 
     // we know for sure we dropped those packets
-    packets_explicitly_dropped_since_last_update: f64,
+    packets_explicitly_dropped_since_last_update: u64,
 }
 
 pub(crate) enum PacketEvent {
@@ -198,14 +198,14 @@ impl CurrentPacketData {
 
     async fn increment_sent(&self, destination: String) {
         let mut unlocked = self.inner.sent.lock().await;
-        let receiver_count = unlocked.entry(destination).or_insert(0.);
-        *receiver_count += 1.;
+        let receiver_count = unlocked.entry(destination).or_insert(0);
+        *receiver_count += 1;
     }
 
     async fn increment_dropped(&self, destination: String) {
         let mut unlocked = self.inner.dropped.lock().await;
-        let dropped_count = unlocked.entry(destination).or_insert(0.);
-        *dropped_count += 1.;
+        let dropped_count = unlocked.entry(destination).or_insert(0);
+        *dropped_count += 1;
     }
 
     async fn acquire_and_reset(&self) -> (u64, PacketsMap, PacketsMap) {
@@ -327,9 +327,7 @@ impl StatsUpdater {
     async fn update_stats(&self) {
         // grab new data since last update
         let (received, sent, dropped) = self.current_packet_data.acquire_and_reset().await;
-        self.current_stats
-            .update(received as f64, sent, dropped)
-            .await;
+        self.current_stats.update(received, sent, dropped).await;
     }
 
     async fn run(&mut self) {
@@ -374,17 +372,17 @@ impl PacketStatsConsoleLogger {
             info!(
                 "Since startup mixed {} packets! ({} in last {} seconds)",
                 stats.packets_sent_since_startup_all,
-                stats.packets_sent_since_last_update.values().sum::<f64>(),
+                stats.packets_sent_since_last_update.values().sum::<u64>(),
                 difference_secs,
             );
-            if stats.packets_dropped_since_startup_all > 0. {
+            if stats.packets_dropped_since_startup_all > 0 {
                 info!(
                     "Since startup dropped {} packets! ({} in last {} seconds)",
                     stats.packets_dropped_since_startup_all,
                     stats
                         .packets_explicitly_dropped_since_last_update
                         .values()
-                        .sum::<f64>(),
+                        .sum::<u64>(),
                     difference_secs,
                 );
             }
@@ -406,7 +404,7 @@ impl PacketStatsConsoleLogger {
                 "Since startup mixed {} packets!",
                 stats.packets_sent_since_startup_all,
             );
-            if stats.packets_dropped_since_startup_all > 0. {
+            if stats.packets_dropped_since_startup_all > 0 {
                 info!(
                     "Since startup dropped {} packets!",
                     stats.packets_dropped_since_startup_all,
@@ -537,11 +535,11 @@ mod tests {
 
         // Get output (stats)
         let stats = node_stats_pointer.read().await;
-        assert_eq!(&stats.packets_sent_since_startup_all, &2.);
-        assert_eq!(&stats.packets_sent_since_last_update.get("foo"), &Some(&2.));
+        assert_eq!(&stats.packets_sent_since_startup_all, &2);
+        assert_eq!(&stats.packets_sent_since_last_update.get("foo"), &Some(&2));
         assert_eq!(&stats.packets_sent_since_last_update.len(), &1);
-        assert_eq!(&stats.packets_received_since_startup, &0.);
-        assert_eq!(&stats.packets_dropped_since_startup_all, &0.);
+        assert_eq!(&stats.packets_received_since_startup, &0);
+        assert_eq!(&stats.packets_dropped_since_startup_all, &0);
         assert_eq!(metrics!(), "# HELP nym_mixnode_packets_dropped_since_startup_all nym_mixnode_packets_dropped_since_startup_all\n# TYPE nym_mixnode_packets_dropped_since_startup_all counter\nnym_mixnode_packets_dropped_since_startup_all 0\n# HELP nym_mixnode_packets_received_since_startup nym_mixnode_packets_received_since_startup\n# TYPE nym_mixnode_packets_received_since_startup counter\nnym_mixnode_packets_received_since_startup 0\n# HELP nym_mixnode_packets_sent_since_startup_all nym_mixnode_packets_sent_since_startup_all\n# TYPE nym_mixnode_packets_sent_since_startup_all counter\nnym_mixnode_packets_sent_since_startup_all 2\n")
     }
 }

@@ -35,7 +35,7 @@ impl DoubleSpendingDetector {
 
     async fn update(&self) {
         //here be api query and union of different results
-        let mut bit_vec = BitVec::new();
+        let mut bit_vec = BitVec::from_elem(BLOOM_BITMAP_SIZE as usize, false);
         for ecash_client in &self.ecash_clients.read().await.1 {
             match ecash_client.api_client.spent_credentials().await {
                 Ok(response) => {
@@ -59,6 +59,8 @@ impl DoubleSpendingDetector {
         if epoch_id >= current_clients.0 {
             current_clients.1 = api_client;
         }
+        drop(current_clients);
+        self.update().await;
     }
 
     async fn run(&self, mut shutdown: TaskClient) {

@@ -75,7 +75,6 @@ mod test {
     use super::*;
     use crate::coconut::tests::{tx_entry_fixture, voucher_fixture};
     use cosmwasm_std::coin;
-    use nym_api_requests::coconut::BlindSignRequestBody;
     use nym_coconut::BlindSignRequest;
     use nym_coconut_bandwidth_contract_common::events::DEPOSITED_FUNDS_EVENT_TYPE;
     use nym_credentials::coconut::bandwidth::CredentialType;

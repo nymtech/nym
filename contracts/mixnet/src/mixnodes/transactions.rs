@@ -501,7 +501,7 @@ pub mod tests {
 
     use mixnet_contract_common::mixnode::PendingMixNodeChanges;
     use mixnet_contract_common::{
-        EpochState, EpochStatus, ExecuteMsg, Layer, LayerDistribution, Percent,
+        EpochState, EpochStatus, ExecuteMsg, LayerDistribution, Percent,
     };
 
     use crate::contract::execute;
@@ -1188,13 +1188,9 @@ pub mod tests {
 
     #[cfg(test)]
     mod increasing_mixnode_pledge {
-        use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-        use mixnet_contract_common::{EpochState, EpochStatus};
-
         use crate::mixnodes::helpers::tests::{
             setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
         };
-        use crate::support::tests::test_helpers::TestSetup;
 
         use super::*;
 
@@ -1496,13 +1492,9 @@ pub mod tests {
 
     #[cfg(test)]
     mod decreasing_mixnode_pledge {
-        use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-        use mixnet_contract_common::{EpochState, EpochStatus};
-
         use crate::mixnodes::helpers::tests::{
             setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
         };
-        use crate::support::tests::test_helpers::TestSetup;
 
         use super::*;
 

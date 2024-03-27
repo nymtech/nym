@@ -3,7 +3,7 @@
 
 use crate::ChunkingError;
 use nym_sphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
-use std::convert::TryInto;
+
 use std::fmt::{self, Debug, Formatter};
 
 // Personal reflection: In hindsight I've spent too much time on relatively too little

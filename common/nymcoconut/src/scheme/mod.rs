@@ -3,8 +3,8 @@
 
 // TODO: implement https://crates.io/crates/signature traits?
 
-use std::convert::TryFrom;
-use std::convert::TryInto;
+
+
 
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;

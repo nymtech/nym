@@ -4,7 +4,7 @@
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_params::{PacketSize, PacketType};
 use nym_sphinx_types::{NymPacket, NymPacketError};
-use std::convert::TryFrom;
+
 use std::fmt::{self, Debug, Formatter};
 use thiserror::Error;
 

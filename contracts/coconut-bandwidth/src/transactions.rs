@@ -114,7 +114,7 @@ mod tests {
     use crate::support::tests::fixtures::spend_credential_data_fixture;
     use crate::support::tests::helpers::{self, MULTISIG_CONTRACT, POOL_CONTRACT};
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{from_binary, Coin, CosmosMsg, WasmMsg};
+    use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
     use cw_controllers::AdminError;
     use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg;
     use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;

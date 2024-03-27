@@ -69,7 +69,6 @@ pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
 
     #[test]
     fn verify_cli() {

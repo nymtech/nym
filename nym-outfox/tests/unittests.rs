@@ -18,8 +18,6 @@ mod tests {
     use sphinx_packet::route::DestinationAddressBytes;
     use sphinx_packet::route::Node;
     use sphinx_packet::route::NodeAddressBytes;
-    use std::convert::TryFrom;
-    use std::convert::TryInto;
 
     use nym_outfox::format::*;
     use nym_outfox::lion::*;

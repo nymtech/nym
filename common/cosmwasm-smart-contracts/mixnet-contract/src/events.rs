@@ -8,6 +8,7 @@ use crate::rewarding::RewardDistribution;
 use crate::{BlockHeight, ContractStateParams, IdentityKeyRef, Interval, Layer, MixId};
 pub use contracts_common::events::*;
 use cosmwasm_std::{Addr, Coin, Decimal, Event};
+use std::fmt::Display;
 
 pub const EVENT_VERSION_PREFIX: &str = "v2_";
 
@@ -54,8 +55,8 @@ impl From<MixnetEventType> for String {
     }
 }
 
-impl ToString for MixnetEventType {
-    fn to_string(&self) -> String {
+impl Display for MixnetEventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let event_name = match self {
             MixnetEventType::MixnodeBonding => "mixnode_bonding",
             MixnetEventType::PendingPledgeIncrease => "pending_pledge_increase",
@@ -95,7 +96,7 @@ impl ToString for MixnetEventType {
             MixnetEventType::GatewayConfigUpdate => "gateway_config_update",
         };
 
-        format!("{EVENT_VERSION_PREFIX}{event_name}")
+        write!(f,"{EVENT_VERSION_PREFIX}{event_name}")
     }
 }
 

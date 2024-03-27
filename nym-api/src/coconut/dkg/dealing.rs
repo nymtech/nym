@@ -125,7 +125,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // update the state with the dealing information
         self.state
             .dealing_exchange_state_mut(epoch_id)?
-            .generated_dealings = dealings.clone();
+            .generated_dealings.clone_from(&dealings);
 
         Ok(dealings)
     }

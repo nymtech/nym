@@ -173,7 +173,6 @@ mod tests {
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::testing::mock_dependencies;
-    use cosmwasm_std::Order;
     use rand_chacha::rand_core::RngCore;
 
     fn read_entire_set(storage: &dyn Storage) -> HashMap<MixId, RewardedSetNodeStatus> {
@@ -202,7 +201,7 @@ mod tests {
         assert_eq!(standby, current_set.get(&7).unwrap());
         assert_eq!(standby, current_set.get(&4).unwrap());
         assert_eq!(standby, current_set.get(&1).unwrap());
-        assert!(current_set.get(&42).is_none());
+        assert!(!current_set.contains_key(&42));
 
         update_rewarded_set(store, 2, vec![2, 5, 6, 3, 4]).unwrap();
         let current_set = read_entire_set(store);
@@ -213,8 +212,8 @@ mod tests {
         assert_eq!(standby, current_set.get(&3).unwrap());
         assert_eq!(standby, current_set.get(&4).unwrap());
         // those no longer are in the rewarded set
-        assert!(current_set.get(&7).is_none());
-        assert!(current_set.get(&1).is_none());
+        assert!(!current_set.contains_key(&7));
+        assert!(!current_set.contains_key(&1));
     }
 
     #[test]

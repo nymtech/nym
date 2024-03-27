@@ -234,7 +234,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         }
 
         let votes = self.generate_votes(epoch_id).await?;
-        self.state.key_validation_state_mut(epoch_id)?.votes = votes.clone();
+        self.state.key_validation_state_mut(epoch_id)?.votes.clone_from(&votes);
 
         // send the votes
         for (proposal, vote) in votes {

@@ -406,12 +406,11 @@ mod tests {
     mod performing_pending_epoch_actions {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use cosmwasm_std::{coin, coins, wasm_execute, Addr, BankMsg, Empty, SubMsg};
+        use cosmwasm_std::{coin, coins, wasm_execute, BankMsg, Empty, SubMsg};
         use mixnet_contract_common::events::{
             new_active_set_update_event, new_delegation_on_unbonded_node_event,
             new_undelegation_event,
         };
-        use mixnet_contract_common::pending_events::PendingEpochEventKind;
 
         #[test]
         fn without_limit_executes_all_actions() {
@@ -1009,7 +1008,6 @@ mod tests {
         use mixnet_contract_common::events::{
             new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
         };
-        use mixnet_contract_common::pending_events::PendingEpochEventKind;
         use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 
         #[test]

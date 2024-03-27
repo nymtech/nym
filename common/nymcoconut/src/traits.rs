@@ -7,7 +7,7 @@
 use crate::CoconutError;
 use bls12_381::{G1Affine, G1Projective, Scalar};
 use group::GroupEncoding;
-use std::convert::TryInto;
+
 
 pub trait Bytable
 where

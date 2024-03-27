@@ -191,8 +191,7 @@ impl InputFileReader {
 #[cfg(test)]
 mod test_multiple_send_input_csv {
     use super::*;
-    use nym_validator_client::nyxd::AccountId;
-    use std::str::FromStr;
+
     #[test]
     fn works_on_happy_path() {
         let input_csv = InputFileReader::new("fixtures/test_send_multiple.csv").unwrap();

@@ -251,8 +251,6 @@ mod tests {
         use crate::mixnodes::transactions::try_remove_mixnode;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, Decimal};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward;
 
         #[test]
         fn for_non_existent_node() {
@@ -412,8 +410,7 @@ mod tests {
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::get_bank_send_msg;
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, Decimal};
-        use mixnet_contract_common::rewarding::helpers::truncate_reward;
+
 
         #[test]
         fn for_non_existent_delegation() {

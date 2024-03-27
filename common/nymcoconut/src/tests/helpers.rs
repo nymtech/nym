@@ -122,7 +122,6 @@ pub use random_scalars_refs;
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::{KeyPair, Parameters, SecretKey};
     use bls12_381::Scalar;
     use nym_dkg::{bte::decrypt_share, combine_shares, Dealing, NodeIndex};
     use rand_chacha::rand_core::SeedableRng;

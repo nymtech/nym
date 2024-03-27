@@ -18,7 +18,7 @@ use nym_sphinx::params::packet_sizes::PacketSize;
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
 use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
-use std::convert::{TryFrom, TryInto};
+
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use thiserror::Error;

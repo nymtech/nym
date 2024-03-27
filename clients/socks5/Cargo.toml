@@ -4,7 +4,7 @@ version = "1.1.33"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.70"
 license.workspace = true
 
 [dependencies]

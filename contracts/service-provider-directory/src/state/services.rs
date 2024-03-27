@@ -127,12 +127,9 @@ mod tests {
     };
     use rstest::rstest;
 
-    use crate::{
-        test_helpers::{
-            fixture::{service_fixture, service_fixture_with_address},
-            transactions::instantiate_test_contract,
-        },
-        SpContractError,
+    use crate::test_helpers::{
+        fixture::{service_fixture, service_fixture_with_address},
+        transactions::instantiate_test_contract,
     };
 
     use super::*;

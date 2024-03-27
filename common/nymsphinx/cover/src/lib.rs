@@ -16,7 +16,7 @@ use nym_sphinx_params::{
 use nym_sphinx_types::NymPacket;
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
-use std::convert::TryFrom;
+
 use std::time;
 use thiserror::Error;
 

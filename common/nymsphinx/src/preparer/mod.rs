@@ -17,7 +17,7 @@ use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
-use std::convert::TryFrom;
+
 use std::time::Duration;
 
 pub(crate) mod payload;

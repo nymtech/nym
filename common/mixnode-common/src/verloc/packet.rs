@@ -3,7 +3,7 @@
 
 use crate::verloc::error::RttError;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH, SIGNATURE_LENGTH};
-use std::convert::TryInto;
+
 
 pub(crate) struct EchoPacket {
     sequence_number: u64,

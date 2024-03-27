@@ -247,7 +247,6 @@ fn try_load_current_config(id: &str) -> Result<Config, ClientError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
 
     #[test]
     fn verify_cli() {

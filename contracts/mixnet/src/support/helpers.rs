@@ -11,6 +11,7 @@ use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixId, Mix
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 // helper trait to attach `Msg` to a response if it's provided
+#[allow(dead_code)]
 pub(crate) trait AttachOptionalMessage<T> {
     fn add_optional_message(self, msg: Option<impl Into<CosmosMsg<T>>>) -> Self;
 }

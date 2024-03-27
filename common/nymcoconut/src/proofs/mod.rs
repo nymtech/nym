@@ -4,7 +4,7 @@
 // TODO: look at https://crates.io/crates/merlin to perhaps use it instead?
 
 use std::borrow::Borrow;
-use std::convert::TryInto;
+
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use digest::generic_array::typenum::Unsigned;

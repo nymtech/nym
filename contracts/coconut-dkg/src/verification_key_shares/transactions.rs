@@ -110,7 +110,7 @@ mod tests {
     use cosmwasm_std::Addr;
     use cw_controllers::AdminError;
     use nym_coconut_dkg_common::dealer::DealerDetails;
-    use nym_coconut_dkg_common::types::{EpochState, TimeConfiguration};
+    use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]
     fn current_epoch_id() {

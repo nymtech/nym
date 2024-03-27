@@ -8,34 +8,6 @@ use thiserror::Error;
 
 #[async_trait]
 pub trait CoconutStorageManagerExt {
-    /// Creates new encrypted blinded signature response entry for a given deposit tx hash.
-    ///
-    /// # Arguments
-    ///
-    /// * `tx_hash`: hash of the deposit transaction.
-    /// * `blinded_signature_response`: the encrypted blinded signature response.
-    #[deprecated]
-    async fn insert_blinded_signature_response(
-        &self,
-        _tx_hash: &str,
-        _blinded_signature_response: &str,
-    ) -> Result<(), sqlx::Error> {
-        Ok(())
-    }
-
-    /// Tries to obtain encrypted blinded signature response for a given transaction hash.
-    ///
-    /// # Arguments
-    ///
-    /// * `tx_hash`: transaction hash of the deposit.
-    #[deprecated]
-    async fn get_blinded_signature_response(
-        &self,
-        _tx_hash: &str,
-    ) -> Result<Option<String>, sqlx::Error> {
-        Ok(None)
-    }
-
     /// Gets the information about all issued partial credentials in this (coconut) epoch.
     ///
     /// # Arguments

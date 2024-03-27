@@ -8,7 +8,7 @@ use crate::{
 use nym_service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+
 use std::fmt::{Debug, Formatter};
 use tap::TapFallible;
 use thiserror::Error;

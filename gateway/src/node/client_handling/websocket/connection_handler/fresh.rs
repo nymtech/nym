@@ -20,7 +20,7 @@ use nym_gateway_requests::{
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
-use std::{convert::TryFrom, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};

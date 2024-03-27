@@ -5,10 +5,10 @@
 // until the API is finalised and endpoints are moved to nym-api
 
 use async_trait::async_trait;
-use http_api_client::{ApiClient, HttpClientError, NO_PARAMS};
+use nym_http_api_client::{ApiClient, HttpClientError, NO_PARAMS};
 use serde::Deserialize;
 
-pub use http_api_client::Client;
+pub use nym_http_api_client::Client;
 
 pub type HarbourMasterApiError = HttpClientError;
 

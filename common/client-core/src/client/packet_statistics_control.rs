@@ -3,8 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use log::{info, warn};
-use nym_metrics::{inc, inc_by, metrics};
+use nym_metrics::{inc, inc_by};
 use si_scale::helpers::bibytes2;
 
 // Metrics server
@@ -23,6 +22,7 @@ use hyper_util::rt::TokioIo;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::convert::Infallible;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+#[cfg(feature = "metrics-server")]
 use std::net::SocketAddr;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use tokio::net::TcpListener;
@@ -508,17 +508,17 @@ impl PacketStatisticsControl {
         cfg_if::cfg_if! {
             if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
                 log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
-                let listener = None;
-            } else {
+                let listener: Option<WasmEmpty> = None;
+            } else if #[cfg(feature = "metrics-server")] {
                 let mut metrics_port = 18000;
                 let listener: Option<TcpListener>;
                 loop {
                     let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
                     match TcpListener::bind(addr).await {
                         Ok(l) => {
-                            info!("###############################");
-                            info!("Metrics endpoint is at: {:?}", l.local_addr());
-                            info!("###############################");
+                            log::info!("###############################");
+                            log::info!("Metrics endpoint is at: {:?}", l.local_addr());
+                            log::info!("###############################");
                             listener = Some(l);
                             break;
                         },
@@ -528,7 +528,9 @@ impl PacketStatisticsControl {
                         }
                     };
                 }
-
+            } else {
+                log::info!("Metrics server is disabled!");
+                let listener: Option<TcpListener> = None;
             }
         }
 
@@ -545,10 +547,11 @@ impl PacketStatisticsControl {
                     }
                 },
                 // conditional will disable the branch if we're in wasm32-unknown-unknown
-                result = listener.as_ref().unwrap().accept(), if listener.is_some() => {
+                // use `_` to calm down clippy when running for wasm
+                _result = listener.as_ref().unwrap().accept(), if listener.is_some() => {
                     cfg_if::cfg_if! {
                         if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
-                            if let Ok((stream, _)) = result {
+                            if let Ok((stream, _)) = _result {
                                 let io = TokioIo::new(stream);
 
                                 tokio::task::spawn(async move {
@@ -556,11 +559,11 @@ impl PacketStatisticsControl {
                                         .serve_connection(io, service_fn(serve_metrics))
                                         .await
                                     {
-                                        warn!("Error serving connection: {:?}", err);
+                                        log::warn!("Error serving connection: {:?}", err);
                                     }
                                 });
                             } else {
-                                warn!("Error accepting connection");
+                                log::warn!("Error accepting connection");
                             }
                         }
                     }
@@ -590,8 +593,19 @@ impl PacketStatisticsControl {
     }
 }
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 async fn serve_metrics(
     _: Request<hyper::body::Incoming>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
+    use nym_metrics::metrics;
+
     Ok(Response::new(Full::new(Bytes::from(metrics!()))))
+}
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+struct WasmEmpty;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+impl WasmEmpty {
+    async fn accept(&self) {}
 }

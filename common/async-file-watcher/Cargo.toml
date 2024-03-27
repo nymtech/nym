@@ -1,13 +1,13 @@
 [package]
-name = "async-file-watcher"
+name = "nym-async-file-watcher"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4"
-tokio = { workspace = true, features = ["time"] }
 futures = { workspace = true }
+log = "0.4"
 notify = "5.1.0"
+tokio = { workspace = true, features = ["time"] }

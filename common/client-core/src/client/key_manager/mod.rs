@@ -300,7 +300,7 @@ impl KeyManager {
 
     /// Gets an atomically reference counted pointer to [`SharedKey`].
     pub fn gateway_shared_key(&self) -> Option<Arc<SharedKeys>> {
-        self.gateway_shared_key.as_ref().map(Arc::clone)
+        self.gateway_shared_key.clone()
     }
 
     pub fn remove_gateway_key(self) -> KeyManagerBuilder {

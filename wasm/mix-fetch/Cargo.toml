@@ -28,7 +28,7 @@ thiserror =  { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 
 nym-bin-common = { path = "../../common/bin-common" }
-http-api-client = { path = "../../common/http-api-client" }
+nym-http-api-client = { path = "../../common/http-api-client" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-service-providers-common = { path = "../../service-providers/common" }

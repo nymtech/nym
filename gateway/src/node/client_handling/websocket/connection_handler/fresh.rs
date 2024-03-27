@@ -667,7 +667,7 @@ where
             let msg = match msg {
                 Ok(msg) => msg,
                 Err(err) => {
-                    error!("failed to obtain message from websocket stream! stopping connection handler: {err}");
+                    debug!("failed to obtain message from websocket stream! stopping connection handler: {err}");
                     break;
                 }
             };
@@ -723,7 +723,7 @@ where
                 Message::Binary(_) => {
                     // perhaps logging level should be reduced here, let's leave it for now and see what happens
                     // if client is working correctly, this should have never happened
-                    warn!("possibly received a sphinx packet without prior authentication. Request is going to be ignored");
+                    debug!("possibly received a sphinx packet without prior authentication. Request is going to be ignored");
                     if let Err(err) = self
                         .send_websocket_message(
                             ServerResponse::new_error(

@@ -77,9 +77,3 @@ sudo ufw allow 9000, 9001
 
 If you come to any errors during the setup see troubleshooting page related to [Mix Nodes](../nodes/troubleshooting.md#mix-nodes) and [Gateways](../nodes/troubleshooting.md#gateways--network-requesters). In case your issue isn't documented ask in our Element [Node Operators channel](https://matrix.to/#/#operators:nymtech.chat) or raise an [issue](https://github.com/nymtech/nym/issues) on Github.
 
-<!--
-TODO:
-- Changes on binary side of things - create a binary release solely for mixnodes (release/2024.2-fast-and-furious) - have set it up as a pre-release and that only (in process)
-- investigate if https://github.com/nymtech/nym/pull/4474 can work alongside ipr as a backup (it will be good to kill all birds with one stone here)
-- more regression testing to do on the env, to ensure no blacklisting of gateways/mixnodes and ensure the env is behaving correctly + document it
--->

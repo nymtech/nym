@@ -21,7 +21,7 @@ curl -fsSL https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-d
 
 Run with the command
 ```sh
-sudo ~/.local/bin/nym-vpn.appimage
+sudo -E ~/.local/bin/nym-vpn.appimage
 ```
 
 ## Automated Script for GUI Installation (Linux and Mac)

@@ -4,7 +4,7 @@
 
 Nym Mixnet has been running on mainnet for quite some time. There is still work to be done in order for the network to meet its full potential - mass adoption of privacy through fully distributed Mixnet.
 
-Nym therefore calls out the decentralised community of operators to join a series of Performance testing events in order to **overall increase quality of Nym Mixnet**. The main takeaways of such event are:
+Nym asks its decentralised community of operators to join a series of performance testing events in order to **increase the overall quality of the Mixnet**. The main takeaways of such event are:
 
 1. Understanding of the network behavior under full load
     - How many mixnet client users can all active set entry gateways handle simultaneously?

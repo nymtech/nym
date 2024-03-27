@@ -57,7 +57,7 @@ bob@nym:~$ tree /home/nym/.nym/mixnodes/
 
 ### How can I tell my node is up and running and mixing traffic?
 
-First of all check the 'Mixnodes' section of either the Nym Network Explorers:
+First of all check the 'Mixnodes' section of either of the Nym Network Explorers:
 * [Mainnet](https://explorer.nymtech.net/)
 * [Sandbox testnet](https://sandbox-explorer.nymtech.net/)
 
@@ -307,9 +307,9 @@ Let your Gateway run and follow these steps:
 
 ### My Gateway is blacklisted
 
-Nym API measures performance by routing traffic through the mixnet. If the average of a Gateways routing score in past 24h is less than 50%, Gateway gets blacklisted and remains so until this number is higher than 50%.
+Nym API measures performance by routing traffic through the Mixnet. If the average of a Gateway's routing score in past 24h is less than 50%, the Gateway gets blacklisted and remains so until this number is higher than 50%.
 
-In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/api/v1/gateways/blacklisted), it's because there is some flaw in the configuration. The most common sources of probles are:
+In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/api/v1/gateways/blacklisted), it's because there is some flaw in the configuration. The most common sources of problems are:
 
 - Bonding before starting the node/service
 - Bonding before opening [the needed ports](maintenance.md#configure-your-firewall)
@@ -319,11 +319,14 @@ What to do:
 
 - Make sure your node is running and do not stop it if there is no need
 - Open all needed ports
-- Wait until your node gets above 50% of performance (average of last 24h) - this will likely take several hours, up to a day
+- Wait until your node gets above 50% of performance (average of last 24h) - this will likely take several hours, up to a day. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
+
+**Do not restart your Gateway without reason, your routing score will only get worse!**
 
 ### My exit Gateway "is still not online..."
 
-The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's important to run it before and during the bonding process. In case it already got blacklisted run it for at several hours. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score. Do **not** restart your Gateway without reason, your routing score will only get worse.
+The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's essential to start it before the bonding process and let it running. In case it already got [blacklisted](#my-gateway-is-backlisted) check the steps above.
+
 
 ### When enabling `ip_packet_router` (IPR) I get a `client-core error`
 
@@ -350,7 +353,7 @@ rm -rf ~/.nym/gateways/<ID>/data/ip-packet-router-data
 There are a few steps to mitigate problems with IPR:
 
 1. Check out the issue right above regarding the [Exit Gateway config](#when-enabling-ip_packet_router-ipr-i-get-a-client-core-error)
-2. Open your browser and checkout the Swager UI page and see if all the roles are Enabled:
+2. Open your browser and checkout the Swagger UI page and see if all the roles are enabled:
 ```sh
 # in case of IP
 http://<YOUR_LISTENING_IP_ADDRESS>:8080/api/v1/roles
@@ -359,8 +362,8 @@ http://<YOUR_LISTENING_IP_ADDRESS>:8080/api/v1/roles
 https://<YOUR_DOMAIN>/api/v1/roles
 ```
 3. Make sure all your [ports are open](https://nymtech.net/operators/nodes/maintenance.html#configure-your-firewall) properly
-4. Make sure to run your Gateway with embeded IPR as root. Either in a root shell with your configs in `/root/.nym/` or with a command `sudo -E` which gives root privileges but looks for user config folder
-5. If it's all good in the API but you don't see the right tick/badge in the Performance testins list, just wait some time and then try to refresh the page
+4. Make sure to run your Gateway with embedded IPR as root. Either in a root shell with your configs in `/root/.nym/` or with a command `sudo -E` which gives root privileges but looks for user config folder
+5. If it's all good in the API but you don't see the right tick/badge in the [Performance testing list](https://nymtech.net/events/fast-and-furious), just wait some time and then try to refresh the page
 
 ## Validators
 

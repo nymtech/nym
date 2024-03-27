@@ -19,7 +19,7 @@ ExploreNYM also has a network measuring instance called `enym-monitor`. This set
 ## Setup
 
 ```admonish warning
-This setup and the scripts included were not written by Nym developers. As always do your own audit before installing any scripts on your machine and familiarize yourself with the security risks involved when opening ports or allowing http acces.
+This setup and the scripts included were not written by Nym developers. As always do your own audit before installing any scripts on your machine and familiarize yourself with the security risks involved when opening ports or allowing http access.
 ```
 
 According to ExploreNYM the system requirements of the monitor stack are:
@@ -56,9 +56,9 @@ chmod +x ~/self-hosted-monitor/grafana.sh && ~/self-hosted-monitor/grafana.sh
 sudo ufw allow 3000
 ```
 
-6. You can now access Grafana at `http://<YOUR_IP_ADDRESS>:3000`. If you have a registered domain and prefer to use  it with `https` add the step 7.
+6. You can now access Grafana at `http://<YOUR_IP_ADDRESS>:3000`.
 
-7. Give permissions to [`nginx-certbot.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) script and run it to setup Nginx and Certbot
+7. (*Optional step*) If you have a registered domain and prefer to use  it with `https`, give permissions to [`nginx-certbot.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/nginx-certbot.sh) script and run it to setup Nginx and Certbot
 ```sh
 chmod +x ~/self-hosted-monitor/nginx-certbot.sh && ~/self-hosted-monitor/nginx-certbot.sh
 ```
@@ -81,7 +81,7 @@ apt install git
 ```sh
 git clone https://github.com/ExploreNYM/self-hosted-monitor ~/self-hosted-monitor
 ```
-11. Give permissions to [`node-exporter.sh`]() script and run it to setup Node exporter.
+11. Give permissions to [`node-exporter.sh`](https://github.com/ExploreNYM/self-hosted-monitor/blob/main/node-exporter.sh) script and run it to setup Node exporter.
 ```sh
 chmod +x ~/self-hosted-monitor/node-exporter.sh && ~/self-hosted-monitor/node-exporter.sh
 ```
@@ -115,7 +115,7 @@ Now you have your Prometheus panels displayed via Grafana dashboard for a simple
 
 ## Verification and Troubleshooting
 
-To ensure that your services are running correctly, you can verify that by running `systemctl status <SERVICE>` or run a `journalctl -f -u <SERVICE>` to print service logs. It shall return status `Active: active (running). For example:
+To ensure that your services are running correctly, you can verify that by running `systemctl status <SERVICE>` or run a `journalctl -f -u <SERVICE>` to print service logs. It shall return status `Active: active (running)`. For example:
 ```sh
 # to check if Prometheus service is active
 systemctl status prometheus

@@ -112,12 +112,12 @@ pub(crate) struct NodeStats {
     )]
     previous_update_time: SystemTime,
 
-    packets_received_since_startup: u64,
-    packets_sent_since_startup: u64,
-    packets_explicitly_dropped_since_startup: u64,
-    packets_received_since_last_update: u64,
-    packets_sent_since_last_update: u64,
-    packets_explicitly_dropped_since_last_update: u64,
+    packets_received_since_startup: f64,
+    packets_sent_since_startup: f64,
+    packets_explicitly_dropped_since_startup: f64,
+    packets_received_since_last_update: f64,
+    packets_sent_since_last_update: f64,
+    packets_explicitly_dropped_since_last_update: f64,
 }
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]

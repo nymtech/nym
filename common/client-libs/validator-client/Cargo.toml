@@ -25,7 +25,7 @@ nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
-http-api-client = { path = "../../../common/http-api-client"}
+nym-http-api-client = { path = "../../../common/http-api-client"}
 thiserror = { workspace = true }
 log = { workspace = true }
 url = { workspace = true, features = ["serde"] }

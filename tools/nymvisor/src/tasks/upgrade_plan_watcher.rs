@@ -3,8 +3,8 @@
 
 use crate::config::Config;
 use crate::error::NymvisorError;
-use async_file_watcher::{AsyncFileWatcher, FileWatcherEventReceiver, NotifyResult};
 use futures::channel::mpsc;
+use nym_async_file_watcher::{AsyncFileWatcher, FileWatcherEventReceiver, NotifyResult};
 use tokio::task::JoinHandle;
 use tracing::warn;
 

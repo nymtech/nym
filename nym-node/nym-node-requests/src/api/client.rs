@@ -6,15 +6,15 @@ use crate::api::v1::node::models::SignedHostInformation;
 use crate::api::ErrorResponse;
 use crate::routes;
 use async_trait::async_trait;
-use http_api_client::{ApiClient, HttpClientError};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_http_api_client::{ApiClient, HttpClientError};
 use nym_wireguard_types::{ClientMessage, ClientRegistrationResponse};
 
 use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use crate::api::v1::network_requester::models::NetworkRequester;
-pub use http_api_client::Client;
+pub use nym_http_api_client::Client;
 
 pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
 

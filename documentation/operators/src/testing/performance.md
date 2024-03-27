@@ -2,13 +2,13 @@
 
 > To configure your node for a testing event, visit [node setup page](node-setup.md).
 
-Nym Mixnet has been running on mainnet for quite some time already. There is still work to be done in order for the network to meet its full potential - mass adoption of privacy through fully distributed Mixnet.
+Nym Mixnet has been running on mainnet for quite some time. There is still work to be done in order for the network to meet its full potential - mass adoption of privacy through fully distributed Mixnet.
 
-Nym therefore calls out the decentralised community of operators to join the Performance testing events in order to **overall increase quality of Nym Mixnet**. The main takeaways of such event are:
+Nym therefore calls out the decentralised community of operators to join a series of Performance testing events in order to **overall increase quality of Nym Mixnet**. The main takeaways of such event are:
 
 1. Understanding of the network behavior under full load
-  - How many mixnet client users can all active set entry gateways handle simultaneously?
-  - How much sustained IP traffic can a subset of mainnet nodes sustain?
+    - How many mixnet client users can all active set entry gateways handle simultaneously?
+    - How much sustained IP traffic can a subset of mainnet nodes sustain?
 2. Needed improvements of Nym Node binaries to improve the throughput on mainnet
 3. Measurement of required machine specs
 4. Raw data record

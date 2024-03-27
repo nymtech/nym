@@ -297,28 +297,48 @@ You don't have to do any additional configuration for your node to implement thi
 
 ## Gateways & Network Requesters
 
-### My Gateway seems to be running but appears offline
+### My Gateway is running but appears offline in the explorer
 
-Check if your [firewall](./maintenance.md#configure-your-firewall) is active and if the necessary ports are open / allowed.
+Let your Gateway run and follow these steps:
+
+1. Check if your [firewall configuration](./maintenance.md#configure-your-firewall) is active and if the necessary ports are open / allowed, including the ones for Swagger page and Reversed proxy/WSS if this is your case.
+2. See if the Gateway is not on the [list of blacklisted Gateways](https://validator.nymtech.net/api/v1/gateways/blacklisted)
+3. If it's blacklisted, check out the [point below](#my-gateway-is-blacklisted)
+
+### My Gateway is blacklisted
+
+Nym API measures performance by routing traffic through the mixnet. If the average of a Gateways routing score in past 24h is less than 50%, Gateway gets blacklisted and remains so until this number is higher than 50%.
+
+In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/api/v1/gateways/blacklisted), it's because there is some flaw in the configuration. The most common sources of probles are:
+
+- Bonding before starting the node/service
+- Bonding before opening [the needed ports](maintenance.md#configure-your-firewall)
+- VPS restarted without operator having a [systemd automation](maintenance.md#systemd) or some alert notification flow setup
+
+What to do:
+
+- Make sure your node is running and do not stop it if there is no need
+- Open all needed ports
+- Wait until your node gets above 50% of performance (average of last 24h) - this will likely take several hours, up to a day
 
 ### My exit Gateway "is still not online..."
 
-The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's important to run it before and during the bonding process. In case it already got blacklisted run it for at several hours. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
+The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's important to run it before and during the bonding process. In case it already got blacklisted run it for at several hours. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score. Do **not** restart your Gateway without reason, your routing score will only get worse.
 
 ### When enabling `ip_packet_router` (IPR) I get a `client-core error`
 
 This error tells you that you already have IPR keys in your data storage, to activate them you have two options:
 
-1. Open `~/.nym/gateways/<ID>/config/config.toml` and set the correct values
+1. Open `~/.nym/gateways/<ID>/config/config.toml` and **set the correct values**
 ```toml
 [ip_packer_router_enabled]
 enabled = true
 
 # UNDER [storage_paths] CHANGE
-ip_packet_router_config = '/root/.nym/gateways/<ID>/config/ip_packet_router_config.toml'
+ip_packet_router_config = '~/.nym/gateways/<ID>/config/ip_packet_router_config.toml'
 ```
 
-2. Remove the IPR data storage and initialise a new one with these commands
+2. Or **remove the IPR data storage and initialise a new one** with these commands
 ```toml
 rm -rf ~/.nym/gateways/<ID>/data/ip-packet-router-data
 
@@ -329,7 +349,7 @@ rm -rf ~/.nym/gateways/<ID>/data/ip-packet-router-data
 
 There are a few steps to mitigate problems with IPR:
 
-1. Check out the issue right above regarding the Exit Gateway config
+1. Check out the issue right above regarding the [Exit Gateway config](#when-enabling-ip_packet_router-ipr-i-get-a-client-core-error)
 2. Open your browser and checkout the Swager UI page and see if all the roles are Enabled:
 ```sh
 # in case of IP

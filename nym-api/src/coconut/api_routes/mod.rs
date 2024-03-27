@@ -409,7 +409,7 @@ pub async fn verify_offline_credential(
     Ok(Json(VerifyCredentialResponse::new(true)))
 }
 
-#[get("/spend-credentials")]
+#[get("/spent-credentials")]
 pub async fn spent_credentials(
     state: &RocketState<State>,
 ) -> Result<Json<SpentCredentialsResponse>> {

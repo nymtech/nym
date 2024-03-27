@@ -17,8 +17,11 @@ pub(crate) struct DoubleSpendingDetector {
 
 impl DoubleSpendingDetector {
     pub(crate) fn new() -> Self {
+        let bitmap = [0u8; (BLOOM_BITMAP_SIZE / 8) as usize];
+        let bloom_filter =
+            Bloom::from_existing(&bitmap, BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS);
         DoubleSpendingDetector {
-            spent_serial_numbers: Arc::new(RwLock::new(Bloom::new_for_fp_rate(10_000, 0.0001))),
+            spent_serial_numbers: Arc::new(RwLock::new(bloom_filter)),
             ecash_clients: Default::default(),
         }
     }

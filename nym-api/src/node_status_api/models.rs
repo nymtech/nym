@@ -374,6 +374,26 @@ impl AxumErrorResponse {
             status: StatusCode::BAD_REQUEST,
         }
     }
+
+    pub(crate) fn internal_server_error() -> Self {
+        RocketErrorResponse {
+            error_message: RequestError::new(
+                "experienced an internal server error and could not complete this request",
+            ),
+            status: Status::InternalServerError,
+        }
+    }
+}
+
+impl From<UninitialisedCache> for RocketErrorResponse {
+    fn from(_: UninitialisedCache) -> Self {
+        RocketErrorResponse {
+            error_message: RequestError::new(
+                "one of the internal caches hasn't yet been initialised",
+            ),
+            status: Status::ServiceUnavailable,
+        }
+    }
 }
 
 impl From<UninitialisedCache> for AxumErrorResponse {

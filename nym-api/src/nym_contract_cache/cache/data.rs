@@ -2,28 +2,25 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::Cache;
+use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_contracts_common::ContractBuildInformation;
-use nym_mixnet_contract_common::{
-    families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeDetails,
-    RewardingParams,
-};
+use nym_mixnet_contract_common::{Interval, NodeId, NymNodeDetails, RewardedSet, RewardingParams};
 use nym_validator_client::nyxd::AccountId;
 use std::collections::{HashMap, HashSet};
 
 pub(crate) struct ValidatorCacheData {
-    pub(crate) mixnodes: Cache<Vec<MixNodeDetails>>,
-    pub(crate) gateways: Cache<Vec<GatewayBond>>,
+    pub(crate) legacy_mixnodes: Cache<Vec<LegacyMixNodeDetailsWithLayer>>,
+    pub(crate) legacy_gateways: Cache<Vec<LegacyGatewayBondWithId>>,
+    pub(crate) nym_nodes: Cache<Vec<NymNodeDetails>>,
+    pub(crate) rewarded_set: Cache<RewardedSet>,
 
-    pub(crate) mixnodes_blacklist: Cache<HashSet<MixId>>,
-    pub(crate) gateways_blacklist: Cache<HashSet<IdentityKey>>,
-
-    pub(crate) rewarded_set: Cache<Vec<MixNodeDetails>>,
-    pub(crate) active_set: Cache<Vec<MixNodeDetails>>,
+    // this purposely does not deal with nym-nodes as they don't have a concept of a blacklist.
+    // instead clients are meant to be filtering out them themselves based on the provided scores.
+    pub(crate) legacy_mixnodes_blacklist: Cache<HashSet<NodeId>>,
+    pub(crate) legacy_gateways_blacklist: Cache<HashSet<NodeId>>,
 
     pub(crate) current_reward_params: Cache<Option<RewardingParams>>,
     pub(crate) current_interval: Cache<Option<Interval>>,
-
-    pub(crate) mix_to_family: Cache<Vec<(IdentityKey, FamilyHead)>>,
 
     pub(crate) contracts_info: Cache<CachedContractsInfo>,
 }
@@ -31,15 +28,15 @@ pub(crate) struct ValidatorCacheData {
 impl ValidatorCacheData {
     pub(crate) fn new() -> Self {
         ValidatorCacheData {
-            mixnodes: Cache::default(),
-            gateways: Cache::default(),
+            legacy_mixnodes: Cache::default(),
+            legacy_gateways: Cache::default(),
+            nym_nodes: Default::default(),
             rewarded_set: Cache::default(),
-            active_set: Cache::default(),
-            mixnodes_blacklist: Cache::default(),
-            gateways_blacklist: Cache::default(),
+
+            legacy_mixnodes_blacklist: Cache::default(),
+            legacy_gateways_blacklist: Cache::default(),
             current_interval: Cache::default(),
             current_reward_params: Cache::default(),
-            mix_to_family: Cache::default(),
             contracts_info: Cache::default(),
         }
     }

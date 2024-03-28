@@ -7,6 +7,7 @@ use cw3::Status;
 use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
 use thiserror::Error;
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Error)]
 pub enum KeyFinalizationError {

@@ -2,7 +2,7 @@ use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{Coin, Env, Response, Storage};
 use mixnet_contract_common::{
     gateway::GatewayConfigUpdate,
-    mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
+    mixnode::{MixNodeConfigUpdate, NodeCostParams},
     Gateway, MixNode,
 };
 use vesting_contract_common::VestingContractError;
@@ -16,7 +16,7 @@ pub trait MixnodeBondingAccount {
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         owner_signature: MessageSignature,
         pledge: Coin,
         env: &Env,
@@ -58,7 +58,7 @@ pub trait MixnodeBondingAccount {
 
     fn try_update_mixnode_cost_params(
         &self,
-        new_costs: MixNodeCostParams,
+        new_costs: NodeCostParams,
         storage: &mut dyn Storage,
     ) -> Result<Response, VestingContractError>;
     fn try_track_migrated_mixnode(

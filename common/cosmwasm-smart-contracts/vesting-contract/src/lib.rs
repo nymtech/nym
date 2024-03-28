@@ -6,7 +6,7 @@
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::NodeId;
 
 pub mod account;
 pub mod error;
@@ -64,7 +64,7 @@ pub struct DelegationTimesResponse {
     pub account_id: u32,
 
     /// Id of the mixnode towards which the delegation was made
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
 
     /// All timestamps where a delegation was made
     pub delegation_timestamps: Vec<u64>,
@@ -77,7 +77,7 @@ pub struct AllDelegationsResponse {
     pub delegations: Vec<VestingDelegation>,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
-    pub start_next_after: Option<(u32, MixId, u64)>,
+    pub start_next_after: Option<(u32, NodeId, u64)>,
 }
 
 /// Basic information regarding particular vesting account alongside the amount of vesting coins.

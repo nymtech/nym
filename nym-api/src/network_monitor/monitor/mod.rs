@@ -9,13 +9,14 @@ use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config;
-use log::{debug, error, info};
+use nym_mixnet_contract_common::NodeId;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
 use std::process;
 use tokio::time::{sleep, Duration, Instant};
+use tracing::{debug, error, info, trace};
 
 pub(crate) mod gateway_clients_cache;
 pub(crate) mod gateways_pinger;
@@ -169,11 +170,11 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             .collect()
     }
 
-    fn blacklist_route_nodes(&self, route: &TestRoute, blacklist: &mut HashSet<String>) {
+    fn blacklist_route_nodes(&self, route: &TestRoute, blacklist: &mut HashSet<NodeId>) {
         for mix in route.topology().mixes_as_vec() {
-            blacklist.insert(mix.identity_key.to_base58_string());
+            blacklist.insert(mix.mix_id);
         }
-        blacklist.insert(route.gateway_identity().to_base58_string());
+        blacklist.insert(route.gateway().node_id);
     }
 
     async fn prepare_test_routes(&mut self) -> Option<Vec<TestRoute>> {

@@ -5,7 +5,7 @@ use crate::network_monitor::monitor::preparer::InvalidNode;
 use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use nym_node_tester_utils::node::{NodeType, TestableNode};
-use nym_types::monitoring::{GatewayResult, MixnodeResult};
+use nym_types::monitoring::NodeResult;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
@@ -60,8 +60,8 @@ impl TestReport {
     fn new(
         total_sent: usize,
         total_received: usize,
-        mixnode_results: &[MixnodeResult],
-        gateway_results: &[GatewayResult],
+        mixnode_results: &[NodeResult],
+        gateway_results: &[NodeResult],
         route_results: &[RouteResult],
     ) -> Self {
         let mut exceptional_mixnodes = 0;
@@ -206,8 +206,8 @@ impl Display for TestReport {
 }
 
 pub(crate) struct TestSummary {
-    pub(crate) mixnode_results: Vec<MixnodeResult>,
-    pub(crate) gateway_results: Vec<GatewayResult>,
+    pub(crate) mixnode_results: Vec<NodeResult>,
+    pub(crate) gateway_results: Vec<NodeResult>,
     pub(crate) route_results: Vec<RouteResult>,
 }
 
@@ -291,16 +291,10 @@ impl SummaryProducer {
             let performance = received as f32 / per_node_expected as f32 * 100.0;
             let reliability = performance.round() as u8;
 
+            let result = NodeResult::new(node.node_id, node.encoded_identity, reliability);
             match node.typ {
-                NodeType::Mixnode { mix_id } => {
-                    let res =
-                        MixnodeResult::new(mix_id, node.encoded_identity, node.owner, reliability);
-                    mixnode_results.push(res)
-                }
-                NodeType::Gateway => {
-                    let res = GatewayResult::new(node.encoded_identity, node.owner, reliability);
-                    gateway_results.push(res)
-                }
+                NodeType::Mixnode => mixnode_results.push(result),
+                NodeType::Gateway => gateway_results.push(result),
             }
         }
 

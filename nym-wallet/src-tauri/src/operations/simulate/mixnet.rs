@@ -1,17 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::cmp::Ordering;
-
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
 use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
+use nym_mixnet_contract_common::{ExecuteMsg, Gateway, MixNode, NodeId};
 use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
-use nym_types::mixnode::MixNodeCostParams;
+use nym_types::mixnode::NodeCostParams;
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
+use std::cmp::Ordering;
 
 async fn simulate_mixnet_operation(
     msg: ExecuteMsg,
@@ -70,7 +69,7 @@ pub async fn simulate_unbond_gateway(
 #[tauri::command]
 pub async fn simulate_bond_mixnode(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     msg_signature: MessageSignature,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
@@ -148,19 +147,14 @@ pub async fn simulate_unbond_mixnode(
 
 #[tauri::command]
 pub async fn simulate_update_mixnode_cost_params(
-    new_costs: MixNodeCostParams,
+    new_costs: NodeCostParams,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
     let new_costs = new_costs.try_convert_to_mixnet_contract_cost_params(reg)?;
 
-    simulate_mixnet_operation(
-        ExecuteMsg::UpdateMixnodeCostParams { new_costs },
-        None,
-        &state,
-    )
-    .await
+    simulate_mixnet_operation(ExecuteMsg::UpdateCostParams { new_costs }, None, &state).await
 }
 
 #[tauri::command]
@@ -191,24 +185,19 @@ pub async fn simulate_update_gateway_config(
 
 #[tauri::command]
 pub async fn simulate_delegate_to_mixnode(
-    mix_id: MixId,
+    node_id: NodeId,
     amount: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    simulate_mixnet_operation(
-        ExecuteMsg::DelegateToMixnode { mix_id },
-        Some(amount),
-        &state,
-    )
-    .await
+    simulate_mixnet_operation(ExecuteMsg::Delegate { node_id }, Some(amount), &state).await
 }
 
 #[tauri::command]
 pub async fn simulate_undelegate_from_mixnode(
-    mix_id: MixId,
+    node_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    simulate_mixnet_operation(ExecuteMsg::UndelegateFromMixnode { mix_id }, None, &state).await
+    simulate_mixnet_operation(ExecuteMsg::Undelegate { node_id }, None, &state).await
 }
 
 #[tauri::command]
@@ -220,8 +209,13 @@ pub async fn simulate_claim_operator_reward(
 
 #[tauri::command]
 pub async fn simulate_claim_delegator_reward(
-    mix_id: MixId,
+    node_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    simulate_mixnet_operation(ExecuteMsg::WithdrawDelegatorReward { mix_id }, None, &state).await
+    simulate_mixnet_operation(
+        ExecuteMsg::WithdrawDelegatorReward { node_id },
+        None,
+        &state,
+    )
+    .await
 }

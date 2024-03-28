@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::error::RewardingError;
-use crate::epoch_operations::RewardedSetUpdater;
+use crate::epoch_operations::EpochAdvancer;
+use tracing::{error, info};
 
-impl RewardedSetUpdater {
+impl EpochAdvancer {
     // returns boolean indicating whether we should bother continuing
     pub(super) async fn begin_epoch_transition(&self) -> Result<bool, RewardingError> {
         info!("starting the epoch transition...");
@@ -13,14 +14,14 @@ impl RewardedSetUpdater {
             // wasn't faster than us
             let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
             if !epoch_status.is_in_progress() {
-                log::error!("FAILED to begin epoch progression: {err}");
+                error!("FAILED to begin epoch progression: {err}");
                 Err(err)
             } else {
                 error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
                 Ok(false)
             }
         } else {
-            log::info!("Begun epoch transition... SUCCESS");
+            info!("Begun epoch transition... SUCCESS");
             Ok(true)
         }
     }

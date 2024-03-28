@@ -8,11 +8,11 @@ use crate::operations::helpers::{
 use crate::state::WalletState;
 use nym_mixnet_contract_common::{Gateway, MixNode};
 use nym_types::currency::DecCoin;
-use nym_types::mixnode::MixNodeCostParams;
+use nym_types::mixnode::NodeCostParams;
 
 async fn mixnode_bonding_msg_payload(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     pledge: DecCoin,
     vesting: bool,
     state: tauri::State<'_, WalletState>,
@@ -64,7 +64,7 @@ async fn gateway_bonding_msg_payload(
 #[tauri::command]
 pub async fn generate_mixnode_bonding_msg_payload(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<String, BackendError> {
@@ -74,7 +74,7 @@ pub async fn generate_mixnode_bonding_msg_payload(
 #[tauri::command]
 pub async fn vesting_generate_mixnode_bonding_msg_payload(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<String, BackendError> {

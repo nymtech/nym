@@ -5,7 +5,7 @@ use crate::traits::DelegatingAccount;
 use crate::vesting::account::StorableVestingAccountExt;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::ExecuteMsg as MixnetExecuteMsg;
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::NodeId;
 use vesting_contract_common::events::{
     new_vesting_delegation_event, new_vesting_undelegation_event,
 };
@@ -16,7 +16,7 @@ use super::Account;
 impl DelegatingAccount for Account {
     fn try_claim_delegator_reward(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         storage: &dyn Storage,
     ) -> Result<Response, VestingContractError> {
         let msg = MixnetExecuteMsg::WithdrawDelegatorRewardOnBehalf {
@@ -32,7 +32,7 @@ impl DelegatingAccount for Account {
 
     fn try_delegate_to_mixnode(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         coin: Coin,
         env: &Env,
         storage: &mut dyn Storage,
@@ -74,7 +74,7 @@ impl DelegatingAccount for Account {
 
     fn try_undelegate_from_mixnode(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         storage: &dyn Storage,
     ) -> Result<Response, VestingContractError> {
         if !self.any_delegation_for_mix(mix_id, storage) {
@@ -99,7 +99,7 @@ impl DelegatingAccount for Account {
     fn track_delegation(
         &self,
         block_timestamp_secs: u64,
-        mix_id: MixId,
+        mix_id: NodeId,
         current_balance: Uint128,
         delegation: Coin,
         storage: &mut dyn Storage,
@@ -116,7 +116,7 @@ impl DelegatingAccount for Account {
 
     fn track_undelegation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), VestingContractError> {
@@ -128,7 +128,7 @@ impl DelegatingAccount for Account {
 
     fn track_migrated_delegation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         storage: &mut dyn Storage,
     ) -> Result<(), VestingContractError> {
         let delegation = self.total_delegations_for_mix(mix_id, storage)?;

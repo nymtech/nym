@@ -7,7 +7,9 @@ use cosmwasm_std::{Coin, StdResult};
 use cw_controllers::Admin;
 use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{ContractState, OperatingCostRange, ProfitMarginRange};
+use mixnet_contract_common::{
+    ContractState, ContractStateParams, OperatingCostRange, ProfitMarginRange,
+};
 
 pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
 pub(crate) const ADMIN: Admin = Admin::new(ADMIN_STORAGE_KEY);
@@ -18,16 +20,10 @@ pub fn rewarding_validator_address(storage: &dyn Storage) -> Result<Addr, Mixnet
         .map(|state| state.rewarding_validator_address)?)
 }
 
-pub(crate) fn minimum_mixnode_pledge(storage: &dyn Storage) -> Result<Coin, MixnetContractError> {
+pub(crate) fn minimum_node_pledge(storage: &dyn Storage) -> Result<Coin, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)
-        .map(|state| state.params.minimum_mixnode_pledge)?)
-}
-
-pub(crate) fn minimum_gateway_pledge(storage: &dyn Storage) -> Result<Coin, MixnetContractError> {
-    Ok(CONTRACT_STATE
-        .load(storage)
-        .map(|state| state.params.minimum_gateway_pledge)?)
+        .map(|state| state.params.minimum_pledge)?)
 }
 
 pub(crate) fn profit_margin_range(
@@ -52,7 +48,7 @@ pub(crate) fn minimum_delegation_stake(
 ) -> Result<Option<Coin>, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)
-        .map(|state| state.params.minimum_mixnode_delegation)?)
+        .map(|state| state.params.minimum_delegation)?)
 }
 
 pub(crate) fn rewarding_denom(storage: &dyn Storage) -> Result<String, MixnetContractError> {
@@ -65,6 +61,12 @@ pub(crate) fn vesting_contract_address(storage: &dyn Storage) -> Result<Addr, Mi
     Ok(CONTRACT_STATE
         .load(storage)
         .map(|state| state.vesting_contract_address)?)
+}
+
+pub(crate) fn state_params(
+    storage: &dyn Storage,
+) -> Result<ContractStateParams, MixnetContractError> {
+    Ok(CONTRACT_STATE.load(storage).map(|state| state.params)?)
 }
 
 pub(crate) fn initialise_storage(

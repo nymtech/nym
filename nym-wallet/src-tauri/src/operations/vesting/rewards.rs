@@ -3,7 +3,7 @@
 
 use crate::error::BackendError;
 use crate::state::WalletState;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 use nym_types::transaction::TransactionExecuteResult;
 use nym_validator_client::nyxd::contract_traits::VestingSigningClient;
 use nym_validator_client::nyxd::Fee;
@@ -30,7 +30,7 @@ pub async fn vesting_claim_operator_reward(
 
 #[tauri::command]
 pub async fn vesting_claim_delegator_reward(
-    mix_id: MixId,
+    mix_id: NodeId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {

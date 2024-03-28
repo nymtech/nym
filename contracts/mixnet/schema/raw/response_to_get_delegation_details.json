@@ -1,10 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "MixNodeDelegationResponse",
+  "title": "NodeDelegationResponse",
   "description": "Response containing delegation details.",
   "type": "object",
   "required": [
-    "mixnode_still_bonded"
+    "mixnode_still_bonded",
+    "node_still_bonded"
   ],
   "properties": {
     "delegation": {
@@ -20,6 +21,10 @@
     },
     "mixnode_still_bonded": {
       "description": "Flag indicating whether the node towards which the delegation was made is still bonded in the network.",
+      "deprecated": true,
+      "type": "boolean"
+    },
+    "node_still_bonded": {
       "type": "boolean"
     }
   },
@@ -55,7 +60,7 @@
         "amount",
         "cumulative_reward_ratio",
         "height",
-        "mix_id",
+        "node_id",
         "owner"
       ],
       "properties": {
@@ -81,8 +86,8 @@
           "format": "uint64",
           "minimum": 0.0
         },
-        "mix_id": {
-          "description": "Id of the MixNode that this delegation was performed against.",
+        "node_id": {
+          "description": "Id of the Node that this delegation was performed against.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0

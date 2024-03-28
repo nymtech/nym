@@ -187,16 +187,6 @@ pub enum ClientCoreError {
         source: Ed25519RecoveryError,
     },
 
-    #[error("the account owner of gateway {gateway_id} ({raw_owner}) is malformed: {err}")]
-    MalformedGatewayOwnerAccountAddress {
-        gateway_id: String,
-
-        raw_owner: String,
-
-        // just use the string formatting as opposed to underlying type to avoid having to import cosmrs
-        err: String,
-    },
-
     #[error(
         "the listening address of gateway {gateway_id} ({raw_listener}) is malformed: {source}"
     )]

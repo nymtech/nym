@@ -53,7 +53,7 @@ pub trait ConnectableGateway {
     fn is_wss(&self) -> bool;
 }
 
-impl ConnectableGateway for gateway::Node {
+impl ConnectableGateway for gateway::LegacyNode {
     fn identity(&self) -> &identity::PublicKey {
         self.identity()
     }
@@ -82,7 +82,7 @@ pub async fn current_gateways<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
-) -> Result<Vec<gateway::Node>, ClientCoreError> {
+) -> Result<Vec<gateway::LegacyNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -94,14 +94,14 @@ pub async fn current_gateways<R: Rng>(
 
     log::debug!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client.get_cached_described_gateways().await?;
+    let gateways = client.get_basic_gateways(None).await?;
     log::debug!("Found {} gateways", gateways.len());
     log::trace!("Gateways: {:#?}", gateways);
 
     let valid_gateways = gateways
-        .into_iter()
+        .iter()
         .filter_map(|gateway| gateway.try_into().ok())
-        .collect::<Vec<gateway::Node>>();
+        .collect::<Vec<gateway::LegacyNode>>();
     log::debug!("Ater checking validity: {}", valid_gateways.len());
     log::trace!("Valid gateways: {:#?}", valid_gateways);
 
@@ -118,7 +118,7 @@ pub async fn current_gateways<R: Rng>(
 pub async fn current_mixnodes<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
-) -> Result<Vec<mix::Node>, ClientCoreError> {
+) -> Result<Vec<mix::LegacyNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -126,11 +126,11 @@ pub async fn current_mixnodes<R: Rng>(
 
     log::trace!("Fetching list of mixnodes from: {nym_api}");
 
-    let mixnodes = client.get_cached_mixnodes().await?;
+    let mixnodes = client.get_basic_mixnodes(None).await?;
     let valid_mixnodes = mixnodes
-        .into_iter()
-        .filter_map(|mixnode| (&mixnode.bond_information).try_into().ok())
-        .collect::<Vec<mix::Node>>();
+        .iter()
+        .filter_map(|mixnode| mixnode.try_into().ok())
+        .collect::<Vec<mix::LegacyNode>>();
 
     // we were always filtering by version so I'm not removing that 'feature'
     let filtered_mixnodes = valid_mixnodes.filter_by_version(env!("CARGO_PKG_VERSION"));
@@ -273,9 +273,9 @@ fn filter_by_tls<G: ConnectableGateway>(
 
 pub(super) fn uniformly_random_gateway<R: Rng>(
     rng: &mut R,
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
     must_use_tls: bool,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::LegacyNode, ClientCoreError> {
     filter_by_tls(gateways, must_use_tls)?
         .choose(rng)
         .ok_or(ClientCoreError::NoGatewaysOnNetwork)
@@ -284,9 +284,9 @@ pub(super) fn uniformly_random_gateway<R: Rng>(
 
 pub(super) fn get_specified_gateway(
     gateway_identity: IdentityKeyRef,
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
     must_use_tls: bool,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::LegacyNode, ClientCoreError> {
     log::debug!("Requesting specified gateway: {}", gateway_identity);
     let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;

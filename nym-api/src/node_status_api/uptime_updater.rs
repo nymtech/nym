@@ -6,11 +6,12 @@ use crate::node_status_api::models::{
 };
 use crate::node_status_api::ONE_DAY;
 use crate::storage::NymApiStorage;
-use log::error;
 use nym_task::{TaskClient, TaskManager};
 use std::time::Duration;
 use time::{OffsetDateTime, PrimitiveDateTime, Time};
 use tokio::time::{interval, sleep};
+use tracing::error;
+use tracing::{info, trace, warn};
 
 pub(crate) struct HistoricalUptimeUpdater {
     storage: NymApiStorage,
@@ -88,7 +89,7 @@ impl HistoricalUptimeUpdater {
         // resultant Duration is positive
         let time_left: Duration = (update_datetime - now).try_into().unwrap();
 
-        log::info!(
+        info!(
             "waiting until {update_datetime} to update the historical uptimes for the first time ({} seconds left)", time_left.as_secs()
         );
 

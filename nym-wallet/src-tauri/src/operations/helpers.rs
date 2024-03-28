@@ -10,7 +10,7 @@ use nym_contracts_common::signing::{
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::{
     construct_legacy_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
-    MixNodeCostParams, SignableGatewayBondingMsg, SignableLegacyMixNodeBondingMsg,
+    NodeCostParams, SignableGatewayBondingMsg, SignableLegacyMixNodeBondingMsg,
 };
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -39,7 +39,7 @@ impl AddressAndNonceProvider for DirectSigningHttpRpcValidatorClient {
 pub(crate) async fn create_mixnode_bonding_sign_payload<P: AddressAndNonceProvider>(
     client: &P,
     mix_node: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     pledge: Coin,
     vesting: bool,
 ) -> Result<SignableLegacyMixNodeBondingMsg, BackendError> {
@@ -61,7 +61,7 @@ pub(crate) async fn create_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
 pub(crate) async fn verify_mixnode_bonding_sign_payload<P: AddressAndNonceProvider>(
     client: &P,
     mix_node: &MixNode,
-    cost_params: &MixNodeCostParams,
+    cost_params: &NodeCostParams,
     pledge: &Coin,
     vesting: bool,
     msg_signature: &MessageSignature,
@@ -148,6 +148,7 @@ mod tests {
     use super::*;
     use cosmwasm_std::coin;
     use nym_contracts_common::Percent;
+    use nym_mixnet_contract_common::NodeCostParams;
     use rand_chacha::rand_core::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 
@@ -186,7 +187,7 @@ mod tests {
             identity_key: identity_keypair.public_key().to_base58_string(),
             version: "v1.2.3".to_string(),
         };
-        let dummy_cost_params = MixNodeCostParams {
+        let dummy_cost_params = NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
             interval_operating_cost: coin(1111111, "unym"),
         };

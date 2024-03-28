@@ -109,7 +109,6 @@ pub(crate) struct OverrideNetworkRequesterConfig {
     pub(crate) medium_toggle: bool,
 
     pub(crate) open_proxy: Option<bool>,
-    pub(crate) enable_exit_policy: Option<bool>,
 
     pub(crate) enable_statistics: Option<bool>,
     pub(crate) statistics_recipient: Option<String>,
@@ -230,10 +229,6 @@ pub(crate) fn override_network_requester_config(
         opts.open_proxy,
     )
     .with_optional(
-        nym_network_requester::Config::with_old_allow_list,
-        opts.enable_exit_policy.map(|e| !e),
-    )
-    .with_optional(
         nym_network_requester::Config::with_enabled_statistics,
         opts.enable_statistics,
     )
@@ -314,21 +309,10 @@ pub(crate) async fn initialise_local_network_requester(
         enabled: gateway_config.network_requester.enabled,
         identity_key: address.identity().to_string(),
         encryption_key: address.encryption_key().to_string(),
-        exit_policy: !nr_cfg.network_requester.use_deprecated_allow_list,
         open_proxy: nr_cfg.network_requester.open_proxy,
         enabled_statistics: nr_cfg.network_requester.enabled_statistics,
         address: address.to_string(),
         config_path: nr_cfg_path.display().to_string(),
-        allow_list_path: nr_cfg
-            .storage_paths
-            .allowed_list_location
-            .display()
-            .to_string(),
-        unknown_list_path: nr_cfg
-            .storage_paths
-            .unknown_list_location
-            .display()
-            .to_string(),
     })
 }
 

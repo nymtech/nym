@@ -199,13 +199,11 @@ impl<'a> HttpApiBuilder<'a> {
         // once we start refreshing it, we'll have to change it, but at that point
         // the allow list will be probably be completely removed and thus the pointer management
         // will be much easier
-        let Some(exit_policy) = request_filter.current_exit_policy_filter() else {
-            warn!("this node does not use an exit policy. no changes will be made");
-            return self;
-        };
+
+        let upstream = request_filter.current_exit_policy_filter().upstream();
 
         // if there's no upstream (i.e. open proxy), we couldn't have possibly updated it : )
-        let last_updated = if exit_policy.upstream().is_some() {
+        let last_updated = if upstream.is_some() {
             #[allow(clippy::expect_used)]
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -217,12 +215,9 @@ impl<'a> HttpApiBuilder<'a> {
 
         self.exit_policy = Some(UsedExitPolicy {
             enabled: true,
-            upstream_source: exit_policy
-                .upstream()
-                .map(|u| u.to_string())
-                .unwrap_or_default(),
+            upstream_source: upstream.map(|u| u.to_string()).unwrap_or_default(),
             last_updated,
-            policy: Some(exit_policy.policy().clone()),
+            policy: Some(request_filter.current_exit_policy_filter().policy().clone()),
         });
 
         self

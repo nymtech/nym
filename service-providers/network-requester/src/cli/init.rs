@@ -57,12 +57,6 @@ pub(crate) struct Init {
     #[clap(long)]
     statistics_recipient: Option<String>,
 
-    /// Specifies whether this network requester will run using the default ExitPolicy
-    /// as opposed to the allow list.
-    /// Note: this setting will become the default in the future releases.
-    #[clap(long)]
-    with_exit_policy: Option<bool>,
-
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -76,7 +70,6 @@ impl From<Init> for OverrideConfig {
             medium_toggle: false,
             nyxd_urls: init_config.common_args.nyxd_urls,
             enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
-            enable_exit_policy: init_config.with_exit_policy,
             open_proxy: init_config.open_proxy,
             enable_statistics: init_config.enable_statistics,
             statistics_recipient: init_config.statistics_recipient,

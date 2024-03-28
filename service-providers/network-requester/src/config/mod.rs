@@ -24,12 +24,15 @@ use url::Url;
 pub use nym_client_core::config::Config as BaseClientConfig;
 
 pub mod helpers;
-pub mod old_config_v1_1_13;
-pub mod old_config_v1_1_20;
-pub mod old_config_v1_1_20_2;
-pub mod old_config_v1_1_33;
+pub mod old;
 mod persistence;
 mod template;
+
+// aliases for backwards compatibility
+pub use old::v1 as old_config_v1_1_13;
+pub use old::v2 as old_config_v1_1_20;
+pub use old::v3 as old_config_v1_1_20_2;
+pub use old::v4 as old_config_v1_1_33;
 
 const DEFAULT_NETWORK_REQUESTERS_DIR: &str = "network-requester";
 
@@ -167,12 +170,6 @@ impl Config {
     }
 
     #[must_use]
-    pub fn with_old_allow_list(mut self, use_old_allow_list: bool) -> Self {
-        self.network_requester.use_deprecated_allow_list = use_old_allow_list;
-        self
-    }
-
-    #[must_use]
     pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
         self.network_requester.enabled_statistics = enabled_statistics;
         self
@@ -248,11 +245,6 @@ pub struct NetworkRequester {
     /// This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
     pub disable_poisson_rate: bool,
 
-    /// Specifies whether this network requester should be using the deprecated allow-list,
-    /// as opposed to the new ExitPolicy.
-    /// Note: this field will be removed in a near future.
-    pub use_deprecated_allow_list: bool,
-
     /// Specifies the url for an upstream source of the exit policy used by this node.
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub upstream_exit_policy_url: Option<Url>,
@@ -265,7 +257,6 @@ impl Default for NetworkRequester {
             enabled_statistics: false,
             statistics_recipient: None,
             disable_poisson_rate: true,
-            use_deprecated_allow_list: true,
             upstream_exit_policy_url: Some(
                 mainnet::EXIT_POLICY_URL
                     .parse()

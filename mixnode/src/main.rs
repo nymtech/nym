@@ -11,6 +11,7 @@ use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 
 mod commands;
 mod config;
+mod env;
 pub(crate) mod error;
 mod node;
 

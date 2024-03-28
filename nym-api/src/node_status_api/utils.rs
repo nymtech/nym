@@ -6,7 +6,7 @@ use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
 use crate::storage::models::NodeStatus;
 use log::warn;
 use nym_mixnet_contract_common::MixId;
-use std::convert::TryInto;
+
 use time::OffsetDateTime;
 
 // A temporary helper structs used to produce reports for active nodes.

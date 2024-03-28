@@ -16,6 +16,8 @@ const OLDEST_LANE_SET_SIZE: usize = 4;
 // As a way of prune connections we also check for timeouts.
 const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 10 * 60;
 
+// this trait is apparently not used in wasm
+#[allow(dead_code)]
 pub(crate) trait SizedData {
     fn data_size(&self) -> usize;
 }

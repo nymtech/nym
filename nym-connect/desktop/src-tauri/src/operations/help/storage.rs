@@ -1,14 +1,8 @@
 use std::sync::Arc;
 
 use crate::{error::BackendError, state::State};
-use serde::Serialize;
 use tauri::Manager;
 use tokio::sync::RwLock;
-
-#[derive(Debug, Serialize, Clone)]
-struct ClearStorageEvent {
-    kind: String,
-}
 
 #[tauri::command]
 pub fn help_clear_storage(app_handle: tauri::AppHandle) -> Result<(), BackendError> {

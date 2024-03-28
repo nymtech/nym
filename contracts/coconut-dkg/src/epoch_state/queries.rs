@@ -51,7 +51,7 @@ pub(crate) mod test {
     use crate::epoch_state::transactions::try_initiate_dkg;
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use nym_coconut_dkg_common::types::{EpochState, TimeConfiguration};
+    use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]
     fn query_state() {

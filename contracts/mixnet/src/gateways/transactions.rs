@@ -250,10 +250,6 @@ pub mod tests {
     use super::*;
     use crate::contract::execute;
     use crate::gateways::queries;
-    use crate::gateways::transactions::{
-        try_add_gateway, try_add_gateway_on_behalf, try_remove_gateway_on_behalf,
-        try_update_gateway_config, try_update_gateway_config_on_behalf,
-    };
     use crate::interval::pending_events;
     use crate::mixnet_contract_settings::storage::minimum_gateway_pledge;
     use crate::support::tests;
@@ -261,10 +257,7 @@ pub mod tests {
     use crate::support::tests::fixtures::{good_gateway_pledge, good_mixnode_pledge};
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::testing::mock_info;
-    use cosmwasm_std::{Addr, BankMsg, Response, Uint128};
-    use mixnet_contract_common::error::MixnetContractError;
-    use mixnet_contract_common::events::new_gateway_unbonding_event;
-    use mixnet_contract_common::gateway::GatewayConfigUpdate;
+    use cosmwasm_std::Uint128;
     use mixnet_contract_common::ExecuteMsg;
 
     #[test]

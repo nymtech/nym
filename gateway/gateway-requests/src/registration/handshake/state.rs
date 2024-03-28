@@ -15,7 +15,7 @@ use nym_crypto::{
 };
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
-use std::convert::TryInto;
+
 use std::str::FromStr;
 use std::time::Duration;
 use tungstenite::Message as WsMessage;

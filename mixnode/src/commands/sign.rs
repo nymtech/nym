@@ -10,7 +10,6 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
-use std::convert::TryFrom;
 
 use super::version_check;
 

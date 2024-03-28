@@ -943,8 +943,7 @@ impl super::client::Client for DummyClient {
         if chain
             .multisig_contract
             .votes
-            .get(&(voter.clone(), proposal_id))
-            .is_some()
+            .contains_key(&(voter.clone(), proposal_id))
         {
             todo!("already voted");
         }

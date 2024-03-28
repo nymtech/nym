@@ -92,7 +92,6 @@ pub(crate) mod tests {
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw_controllers::AdminError;
-    use nym_coconut_dkg_common::types::EpochState;
 
     #[test]
     fn initialising_dkg() {

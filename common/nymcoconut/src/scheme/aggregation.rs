@@ -140,7 +140,6 @@ pub fn aggregate_signature_shares(
 mod tests {
     use crate::scheme::issuance::sign;
     use crate::scheme::keygen::ttp_keygen;
-    use crate::scheme::setup::Parameters;
     use crate::scheme::verification::verify;
     use crate::tests::helpers::random_scalars_refs;
     use bls12_381::G1Projective;

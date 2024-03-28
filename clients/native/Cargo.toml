@@ -4,7 +4,7 @@ version = "1.1.33"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 description = "Implementation of the Nym Client"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

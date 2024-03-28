@@ -52,7 +52,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::blake3;
 
     // TODO: is it somehow possible to make the test not depend on blake3 specifically and
     // make it more generic?

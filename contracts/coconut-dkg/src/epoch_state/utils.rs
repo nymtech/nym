@@ -69,7 +69,7 @@ pub(crate) mod test {
     use crate::support::tests::helpers::init_contract;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Timestamp;
-    use nym_coconut_dkg_common::types::{Epoch, TimeConfiguration};
+    use nym_coconut_dkg_common::types::TimeConfiguration;
 
     #[test]
     fn checking_state_completion() {

@@ -388,7 +388,6 @@ async fn try_load_current_config(id: &str) -> Result<Config, Socks5ClientError> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
 
     #[test]
     fn verify_cli() {

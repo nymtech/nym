@@ -63,7 +63,7 @@ fn parse_address_policy_rule(rule: &str) -> Result<AddressPolicyRule, PolicyErro
 mod tests {
     use super::*;
     use crate::policy::AddressPolicyAction::{Accept, Accept6, Reject, Reject6};
-    use crate::policy::{AddressPortPattern, IpPattern, PortRange};
+    use crate::policy::IpPattern;
 
     #[test]
     fn parsing_policy() {

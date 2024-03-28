@@ -209,7 +209,7 @@ async fn issued_credentials() {
     let parsed_response: IssuedCredentialsResponse =
         serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
     assert_eq!(parsed_response.credentials[&5], issued5);
-    assert!(parsed_response.credentials.get(&13).is_none());
+    assert!(!parsed_response.credentials.contains_key(&13));
 
     let response = test_fixture
         .rocket

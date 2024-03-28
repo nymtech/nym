@@ -641,7 +641,6 @@ impl ProofOfChunking {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bte::Share;
     use crate::ChunkedShare;
 
     // limit number of nodes to some reasonable-ish value, as it significantly affects

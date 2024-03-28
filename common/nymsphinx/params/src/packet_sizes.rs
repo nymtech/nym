@@ -8,7 +8,7 @@ use nym_sphinx_types::{header::HEADER_SIZE, PAYLOAD_OVERHEAD_SIZE};
 use nym_sphinx_types::{MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::convert::TryFrom;
+
 use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;

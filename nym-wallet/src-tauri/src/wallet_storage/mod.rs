@@ -470,7 +470,7 @@ fn rename_account_in_login_at_file(
 
 #[cfg(test)]
 mod tests {
-    use crate::wallet_storage::account_data::{MnemonicAccount, WalletAccount};
+    use crate::wallet_storage::account_data::WalletAccount;
 
     use super::*;
     use nym_config::defaults::COSMOS_DERIVATION_PATH;

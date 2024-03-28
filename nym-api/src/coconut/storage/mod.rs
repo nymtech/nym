@@ -23,6 +23,7 @@ pub trait CoconutStorageExt {
         epoch_id: EpochId,
     ) -> Result<Option<EpochCredentials>, NymApiStorageError>;
 
+    #[allow(dead_code)]
     async fn create_epoch_credentials_entry(
         &self,
         epoch_id: EpochId,

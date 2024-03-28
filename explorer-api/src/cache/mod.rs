@@ -41,10 +41,10 @@ where
             .collect()
     }
 
-    pub(crate) fn get<Q: ?Sized>(&self, key: &Q) -> Option<V>
+    pub(crate) fn get<Q>(&self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: ?Sized + Hash + Eq,
     {
         self.inner
             .get(key)
@@ -63,19 +63,19 @@ where
     }
 
     #[allow(unused)]
-    pub(crate) fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
+    pub(crate) fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: ?Sized + Hash + Eq,
     {
         self.inner.remove(key).map(|item| item.value)
     }
 
     #[allow(unused)]
-    pub(crate) fn remove_if_expired<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
+    pub(crate) fn remove_if_expired<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
-        Q: Hash + Eq,
+        Q: ?Sized + Hash + Eq,
     {
         if self.inner.get(key)?.has_expired() {
             self.remove(key)

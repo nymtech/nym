@@ -7,7 +7,7 @@ pub use nym_mixnet_contract_common::Layer;
 use nym_mixnet_contract_common::{MixId, MixNodeBond};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
-use std::convert::{TryFrom, TryInto};
+
 use std::fmt::Formatter;
 use std::io;
 use std::net::SocketAddr;

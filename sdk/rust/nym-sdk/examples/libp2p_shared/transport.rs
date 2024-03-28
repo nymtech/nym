@@ -227,7 +227,7 @@ impl NymTransport {
         }
 
         // ensure we don't already have a conn with the same id
-        if self.connections.get(&msg.id).is_some() {
+        if self.connections.contains_key(&msg.id) {
             return Err(Error::ConnectionIDExists);
         }
 

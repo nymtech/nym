@@ -1,6 +1,9 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(unknown_lints)]
+// clippy::to_string_trait_impl is not on stable as of 1.77
+
 use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
 use log::warn;
@@ -11,7 +14,7 @@ use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::SliceRandom;
 use rand::{CryptoRng, Rng};
 use std::collections::BTreeMap;
-use std::convert::TryInto;
+
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
@@ -51,6 +54,7 @@ pub enum NodeVersion {
 
 // this is only implemented for backwards compatibility so we wouldn't need to change everything at once
 // (also I intentionally implemented `ToString` as opposed to `Display`)
+#[allow(clippy::to_string_trait_impl)]
 impl ToString for NodeVersion {
     fn to_string(&self) -> String {
         match self {

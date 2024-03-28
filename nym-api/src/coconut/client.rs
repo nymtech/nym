@@ -65,6 +65,7 @@ pub trait Client {
         dealer: String,
     ) -> Result<DealerDealingsStatusResponse>;
 
+    #[allow(dead_code)]
     async fn get_dealing_status(
         &self,
         epoch_id: EpochId,
@@ -74,6 +75,7 @@ pub trait Client {
 
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>>;
 
+    #[allow(dead_code)]
     async fn get_dealing_metadata(
         &self,
         epoch_id: EpochId,

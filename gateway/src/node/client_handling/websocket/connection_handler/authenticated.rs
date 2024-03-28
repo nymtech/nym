@@ -32,7 +32,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::CoconutApiError;
 use rand::{CryptoRng, Rng};
-use std::{convert::TryFrom, process, time::Duration};
+use std::{process, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};

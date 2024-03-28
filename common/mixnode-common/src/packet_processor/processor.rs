@@ -13,7 +13,7 @@ use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, NymProcessedPacket,
     PrivateKey, ProcessedPacket,
 };
-use std::convert::TryFrom;
+
 use std::sync::Arc;
 
 type ForwardAck = MixPacket;

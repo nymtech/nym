@@ -28,7 +28,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
-use std::convert::TryFrom;
+
 use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;

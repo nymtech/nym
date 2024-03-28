@@ -34,7 +34,7 @@ impl HostsGroup {
     }
 
     pub(crate) fn contains_domain(&self, host: &str) -> bool {
-        self.domains.contains(&host.to_string())
+        self.domains.contains(host)
     }
 
     pub(super) fn contains_ip_address(&self, address: IpAddr) -> bool {

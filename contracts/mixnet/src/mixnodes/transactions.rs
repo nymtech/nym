@@ -530,7 +530,6 @@ pub mod tests {
         // prior increase
         let owner = "mix-owner1";
         test.add_legacy_mixnode(owner, None);
-
         let sender = mock_info(owner, &[test.coin(1000)]);
         try_increase_pledge(test.deps_mut(), env.clone(), sender.clone()).unwrap();
 

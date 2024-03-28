@@ -239,7 +239,9 @@ impl<C, S> Client<C, S> {
         Ok(self.nym_api.get_active_mixnodes_detailed().await?)
     }
 
-    pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    pub async fn get_cached_gateways(
+        &self,
+    ) -> Result<Vec<LegacyGatewayBondWithId>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
 
@@ -321,7 +323,9 @@ impl NymApiClient {
         Ok(self.nym_api.get_mixnodes().await?)
     }
 
-    pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    pub async fn get_cached_gateways(
+        &self,
+    ) -> Result<Vec<LegacyGatewayBondWithId>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
 

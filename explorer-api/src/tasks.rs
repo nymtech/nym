@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_mixnet_contract_common::GatewayBond;
 use nym_task::TaskClient;
+use nym_validator_client::legacy::LegacyGatewayBondWithId;
 use nym_validator_client::models::MixNodeBondAnnotated;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{Paging, TendermintRpcClient, ValidatorResponse};
@@ -47,7 +47,9 @@ impl ExplorerApiTasks {
         .await
     }
 
-    async fn retrieve_all_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    async fn retrieve_all_gateways(
+        &self,
+    ) -> Result<Vec<LegacyGatewayBondWithId>, ValidatorClientError> {
         info!("About to retrieve all gateways...");
         self.state
             .inner

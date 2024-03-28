@@ -18,3 +18,11 @@ pub fn truncate_reward(reward: Decimal, denom: impl Into<String>) -> Coin {
 pub fn truncate_reward_amount(reward: Decimal) -> Uint128 {
     truncate_decimal(reward)
 }
+
+pub fn legacy_standby_work_factor() -> Decimal {
+    todo!()
+}
+
+pub fn legacy_active_work_factor() -> Decimal {
+    todo!()
+}

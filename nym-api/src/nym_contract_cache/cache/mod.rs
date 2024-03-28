@@ -69,7 +69,6 @@ impl NymContractCache {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn update(
         &self,
         mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,

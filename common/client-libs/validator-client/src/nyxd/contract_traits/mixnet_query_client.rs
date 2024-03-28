@@ -7,6 +7,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
+use nym_api_requests::models::StakeSaturationResponse;
 use nym_contracts_common::signing::Nonce;
 use nym_mixnet_contract_common::gateway::{PreassignedGatewayIdsResponse, PreassignedId};
 use nym_mixnet_contract_common::nym_node::{
@@ -732,6 +733,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_mixnet_contract_common::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]

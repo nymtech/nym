@@ -97,7 +97,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
+    async fn get_gateways(&self) -> Result<Vec<LegacyGatewayBondWithId>, NymAPIError> {
         self.get_json(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
     }

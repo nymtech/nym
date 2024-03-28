@@ -605,6 +605,12 @@ pub fn migrate(
     // prepare the ground for using nym-nodes rather than standalone mixnodes/gateways
     migrate_to_nym_nodes_usage(deps.branch(), &msg)?;
 
+    // remove all family-related things
+    crate::queued_migrations::families_purge(deps.branch())?;
+
+    // prepare the ground for using nym-nodes rather than standalone mixnodes/gateways
+    migrate_to_nym_nodes_usage(deps.branch(), &msg)?;
+
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
     // environment, one of the contracts will HAVE TO go through a migration

@@ -3,9 +3,7 @@
   "title": "NodeDetailsByIdentityResponse",
   "description": "Response containing details of a bonded node with the provided identity key.",
   "type": "object",
-  "required": [
-    "identity_key"
-  ],
+  "required": ["identity_key"],
   "properties": {
     "details": {
       "description": "If there exists a bonded node with the provided identity key, this field contains its detailed information.",
@@ -31,10 +29,7 @@
     },
     "Coin": {
       "type": "object",
-      "required": [
-        "amount",
-        "denom"
-      ],
+      "required": ["amount", "denom"],
       "properties": {
         "amount": {
           "$ref": "#/definitions/Uint128"
@@ -51,10 +46,7 @@
     "NodeCostParams": {
       "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
-      "required": [
-        "interval_operating_cost",
-        "profit_margin_percent"
-      ],
+      "required": ["interval_operating_cost", "profit_margin_percent"],
       "properties": {
         "interval_operating_cost": {
           "description": "Operating cost of the associated node per the entire interval.",
@@ -144,17 +136,11 @@
     "NymNode": {
       "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
-      "required": [
-        "host",
-        "identity_key"
-      ],
+      "required": ["host", "identity_key"],
       "properties": {
         "custom_http_port": {
           "description": "Allow specifying custom port for accessing the http, and thus self-described, api of this node for the capabilities discovery.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint16",
           "minimum": 0.0
         },
@@ -226,11 +212,7 @@
     "NymNodeDetails": {
       "description": "Full details associated with given node.",
       "type": "object",
-      "required": [
-        "bond_information",
-        "pending_changes",
-        "rewarding_details"
-      ],
+      "required": ["bond_information", "pending_changes", "rewarding_details"],
       "properties": {
         "bond_information": {
           "description": "Basic bond information of this node, such as owner address, original pledge, etc.",
@@ -263,18 +245,12 @@
       "type": "object",
       "properties": {
         "cost_params_change": {
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint32",
           "minimum": 0.0
         },
         "pledge_change": {
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint32",
           "minimum": 0.0
         }

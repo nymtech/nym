@@ -122,7 +122,7 @@ where
         .collect::<Vec<_>>();
 
     if available_gateways.is_empty() {
-        return Err(ClientCoreError::NoNewGatewaysAvailable.into())
+        return Err(ClientCoreError::NoNewGatewaysAvailable.into());
     }
 
     let gateway_setup = GatewaySetup::New {

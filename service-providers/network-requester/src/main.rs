@@ -26,6 +26,6 @@ async fn main() -> anyhow::Result<()> {
     setup_logging();
 
     cli::execute(args).await?;
-    
+
     Ok(())
 }

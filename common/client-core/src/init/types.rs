@@ -244,7 +244,7 @@ pub enum GatewaySetup {
 
         // TODO: seems to be a bit inefficient to pass them by value
         available_gateways: Vec<gateway::Node>,
-        
+
         /// Implicitly specify whether the chosen gateway must use wireguard mode by setting the tun address.
         ///
         /// Currently this is imperfect solution as I'd imagine this address could vary from gateway to gateway

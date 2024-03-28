@@ -11,7 +11,7 @@ use comfy_table::Table;
 use csv::WriterBuilder;
 use log::info;
 use nym_mixnet_contract_common::ExecuteMsg;
-use nym_mixnet_contract_common::ExecuteMsg::{DelegateToMixnode, UndelegateFromMixnode};
+use nym_mixnet_contract_common::ExecuteMsg::{Delegate, Undelegate};
 
 use nym_mixnet_contract_common::PendingEpochEventKind::{Delegate, Undelegate};
 use nym_validator_client::nyxd::contract_traits::{NymContractsProvider, PagedMixnetQueryClient};
@@ -166,7 +166,7 @@ async fn fetch_delegation_data(
             // If a pending delegation event is found, gather them to consolidate later
             Delegate {
                 owner,
-                mix_id,
+                node_id: mix_id,
                 amount,
                 ..
             } => {
@@ -230,7 +230,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
                     denom: row.amount.denom.clone(),
                 };
                 let mix_id = row.mix_id.clone().parse::<u32>().unwrap();
-                delegation_msgs.push((DelegateToMixnode { mix_id }, vec![difference.clone()]));
+                delegation_msgs.push((Delegate { mix_id }, vec![difference.clone()]));
                 delegation_table.add_row(&[
                     row.mix_id.clone(),
                     pretty_coin(&row.amount),
@@ -241,11 +241,11 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
             Ordering::Greater => {
                 let mix_id = row.mix_id.clone().parse::<u32>().unwrap();
                 let coins: Vec<Coin> = vec![];
-                undelegation_msgs.push((UndelegateFromMixnode { mix_id }, coins));
+                undelegation_msgs.push((Undelegate { mix_id: node_id }, coins));
                 undelegation_table.add_row(&[row.mix_id.clone()]);
 
                 if row.amount.amount > 0 {
-                    delegation_msgs.push((DelegateToMixnode { mix_id }, vec![row.amount.clone()]));
+                    delegation_msgs.push((Delegate { mix_id }, vec![row.amount.clone()]));
                     delegation_table.add_row(&[
                         row.mix_id.clone(),
                         pretty_coin(&row.amount),

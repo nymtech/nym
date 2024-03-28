@@ -15,7 +15,7 @@ pub use nym_sphinx::{
 pub use tester::NodeTester;
 
 // it feels wrong to redefine it, but I don't want to import the whole of contract commons just for this one type
-pub(crate) type MixId = u32;
+pub(crate) type NodeId = u32;
 
 #[macro_export]
 macro_rules! log_err {

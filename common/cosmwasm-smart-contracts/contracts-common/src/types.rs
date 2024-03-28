@@ -8,7 +8,7 @@ use cosmwasm_std::Uint128;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use std::fmt::{self, Display, Formatter};
-use std::ops::Mul;
+use std::ops::{Deref, Mul};
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -51,11 +51,15 @@ impl Percent {
         self.0 == Decimal::zero()
     }
 
-    pub fn zero() -> Self {
+    pub fn is_hundred(&self) -> bool {
+        self == &Self::hundred()
+    }
+
+    pub const fn zero() -> Self {
         Self(Decimal::zero())
     }
 
-    pub fn hundred() -> Self {
+    pub const fn hundred() -> Self {
         Self(Decimal::one())
     }
 
@@ -114,6 +118,14 @@ impl Mul<Uint128> for Percent {
 
     fn mul(self, rhs: Uint128) -> Self::Output {
         self.0 * rhs
+    }
+}
+
+impl Deref for Percent {
+    type Target = Decimal;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

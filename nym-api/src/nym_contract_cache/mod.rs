@@ -12,6 +12,7 @@ use rocket_okapi::settings::OpenApiSettings;
 use self::cache::refresher::NymContractCacheRefresher;
 
 pub(crate) mod cache;
+pub(crate) mod legacy_helpers;
 pub(crate) mod routes;
 
 pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
@@ -25,6 +26,7 @@ pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Rout
         routes::get_rewarded_set_detailed,
         routes::get_blacklisted_mixnodes,
         routes::get_blacklisted_gateways,
+        routes::get_blacklisted_gateways_v2,
         routes::get_interval_reward_params,
         routes::get_current_epoch,
     ]

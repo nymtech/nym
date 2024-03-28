@@ -20,6 +20,7 @@ use thiserror::Error;
 #[cfg(feature = "wasm-serde-types")]
 use tsify::Tsify;
 
+use nym_mixnet_contract_common::NodeId;
 #[cfg(feature = "wasm-serde-types")]
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 
@@ -109,9 +110,6 @@ pub struct SerializableMixNode {
     #[serde(alias = "mix_id")]
     pub mix_id: u32,
 
-    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
-    pub owner: Option<String>,
-
     pub host: String,
 
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
@@ -131,40 +129,38 @@ pub struct SerializableMixNode {
     pub version: Option<String>,
 }
 
-impl TryFrom<SerializableMixNode> for mix::Node {
+impl TryFrom<SerializableMixNode> for mix::LegacyNode {
     type Error = SerializableTopologyError;
 
     fn try_from(value: SerializableMixNode) -> Result<Self, Self::Error> {
-        let host = mix::Node::parse_host(&value.host)?;
+        let host = mix::LegacyNode::parse_host(&value.host)?;
 
         let mix_port = value.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT);
         let version = value.version.map(|v| v.as_str().into()).unwrap_or_default();
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = mix::Node::extract_mix_host(&host, mix_port)?;
+        let mix_host = mix::LegacyNode::extract_mix_host(&host, mix_port)?;
 
-        Ok(mix::Node {
+        Ok(mix::LegacyNode {
             mix_id: value.mix_id,
-            owner: value.owner,
             host,
             mix_host,
             identity_key: identity::PublicKey::from_base58_string(&value.identity_key)
                 .map_err(MixnodeConversionError::from)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&value.sphinx_key)
                 .map_err(MixnodeConversionError::from)?,
-            layer: mix::Layer::try_from(value.layer)
+            layer: mix::LegacyMixLayer::try_from(value.layer)
                 .map_err(|_| SerializableTopologyError::InvalidMixLayer { value: value.layer })?,
             version,
         })
     }
 }
 
-impl<'a> From<&'a mix::Node> for SerializableMixNode {
-    fn from(value: &'a mix::Node) -> Self {
+impl<'a> From<&'a mix::LegacyNode> for SerializableMixNode {
+    fn from(value: &'a mix::LegacyNode) -> Self {
         SerializableMixNode {
             mix_id: value.mix_id,
-            owner: value.owner.clone(),
             host: value.host.to_string(),
             mix_port: Some(value.mix_host.port()),
             identity_key: value.identity_key.to_base58_string(),
@@ -181,10 +177,9 @@ impl<'a> From<&'a mix::Node> for SerializableMixNode {
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct SerializableGateway {
-    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
-    pub owner: Option<String>,
-
     pub host: String,
+
+    pub node_id: NodeId,
 
     // optional ip address in the case of host being a hostname that can't be resolved
     // (thank you wasm)
@@ -215,11 +210,11 @@ pub struct SerializableGateway {
     pub version: Option<String>,
 }
 
-impl TryFrom<SerializableGateway> for gateway::Node {
+impl TryFrom<SerializableGateway> for gateway::LegacyNode {
     type Error = SerializableTopologyError;
 
     fn try_from(value: SerializableGateway) -> Result<Self, Self::Error> {
-        let host = gateway::Node::parse_host(&value.host)?;
+        let host = gateway::LegacyNode::parse_host(&value.host)?;
 
         let mix_port = value.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT);
         let clients_ws_port = value
@@ -232,11 +227,11 @@ impl TryFrom<SerializableGateway> for gateway::Node {
         let mix_host = if let Some(explicit_ip) = value.explicit_ip {
             SocketAddr::new(explicit_ip, mix_port)
         } else {
-            gateway::Node::extract_mix_host(&host, mix_port)?
+            gateway::LegacyNode::extract_mix_host(&host, mix_port)?
         };
 
-        Ok(gateway::Node {
-            owner: value.owner,
+        Ok(gateway::LegacyNode {
+            node_id: value.node_id,
             host,
             mix_host,
             clients_ws_port,
@@ -250,11 +245,11 @@ impl TryFrom<SerializableGateway> for gateway::Node {
     }
 }
 
-impl<'a> From<&'a gateway::Node> for SerializableGateway {
-    fn from(value: &'a gateway::Node) -> Self {
+impl<'a> From<&'a gateway::LegacyNode> for SerializableGateway {
+    fn from(value: &'a gateway::LegacyNode) -> Self {
         SerializableGateway {
-            owner: value.owner.clone(),
             host: value.host.to_string(),
+            node_id: value.node_id,
             explicit_ip: Some(value.mix_host.ip()),
             mix_port: Some(value.mix_host.port()),
             clients_ws_port: Some(value.clients_ws_port),

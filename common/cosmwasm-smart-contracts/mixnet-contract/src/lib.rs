@@ -3,17 +3,18 @@
 
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
+#![warn(clippy::todo)]
 
 mod constants;
 pub mod delegation;
 pub mod error;
 pub mod events;
-pub mod families;
 pub mod gateway;
 pub mod helpers;
 pub mod interval;
 pub mod mixnode;
 pub mod msg;
+pub mod nym_node;
 pub mod pending_events;
 pub mod reward_params;
 pub mod rewarding;
@@ -26,10 +27,6 @@ pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixNodeDelegationsResponse,
 };
-pub use families::{
-    Family, FamilyByHeadResponse, FamilyByLabelResponse, FamilyHead, FamilyMembersByHeadResponse,
-    FamilyMembersByLabelResponse, PagedFamiliesResponse, PagedMembersResponse,
-};
 pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayConfigUpdate, GatewayOwnershipResponse,
     PagedGatewayResponse,
@@ -38,11 +35,12 @@ pub use interval::{
     CurrentIntervalResponse, EpochId, EpochState, EpochStatus, Interval, IntervalId,
 };
 pub use mixnode::{
-    Layer, MixNode, MixNodeBond, MixNodeConfigUpdate, MixNodeCostParams, MixNodeDetails,
-    MixNodeRewarding, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
-    MixnodeDetailsResponse, PagedMixnodeBondsResponse, RewardedSetNodeStatus, UnbondedMixnode,
+    LegacyMixLayer, MixNode, MixNodeBond, MixNodeConfigUpdate, MixNodeDetails,
+    MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse, NodeCostParams,
+    NodeRewarding, PagedMixnodeBondsResponse, UnbondedMixnode,
 };
 pub use msg::*;
+pub use nym_node::{NymNode, NymNodeBond, NymNodeDetails, PendingNodeChanges};
 pub use pending_events::{
     EpochEventId, IntervalEventId, NumberOfPendingEventsResponse, PendingEpochEvent,
     PendingEpochEventData, PendingEpochEventKind, PendingEpochEventResponse,
@@ -50,8 +48,6 @@ pub use pending_events::{
     PendingIntervalEventKind, PendingIntervalEventResponse, PendingIntervalEventsResponse,
 };
 pub use reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate, RewardingParams};
-pub use rewarding::{
-    EstimatedCurrentEpochRewardResponse, PagedRewardedSetResponse, PendingRewardResponse,
-};
+pub use rewarding::{EstimatedCurrentEpochRewardResponse, PendingRewardResponse};
 pub use signing_types::*;
 pub use types::*;

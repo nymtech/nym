@@ -3,14 +3,14 @@
 
 use crate::constants::TOKEN_SUPPLY;
 use crate::helpers::IntoBaseDecimal;
-use crate::{Addr, MixId};
+use crate::{Addr, NodeId};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal, StdResult};
 
 // just use a string representation of those so that we wouldn't need to bother with decoding bytes
 // and trying to figure out whether they're valid, etc
 pub type OwnerProxySubKey = String;
-pub type StorageKey = (MixId, OwnerProxySubKey);
+pub type StorageKey = (NodeId, OwnerProxySubKey);
 
 // throughout the contract we ensure that our proxy can ONLY ever be the vesting contract
 // thus this method is equivalent to either using the existing address (for when there's no proxy)
@@ -40,8 +40,9 @@ pub struct Delegation {
     /// Address of the owner of this delegation.
     pub owner: Addr,
 
-    /// Id of the MixNode that this delegation was performed against.
-    pub mix_id: MixId,
+    /// Id of the Node that this delegation was performed against.
+    #[serde(alias = "mix_id")]
+    pub node_id: NodeId,
 
     // Note to UI/UX devs: there's absolutely no point in displaying this value to the users,
     // it would serve them no purpose. It's only used for calculating rewards
@@ -56,12 +57,13 @@ pub struct Delegation {
 
     /// Proxy address used to delegate the funds on behalf of another address
     pub proxy: Option<Addr>,
+    // TODO: perhaps add a field to indicate if it was made against old mixnode with #[serde(default)]?
 }
 
 impl Delegation {
     pub fn new(
         owner: Addr,
-        mix_id: MixId,
+        node_id: NodeId,
         cumulative_reward_ratio: Decimal,
         amount: Coin,
         height: u64,
@@ -73,7 +75,7 @@ impl Delegation {
 
         Delegation {
             owner,
-            mix_id,
+            node_id,
             cumulative_reward_ratio,
             amount,
             height,
@@ -82,7 +84,7 @@ impl Delegation {
     }
 
     pub fn generate_storage_key(
-        mix_id: MixId,
+        mix_id: NodeId,
         owner_address: &Addr,
         proxy: Option<&Addr>,
     ) -> StorageKey {
@@ -92,7 +94,7 @@ impl Delegation {
     // this function might seem a bit redundant, but I'd rather explicitly keep it around in case
     // some types change in the future
     pub fn generate_storage_key_with_subkey(
-        mix_id: MixId,
+        mix_id: NodeId,
         owner_proxy_subkey: OwnerProxySubKey,
     ) -> StorageKey {
         (mix_id, owner_proxy_subkey)
@@ -107,7 +109,7 @@ impl Delegation {
     }
 
     pub fn storage_key(&self) -> StorageKey {
-        Self::generate_storage_key(self.mix_id, &self.owner, self.proxy.as_ref())
+        Self::generate_storage_key(self.node_id, &self.owner, self.proxy.as_ref())
     }
 }
 
@@ -137,13 +139,13 @@ pub struct PagedDelegatorDelegationsResponse {
     pub delegations: Vec<Delegation>,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
-    pub start_next_after: Option<(MixId, OwnerProxySubKey)>,
+    pub start_next_after: Option<(NodeId, OwnerProxySubKey)>,
 }
 
 impl PagedDelegatorDelegationsResponse {
     pub fn new(
         delegations: Vec<Delegation>,
-        start_next_after: Option<(MixId, OwnerProxySubKey)>,
+        start_next_after: Option<(NodeId, OwnerProxySubKey)>,
     ) -> Self {
         PagedDelegatorDelegationsResponse {
             delegations,

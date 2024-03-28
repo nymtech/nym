@@ -8,10 +8,12 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::Nonce;
+use nym_mixnet_contract_common::gateway::{PreassignedGatewayIdsResponse, PreassignedId};
+use nym_mixnet_contract_common::nym_node::{EpochAssignmentResponse, Role, RolesMetadataResponse};
+use nym_mixnet_contract_common::reward_params::WorkFactor;
 use nym_mixnet_contract_common::{
     delegation,
     delegation::{MixNodeDelegationResponse, OwnerProxySubKey},
-    families::{Family, FamilyHead},
     mixnode::{
         MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
         PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
@@ -19,17 +21,14 @@ use nym_mixnet_contract_common::{
     reward_params::{Performance, RewardingParams},
     rewarding::{EstimatedCurrentEpochRewardResponse, PendingRewardResponse},
     ContractBuildInformation, ContractState, ContractStateParams, CurrentIntervalResponse,
-    Delegation, EpochEventId, EpochStatus, FamilyByHeadResponse, FamilyByLabelResponse,
-    FamilyMembersByHeadResponse, FamilyMembersByLabelResponse, GatewayBond, GatewayBondResponse,
-    GatewayOwnershipResponse, IdentityKey, IdentityKeyRef, IntervalEventId, LayerDistribution,
-    MixId, MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
-    MixnodeDetailsResponse, NumberOfPendingEventsResponse, PagedAllDelegationsResponse,
-    PagedDelegatorDelegationsResponse, PagedFamiliesResponse, PagedGatewayResponse,
-    PagedMembersResponse, PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse,
-    PagedRewardedSetResponse, PendingEpochEvent, PendingEpochEventResponse,
+    Delegation, EpochEventId, EpochStatus, GatewayBond, GatewayBondResponse,
+    GatewayOwnershipResponse, IdentityKey, IdentityKeyRef, IntervalEventId, MixNodeBond,
+    MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
+    NodeId, NumberOfPendingEventsResponse, PagedAllDelegationsResponse,
+    PagedDelegatorDelegationsResponse, PagedGatewayResponse, PagedMixNodeDelegationsResponse,
+    PagedMixnodeBondsResponse, PendingEpochEvent, PendingEpochEventResponse,
     PendingEpochEventsResponse, PendingIntervalEvent, PendingIntervalEventResponse,
-    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg, RewardedSetNodeStatus,
-    UnbondedMixnode,
+    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg, RewardedSet, UnbondedMixnode,
 };
 use serde::Deserialize;
 
@@ -87,56 +86,11 @@ pub trait MixnetQueryClient {
             .await
     }
 
-    async fn get_rewarded_set_paged(
-        &self,
-        start_after: Option<MixId>,
-        limit: Option<u32>,
-    ) -> Result<PagedRewardedSetResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetRewardedSet { limit, start_after })
-            .await
-    }
-
-    async fn get_all_node_families_paged(
-        &self,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> Result<PagedFamiliesResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetAllFamiliesPaged { limit, start_after })
-            .await
-    }
-
-    async fn get_all_family_members_paged(
-        &self,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> Result<PagedMembersResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetAllMembersPaged { limit, start_after })
-            .await
-    }
-
-    async fn get_family_members_by_head<S: Into<String> + Send>(
-        &self,
-        head: S,
-    ) -> Result<FamilyMembersByHeadResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyMembersByHead { head: head.into() })
-            .await
-    }
-
-    async fn get_family_members_by_label<S: Into<String> + Send>(
-        &self,
-        label: S,
-    ) -> Result<FamilyMembersByLabelResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyMembersByLabel {
-            label: label.into(),
-        })
-        .await
-    }
-
     // mixnode-related:
 
     async fn get_mixnode_bonds_paged(
         &self,
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
         limit: Option<u32>,
     ) -> Result<PagedMixnodeBondsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetMixNodeBonds { limit, start_after })
@@ -145,7 +99,7 @@ pub trait MixnetQueryClient {
 
     async fn get_mixnodes_detailed_paged(
         &self,
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
         limit: Option<u32>,
     ) -> Result<PagedMixnodesDetailsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetMixNodesDetailed { limit, start_after })
@@ -154,7 +108,7 @@ pub trait MixnetQueryClient {
 
     async fn get_unbonded_paged(
         &self,
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
         limit: Option<u32>,
     ) -> Result<PagedUnbondedMixnodesResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodes { limit, start_after })
@@ -164,7 +118,7 @@ pub trait MixnetQueryClient {
     async fn get_unbonded_by_owner_paged(
         &self,
         owner: &AccountId,
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
         limit: Option<u32>,
     ) -> Result<PagedUnbondedMixnodesResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodesByOwner {
@@ -178,7 +132,7 @@ pub trait MixnetQueryClient {
     async fn get_unbonded_by_identity_paged(
         &self,
         identity_key: IdentityKeyRef<'_>,
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
         limit: Option<u32>,
     ) -> Result<PagedUnbondedMixnodesResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodesByIdentityKey {
@@ -201,7 +155,7 @@ pub trait MixnetQueryClient {
 
     async fn get_mixnode_details(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeDetailsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetMixnodeDetails { mix_id })
             .await
@@ -219,7 +173,7 @@ pub trait MixnetQueryClient {
 
     async fn get_mixnode_rewarding_details(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeRewardingDetailsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetMixnodeRewardingDetails { mix_id })
             .await
@@ -227,7 +181,7 @@ pub trait MixnetQueryClient {
 
     async fn get_mixnode_stake_saturation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<StakeSaturationResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetStakeSaturation { mix_id })
             .await
@@ -235,16 +189,16 @@ pub trait MixnetQueryClient {
 
     async fn get_unbonded_mixnode_information(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<UnbondedMixnodeResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodeInformation { mix_id })
             .await
     }
 
-    async fn get_layer_distribution(&self) -> Result<LayerDistribution, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetLayerDistribution {})
-            .await
-    }
+    // async fn get_layer_distribution(&self) -> Result<LayerDistribution, NyxdError> {
+    //     self.query_mixnet_contract(MixnetQueryMsg::GetRoleDistribution {})
+    //         .await
+    // }
 
     // gateway-related:
 
@@ -277,12 +231,32 @@ pub trait MixnetQueryClient {
         .await
     }
 
+    async fn get_preassigned_gateway_ids_paged(
+        &self,
+        start_after: Option<IdentityKey>,
+        limit: Option<u32>,
+    ) -> Result<PreassignedGatewayIdsResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetPreassignedGatewayIds { start_after, limit })
+            .await
+    }
+
+    // nym-nodes related:
+    async fn get_role_assignment(&self, role: Role) -> Result<EpochAssignmentResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetRoleAssignment { role })
+            .await
+    }
+
+    async fn get_rewarded_set_metadata(&self) -> Result<RolesMetadataResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetRewardedSetMetadata {})
+            .await
+    }
+
     // delegation-related:
 
     /// Gets list of all delegations towards particular mixnode on particular page.
     async fn get_mixnode_delegations_paged(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         start_after: Option<String>,
         limit: Option<u32>,
     ) -> Result<PagedMixNodeDelegationsResponse, NyxdError> {
@@ -298,7 +272,7 @@ pub trait MixnetQueryClient {
     async fn get_delegator_delegations_paged(
         &self,
         delegator: &AccountId,
-        start_after: Option<(MixId, OwnerProxySubKey)>,
+        start_after: Option<(NodeId, OwnerProxySubKey)>,
         limit: Option<u32>,
     ) -> Result<PagedDelegatorDelegationsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetDelegatorDelegations {
@@ -312,7 +286,7 @@ pub trait MixnetQueryClient {
     /// Checks value of delegation of given client towards particular mixnode.
     async fn get_delegation_details(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         delegator: &AccountId,
         proxy: Option<String>,
     ) -> Result<MixNodeDelegationResponse, NyxdError> {
@@ -347,7 +321,7 @@ pub trait MixnetQueryClient {
 
     async fn get_pending_mixnode_operator_reward(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<PendingRewardResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetPendingMixNodeOperatorReward { mix_id })
             .await
@@ -356,7 +330,7 @@ pub trait MixnetQueryClient {
     async fn get_pending_delegator_reward(
         &self,
         delegator: &AccountId,
-        mix_id: MixId,
+        mix_id: NodeId,
         proxy: Option<String>,
     ) -> Result<PendingRewardResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetPendingDelegatorReward {
@@ -370,12 +344,14 @@ pub trait MixnetQueryClient {
     // given the provided performance, estimate the reward at the end of the current epoch
     async fn get_estimated_current_epoch_operator_reward(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         estimated_performance: Performance,
+        estimated_work: Option<WorkFactor>,
     ) -> Result<EstimatedCurrentEpochRewardResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetEstimatedCurrentEpochOperatorReward {
             mix_id,
             estimated_performance,
+            estimated_work,
         })
         .await
     }
@@ -384,15 +360,15 @@ pub trait MixnetQueryClient {
     async fn get_estimated_current_epoch_delegator_reward(
         &self,
         delegator: &AccountId,
-        mix_id: MixId,
-        proxy: Option<String>,
+        mix_id: NodeId,
         estimated_performance: Performance,
+        estimated_work: Option<WorkFactor>,
     ) -> Result<EstimatedCurrentEpochRewardResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetEstimatedCurrentEpochDelegatorReward {
             address: delegator.to_string(),
             mix_id,
-            proxy,
             estimated_performance,
+            estimated_work,
         })
         .await
     }
@@ -446,22 +422,6 @@ pub trait MixnetQueryClient {
         })
         .await
     }
-
-    async fn get_node_family_by_label(
-        &self,
-        label: String,
-    ) -> Result<FamilyByLabelResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByLabel { label })
-            .await
-    }
-
-    async fn get_node_family_by_head(
-        &self,
-        head: String,
-    ) -> Result<FamilyByHeadResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead { head })
-            .await
-    }
 }
 
 // extension trait to the query client to deal with the paged queries
@@ -469,20 +429,6 @@ pub trait MixnetQueryClient {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedMixnetQueryClient: MixnetQueryClient {
-    async fn get_all_node_families(&self) -> Result<Vec<Family>, NyxdError> {
-        collect_paged!(self, get_all_node_families_paged, families)
-    }
-
-    async fn get_all_family_members(&self) -> Result<Vec<(IdentityKey, FamilyHead)>, NyxdError> {
-        collect_paged!(self, get_all_family_members_paged, members)
-    }
-
-    async fn get_all_rewarded_set_mixnodes(
-        &self,
-    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, NyxdError> {
-        collect_paged!(self, get_rewarded_set_paged, nodes)
-    }
-
     async fn get_all_mixnode_bonds(&self) -> Result<Vec<MixNodeBond>, NyxdError> {
         collect_paged!(self, get_mixnode_bonds_paged, nodes)
     }
@@ -491,21 +437,21 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
         collect_paged!(self, get_mixnodes_detailed_paged, nodes)
     }
 
-    async fn get_all_unbonded_mixnodes(&self) -> Result<Vec<(MixId, UnbondedMixnode)>, NyxdError> {
+    async fn get_all_unbonded_mixnodes(&self) -> Result<Vec<(NodeId, UnbondedMixnode)>, NyxdError> {
         collect_paged!(self, get_unbonded_paged, nodes)
     }
 
     async fn get_all_unbonded_mixnodes_by_owner(
         &self,
         owner: &AccountId,
-    ) -> Result<Vec<(MixId, UnbondedMixnode)>, NyxdError> {
+    ) -> Result<Vec<(NodeId, UnbondedMixnode)>, NyxdError> {
         collect_paged!(self, get_unbonded_by_owner_paged, nodes, owner)
     }
 
     async fn get_all_unbonded_mixnodes_by_identity(
         &self,
         identity_key: IdentityKeyRef<'_>,
-    ) -> Result<Vec<(MixId, UnbondedMixnode)>, NyxdError> {
+    ) -> Result<Vec<(NodeId, UnbondedMixnode)>, NyxdError> {
         collect_paged!(self, get_unbonded_by_identity_paged, nodes, identity_key)
     }
 
@@ -513,9 +459,13 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
         collect_paged!(self, get_gateways_paged, nodes)
     }
 
+    async fn get_all_preassigned_gateway_ids(&self) -> Result<Vec<PreassignedId>, NyxdError> {
+        collect_paged!(self, get_preassigned_gateway_ids_paged, ids)
+    }
+
     async fn get_all_single_mixnode_delegations(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<Vec<Delegation>, NyxdError> {
         collect_paged!(self, get_mixnode_delegations_paged, delegations, mix_id)
     }
@@ -550,6 +500,65 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
 #[async_trait]
 impl<T> PagedMixnetQueryClient for T where T: MixnetQueryClient {}
 
+// extension help to provide extra functionalities based on existing queries:
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait MixnetQueryClientExt: MixnetQueryClient {
+    async fn get_rewarded_set(&self) -> Result<RewardedSet, NyxdError> {
+        let error_response = |message| Err(NyxdError::extension_query_failure("mixnet", message));
+
+        let metadata = self.get_rewarded_set_metadata().await?;
+        if !metadata.metadata.fully_assigned {
+            return error_response("the rewarded set hasn't been fully assigned for this epoch");
+        }
+        let expected_epoch_id = metadata.metadata.epoch_id;
+
+        // if we have to query those things more frequently, we could do it concurrently,
+        // but as it stands now, it happens so infrequently it might as well be sequential
+        let entry = self.get_role_assignment(Role::EntryGateway).await?;
+        if entry.epoch_id != expected_epoch_id {
+            return error_response("the nodes assigned for 'entry' returned unexpected epoch_id");
+        }
+
+        let exit = self.get_role_assignment(Role::ExitGateway).await?;
+        if exit.epoch_id != expected_epoch_id {
+            return error_response("the nodes assigned for 'exit' returned unexpected epoch_id");
+        }
+
+        let layer1 = self.get_role_assignment(Role::Layer1).await?;
+        if layer1.epoch_id != expected_epoch_id {
+            return error_response("the nodes assigned for 'layer1' returned unexpected epoch_id");
+        }
+
+        let layer2 = self.get_role_assignment(Role::Layer2).await?;
+        if layer2.epoch_id != expected_epoch_id {
+            return error_response("the nodes assigned for 'layer2' returned unexpected epoch_id");
+        }
+
+        let layer3 = self.get_role_assignment(Role::Layer3).await?;
+        if layer3.epoch_id != expected_epoch_id {
+            return error_response("the nodes assigned for 'layer3' returned unexpected epoch_id");
+        }
+
+        let standby = self.get_role_assignment(Role::Standby).await?;
+        if standby.epoch_id != expected_epoch_id {
+            return error_response("the nodes assigned for 'standby' returned unexpected epoch_id");
+        }
+
+        Ok(RewardedSet {
+            entry_gateways: entry.nodes,
+            exit_gateways: exit.nodes,
+            layer1: layer1.nodes,
+            layer2: layer2.nodes,
+            layer3: layer3.nodes,
+            standby: standby.nodes,
+        })
+    }
+}
+
+#[async_trait]
+impl<T> MixnetQueryClientExt for T where T: MixnetQueryClient {}
+
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> MixnetQueryClient for C
@@ -572,6 +581,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_mixnet_contract_common::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -580,24 +590,6 @@ mod tests {
         msg: MixnetQueryMsg,
     ) -> u32 {
         match msg {
-            MixnetQueryMsg::GetAllFamiliesPaged { limit, start_after } => client
-                .get_all_family_members_paged(start_after, limit)
-                .ignore(),
-            MixnetQueryMsg::GetAllMembersPaged { limit, start_after } => client
-                .get_all_family_members_paged(start_after, limit)
-                .ignore(),
-            MixnetQueryMsg::GetFamilyByHead { head } => {
-                client.get_node_family_by_head(head).ignore()
-            }
-            MixnetQueryMsg::GetFamilyByLabel { label } => {
-                client.get_node_family_by_label(label).ignore()
-            }
-            MixnetQueryMsg::GetFamilyMembersByHead { head } => {
-                client.get_family_members_by_head(head).ignore()
-            }
-            MixnetQueryMsg::GetFamilyMembersByLabel { label } => {
-                client.get_family_members_by_label(label).ignore()
-            }
             MixnetQueryMsg::GetContractVersion {} => client.get_mixnet_contract_version().ignore(),
             MixnetQueryMsg::GetCW2ContractVersion {} => {
                 client.get_mixnet_contract_cw2_version().ignore()
@@ -611,9 +603,6 @@ mod tests {
             MixnetQueryMsg::GetEpochStatus {} => client.get_current_epoch_status().ignore(),
             MixnetQueryMsg::GetCurrentIntervalDetails {} => {
                 client.get_current_interval_details().ignore()
-            }
-            MixnetQueryMsg::GetRewardedSet { limit, start_after } => {
-                client.get_rewarded_set_paged(start_after, limit).ignore()
             }
             MixnetQueryMsg::GetMixNodeBonds { limit, start_after } => {
                 client.get_mixnode_bonds_paged(start_after, limit).ignore()
@@ -656,7 +645,7 @@ mod tests {
             MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => client
                 .get_mixnode_details_by_identity(mix_identity)
                 .ignore(),
-            MixnetQueryMsg::GetLayerDistribution {} => client.get_layer_distribution().ignore(),
+            MixnetQueryMsg::GetRoleDistribution {} => client.get_layer_distribution().ignore(),
             MixnetQueryMsg::GetGateways { start_after, limit } => {
                 client.get_gateways_paged(start_after, limit).ignore()
             }
@@ -712,13 +701,11 @@ mod tests {
             MixnetQueryMsg::GetEstimatedCurrentEpochDelegatorReward {
                 address,
                 mix_id,
-                proxy,
                 estimated_performance,
             } => client
                 .get_estimated_current_epoch_delegator_reward(
                     &address.parse().unwrap(),
                     mix_id,
-                    proxy,
                     estimated_performance,
                 )
                 .ignore(),

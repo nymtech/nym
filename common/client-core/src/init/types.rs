@@ -43,7 +43,7 @@ pub enum SelectedGateway {
 
 fn wg_tun_address(
     tun_ip: Option<IpAddr>,
-    gateway: &gateway::Node,
+    gateway: &gateway::LegacyNode,
 ) -> Result<Option<Url>, ClientCoreError> {
     let Some(tun_ip) = tun_ip else {
         return Ok(None);
@@ -69,7 +69,7 @@ fn wg_tun_address(
 
 impl SelectedGateway {
     pub fn from_topology_node(
-        node: gateway::Node,
+        node: gateway::LegacyNode,
         wg_tun_ip_address: Option<IpAddr>,
         must_use_tls: bool,
     ) -> Result<Self, ClientCoreError> {
@@ -249,7 +249,7 @@ pub enum GatewaySetup {
         specification: GatewaySelectionSpecification,
 
         // TODO: seems to be a bit inefficient to pass them by value
-        available_gateways: Vec<gateway::Node>,
+        available_gateways: Vec<gateway::LegacyNode>,
 
         /// Implicitly specify whether the chosen gateway must use wireguard mode by setting the tun address.
         ///

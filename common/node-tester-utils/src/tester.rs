@@ -3,7 +3,7 @@
 
 use crate::error::NetworkTestingError;
 use crate::Empty;
-use crate::MixId;
+use crate::NodeId;
 use crate::TestMessage;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
@@ -76,13 +76,13 @@ where
         self
     }
 
-    pub fn testable_mix_topology(&self, node: &mix::Node) -> NymTopology {
+    pub fn testable_mix_topology(&self, node: &mix::LegacyNode) -> NymTopology {
         let mut topology = self.base_topology.clone();
         topology.set_mixes_in_layer(node.layer as u8, vec![node.clone()]);
         topology
     }
 
-    pub fn testable_gateway_topology(&self, gateway: &gateway::Node) -> NymTopology {
+    pub fn testable_gateway_topology(&self, gateway: &gateway::LegacyNode) -> NymTopology {
         let mut topology = self.base_topology.clone();
         topology.set_gateways(vec![gateway.clone()]);
         topology
@@ -90,7 +90,7 @@ where
 
     pub fn simple_mixnode_test_packets(
         &mut self,
-        mix: &mix::Node,
+        mix: &mix::LegacyNode,
         test_packets: u32,
     ) -> Result<Vec<PreparedFragment>, NetworkTestingError> {
         self.mixnode_test_packets(mix, Empty, test_packets, None)
@@ -98,7 +98,7 @@ where
 
     pub fn mixnode_test_packets<T>(
         &mut self,
-        mix: &mix::Node,
+        mix: &mix::LegacyNode,
         msg_ext: T,
         test_packets: u32,
         custom_recipient: Option<Recipient>,
@@ -122,7 +122,7 @@ where
 
     pub fn mixnodes_test_packets<T>(
         &mut self,
-        nodes: &[mix::Node],
+        nodes: &[mix::LegacyNode],
         msg_ext: T,
         test_packets: u32,
         custom_recipient: Option<Recipient>,
@@ -145,7 +145,7 @@ where
 
     pub fn existing_mixnode_test_packets<T>(
         &mut self,
-        mix_id: MixId,
+        mix_id: NodeId,
         msg_ext: T,
         test_packets: u32,
         custom_recipient: Option<Recipient>,
@@ -182,9 +182,10 @@ where
         self.mixnode_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
     }
 
-    pub fn gateway_test_packets<T>(
+    pub fn legacy_gateway_test_packets<T>(
         &mut self,
-        gateway: &gateway::Node,
+        gateway: &gateway::LegacyNode,
+        node_id: NodeId,
         msg_ext: T,
         test_packets: u32,
         custom_recipient: Option<Recipient>,
@@ -195,7 +196,9 @@ where
         let ephemeral_topology = self.testable_gateway_topology(gateway);
 
         let mut packets = Vec::with_capacity(test_packets as usize);
-        for plaintext in TestMessage::gateway_plaintexts(gateway, test_packets, msg_ext)? {
+        for plaintext in
+            TestMessage::legacy_gateway_plaintexts(gateway, node_id, test_packets, msg_ext)?
+        {
             packets.push(self.wrap_plaintext_data(
                 plaintext,
                 &ephemeral_topology,
@@ -208,6 +211,7 @@ where
 
     pub fn existing_gateway_test_packets<T>(
         &mut self,
+        node_id: NodeId,
         encoded_gateway_identity: String,
         msg_ext: T,
         test_packets: u32,
@@ -222,7 +226,13 @@ where
             });
         };
 
-        self.gateway_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
+        self.legacy_gateway_test_packets(
+            &node.clone(),
+            node_id,
+            msg_ext,
+            test_packets,
+            custom_recipient,
+        )
     }
 
     pub fn wrap_plaintext_data(

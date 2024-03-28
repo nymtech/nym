@@ -9,10 +9,9 @@ use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
-use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
+use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, NodeCostParams};
+use nym_mixnet_contract_common::{Gateway, MixNode, NodeId};
 use nym_vesting_contract_common::messages::ExecuteMsg as VestingExecuteMsg;
 use nym_vesting_contract_common::{PledgeCap, VestingSpecification};
 
@@ -28,7 +27,7 @@ pub trait VestingSigningClient {
 
     async fn vesting_update_mixnode_cost_params(
         &self,
-        new_costs: MixNodeCostParams,
+        new_costs: NodeCostParams,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
@@ -124,7 +123,7 @@ pub trait VestingSigningClient {
     async fn vesting_bond_mixnode(
         &self,
         mix_node: MixNode,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
@@ -204,7 +203,7 @@ pub trait VestingSigningClient {
     async fn vesting_track_undelegation(
         &self,
         address: &str,
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -222,7 +221,7 @@ pub trait VestingSigningClient {
 
     async fn vesting_delegate_to_mixnode(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: Coin,
         on_behalf_of: Option<String>,
         fee: Option<Fee>,
@@ -241,7 +240,7 @@ pub trait VestingSigningClient {
 
     async fn vesting_undelegate_from_mixnode(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         on_behalf_of: Option<String>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -301,7 +300,7 @@ pub trait VestingSigningClient {
 
     async fn vesting_withdraw_delegator_reward(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
@@ -354,50 +353,6 @@ pub trait VestingSigningClient {
         )
         .await
     }
-
-    async fn vesting_create_family(
-        &self,
-        label: String,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_vesting_contract(fee, VestingExecuteMsg::CreateFamily { label }, vec![])
-            .await
-    }
-
-    async fn vesting_join_family(
-        &self,
-        join_permit: MessageSignature,
-        family_head: FamilyHead,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_vesting_contract(
-            fee,
-            VestingExecuteMsg::JoinFamily {
-                join_permit,
-                family_head,
-            },
-            vec![],
-        )
-        .await
-    }
-
-    async fn vesting_leave_family(
-        &self,
-        family_head: FamilyHead,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_vesting_contract(fee, VestingExecuteMsg::LeaveFamily { family_head }, vec![])
-            .await
-    }
-
-    async fn vesting_kick_family_member(
-        &self,
-        member: String,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_vesting_contract(fee, VestingExecuteMsg::KickFamilyMember { member }, vec![])
-            .await
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -446,21 +401,6 @@ mod tests {
         msg: VestingExecuteMsg,
     ) {
         match msg {
-            VestingExecuteMsg::CreateFamily { label } => {
-                client.vesting_create_family(label, None).ignore()
-            }
-            VestingExecuteMsg::JoinFamily {
-                join_permit,
-                family_head,
-            } => client
-                .vesting_join_family(join_permit, family_head, None)
-                .ignore(),
-            VestingExecuteMsg::LeaveFamily { family_head } => {
-                client.vesting_leave_family(family_head, None).ignore()
-            }
-            VestingExecuteMsg::KickFamilyMember { member } => {
-                client.vesting_kick_family_member(member, None).ignore()
-            }
             VestingExecuteMsg::TrackReward { amount, address } => client
                 .vesting_track_reward(amount.into(), address, None)
                 .ignore(),

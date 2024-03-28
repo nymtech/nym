@@ -12,13 +12,13 @@ use cosmwasm_std::StdResult;
 use cw_storage_plus::Bound;
 use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use mixnet_contract_common::{
-    delegation, Delegation, MixId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    delegation, Delegation, NodeId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixNodeDelegationsResponse,
 };
 
 pub(crate) fn query_mixnode_delegations_paged(
     deps: Deps<'_>,
-    mix_id: MixId,
+    mix_id: NodeId,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixNodeDelegationsResponse> {
@@ -50,7 +50,7 @@ pub(crate) fn query_mixnode_delegations_paged(
 pub(crate) fn query_delegator_delegations_paged(
     deps: Deps<'_>,
     delegation_owner: String,
-    start_after: Option<(MixId, OwnerProxySubKey)>,
+    start_after: Option<(NodeId, OwnerProxySubKey)>,
     limit: Option<u32>,
 ) -> StdResult<PagedDelegatorDelegationsResponse> {
     let validated_owner = deps.api.addr_validate(&delegation_owner)?;
@@ -74,7 +74,7 @@ pub(crate) fn query_delegator_delegations_paged(
 
     let start_next_after = delegations
         .last()
-        .map(|del| (del.mix_id, del.proxy_storage_key()));
+        .map(|del| (del.node_id, del.proxy_storage_key()));
 
     Ok(PagedDelegatorDelegationsResponse::new(
         delegations,
@@ -85,7 +85,7 @@ pub(crate) fn query_delegator_delegations_paged(
 // queries for delegation value of given address for particular node
 pub(crate) fn query_mixnode_delegation(
     deps: Deps<'_>,
-    mix_id: MixId,
+    mix_id: NodeId,
     delegation_owner: String,
     proxy: Option<String>,
 ) -> StdResult<MixNodeDelegationResponse> {
@@ -141,7 +141,7 @@ mod tests {
 
     fn add_dummy_mixes_with_delegations(test: &mut TestSetup, delegators: usize, mixes: usize) {
         for i in 0..mixes {
-            let mix_id = test.add_dummy_mixnode(&format!("mix-owner{}", i), None);
+            let mix_id = test.add_legacy_mixnode(&format!("mix-owner{}", i), None);
             for delegator in 0..delegators {
                 let name = &format!("delegator{}", delegator);
                 test.add_immediate_delegation(name, 100_000_000u32, mix_id)
@@ -157,7 +157,7 @@ mod tests {
         #[test]
         fn obeys_limits() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_legacy_mixnode("mix-owner", None);
 
             let env = test.env();
             test_helpers::add_dummy_delegations(test.deps_mut(), env, mix_id, 200);
@@ -172,7 +172,7 @@ mod tests {
         #[test]
         fn has_default_limit() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_legacy_mixnode("mix-owner", None);
 
             let env = test.env();
             test_helpers::add_dummy_delegations(test.deps_mut(), env, mix_id, 500);
@@ -189,7 +189,7 @@ mod tests {
         #[test]
         fn has_max_limit() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_legacy_mixnode("mix-owner", None);
 
             let env = test.env();
             test_helpers::add_dummy_delegations(test.deps_mut(), env, mix_id, 5000);
@@ -210,7 +210,7 @@ mod tests {
         fn pagination_works() {
             let mut test = TestSetup::new();
 
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_legacy_mixnode("mix-owner", None);
             test.add_immediate_delegation("addr1", 1000u32, mix_id);
 
             let per_page = 2;
@@ -266,10 +266,10 @@ mod tests {
         #[test]
         fn all_retrieved_delegations_are_towards_specified_mixnode() {
             let mut test = TestSetup::new();
-            let mix_id1 = test.add_dummy_mixnode("mix-owner1", None);
-            let mix_id2 = test.add_dummy_mixnode("mix-owner2", None);
-            let mix_id3 = test.add_dummy_mixnode("mix-owner3", None);
-            let mix_id4 = test.add_dummy_mixnode("mix-owner4", None);
+            let mix_id1 = test.add_legacy_mixnode("mix-owner1", None);
+            let mix_id2 = test.add_legacy_mixnode("mix-owner2", None);
+            let mix_id3 = test.add_legacy_mixnode("mix-owner3", None);
+            let mix_id4 = test.add_legacy_mixnode("mix-owner4", None);
 
             let env = test.env();
             // add other "out of order" delegations manually
@@ -284,19 +284,19 @@ mod tests {
 
             let res1 = query_mixnode_delegations_paged(test.deps(), mix_id1, None, None).unwrap();
             assert_eq!(res1.delegations.len(), 10);
-            assert!(res1.delegations.into_iter().all(|d| d.mix_id == mix_id1));
+            assert!(res1.delegations.into_iter().all(|d| d.node_id == mix_id1));
 
             let res2 = query_mixnode_delegations_paged(test.deps(), mix_id2, None, None).unwrap();
             assert_eq!(res2.delegations.len(), 14);
-            assert!(res2.delegations.into_iter().all(|d| d.mix_id == mix_id2));
+            assert!(res2.delegations.into_iter().all(|d| d.node_id == mix_id2));
 
             let res3 = query_mixnode_delegations_paged(test.deps(), mix_id3, None, None).unwrap();
             assert_eq!(res3.delegations.len(), 10);
-            assert!(res3.delegations.into_iter().all(|d| d.mix_id == mix_id3));
+            assert!(res3.delegations.into_iter().all(|d| d.node_id == mix_id3));
 
             let res4 = query_mixnode_delegations_paged(test.deps(), mix_id4, None, None).unwrap();
             assert_eq!(res4.delegations.len(), 10);
-            assert!(res4.delegations.into_iter().all(|d| d.mix_id == mix_id4));
+            assert!(res4.delegations.into_iter().all(|d| d.node_id == mix_id4));
         }
     }
 
@@ -365,11 +365,11 @@ mod tests {
             let mut test = TestSetup::new();
 
             // note that mix_ids are monotonically increasing
-            let mix_id1 = test.add_dummy_mixnode("mix-owner1", None);
-            let mix_id2 = test.add_dummy_mixnode("mix-owner2", None);
-            let mix_id3 = test.add_dummy_mixnode("mix-owner3", None);
-            let mix_id4 = test.add_dummy_mixnode("mix-owner4", None);
-            let mix_id5 = test.add_dummy_mixnode("mix-owner5", None);
+            let mix_id1 = test.add_legacy_mixnode("mix-owner1", None);
+            let mix_id2 = test.add_legacy_mixnode("mix-owner2", None);
+            let mix_id3 = test.add_legacy_mixnode("mix-owner3", None);
+            let mix_id4 = test.add_legacy_mixnode("mix-owner4", None);
+            let mix_id5 = test.add_legacy_mixnode("mix-owner5", None);
 
             // add few delegations from unrelated delegators
             for mix_id in [mix_id1, mix_id2, mix_id3, mix_id4, mix_id5] {
@@ -526,8 +526,8 @@ mod tests {
 
             // note that mix_ids are monotonically increasing and are the first chunk of all
             // delegation storage keys,
-            let mix_id1 = test.add_dummy_mixnode("mix-owner1", None);
-            let mix_id2 = test.add_dummy_mixnode("mix-owner2", None);
+            let mix_id1 = test.add_legacy_mixnode("mix-owner1", None);
+            let mix_id2 = test.add_legacy_mixnode("mix-owner2", None);
 
             let delegator1 = "delegator1";
             let delegator2 = "delegator2";
@@ -541,7 +541,7 @@ mod tests {
             assert_eq!(1, page1.delegations.len());
             assert!(
                 page1.delegations[0].owner.as_str() == delegator1
-                    && page1.delegations[0].mix_id == mix_id1
+                    && page1.delegations[0].node_id == mix_id1
             );
 
             test.add_immediate_delegation(delegator1, 1000u32, mix_id2);
@@ -552,11 +552,11 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
             assert!(
                 page1.delegations[0].owner.as_str() == delegator1
-                    && page1.delegations[0].mix_id == mix_id1
+                    && page1.delegations[0].node_id == mix_id1
             );
             assert!(
                 page1.delegations[1].owner.as_str() == delegator1
-                    && page1.delegations[1].mix_id == mix_id2
+                    && page1.delegations[1].node_id == mix_id2
             );
 
             test.add_immediate_delegation(delegator2, 1000u32, mix_id1);
@@ -567,11 +567,11 @@ mod tests {
             assert_eq!(2, another_page1.delegations.len());
             assert!(
                 another_page1.delegations[0].owner.as_str() == delegator1
-                    && another_page1.delegations[0].mix_id == mix_id1
+                    && another_page1.delegations[0].node_id == mix_id1
             );
             assert!(
                 another_page1.delegations[1].owner.as_str() == delegator2
-                    && another_page1.delegations[1].mix_id == mix_id1
+                    && another_page1.delegations[1].node_id == mix_id1
             );
 
             // retrieving the next page should start after the last key on this page
@@ -583,7 +583,7 @@ mod tests {
             assert_eq!(1, page2.delegations.len());
             assert!(
                 page2.delegations[0].owner.as_str() == delegator1
-                    && page2.delegations[0].mix_id == mix_id2
+                    && page2.delegations[0].node_id == mix_id2
             );
 
             // save another one
@@ -596,11 +596,11 @@ mod tests {
             assert_eq!(2, page2.delegations.len());
             assert!(
                 page2.delegations[0].owner.as_str() == delegator1
-                    && page2.delegations[0].mix_id == mix_id2
+                    && page2.delegations[0].node_id == mix_id2
             );
             assert!(
                 page2.delegations[1].owner.as_str() == delegator2
-                    && page2.delegations[1].mix_id == mix_id2
+                    && page2.delegations[1].node_id == mix_id2
             );
         }
     }
@@ -612,7 +612,7 @@ mod tests {
         #[test]
         fn when_delegation_doesnt_exist() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_legacy_mixnode("mix-owner", None);
             let owner = "owner";
 
             let res = query_mixnode_delegation(test.deps(), mix_id, owner.into(), None).unwrap();
@@ -623,7 +623,7 @@ mod tests {
         #[test]
         fn when_delegation_exists_but_mixnode_has_unbonded() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_legacy_mixnode("mix-owner", None);
             let owner = "owner";
 
             test.add_immediate_delegation(owner, 1000u32, mix_id);
@@ -638,7 +638,7 @@ mod tests {
         #[test]
         fn when_delegation_exists_but_mixnode_is_unbonding() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_legacy_mixnode("mix-owner", None);
             let owner = "owner";
 
             test.add_immediate_delegation(owner, 1000u32, mix_id);
@@ -653,7 +653,7 @@ mod tests {
         #[test]
         fn when_delegation_exists_with_fully_bonded_node() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_legacy_mixnode("mix-owner", None);
             let owner = "owner";
 
             test.add_immediate_delegation(owner, 1000u32, mix_id);

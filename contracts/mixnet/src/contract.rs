@@ -1,11 +1,13 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
+use crate::constants::INITIAL_PLEDGE_AMOUNT;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnodes::storage as mixnode_storage;
+use crate::nodes::storage as nymnodes_storage;
+use crate::queued_migrations::migrate_to_nym_nodes_usage;
 use crate::rewards::storage as rewards_storage;
+use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
@@ -34,14 +36,10 @@ fn default_initial_state(
         vesting_contract_address,
         rewarding_denom: rewarding_denom.clone(),
         params: ContractStateParams {
-            minimum_mixnode_delegation: None,
-            minimum_mixnode_pledge: Coin {
+            minimum_delegation: None,
+            minimum_pledge: Coin {
                 denom: rewarding_denom.clone(),
-                amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
-            },
-            minimum_gateway_pledge: Coin {
-                denom: rewarding_denom,
-                amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
+                amount: INITIAL_PLEDGE_AMOUNT,
             },
             profit_margin,
             interval_operating_cost,
@@ -91,8 +89,8 @@ pub fn instantiate(
         rewarding_validator_address,
     )?;
     mixnet_params_storage::initialise_storage(deps.storage, state)?;
-    mixnode_storage::initialise_storage(deps.storage)?;
-    rewards_storage::initialise_storage(deps.storage, reward_params)?;
+    RewardingStorage::new().initialise(deps.storage, reward_params)?;
+    nymnodes_storage::initialise_storage(deps.storage)?;
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     set_build_information!(deps.storage)?;
 
@@ -108,23 +106,6 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, MixnetContractError> {
     match msg {
-        ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
-            crate::mixnodes::transactions::assign_mixnode_layer(deps, info, mix_id, layer)
-        }
-        // families
-        ExecuteMsg::CreateFamily { label } => {
-            crate::families::transactions::try_create_family(deps, info, label)
-        }
-        ExecuteMsg::JoinFamily {
-            join_permit,
-            family_head,
-        } => crate::families::transactions::try_join_family(deps, info, join_permit, family_head),
-        ExecuteMsg::LeaveFamily { family_head } => {
-            crate::families::transactions::try_leave_family(deps, info, family_head)
-        }
-        ExecuteMsg::KickFamilyMember { member } => {
-            crate::families::transactions::try_head_kick_member(deps, info, member)
-        }
         // state/sys-params-related
         ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
             crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address(
@@ -138,14 +119,14 @@ pub fn execute(
                 updated_parameters,
             )
         }
-        ExecuteMsg::UpdateActiveSetSize {
-            active_set_size,
+        ExecuteMsg::UpdateActiveSetDistribution {
+            update,
             force_immediately,
-        } => crate::rewards::transactions::try_update_active_set_size(
+        } => crate::rewards::transactions::try_update_active_set_distribution(
             deps,
             env,
             info,
-            active_set_size,
+            update,
             force_immediately,
         ),
         ExecuteMsg::UpdateRewardingParams {
@@ -173,17 +154,9 @@ pub fn execute(
         ExecuteMsg::BeginEpochTransition {} => {
             crate::interval::transactions::try_begin_epoch_transition(deps, env, info)
         }
-        ExecuteMsg::AdvanceCurrentEpoch {
-            new_rewarded_set,
-            // families_in_layer,
-            expected_active_set_size,
-        } => crate::interval::transactions::try_advance_epoch(
-            deps,
-            env,
-            info,
-            new_rewarded_set,
-            expected_active_set_size,
-        ),
+        ExecuteMsg::AssignRoles { assignment } => {
+            crate::interval::transactions::try_assign_roles(deps, env, info, assignment)
+        }
         ExecuteMsg::ReconcileEpochEvents { limit } => {
             crate::interval::transactions::try_reconcile_epoch_events(deps, env, info, limit)
         }
@@ -201,22 +174,14 @@ pub fn execute(
             cost_params,
             owner_signature,
         ),
-        ExecuteMsg::PledgeMore {} => {
-            crate::mixnodes::transactions::try_increase_pledge(deps, env, info)
-        }
-        ExecuteMsg::DecreasePledge { decrease_by } => {
-            crate::mixnodes::transactions::try_decrease_pledge(deps, env, info, decrease_by)
-        }
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, env, info)
         }
-        ExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
-            crate::mixnodes::transactions::try_update_mixnode_cost_params(
-                deps, env, info, new_costs,
-            )
-        }
         ExecuteMsg::UpdateMixnodeConfig { new_config } => {
             crate::mixnodes::transactions::try_update_mixnode_config(deps, info, new_config)
+        }
+        ExecuteMsg::MigrateMixnode {} => {
+            crate::mixnodes::transactions::try_migrate_to_nymnode(deps, info)
         }
 
         // gateway-related:
@@ -236,25 +201,55 @@ pub fn execute(
         ExecuteMsg::UpdateGatewayConfig { new_config } => {
             crate::gateways::transactions::try_update_gateway_config(deps, info, new_config)
         }
+        ExecuteMsg::MigrateGateway { cost_params } => {
+            crate::gateways::transactions::try_migrate_to_nymnode(deps, info, cost_params)
+        }
+
+        // nym-node related:
+        ExecuteMsg::BondNymNode {
+            node,
+            cost_params,
+            owner_signature,
+        } => crate::nodes::transactions::try_add_nym_node(
+            deps,
+            env,
+            info,
+            node,
+            cost_params,
+            owner_signature,
+        ),
+        ExecuteMsg::UnbondNymNode {} => {
+            crate::nodes::transactions::try_remove_nym_node(deps, env, info)
+        }
+
+        // nym-node/mixnode-related:
+        ExecuteMsg::PledgeMore {} => {
+            crate::compat::transactions::try_increase_pledge(deps, env, info)
+        }
+        ExecuteMsg::DecreasePledge { decrease_by } => {
+            crate::compat::transactions::try_decrease_pledge(deps, env, info, decrease_by)
+        }
+        ExecuteMsg::UpdateCostParams { new_costs } => {
+            crate::compat::transactions::try_update_cost_params(deps, env, info, new_costs)
+        }
 
         // delegation-related:
-        ExecuteMsg::DelegateToMixnode { mix_id } => {
-            crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_id)
+        ExecuteMsg::Delegate { node_id: mix_id } => {
+            crate::delegations::transactions::try_delegate_to_node(deps, env, info, mix_id)
         }
-        ExecuteMsg::UndelegateFromMixnode { mix_id } => {
-            crate::delegations::transactions::try_remove_delegation_from_mixnode(
+        ExecuteMsg::Undelegate { node_id: mix_id } => {
+            crate::delegations::transactions::try_remove_delegation_from_node(
                 deps, env, info, mix_id,
             )
         }
 
         // reward-related
-        ExecuteMsg::RewardMixnode {
-            mix_id,
-            performance,
-        } => crate::rewards::transactions::try_reward_mixnode(deps, env, info, mix_id, performance),
+        ExecuteMsg::RewardNode { node_id, params } => {
+            crate::rewards::transactions::try_reward_node(deps, env, info, node_id, params)
+        }
 
         ExecuteMsg::WithdrawOperatorReward {} => {
-            crate::rewards::transactions::try_withdraw_operator_reward(deps, info)
+            crate::compat::transactions::try_withdraw_operator_reward(deps, info)
         }
         ExecuteMsg::WithdrawDelegatorReward { mix_id } => {
             crate::rewards::transactions::try_withdraw_delegator_reward(deps, info, mix_id)
@@ -269,11 +264,7 @@ pub fn execute(
         }
 
         // legacy vesting
-        ExecuteMsg::CreateFamilyOnBehalf { .. }
-        | ExecuteMsg::JoinFamilyOnBehalf { .. }
-        | ExecuteMsg::LeaveFamilyOnBehalf { .. }
-        | ExecuteMsg::KickFamilyMemberOnBehalf { .. }
-        | ExecuteMsg::BondMixnodeOnBehalf { .. }
+        ExecuteMsg::BondMixnodeOnBehalf { .. }
         | ExecuteMsg::PledgeMoreOnBehalf { .. }
         | ExecuteMsg::DecreasePledgeOnBehalf { .. }
         | ExecuteMsg::UnbondMixnodeOnBehalf { .. }
@@ -304,24 +295,6 @@ pub fn query(
     msg: QueryMsg,
 ) -> Result<QueryResponse, MixnetContractError> {
     let query_res = match msg {
-        QueryMsg::GetAllFamiliesPaged { limit, start_after } => to_binary(
-            &crate::families::queries::get_all_families_paged(deps.storage, start_after, limit)?,
-        ),
-        QueryMsg::GetAllMembersPaged { limit, start_after } => to_binary(
-            &crate::families::queries::get_all_members_paged(deps.storage, start_after, limit)?,
-        ),
-        QueryMsg::GetFamilyByHead { head } => to_binary(
-            &crate::families::queries::get_family_by_head(&head, deps.storage)?,
-        ),
-        QueryMsg::GetFamilyByLabel { label } => to_binary(
-            &crate::families::queries::get_family_by_label(label, deps.storage)?,
-        ),
-        QueryMsg::GetFamilyMembersByHead { head } => to_binary(
-            &crate::families::queries::get_family_members_by_head(&head, deps.storage)?,
-        ),
-        QueryMsg::GetFamilyMembersByLabel { label } => to_binary(
-            &crate::families::queries::get_family_members_by_label(label, deps.storage)?,
-        ),
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
         }
@@ -343,9 +316,6 @@ pub fn query(
         }
         QueryMsg::GetCurrentIntervalDetails {} => to_binary(
             &crate::interval::queries::query_current_interval_details(deps, env)?,
-        ),
-        QueryMsg::GetRewardedSet { limit, start_after } => to_binary(
-            &crate::interval::queries::query_rewarded_set_paged(deps, start_after, limit)?,
         ),
 
         // mixnode-related:
@@ -400,8 +370,8 @@ pub fn query(
         QueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => to_binary(
             &crate::mixnodes::queries::query_mixnode_details_by_identity(deps, mix_identity)?,
         ),
-        QueryMsg::GetLayerDistribution {} => {
-            to_binary(&crate::mixnodes::queries::query_layer_distribution(deps)?)
+        QueryMsg::GetRoleDistribution {} => {
+            todo!()
         }
 
         // gateway-related:
@@ -414,6 +384,25 @@ pub fn query(
         QueryMsg::GetOwnedGateway { address } => to_binary(
             &crate::gateways::queries::query_owned_gateway(deps, address)?,
         ),
+        QueryMsg::GetPreassignedGatewayIds { limit, start_after } => to_binary(
+            &crate::gateways::queries::query_preassigned_ids_paged(deps, start_after, limit)?,
+        ),
+
+        // nym-node-related:
+        QueryMsg::GetNymNodeBondsPaged {} => todo!(),
+        QueryMsg::GetNymNodesDetailedPaged {} => todo!(),
+        QueryMsg::GetUnbondedNymNode {} => todo!(),
+        QueryMsg::GetUnbondedNymNodesPaged {} => todo!(),
+        QueryMsg::GetUnbondedNymNodesByOwnerPaged {} => todo!(),
+        QueryMsg::GetUnbondedNymNodesByIdentityKeyPaged {} => todo!(),
+        QueryMsg::GetOwnedNymNode {} => todo!(),
+        QueryMsg::GetNymNodeDetails {} => todo!(),
+        QueryMsg::GetNymNodeDetailsByIdentityKey {} => todo!(),
+        QueryMsg::GetNodeRewardingDetails {} => todo!(),
+        QueryMsg::GetNodeStakeSaturation {} => todo!(),
+
+        QueryMsg::GetRoleAssignment { role } => todo!(),
+        QueryMsg::GetRewardedSetMetadata { .. } => todo!(),
 
         // delegation-related:
         QueryMsg::GetMixnodeDelegations {
@@ -468,25 +457,27 @@ pub fn query(
         QueryMsg::GetEstimatedCurrentEpochOperatorReward {
             mix_id,
             estimated_performance,
+            estimated_work,
         } => to_binary(
             &crate::rewards::queries::query_estimated_current_epoch_operator_reward(
                 deps,
                 mix_id,
                 estimated_performance,
+                estimated_work,
             )?,
         ),
         QueryMsg::GetEstimatedCurrentEpochDelegatorReward {
             address,
             mix_id,
-            proxy,
             estimated_performance,
+            estimated_work,
         } => to_binary(
             &crate::rewards::queries::query_estimated_current_epoch_delegator_reward(
                 deps,
                 address,
                 mix_id,
-                proxy,
                 estimated_performance,
+                estimated_work,
             )?,
         ),
 
@@ -535,7 +526,14 @@ pub fn migrate(
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    // ensure we can purge vesting contract connection -> i.e. no pending proxy events
     crate::queued_migrations::vesting_purge(deps.branch())?;
+
+    // remove all family-related things
+    crate::queued_migrations::families_purge(deps.branch())?;
+
+    // prepare the ground for using nym-nodes rather than standalone mixnodes/gateways
+    migrate_to_nym_nodes_usage(deps.branch(), &msg)?;
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
@@ -555,7 +553,9 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{Decimal, Uint128};
-    use mixnet_contract_common::reward_params::{IntervalRewardParams, RewardingParams};
+    use mixnet_contract_common::reward_params::{
+        IntervalRewardParams, RewardedSetParams, RewardingParams,
+    };
     use mixnet_contract_common::{InitialRewardingParams, Percent};
     use std::time::Duration;
 
@@ -577,8 +577,12 @@ mod tests {
                 sybil_resistance: Percent::from_percentage_value(23).unwrap(),
                 active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
                 interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
-                rewarded_set_size: 543,
-                active_set_size: 123,
+                rewarded_set_params: RewardedSetParams {
+                    entry_gateways: 123,
+                    exit_gateways: 70,
+                    mixnodes: 120,
+                    standby: 0,
+                },
             },
             profit_margin: ProfitMarginRange {
                 minimum: "0.05".parse().unwrap(),
@@ -600,14 +604,10 @@ mod tests {
             vesting_contract_address: Addr::unchecked("bar456"),
             rewarding_denom: "uatom".into(),
             params: ContractStateParams {
-                minimum_mixnode_delegation: None,
-                minimum_mixnode_pledge: Coin {
+                minimum_delegation: None,
+                minimum_pledge: Coin {
                     denom: "uatom".into(),
-                    amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
-                },
-                minimum_gateway_pledge: Coin {
-                    denom: "uatom".into(),
-                    amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
+                    amount: INITIAL_PLEDGE_AMOUNT,
                 },
                 profit_margin: ProfitMarginRange {
                     minimum: Percent::from_percentage_value(5).unwrap(),
@@ -622,7 +622,7 @@ mod tests {
 
         let expected_epoch_reward_budget =
             Decimal::from_ratio(100_000_000_000_000u128, 1234u32) * Decimal::percent(1);
-        let expected_stake_saturation_point = Decimal::from_ratio(123_456_000_000_000u128, 543u32);
+        let expected_stake_saturation_point = Decimal::from_ratio(123_456_000_000_000u128, 313u32);
 
         let expected_rewarding_params = RewardingParams {
             interval: IntervalRewardParams {
@@ -635,8 +635,12 @@ mod tests {
                 active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
                 interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
             },
-            rewarded_set_size: 543,
-            active_set_size: 123,
+            rewarded_set: RewardedSetParams {
+                entry_gateways: 123,
+                exit_gateways: 70,
+                mixnodes: 120,
+                standby: 0,
+            },
         };
 
         let state = mixnet_params_storage::CONTRACT_STATE

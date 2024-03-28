@@ -7,15 +7,14 @@
 use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
 use log::{debug, warn};
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use nym_api_requests::nym_nodes::SkimmedNode;
+use nym_mixnet_contract_common::{IdentityKeyRef, NodeId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::SliceRandom;
 use rand::{CryptoRng, Rng};
 use std::collections::BTreeMap;
 use std::convert::Infallible;
-
 use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
@@ -23,7 +22,6 @@ use std::str::FromStr;
 
 #[cfg(feature = "serializable")]
 use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
-use nym_api_requests::models::DescribedGateway;
 
 pub mod error;
 pub mod filter;
@@ -116,18 +114,26 @@ impl Display for NetworkAddress {
 
 pub type MixLayer = u8;
 
+// the reason for those having `Legacy` prefix is that eventually they should be using
+// exactly the same types
 #[derive(Debug, Clone)]
 pub struct NymTopology {
-    mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
-    gateways: Vec<gateway::Node>,
+    mixes: BTreeMap<MixLayer, Vec<mix::LegacyNode>>,
+    gateways: Vec<gateway::LegacyNode>,
 }
 
 impl NymTopology {
-    pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
+    pub fn new(
+        mixes: BTreeMap<MixLayer, Vec<mix::LegacyNode>>,
+        gateways: Vec<gateway::LegacyNode>,
+    ) -> Self {
         NymTopology { mixes, gateways }
     }
 
-    pub fn new_unordered(unordered_mixes: Vec<mix::Node>, gateways: Vec<gateway::Node>) -> Self {
+    pub fn new_unordered(
+        unordered_mixes: Vec<mix::LegacyNode>,
+        gateways: Vec<gateway::LegacyNode>,
+    ) -> Self {
         let mut mixes = BTreeMap::new();
         for node in unordered_mixes.into_iter() {
             let layer = node.layer as MixLayer;
@@ -142,10 +148,10 @@ impl NymTopology {
     where
         MI: Iterator<Item = M>,
         GI: Iterator<Item = G>,
-        G: TryInto<gateway::Node>,
-        M: TryInto<mix::Node>,
-        <G as TryInto<gateway::Node>>::Error: Display,
-        <M as TryInto<mix::Node>>::Error: Display,
+        G: TryInto<gateway::LegacyNode>,
+        M: TryInto<mix::LegacyNode>,
+        <G as TryInto<gateway::LegacyNode>>::Error: Display,
+        <M as TryInto<mix::LegacyNode>>::Error: Display,
     {
         let mut mixes = BTreeMap::new();
         let mut gateways = Vec::new();
@@ -176,14 +182,11 @@ impl NymTopology {
         serde_json::from_reader(file).map_err(Into::into)
     }
 
-    pub fn from_detailed(
-        mix_details: Vec<MixNodeDetails>,
-        gateway_bonds: Vec<GatewayBond>,
-    ) -> Self {
-        nym_topology_from_detailed(mix_details, gateway_bonds)
+    pub fn from_basic(basic_mixes: &[SkimmedNode], basic_gateways: &[SkimmedNode]) -> Self {
+        nym_topology_from_basic_info(basic_mixes, basic_gateways)
     }
 
-    pub fn find_mix(&self, mix_id: MixId) -> Option<&mix::Node> {
+    pub fn find_mix(&self, mix_id: NodeId) -> Option<&mix::LegacyNode> {
         for nodes in self.mixes.values() {
             for node in nodes {
                 if node.mix_id == mix_id {
@@ -194,7 +197,10 @@ impl NymTopology {
         None
     }
 
-    pub fn find_mix_by_identity(&self, mixnode_identity: IdentityKeyRef) -> Option<&mix::Node> {
+    pub fn find_mix_by_identity(
+        &self,
+        mixnode_identity: IdentityKeyRef,
+    ) -> Option<&mix::LegacyNode> {
         for nodes in self.mixes.values() {
             for node in nodes {
                 if node.identity_key.to_base58_string() == mixnode_identity {
@@ -205,13 +211,13 @@ impl NymTopology {
         None
     }
 
-    pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::Node> {
+    pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::LegacyNode> {
         self.gateways
             .iter()
             .find(|&gateway| gateway.identity_key.to_base58_string() == gateway_identity)
     }
 
-    pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::Node>> {
+    pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::LegacyNode>> {
         &self.mixes
     }
 
@@ -219,8 +225,8 @@ impl NymTopology {
         self.mixes.values().map(|m| m.len()).sum()
     }
 
-    pub fn mixes_as_vec(&self) -> Vec<mix::Node> {
-        let mut mixes: Vec<mix::Node> = vec![];
+    pub fn mixes_as_vec(&self) -> Vec<mix::LegacyNode> {
+        let mut mixes: Vec<mix::LegacyNode> = vec![];
 
         for layer in self.mixes().values() {
             mixes.extend(layer.to_owned())
@@ -228,20 +234,20 @@ impl NymTopology {
         mixes
     }
 
-    pub fn mixes_in_layer(&self, layer: MixLayer) -> Vec<mix::Node> {
+    pub fn mixes_in_layer(&self, layer: MixLayer) -> Vec<mix::LegacyNode> {
         assert!([1, 2, 3].contains(&layer));
         self.mixes.get(&layer).unwrap().to_owned()
     }
 
-    pub fn gateways(&self) -> &[gateway::Node] {
+    pub fn gateways(&self) -> &[gateway::LegacyNode] {
         &self.gateways
     }
 
-    pub fn get_gateways(&self) -> Vec<gateway::Node> {
+    pub fn get_gateways(&self) -> Vec<gateway::LegacyNode> {
         self.gateways.clone()
     }
 
-    pub fn get_gateway(&self, gateway_identity: &NodeIdentity) -> Option<&gateway::Node> {
+    pub fn get_gateway(&self, gateway_identity: &NodeIdentity) -> Option<&gateway::LegacyNode> {
         self.gateways
             .iter()
             .find(|gateway| gateway.identity() == gateway_identity)
@@ -251,11 +257,11 @@ impl NymTopology {
         self.get_gateway(gateway_identity).is_some()
     }
 
-    pub fn set_gateways(&mut self, gateways: Vec<gateway::Node>) {
+    pub fn set_gateways(&mut self, gateways: Vec<gateway::LegacyNode>) {
         self.gateways = gateways
     }
 
-    pub fn random_gateway<R>(&self, rng: &mut R) -> Result<&gateway::Node, NymTopologyError>
+    pub fn random_gateway<R>(&self, rng: &mut R) -> Result<&gateway::LegacyNode, NymTopologyError>
     where
         R: Rng + CryptoRng,
     {
@@ -326,7 +332,7 @@ impl NymTopology {
     }
 
     /// Overwrites the existing nodes in the specified layer
-    pub fn set_mixes_in_layer(&mut self, layer: u8, mixes: Vec<mix::Node>) {
+    pub fn set_mixes_in_layer(&mut self, layer: u8, mixes: Vec<mix::LegacyNode>) {
         self.mixes.insert(layer, mixes);
     }
 
@@ -441,66 +447,33 @@ impl<'de> Deserialize<'de> for NymTopology {
     }
 }
 
-pub trait IntoGatewayNode: TryInto<gateway::Node>
-where
-    <Self as TryInto<gateway::Node>>::Error: Display,
-{
-    fn identity(&self) -> IdentityKeyRef;
-}
-
-impl IntoGatewayNode for GatewayBond {
-    fn identity(&self) -> IdentityKeyRef {
-        &self.gateway.identity_key
-    }
-}
-
-impl IntoGatewayNode for DescribedGateway {
-    fn identity(&self) -> IdentityKeyRef {
-        &self.bond.gateway.identity_key
-    }
-}
-
-pub fn nym_topology_from_detailed<G>(
-    mix_details: Vec<MixNodeDetails>,
-    gateway_bonds: Vec<G>,
-) -> NymTopology
-where
-    G: IntoGatewayNode,
-    <G as TryInto<gateway::Node>>::Error: Display,
-{
+pub fn nym_topology_from_basic_info(
+    basic_mixes: &[SkimmedNode],
+    basic_gateways: &[SkimmedNode],
+) -> NymTopology {
     let mut mixes = BTreeMap::new();
-    for bond in mix_details
-        .into_iter()
-        .map(|details| details.bond_information)
-    {
-        let layer = bond.layer as MixLayer;
-        if layer == 0 || layer > 3 {
-            warn!(
-                "{} says it's on invalid layer {layer}!",
-                bond.mix_node.identity_key
-            );
+    for mix in basic_mixes {
+        let Some(layer) = mix.get_mix_layer() else {
+            warn!("node {} doesn't have any assigned mix layer!", mix.node_id);
             continue;
-        }
-        let mix_id = bond.mix_id;
-        let mix_identity = bond.mix_node.identity_key.clone();
+        };
 
         let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
-        match bond.try_into() {
+        match mix.try_into() {
             Ok(mix) => layer_entry.push(mix),
             Err(err) => {
-                warn!("Mix {mix_id} / {mix_identity} is malformed: {err}");
+                warn!("node (mixnode) {} is malformed: {err}", mix.node_id);
                 continue;
             }
         }
     }
 
-    let mut gateways = Vec::with_capacity(gateway_bonds.len());
-    for bond in gateway_bonds.into_iter() {
-        let gate_id = bond.identity().to_owned();
-        match bond.try_into() {
+    let mut gateways = Vec::with_capacity(basic_gateways.len());
+    for gateway in basic_gateways {
+        match gateway.try_into() {
             Ok(gate) => gateways.push(gate),
             Err(err) => {
-                warn!("Gateway {gate_id} is malformed: {err}");
+                warn!("node (gateway) {} is malformed: {err}", gateway.node_id);
                 continue;
             }
         }
@@ -518,13 +491,12 @@ mod converting_mixes_to_vec {
         use nym_crypto::asymmetric::{encryption, identity};
 
         use super::*;
-        use nym_mixnet_contract_common::Layer;
+        use nym_mixnet_contract_common::LegacyMixLayer;
 
         #[test]
         fn returns_a_vec_with_hashmap_values() {
-            let node1 = mix::Node {
+            let node1 = mix::LegacyNode {
                 mix_id: 42,
-                owner: Some("N/A".to_string()),
                 host: "3.3.3.3".parse().unwrap(),
                 mix_host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -535,21 +507,15 @@ mod converting_mixes_to_vec {
                     "C7cown6dYCLZpLiMFC1PaBmhvLvmJmLDJGeRTbPD45bX",
                 )
                 .unwrap(),
-                layer: Layer::One,
+                layer: LegacyMixLayer::One,
                 version: "0.2.0".into(),
             };
 
-            let node2 = mix::Node {
-                owner: Some("Alice".to_string()),
-                ..node1.clone()
-            };
+            let node2 = mix::LegacyNode { ..node1.clone() };
 
-            let node3 = mix::Node {
-                owner: Some("Bob".to_string()),
-                ..node1.clone()
-            };
+            let node3 = mix::LegacyNode { ..node1.clone() };
 
-            let mut mixes: BTreeMap<MixLayer, Vec<mix::Node>> = BTreeMap::new();
+            let mut mixes = BTreeMap::new();
             mixes.insert(1, vec![node1, node2]);
             mixes.insert(2, vec![node3]);
 
@@ -557,7 +523,8 @@ mod converting_mixes_to_vec {
             let mixvec = topology.mixes_as_vec();
             assert!(mixvec
                 .iter()
-                .any(|node| node.owner.as_ref() == Some(&"N/A".to_string())));
+                .any(|node| &node.identity_key.to_base58_string()
+                    == "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7"));
         }
     }
 

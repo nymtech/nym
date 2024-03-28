@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::error::RewardingError;
-use crate::epoch_operations::RewardedSetUpdater;
+use crate::epoch_operations::EpochAdvancer;
 
-impl RewardedSetUpdater {
+impl EpochAdvancer {
     // returns boolean indicating whether we should bother continuing
     pub(super) async fn begin_epoch_transition(&self) -> Result<bool, RewardingError> {
         info!("starting the epoch transition...");

@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime};
 
 use nym_explorer_api_requests::{Location, MixnodeStatus, PrettyDetailedMixNodeBond};
 use nym_mixnet_contract_common::rewarding::helpers::truncate_reward;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 use serde::Serialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
@@ -35,9 +35,9 @@ pub(crate) struct MixNodeSummary {
 #[derive(Clone, Debug)]
 pub(crate) struct MixNodesResult {
     pub(crate) valid_until: SystemTime,
-    pub(crate) all_mixnodes: HashMap<MixId, MixNodeBondAnnotated>,
-    active_mixnodes: HashSet<MixId>,
-    rewarded_mixnodes: HashSet<MixId>,
+    pub(crate) all_mixnodes: HashMap<NodeId, MixNodeBondAnnotated>,
+    active_mixnodes: HashSet<NodeId>,
+    rewarded_mixnodes: HashSet<NodeId>,
 }
 
 impl MixNodesResult {
@@ -50,7 +50,7 @@ impl MixNodesResult {
         }
     }
 
-    fn determine_node_status(&self, mix_id: MixId) -> MixnodeStatus {
+    fn determine_node_status(&self, mix_id: NodeId) -> MixnodeStatus {
         if self.active_mixnodes.contains(&mix_id) {
             MixnodeStatus::Active
         } else if self.rewarded_mixnodes.contains(&mix_id) {
@@ -64,7 +64,7 @@ impl MixNodesResult {
         self.valid_until >= SystemTime::now()
     }
 
-    fn get_mixnode(&self, mix_id: MixId) -> Option<MixNodeBondAnnotated> {
+    fn get_mixnode(&self, mix_id: NodeId) -> Option<MixNodeBondAnnotated> {
         if self.is_valid() {
             self.all_mixnodes.get(&mix_id).cloned()
         } else {
@@ -72,7 +72,7 @@ impl MixNodesResult {
         }
     }
 
-    fn get_mixnodes(&self) -> Option<HashMap<MixId, MixNodeBondAnnotated>> {
+    fn get_mixnodes(&self) -> Option<HashMap<NodeId, MixNodeBondAnnotated>> {
         if self.is_valid() {
             Some(self.all_mixnodes.clone())
         } else {
@@ -102,7 +102,7 @@ impl ThreadsafeMixNodesCache {
         }
     }
 
-    pub(crate) async fn is_location_valid(&self, mix_id: MixId) -> bool {
+    pub(crate) async fn is_location_valid(&self, mix_id: NodeId) -> bool {
         self.locations
             .read()
             .await
@@ -116,7 +116,7 @@ impl ThreadsafeMixNodesCache {
         self.locations.read().await.clone()
     }
 
-    pub(crate) async fn set_location(&self, mix_id: MixId, location: Option<Location>) {
+    pub(crate) async fn set_location(&self, mix_id: NodeId, location: Option<Location>) {
         // cache the location for this mix node so that it can be used when the mix node list is refreshed
         self.locations
             .write()
@@ -124,17 +124,17 @@ impl ThreadsafeMixNodesCache {
             .insert(mix_id, LocationCacheItem::new_from_location(location));
     }
 
-    pub(crate) async fn get_mixnode(&self, mix_id: MixId) -> Option<MixNodeBondAnnotated> {
+    pub(crate) async fn get_mixnode(&self, mix_id: NodeId) -> Option<MixNodeBondAnnotated> {
         self.mixnodes.read().await.get_mixnode(mix_id)
     }
 
-    pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<MixId, MixNodeBondAnnotated>> {
+    pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<NodeId, MixNodeBondAnnotated>> {
         self.mixnodes.read().await.get_mixnodes()
     }
 
     fn create_detailed_mixnode(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         mixnodes_guard: &RwLockReadGuard<'_, MixNodesResult>,
         location: Option<&LocationCacheItem>,
         node: &MixNodeBondAnnotated,
@@ -169,7 +169,7 @@ impl ThreadsafeMixNodesCache {
 
     pub(crate) async fn get_detailed_mixnode(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Option<PrettyDetailedMixNodeBond> {
         let mixnodes_guard = self.mixnodes.read().await;
         let location_guard = self.locations.read().await;
@@ -197,8 +197,8 @@ impl ThreadsafeMixNodesCache {
     pub(crate) async fn update_cache(
         &self,
         all_bonds: Vec<MixNodeBondAnnotated>,
-        rewarded_nodes: HashSet<MixId>,
-        active_nodes: HashSet<MixId>,
+        rewarded_nodes: HashSet<NodeId>,
+        active_nodes: HashSet<NodeId>,
     ) {
         let mut guard = self.mixnodes.write().await;
         guard.all_mixnodes = all_bonds

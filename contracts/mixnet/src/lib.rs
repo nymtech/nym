@@ -3,15 +3,17 @@
 
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
+#![warn(clippy::todo)]
 
+pub(crate) mod compat;
 mod constants;
 pub mod contract;
 mod delegations;
-mod families;
 mod gateways;
 mod interval;
 mod mixnet_contract_settings;
 mod mixnodes;
+mod nodes;
 mod queued_migrations;
 mod rewards;
 pub mod signing;

@@ -3,12 +3,9 @@
 
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
-use nym_api_requests::models::{
-    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
-    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, NodePerformance, RequestError,
-};
+use nym_api_requests::models::{HistoricalUptimeResponse, NodePerformance, RequestError};
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{IdentityKey, MixId};
+use nym_mixnet_contract_common::{IdentityKey, NodeId};
 use okapi::openapi3::{Responses, SchemaObject};
 use rocket::http::Status;
 use rocket::response::{self, Responder, Response};
@@ -22,6 +19,7 @@ use schemars::schema::{InstanceType, Schema};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::support::caching::cache::UninitialisedCache;
 use thiserror::Error;
 use time::OffsetDateTime;
 
@@ -38,6 +36,10 @@ pub struct Uptime(u8);
 impl Uptime {
     pub const fn zero() -> Self {
         Uptime(0)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
     }
 
     pub fn new(uptime: f32) -> Self {
@@ -128,9 +130,8 @@ impl From<Uptime> for Performance {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeStatusReport {
-    pub(crate) mix_id: MixId,
+    pub(crate) mix_id: NodeId,
     pub(crate) identity: IdentityKey,
-    pub(crate) owner: String,
 
     pub(crate) most_recent: Uptime,
 
@@ -141,9 +142,8 @@ pub struct MixnodeStatusReport {
 impl MixnodeStatusReport {
     pub(crate) fn construct_from_last_day_reports(
         report_time: OffsetDateTime,
-        mix_id: MixId,
+        mix_id: NodeId,
         identity: IdentityKey,
-        owner: String,
         last_day: Vec<NodeStatus>,
         last_hour_test_runs: usize,
         last_day_test_runs: usize,
@@ -158,23 +158,9 @@ impl MixnodeStatusReport {
         MixnodeStatusReport {
             mix_id,
             identity,
-            owner,
             most_recent: node_uptimes.most_recent,
             last_hour: node_uptimes.last_hour,
             last_day: node_uptimes.last_day,
-        }
-    }
-}
-
-impl From<MixnodeStatusReport> for MixnodeStatusReportResponse {
-    fn from(status: MixnodeStatusReport) -> Self {
-        MixnodeStatusReportResponse {
-            mix_id: status.mix_id,
-            identity: status.identity,
-            owner: status.owner,
-            most_recent: status.most_recent.0,
-            last_hour: status.last_hour.0,
-            last_day: status.last_day.0,
         }
     }
 }
@@ -191,8 +177,8 @@ impl From<MixnodeStatusReport> for NodePerformance {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayStatusReport {
+    pub(crate) node_id: NodeId,
     pub(crate) identity: String,
-    pub(crate) owner: String,
 
     pub(crate) most_recent: Uptime,
 
@@ -203,8 +189,8 @@ pub struct GatewayStatusReport {
 impl GatewayStatusReport {
     pub(crate) fn construct_from_last_day_reports(
         report_time: OffsetDateTime,
+        node_id: NodeId,
         identity: String,
-        owner: String,
         last_day: Vec<NodeStatus>,
         last_hour_test_runs: usize,
         last_day_test_runs: usize,
@@ -218,22 +204,10 @@ impl GatewayStatusReport {
 
         GatewayStatusReport {
             identity,
-            owner,
+            node_id,
             most_recent: node_uptimes.most_recent,
             last_hour: node_uptimes.last_hour,
             last_day: node_uptimes.last_day,
-        }
-    }
-}
-
-impl From<GatewayStatusReport> for GatewayStatusReportResponse {
-    fn from(status: GatewayStatusReport) -> Self {
-        GatewayStatusReportResponse {
-            identity: status.identity,
-            owner: status.owner,
-            most_recent: status.most_recent.0,
-            last_hour: status.last_hour.0,
-            last_day: status.last_day.0,
         }
     }
 }
@@ -250,64 +224,40 @@ impl From<GatewayStatusReport> for NodePerformance {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeUptimeHistory {
-    pub(crate) mix_id: MixId,
+    pub(crate) mix_id: NodeId,
     pub(crate) identity: String,
-    pub(crate) owner: String,
 
     pub(crate) history: Vec<HistoricalUptime>,
 }
 
 impl MixnodeUptimeHistory {
-    pub(crate) fn new(
-        mix_id: MixId,
-        identity: String,
-        owner: String,
-        history: Vec<HistoricalUptime>,
-    ) -> Self {
+    pub(crate) fn new(mix_id: NodeId, identity: String, history: Vec<HistoricalUptime>) -> Self {
         MixnodeUptimeHistory {
             mix_id,
             identity,
-            owner,
             history,
         }
     }
 }
 
-impl From<MixnodeUptimeHistory> for MixnodeUptimeHistoryResponse {
-    fn from(history: MixnodeUptimeHistory) -> Self {
-        MixnodeUptimeHistoryResponse {
-            mix_id: history.mix_id,
-            identity: history.identity,
-            owner: history.owner,
-            history: history.history.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayUptimeHistory {
     pub(crate) identity: String,
-    pub(crate) owner: String,
+    pub(crate) node_id: NodeId,
 
     pub(crate) history: Vec<HistoricalUptime>,
 }
 
 impl GatewayUptimeHistory {
-    pub(crate) fn new(identity: String, owner: String, history: Vec<HistoricalUptime>) -> Self {
+    pub(crate) fn new(
+        node_id: NodeId,
+        identity: impl Into<String>,
+        history: Vec<HistoricalUptime>,
+    ) -> Self {
         GatewayUptimeHistory {
-            identity,
-            owner,
+            node_id,
+            identity: identity.into(),
             history,
-        }
-    }
-}
-
-impl From<GatewayUptimeHistory> for GatewayUptimeHistoryResponse {
-    fn from(history: GatewayUptimeHistory) -> Self {
-        GatewayUptimeHistoryResponse {
-            identity: history.identity,
-            owner: history.owner,
-            history: history.history.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -340,6 +290,26 @@ impl ErrorResponse {
         ErrorResponse {
             error_message: RequestError::new(error_message),
             status,
+        }
+    }
+
+    pub(crate) fn internal_server_error() -> Self {
+        ErrorResponse {
+            error_message: RequestError::new(
+                "experienced an internal server error and could not complete this request",
+            ),
+            status: Status::InternalServerError,
+        }
+    }
+}
+
+impl From<UninitialisedCache> for ErrorResponse {
+    fn from(_: UninitialisedCache) -> Self {
+        ErrorResponse {
+            error_message: RequestError::new(
+                "one of the internal caches hasn't yet been initialised",
+            ),
+            status: Status::ServiceUnavailable,
         }
     }
 }
@@ -392,19 +362,22 @@ impl OpenApiResponderInner for ErrorResponse {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)]
 pub enum NymApiStorageError {
     #[error("could not find status report associated with mixnode {mix_id}")]
-    MixnodeReportNotFound { mix_id: MixId },
+    MixnodeReportNotFound { mix_id: NodeId },
 
-    #[error("Could not find status report associated with gateway {identity}")]
-    GatewayReportNotFound { identity: IdentityKey },
+    #[error("Could not find status report associated with gateway {node_id}")]
+    GatewayReportNotFound { node_id: NodeId },
 
     #[error("could not find uptime history associated with mixnode {mix_id}")]
-    MixnodeUptimeHistoryNotFound { mix_id: MixId },
+    MixnodeUptimeHistoryNotFound { mix_id: NodeId },
 
-    #[error("could not find uptime history associated with gateway {identity}")]
-    GatewayUptimeHistoryNotFound { identity: IdentityKey },
+    #[error("could not find uptime history associated with gateway {node_id}")]
+    GatewayUptimeHistoryNotFound { node_id: NodeId },
+
+    #[error("could not find gateway {identity} in the storage")]
+    GatewayNotFound { identity: String },
 
     // I don't think we want to expose errors to the user about what really happened
     #[error("experienced internal database error")]

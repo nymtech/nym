@@ -7,7 +7,7 @@ extern crate rocket;
 use crate::ecash::dkg::controller::keys::{
     can_validate_coconut_keys, load_bte_keypair, load_ecash_keypair_if_exists,
 };
-use crate::epoch_operations::RewardedSetUpdater;
+use crate::epoch_operations::EpochAdvancer;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
@@ -16,6 +16,7 @@ use crate::support::cli;
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
+use crate::v3_migration::migrate_v3_database;
 use ::nym_config::defaults::setup_env;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
@@ -40,6 +41,7 @@ pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;
 mod status;
 pub(crate) mod support;
+mod v3_migration;
 
 struct ShutdownHandles {
     task_manager_handle: TaskManager,
@@ -82,6 +84,11 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
         }
     }
 
+    let storage = NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?;
+
+    // try to perform any needed migrations
+    migrate_v3_database(&storage, &nyxd_client).await?;
+
     let identity_keypair = config.base.storage_paths.load_identity()?;
     let identity_public_key = *identity_keypair.public_key();
 
@@ -92,6 +99,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
         nyxd_client.clone(),
         identity_keypair,
         coconut_keypair_wrapper.clone(),
+        storage.clone(),
     )
     .await?;
 
@@ -99,7 +107,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let shutdown = TaskManager::new(10);
 
     // Rocket handles shutdown on its own, but its shutdown handling should be incorporated
-    // with that of the rest of the tasks. Currently its runtime is forcefully terminated once
+    // with that of the rest of the tasks. Currently, its runtime is forcefully terminated once
     // nym-api exits.
     let rocket_shutdown_handle = rocket.shutdown();
 
@@ -107,8 +115,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let nym_contract_cache_state = rocket.state::<NymContractCache>().unwrap();
     let node_status_cache_state = rocket.state::<NodeStatusCache>().unwrap();
     let circulating_supply_cache_state = rocket.state::<CirculatingSupplyCache>().unwrap();
-    let maybe_storage = rocket.state::<NymApiStorage>();
-    let described_nodes_state = rocket.state::<SharedCache<DescribedNodes>>().unwrap();
+    let described_nodes_cache = rocket.state::<SharedCache<DescribedNodes>>().unwrap();
 
     // start note describe cache refresher
     // we should be doing the below, but can't due to our current startup structure
@@ -117,7 +124,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     node_describe_cache::new_refresher_with_initial_value(
         &config.topology_cacher,
         nym_contract_cache_state.clone(),
-        described_nodes_state.to_owned(),
+        described_nodes_cache.clone(),
     )
     .named("node-self-described-data-refresher")
     .start(shutdown.subscribe_named("node-self-described-data-refresher"));
@@ -134,7 +141,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
         &config.node_status_api,
         nym_contract_cache_state,
         node_status_cache_state,
-        maybe_storage,
+        Some(&storage),
         nym_contract_cache_listener,
         &shutdown,
     );
@@ -164,23 +171,28 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     // if the monitoring if it's enabled
     if config.network_monitor.enabled {
         // if network monitor is enabled, the storage MUST BE available
-        let storage = maybe_storage.unwrap();
-
         network_monitor::start::<SphinxMessageReceiver>(
             &config.network_monitor,
             nym_contract_cache_state,
-            storage,
+            described_nodes_cache.clone(),
+            &storage,
             nyxd_client.clone(),
             &shutdown,
         )
         .await;
 
-        HistoricalUptimeUpdater::start(storage, &shutdown);
+        HistoricalUptimeUpdater::start(&storage, &shutdown);
 
         // start 'rewarding' if its enabled
         if config.rewarding.enabled {
             epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-            RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
+            EpochAdvancer::start(
+                nyxd_client,
+                nym_contract_cache_state,
+                described_nodes_cache.clone(),
+                &storage,
+                &shutdown,
+            );
         }
     }
 

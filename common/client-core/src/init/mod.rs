@@ -51,7 +51,7 @@ async fn setup_new_gateway<K, D>(
     key_store: &K,
     details_store: &D,
     selection_specification: GatewaySelectionSpecification,
-    available_gateways: Vec<gateway::Node>,
+    available_gateways: Vec<gateway::LegacyNode>,
     wg_tun_ip_address: Option<IpAddr>,
 ) -> Result<InitialisationResult, ClientCoreError>
 where

@@ -10,13 +10,14 @@ use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
-use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use nym_mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
+use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, NodeCostParams};
+use nym_mixnet_contract_common::nym_node::Role;
+use nym_mixnet_contract_common::reward_params::{
+    ActiveSetUpdate, IntervalRewardingParamsUpdate, Performance,
+};
 use nym_mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, Layer, LayerAssignment, MixId,
-    MixNode,
+    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, LegacyMixLayer, MixNode, NodeId,
 };
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -61,14 +62,14 @@ pub trait MixnetSigningClient {
 
     async fn update_active_set_size(
         &self,
-        active_set_size: u32,
+        update: ActiveSetUpdate,
         force_immediately: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
-            MixnetExecuteMsg::UpdateActiveSetSize {
-                active_set_size,
+            MixnetExecuteMsg::UpdateActiveSetDistribution {
+                update,
                 force_immediately,
             },
             vec![],
@@ -117,35 +118,37 @@ pub trait MixnetSigningClient {
             .await
     }
 
-    async fn advance_current_epoch(
-        &self,
-        new_rewarded_set: Vec<LayerAssignment>,
-        expected_active_set_size: u32,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::AdvanceCurrentEpoch {
-                new_rewarded_set,
-                expected_active_set_size,
-            },
-            vec![],
-        )
-        .await
-    }
+    // async fn advance_current_epoch(
+    //     &self,
+    //     new_rewarded_set: Vec<LayerAssignment>,
+    //     expected_active_set_size: u32,
+    //     fee: Option<Fee>,
+    // ) -> Result<ExecuteResult, NyxdError> {
+    //     todo!()
+    //     // self.execute_mixnet_contract(
+    //     //     fee,
+    //     //     MixnetExecuteMsg::AdvanceCurrentEpoch {
+    //     //         new_rewarded_set,
+    //     //         expected_active_set_size,
+    //     //     },
+    //     //     vec![],
+    //     // )
+    //     // .await
+    // }
 
     async fn assign_node_layer(
         &self,
-        mix_id: MixId,
-        layer: Layer,
+        mix_id: NodeId,
+        layer: LegacyMixLayer,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::AssignNodeLayer { mix_id, layer },
-            vec![],
-        )
-        .await
+        todo!()
+        // self.execute_mixnet_contract(
+        //     fee,
+        //     MixnetExecuteMsg::AssignNodeLayer { mix_id, layer },
+        //     vec![],
+        // )
+        // .await
     }
 
     async fn reconcile_epoch_events(
@@ -161,126 +164,12 @@ pub trait MixnetSigningClient {
         .await
     }
 
-    // family related
-    async fn create_family(
-        &self,
-        label: String,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(fee, MixnetExecuteMsg::CreateFamily { label }, vec![])
-            .await
-    }
-
-    async fn create_family_on_behalf(
-        &self,
-        owner_address: String,
-        label: String,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::CreateFamilyOnBehalf {
-                owner_address,
-                label,
-            },
-            vec![],
-        )
-        .await
-    }
-
-    async fn join_family(
-        &self,
-        join_permit: MessageSignature,
-        family_head: FamilyHead,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::JoinFamily {
-                join_permit,
-                family_head,
-            },
-            vec![],
-        )
-        .await
-    }
-
-    async fn join_family_on_behalf(
-        &self,
-        member_address: String,
-        join_permit: MessageSignature,
-        family_head: FamilyHead,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::JoinFamilyOnBehalf {
-                member_address,
-                join_permit,
-                family_head,
-            },
-            vec![],
-        )
-        .await
-    }
-
-    async fn leave_family(
-        &self,
-        family_head: FamilyHead,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(fee, MixnetExecuteMsg::LeaveFamily { family_head }, vec![])
-            .await
-    }
-
-    async fn leave_family_on_behalf(
-        &self,
-        member_address: String,
-        family_head: FamilyHead,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::LeaveFamilyOnBehalf {
-                member_address,
-                family_head,
-            },
-            vec![],
-        )
-        .await
-    }
-
-    async fn kick_family_member(
-        &self,
-        member: String,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(fee, MixnetExecuteMsg::KickFamilyMember { member }, vec![])
-            .await
-    }
-
-    async fn kick_family_member_on_behalf(
-        &self,
-        head_address: String,
-        member: String,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::KickFamilyMemberOnBehalf {
-                head_address,
-                member,
-            },
-            vec![],
-        )
-        .await
-    }
     // mixnode-related:
 
     async fn bond_mixnode(
         &self,
         mix_node: MixNode,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
@@ -301,7 +190,7 @@ pub trait MixnetSigningClient {
         &self,
         owner: AccountId,
         mix_node: MixNode,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         owner_signature: MessageSignature,
         pledge: Coin,
         fee: Option<Fee>,
@@ -402,12 +291,12 @@ pub trait MixnetSigningClient {
 
     async fn update_mixnode_cost_params(
         &self,
-        new_costs: MixNodeCostParams,
+        new_costs: NodeCostParams,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
-            MixnetExecuteMsg::UpdateMixnodeCostParams { new_costs },
+            MixnetExecuteMsg::UpdateCostParams { new_costs },
             vec![],
         )
         .await
@@ -416,7 +305,7 @@ pub trait MixnetSigningClient {
     async fn update_mixnode_cost_params_on_behalf(
         &self,
         owner: AccountId,
-        new_costs: MixNodeCostParams,
+        new_costs: NodeCostParams,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
@@ -552,24 +441,20 @@ pub trait MixnetSigningClient {
 
     // delegation-related:
 
-    async fn delegate_to_mixnode(
+    async fn delegate(
         &self,
-        mix_id: MixId,
+        node_id: NodeId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::DelegateToMixnode { mix_id },
-            vec![amount],
-        )
-        .await
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::Delegate { node_id }, vec![amount])
+            .await
     }
 
     async fn delegate_to_mixnode_on_behalf(
         &self,
         delegate: AccountId,
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
@@ -584,23 +469,19 @@ pub trait MixnetSigningClient {
         .await
     }
 
-    async fn undelegate_from_mixnode(
+    async fn undelegate(
         &self,
-        mix_id: MixId,
+        node_id: NodeId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::UndelegateFromMixnode { mix_id },
-            vec![],
-        )
-        .await
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::Undelegate { node_id }, vec![])
+            .await
     }
 
     async fn undelegate_to_mixnode_on_behalf(
         &self,
         delegate: AccountId,
-        mix_id: MixId,
+        mix_id: NodeId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
@@ -618,19 +499,22 @@ pub trait MixnetSigningClient {
 
     async fn reward_mixnode(
         &self,
-        mix_id: MixId,
+        node_id: NodeId,
+        role: Role,
         performance: Performance,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.execute_mixnet_contract(
-            fee,
-            MixnetExecuteMsg::RewardMixnode {
-                mix_id,
-                performance,
-            },
-            vec![],
-        )
-        .await
+        todo!()
+        // self.execute_mixnet_contract(
+        //     fee,
+        //     MixnetExecuteMsg::RewardNode {
+        //         node_id,
+        //         role,
+        //         performance,
+        //     },
+        //     vec![],
+        // )
+        // .await
     }
 
     async fn withdraw_operator_reward(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
@@ -655,7 +539,7 @@ pub trait MixnetSigningClient {
 
     async fn withdraw_delegator_reward(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
@@ -669,7 +553,7 @@ pub trait MixnetSigningClient {
     async fn withdraw_delegator_reward_on_behalf(
         &self,
         owner: AccountId,
-        mix_id: MixId,
+        mix_id: NodeId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
@@ -690,7 +574,7 @@ pub trait MixnetSigningClient {
 
     async fn migrate_vested_delegation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
@@ -760,56 +644,17 @@ mod tests {
         msg: MixnetExecuteMsg,
     ) {
         match msg {
-            MixnetExecuteMsg::AssignNodeLayer { mix_id, layer } => {
-                client.assign_node_layer(mix_id, layer, None).ignore()
-            }
-            MixnetExecuteMsg::CreateFamily { label } => client.create_family(label, None).ignore(),
-            MixnetExecuteMsg::JoinFamily {
-                join_permit,
-                family_head,
-            } => client.join_family(join_permit, family_head, None).ignore(),
-            MixnetExecuteMsg::LeaveFamily { family_head } => {
-                client.leave_family(family_head, None).ignore()
-            }
-            MixnetExecuteMsg::KickFamilyMember { member } => {
-                client.kick_family_member(member, None).ignore()
-            }
-            MixnetExecuteMsg::CreateFamilyOnBehalf {
-                owner_address,
-                label,
-            } => client
-                .create_family_on_behalf(owner_address, label, None)
-                .ignore(),
-            MixnetExecuteMsg::JoinFamilyOnBehalf {
-                member_address,
-                join_permit,
-                family_head,
-            } => client
-                .join_family_on_behalf(member_address, join_permit, family_head, None)
-                .ignore(),
-            MixnetExecuteMsg::LeaveFamilyOnBehalf {
-                member_address,
-                family_head,
-            } => client
-                .leave_family_on_behalf(member_address, family_head, None)
-                .ignore(),
-            MixnetExecuteMsg::KickFamilyMemberOnBehalf {
-                head_address,
-                member,
-            } => client
-                .kick_family_member_on_behalf(head_address, member, None)
-                .ignore(),
             MixnetExecuteMsg::UpdateRewardingValidatorAddress { address } => client
                 .update_rewarding_validator_address(address.parse().unwrap(), None)
                 .ignore(),
             MixnetExecuteMsg::UpdateContractStateParams { updated_parameters } => client
                 .update_contract_state_params(updated_parameters, None)
                 .ignore(),
-            MixnetExecuteMsg::UpdateActiveSetSize {
-                active_set_size,
+            MixnetExecuteMsg::UpdateActiveSetDistribution {
+                update,
                 force_immediately,
             } => client
-                .update_active_set_size(active_set_size, force_immediately, None)
+                .update_active_set_size(update, force_immediately, None)
                 .ignore(),
             MixnetExecuteMsg::UpdateRewardingParams {
                 updated_params,
@@ -832,12 +677,6 @@ mod tests {
             MixnetExecuteMsg::BeginEpochTransition {} => {
                 client.begin_epoch_transition(None).ignore()
             }
-            MixnetExecuteMsg::AdvanceCurrentEpoch {
-                new_rewarded_set,
-                expected_active_set_size,
-            } => client
-                .advance_current_epoch(new_rewarded_set, expected_active_set_size, None)
-                .ignore(),
             MixnetExecuteMsg::ReconcileEpochEvents { limit } => {
                 client.reconcile_epoch_events(limit, None).ignore()
             }
@@ -877,7 +716,7 @@ mod tests {
             MixnetExecuteMsg::UnbondMixnodeOnBehalf { owner } => client
                 .unbond_mixnode_on_behalf(owner.parse().unwrap(), None)
                 .ignore(),
-            MixnetExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
+            MixnetExecuteMsg::UpdateCostParams { new_costs } => {
                 client.update_mixnode_cost_params(new_costs, None).ignore()
             }
             MixnetExecuteMsg::UpdateMixnodeCostParamsOnBehalf { new_costs, owner } => client
@@ -918,22 +757,25 @@ mod tests {
             MixnetExecuteMsg::UpdateGatewayConfigOnBehalf { new_config, owner } => client
                 .update_gateway_config_on_behalf(owner.parse().unwrap(), new_config, None)
                 .ignore(),
-            MixnetExecuteMsg::DelegateToMixnode { mix_id } => client
-                .delegate_to_mixnode(mix_id, mock_coin(), None)
-                .ignore(),
+            MixnetExecuteMsg::Delegate { node_id: mix_id } => {
+                client.delegate(mix_id, mock_coin(), None).ignore()
+            }
             MixnetExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, delegate } => client
                 .delegate_to_mixnode_on_behalf(delegate.parse().unwrap(), mix_id, mock_coin(), None)
                 .ignore(),
-            MixnetExecuteMsg::UndelegateFromMixnode { mix_id } => {
-                client.undelegate_from_mixnode(mix_id, None).ignore()
+            MixnetExecuteMsg::Undelegate { node_id: mix_id } => {
+                client.undelegate(mix_id, None).ignore()
             }
             MixnetExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, delegate } => client
                 .undelegate_to_mixnode_on_behalf(delegate.parse().unwrap(), mix_id, None)
                 .ignore(),
-            MixnetExecuteMsg::RewardMixnode {
-                mix_id,
+            MixnetExecuteMsg::RewardNode {
+                node_id: mix_id,
+                role,
                 performance,
-            } => client.reward_mixnode(mix_id, performance, None).ignore(),
+            } => client
+                .reward_mixnode(mix_id, role, performance, None)
+                .ignore(),
             MixnetExecuteMsg::WithdrawOperatorReward {} => {
                 client.withdraw_operator_reward(None).ignore()
             }

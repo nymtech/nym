@@ -15,7 +15,8 @@ use crate::nym_nodes::nym_node_routes_next;
 use crate::status::{api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
-use crate::support::{nyxd, storage};
+use crate::support::nyxd;
+use crate::support::storage::NymApiStorage;
 use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
 use anyhow::{bail, Context, Result};
 use nym_crypto::asymmetric::identity;
@@ -35,6 +36,7 @@ pub(crate) async fn setup_rocket(
     nyxd_client: nyxd::Client,
     identity_keypair: identity::KeyPair,
     coconut_keypair: ecash::keys::KeyPair,
+    storage: NymApiStorage,
 ) -> anyhow::Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
     let mut rocket = rocket::build();
@@ -66,18 +68,8 @@ pub(crate) async fn setup_rocket(
         .attach(NymContractCache::stage())
         .attach(NodeStatusCache::stage())
         .attach(CirculatingSupplyCache::stage(mix_denom.clone()))
-        .manage(unstable::NodeInfoCache::default());
-
-    // This is not a very nice approach. A lazy value would be more suitable, but that's still
-    // a nightly feature: https://github.com/rust-lang/rust/issues/74465
-    let storage = if config.coconut_signer.enabled || config.network_monitor.enabled {
-        Some(
-            storage::NymApiStorage::init(&config.node_status_api.storage_paths.database_path)
-                .await?,
-        )
-    } else {
-        None
-    };
+        .manage(unstable::NodeInfoCache::default())
+        .manage(storage.clone());
 
     let mut status_state = ApiStatusState::new();
 
@@ -117,18 +109,11 @@ pub(crate) async fn setup_rocket(
             identity_keypair,
             coconut_keypair,
             comm_channel,
-            storage.clone().unwrap(),
+            storage.clone(),
         )
         .await?;
 
         rocket.manage(ecash_state)
-    } else {
-        rocket
-    };
-
-    // see if we should start up network monitor
-    let rocket = if config.network_monitor.enabled {
-        rocket.attach(storage::NymApiStorage::stage(storage.unwrap()))
     } else {
         rocket
     };

@@ -5,7 +5,7 @@ use crate::context::SigningClient;
 use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::info;
-use nym_mixnet_contract_common::{MixNodeCostParams, Percent};
+use nym_mixnet_contract_common::{NodeCostParams, Percent};
 use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
 use nym_validator_client::nyxd::CosmWasmCoin;
 
@@ -27,7 +27,7 @@ pub struct Args {
 pub async fn update_cost_params(args: Args, client: SigningClient) {
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
-    let cost_params = MixNodeCostParams {
+    let cost_params = NodeCostParams {
         profit_margin_percent: Percent::from_percentage_value(
             args.profit_margin_percent.unwrap_or(10) as u64,
         )

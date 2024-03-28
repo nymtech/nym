@@ -88,6 +88,8 @@ where
         self.shared_cache.clone()
     }
 
+    // TODO: in the future offer 2 options of refreshing cache. either provide `T` directly
+    // or via `FnMut(&mut T)` closure
     async fn do_refresh_cache(&self) {
         match self.provider.try_refresh().await {
             Ok(updated_items) => {

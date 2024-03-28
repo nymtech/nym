@@ -1,10 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{GATEWAYS_OWNER_IDX_NAMESPACE, GATEWAYS_PK_NAMESPACE};
+use crate::constants::{
+    GATEWAYS_OWNER_IDX_NAMESPACE, GATEWAYS_PK_NAMESPACE, LEGACY_GATEWAY_ID_NAMESPACE,
+};
 use cosmwasm_std::Addr;
-use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId};
+use nym_contracts_common::IdentityKey;
+
+pub(crate) const PREASSIGNED_LEGACY_IDS: Map<IdentityKey, NodeId> =
+    Map::new(LEGACY_GATEWAY_ID_NAMESPACE);
 
 pub(crate) struct GatewayBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, GatewayBond>,

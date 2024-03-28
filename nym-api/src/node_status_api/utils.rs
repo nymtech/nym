@@ -5,22 +5,22 @@ use crate::node_status_api::models::Uptime;
 use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
 use crate::storage::models::NodeStatus;
 use log::warn;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 
 use time::OffsetDateTime;
 
 // A temporary helper structs used to produce reports for active nodes.
 pub(crate) struct ActiveMixnodeStatuses {
-    pub(crate) mix_id: MixId,
+    pub(crate) mix_id: NodeId,
 
     pub(crate) identity: String,
-    pub(crate) owner: String,
     pub(crate) statuses: Vec<NodeStatus>,
 }
 
 pub(crate) struct ActiveGatewayStatuses {
+    pub(crate) node_id: NodeId,
+
     pub(crate) identity: String,
-    pub(crate) owner: String,
     pub(crate) statuses: Vec<NodeStatus>,
 }
 
@@ -45,7 +45,7 @@ impl NodeUptimes {
         // If somehow we have more reports than the actual test runs it means something weird is going on
         // (or we just started running this code on old data, so if it appears for first 24h, it's fine and actually expected
         // as we would not have any run information from the past)
-        // Either way, bound the the number of "up" reports by number of test runs and log warnings
+        // Either way, bound the number of "up" reports by number of test runs and log warnings
         // if that happens
 
         let last_day_sum: f32 = if last_day.len() > last_day_test_runs {

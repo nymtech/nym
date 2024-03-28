@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::preparer::InvalidNode;
 use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 use nym_node_tester_utils::node::{NodeType, TestableNode};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -22,18 +22,16 @@ const UNRELIABLE_THRESHOLD: u8 = 1; // 1 - 60
 
 #[derive(Debug)]
 pub(crate) struct MixnodeResult {
-    pub(crate) mix_id: MixId,
+    pub(crate) mix_id: NodeId,
     pub(crate) identity: String,
-    pub(crate) owner: String,
     pub(crate) reliability: u8,
 }
 
 impl MixnodeResult {
-    pub(crate) fn new(mix_id: MixId, identity: String, owner: String, reliability: u8) -> Self {
+    pub(crate) fn new(mix_id: NodeId, identity: String, reliability: u8) -> Self {
         MixnodeResult {
             mix_id,
             identity,
-            owner,
             reliability,
         }
     }
@@ -41,16 +39,16 @@ impl MixnodeResult {
 
 #[derive(Debug)]
 pub(crate) struct GatewayResult {
+    pub(crate) node_id: NodeId,
     pub(crate) identity: String,
-    pub(crate) owner: String,
     pub(crate) reliability: u8,
 }
 
 impl GatewayResult {
-    pub(crate) fn new(identity: String, owner: String, reliability: u8) -> Self {
+    pub(crate) fn new(node_id: NodeId, identity: String, reliability: u8) -> Self {
         GatewayResult {
+            node_id,
             identity,
-            owner,
             reliability,
         }
     }
@@ -328,13 +326,12 @@ impl SummaryProducer {
             let reliability = performance.round() as u8;
 
             match node.typ {
-                NodeType::Mixnode { mix_id } => {
-                    let res =
-                        MixnodeResult::new(mix_id, node.encoded_identity, node.owner, reliability);
+                NodeType::Mixnode => {
+                    let res = MixnodeResult::new(node.node_id, node.encoded_identity, reliability);
                     mixnode_results.push(res)
                 }
                 NodeType::Gateway => {
-                    let res = GatewayResult::new(node.encoded_identity, node.owner, reliability);
+                    let res = GatewayResult::new(node.node_id, node.encoded_identity, reliability);
                     gateway_results.push(res)
                 }
             }

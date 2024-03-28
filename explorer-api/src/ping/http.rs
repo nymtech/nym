@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_mixnet_contract_common::{MixId, MixNode};
+use nym_mixnet_contract_common::{NodeId, MixNode};
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;
@@ -23,7 +23,7 @@ pub fn ping_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, Open
 #[openapi(tag = "ping")]
 #[get("/<mix_id>")]
 pub(crate) async fn index(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<PingResponse>> {
     match state.inner.ping.clone().get(mix_id).await {

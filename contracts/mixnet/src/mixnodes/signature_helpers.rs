@@ -5,7 +5,7 @@ use crate::signing::storage as signing_storage;
 use crate::support::helpers::decode_ed25519_identity_key;
 use cosmwasm_std::{Addr, Coin, Deps};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{construct_mixnode_bonding_sign_payload, MixNode, MixNodeCostParams};
+use mixnet_contract_common::{construct_mixnode_bonding_sign_payload, MixNode, NodeCostParams};
 use nym_contracts_common::signing::MessageSignature;
 use nym_contracts_common::signing::Verifier;
 
@@ -14,7 +14,7 @@ pub(crate) fn verify_mixnode_bonding_signature(
     sender: Addr,
     pledge: Coin,
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     signature: MessageSignature,
 ) -> Result<(), MixnetContractError> {
     // recover the public key

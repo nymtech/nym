@@ -1,18 +1,22 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::unix_epoch;
-use crate::nym_nodes::NodeRole;
+use crate::legacy::{
+    LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
+};
+use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNode};
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal};
-use nym_mixnet_contract_common::families::FamilyHead;
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
-use nym_mixnet_contract_common::{
-    GatewayBond, IdentityKey, Interval, MixId, MixNode, MixNodeBond, Percent, RewardedSetNodeStatus,
+use nym_mixnet_contract_common::{IdentityKey, Interval, MixNode, NodeId, Percent};
+use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
+use nym_node_requests::api::v1::authenticator::models::Authenticator;
+use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
+use nym_node_requests::api::v1::node::models::{
+    AuxiliaryDetails, BinaryBuildInformationOwned, NodeRoles,
 };
-use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, BinaryBuildInformationOwned};
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
@@ -59,18 +63,6 @@ pub enum MixnodeStatus {
     Inactive, // in neither the rewarded set nor the active set, but is bonded
     NotFound, // doesn't even exist in the bonded set
 }
-
-impl From<MixnodeStatus> for Option<RewardedSetNodeStatus> {
-    fn from(status: MixnodeStatus) -> Self {
-        match status {
-            MixnodeStatus::Active => Some(RewardedSetNodeStatus::Active),
-            MixnodeStatus::Standby => Some(RewardedSetNodeStatus::Standby),
-            MixnodeStatus::Inactive => None,
-            MixnodeStatus::NotFound => None,
-        }
-    }
-}
-
 impl MixnodeStatus {
     pub fn is_active(&self) -> bool {
         *self == MixnodeStatus::Active
@@ -84,7 +76,7 @@ impl MixnodeStatus {
     ts(export_to = "ts-packages/types/src/types/rust/MixnodeCoreStatusResponse.ts")
 )]
 pub struct MixnodeCoreStatusResponse {
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     pub count: i32,
 }
 
@@ -116,9 +108,17 @@ pub struct NodePerformance {
     pub last_24h: Performance,
 }
 
+// imo for now there's no point in exposing more than that,
+// nym-api shouldn't be calculating apy or stake saturation for you.
+// it should just return its own metrics (performance) and then you can do with it as you wish
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct NodeAnnotation {
+    pub last_24h_performance: Performance,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MixNodeBondAnnotated {
-    pub mixnode_details: MixNodeDetails,
+    pub mixnode_details: LegacyMixNodeDetailsWithLayer,
     pub stake_saturation: StakeSaturation,
     pub uncapped_stake_saturation: StakeSaturation,
     // NOTE: the performance field is deprecated in favour of node_performance
@@ -126,7 +126,6 @@ pub struct MixNodeBondAnnotated {
     pub node_performance: NodePerformance,
     pub estimated_operator_apy: Decimal,
     pub estimated_delegators_apy: Decimal,
-    pub family: Option<FamilyHead>,
     pub blacklisted: bool,
 
     // a rather temporary thing until we query self-described endpoints of mixnodes
@@ -139,7 +138,7 @@ impl MixNodeBondAnnotated {
         &self.mixnode_details.bond_information.mix_node
     }
 
-    pub fn mix_id(&self) -> MixId {
+    pub fn mix_id(&self) -> NodeId {
         self.mixnode_details.mix_id()
     }
 
@@ -150,11 +149,15 @@ impl MixNodeBondAnnotated {
     pub fn owner(&self) -> &Addr {
         self.mixnode_details.bond_information.owner()
     }
+
+    pub fn version(&self) -> &str {
+        &self.mixnode_details.bond_information.mix_node.version
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GatewayBondAnnotated {
-    pub gateway_bond: GatewayBond,
+    pub gateway_bond: LegacyGatewayBondWithId,
 
     #[serde(default)]
     pub self_described: Option<GatewayDescription>,
@@ -169,12 +172,16 @@ pub struct GatewayBondAnnotated {
 }
 
 impl GatewayBondAnnotated {
+    pub fn version(&self) -> &str {
+        &self.gateway_bond.gateway.version
+    }
+
     pub fn identity(&self) -> &String {
-        self.gateway_bond.identity()
+        self.gateway_bond.bond.identity()
     }
 
     pub fn owner(&self) -> &Addr {
-        self.gateway_bond.owner()
+        self.gateway_bond.bond.owner()
     }
 }
 
@@ -209,7 +216,7 @@ pub struct RewardEstimationResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     // The same as node_performance.last_24h. Legacy
     pub avg_uptime: u8,
     pub node_performance: NodePerformance,
@@ -315,7 +322,7 @@ pub struct AllInclusionProbabilitiesResponse {
 
 #[derive(Clone, Serialize, schemars::JsonSchema)]
 pub struct InclusionProbability {
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     pub in_active: f64,
     pub in_reserve: f64,
 }
@@ -324,7 +331,7 @@ type Uptime = u8;
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct MixnodeStatusReportResponse {
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     pub identity: IdentityKey,
     pub owner: String,
     pub most_recent: Uptime,
@@ -349,7 +356,7 @@ pub struct HistoricalUptimeResponse {
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct MixnodeUptimeHistoryResponse {
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     pub identity: String,
     pub owner: String,
     pub history: Vec<HistoricalUptimeResponse>,
@@ -493,13 +500,68 @@ impl JsonSchema for OffsetDateTimeJsonSchemaWrapper {
     }
 }
 
-// this struct is getting quite bloated...
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NymNodeDescription {
+    pub node_id: NodeId,
+    pub contract_node_type: DescribedNodeType,
+    pub description: NymNodeData,
+}
+
+impl NymNodeDescription {
+    pub fn version(&self) -> &str {
+        &self.description.build_information.build_version
+    }
+
+    pub fn entry_information(&self) -> BasicEntryInformation {
+        BasicEntryInformation {
+            hostname: self.description.host_information.hostname.clone(),
+            ws_port: self.description.mixnet_websockets.ws_port,
+            wss_port: self.description.mixnet_websockets.wss_port,
+        }
+    }
+
+    pub fn to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
+        let keys = &self.description.host_information.keys;
+        let entry = if self.description.declared_role.can_operate_entry_gateway() {
+            Some(self.entry_information())
+        } else {
+            None
+        };
+
+        SkimmedNode {
+            node_id: self.node_id,
+            ed25519_identity_pubkey: keys.ed25519.clone(),
+            ip_addresses: self.description.host_information.ip_address.clone(),
+            mix_port: self.description.mix_port(),
+            x25519_sphinx_pubkey: keys.x25519.clone(),
+            // we can't use the declared roles, we have to take whatever was provided in the contract.
+            // why? say this node COULD operate as an exit, but it might be the case the contract decided
+            // to assign it an ENTRY role only. we have to use that one instead.
+            role,
+            entry,
+            performance,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DescribedNodeType {
+    LegacyMixnode,
+    LegacyGateway,
+    NymNode,
+}
+
+// this struct is getting quite bloated...
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct NymNodeData {
     #[serde(default)]
     pub last_polled: OffsetDateTimeJsonSchemaWrapper,
 
     pub host_information: HostInformation,
+
+    #[serde(default)]
+    pub declared_role: NodeRoles,
 
     #[serde(default)]
     pub auxiliary_details: AuxiliaryDetails,
@@ -518,25 +580,33 @@ pub struct NymNodeDescription {
 
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
-
-    #[serde(default = "default_node_role")]
-    pub role: NodeRole,
 }
 
-// For backwards compatibility, set a slightly artificial default
-fn default_node_role() -> NodeRole {
-    NodeRole::Inactive
+impl NymNodeData {
+    pub fn mix_port(&self) -> u16 {
+        self.auxiliary_details
+            .announce_ports
+            .mix_port
+            .unwrap_or(DEFAULT_MIX_LISTENING_PORT)
+    }
+
+    pub fn verloc_port(&self) -> u16 {
+        self.auxiliary_details
+            .announce_ports
+            .verloc_port
+            .unwrap_or(DEFAULT_VERLOC_LISTENING_PORT)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct DescribedGateway {
-    pub bond: GatewayBond,
-    pub self_described: Option<NymNodeDescription>,
+pub struct LegacyDescribedGateway {
+    pub bond: LegacyGatewayBondWithId,
+    pub self_described: Option<NymNodeData>,
 }
 
-impl From<GatewayBond> for DescribedGateway {
-    fn from(bond: GatewayBond) -> Self {
-        DescribedGateway {
+impl From<LegacyGatewayBondWithId> for LegacyDescribedGateway {
+    fn from(bond: LegacyGatewayBondWithId) -> Self {
+        LegacyDescribedGateway {
             bond,
             self_described: None,
         }
@@ -544,14 +614,14 @@ impl From<GatewayBond> for DescribedGateway {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct DescribedMixNode {
-    pub bond: MixNodeBond,
-    pub self_described: Option<NymNodeDescription>,
+pub struct LegacyDescribedMixNode {
+    pub bond: LegacyMixNodeBondWithLayer,
+    pub self_described: Option<NymNodeData>,
 }
 
-impl From<MixNodeBond> for DescribedMixNode {
-    fn from(bond: MixNodeBond) -> Self {
-        DescribedMixNode {
+impl From<LegacyMixNodeBondWithLayer> for LegacyDescribedMixNode {
+    fn from(bond: LegacyMixNodeBondWithLayer) -> Self {
+        LegacyDescribedMixNode {
             bond,
             self_described: None,
         }
@@ -573,12 +643,29 @@ pub struct IpPacketRouterDetails {
     pub address: String,
 }
 
+// works for current simple case.
+impl From<IpPacketRouter> for IpPacketRouterDetails {
+    fn from(value: IpPacketRouter) -> Self {
+        IpPacketRouterDetails {
+            address: value.address,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct AuthenticatorDetails {
     /// address of the embedded authenticator
     pub address: String,
 }
 
+// works for current simple case.
+impl From<Authenticator> for AuthenticatorDetails {
+    fn from(value: Authenticator) -> Self {
+        AuthenticatorDetails {
+            address: value.address,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct ApiHealthResponse {
     pub status: ApiStatus,

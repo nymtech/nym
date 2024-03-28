@@ -47,12 +47,12 @@ const CONN_TIMEOUT: Duration = Duration::from_millis(1500);
 const PING_TIMEOUT: Duration = Duration::from_millis(1000);
 
 struct GatewayWithLatency<'a> {
-    gateway: &'a gateway::Node,
+    gateway: &'a gateway::LegacyNode,
     latency: Duration,
 }
 
 impl<'a> GatewayWithLatency<'a> {
-    fn new(gateway: &'a gateway::Node, latency: Duration) -> Self {
+    fn new(gateway: &'a gateway::LegacyNode, latency: Duration) -> Self {
         GatewayWithLatency { gateway, latency }
     }
 }
@@ -61,7 +61,7 @@ pub async fn current_gateways<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
-) -> Result<Vec<gateway::Node>, ClientCoreError> {
+) -> Result<Vec<gateway::LegacyNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -80,7 +80,7 @@ pub async fn current_gateways<R: Rng>(
     let valid_gateways = gateways
         .into_iter()
         .filter_map(|gateway| gateway.try_into().ok())
-        .collect::<Vec<gateway::Node>>();
+        .collect::<Vec<gateway::LegacyNode>>();
     log::debug!("Ater checking validity: {}", valid_gateways.len());
     log::trace!("Valid gateways: {:#?}", valid_gateways);
 
@@ -97,7 +97,7 @@ pub async fn current_gateways<R: Rng>(
 pub async fn current_mixnodes<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
-) -> Result<Vec<mix::Node>, ClientCoreError> {
+) -> Result<Vec<mix::LegacyNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -109,7 +109,7 @@ pub async fn current_mixnodes<R: Rng>(
     let valid_mixnodes = mixnodes
         .into_iter()
         .filter_map(|mixnode| (&mixnode.bond_information).try_into().ok())
-        .collect::<Vec<mix::Node>>();
+        .collect::<Vec<mix::LegacyNode>>();
 
     // we were always filtering by version so I'm not removing that 'feature'
     let filtered_mixnodes = valid_mixnodes.filter_by_version(env!("CARGO_PKG_VERSION"));
@@ -130,7 +130,9 @@ async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     JSWebsocket::new(endpoint).map_err(|_| ClientCoreError::GatewayJsConnectionFailure)
 }
 
-async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, ClientCoreError> {
+async fn measure_latency(
+    gateway: &gateway::LegacyNode,
+) -> Result<GatewayWithLatency, ClientCoreError> {
     let addr = gateway.clients_address();
     trace!(
         "establishing connection to {} ({addr})...",
@@ -189,9 +191,9 @@ async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, 
 
 pub async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
     must_use_tls: bool,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::LegacyNode, ClientCoreError> {
     let gateways = filter_by_tls(gateways, must_use_tls)?;
 
     info!(
@@ -230,9 +232,9 @@ pub async fn choose_gateway_by_latency<R: Rng>(
 }
 
 fn filter_by_tls(
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
     must_use_tls: bool,
-) -> Result<Vec<&gateway::Node>, ClientCoreError> {
+) -> Result<Vec<&gateway::LegacyNode>, ClientCoreError> {
     if must_use_tls {
         let filtered = gateways
             .iter()
@@ -251,9 +253,9 @@ fn filter_by_tls(
 
 pub(super) fn uniformly_random_gateway<R: Rng>(
     rng: &mut R,
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
     must_use_tls: bool,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::LegacyNode, ClientCoreError> {
     filter_by_tls(gateways, must_use_tls)?
         .choose(rng)
         .ok_or(ClientCoreError::NoGatewaysOnNetwork)
@@ -262,9 +264,9 @@ pub(super) fn uniformly_random_gateway<R: Rng>(
 
 pub(super) fn get_specified_gateway(
     gateway_identity: IdentityKeyRef,
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
     must_use_tls: bool,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::LegacyNode, ClientCoreError> {
     log::debug!("Requesting specified gateway: {}", gateway_identity);
     let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;

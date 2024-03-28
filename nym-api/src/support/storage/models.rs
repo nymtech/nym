@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_api_requests::models::TestNode;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
+use sqlx::FromRow;
 
 // Internally used struct to catch results from the database to calculate uptimes for given mixnode/gateway
 pub(crate) struct NodeStatus {
@@ -23,15 +24,15 @@ impl NodeStatus {
 // Internally used structs to catch results from the database to find active mixnodes
 pub(crate) struct ActiveMixnode {
     pub(crate) id: i64,
-    pub(crate) mix_id: MixId,
+    pub(crate) mix_id: NodeId,
     pub(crate) identity_key: String,
-    pub(crate) owner: String,
 }
 
+#[derive(FromRow)]
 pub(crate) struct ActiveGateway {
     pub(crate) id: i64,
+    pub(crate) node_id: NodeId,
     pub(crate) identity: String,
-    pub(crate) owner: String,
 }
 
 pub(crate) struct TestingRoute {
@@ -54,7 +55,6 @@ pub(crate) struct RewardingReport {
 pub struct MixnodeDetails {
     pub id: i64,
     pub mix_id: i64,
-    pub owner: String,
     pub identity_key: String,
 }
 
@@ -67,9 +67,19 @@ impl From<MixnodeDetails> for TestNode {
     }
 }
 
+#[derive(FromRow)]
+pub struct GatewayDetailsBeforeMigration {
+    pub id: i64,
+    #[sqlx(default)]
+    #[allow(dead_code)]
+    pub node_id: Option<NodeId>,
+    pub identity: String,
+}
+
+#[derive(FromRow)]
 pub struct GatewayDetails {
     pub id: i64,
-    pub owner: String,
+    pub node_id: NodeId,
     pub identity: String,
 }
 

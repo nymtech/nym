@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::NodeStatusCache;
+use crate::node_status_api::cache::node_sets::produce_node_annotations;
 use crate::{
     node_status_api::cache::{
         inclusion_probabilities::InclusionProbabilities,
         node_sets::{
-            annotate_gateways_with_details, annotate_nodes_with_details,
-            split_into_active_and_rewarded_set, to_rewarded_set_node_status,
+            annotate_legacy_gateways_with_details, annotate_legacy_mixnodes_nodes_with_details,
         },
         NodeStatusCacheError,
     },
@@ -16,6 +16,7 @@ use crate::{
     support::caching::CacheNotification,
 };
 use nym_task::TaskClient;
+use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time;
@@ -112,13 +113,12 @@ impl NodeStatusCacheRefresher {
         log::info!("Updating node status cache");
 
         // Fetch contract cache data to work with
-        let mixnode_details = self.contract_cache.mixnodes_all().await;
+        let mixnode_details = self.contract_cache.legacy_mixnodes_all().await;
         let interval_reward_params = self.contract_cache.interval_reward_params().await;
         let current_interval = self.contract_cache.current_interval().await;
-        let rewarded_set = self.contract_cache.rewarded_set().await;
-        let active_set = self.contract_cache.active_set().await;
-        let mix_to_family = self.contract_cache.mix_to_family().await;
-        let gateway_bonds = self.contract_cache.gateways_all().await;
+        let rewarded_set = self.contract_cache.rewarded_set_owned().await;
+        let gateway_bonds = self.contract_cache.legacy_gateways_all().await;
+        let nym_nodes = self.contract_cache.nym_nodes().await;
 
         // get blacklists
         let mixnodes_blacklist = self.contract_cache.mixnodes_blacklist().await;
@@ -138,24 +138,33 @@ impl NodeStatusCacheRefresher {
             NodeStatusCacheError::SimulationFailed
         })?;
 
+        let mut legacy_gateway_mapping = HashMap::new();
+        for gateway in &gateway_bonds {
+            legacy_gateway_mapping.insert(gateway.identity().clone(), gateway.node_id);
+        }
+
         // Create annotated data
-        let rewarded_set_node_status = to_rewarded_set_node_status(&rewarded_set, &active_set);
-        let mixnodes_annotated = annotate_nodes_with_details(
+
+        let node_annotations = produce_node_annotations(
+            &self.storage,
+            &mixnode_details,
+            &gateway_bonds,
+            &nym_nodes,
+            current_interval,
+        )
+        .await;
+
+        let mixnodes_annotated = annotate_legacy_mixnodes_nodes_with_details(
             &self.storage,
             mixnode_details,
             interval_reward_params,
             current_interval,
-            &rewarded_set_node_status,
-            mix_to_family.to_vec(),
+            &rewarded_set,
             &mixnodes_blacklist,
         )
         .await;
 
-        // Create the annotated rewarded and active sets
-        let (rewarded_set, active_set) =
-            split_into_active_and_rewarded_set(&mixnodes_annotated, &rewarded_set_node_status);
-
-        let gateways_annotated = annotate_gateways_with_details(
+        let gateways_annotated = annotate_legacy_gateways_with_details(
             &self.storage,
             gateway_bonds,
             current_interval,
@@ -166,9 +175,9 @@ impl NodeStatusCacheRefresher {
         // Update the cache
         self.cache
             .update(
+                legacy_gateway_mapping,
+                node_annotations,
                 mixnodes_annotated,
-                rewarded_set,
-                active_set,
                 gateways_annotated,
                 inclusion_probabilities,
             )

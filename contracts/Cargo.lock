@@ -1295,6 +1295,7 @@ dependencies = [
  "bs58 0.4.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw-storage-plus",
  "cw2",
  "humantime-serde",
  "log",

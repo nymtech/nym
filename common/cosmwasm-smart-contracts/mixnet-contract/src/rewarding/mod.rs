@@ -1,7 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{MixId, RewardedSetNodeStatus};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
 
@@ -98,14 +97,4 @@ impl EstimatedCurrentEpochRewardResponse {
             detailed_estimation_amount: None,
         }
     }
-}
-
-/// Response containing paged list of all mixnodes in the rewarded set.
-#[cw_serde]
-pub struct PagedRewardedSetResponse {
-    /// Nodes in the current rewarded set.
-    pub nodes: Vec<(MixId, RewardedSetNodeStatus)>,
-
-    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
-    pub start_next_after: Option<MixId>,
 }

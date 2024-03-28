@@ -35,7 +35,7 @@ interface StateApi {
   fetchMixnodes: (status?: MixnodeStatus) => Promise<MixNodeResponse | undefined>;
   filterMixnodes: (filters: any, status: any) => void;
   toggleMode: () => void;
-  updateNavState: (id: number) => void;
+  updateNavState: (title: string) => void;
 }
 
 type State = StateData & StateApi;
@@ -185,10 +185,10 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
     }
   };
 
-  const updateNavState = (id: number) => {
+  const updateNavState = (url: string) => {
     const updated = navState.map((option) => ({
       ...option,
-      isActive: option.id === id,
+      isActive: option.url === url,
     }));
     updateNav(updated);
   };

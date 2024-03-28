@@ -22,3 +22,10 @@ Default.args = {
   tooltip: 'Copy identity key to clipboard',
   value: '123456',
 };
+
+export const SmallIcon = Template.bind({});
+SmallIcon.args = {
+  tooltip: 'Copy identity key to clipboard',
+  value: '123456',
+  smallIcons: true,
+};

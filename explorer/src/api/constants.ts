@@ -24,3 +24,7 @@ export const MIXNODE_API_ERROR = "We're having trouble finding that record, plea
 export const NYM_WEBSITE = 'https://nymtech.net';
 
 export const NYM_BIG_DIPPER = 'https://mixnet.explorers.guru';
+
+export const NYM_MIXNET_CONTRACT =
+  process.env.NYM_MIXNET_CONTRACT || 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr';
+export const COSMOS_KIT_USE_CHAIN = process.env.COSMOS_KIT_USE_CHAIN || 'sandbox';

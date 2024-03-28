@@ -5,15 +5,11 @@
     {
       "description": "Change the admin",
       "type": "object",
-      "required": [
-        "update_admin"
-      ],
+      "required": ["update_admin"],
       "properties": {
         "update_admin": {
           "type": "object",
-          "required": [
-            "admin"
-          ],
+          "required": ["admin"],
           "properties": {
             "admin": {
               "type": "string"
@@ -26,15 +22,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_rewarding_validator_address"
-      ],
+      "required": ["update_rewarding_validator_address"],
       "properties": {
         "update_rewarding_validator_address": {
           "type": "object",
-          "required": [
-            "address"
-          ],
+          "required": ["address"],
           "properties": {
             "address": {
               "type": "string"
@@ -47,15 +39,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_contract_state_params"
-      ],
+      "required": ["update_contract_state_params"],
       "properties": {
         "update_contract_state_params": {
           "type": "object",
-          "required": [
-            "updated_parameters"
-          ],
+          "required": ["updated_parameters"],
           "properties": {
             "updated_parameters": {
               "$ref": "#/definitions/ContractStateParams"
@@ -68,16 +56,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_active_set_distribution"
-      ],
+      "required": ["update_active_set_distribution"],
       "properties": {
         "update_active_set_distribution": {
           "type": "object",
-          "required": [
-            "force_immediately",
-            "update"
-          ],
+          "required": ["force_immediately", "update"],
           "properties": {
             "force_immediately": {
               "type": "boolean"
@@ -93,16 +76,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_rewarding_params"
-      ],
+      "required": ["update_rewarding_params"],
       "properties": {
         "update_rewarding_params": {
           "type": "object",
-          "required": [
-            "force_immediately",
-            "updated_params"
-          ],
+          "required": ["force_immediately", "updated_params"],
           "properties": {
             "force_immediately": {
               "type": "boolean"
@@ -118,9 +96,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_interval_config"
-      ],
+      "required": ["update_interval_config"],
       "properties": {
         "update_interval_config": {
           "type": "object",
@@ -151,9 +127,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "begin_epoch_transition"
-      ],
+      "required": ["begin_epoch_transition"],
       "properties": {
         "begin_epoch_transition": {
           "type": "object",
@@ -164,18 +138,13 @@
     },
     {
       "type": "object",
-      "required": [
-        "reconcile_epoch_events"
-      ],
+      "required": ["reconcile_epoch_events"],
       "properties": {
         "reconcile_epoch_events": {
           "type": "object",
           "properties": {
             "limit": {
-              "type": [
-                "integer",
-                "null"
-              ],
+              "type": ["integer", "null"],
               "format": "uint32",
               "minimum": 0.0
             }
@@ -187,15 +156,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "assign_roles"
-      ],
+      "required": ["assign_roles"],
       "properties": {
         "assign_roles": {
           "type": "object",
-          "required": [
-            "assignment"
-          ],
+          "required": ["assignment"],
           "properties": {
             "assignment": {
               "$ref": "#/definitions/RoleAssignment"
@@ -208,17 +173,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "bond_mixnode"
-      ],
+      "required": ["bond_mixnode"],
       "properties": {
         "bond_mixnode": {
           "type": "object",
-          "required": [
-            "cost_params",
-            "mix_node",
-            "owner_signature"
-          ],
+          "required": ["cost_params", "mix_node", "owner_signature"],
           "properties": {
             "cost_params": {
               "$ref": "#/definitions/NodeCostParams"
@@ -237,18 +196,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "bond_mixnode_on_behalf"
-      ],
+      "required": ["bond_mixnode_on_behalf"],
       "properties": {
         "bond_mixnode_on_behalf": {
           "type": "object",
-          "required": [
-            "cost_params",
-            "mix_node",
-            "owner",
-            "owner_signature"
-          ],
+          "required": ["cost_params", "mix_node", "owner", "owner_signature"],
           "properties": {
             "cost_params": {
               "$ref": "#/definitions/NodeCostParams"
@@ -270,9 +222,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "pledge_more"
-      ],
+      "required": ["pledge_more"],
       "properties": {
         "pledge_more": {
           "type": "object",
@@ -283,15 +233,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "pledge_more_on_behalf"
-      ],
+      "required": ["pledge_more_on_behalf"],
       "properties": {
         "pledge_more_on_behalf": {
           "type": "object",
-          "required": [
-            "owner"
-          ],
+          "required": ["owner"],
           "properties": {
             "owner": {
               "type": "string"
@@ -304,15 +250,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "decrease_pledge"
-      ],
+      "required": ["decrease_pledge"],
       "properties": {
         "decrease_pledge": {
           "type": "object",
-          "required": [
-            "decrease_by"
-          ],
+          "required": ["decrease_by"],
           "properties": {
             "decrease_by": {
               "$ref": "#/definitions/Coin"
@@ -325,16 +267,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "decrease_pledge_on_behalf"
-      ],
+      "required": ["decrease_pledge_on_behalf"],
       "properties": {
         "decrease_pledge_on_behalf": {
           "type": "object",
-          "required": [
-            "decrease_by",
-            "owner"
-          ],
+          "required": ["decrease_by", "owner"],
           "properties": {
             "decrease_by": {
               "$ref": "#/definitions/Coin"
@@ -350,9 +287,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "unbond_mixnode"
-      ],
+      "required": ["unbond_mixnode"],
       "properties": {
         "unbond_mixnode": {
           "type": "object",
@@ -363,15 +298,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "unbond_mixnode_on_behalf"
-      ],
+      "required": ["unbond_mixnode_on_behalf"],
       "properties": {
         "unbond_mixnode_on_behalf": {
           "type": "object",
-          "required": [
-            "owner"
-          ],
+          "required": ["owner"],
           "properties": {
             "owner": {
               "type": "string"
@@ -384,15 +315,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_cost_params"
-      ],
+      "required": ["update_cost_params"],
       "properties": {
         "update_cost_params": {
           "type": "object",
-          "required": [
-            "new_costs"
-          ],
+          "required": ["new_costs"],
           "properties": {
             "new_costs": {
               "$ref": "#/definitions/NodeCostParams"
@@ -405,16 +332,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_mixnode_cost_params_on_behalf"
-      ],
+      "required": ["update_mixnode_cost_params_on_behalf"],
       "properties": {
         "update_mixnode_cost_params_on_behalf": {
           "type": "object",
-          "required": [
-            "new_costs",
-            "owner"
-          ],
+          "required": ["new_costs", "owner"],
           "properties": {
             "new_costs": {
               "$ref": "#/definitions/NodeCostParams"
@@ -430,15 +352,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_mixnode_config"
-      ],
+      "required": ["update_mixnode_config"],
       "properties": {
         "update_mixnode_config": {
           "type": "object",
-          "required": [
-            "new_config"
-          ],
+          "required": ["new_config"],
           "properties": {
             "new_config": {
               "$ref": "#/definitions/MixNodeConfigUpdate"
@@ -451,16 +369,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_mixnode_config_on_behalf"
-      ],
+      "required": ["update_mixnode_config_on_behalf"],
       "properties": {
         "update_mixnode_config_on_behalf": {
           "type": "object",
-          "required": [
-            "new_config",
-            "owner"
-          ],
+          "required": ["new_config", "owner"],
           "properties": {
             "new_config": {
               "$ref": "#/definitions/MixNodeConfigUpdate"
@@ -476,9 +389,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "migrate_mixnode"
-      ],
+      "required": ["migrate_mixnode"],
       "properties": {
         "migrate_mixnode": {
           "type": "object",
@@ -489,16 +400,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "bond_gateway"
-      ],
+      "required": ["bond_gateway"],
       "properties": {
         "bond_gateway": {
           "type": "object",
-          "required": [
-            "gateway",
-            "owner_signature"
-          ],
+          "required": ["gateway", "owner_signature"],
           "properties": {
             "gateway": {
               "$ref": "#/definitions/Gateway"
@@ -514,17 +420,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "bond_gateway_on_behalf"
-      ],
+      "required": ["bond_gateway_on_behalf"],
       "properties": {
         "bond_gateway_on_behalf": {
           "type": "object",
-          "required": [
-            "gateway",
-            "owner",
-            "owner_signature"
-          ],
+          "required": ["gateway", "owner", "owner_signature"],
           "properties": {
             "gateway": {
               "$ref": "#/definitions/Gateway"
@@ -543,9 +443,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "unbond_gateway"
-      ],
+      "required": ["unbond_gateway"],
       "properties": {
         "unbond_gateway": {
           "type": "object",
@@ -556,15 +454,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "unbond_gateway_on_behalf"
-      ],
+      "required": ["unbond_gateway_on_behalf"],
       "properties": {
         "unbond_gateway_on_behalf": {
           "type": "object",
-          "required": [
-            "owner"
-          ],
+          "required": ["owner"],
           "properties": {
             "owner": {
               "type": "string"
@@ -577,15 +471,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_gateway_config"
-      ],
+      "required": ["update_gateway_config"],
       "properties": {
         "update_gateway_config": {
           "type": "object",
-          "required": [
-            "new_config"
-          ],
+          "required": ["new_config"],
           "properties": {
             "new_config": {
               "$ref": "#/definitions/GatewayConfigUpdate"
@@ -598,16 +488,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_gateway_config_on_behalf"
-      ],
+      "required": ["update_gateway_config_on_behalf"],
       "properties": {
         "update_gateway_config_on_behalf": {
           "type": "object",
-          "required": [
-            "new_config",
-            "owner"
-          ],
+          "required": ["new_config", "owner"],
           "properties": {
             "new_config": {
               "$ref": "#/definitions/GatewayConfigUpdate"
@@ -623,9 +508,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "migrate_gateway"
-      ],
+      "required": ["migrate_gateway"],
       "properties": {
         "migrate_gateway": {
           "type": "object",
@@ -648,17 +531,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "bond_nym_node"
-      ],
+      "required": ["bond_nym_node"],
       "properties": {
         "bond_nym_node": {
           "type": "object",
-          "required": [
-            "cost_params",
-            "node",
-            "owner_signature"
-          ],
+          "required": ["cost_params", "node", "owner_signature"],
           "properties": {
             "cost_params": {
               "$ref": "#/definitions/NodeCostParams"
@@ -677,9 +554,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "unbond_nym_node"
-      ],
+      "required": ["unbond_nym_node"],
       "properties": {
         "unbond_nym_node": {
           "type": "object",
@@ -690,15 +565,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "update_node_config"
-      ],
+      "required": ["update_node_config"],
       "properties": {
         "update_node_config": {
           "type": "object",
-          "required": [
-            "update"
-          ],
+          "required": ["update"],
           "properties": {
             "update": {
               "$ref": "#/definitions/NodeConfigUpdate"
@@ -711,15 +582,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "delegate"
-      ],
+      "required": ["delegate"],
       "properties": {
         "delegate": {
           "type": "object",
-          "required": [
-            "node_id"
-          ],
+          "required": ["node_id"],
           "properties": {
             "node_id": {
               "type": "integer",
@@ -734,16 +601,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "delegate_to_mixnode_on_behalf"
-      ],
+      "required": ["delegate_to_mixnode_on_behalf"],
       "properties": {
         "delegate_to_mixnode_on_behalf": {
           "type": "object",
-          "required": [
-            "delegate",
-            "mix_id"
-          ],
+          "required": ["delegate", "mix_id"],
           "properties": {
             "delegate": {
               "type": "string"
@@ -761,15 +623,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "undelegate"
-      ],
+      "required": ["undelegate"],
       "properties": {
         "undelegate": {
           "type": "object",
-          "required": [
-            "node_id"
-          ],
+          "required": ["node_id"],
           "properties": {
             "node_id": {
               "type": "integer",
@@ -784,16 +642,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "undelegate_from_mixnode_on_behalf"
-      ],
+      "required": ["undelegate_from_mixnode_on_behalf"],
       "properties": {
         "undelegate_from_mixnode_on_behalf": {
           "type": "object",
-          "required": [
-            "delegate",
-            "mix_id"
-          ],
+          "required": ["delegate", "mix_id"],
           "properties": {
             "delegate": {
               "type": "string"
@@ -811,16 +664,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "reward_node"
-      ],
+      "required": ["reward_node"],
       "properties": {
         "reward_node": {
           "type": "object",
-          "required": [
-            "node_id",
-            "params"
-          ],
+          "required": ["node_id", "params"],
           "properties": {
             "node_id": {
               "type": "integer",
@@ -838,9 +686,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "withdraw_operator_reward"
-      ],
+      "required": ["withdraw_operator_reward"],
       "properties": {
         "withdraw_operator_reward": {
           "type": "object",
@@ -851,15 +697,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "withdraw_operator_reward_on_behalf"
-      ],
+      "required": ["withdraw_operator_reward_on_behalf"],
       "properties": {
         "withdraw_operator_reward_on_behalf": {
           "type": "object",
-          "required": [
-            "owner"
-          ],
+          "required": ["owner"],
           "properties": {
             "owner": {
               "type": "string"
@@ -872,15 +714,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "withdraw_delegator_reward"
-      ],
+      "required": ["withdraw_delegator_reward"],
       "properties": {
         "withdraw_delegator_reward": {
           "type": "object",
-          "required": [
-            "node_id"
-          ],
+          "required": ["node_id"],
           "properties": {
             "node_id": {
               "type": "integer",
@@ -895,16 +733,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "withdraw_delegator_reward_on_behalf"
-      ],
+      "required": ["withdraw_delegator_reward_on_behalf"],
       "properties": {
         "withdraw_delegator_reward_on_behalf": {
           "type": "object",
-          "required": [
-            "mix_id",
-            "owner"
-          ],
+          "required": ["mix_id", "owner"],
           "properties": {
             "mix_id": {
               "type": "integer",
@@ -922,9 +755,7 @@
     },
     {
       "type": "object",
-      "required": [
-        "migrate_vested_mix_node"
-      ],
+      "required": ["migrate_vested_mix_node"],
       "properties": {
         "migrate_vested_mix_node": {
           "type": "object",
@@ -935,15 +766,11 @@
     },
     {
       "type": "object",
-      "required": [
-        "migrate_vested_delegation"
-      ],
+      "required": ["migrate_vested_delegation"],
       "properties": {
         "migrate_vested_delegation": {
           "type": "object",
-          "required": [
-            "mix_id"
-          ],
+          "required": ["mix_id"],
           "properties": {
             "mix_id": {
               "type": "integer",
@@ -1003,11 +830,7 @@
     "ActiveSetUpdate": {
       "description": "Specification on how the active set should be updated.",
       "type": "object",
-      "required": [
-        "entry_gateways",
-        "exit_gateways",
-        "mixnodes"
-      ],
+      "required": ["entry_gateways", "exit_gateways", "mixnodes"],
       "properties": {
         "entry_gateways": {
           "description": "The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])",
@@ -1032,10 +855,7 @@
     },
     "Coin": {
       "type": "object",
-      "required": [
-        "amount",
-        "denom"
-      ],
+      "required": ["amount", "denom"],
       "properties": {
         "amount": {
           "$ref": "#/definitions/Uint128"
@@ -1048,9 +868,7 @@
     "ContractStateParams": {
       "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
       "type": "object",
-      "required": [
-        "minimum_pledge"
-      ],
+      "required": ["minimum_pledge"],
       "properties": {
         "interval_operating_cost": {
           "description": "Defines the allowed interval operating cost range of operators. default: 0 - 1'000'000'000'000'000 (1 Billion native tokens - the total supply)",
@@ -1152,13 +970,7 @@
     },
     "GatewayConfigUpdate": {
       "type": "object",
-      "required": [
-        "clients_port",
-        "host",
-        "location",
-        "mix_port",
-        "version"
-      ],
+      "required": ["clients_port", "host", "location", "mix_port", "version"],
       "properties": {
         "clients_port": {
           "type": "integer",
@@ -1362,18 +1174,12 @@
       "type": "object",
       "properties": {
         "custom_http_port": {
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint16",
           "minimum": 0.0
         },
         "host": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "restore_default_http_port": {
           "default": false,
@@ -1385,10 +1191,7 @@
     "NodeCostParams": {
       "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
-      "required": [
-        "interval_operating_cost",
-        "profit_margin_percent"
-      ],
+      "required": ["interval_operating_cost", "profit_margin_percent"],
       "properties": {
         "interval_operating_cost": {
           "description": "Operating cost of the associated node per the entire interval.",
@@ -1412,10 +1215,7 @@
     "NodeRewardingParameters": {
       "description": "Parameters used for rewarding particular node.",
       "type": "object",
-      "required": [
-        "performance",
-        "work_factor"
-      ],
+      "required": ["performance", "work_factor"],
       "properties": {
         "performance": {
           "description": "Performance of the particular node in the current epoch.",
@@ -1439,17 +1239,11 @@
     "NymNode": {
       "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
-      "required": [
-        "host",
-        "identity_key"
-      ],
+      "required": ["host", "identity_key"],
       "properties": {
         "custom_http_port": {
           "description": "Allow specifying custom port for accessing the http, and thus self-described, api of this node for the capabilities discovery.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": ["integer", "null"],
           "format": "uint16",
           "minimum": 0.0
         },
@@ -1474,10 +1268,7 @@
     },
     "RangedValue_for_Percent": {
       "type": "object",
-      "required": [
-        "maximum",
-        "minimum"
-      ],
+      "required": ["maximum", "minimum"],
       "properties": {
         "maximum": {
           "$ref": "#/definitions/Percent"
@@ -1490,10 +1281,7 @@
     },
     "RangedValue_for_Uint128": {
       "type": "object",
-      "required": [
-        "maximum",
-        "minimum"
-      ],
+      "required": ["maximum", "minimum"],
       "properties": {
         "maximum": {
           "$ref": "#/definitions/Uint128"
@@ -1506,12 +1294,7 @@
     },
     "RewardedSetParams": {
       "type": "object",
-      "required": [
-        "entry_gateways",
-        "exit_gateways",
-        "mixnodes",
-        "standby"
-      ],
+      "required": ["entry_gateways", "exit_gateways", "mixnodes", "standby"],
       "properties": {
         "entry_gateways": {
           "description": "The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])",
@@ -1542,21 +1325,11 @@
     },
     "Role": {
       "type": "string",
-      "enum": [
-        "eg",
-        "l1",
-        "l2",
-        "l3",
-        "xg",
-        "stb"
-      ]
+      "enum": ["eg", "l1", "l2", "l3", "xg", "stb"]
     },
     "RoleAssignment": {
       "type": "object",
-      "required": [
-        "nodes",
-        "role"
-      ],
+      "required": ["nodes", "role"],
       "properties": {
         "nodes": {
           "type": "array",

@@ -1,9 +1,8 @@
 import * as React from 'react';
-import { useClipboard } from 'use-clipboard-copy';
+import { Tooltip, SxProps } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DoneIcon from '@mui/icons-material/Done';
-import { Tooltip } from '@mui/material';
-import { SxProps } from '@mui/system';
+import { useClipboard } from 'use-clipboard-copy';
 
 export const CopyToClipboard: FCWithChildren<{
   value: string;

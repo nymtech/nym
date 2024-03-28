@@ -1,3 +1,4 @@
+const webpack = require('webpack');
 const { mergeWithRules } = require('webpack-merge');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
@@ -19,6 +20,12 @@ module.exports = mergeWithRules({
   module: {
     rules: [
       {
+        test: /\.m?js/,
+        resolve: {
+          fullySpecified: false,
+        },
+      },
+      {
         test: /\.css$/,
         use: [MiniCssExtractPlugin.loader, 'css-loader'],
       },
@@ -33,6 +40,9 @@ module.exports = mergeWithRules({
   plugins: [
     new MiniCssExtractPlugin({
       filename: '[name].[contenthash].css',
+    }),
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
     }),
   ],
   output: {

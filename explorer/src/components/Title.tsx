@@ -5,7 +5,6 @@ export const Title: FCWithChildren<{ text: string }> = ({ text }) => (
   <Typography
     variant="h5"
     sx={{
-      mb: 3,
       fontWeight: 600,
     }}
     data-testid={text}

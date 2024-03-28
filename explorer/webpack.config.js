@@ -17,6 +17,12 @@ module.exports = mergeWithRules({
   module: {
     rules: [
       {
+        test: /\.m?js/,
+        resolve: {
+          fullySpecified: false,
+        },
+      },
+      {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/,
@@ -36,6 +42,9 @@ module.exports = mergeWithRules({
 
     // this can be included automatically by the dev server, however build mode fails if missing
     new webpack.HotModuleReplacementPlugin(),
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
+    }),
   ],
 
   target: 'web',

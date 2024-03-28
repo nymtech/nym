@@ -25,6 +25,7 @@ export const Mixnodes = () => {
     setBusy(true);
     const client = await getClient();
     const { nodes } = await client.getMixNodesDetailed({});
+
     setMixnodes(nodes);
     setBusy(false);
   };

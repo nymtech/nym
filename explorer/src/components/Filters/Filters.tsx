@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Tune } from '@mui/icons-material';
 import {
   Button,
   Dialog,
@@ -20,6 +19,7 @@ import { EnumFilterKey, TFilterItem, TFilters } from '../../typeDefs/filters';
 import { formatOnSave, generateFilterSchema } from './filterSchema';
 import { Api } from '../../api';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import FiltersButton from './FiltersButton';
 
 const FilterItem = ({
   label,
@@ -150,15 +150,7 @@ export const Filters = () => {
           {mixnodes?.data?.length} mixnodes matched your criteria
         </Alert>
       </Snackbar>
-      <Button
-        size="large"
-        variant="contained"
-        endIcon={<Tune />}
-        onClick={handleToggleShowFilters}
-        sx={{ textTransform: 'none', width: isMobile ? '100%' : 'inherit' }}
-      >
-        Advanced filters
-      </Button>
+      <FiltersButton onClick={handleToggleShowFilters} fullWidth />
       <Dialog open={showFilters} onClose={handleToggleShowFilters} maxWidth="md" fullWidth>
         <DialogTitle>Mixnode filters</DialogTitle>
         <DialogContent dividers>

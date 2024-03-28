@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Card, FormControl, Grid, ListItem, Menu, SelectChangeEvent, Typography } from '@mui/material';
+import { Box, Button, Card, FormControl, Grid, ListItem, Menu, SelectChangeEvent, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
@@ -90,7 +90,9 @@ export const ServiceProviders = () => {
 
   return (
     <>
-      <Title text="Service Providers" />
+      <Box mb={2}>
+        <Title text="Service Providers" />
+      </Box>
       <Grid container>
         <Grid item xs={12}>
           <Card

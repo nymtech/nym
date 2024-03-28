@@ -20,11 +20,10 @@ import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner';
 import { NYM_WEBSITE } from '../api/constants';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
-import { Socials } from './Socials';
 import { Footer } from './Footer';
-import { NymVpnIcon } from '../icons/NymVpn';
 import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
+import { ConnectKeplrWallet } from './Wallet/ConnectKeplrWallet';
 
 const drawerWidth = 255;
 const bannerHeight = 80;
@@ -73,7 +72,6 @@ const Drawer = styled(MuiDrawer, {
 }));
 
 type ExpandableButtonType = {
-  id: number;
   title: string;
   url: string;
   isActive?: boolean;
@@ -86,11 +84,10 @@ type ExpandableButtonType = {
   drawIsFixed: boolean;
   fixDrawerClose?: () => void;
   isMobile: boolean;
-  setToActive: (num: number) => void;
+  setToActive: (url: string) => void;
 };
 
 export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
-  id,
   url,
   setToActive,
   isActive,
@@ -111,7 +108,7 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
   const { palette } = useTheme();
 
   const handleClick = () => {
-    setToActive(id);
+    setToActive(url);
     if (title === 'Network Components' && nested) {
       openDrawer();
       toggleNestedOptions(!nestedOptions);
@@ -205,7 +202,6 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
       {nestedOptions &&
         nested?.map((each) => (
           <ExpandableButton
-            id={each.id}
             url={each.url}
             key={each.title}
             title={each.title}
@@ -247,8 +243,8 @@ export const Nav: FCWithChildren = ({ children }) => {
   const switchNetworkLink =
     environment === 'mainnet' ? 'https://sandbox-explorer.nymtech.net' : 'https://explorer.nymtech.net';
 
-  const setToActive = (id: number) => {
-    updateNavState(id);
+  const setToActive = (url: string) => {
+    updateNavState(url);
   };
 
   const fixDrawerOpen = () => {
@@ -342,10 +338,9 @@ export const Nav: FCWithChildren = ({ children }) => {
                 alignItems: 'center',
               }}
             >
-              <MuiLink component={Link} to="http://nymvpn.com" target="_blank" underline="none" marginRight={1}>
-                <NymVpnIcon />
-              </MuiLink>
-              <Socials />
+              <Box sx={{ mr: 1 }}>
+                <ConnectKeplrWallet />
+              </Box>
               <DarkLightSwitchDesktop defaultChecked />
             </Box>
           </Box>

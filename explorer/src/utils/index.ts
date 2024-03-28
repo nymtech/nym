@@ -2,8 +2,10 @@
 import { MutableRefObject } from 'react';
 import { Theme } from '@mui/material/styles';
 import { registerLocale, getName } from 'i18n-iso-countries';
+import Big from 'big.js';
 import { CountryData } from '../typeDefs/explorer-api';
 import { EconomicsRowsType } from '../components/MixNodes/Economics/types';
+import { Network } from '../typeDefs/network';
 
 registerLocale(require('i18n-iso-countries/langs/en.json'));
 
@@ -48,6 +50,8 @@ export const splice = (start: number, deleteCount: number, address?: string): st
   return '';
 };
 
+export const trimAddress = (address = '', trimBy = 6) => `${address.slice(0, trimBy)}...${address.slice(-trimBy)}`;
+
 /**
  * Converts a stringified percentage float (0.0-1.0) to a stringified integer (0-100).
  *
@@ -82,3 +86,39 @@ export const textColour = (value: EconomicsRowsType, field: string, theme: Theme
   }
   return theme.palette.nym.wallet.fee;
 };
+
+export const isGreaterThan = (a: number, b: number) => a > b;
+
+export const isLessThan = (a: number, b: number) => a < b;
+
+/**
+ *
+ * Checks if the user's balance is enough to pay the fee
+ * @param balance - The user's current balance
+ * @param fee - The fee for the tx
+ * @param tx - The amount of the tx
+ * @returns boolean
+ *
+ */
+
+export const isBalanceEnough = (fee: string, tx: string = '0', balance: string = '0') => {
+  console.log('balance', balance, fee, tx);
+  try {
+    return Big(balance).gte(Big(fee).plus(Big(tx)));
+  } catch (e) {
+    console.log(e);
+    return false;
+  }
+};
+
+export const urls = (networkName?: Network) =>
+  networkName === 'MAINNET'
+    ? {
+        mixnetExplorer: 'https://mixnet.explorers.guru/',
+        blockExplorer: 'https://blocks.nymtech.net',
+        networkExplorer: 'https://explorer.nymtech.net',
+      }
+    : {
+        blockExplorer: `https://${networkName}-blocks.nymtech.net`,
+        networkExplorer: `https://${networkName}-explorer.nymtech.net`,
+      };

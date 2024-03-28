@@ -91,11 +91,6 @@ statistics_recipient = '{{ network_requester.statistics_recipient }}'
 # This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
 disable_poisson_rate = {{ network_requester.disable_poisson_rate }}
 
-# Specifies whether this network requester should be using the deprecated allow-list,
-# as opposed to the new ExitPolicy.
-# Note: this field will be removed in a near future.
-use_deprecated_allow_list = {{ network_requester.use_deprecated_allow_list }}
-
 # Specifies the url for an upstream source of the exit policy used by this node.
 upstream_exit_policy_url = '{{ network_requester.upstream_exit_policy_url }}'
 

@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::try_load_current_config;
-use crate::node::node_description::NodeDescription;
 use clap::Args;
 use colored::Colorize;
+use nym_mixnode::node::node_description::NodeDescription;
 use std::io;
 use std::io::Write;
 
@@ -74,6 +74,6 @@ pub(crate) fn execute(args: Describe) -> anyhow::Result<()> {
     };
 
     // save the struct
-    NodeDescription::save_to_file(&node_description, config.storage_paths.node_description)?;
+    node_description.save_to_file(config.storage_paths.node_description)?;
     Ok(())
 }

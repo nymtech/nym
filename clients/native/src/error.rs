@@ -24,5 +24,8 @@ pub enum ClientError {
     InvalidSocketMode,
 
     #[error(transparent)]
+    ConfigUpgradeFailure(#[from] nym_client_core::config::ConfigUpgradeFailure),
+
+    #[error(transparent)]
     NymIdError(#[from] NymIdError),
 }

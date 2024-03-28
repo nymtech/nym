@@ -113,6 +113,9 @@ pub enum BackendError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 
+    #[error(transparent)]
+    ConfigUpgradeFailure(#[from] nym_client_core::config::ConfigUpgradeFailure),
+
     #[error("HTTP get request failed: {status_code}")]
     RequestFail {
         url: reqwest::Url,

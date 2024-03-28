@@ -5,14 +5,17 @@ use crate::node::storage::error::StorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::ValidatorClientError;
 use std::io;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use thiserror::Error;
 
+pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
+
 #[derive(Debug, Error)]
-pub(crate) enum GatewayError {
+pub enum GatewayError {
     #[error("failed to load {keys} keys from '{}' (private key) and '{}' (public key): {err}", .paths.private_key_path.display(), .paths.public_key_path.display())]
     KeyPairLoadFailure {
         keys: String,
@@ -89,6 +92,9 @@ pub(crate) enum GatewayError {
         actual_prefix: String,
     },
 
+    #[error("this node has insufficient balance to run as zk-nym entry node since it won't be capable of redeeming received credentials. it's account ({account}) has a balance of only {balance}")]
+    InsufficientNodeBalance { account: AccountId, balance: Coin },
+
     #[error("storage failure: {source}")]
     StorageError {
         #[from]
@@ -131,15 +137,36 @@ pub(crate) enum GatewayError {
         source: NyxdError,
     },
 
-    // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
     #[error(transparent)]
-    NymNodeError(#[from] nym_node::error::NymNodeError),
+    ClientRequestFailure {
+        #[from]
+        source: RequestHandlingError,
+    },
+
+    #[error("failed to catch an interrupt: {source}")]
+    ShutdownFailure {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[error("this node hasn't set any valid public addresses to announce. Please modify [host.public_ips] section of your config")]
+    NoPublicIps,
+
+    #[error("this node attempted to announce an invalid public address: {address}. Please modify [host.public_ips] section of your config. Alternatively, if you wanted to use it in the local setting, run the node with the '--local' flag.")]
+    InvalidPublicIp { address: IpAddr },
+
+    #[error(transparent)]
+    NymNodeHttpError(#[from] nym_node_http_api::NymNodeHttpError),
 
     #[error("there was an issue with wireguard IP network: {source}")]
     IpNetworkError {
         #[from]
         source: ipnetwork::IpNetworkError,
     },
+
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("failed to remove wireguard interface: {0}")]
+    WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 }
 
 impl From<ClientCoreError> for GatewayError {

@@ -34,7 +34,7 @@ where
 }
 
 /// Loads identity keys stored on disk
-pub(crate) fn load_identity_keys(config: &Config) -> Result<identity::KeyPair, MixnodeError> {
+pub fn load_identity_keys(config: &Config) -> Result<identity::KeyPair, MixnodeError> {
     let identity_paths = KeyPairPath::new(
         config.storage_paths.keys.private_identity_key(),
         config.storage_paths.keys.public_identity_key(),
@@ -43,7 +43,7 @@ pub(crate) fn load_identity_keys(config: &Config) -> Result<identity::KeyPair, M
 }
 
 /// Loads Sphinx keys stored on disk
-pub(crate) fn load_sphinx_keys(config: &Config) -> Result<encryption::KeyPair, MixnodeError> {
+pub fn load_sphinx_keys(config: &Config) -> Result<encryption::KeyPair, MixnodeError> {
     let sphinx_paths = KeyPairPath::new(
         config.storage_paths.keys.private_encryption_key(),
         config.storage_paths.keys.public_encryption_key(),

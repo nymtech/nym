@@ -56,7 +56,8 @@ impl<T> SignedData<T> {
 
 impl SignedHostInformation {
     pub fn verify_host_information(&self) -> bool {
-        let Ok(pub_key) = identity::PublicKey::from_base58_string(&self.keys.ed25519) else {
+        let Ok(pub_key) = identity::PublicKey::from_base58_string(&self.keys.ed25519_identity)
+        else {
             return false;
         };
 

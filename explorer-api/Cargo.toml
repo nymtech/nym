@@ -10,7 +10,7 @@ license.workspace = true
 chrono = { version = "0.4.31", features = ["serde"] }
 clap = { workspace = true, features = ["cargo", "derive"] }
 dotenvy = { workspace = true }
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 isocountry = "0.3.2"
 itertools = "0.10.3"
 log = { workspace = true }

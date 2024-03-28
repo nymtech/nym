@@ -1,6 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Host;
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
@@ -113,7 +114,7 @@ impl From<ConfigV1_1_29> for ConfigV1_1_31 {
             save_path: value.save_path,
 
             // \/ ADDED
-            host: nym_node::config::Host {
+            host: Host {
                 // this is a very bad default!
                 public_ips: vec![value.gateway.listening_address],
                 hostname: None,

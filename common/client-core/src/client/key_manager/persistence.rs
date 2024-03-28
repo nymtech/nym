@@ -7,7 +7,7 @@ use std::error::Error;
 use tokio::sync::Mutex;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::config::disk_persistence::keys_paths::ClientKeysPaths;
+use crate::config::disk_persistence::ClientKeysPaths;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_crypto::asymmetric::{encryption, identity};
 #[cfg(not(target_arch = "wasm32"))]

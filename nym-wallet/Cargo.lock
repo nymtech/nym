@@ -1276,6 +1276,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f32d04922c60427da6f9fef14d042d9edddef64cb9d4ce0d64d0685fbeb1fd3"
 dependencies = [
  "powerfmt",
+ "serde",
 ]
 
 [[package]]
@@ -3010,7 +3011,6 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.6.0"
 dependencies = [
- "atty",
  "clap",
  "clap_complete",
  "clap_complete_fig",
@@ -3249,6 +3249,8 @@ name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.4",
+ "humantime 2.1.0",
+ "humantime-serde",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
@@ -3257,6 +3259,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "time",
 ]
 
 [[package]]
@@ -4879,9 +4882,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.11.0"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62bb4feee49fdd9f707ef802e22365a35de4b7b299de4763d44bfea899442ff9"
+checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "socket2"

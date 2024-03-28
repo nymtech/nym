@@ -4,7 +4,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub(crate) enum StorageError {
+pub enum StorageError {
     #[error("Database experienced an internal error: {0}")]
     InternalDatabaseError(#[from] sqlx::Error),
 

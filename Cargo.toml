@@ -24,6 +24,7 @@ members = [
     "common/bandwidth-controller",
     "common/bin-common",
     "common/client-core",
+    "common/client-core/config-types",
     "common/client-core/surb-storage",
     "common/client-core/gateways-storage",
     "common/client-libs/gateway-client",
@@ -41,6 +42,7 @@ members = [
     "common/cosmwasm-smart-contracts/name-service",
     "common/cosmwasm-smart-contracts/service-provider-directory",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/country-group",
     "common/credential-storage",
     "common/credentials",
     "common/credential-utils",
@@ -50,6 +52,7 @@ members = [
     "common/execute",
     "common/exit-policy",
     "common/http-api-client",
+    "common/http-api-common",
     "common/inclusion-probability",
     "common/ip-packet-requests",
     "common/ledger",
@@ -104,6 +107,7 @@ members = [
     "nym-browser-extension/storage",
     "nym-api/nym-api-requests",
     "nym-node",
+    "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
     "nym-outfox",
     "nym-validator-rewarder",
@@ -118,7 +122,6 @@ members = [
     #    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
     "wasm/node-tester",
-    "common/nym-metrics",
 ]
 
 default-members = [
@@ -132,6 +135,7 @@ default-members = [
     "tools/nymvisor",
     "explorer-api",
     "nym-validator-rewarder",
+    "nym-node"
 ]
 
 exclude = [
@@ -167,6 +171,7 @@ dotenvy = "0.15.6"
 futures = "0.3.28"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
+humantime-serde = "1.1.1"
 hyper = "0.14.27"
 k256 = "0.13"
 lazy_static = "1.4.0"

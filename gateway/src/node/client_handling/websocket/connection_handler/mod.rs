@@ -15,7 +15,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
 
-mod authenticated;
+pub(crate) mod authenticated;
 pub(crate) mod coconut;
 mod fresh;
 

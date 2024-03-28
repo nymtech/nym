@@ -32,6 +32,18 @@ impl MixNodePaths {
         }
     }
 
+    pub fn new_empty() -> Self {
+        MixNodePaths {
+            keys: KeysPaths {
+                private_identity_key_file: Default::default(),
+                public_identity_key_file: Default::default(),
+                private_sphinx_key_file: Default::default(),
+                public_sphinx_key_file: Default::default(),
+            },
+            node_description: Default::default(),
+        }
+    }
+
     pub fn private_identity_key(&self) -> &Path {
         self.keys.private_identity_key()
     }

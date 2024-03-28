@@ -1,11 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::old_config_v1_1_21::ConfigV1_1_21;
-use crate::config::old_config_v1_1_32::ConfigV1_1_32;
-use crate::config::{default_config_filepath, Config};
-use crate::error::MixnodeError;
 use log::info;
+use nym_mixnode::config::old_config_v1_1_21::ConfigV1_1_21;
+use nym_mixnode::config::old_config_v1_1_32::ConfigV1_1_32;
+use nym_mixnode::config::{default_config_filepath, Config};
+use nym_mixnode::error::MixnodeError;
 
 fn try_upgrade_v1_1_21_config(id: &str) -> Result<bool, MixnodeError> {
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;

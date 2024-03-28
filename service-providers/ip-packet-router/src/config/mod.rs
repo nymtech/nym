@@ -16,7 +16,7 @@ use std::{
 };
 use url::Url;
 
-use crate::config::persistence::IpPacketRouterPaths;
+pub use crate::config::persistence::IpPacketRouterPaths;
 
 use self::template::CONFIG_TEMPLATE;
 

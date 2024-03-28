@@ -10,6 +10,9 @@ use std::str::FromStr;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+#[cfg(feature = "serde")]
+pub mod serde_helpers;
+
 #[cfg(feature = "sphinx")]
 use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 

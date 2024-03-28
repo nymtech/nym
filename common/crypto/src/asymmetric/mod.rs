@@ -3,3 +3,6 @@
 
 pub mod encryption;
 pub mod identity;
+
+pub use encryption as x25519;
+pub use identity as ed25519;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
+use std::io::IsTerminal;
 
 #[cfg(feature = "tracing")]
 pub use opentelemetry;
@@ -14,7 +15,7 @@ pub use tracing_subscriber;
 #[cfg(feature = "tracing")]
 pub use tracing_tree;
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoggingSettings {
     // well, we need to implement something here at some point...
@@ -120,7 +121,7 @@ pub fn banner(crate_name: &str, crate_version: &str) -> String {
 }
 
 pub fn maybe_print_banner(crate_name: &str, crate_version: &str) {
-    if atty::is(atty::Stream::Stdout) {
+    if std::io::stdout().is_terminal() {
         println!("{}", banner(crate_name, crate_version))
     }
 }

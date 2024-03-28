@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{Config, Socks5, Socks5Debug};
+use super::old_config_v1_1_33::{ConfigV1_1_33, Socks5DebugV1_1_33, Socks5V1_1_33};
 pub use nym_client_core::config::old_config_v1_1_30::ConfigV1_1_30 as BaseClientConfigV1_1_30;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -23,9 +23,9 @@ pub struct ConfigV1_1_30 {
     pub socks5: Socks5V1_1_30,
 }
 
-impl From<ConfigV1_1_30> for Config {
+impl From<ConfigV1_1_30> for ConfigV1_1_33 {
     fn from(value: ConfigV1_1_30) -> Self {
-        Config {
+        ConfigV1_1_33 {
             base: value.base.into(),
             socks5: value.socks5.into(),
         }
@@ -62,11 +62,11 @@ pub struct Socks5V1_1_30 {
     pub socks5_debug: Socks5DebugV1_1_30,
 }
 
-impl From<Socks5V1_1_30> for Socks5 {
+impl From<Socks5V1_1_30> for Socks5V1_1_33 {
     fn from(value: Socks5V1_1_30) -> Self {
-        Socks5 {
+        Socks5V1_1_33 {
             // in <= 1.1.30 the address was hardcoded to 127.0.0.1
-            bind_adddress: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), value.listening_port),
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), value.listening_port),
             provider_mix_address: value.provider_mix_address,
             provider_interface_version: value.provider_interface_version,
             socks5_protocol_version: value.socks5_protocol_version,
@@ -86,9 +86,9 @@ pub struct Socks5DebugV1_1_30 {
     pub per_request_surbs: u32,
 }
 
-impl From<Socks5DebugV1_1_30> for Socks5Debug {
+impl From<Socks5DebugV1_1_30> for Socks5DebugV1_1_33 {
     fn from(value: Socks5DebugV1_1_30) -> Self {
-        Socks5Debug {
+        Socks5DebugV1_1_33 {
             connection_start_surbs: value.connection_start_surbs,
             per_request_surbs: value.per_request_surbs,
         }

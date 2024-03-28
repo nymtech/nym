@@ -15,6 +15,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
 thiserror = { workspace = true }
+time = { workspace = true, features = ["wasm-bindgen"] }
 tsify = { workspace = true, features = ["js"] }
 url = { workspace = true }
 wasm-bindgen = { workspace = true }

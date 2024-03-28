@@ -1,10 +1,8 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{client::topology_control::geo_aware_provider::CountryGroup, error::ClientCoreError};
+use crate::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_config::defaults::NymNetworkDetails;
-use nym_crypto::asymmetric::identity;
-use nym_gateway_client::client::GatewayConfig;
 use nym_sphinx::{
     addressing::clients::Recipient,
     params::{PacketSize, PacketType},
@@ -13,14 +11,12 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
 pub mod disk_persistence;
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
 pub mod old_config_v1_1_20_2;
 pub mod old_config_v1_1_30;
+pub mod old_config_v1_1_33;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -228,77 +224,6 @@ impl Config {
 
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
         self.client.nym_api_urls.clone()
-    }
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
-pub struct GatewayEndpointConfig {
-    /// gateway_id specifies ID of the gateway to which the client should send messages.
-    /// If initially omitted, a random gateway will be chosen from the available topology.
-    pub gateway_id: String,
-
-    /// Address of the gateway owner to which the client should send messages.
-    pub gateway_owner: String,
-
-    /// Address of the gateway listener to which all client requests should be sent.
-    pub gateway_listener: String,
-}
-
-impl TryFrom<GatewayEndpointConfig> for GatewayConfig {
-    type Error = ClientCoreError;
-
-    fn try_from(value: GatewayEndpointConfig) -> Result<Self, Self::Error> {
-        Ok(GatewayConfig {
-            gateway_identity: identity::PublicKey::from_base58_string(value.gateway_id)
-                .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?,
-            gateway_owner: Some(value.gateway_owner),
-            gateway_listener: value.gateway_listener,
-        })
-    }
-}
-
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-impl GatewayEndpointConfig {
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
-    pub fn new(
-        gateway_id: String,
-        gateway_owner: String,
-        gateway_listener: String,
-    ) -> GatewayEndpointConfig {
-        GatewayEndpointConfig {
-            gateway_id,
-            gateway_owner,
-            gateway_listener,
-        }
-    }
-}
-
-// separate block so it wouldn't be exported via wasm bindgen
-impl GatewayEndpointConfig {
-    pub fn try_get_gateway_identity_key(&self) -> Result<identity::PublicKey, ClientCoreError> {
-        identity::PublicKey::from_base58_string(&self.gateway_id)
-            .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)
-    }
-
-    pub fn from_node(
-        node: nym_topology::gateway::Node,
-        must_use_tls: bool,
-    ) -> Result<Self, ClientCoreError> {
-        let gateway_listener = if must_use_tls {
-            node.clients_address_tls()
-                .ok_or(ClientCoreError::UnsupportedWssProtocol {
-                    gateway: node.identity_key.to_base58_string(),
-                })?
-        } else {
-            node.clients_address()
-        };
-
-        Ok(GatewayEndpointConfig {
-            gateway_id: node.identity_key.to_base58_string(),
-            gateway_listener,
-            gateway_owner: node.owner,
-        })
     }
 }
 

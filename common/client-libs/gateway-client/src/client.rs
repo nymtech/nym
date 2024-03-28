@@ -32,6 +32,7 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
+use url::Url;
 
 #[cfg(unix)]
 use std::os::fd::RawFd;
@@ -61,6 +62,20 @@ pub struct GatewayConfig {
     pub gateway_owner: Option<String>,
 
     pub gateway_listener: String,
+}
+
+impl GatewayConfig {
+    pub fn new(
+        gateway_identity: identity::PublicKey,
+        gateway_owner: Option<String>,
+        gateway_listener: String,
+    ) -> Self {
+        GatewayConfig {
+            gateway_identity,
+            gateway_owner,
+            gateway_listener,
+        }
+    }
 }
 
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
@@ -611,11 +626,13 @@ impl<C, St> GatewayClient<C, St> {
             });
         }
 
+        let gateway_id = self.gateway_identity().to_base58_string();
+
         let prepared_credential = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_bandwidth_credential()
+            .prepare_bandwidth_credential(&gateway_id)
             .await?;
 
         self.claim_coconut_bandwidth(prepared_credential.data)
@@ -623,7 +640,7 @@ impl<C, St> GatewayClient<C, St> {
         self.bandwidth_controller
             .as_ref()
             .unwrap()
-            .consume_credential(prepared_credential.credential_id)
+            .consume_credential(prepared_credential.credential_id, &gateway_id)
             .await?;
 
         Ok(())
@@ -836,7 +853,11 @@ pub struct InitOnly;
 
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
-    pub fn new_init(config: GatewayConfig, local_identity: Arc<identity::KeyPair>) -> Self {
+    pub fn new_init(
+        gateway_listener: Url,
+        gateway_identity: identity::PublicKey,
+        local_identity: Arc<identity::KeyPair>,
+    ) -> Self {
         log::trace!("Initialising gateway client");
         use futures::channel::mpsc;
 
@@ -851,8 +872,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
-            gateway_address: config.gateway_listener,
-            gateway_identity: config.gateway_identity,
+            gateway_address: gateway_listener.to_string(),
+            gateway_identity,
             local_identity,
             shared_key: None,
             connection: SocketState::NotConnected,

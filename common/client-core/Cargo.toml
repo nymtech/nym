@@ -11,27 +11,27 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 base64 = "0.21.2"
+bs58 = { workspace = true }
 cfg-if = "1.0.0"
 clap = { workspace = true, optional = true }
-dashmap = { workspace = true }
-dirs = "4.0"
 futures = { workspace = true }
 humantime-serde = "1.0"
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = "0.10.6"
+si-scale = "0.2.2"
 tap = "1.0.1"
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tungstenite = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["macros"] }
-time = "0.3.17"
+time = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
+nym-id = { path = "../nym-id" }
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
 nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }
@@ -47,7 +47,8 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
-si-scale = "0.2.2"
+nym-client-core-surb-storage = { path = "./surb-storage" }
+nym-client-core-gateways-storage = { path = "./gateways-storage" }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
@@ -74,11 +75,6 @@ features = ["time"]
 version = "0.20.1"
 features = ["rustls-tls-native-roots"]
 
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
-workspace = true
-features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
-optional = true
-
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 workspace = true
 
@@ -104,18 +100,10 @@ features = ["wasm-bindgen"]
 [dev-dependencies]
 tempfile = "3.1.0"
 
-[build-dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { workspace = true, features = [
-    "runtime-tokio-rustls",
-    "sqlite",
-    "macros",
-    "migrate",
-] }
-
 [features]
 default = []
 cli = ["clap"]
-fs-surb-storage = ["sqlx"]
+fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
+fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
 wasm = ["nym-gateway-client/wasm"]
 metrics-server = []

@@ -16,6 +16,7 @@ name = "nym_network_requester"
 path = "src/lib.rs"
 
 [dependencies]
+anyhow = { workspace = true }
 addr = "0.15.6"
 async-trait = { workspace = true }
 bs58 = { workspace = true }
@@ -44,7 +45,7 @@ zeroize = "1.6.0"
 # internal
 nym-async-file-watcher = { path = "../../common/async-file-watcher" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
-nym-client-core = { path = "../../common/client-core", features = ["cli"] }
+nym-client-core = { path = "../../common/client-core", features = ["cli", "fs-gateways-storage", "fs-surb-storage"] }
 nym-client-websocket-requests = { path = "../../clients/native/websocket-requests" }
 nym-config = { path = "../../common/config" }
 nym-credentials = { path = "../../common/credentials" }
@@ -65,4 +66,3 @@ nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
 tempfile = "3.5.0"
-anyhow = { workspace = true }

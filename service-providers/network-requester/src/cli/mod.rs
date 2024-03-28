@@ -1,32 +1,45 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::config::old_config_v1_1_20::ConfigV1_1_20;
-use crate::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
+use crate::config::helpers::try_upgrade_config_by_id;
 use crate::{
     config::{BaseClientConfig, Config},
     error::NetworkRequesterError,
 };
 use clap::{CommandFactory, Parser, Subcommand};
-use log::{error, info, trace};
+use log::error;
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
-use nym_client_core::client::base_client::storage::gateway_details::{
-    OnDiskGatewayDetails, PersistedGatewayDetails,
-};
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::config::GatewayEndpointConfig;
-use nym_client_core::error::ClientCoreError;
+use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
+use nym_client_core::cli_helpers::CliClient;
 use nym_config::OptionalSet;
 use std::sync::OnceLock;
 
+mod add_gateway;
 mod build_info;
 mod import_credential;
 mod init;
+mod list_gateways;
 mod run;
 mod sign;
+mod switch_gateway;
+
+pub(crate) struct CliNetworkRequesterClient;
+
+impl CliClient for CliNetworkRequesterClient {
+    const NAME: &'static str = "network requester";
+    type Error = NetworkRequesterError;
+    type Config = Config;
+
+    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
+        try_upgrade_config_by_id(id).await
+    }
+
+    async fn try_load_current_config(id: &str) -> Result<Self::Config, Self::Error> {
+        try_load_current_config(id).await
+    }
+}
 
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
@@ -62,7 +75,16 @@ pub(crate) enum Commands {
     Sign(sign::Sign),
 
     /// Import a pre-generated credential
-    ImportCredential(import_credential::Args),
+    ImportCredential(CommonClientImportCredentialArgs),
+
+    /// List all registered with gateways
+    ListGateways(list_gateways::Args),
+
+    /// Add new gateway to this client
+    AddGateway(add_gateway::Args),
+
+    /// Change the currently active gateway. Note that you must have already registered with the new gateway!
+    SwitchGateway(switch_gateway::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
@@ -159,6 +181,9 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
         Commands::Run(m) => run::execute(&m).await?,
         Commands::Sign(m) => sign::execute(&m).await?,
         Commands::ImportCredential(m) => import_credential::execute(m).await?,
+        Commands::ListGateways(args) => list_gateways::execute(args).await?,
+        Commands::AddGateway(args) => add_gateway::execute(args).await?,
+        Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
@@ -166,107 +191,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     Ok(())
 }
 
-fn persist_gateway_details(
-    config: &Config,
-    details: GatewayEndpointConfig,
-) -> Result<(), NetworkRequesterError> {
-    let details_store =
-        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-    let keys_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
-    let shared_keys = keys_store.ephemeral_load_gateway_keys().map_err(|source| {
-        NetworkRequesterError::ClientCoreError(ClientCoreError::KeyStoreError {
-            source: Box::new(source),
-        })
-    })?;
-    let persisted_details = PersistedGatewayDetails::new(details.into(), Some(&shared_keys))?;
-    details_store
-        .store_to_disk(&persisted_details)
-        .map_err(|source| {
-            NetworkRequesterError::ClientCoreError(ClientCoreError::GatewayDetailsStoreError {
-                source: Box::new(source),
-            })
-        })
-}
-
-fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, NetworkRequesterError> {
-    trace!("Trying to load as v1.1.13 config");
-    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
-
-    // explicitly load it as v1.1.13 (which is incompatible with the next step, i.e. 1.1.19)
-    let Ok(old_config) = OldConfigV1_1_13::load_from_file(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(false);
-    };
-    info!("It seems the client is using <= v1.1.13 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let updated_step1: ConfigV1_1_20 = old_config.into();
-    let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
-    let (updated, gateway_config) = updated_step2.upgrade()?;
-    persist_gateway_details(&updated, gateway_config)?;
-
-    updated.save_to_default_location()?;
-    Ok(true)
-}
-
-fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, NetworkRequesterError> {
-    trace!("Trying to load as v1.1.20 config");
-    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
-
-    // explicitly load it as v1.1.20 (which is incompatible with the current one, i.e. +1.1.21)
-    let Ok(old_config) = ConfigV1_1_20::load_from_file(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(false);
-    };
-
-    info!("It seems the client is using <= v1.1.20 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let updated_step1: ConfigV1_1_20_2 = old_config.into();
-    let (updated, gateway_config) = updated_step1.upgrade()?;
-    persist_gateway_details(&updated, gateway_config)?;
-
-    updated.save_to_default_location()?;
-    Ok(true)
-}
-
-fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, NetworkRequesterError> {
-    trace!("Trying to load as v1.1.20_2 config");
-
-    // explicitly load it as v1.1.20_2 (which is incompatible with the current one, i.e. +1.1.21)
-    let Ok(old_config) = ConfigV1_1_20_2::read_from_default_path(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(false);
-    };
-    info!("It seems the client is using <= v1.1.20_2 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let (updated, gateway_config) = old_config.upgrade()?;
-    persist_gateway_details(&updated, gateway_config)?;
-
-    updated.save_to_default_location()?;
-    Ok(true)
-}
-
-fn try_upgrade_config(id: &str) -> Result<(), NetworkRequesterError> {
-    trace!("Attempting to upgrade config");
-    if try_upgrade_v1_1_13_config(id)? {
-        return Ok(());
-    }
-    if try_upgrade_v1_1_20_config(id)? {
-        return Ok(());
-    }
-    if try_upgrade_v1_1_20_2_config(id)? {
-        return Ok(());
-    }
-
-    Ok(())
-}
-
-fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterError> {
+async fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterError> {
     // try to load the config as is
     if let Ok(cfg) = Config::read_from_default_path(id) {
         return if !cfg.validate() {
@@ -277,7 +202,7 @@ fn try_load_current_config(id: &str) -> Result<Config, NetworkRequesterError> {
     }
 
     // we couldn't load it - try upgrading it from older revisions
-    try_upgrade_config(id)?;
+    try_upgrade_config_by_id(id).await?;
 
     let config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,

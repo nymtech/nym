@@ -1,24 +1,132 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::base_client::storage::gateway_details::{
-    GatewayDetailsStore, PersistedCustomGatewayDetails, PersistedGatewayDetails,
-};
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::key_manager::ManagedKeys;
-use crate::config::{Config, GatewayEndpointConfig};
+use crate::client::key_manager::ClientKeys;
+use crate::config::Config;
 use crate::error::ClientCoreError;
-use crate::init::{_load_gateway_details, _load_managed_keys, setup_gateway};
+use crate::init::{setup_gateway, use_loaded_gateway_details};
+use log::info;
+use nym_client_core_gateways_storage::{
+    GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
+};
+use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use nym_validator_client::nyxd::AccountId;
+use serde::Serialize;
 use std::fmt::Display;
+use std::net::IpAddr;
+use std::str::FromStr;
 use std::sync::Arc;
+use time::OffsetDateTime;
+use url::Url;
+
+pub enum SelectedGateway {
+    Remote {
+        gateway_id: identity::PublicKey,
+
+        gateway_owner_address: AccountId,
+
+        gateway_listener: Url,
+
+        wg_tun_address: Option<Url>,
+    },
+    Custom {
+        gateway_id: identity::PublicKey,
+        additional_data: Option<Vec<u8>>,
+    },
+}
+
+fn wg_tun_address(
+    tun_ip: Option<IpAddr>,
+    gateway: &gateway::Node,
+) -> Result<Option<Url>, ClientCoreError> {
+    let Some(tun_ip) = tun_ip else {
+        return Ok(None);
+    };
+
+    // log this so we'd remember about it if we ever decided to actually use that port
+    if gateway.clients_wss_port.is_some() {
+        info!(
+            "gateway {} exposes wss but for wireguard we're going to use ws",
+            gateway.identity_key
+        );
+    }
+
+    let raw_url = format!("ws://{tun_ip}:{}", gateway.clients_ws_port);
+    Ok(Some(raw_url.as_str().parse().map_err(|source| {
+        ClientCoreError::MalformedListener {
+            gateway_id: gateway.identity_key.to_base58_string(),
+            raw_listener: raw_url,
+            source,
+        }
+    })?))
+}
+
+impl SelectedGateway {
+    pub fn from_topology_node(
+        node: gateway::Node,
+        wg_tun_ip_address: Option<IpAddr>,
+        must_use_tls: bool,
+    ) -> Result<Self, ClientCoreError> {
+        let gateway_listener = if must_use_tls {
+            node.clients_address_tls()
+                .ok_or(ClientCoreError::UnsupportedWssProtocol {
+                    gateway: node.identity_key.to_base58_string(),
+                })?
+        } else {
+            node.clients_address()
+        };
+
+        let wg_tun_address = wg_tun_address(wg_tun_ip_address, &node)?;
+
+        let gateway_owner_address = AccountId::from_str(&node.owner).map_err(|source| {
+            ClientCoreError::MalformedGatewayOwnerAccountAddress {
+                gateway_id: node.identity_key.to_base58_string(),
+                raw_owner: node.owner,
+                err: source.to_string(),
+            }
+        })?;
+
+        let gateway_listener =
+            Url::parse(&gateway_listener).map_err(|source| ClientCoreError::MalformedListener {
+                gateway_id: node.identity_key.to_base58_string(),
+                raw_listener: gateway_listener,
+                source,
+            })?;
+
+        Ok(SelectedGateway::Remote {
+            gateway_id: node.identity_key,
+            gateway_owner_address,
+            gateway_listener,
+            wg_tun_address,
+        })
+    }
+
+    pub fn custom(
+        gateway_id: String,
+        additional_data: Option<Vec<u8>>,
+    ) -> Result<Self, ClientCoreError> {
+        let gateway_id = identity::PublicKey::from_base58_string(&gateway_id)
+            .map_err(|source| ClientCoreError::MalformedGatewayIdentity { gateway_id, source })?;
+
+        Ok(SelectedGateway::Custom {
+            gateway_id,
+            additional_data,
+        })
+    }
+
+    pub fn gateway_id(&self) -> &identity::PublicKey {
+        match self {
+            SelectedGateway::Remote { gateway_id, .. } => gateway_id,
+            SelectedGateway::Custom { gateway_id, .. } => gateway_id,
+        }
+    }
+}
 
 /// Result of registering with a gateway:
 /// - shared keys derived between ourselves and the node
@@ -33,17 +141,17 @@ pub struct RegistrationResult {
 /// - all loaded (or derived) keys
 /// - an optional authenticated handle of an ephemeral gateway handle created for the purposes of registration,
 ///   if this was the first time this client registered
-pub struct InitialisationResult<T = EmptyCustomDetails> {
-    pub gateway_details: GatewayDetails<T>,
-    pub managed_keys: ManagedKeys,
+pub struct InitialisationResult {
+    pub gateway_registration: GatewayRegistration,
+    pub client_keys: ClientKeys,
     pub authenticated_ephemeral_client: Option<InitGatewayClient>,
 }
 
-impl<T> InitialisationResult<T> {
-    pub fn new_loaded(gateway_details: GatewayDetails<T>, managed_keys: ManagedKeys) -> Self {
+impl InitialisationResult {
+    pub fn new_loaded(gateway_registration: GatewayRegistration, client_keys: ClientKeys) -> Self {
         InitialisationResult {
-            gateway_details,
-            managed_keys,
+            gateway_registration,
+            client_keys,
             authenticated_ephemeral_client: None,
         }
     }
@@ -51,135 +159,30 @@ impl<T> InitialisationResult<T> {
     pub async fn try_load<K, D>(key_store: &K, details_store: &D) -> Result<Self, ClientCoreError>
     where
         K: KeyStore,
-        D: GatewayDetailsStore<T>,
+        D: GatewaysDetailsStore,
         K::StorageError: Send + Sync + 'static,
         D::StorageError: Send + Sync + 'static,
-        T: DeserializeOwned + Send + Sync,
     {
-        let loaded_details = _load_gateway_details(details_store).await?;
-        let loaded_keys = _load_managed_keys(key_store).await?;
-
-        match &loaded_details {
-            PersistedGatewayDetails::Default(loaded_default) => {
-                if !loaded_default.verify(&loaded_keys.must_get_gateway_shared_key()) {
-                    return Err(ClientCoreError::MismatchedGatewayDetails {
-                        gateway_id: loaded_default.details.gateway_id.clone(),
-                    });
-                }
-            }
-            PersistedGatewayDetails::Custom(_) => {}
-        }
-
-        Ok(InitialisationResult {
-            gateway_details: loaded_details.into(),
-            managed_keys: loaded_keys,
-            authenticated_ephemeral_client: None,
-        })
+        use_loaded_gateway_details(key_store, details_store, None).await
     }
 
-    pub fn client_address(&self) -> Result<Recipient, ClientCoreError> {
-        let client_recipient = Recipient::new(
-            *self.managed_keys.identity_public_key(),
-            *self.managed_keys.encryption_public_key(),
+    pub fn client_address(&self) -> Recipient {
+        Recipient::new(
+            *self.client_keys.identity_keypair().public_key(),
+            *self.client_keys.encryption_keypair().public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            NodeIdentity::from_base58_string(self.gateway_details.gateway_id())?,
-        );
-
-        Ok(client_recipient)
-    }
-}
-
-/// Details of particular gateway client got registered with
-#[derive(Debug, Clone)]
-pub enum GatewayDetails<T = EmptyCustomDetails> {
-    /// Standard details of a remote gateway
-    Configured(GatewayEndpointConfig),
-
-    /// Custom gateway setup, such as for a client embedded inside gateway itself
-    Custom(CustomGatewayDetails<T>),
-}
-
-#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub struct EmptyCustomDetails {}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomGatewayDetails<T = EmptyCustomDetails> {
-    // whatever custom method is used, gateway's identity must be known
-    pub gateway_id: String,
-
-    #[serde(flatten)]
-    pub additional_data: T,
-}
-
-impl<T> CustomGatewayDetails<T> {
-    pub fn new(gateway_id: String, additional_data: T) -> Self {
-        Self {
-            gateway_id,
-            additional_data,
-        }
-    }
-}
-
-impl<T> GatewayDetails<T> {
-    pub fn try_get_configured_endpoint(&self) -> Option<&GatewayEndpointConfig> {
-        if let GatewayDetails::Configured(endpoint) = &self {
-            Some(endpoint)
-        } else {
-            None
-        }
+            self.gateway_id(),
+        )
     }
 
-    pub fn is_custom(&self) -> bool {
-        matches!(self, GatewayDetails::Custom(_))
-    }
-
-    pub fn gateway_id(&self) -> &str {
-        match self {
-            GatewayDetails::Configured(cfg) => &cfg.gateway_id,
-            GatewayDetails::Custom(custom) => &custom.gateway_id,
-        }
-    }
-}
-
-impl From<GatewayEndpointConfig> for GatewayDetails {
-    fn from(value: GatewayEndpointConfig) -> Self {
-        GatewayDetails::Configured(value)
-    }
-}
-
-impl<T> From<PersistedCustomGatewayDetails<T>> for CustomGatewayDetails<T> {
-    fn from(value: PersistedCustomGatewayDetails<T>) -> Self {
-        CustomGatewayDetails {
-            gateway_id: value.gateway_id,
-            additional_data: value.additional_data,
-        }
-    }
-}
-
-impl<T> From<CustomGatewayDetails<T>> for PersistedCustomGatewayDetails<T> {
-    fn from(value: CustomGatewayDetails<T>) -> Self {
-        PersistedCustomGatewayDetails {
-            gateway_id: value.gateway_id,
-            additional_data: value.additional_data,
-        }
-    }
-}
-
-impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
-    fn from(value: PersistedGatewayDetails<T>) -> Self {
-        match value {
-            PersistedGatewayDetails::Default(default) => {
-                GatewayDetails::Configured(default.details)
-            }
-            PersistedGatewayDetails::Custom(custom) => GatewayDetails::Custom(custom.into()),
-        }
+    pub fn gateway_id(&self) -> identity::PublicKey {
+        self.gateway_registration.details.gateway_id()
     }
 }
 
 #[derive(Clone, Debug)]
-pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
+pub enum GatewaySelectionSpecification {
     /// Uniformly choose a random remote gateway.
     UniformRemote { must_use_tls: bool },
 
@@ -197,11 +200,11 @@ pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     /// This client has handled the selection by itself
     Custom {
         gateway_identity: String,
-        additional_data: T,
+        additional_data: Option<Vec<u8>>,
     },
 }
 
-impl<T> Default for GatewaySelectionSpecification<T> {
+impl Default for GatewaySelectionSpecification {
     fn default() -> Self {
         GatewaySelectionSpecification::UniformRemote {
             must_use_tls: false,
@@ -209,7 +212,7 @@ impl<T> Default for GatewaySelectionSpecification<T> {
     }
 }
 
-impl<T> GatewaySelectionSpecification<T> {
+impl GatewaySelectionSpecification {
     pub fn new(
         gateway_identity: Option<String>,
         latency_based_selection: Option<bool>,
@@ -228,19 +231,25 @@ impl<T> GatewaySelectionSpecification<T> {
     }
 }
 
-pub enum GatewaySetup<T = EmptyCustomDetails> {
+pub enum GatewaySetup {
     /// The gateway specification (details + keys) MUST BE loaded from the underlying storage.
-    MustLoad,
+    MustLoad {
+        /// Optionally specify concrete gateway id. If none is selected, the current active gateway will be used.
+        gateway_id: Option<String>,
+    },
 
     /// Specifies usage of a new gateway
     New {
-        specification: GatewaySelectionSpecification<T>,
+        specification: GatewaySelectionSpecification,
 
         // TODO: seems to be a bit inefficient to pass them by value
         available_gateways: Vec<gateway::Node>,
 
-        /// Specifies whether old data should be overwritten whilst setting up new gateway client.
-        overwrite_data: bool,
+        /// Implicitly specify whether the chosen gateway must use wireguard mode by setting the tun address.
+        ///
+        /// Currently this is imperfect solution as I'd imagine this address could vary from gateway to gateway
+        /// so perhaps it should be part of gateway::Node struct
+        wg_tun_address: Option<IpAddr>,
     },
 
     ReuseConnection {
@@ -248,24 +257,34 @@ pub enum GatewaySetup<T = EmptyCustomDetails> {
         authenticated_ephemeral_client: InitGatewayClient,
 
         // Details of this pre-initialised client (i.e. gateway and keys)
-        gateway_details: GatewayDetails<T>,
+        gateway_details: Box<GatewayRegistration>,
 
-        managed_keys: ManagedKeys,
+        client_keys: ClientKeys,
     },
 }
 
-impl<T> GatewaySetup<T> {
-    pub fn try_reuse_connection(
-        init_res: InitialisationResult<T>,
-    ) -> Result<Self, ClientCoreError> {
+impl GatewaySetup {
+    pub fn try_reuse_connection(init_res: InitialisationResult) -> Result<Self, ClientCoreError> {
         if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
             Ok(GatewaySetup::ReuseConnection {
                 authenticated_ephemeral_client,
-                gateway_details: init_res.gateway_details,
-                managed_keys: init_res.managed_keys,
+                gateway_details: Box::new(init_res.gateway_registration),
+                client_keys: init_res.client_keys,
             })
         } else {
             Err(ClientCoreError::NoInitClientPresent)
+        }
+    }
+
+    /// new gateway setup performed by each client that's inbuilt in a gateway (like NR or IPR)
+    pub fn new_inbuilt(identity: identity::PublicKey) -> Self {
+        GatewaySetup::New {
+            specification: GatewaySelectionSpecification::Custom {
+                gateway_identity: identity.to_base58_string(),
+                additional_data: None,
+            },
+            available_gateways: vec![],
+            wg_tun_address: None,
         }
     }
 
@@ -273,19 +292,18 @@ impl<T> GatewaySetup<T> {
         self,
         key_store: &K,
         details_store: &D,
-    ) -> Result<InitialisationResult<T>, ClientCoreError>
+    ) -> Result<InitialisationResult, ClientCoreError>
     where
         K: KeyStore,
-        D: GatewayDetailsStore<T>,
+        D: GatewaysDetailsStore,
         K::StorageError: Send + Sync + 'static,
         D::StorageError: Send + Sync + 'static,
-        T: DeserializeOwned + Serialize + Send + Sync,
     {
         setup_gateway(self, key_store, details_store).await
     }
 
     pub fn is_must_load(&self) -> bool {
-        matches!(self, GatewaySetup::MustLoad)
+        matches!(self, GatewaySetup::MustLoad { .. })
     }
 
     pub fn has_full_details(&self) -> bool {
@@ -302,18 +320,25 @@ pub struct InitResults {
     pub encryption_key: String,
     pub gateway_id: String,
     pub gateway_listener: String,
+    pub gateway_registration: OffsetDateTime,
     pub address: Recipient,
 }
 
 impl InitResults {
-    pub fn new(config: &Config, address: Recipient, gateway: &GatewayEndpointConfig) -> Self {
+    pub fn new(
+        config: &Config,
+        address: Recipient,
+        gateway: &RemoteGatewayDetails,
+        registration: OffsetDateTime,
+    ) -> Self {
         Self {
             version: config.client.version.clone(),
             id: config.client.id.clone(),
             identity_key: address.identity().to_base58_string(),
             encryption_key: address.encryption_key().to_base58_string(),
-            gateway_id: gateway.gateway_id.clone(),
-            gateway_listener: gateway.gateway_listener.clone(),
+            gateway_id: gateway.gateway_id.to_base58_string(),
+            gateway_listener: gateway.gateway_listener.to_string(),
+            gateway_registration: registration,
             address,
         }
     }
@@ -326,6 +351,7 @@ impl Display for InitResults {
         writeln!(f, "Identity key: {}", self.identity_key)?;
         writeln!(f, "Encryption: {}", self.encryption_key)?;
         writeln!(f, "Gateway ID: {}", self.gateway_id)?;
-        write!(f, "Gateway: {}", self.gateway_listener)
+        writeln!(f, "Gateway: {}", self.gateway_listener)?;
+        write!(f, "Registered at: {}", self.gateway_registration)
     }
 }

@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use nym_client_core::client::base_client::storage::gateway_details::InMemGatewayDetails;
-use nym_client_core::client::base_client::storage::MixnetClientStorage;
+use nym_client_core::client::base_client::storage::{InMemGatewaysDetails, MixnetClientStorage};
 use nym_client_core::client::key_manager::persistence::InMemEphemeralKeys;
 use nym_client_core::client::replies::reply_storage;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
@@ -11,7 +10,7 @@ use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCred
 pub struct MobileClientStorage {
     // the key storage is now useless without gateway details store. so use ephemeral for everything.
     key_store: InMemEphemeralKeys,
-    gateway_details_store: InMemGatewayDetails,
+    gateway_details_store: InMemGatewaysDetails,
 
     reply_store: reply_storage::Empty,
     credential_store: EphemeralCredentialStorage,
@@ -21,7 +20,7 @@ impl MixnetClientStorage for MobileClientStorage {
     type KeyStore = InMemEphemeralKeys;
     type ReplyStore = reply_storage::Empty;
     type CredentialStore = EphemeralCredentialStorage;
-    type GatewayDetailsStore = InMemGatewayDetails;
+    type GatewaysDetailsStore = InMemGatewaysDetails;
 
     fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
         (self.reply_store, self.credential_store)
@@ -39,7 +38,7 @@ impl MixnetClientStorage for MobileClientStorage {
         &self.credential_store
     }
 
-    fn gateway_details_store(&self) -> &Self::GatewayDetailsStore {
+    fn gateway_details_store(&self) -> &Self::GatewaysDetailsStore {
         &self.gateway_details_store
     }
 }

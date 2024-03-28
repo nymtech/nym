@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::topology_control::geo_aware_provider::CountryGroup;
-use crate::config::{
-    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, GroupBy,
-    ReplySurbs, Topology, TopologyStructure, Traffic,
+use crate::config::old_config_v1_1_33::{
+    AcknowledgementsV1_1_33, ClientV1_1_33, ConfigV1_1_33, CoverTrafficV1_1_33, DebugConfigV1_1_33,
+    GatewayConnectionV1_1_33, GroupByV1_1_33, ReplySurbsV1_1_33, TopologyStructureV1_1_33,
+    TopologyV1_1_33, TrafficV1_1_33,
 };
 use nym_sphinx::{
     addressing::clients::Recipient,
@@ -64,18 +65,18 @@ pub struct ConfigV1_1_30 {
     pub debug: DebugConfigV1_1_30,
 }
 
-impl From<ConfigV1_1_30> for Config {
+impl From<ConfigV1_1_30> for ConfigV1_1_33 {
     fn from(value: ConfigV1_1_30) -> Self {
-        Config {
-            client: Client {
+        ConfigV1_1_33 {
+            client: ClientV1_1_33 {
                 version: value.client.version,
                 id: value.client.id,
                 disabled_credentials_mode: value.client.disabled_credentials_mode,
                 nyxd_urls: value.client.nyxd_urls,
                 nym_api_urls: value.client.nym_api_urls,
             },
-            debug: DebugConfig {
-                traffic: Traffic {
+            debug: DebugConfigV1_1_33 {
+                traffic: TrafficV1_1_33 {
                     average_packet_delay: value.debug.traffic.average_packet_delay,
                     message_sending_average_delay: value
                         .debug
@@ -89,7 +90,7 @@ impl From<ConfigV1_1_30> for Config {
                     secondary_packet_size: value.debug.traffic.secondary_packet_size,
                     packet_type: value.debug.traffic.packet_type,
                 },
-                cover_traffic: CoverTraffic {
+                cover_traffic: CoverTrafficV1_1_33 {
                     loop_cover_traffic_average_delay: value
                         .debug
                         .cover_traffic
@@ -103,18 +104,18 @@ impl From<ConfigV1_1_30> for Config {
                         .cover_traffic
                         .disable_loop_cover_traffic_stream,
                 },
-                gateway_connection: GatewayConnection {
+                gateway_connection: GatewayConnectionV1_1_33 {
                     gateway_response_timeout: value
                         .debug
                         .gateway_connection
                         .gateway_response_timeout,
                 },
-                acknowledgements: Acknowledgements {
+                acknowledgements: AcknowledgementsV1_1_33 {
                     average_ack_delay: value.debug.acknowledgements.average_ack_delay,
                     ack_wait_multiplier: value.debug.acknowledgements.ack_wait_multiplier,
                     ack_wait_addition: value.debug.acknowledgements.ack_wait_addition,
                 },
-                topology: Topology {
+                topology: TopologyV1_1_33 {
                     topology_refresh_rate: value.debug.topology.topology_refresh_rate,
                     topology_resolution_timeout: value.debug.topology.topology_resolution_timeout,
                     disable_refreshing: value.debug.topology.disable_refreshing,
@@ -124,7 +125,7 @@ impl From<ConfigV1_1_30> for Config {
                         .max_startup_gateway_waiting_period,
                     topology_structure: value.debug.topology.topology_structure.into(),
                 },
-                reply_surbs: ReplySurbs {
+                reply_surbs: ReplySurbsV1_1_33 {
                     minimum_reply_surb_storage_threshold: value
                         .debug
                         .reply_surbs
@@ -155,7 +156,10 @@ impl From<ConfigV1_1_30> for Config {
                         .maximum_reply_surb_drop_waiting_period,
                     maximum_reply_surb_age: value.debug.reply_surbs.maximum_reply_surb_age,
                     maximum_reply_key_age: value.debug.reply_surbs.maximum_reply_key_age,
+
+                    // \/ ADDED
                     surb_mix_hops: None,
+                    // /\ ADDED
                 },
             },
         }
@@ -345,12 +349,12 @@ pub enum TopologyStructureV1_1_30 {
     GeoAware(GroupByV1_1_30),
 }
 
-impl From<TopologyStructureV1_1_30> for TopologyStructure {
+impl From<TopologyStructureV1_1_30> for TopologyStructureV1_1_33 {
     fn from(value: TopologyStructureV1_1_30) -> Self {
         match value {
-            TopologyStructureV1_1_30::NymApi => TopologyStructure::NymApi,
+            TopologyStructureV1_1_30::NymApi => TopologyStructureV1_1_33::NymApi,
             TopologyStructureV1_1_30::GeoAware(group_by) => {
-                TopologyStructure::GeoAware(group_by.into())
+                TopologyStructureV1_1_33::GeoAware(group_by.into())
             }
         }
     }
@@ -363,11 +367,11 @@ pub enum GroupByV1_1_30 {
     NymAddress(Recipient),
 }
 
-impl From<GroupByV1_1_30> for GroupBy {
+impl From<GroupByV1_1_30> for GroupByV1_1_33 {
     fn from(value: GroupByV1_1_30) -> Self {
         match value {
-            GroupByV1_1_30::CountryGroup(country) => GroupBy::CountryGroup(country),
-            GroupByV1_1_30::NymAddress(addr) => GroupBy::NymAddress(addr),
+            GroupByV1_1_30::CountryGroup(country) => GroupByV1_1_33::CountryGroup(country),
+            GroupByV1_1_30::NymAddress(addr) => GroupByV1_1_33::NymAddress(addr),
         }
     }
 }

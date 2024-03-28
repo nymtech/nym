@@ -1,0 +1,33 @@
+[package]
+name = "nym-client-core-gateways-storage"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait.workspace = true
+cosmrs.workspace = true
+log.workspace = true
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+time.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+url.workspace = true
+zeroize = { workspace = true, features = ["zeroize_derive"] }
+
+nym-crypto = { path = "../../crypto", features = ["asymmetric"] }
+nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
+workspace = true
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
+optional = true
+
+[build-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+
+[features]
+fs-gateways-storage = ["sqlx"]

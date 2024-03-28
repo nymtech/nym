@@ -50,10 +50,6 @@ keys.private_encryption_key_file = '{{ storage_paths.keys.private_encryption_key
 # Path to file containing public encryption key.
 keys.public_encryption_key_file = '{{ storage_paths.keys.public_encryption_key_file }}'
 
-# A gateway specific, optional, base58 stringified shared key used for
-# communication with particular gateway.
-keys.gateway_shared_key_file = '{{ storage_paths.keys.gateway_shared_key_file }}'
-
 # Path to file containing key used for encrypting and decrypting the content of an
 # acknowledgement so that nobody besides the client knows which packet it refers to.
 keys.ack_key_file = '{{ storage_paths.keys.ack_key_file }}'
@@ -64,9 +60,9 @@ credentials_database = '{{ storage_paths.credentials_database }}'
 # Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
 reply_surb_database = '{{ storage_paths.reply_surb_database }}'
 
-# Path to the file containing information about gateway used by this client,
-# i.e. details such as its public key, owner address or the network information.
-gateway_details = '{{ storage_paths.gateway_details }}'
+# Path to the file containing information about gateways used by this client,
+# i.e. details such as their public keys, owner addresses or the network information.
+gateway_registrations = '{{ storage_paths.gateway_registrations }}'
 
 ##### socket config options #####
 
@@ -77,7 +73,7 @@ provider_mix_address = '{{ core.socks5.provider_mix_address }}'
 
 # The address on which the client will be listening for incoming requests
 # (default: 127.0.0.1:1080)
-bind_adddress = '{{ core.socks5.bind_adddress }}'
+bind_address = '{{ core.socks5.bind_address }}'
 
 # Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
 # While this is going to hide its actual address information, it will make the actual communication

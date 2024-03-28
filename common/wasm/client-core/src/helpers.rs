@@ -90,8 +90,15 @@ pub async fn setup_gateway_wasm(
     chosen_gateway: Option<IdentityKey>,
     gateways: &[gateway::Node],
 ) -> Result<InitialisationResult, WasmCoreError> {
-    let setup = if client_store.has_full_gateway_info().await? {
-        GatewaySetup::MustLoad
+    // TODO: so much optimization and extra features could be added here, but that's for the future
+
+    let setup = if client_store
+        .get_active_gateway_id()
+        .await?
+        .active_gateway_id_bs58
+        .is_some()
+    {
+        GatewaySetup::MustLoad { gateway_id: None }
     } else {
         let selection_spec =
             GatewaySelectionSpecification::new(chosen_gateway.clone(), None, force_tls);
@@ -99,7 +106,7 @@ pub async fn setup_gateway_wasm(
         GatewaySetup::New {
             specification: selection_spec,
             available_gateways: gateways.to_vec(),
-            overwrite_data: false,
+            wg_tun_address: None,
         }
     };
 

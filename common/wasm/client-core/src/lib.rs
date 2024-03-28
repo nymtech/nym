@@ -16,7 +16,7 @@ pub mod topology;
 pub use nym_bandwidth_controller::BandwidthController;
 pub use nym_client_core::*;
 pub use nym_client_core::{
-    client::key_manager::ManagedKeys, error::ClientCoreError, init::types::InitialisationResult,
+    client::key_manager::ClientKeys, error::ClientCoreError, init::types::InitialisationResult,
 };
 pub use nym_gateway_client::{error::GatewayClientError, GatewayClient, GatewayConfig};
 pub use nym_sphinx::{

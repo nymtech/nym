@@ -17,10 +17,12 @@ use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use nym_network_requester::config::BaseClientConfig;
 use nym_network_requester::{
-    setup_gateway, GatewaySelectionSpecification, GatewaySetup, OnDiskGatewayDetails, OnDiskKeys,
+    generate_new_client_keys, set_active_gateway, setup_fs_gateways_storage, setup_gateway,
+    GatewaySetup, OnDiskKeys,
 };
 use nym_types::gateway::{GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails};
 use nym_validator_client::nyxd::AccountId;
+use rand::rngs::OsRng;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
@@ -250,7 +252,7 @@ pub(crate) fn override_ip_packet_router_config(
 
     // disable poisson rate in the BASE client if the IPR option is enabled
     if cfg.ip_packet_router.disable_poisson_rate {
-        log::info!("Disabling poisson rate for ip packet router");
+        info!("Disabling poisson rate for ip packet router");
         cfg.set_no_poisson_process();
     }
 
@@ -275,24 +277,24 @@ pub(crate) async fn initialise_local_network_requester(
 
     let key_store = OnDiskKeys::new(nr_cfg.storage_paths.common_paths.keys.clone());
     let details_store =
-        OnDiskGatewayDetails::new(&nr_cfg.storage_paths.common_paths.gateway_details);
+        setup_fs_gateways_storage(&nr_cfg.storage_paths.common_paths.gateway_registrations).await?;
+
+    // if this is a first time client with this particular id is initialised, generated long-term keys
+    if !nr_cfg_path.exists() {
+        let mut rng = OsRng;
+        generate_new_client_keys(&mut rng, &key_store).await?;
+    }
 
     // gateway setup here is way simpler as we're 'connecting' to ourselves
     let init_res = setup_gateway(
-        GatewaySetup::New {
-            specification: GatewaySelectionSpecification::Custom {
-                gateway_identity: identity.to_base58_string(),
-                additional_data: Default::default(),
-            },
-            available_gateways: vec![],
-            overwrite_data: false,
-        },
+        GatewaySetup::new_inbuilt(identity),
         &key_store,
         &details_store,
     )
     .await?;
+    set_active_gateway(&details_store, &init_res.gateway_id().to_base58_string()).await?;
 
-    let address = init_res.client_address()?;
+    let address = init_res.client_address();
 
     if let Err(err) = save_formatted_config_to_file(&nr_cfg, nr_cfg_path) {
         log::error!("Failed to save the network requester config file: {err}");
@@ -348,24 +350,24 @@ pub(crate) async fn initialise_local_ip_packet_router(
 
     let key_store = OnDiskKeys::new(ip_cfg.storage_paths.common_paths.keys.clone());
     let details_store =
-        OnDiskGatewayDetails::new(&ip_cfg.storage_paths.common_paths.gateway_details);
+        setup_fs_gateways_storage(&ip_cfg.storage_paths.common_paths.gateway_registrations).await?;
+
+    // if this is a first time client with this particular id is initialised, generated long-term keys
+    if !ip_cfg_path.exists() {
+        let mut rng = OsRng;
+        generate_new_client_keys(&mut rng, &key_store).await?;
+    }
 
     // gateway setup here is way simpler as we're 'connecting' to ourselves
     let init_res = setup_gateway(
-        GatewaySetup::New {
-            specification: GatewaySelectionSpecification::Custom {
-                gateway_identity: identity.to_base58_string(),
-                additional_data: Default::default(),
-            },
-            available_gateways: vec![],
-            overwrite_data: false,
-        },
+        GatewaySetup::new_inbuilt(identity),
         &key_store,
         &details_store,
     )
     .await?;
+    set_active_gateway(&details_store, &init_res.gateway_id().to_base58_string()).await?;
 
-    let address = init_res.client_address()?;
+    let address = init_res.client_address();
 
     if let Err(err) = save_formatted_config_to_file(&ip_cfg, ip_cfg_path) {
         log::error!("Failed to save the ip packet router config file: {err}");

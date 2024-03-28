@@ -359,3 +359,18 @@ impl<'d> Deserialize<'d> for Signature {
         Signature::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
+
+    fn assert_zeroize<T: Zeroize>() {}
+
+    #[test]
+    fn private_key_is_zeroized() {
+        assert_zeroize::<PrivateKey>();
+        assert_zeroize_on_drop::<PrivateKey>();
+    }
+}

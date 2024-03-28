@@ -7,7 +7,7 @@ use crate::{
     state::State,
 };
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::client::key_manager::KeyManager;
+use nym_client_core::client::key_manager::ClientKeys;
 use nym_crypto::asymmetric::identity;
 
 pub async fn get_identity_key(
@@ -23,7 +23,7 @@ pub async fn get_identity_key(
     // wtf, why are we loading EVERYTHING to just get identity key??
     let key_store = OnDiskKeys::from(paths);
     let key_manager =
-        KeyManager::load_keys(&key_store)
+        ClientKeys::load_keys(&key_store)
             .await
             .map_err(|err| BackendError::UnableToLoadKeys {
                 source: Box::new(err),
@@ -54,7 +54,6 @@ pub async fn export_keys(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
 
     // Get key paths
     let ack_key_file = key_paths.ack_key();
-    let gateway_shared_key_file = key_paths.gateway_shared_key();
 
     let pub_id_key_file = key_paths.public_identity_key();
     let priv_id_key_file = key_paths.private_identity_key();
@@ -64,7 +63,6 @@ pub async fn export_keys(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
 
     // Read file contents
     let ack_key = fs::read_to_string(ack_key_file)?;
-    let gateway_shared_key = fs::read_to_string(gateway_shared_key_file)?;
 
     let pub_id_key = fs::read_to_string(pub_id_key_file)?;
     let priv_id_key = fs::read_to_string(priv_id_key_file)?;
@@ -73,7 +71,6 @@ pub async fn export_keys(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
     let priv_enc_key = fs::read_to_string(priv_enc_key_file)?;
 
     let ack_key_file = key_filename(&key_paths.ack_key_file)?;
-    let gateway_shared_key_file = key_filename(&key_paths.gateway_shared_key_file)?;
     let pub_id_key_file = key_filename(&key_paths.public_identity_key_file)?;
     let priv_id_key_file = key_filename(&key_paths.private_identity_key_file)?;
     let pub_enc_key_file = key_filename(&key_paths.public_encryption_key_file)?;
@@ -82,7 +79,6 @@ pub async fn export_keys(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
     // Format and return as json
     let json = serde_json::json!({
         ack_key_file: ack_key,
-        gateway_shared_key_file: gateway_shared_key,
         pub_id_key_file: pub_id_key,
         priv_id_key_file: priv_id_key,
         pub_enc_key_file: pub_enc_key,

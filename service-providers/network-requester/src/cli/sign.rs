@@ -55,7 +55,7 @@ fn print_signed_contract_msg(
 }
 
 pub(crate) async fn execute(args: &Sign) -> Result<(), NetworkRequesterError> {
-    let config = try_load_current_config(&args.id)?;
+    let config = try_load_current_config(&args.id).await?;
 
     if !version_check(&config) {
         log::error!("Failed the local version check");

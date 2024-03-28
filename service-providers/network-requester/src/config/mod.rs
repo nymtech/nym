@@ -4,7 +4,7 @@
 use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::cli_helpers::client_init::ClientConfig;
+use nym_client_core::cli_helpers::CliClientConfig;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
@@ -23,9 +23,11 @@ use url::Url;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
 
+pub mod helpers;
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
 pub mod old_config_v1_1_20_2;
+pub mod old_config_v1_1_33;
 mod persistence;
 mod template;
 
@@ -84,7 +86,7 @@ impl NymConfigTemplate for Config {
     }
 }
 
-impl ClientConfig for Config {
+impl CliClientConfig for Config {
     fn common_paths(&self) -> &CommonClientPaths {
         &self.storage_paths.common_paths
     }
@@ -133,6 +135,7 @@ impl Config {
         default_config_filepath(&self.base.client.id)
     }
 
+    #[allow(dead_code)]
     pub fn save_to_default_location(&self) -> io::Result<()> {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)

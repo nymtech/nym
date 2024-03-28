@@ -1,29 +1,18 @@
-use std::{fmt::Display, fs, path::PathBuf};
-
+use crate::cli::{override_config, CliIpPacketRouterClient, OverrideConfig};
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_init::{
     initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
 };
-use serde::Serialize;
-
-use crate::{
-    cli::{override_config, try_upgrade_config, OverrideConfig},
+use nym_ip_packet_router::{
     config::{default_config_directory, default_config_filepath, default_data_directory, Config},
     error::IpPacketRouterError,
 };
+use serde::Serialize;
+use std::{fmt::Display, fs, path::PathBuf};
 
-struct IpPacketRouterInit;
-
-impl InitialisableClient for IpPacketRouterInit {
-    const NAME: &'static str = "ip packet router";
-    type Error = IpPacketRouterError;
+impl InitialisableClient for CliIpPacketRouterClient {
     type InitArgs = Init;
-    type Config = Config;
-
-    fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
-        try_upgrade_config(id)
-    }
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error> {
         fs::create_dir_all(default_data_directory(id))?;
@@ -99,7 +88,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), IpPacketRouterError> {
     eprintln!("Initialising client...");
 
     let output = args.output;
-    let res = initialise_client::<IpPacketRouterInit>(args).await?;
+    let res = initialise_client::<CliIpPacketRouterClient>(args).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

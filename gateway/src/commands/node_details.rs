@@ -18,7 +18,7 @@ pub struct NodeDetails {
 
 pub async fn execute(args: NodeDetails) -> anyhow::Result<()> {
     let config = try_load_current_config(&args.id)?;
-    args.output.to_stdout(&node_details(&config)?);
+    args.output.to_stdout(&node_details(&config).await?);
 
     Ok(())
 }

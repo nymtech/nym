@@ -8,7 +8,6 @@ pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
 pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
 pub const DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME: &str = "private_encryption.pem";
 pub const DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME: &str = "public_encryption.pem";
-pub const DEFAULT_GATEWAY_SHARED_KEY_FILENAME: &str = "gateway_shared.pem";
 pub const DEFAULT_ACK_KEY_FILENAME: &str = "ack_key.pem";
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -25,10 +24,6 @@ pub struct ClientKeysPaths {
     /// Path to file containing public encryption key.
     pub public_encryption_key_file: PathBuf,
 
-    /// Path to file containing shared key derived with the specified gateway that is used
-    /// for all communication with it.
-    pub gateway_shared_key_file: PathBuf,
-
     /// Path to file containing key used for encrypting and decrypting the content of an
     /// acknowledgement so that nobody besides the client knows which packet it refers to.
     pub ack_key_file: PathBuf,
@@ -43,7 +38,6 @@ impl ClientKeysPaths {
             public_identity_key_file: base_dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME),
             private_encryption_key_file: base_dir.join(DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME),
             public_encryption_key_file: base_dir.join(DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME),
-            gateway_shared_key_file: base_dir.join(DEFAULT_GATEWAY_SHARED_KEY_FILENAME),
             ack_key_file: base_dir.join(DEFAULT_ACK_KEY_FILENAME),
         }
     }
@@ -67,7 +61,6 @@ impl ClientKeysPaths {
             || matches!(self.private_identity_key_file.try_exists(), Ok(true))
             || matches!(self.public_encryption_key_file.try_exists(), Ok(true))
             || matches!(self.private_encryption_key_file.try_exists(), Ok(true))
-            || matches!(self.gateway_shared_key_file.try_exists(), Ok(true))
             || matches!(self.ack_key_file.try_exists(), Ok(true))
     }
 
@@ -76,12 +69,7 @@ impl ClientKeysPaths {
             .or_else(|| file_exists(&self.private_identity_key_file))
             .or_else(|| file_exists(&self.public_encryption_key_file))
             .or_else(|| file_exists(&self.private_encryption_key_file))
-            .or_else(|| file_exists(&self.gateway_shared_key_file))
             .or_else(|| file_exists(&self.ack_key_file))
-    }
-
-    pub fn gateway_key_file_exists(&self) -> bool {
-        matches!(self.gateway_shared_key_file.try_exists(), Ok(true))
     }
 
     pub fn private_identity_key(&self) -> &Path {
@@ -98,10 +86,6 @@ impl ClientKeysPaths {
 
     pub fn public_encryption_key(&self) -> &Path {
         &self.public_encryption_key_file
-    }
-
-    pub fn gateway_shared_key(&self) -> &Path {
-        &self.gateway_shared_key_file
     }
 
     pub fn ack_key(&self) -> &Path {

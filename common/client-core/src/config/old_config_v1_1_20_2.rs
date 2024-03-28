@@ -5,7 +5,7 @@ use crate::config::old_config_v1_1_30::{
     AcknowledgementsV1_1_30, ClientV1_1_30, ConfigV1_1_30, CoverTrafficV1_1_30, DebugConfigV1_1_30,
     GatewayConnectionV1_1_30, ReplySurbsV1_1_30, TopologyV1_1_30, TrafficV1_1_30,
 };
-use crate::config::GatewayEndpointConfig;
+use crate::config::old_config_v1_1_33::OldGatewayEndpointConfigV1_1_33;
 use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -81,9 +81,9 @@ pub struct GatewayEndpointConfigV1_1_20_2 {
     pub gateway_listener: String,
 }
 
-impl From<GatewayEndpointConfigV1_1_20_2> for GatewayEndpointConfig {
+impl From<GatewayEndpointConfigV1_1_20_2> for OldGatewayEndpointConfigV1_1_33 {
     fn from(value: GatewayEndpointConfigV1_1_20_2) -> Self {
-        GatewayEndpointConfig {
+        OldGatewayEndpointConfigV1_1_33 {
             gateway_id: value.gateway_id,
             gateway_owner: value.gateway_owner,
             gateway_listener: value.gateway_listener,

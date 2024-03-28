@@ -1,9 +1,7 @@
 pub use nym_client_core::config::Config as BaseClientConfig;
 
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::{
-    cli_helpers::client_init::ClientConfig, config::disk_persistence::CommonClientPaths,
-};
+use nym_client_core::{cli_helpers::CliClientConfig, config::disk_persistence::CommonClientPaths};
 use nym_config::{
     defaults::mainnet, must_get_home, save_formatted_config_to_file,
     serde_helpers::de_maybe_stringified, NymConfigTemplate, OptionalSet, DEFAULT_CONFIG_DIR,
@@ -22,6 +20,8 @@ use crate::config::persistence::IpPacketRouterPaths;
 
 use self::template::CONFIG_TEMPLATE;
 
+pub mod helpers;
+pub mod old_config_v1;
 mod persistence;
 mod template;
 
@@ -75,7 +75,7 @@ impl NymConfigTemplate for Config {
     }
 }
 
-impl ClientConfig for Config {
+impl CliClientConfig for Config {
     fn common_paths(&self) -> &CommonClientPaths {
         &self.storage_paths.common_paths
     }

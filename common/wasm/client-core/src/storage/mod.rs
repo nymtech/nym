@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::WasmCoreError;
-use crate::storage::wasm_client_traits::{v1, WasmClientStorage};
+use crate::storage::wasm_client_traits::{v1, v2, WasmClientStorage};
 use async_trait::async_trait;
 use js_sys::{Array, Promise};
 use serde::de::DeserializeOwned;
@@ -11,14 +11,15 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_storage::traits::BaseWasmStorage;
 use wasm_storage::{IdbVersionChangeEvent, WasmStorage};
-use wasm_utils::error::PromisableResult;
+use wasm_utils::error::{simple_js_error, PromisableResult};
 use zeroize::Zeroizing;
 
 pub mod core_client_traits;
+mod types;
 pub mod wasm_client_traits;
 
 const STORAGE_NAME_PREFIX: &str = "wasm-client-storage";
-const STORAGE_VERSION: u32 = 1;
+const STORAGE_VERSION: u32 = 2;
 
 #[wasm_bindgen]
 pub struct ClientStorage {
@@ -48,13 +49,21 @@ impl ClientStorage {
             // works with an unsigned integer.
             // See <https://github.com/rustwasm/wasm-bindgen/issues/1149>
             let old_version = evt.old_version() as u32;
+            let db = evt.db();
 
             if old_version < 1 {
-                // migrating to version 1
-                let db = evt.db();
+                // migrating to version 2
 
                 db.create_object_store(v1::KEYS_STORE)?;
                 db.create_object_store(v1::CORE_STORE)?;
+
+                db.create_object_store(v2::GATEWAY_REGISTRATIONS_ACTIVE_GATEWAY_STORE)?;
+                db.create_object_store(v2::GATEWAY_REGISTRATIONS_REGISTERED_GATEWAYS_STORE)?;
+            }
+
+            // version 1 -> unimplemented migration
+            if old_version < 2 {
+                return Err(simple_js_error("this client is incompatible with existing storage. please initialise it again."));
             }
 
             Ok(())

@@ -1,22 +1,38 @@
 use clap::{CommandFactory, Parser, Subcommand};
-use log::{error, trace};
+use log::error;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::{bin_info, version_checker};
-use nym_client_core::client::base_client::storage::gateway_details::{
-    OnDiskGatewayDetails, PersistedGatewayDetails,
-};
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::config::GatewayEndpointConfig;
-use nym_client_core::error::ClientCoreError;
+use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
+use nym_client_core::cli_helpers::CliClient;
+use nym_ip_packet_router::config::helpers::try_upgrade_config;
+use nym_ip_packet_router::config::{BaseClientConfig, Config};
+use nym_ip_packet_router::error::IpPacketRouterError;
 use std::sync::OnceLock;
 
-use crate::config::{BaseClientConfig, Config};
-use crate::error::IpPacketRouterError;
-
+mod add_gateway;
 mod build_info;
+mod import_credential;
 mod init;
+mod list_gateways;
 mod run;
 mod sign;
+mod switch_gateway;
+
+pub(crate) struct CliIpPacketRouterClient;
+
+impl CliClient for CliIpPacketRouterClient {
+    const NAME: &'static str = "ip packet router";
+    type Error = IpPacketRouterError;
+    type Config = Config;
+
+    async fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
+        try_upgrade_config(id).await
+    }
+
+    async fn try_load_current_config(id: &str) -> Result<Self::Config, Self::Error> {
+        try_load_current_config(id).await
+    }
+}
 
 fn pretty_build_info_static() -> &'static str {
     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
@@ -47,6 +63,18 @@ pub(crate) enum Commands {
     /// Run the network requester with the provided configuration and optionally override
     /// parameters.
     Run(run::Run),
+
+    /// Import a pre-generated credential
+    ImportCredential(CommonClientImportCredentialArgs),
+
+    /// List all registered with gateways
+    ListGateways(list_gateways::Args),
+
+    /// Add new gateway to this client
+    AddGateway(add_gateway::Args),
+
+    /// Change the currently active gateway. Note that you must have already registered with the new gateway!
+    SwitchGateway(switch_gateway::Args),
 
     /// Sign to prove ownership of this network requester
     Sign(sign::Sign),
@@ -100,6 +128,10 @@ pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
+        Commands::ImportCredential(m) => import_credential::execute(m).await?,
+        Commands::ListGateways(args) => list_gateways::execute(args).await?,
+        Commands::AddGateway(args) => add_gateway::execute(args).await?,
+        Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
         Commands::Sign(m) => sign::execute(&m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
@@ -108,36 +140,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {
     Ok(())
 }
 
-// Unused until we need to start implementing config upgrades
-#[allow(unused)]
-fn persist_gateway_details(
-    config: &Config,
-    details: GatewayEndpointConfig,
-) -> Result<(), IpPacketRouterError> {
-    let details_store =
-        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-    let keys_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
-    let shared_keys = keys_store.ephemeral_load_gateway_keys().map_err(|source| {
-        IpPacketRouterError::ClientCoreError(ClientCoreError::KeyStoreError {
-            source: Box::new(source),
-        })
-    })?;
-    let persisted_details = PersistedGatewayDetails::new(details.into(), Some(&shared_keys))?;
-    details_store
-        .store_to_disk(&persisted_details)
-        .map_err(|source| {
-            IpPacketRouterError::ClientCoreError(ClientCoreError::GatewayDetailsStoreError {
-                source: Box::new(source),
-            })
-        })
-}
-
-fn try_upgrade_config(_id: &str) -> Result<(), IpPacketRouterError> {
-    trace!("Attempting to upgrade config");
-    Ok(())
-}
-
-fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError> {
+async fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError> {
     // try to load the config as is
     if let Ok(cfg) = Config::read_from_default_path(id) {
         return if !cfg.validate() {
@@ -148,7 +151,7 @@ fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError> {
     }
 
     // we couldn't load it - try upgrading it from older revisions
-    try_upgrade_config(id)?;
+    try_upgrade_config(id).await?;
 
     let config = match Config::read_from_default_path(id) {
         Ok(cfg) => cfg,

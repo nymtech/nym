@@ -62,7 +62,7 @@ pub(crate) async fn create_gateway(
     // don't attempt to read config if NR is disabled
     let network_requester_config = if config.network_requester.enabled {
         if let Some(path) = &config.storage_paths.network_requester_config {
-            let cfg = load_network_requester_config(&config.gateway.id, path)?;
+            let cfg = load_network_requester_config(&config.gateway.id, path).await?;
             Some(override_network_requester_config(cfg, nr_config_override))
         } else {
             // if NR is enabled, the config path must be specified
@@ -75,7 +75,7 @@ pub(crate) async fn create_gateway(
     // don't attempt to read config if NR is disabled
     let ip_packet_router_config = if config.ip_packet_router.enabled {
         if let Some(path) = &config.storage_paths.ip_packet_router_config {
-            let cfg = load_ip_packet_router_config(&config.gateway.id, path)?;
+            let cfg = load_ip_packet_router_config(&config.gateway.id, path).await?;
             Some(override_ip_packet_router_config(cfg, ip_config_override))
         } else {
             // if IPR is enabled, the config path must be specified

@@ -1,4 +1,4 @@
-// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::replies::reply_storage::{
@@ -7,8 +7,9 @@ use crate::client::replies::reply_storage::{
 use crate::config;
 use crate::config::Config;
 use crate::error::ClientCoreError;
-use log::{error, info};
+use log::{error, info, trace};
 use nym_bandwidth_controller::BandwidthController;
+use nym_client_core_gateways_storage::OnDiskGatewaysDetails;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_validator_client::nyxd;
 use nym_validator_client::QueryHttpRpcNyxdClient;
@@ -99,6 +100,17 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     } else {
         setup_fresh_backend(db_path, surb_config).await
     }
+}
+
+pub async fn setup_fs_gateways_storage<P: AsRef<Path>>(
+    db_path: P,
+) -> Result<OnDiskGatewaysDetails, ClientCoreError> {
+    trace!("setting up gateways details storage");
+    OnDiskGatewaysDetails::init(db_path)
+        .await
+        .map_err(|source| ClientCoreError::GatewaysDetailsStoreError {
+            source: Box::new(source),
+        })
 }
 
 pub fn create_bandwidth_controller<St: CredentialStorage>(

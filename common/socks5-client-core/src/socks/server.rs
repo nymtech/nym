@@ -33,7 +33,7 @@ impl NymSocksServer {
     /// Create a new SphinxSocks instance
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        bind_adddress: SocketAddr,
+        bind_address: SocketAddr,
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
@@ -42,10 +42,10 @@ impl NymSocksServer {
         shutdown: TaskClient,
         packet_type: PacketType,
     ) -> Self {
-        info!("Listening on {bind_adddress}");
+        info!("Listening on {bind_address}");
         NymSocksServer {
             authenticator,
-            listening_address: bind_adddress,
+            listening_address: bind_address,
             service_provider,
             self_address,
             client_config,

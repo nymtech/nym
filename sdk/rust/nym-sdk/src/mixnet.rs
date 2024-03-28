@@ -44,11 +44,16 @@ pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
 pub use nym_client_core::{
     client::{
-        base_client::storage::{Ephemeral, MixnetClientStorage, OnDiskPersistent},
+        base_client::storage::{
+            gateways_storage::{
+                ActiveGateway, BadGateway, GatewayRegistration, GatewaysDetailsStore,
+            },
+            Ephemeral, MixnetClientStorage, OnDiskPersistent,
+        },
         inbound_messages::InputMessage,
         key_manager::{
             persistence::{InMemEphemeralKeys, KeyStore, OnDiskKeys},
-            KeyManager,
+            ClientKeys,
         },
         replies::reply_storage::{
             fs_backend::Backend as ReplyStorage, CombinedReplyStorage, Empty as EmptyReplyStorage,
@@ -56,7 +61,7 @@ pub use nym_client_core::{
         },
         topology_control::geo_aware_provider::{CountryGroup, GeoAwareTopologyProvider},
     },
-    config::{GatewayEndpointConfig, GroupBy},
+    config::GroupBy,
 };
 pub use nym_credential_storage::{
     ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage,

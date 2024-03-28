@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::PolicyError;
+use nym_id::NymIdError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum IpPacketRouterError {
@@ -81,6 +82,9 @@ pub enum IpPacketRouterError {
 
     #[error("failed to update client activity")]
     FailedToUpdateClientActivity,
+
+    #[error(transparent)]
+    NymIdError(#[from] NymIdError),
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

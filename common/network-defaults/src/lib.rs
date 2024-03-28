@@ -4,6 +4,7 @@
 use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 use std::{
     env::{var, VarError},
@@ -521,4 +522,5 @@ pub const WG_PORT: u16 = 51822;
 // The interface used to route traffic
 pub const WG_TUN_BASE_NAME: &str = "nymwg";
 pub const WG_TUN_DEVICE_ADDRESS: &str = "10.1.0.1";
+pub const WG_TUN_DEVICE_IP_ADDRESS: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 1, 0, 1));
 pub const WG_TUN_DEVICE_NETMASK: &str = "255.255.255.0";

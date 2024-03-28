@@ -38,7 +38,7 @@ zeroize = { workspace = true }
 ## internal
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
-nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage", "cli"] }
+nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage", "cli"] }
 nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-credentials = { path = "../../common/credentials" }

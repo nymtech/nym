@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use clap::{crate_name, crate_version, Parser};
-use error::NetworkRequesterError;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_network_defaults::setup_env;
 
@@ -16,7 +15,7 @@ mod socks5;
 mod statistics;
 
 #[tokio::main]
-async fn main() -> Result<(), NetworkRequesterError> {
+async fn main() -> anyhow::Result<()> {
     let args = cli::Cli::parse();
     setup_env(args.config_env_file.as_ref());
 
@@ -25,5 +24,7 @@ async fn main() -> Result<(), NetworkRequesterError> {
     }
     setup_logging();
 
-    cli::execute(args).await
+    cli::execute(args).await?;
+
+    Ok(())
 }

@@ -546,37 +546,37 @@ impl PacketStatisticsControl {
                         break;
                     }
                 },
-                // conditional will disable the branch if we're in wasm32-unknown-unknown
-                // use `_` to calm down clippy when running for wasm
-                _result = listener.as_ref().unwrap().accept(), if listener.is_some() => {
-                    cfg_if::cfg_if! {
-                        if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
-                            if let Ok((stream, _)) = _result {
-                                let io = TokioIo::new(stream);
-
-                                tokio::task::spawn(async move {
-                                    if let Err(err) = http1::Builder::new()
-                                        .serve_connection(io, service_fn(serve_metrics))
-                                        .await
-                                    {
-                                        log::warn!("Error serving connection: {:?}", err);
-                                    }
-                                });
-                            } else {
-                                log::warn!("Error accepting connection");
+                _ = async {
+                    if let Some(ref listener) = listener {
+                        if let Ok((stream, _)) = listener.accept().await {
+                            cfg_if::cfg_if! {
+                                if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
+                                    let io = TokioIo::new(stream);
+                                    tokio::task::spawn(async move {
+                                        if let Err(err) = http1::Builder::new()
+                                            .serve_connection(io, service_fn(serve_metrics))
+                                            .await
+                                        {
+                                            log::warn!("Error serving connection: {:?}", err);
+                                        }
+                                    });
+                                }
                             }
                         }
+                    } else {
+                        let _ = futures::future::pending::<()>().await;
                     }
-                }
+                }, if listener.is_some() => {
+                },
                 _ = snapshot_interval.tick() => {
                     self.update_history();
                     self.update_rates();
-                }
+                },
                 _ = report_interval.tick() => {
                     self.report_rates();
                     self.check_for_notable_events();
                     self.report_counters();
-                }
+                },
                 _ = shutdown.recv_with_delay() => {
                     log::trace!("PacketStatisticsControl: Received shutdown");
                     break;

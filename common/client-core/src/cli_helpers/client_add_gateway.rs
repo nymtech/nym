@@ -36,7 +36,7 @@ pub struct CommonClientAddGatewayArgs {
 
     /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
     /// uniformly.
-    #[cfg_attr(feature = "cli", clap(long, conflicts_with = "gateway"))]
+    #[cfg_attr(feature = "cli", clap(long, conflicts_with = "gateway_id"))]
     pub latency_based_selection: bool,
 
     /// Specify whether this new gateway should be set as the active one

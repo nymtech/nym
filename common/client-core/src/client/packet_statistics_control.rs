@@ -7,6 +7,8 @@ use nym_metrics::{inc, inc_by};
 use si_scale::helpers::bibytes2;
 
 // Metrics server
+use futures::future::{FusedFuture, OptionFuture};
+use futures::FutureExt;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use http_body_util::Full;
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -535,6 +537,14 @@ impl PacketStatisticsControl {
         }
 
         loop {
+            // it seems at some point tokio changed its select precondition evaluation,
+            // and it's no longer checked before the future is evaluated.
+            let accept_future: OptionFuture<_> = listener
+                .as_ref()
+                .map(|l| l.accept())
+                .map(FutureExt::fuse)
+                .into();
+
             tokio::select! {
                 stats_event = self.stats_rx.recv() => match stats_event {
                     Some(stats_event) => {
@@ -548,10 +558,10 @@ impl PacketStatisticsControl {
                 },
                 // conditional will disable the branch if we're in wasm32-unknown-unknown
                 // use `_` to calm down clippy when running for wasm
-                _result = listener.as_ref().unwrap().accept(), if listener.is_some() => {
+                _result = accept_future, if !accept_future.is_terminated() => {
                     cfg_if::cfg_if! {
                         if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
-                            if let Ok((stream, _)) = _result {
+                            if let Some(Ok((stream, _))) = _result {
                                 let io = TokioIo::new(stream);
 
                                 tokio::task::spawn(async move {

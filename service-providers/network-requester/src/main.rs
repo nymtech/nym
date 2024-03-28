@@ -16,7 +16,7 @@ mod socks5;
 mod statistics;
 
 #[tokio::main]
-async fn main() -> Result<(), NetworkRequesterError> {
+async fn main() -> anyhow::Result<()> {
     let args = cli::Cli::parse();
     setup_env(args.config_env_file.as_ref());
 
@@ -25,5 +25,7 @@ async fn main() -> Result<(), NetworkRequesterError> {
     }
     setup_logging();
 
-    cli::execute(args).await
+    cli::execute(args).await?;
+    
+    Ok(())
 }

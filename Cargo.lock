@@ -5772,6 +5772,7 @@ dependencies = [
 name = "nym-ip-packet-router"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bincode",
  "bs58 0.5.0",
  "bytes",

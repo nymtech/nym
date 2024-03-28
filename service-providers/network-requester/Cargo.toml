@@ -16,6 +16,7 @@ name = "nym_network_requester"
 path = "src/lib.rs"
 
 [dependencies]
+anyhow = { workspace = true }
 addr = "0.15.6"
 async-trait = { workspace = true }
 bs58 = { workspace = true }
@@ -65,4 +66,3 @@ nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
 tempfile = "3.5.0"
-anyhow = { workspace = true }

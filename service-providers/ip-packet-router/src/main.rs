@@ -3,7 +3,7 @@ mod cli;
 
 #[cfg(target_os = "linux")]
 #[tokio::main]
-async fn main() -> Result<(), nym_ip_packet_router::error::IpPacketRouterError> {
+async fn main() -> anyhow::Result<()> {
     use clap::Parser;
 
     let args = cli::Cli::parse();
@@ -14,7 +14,8 @@ async fn main() -> Result<(), nym_ip_packet_router::error::IpPacketRouterError> 
         nym_bin_common::logging::maybe_print_banner(clap::crate_name!(), clap::crate_version!());
     }
 
-    cli::execute(args).await
+    cli::execute(args).await?;
+    Ok(())
 }
 
 #[cfg(not(target_os = "linux"))]

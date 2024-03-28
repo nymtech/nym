@@ -3,7 +3,7 @@
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::status::ApiStatusState;
-use crate::v2::AxumAppState;
+use crate::support::http::state::AppState;
 use axum::Json;
 use axum::Router;
 use nym_api_requests::models::{ApiHealthResponse, SignerInformationResponse};
@@ -11,7 +11,7 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_compact_ecash::Base58;
 use std::sync::Arc;
 
-pub(crate) fn api_status_routes() -> Router<AxumAppState> {
+pub(crate) fn api_status_routes() -> Router<AppState> {
     let api_status_state = Arc::new(ApiStatusState::new());
 
     Router::new()
@@ -84,7 +84,7 @@ async fn signer_information(
         identity: signer_state.identity.clone(),
         announce_address: signer_state.announce_address.clone(),
         verification_key: signer_state
-            .coconut_keypair
+            .ecash_keypair
             .verification_key()
             .await
             .map(|maybe_vk| maybe_vk.to_bs58()),

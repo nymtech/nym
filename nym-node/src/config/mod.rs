@@ -12,6 +12,7 @@ use nym_config::defaults::{
     mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT,
 };
 use nym_config::helpers::inaddr_any;
+use nym_config::serde_helpers::de_maybe_port;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
     must_get_home, parse_urls, read_config_from_toml_file, save_formatted_config_to_file,
@@ -416,6 +417,12 @@ pub struct Mixnet {
     /// default: `0.0.0.0:1789`
     pub bind_address: SocketAddr,
 
+    /// If applicable, custom port announced in the self-described API that other clients and nodes
+    /// will use.
+    /// Useful when the node is behind a proxy.
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub announce_port: Option<u16>,
+
     /// Addresses to nym APIs from which the node gets the view of the network.
     pub nym_api_urls: Vec<Url>,
 
@@ -492,6 +499,7 @@ impl Default for Mixnet {
 
         Mixnet {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_MIXNET_PORT),
+            announce_port: None,
             nym_api_urls,
             nyxd_urls,
             debug: Default::default(),

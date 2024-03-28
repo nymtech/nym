@@ -18,6 +18,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::{interval, MissedTickBehavior};
+use tracing::{debug, error, info, trace, warn};
 
 mod error;
 pub(crate) mod keys;
@@ -32,7 +33,7 @@ pub(crate) struct DkgController<R = OsRng> {
 
 impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     pub(crate) fn new(
-        config: &config::CoconutSigner,
+        config: &config::EcashSigner,
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
         dkg_keypair: DkgKeyPair,
@@ -52,7 +53,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nyxd_client),
-            coconut_key_path: config.storage_paths.coconut_key_path.clone(),
+            coconut_key_path: config.storage_paths.ecash_key_path.clone(),
             state: State::new(
                 config.storage_paths.dkg_persistent_state_path.clone(),
                 persistent_state,
@@ -304,7 +305,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     }
 
     pub(crate) fn start(
-        config: &config::CoconutSigner,
+        config: &config::EcashSigner,
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
         dkg_bte_keypair: DkgKeyPair,

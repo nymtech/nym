@@ -1,11 +1,14 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::helpers::RewardedSetStatus;
 use cosmwasm_std::Decimal;
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::reward_params::{NodeRewardParams, Performance, RewardingParams};
+use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
+use nym_mixnet_contract_common::reward_params::{
+    NodeRewardingParameters, Performance, RewardingParams,
+};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
-use nym_mixnet_contract_common::{Interval, RewardedSetNodeStatus};
+use nym_mixnet_contract_common::Interval;
 
 fn compute_apy(epochs_in_year: Decimal, reward: Decimal, pledge_amount: Decimal) -> Decimal {
     if pledge_amount.is_zero() {
@@ -17,9 +20,9 @@ fn compute_apy(epochs_in_year: Decimal, reward: Decimal, pledge_amount: Decimal)
 }
 
 pub fn compute_reward_estimate(
-    mixnode: &MixNodeDetails,
+    mixnode: &LegacyMixNodeDetailsWithLayer,
     performance: Performance,
-    rewarded_set_status: Option<RewardedSetNodeStatus>,
+    rewarded_set_status: RewardedSetStatus,
     rewarding_params: RewardingParams,
     interval: Interval,
 ) -> RewardEstimate {
@@ -31,13 +34,22 @@ pub fn compute_reward_estimate(
         return Default::default();
     }
 
-    let node_status = match rewarded_set_status {
-        Some(status) => status,
-        // if node is not in the rewarded set, it's not going to get anything
-        None => return Default::default(),
+    let is_active = match rewarded_set_status {
+        RewardedSetStatus::Active => true,
+        RewardedSetStatus::Standby => false,
+        RewardedSetStatus::Inactive => return Default::default(),
     };
 
-    let node_reward_params = NodeRewardParams::new(performance, node_status.is_active());
+    let work_factor = if is_active {
+        rewarding_params.active_node_work()
+    } else {
+        rewarding_params.standby_node_work()
+    };
+
+    let node_reward_params = NodeRewardingParameters {
+        performance,
+        work_factor,
+    };
     let node_reward = mixnode
         .rewarding_details
         .node_reward(&rewarding_params, node_reward_params);
@@ -63,7 +75,7 @@ pub fn compute_reward_estimate(
 }
 
 pub fn compute_apy_from_reward(
-    mixnode: &MixNodeDetails,
+    mixnode: &LegacyMixNodeDetailsWithLayer,
     reward_estimate: RewardEstimate,
     interval: Interval,
 ) -> (Decimal, Decimal) {

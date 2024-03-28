@@ -32,6 +32,36 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "ActiveSetUpdate": {
+      "description": "Specification on how the active set should be updated.",
+      "type": "object",
+      "required": [
+        "entry_gateways",
+        "exit_gateways",
+        "mixnodes"
+      ],
+      "properties": {
+        "entry_gateways": {
+          "description": "The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "exit_gateways": {
+          "description": "The expected number of nodes assigned exit gateway role (i.e. [`Role::ExitGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "mixnodes": {
+          "description": "The expected number of nodes assigned the 'mixnode' role, i.e. total of [`Role::Layer1`], [`Role::Layer2`] and [`Role::Layer3`].",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
     "Addr": {
       "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
       "type": "string"
@@ -105,7 +135,7 @@
       "description": "Enum encompassing all possible epoch events.",
       "oneOf": [
         {
-          "description": "Request to create a delegation towards particular mixnode. Note that if such delegation already exists, it will get updated with the provided token amount.",
+          "description": "Request to create a delegation towards particular node. Note that if such delegation already exists, it will get updated with the provided token amount.",
           "type": "object",
           "required": [
             "delegate"
@@ -115,7 +145,7 @@
               "type": "object",
               "required": [
                 "amount",
-                "mix_id",
+                "node_id",
                 "owner"
               ],
               "properties": {
@@ -127,8 +157,8 @@
                     }
                   ]
                 },
-                "mix_id": {
-                  "description": "The id of the mixnode used for the delegation.",
+                "node_id": {
+                  "description": "The id of the node used for the delegation.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
@@ -159,7 +189,7 @@
           "additionalProperties": false
         },
         {
-          "description": "Request to remove delegation from particular mixnode.",
+          "description": "Request to remove delegation from particular node.",
           "type": "object",
           "required": [
             "undelegate"
@@ -168,12 +198,12 @@
             "undelegate": {
               "type": "object",
               "required": [
-                "mix_id",
+                "node_id",
                 "owner"
               ],
               "properties": {
-                "mix_id": {
-                  "description": "The id of the mixnode used for the delegation.",
+                "node_id": {
+                  "description": "The id of the node used for the delegation.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
@@ -207,10 +237,44 @@
           "description": "Request to pledge more tokens (by the node operator) towards its node.",
           "type": "object",
           "required": [
-            "pledge_more"
+            "nym_node_pledge_more"
           ],
           "properties": {
-            "pledge_more": {
+            "nym_node_pledge_more": {
+              "type": "object",
+              "required": [
+                "amount",
+                "node_id"
+              ],
+              "properties": {
+                "amount": {
+                  "description": "The amount of additional tokens to use in the pledge.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
+                },
+                "node_id": {
+                  "description": "The id of the nym node that will have its pledge updated.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Request to pledge more tokens (by the node operator) towards its node.",
+          "type": "object",
+          "required": [
+            "mixnode_pledge_more"
+          ],
+          "properties": {
+            "mixnode_pledge_more": {
               "type": "object",
               "required": [
                 "amount",
@@ -218,7 +282,7 @@
               ],
               "properties": {
                 "amount": {
-                  "description": "The amount of additional tokens to use by the pledge.",
+                  "description": "The amount of additional tokens to use in the pledge.",
                   "allOf": [
                     {
                       "$ref": "#/definitions/Coin"
@@ -241,10 +305,44 @@
           "description": "Request to decrease amount of pledged tokens (by the node operator) from its node.",
           "type": "object",
           "required": [
-            "decrease_pledge"
+            "nym_node_decrease_pledge"
           ],
           "properties": {
-            "decrease_pledge": {
+            "nym_node_decrease_pledge": {
+              "type": "object",
+              "required": [
+                "decrease_by",
+                "node_id"
+              ],
+              "properties": {
+                "decrease_by": {
+                  "description": "The amount of tokens that should be removed from the pledge.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
+                },
+                "node_id": {
+                  "description": "The id of the nym node that will have its pledge updated.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Request to decrease amount of pledged tokens (by the node operator) from its node.",
+          "type": "object",
+          "required": [
+            "mixnode_decrease_pledge"
+          ],
+          "properties": {
+            "mixnode_decrease_pledge": {
               "type": "object",
               "required": [
                 "decrease_by",
@@ -297,23 +395,45 @@
           "additionalProperties": false
         },
         {
-          "description": "Request to update the current size of the active set.",
+          "description": "Request to unbond a nym node and completely remove it from the network.",
           "type": "object",
           "required": [
-            "update_active_set_size"
+            "unbond_nym_node"
           ],
           "properties": {
-            "update_active_set_size": {
+            "unbond_nym_node": {
               "type": "object",
               "required": [
-                "new_size"
+                "node_id"
               ],
               "properties": {
-                "new_size": {
-                  "description": "The new desired size of the active set.",
+                "node_id": {
+                  "description": "The id of the node that will get unbonded.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Request to update the current active set.",
+          "type": "object",
+          "required": [
+            "update_active_set"
+          ],
+          "properties": {
+            "update_active_set": {
+              "type": "object",
+              "required": [
+                "update"
+              ],
+              "properties": {
+                "update": {
+                  "$ref": "#/definitions/ActiveSetUpdate"
                 }
               },
               "additionalProperties": false

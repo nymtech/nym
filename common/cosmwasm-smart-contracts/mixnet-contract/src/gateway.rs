@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{IdentityKey, SphinxKey};
+use crate::{IdentityKey, NodeId, SphinxKey};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
 use std::cmp::Ordering;
@@ -198,6 +198,23 @@ pub struct GatewayBondResponse {
 
     /// If there exists a gateway with the provided identity key, this field contains its details.
     pub gateway: Option<GatewayBond>,
+}
+
+#[cw_serde]
+pub struct PreassignedId {
+    /// The identity key (base58-encoded ed25519 public key) of the gateway.
+    pub identity: IdentityKey,
+
+    /// The id pre-assigned to this gateway
+    pub node_id: NodeId,
+}
+
+#[cw_serde]
+pub struct PreassignedGatewayIdsResponse {
+    pub ids: Vec<PreassignedId>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
+    pub start_next_after: Option<IdentityKey>,
 }
 
 #[cfg(test)]

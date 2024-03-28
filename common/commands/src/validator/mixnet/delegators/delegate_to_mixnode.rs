@@ -4,13 +4,13 @@
 use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
-use nym_mixnet_contract_common::{Coin, MixId};
+use nym_mixnet_contract_common::{Coin, NodeId};
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 
 #[derive(Debug, Parser)]
 pub struct Args {
     #[clap(long)]
-    pub mix_id: Option<MixId>,
+    pub mix_id: Option<NodeId>,
 
     #[clap(long)]
     pub identity_key: Option<String>,
@@ -43,7 +43,7 @@ pub async fn delegate_to_mixnode(args: Args, client: SigningClient) {
     let coin = Coin::new(args.amount, denom);
 
     let res = client
-        .delegate_to_mixnode(mix_id, coin.into(), None)
+        .delegate(mix_id, coin.into(), None)
         .await
         .expect("failed to delegate to mixnode!");
 

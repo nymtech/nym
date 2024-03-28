@@ -4,7 +4,8 @@
   "description": "Response containing information about accrued rewards.",
   "type": "object",
   "required": [
-    "mixnode_still_fully_bonded"
+    "mixnode_still_fully_bonded",
+    "node_still_fully_bonded"
   ],
   "properties": {
     "amount_earned": {
@@ -42,6 +43,10 @@
     },
     "mixnode_still_fully_bonded": {
       "description": "The associated mixnode is still fully bonded, meaning it is neither unbonded nor in the process of unbonding that would have finished at the epoch transition.",
+      "deprecated": true,
+      "type": "boolean"
+    },
+    "node_still_fully_bonded": {
       "type": "boolean"
     }
   },

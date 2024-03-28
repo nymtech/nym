@@ -47,6 +47,7 @@ use nym_validator_client::EcashApiClient;
 use time::ext::NumericalDuration;
 use time::{Date, Duration, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
+use tracing::{debug, error, info, warn};
 
 pub(crate) mod auxiliary;
 pub(crate) mod bloom;
@@ -169,7 +170,7 @@ impl EcashState {
                     });
                 }
 
-                log::info!(
+                info!(
                     "attempting to establish master coin index signatures for epoch {epoch_id}..."
                 );
 
@@ -263,7 +264,7 @@ impl EcashState {
                     // because if it was a past epoch we **do** have those keys.
                     // they're just archived
 
-                    log::error!("received partial coin index signature request for an invalid epoch ({epoch_id}). our key was derived for epoch {}", signing_keys.issued_for_epoch);
+                    error!("received partial coin index signature request for an invalid epoch ({epoch_id}). our key was derived for epoch {}", signing_keys.issued_for_epoch);
                     return Err(EcashError::InvalidSigningKeyEpoch {
                         requested: epoch_id,
                         available: signing_keys.issued_for_epoch,
@@ -550,7 +551,7 @@ impl EcashState {
     pub(crate) async fn accept_proposal(&self, proposal_id: u64) -> Result<()> {
         //SW NOTE: What to do if this fails
         if let Err(err) = self.aux.client.vote_proposal(proposal_id, true, None).await {
-            log::debug!("failed to vote on proposal {proposal_id}: {err}");
+            debug!("failed to vote on proposal {proposal_id}: {err}");
         }
 
         Ok(())
@@ -755,7 +756,7 @@ impl EcashState {
             // sanity check because this should NEVER happen,
             // but when it inevitably does, we don't want to crash
             if spending_date != yesterday {
-                log::error!("attempted to insert a ticket with spending date of {spending_date} while it's {today} today!!");
+                error!("attempted to insert a ticket with spending date of {spending_date} while it's {today} today!!");
             }
 
             // this shouldn't be happening too often, so it's fine to interact with the storage
@@ -771,7 +772,7 @@ impl EcashState {
             return Ok(guard.insert_global_only(serial_number));
         }
 
-        log::info!("we need to advance our bloomfilter");
+        info!("we need to advance our bloomfilter");
         let previous_bitmap = guard.export_today_bitmap();
 
         // archive the BF for today's date

@@ -54,3 +54,7 @@ export * from './UnbondedMixnode';
 export * from './VestingAccountInfo';
 export * from './VestingPeriod';
 export * from './WrappedDelegationEvent';
+export * from './NymNode';
+export * from './NymNodeBond';
+export * from './NymNodeDetails';
+export * from './NodeRewarding';

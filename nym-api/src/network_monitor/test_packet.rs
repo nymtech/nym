@@ -24,7 +24,7 @@ impl NymApiTestMessageExt {
 
     pub fn mix_plaintexts(
         &self,
-        node: &mix::Node,
+        node: &mix::LegacyNode,
         test_packets: u32,
     ) -> Result<Vec<Vec<u8>>, NetworkTestingError> {
         NodeTestMessage::mix_plaintexts(node, test_packets, *self)

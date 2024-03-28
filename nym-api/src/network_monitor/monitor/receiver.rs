@@ -8,6 +8,7 @@ use futures::StreamExt;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
 use nym_task::TaskClient;
+use tracing::trace;
 
 pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientUpdate>;
 pub(crate) type GatewayClientUpdateReceiver = mpsc::UnboundedReceiver<GatewayClientUpdate>;

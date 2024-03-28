@@ -38,6 +38,9 @@ pub enum ClientCoreError {
 
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,
+    
+    #[error("there are no more new gateways on the network - it seems this client has already registered with all nodes it could have")]
+    NoNewGatewaysAvailable,
 
     #[error("list of nym apis is empty")]
     ListOfNymApisIsEmpty,

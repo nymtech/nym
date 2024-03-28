@@ -220,7 +220,6 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         GatewaySetup::New {
             specification: selection_spec,
             available_gateways,
-            overwrite_data: true,
             wg_tun_address: None,
         }
     } else {

@@ -244,10 +244,7 @@ pub enum GatewaySetup {
 
         // TODO: seems to be a bit inefficient to pass them by value
         available_gateways: Vec<gateway::Node>,
-
-        /// Specifies whether old data should be overwritten whilst setting up new gateway client.
-        overwrite_data: bool,
-
+        
         /// Implicitly specify whether the chosen gateway must use wireguard mode by setting the tun address.
         ///
         /// Currently this is imperfect solution as I'd imagine this address could vary from gateway to gateway
@@ -287,7 +284,6 @@ impl GatewaySetup {
                 additional_data: None,
             },
             available_gateways: vec![],
-            overwrite_data: false,
             wg_tun_address: None,
         }
     }

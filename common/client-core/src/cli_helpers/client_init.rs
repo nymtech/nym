@@ -169,7 +169,6 @@ where
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
-        overwrite_data: false,
         wg_tun_address: None,
     };
 

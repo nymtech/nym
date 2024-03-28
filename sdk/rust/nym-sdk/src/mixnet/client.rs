@@ -434,7 +434,6 @@ where
         Ok(GatewaySetup::New {
             specification: selection_spec,
             available_gateways,
-            overwrite_data: !self.config.key_mode.is_keep(),
             wg_tun_address: self.wireguard_tun_address(),
         })
     }

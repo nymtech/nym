@@ -39,11 +39,6 @@ pub struct CommonClientAddGatewayArgs {
     #[cfg_attr(feature = "cli", clap(long, conflicts_with = "gateway"))]
     pub latency_based_selection: bool,
 
-    /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
-    /// potentially causing loss of access.
-    #[cfg_attr(feature = "cli", clap(long))]
-    pub force_register_gateway: bool,
-
     /// Specify whether this new gateway should be set as the active one
     #[cfg_attr(feature = "cli", clap(long, default_value_t = true))]
     pub set_active: bool,
@@ -80,11 +75,6 @@ where
     let key_store = OnDiskKeys::new(paths.keys.clone());
     let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
 
-    let user_wants_force_register = common_args.force_register_gateway;
-    if user_wants_force_register {
-        eprintln!("Instructed to force registering gateway. This might overwrite keys!");
-    }
-
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway_id;
     log::debug!("User chosen gateway id: {user_chosen_gateway_id:?}");
@@ -101,7 +91,7 @@ where
     // if user provided gateway id (and we can't overwrite data), make sure we're not trying to register
     // with a known gateway
     if let Some(user_chosen) = user_chosen_gateway_id {
-        if !common_args.force_register_gateway && registered_gateways.contains(&user_chosen) {
+        if registered_gateways.contains(&user_chosen) {
             return Err(ClientCoreError::AlreadyRegistered {
                 gateway_id: user_chosen.to_base58_string(),
             }
@@ -126,20 +116,18 @@ where
 
     // since we're registering with a brand new gateway,
     // make sure the list of available gateways doesn't overlap the list of known gateways
-    let available_gateways = if common_args.force_register_gateway {
-        // if we're force registering, all bets are off
-        available_gateways
-    } else {
-        available_gateways
-            .into_iter()
-            .filter(|g| !registered_gateways.contains(g.identity()))
-            .collect()
-    };
+    let available_gateways = available_gateways
+        .into_iter()
+        .filter(|g| !registered_gateways.contains(g.identity()))
+        .collect::<Vec<_>>();
+
+    if available_gateways.is_empty() {
+        return Err(ClientCoreError::NoNewGatewaysAvailable.into())
+    }
 
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
-        overwrite_data: common_args.force_register_gateway,
         wg_tun_address: None,
     };
 

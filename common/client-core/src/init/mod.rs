@@ -50,7 +50,6 @@ where
 async fn setup_new_gateway<K, D>(
     key_store: &K,
     details_store: &D,
-    overwrite_data: bool,
     selection_specification: GatewaySelectionSpecification,
     available_gateways: Vec<gateway::Node>,
     wg_tun_ip_address: Option<IpAddr>,
@@ -94,8 +93,8 @@ where
     // check if we already have details associated with this particular gateway
     // and if so, see if we can overwrite it
     let selected_id = selected_gateway.gateway_id().to_base58_string();
-    if has_gateway_details(details_store, &selected_id).await? && !overwrite_data {
-        return Err(ClientCoreError::ForbiddenGatewayKeyOverwrite {
+    if has_gateway_details(details_store, &selected_id).await? {
+        return Err(ClientCoreError::AlreadyRegistered {
             gateway_id: selected_id,
         });
     }
@@ -208,14 +207,12 @@ where
         GatewaySetup::New {
             specification,
             available_gateways,
-            overwrite_data,
             wg_tun_address,
         } => {
             log::trace!("GatewaySetup::New with spec: {specification:?}");
             setup_new_gateway(
                 key_store,
                 details_store,
-                overwrite_data,
                 specification,
                 available_gateways,
                 wg_tun_address,

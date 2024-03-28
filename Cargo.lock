@@ -390,16 +390,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-file-watcher"
-version = "0.1.0"
-dependencies = [
- "futures",
- "log",
- "notify",
- "tokio",
-]
-
-[[package]]
 name = "async-io"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3302,20 +3292,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "http-api-client"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
- "url",
- "wasmtimer",
-]
-
-[[package]]
 name = "http-body"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3942,17 +3918,6 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
-name = "ledger"
-version = "0.1.0"
-dependencies = [
- "bip32",
- "k256",
- "ledger-transport",
- "ledger-transport-hid",
- "thiserror",
-]
 
 [[package]]
 name = "ledger-apdu"
@@ -4596,9 +4561,9 @@ version = "1.3.0-rc.0"
 dependencies = [
  "async-trait",
  "futures",
- "http-api-client",
  "js-sys",
  "nym-bin-common",
+ "nym-http-api-client",
  "nym-ordered-buffer",
  "nym-service-providers-common",
  "nym-socks5-requests",
@@ -5071,6 +5036,16 @@ dependencies = [
  "serde",
  "tendermint",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-async-file-watcher"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+ "notify",
+ "tokio",
 ]
 
 [[package]]
@@ -5730,6 +5705,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-http-api-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "url",
+ "wasmtimer",
+]
+
+[[package]]
 name = "nym-id"
 version = "0.1.0"
 dependencies = [
@@ -5817,6 +5806,17 @@ dependencies = [
  "tokio-tun",
  "tokio-util",
  "url",
+]
+
+[[package]]
+name = "nym-ledger"
+version = "0.1.0"
+dependencies = [
+ "bip32",
+ "k256",
+ "ledger-transport",
+ "ledger-transport-hid",
+ "thiserror",
 ]
 
 [[package]]
@@ -5983,7 +5983,6 @@ version = "1.1.33"
 dependencies = [
  "addr",
  "anyhow",
- "async-file-watcher",
  "async-trait",
  "bs58 0.5.0",
  "clap 4.4.7",
@@ -5992,6 +5991,7 @@ dependencies = [
  "humantime-serde",
  "ipnetwork 0.20.0",
  "log",
+ "nym-async-file-watcher",
  "nym-bin-common",
  "nym-client-core",
  "nym-client-websocket-requests",
@@ -6086,10 +6086,10 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.21.4",
- "http-api-client",
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
+ "nym-http-api-client",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -6667,7 +6667,6 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
- "http-api-client",
  "itertools 0.10.5",
  "log",
  "nym-api-requests",
@@ -6678,6 +6677,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-ephemera-common",
  "nym-group-contract-common",
+ "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-name-service-common",
@@ -6803,7 +6803,6 @@ name = "nymvisor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-file-watcher",
  "bytes",
  "clap 4.4.7",
  "dotenvy",
@@ -6813,6 +6812,7 @@ dependencies = [
  "humantime 2.1.0",
  "humantime-serde",
  "nix 0.27.1",
+ "nym-async-file-watcher",
  "nym-bin-common",
  "nym-config",
  "nym-task",

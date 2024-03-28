@@ -3,7 +3,7 @@
 <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/908221306?h=404b2bbdc8" style="position:absolute;top:0;left:0;width:100%;height:100%;" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
 
 ```admonish info
-NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
+NymVPN is an experimental software and it's for testing purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
 ```
 
 ## Preparation
@@ -14,7 +14,7 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 
 1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for Debian based Linux
 
-2. Required (if you don't want to check shasum, skip this point): Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+2. (Optional: if you don't want to check shasum, skip this point) Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 
@@ -43,6 +43,7 @@ sudo dpkg -i ./nym-vpn_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_amd64.
 sudo apt-get install -f ./nym-vpn_<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->_amd64.deb
 ```
 
+<!--
 NymVPN alpha version runs over Nym testnet (called sandbox), a little extra configuration is needed for the application to work.
 
 ### Configuration
@@ -63,6 +64,7 @@ curl -o $HOME/.config/nym-vpn/sandbox.env -L https://raw.githubusercontent.com/n
 # change <USER> to your username
 env_config_file = "/home/<USER>/.config/nym-vpn/sandbox.env"
 ```
+-->
 
 ## Run NymVPN
 

@@ -30,9 +30,11 @@ assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
 wallet_release_version = "1.2.8"
-# nym-vpn related variables
-nym_vpn_latest_binary_url = "https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.4"
-nym_vpn_form_url = "https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2"
+performance_testing_webpage = "https://nymtech.net/events/fast-and-furious"
+performance_validator = "http://validator.performance.nymte.ch/"
+performance_testing_release = "v2024.2-fast-and-furious-v2"
+# dependencies
+prometheus_latest_version = "v2.50.1"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"

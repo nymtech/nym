@@ -7,7 +7,6 @@ use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
-use log::warn;
 use nym_crypto::asymmetric::encryption;
 use nym_node_tester_utils::error::NetworkTestingError;
 use nym_node_tester_utils::processor::TestPacketProcessor;
@@ -16,6 +15,7 @@ use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError};
 use std::mem;
 use std::sync::Arc;
 use thiserror::Error;
+use tracing::{debug, error, trace, warn};
 
 pub(crate) type ReceivedProcessorSender = mpsc::UnboundedSender<GatewayMessages>;
 pub(crate) type ReceivedProcessorReceiver = mpsc::UnboundedReceiver<GatewayMessages>;

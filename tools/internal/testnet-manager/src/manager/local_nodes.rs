@@ -7,7 +7,8 @@ use crate::manager::network::LoadedNetwork;
 use crate::manager::node::NymNode;
 use crate::manager::NetworkManager;
 use console::style;
-use nym_mixnet_contract_common::{Layer, LayerAssignment};
+use nym_mixnet_contract_common::nym_node::Role;
+use nym_mixnet_contract_common::RoleAssignment;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
@@ -385,17 +386,92 @@ impl NetworkManager {
         let fut = rewarder.reconcile_epoch_events(None, None);
         ctx.async_with_progress(fut).await?;
 
-        ctx.set_pb_message("finally assigning the active set...");
-        let fut = rewarder.get_rewarding_parameters();
-        let rewarding_params = ctx.async_with_progress(fut).await?;
-        let active_set_size = rewarding_params.active_set_size;
+        ctx.set_pb_message("[BROKEN] finally assigning the active set...");
+        // let fut = rewarder.get_rewarding_parameters();
+        // let rewarding_params = ctx.async_with_progress(fut).await?;
+        // let active_set_size = rewarding_params.active_set_size;
 
-        let layer_assignment = vec![
-            LayerAssignment::new(1, Layer::One),
-            LayerAssignment::new(2, Layer::Two),
-            LayerAssignment::new(3, Layer::Three),
-        ];
-        let fut = rewarder.advance_current_epoch(layer_assignment, active_set_size, None);
+        let unused_variable = "this has to be fixed up and refactored....";
+        /*
+                fn generate_role_assignment_messages(
+            &self,
+            rewarded_set: RewardedSet,
+        ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
+            // currently we just assign all of them together,
+            // but the contract is ready to handle them separately should we need it
+            // if the tx is too big
+            let mut msgs = Vec::new();
+            for (role, nodes) in [
+                (Role::ExitGateway, rewarded_set.exit_gateways),
+                (Role::EntryGateway, rewarded_set.entry_gateways),
+                (Role::Layer1, rewarded_set.layer1),
+                (Role::Layer2, rewarded_set.layer2),
+                (Role::Layer3, rewarded_set.layer3),
+                (Role::Standby, rewarded_set.standby),
+            ] {
+                msgs.push((
+                    ExecuteMsg::AssignRoles {
+                        assignment: RoleAssignment { role, nodes },
+                    },
+                    Vec::new(),
+                ));
+            }
+            msgs
+        }
+             */
+
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::ExitGateway,
+                nodes: vec![4],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::EntryGateway,
+                nodes: vec![],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::Layer1,
+                nodes: vec![1],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::Layer2,
+                nodes: vec![2],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::Layer3,
+                nodes: vec![3],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::Standby,
+                nodes: vec![],
+            },
+            None,
+        );
         ctx.async_with_progress(fut).await?;
 
         Ok(())

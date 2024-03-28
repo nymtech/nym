@@ -17,11 +17,12 @@ use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
-use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
+use nym_api_requests::legacy::LegacyGatewayBondWithId;
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
+use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
@@ -31,7 +32,7 @@ use url::Url;
 
 pub use crate::nym_api::NymApiClientExt;
 pub use nym_mixnet_contract_common::{
-    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, MixId,
+    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId,
 };
 
 // re-export the type to not break existing imports
@@ -239,7 +240,9 @@ impl<C, S> Client<C, S> {
         Ok(self.nym_api.get_active_mixnodes_detailed().await?)
     }
 
-    pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    pub async fn get_cached_gateways(
+        &self,
+    ) -> Result<Vec<LegacyGatewayBondWithId>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
 
@@ -321,13 +324,15 @@ impl NymApiClient {
         Ok(self.nym_api.get_mixnodes().await?)
     }
 
-    pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    pub async fn get_cached_gateways(
+        &self,
+    ) -> Result<Vec<LegacyGatewayBondWithId>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
 
     pub async fn get_cached_described_gateways(
         &self,
-    ) -> Result<Vec<DescribedGateway>, ValidatorClientError> {
+    ) -> Result<Vec<LegacyDescribedGateway>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways_described().await?)
     }
 
@@ -344,7 +349,7 @@ impl NymApiClient {
 
     pub async fn get_mixnode_core_status_count(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, ValidatorClientError> {
         Ok(self
@@ -355,21 +360,21 @@ impl NymApiClient {
 
     pub async fn get_mixnode_status(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
         Ok(self.nym_api.get_mixnode_status(mix_id).await?)
     }
 
     pub async fn get_mixnode_reward_estimation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<RewardEstimationResponse, ValidatorClientError> {
         Ok(self.nym_api.get_mixnode_reward_estimation(mix_id).await?)
     }
 
     pub async fn get_mixnode_stake_saturation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<StakeSaturationResponse, ValidatorClientError> {
         Ok(self.nym_api.get_mixnode_stake_saturation(mix_id).await?)
     }

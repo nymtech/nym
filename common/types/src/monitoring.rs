@@ -1,9 +1,8 @@
-use std::{collections::HashSet, sync::LazyLock, time::SystemTime};
-
 use nym_crypto::asymmetric::identity::{PrivateKey, PublicKey, Signature};
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, sync::LazyLock, time::SystemTime};
 
 static NETWORK_MONITORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let mut nm = HashSet::new();
@@ -13,45 +12,17 @@ static NETWORK_MONITORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 pub struct NodeResult {
-    pub node_id: MixId,
+    pub node_id: NodeId,
     pub identity: String,
     pub reliability: u8,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
-pub struct MixnodeResult {
-    pub mix_id: MixId,
-    pub identity: String,
-    pub owner: String,
-    pub reliability: u8,
-}
-
-impl MixnodeResult {
-    pub fn new(mix_id: MixId, identity: String, owner: String, reliability: u8) -> Self {
-        MixnodeResult {
-            mix_id,
+impl NodeResult {
+    pub fn new(node_id: NodeId, identity: String, reliability: u8) -> Self {
+        NodeResult {
+            node_id,
             identity,
-            owner,
             reliability,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, JsonSchema, Clone)]
-pub struct GatewayResult {
-    pub identity: String,
-    pub owner: String,
-    pub reliability: u8,
-    pub mix_id: MixId,
-}
-
-impl GatewayResult {
-    pub fn new(identity: String, owner: String, reliability: u8) -> Self {
-        GatewayResult {
-            identity,
-            owner,
-            reliability,
-            mix_id: 0,
         }
     }
 }
@@ -59,8 +30,8 @@ impl GatewayResult {
 #[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum MonitorResults {
-    Mixnode(Vec<MixnodeResult>),
-    Gateway(Vec<GatewayResult>),
+    Mixnode(Vec<NodeResult>),
+    Gateway(Vec<NodeResult>),
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -105,7 +76,7 @@ impl MonitorMessage {
         }
     }
 
-    pub fn from_allowed(&self) -> bool {
+    pub fn is_in_allowed(&self) -> bool {
         NETWORK_MONITORS.contains(&self.signer)
     }
 

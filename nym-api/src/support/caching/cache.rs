@@ -31,12 +31,12 @@ impl<T> SharedCache<T> {
         SharedCache::default()
     }
 
-    pub(crate) async fn update(&self, value: T) {
+    pub(crate) async fn update(&self, value: impl Into<T>) {
         let mut guard = self.0.write().await;
         if let Some(ref mut existing) = guard.inner {
             existing.unchecked_update(value)
         } else {
-            guard.inner = Some(Cache::new(value))
+            guard.inner = Some(Cache::new(value.into()))
         }
     }
 
@@ -51,6 +51,17 @@ impl<T> SharedCache<T> {
         &self,
     ) -> Result<RwLockReadGuard<'_, T>, UninitialisedCache> {
         Ok(RwLockReadGuard::map(self.get().await?, |a| &a.value))
+    }
+
+    pub(crate) async fn naive_wait_for_initial_values(&self) {
+        let initialisation_backoff = Duration::from_secs(5);
+        loop {
+            if self.get().await.is_ok() {
+                break;
+            } else {
+                tokio::time::sleep(initialisation_backoff).await;
+            }
+        }
     }
 }
 
@@ -118,8 +129,8 @@ impl<T> Cache<T> {
     }
 
     // ugh. I hate to expose it, but it'd have broken pre-existing code
-    pub(crate) fn unchecked_update(&mut self, value: T) {
-        self.value = value;
+    pub(crate) fn unchecked_update(&mut self, value: impl Into<T>) {
+        self.value = value.into();
         self.as_at = OffsetDateTime::now_utc()
     }
 
@@ -135,7 +146,6 @@ impl<T> Cache<T> {
         self.as_at
     }
 
-    #[allow(dead_code)]
     pub fn into_inner(self) -> T {
         self.value
     }

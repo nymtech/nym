@@ -6,7 +6,9 @@ use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::{info, warn};
 use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::{Coin, MixNodeCostParams};
+use nym_mixnet_contract_common::{
+    Coin, NodeCostParams, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, DEFAULT_PROFIT_MARGIN_PERCENT,
+};
 use nym_mixnet_contract_common::{MixNode, Percent};
 use nym_network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
@@ -40,7 +42,7 @@ pub struct Args {
     pub version: String,
 
     #[clap(long)]
-    pub profit_margin_percent: Option<u8>,
+    pub profit_margin_percent: Option<u64>,
 
     #[clap(
         long,
@@ -84,14 +86,18 @@ pub async fn vesting_bond_mixnode(client: SigningClient, args: Args, denom: &str
 
     let coin = Coin::new(args.amount, denom);
 
-    let cost_params = MixNodeCostParams {
+    let cost_params = NodeCostParams {
         profit_margin_percent: Percent::from_percentage_value(
-            args.profit_margin_percent.unwrap_or(10) as u64,
+            args.profit_margin_percent
+                .unwrap_or(DEFAULT_PROFIT_MARGIN_PERCENT),
         )
         .unwrap(),
         interval_operating_cost: CosmWasmCoin {
             denom: denom.into(),
-            amount: Uint128::new(args.interval_operating_cost.unwrap_or(40_000_000)),
+            amount: Uint128::new(
+                args.interval_operating_cost
+                    .unwrap_or(DEFAULT_INTERVAL_OPERATING_COST_AMOUNT),
+            ),
         },
     };
 

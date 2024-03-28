@@ -1,6 +1,18 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::NodeStatusCache;
+use crate::node_status_api::helpers_deprecated::{
+    _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
+    _gateway_uptime_history, _get_gateway_avg_uptime, _get_mixnode_avg_uptime,
+    _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
+    _get_mixnode_reward_estimation, _get_mixnode_stake_saturation, _get_mixnode_status,
+    _get_mixnodes_detailed_unfiltered, _mixnode_core_status_count, _mixnode_report,
+    _mixnode_uptime_history,
+};
+use crate::node_status_api::models::RocketErrorResponse;
+use crate::storage::NymApiStorage;
+use crate::NymContractCache;
 use nym_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
     GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
@@ -9,68 +21,54 @@ use nym_api_requests::models::{
     MixnodeUptimeHistoryResponse, RewardEstimationResponse, StakeSaturationResponse,
     UptimeResponse,
 };
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::MonitorMessage;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
 
-use super::helpers_deprecated::_get_gateways_detailed;
-use super::NodeStatusCache;
-use crate::node_status_api::helpers_deprecated::{
-    _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
-    _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
-    _get_gateways_detailed_unfiltered, _get_mixnode_avg_uptime,
-    _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
-    _get_mixnode_reward_estimation, _get_mixnode_stake_saturation, _get_mixnode_status,
-    _get_mixnodes_detailed, _get_mixnodes_detailed_unfiltered, _get_rewarded_set_detailed,
-    _mixnode_core_status_count, _mixnode_report, _mixnode_uptime_history,
-};
-use crate::node_status_api::models::RocketErrorResponse;
-use crate::storage::NymApiStorage;
-use crate::NymContractCache;
-
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[post("/submit-gateway-monitoring-results", data = "<message>")]
 pub(crate) async fn submit_gateway_monitoring_results(
     message: Json<MonitorMessage>,
     storage: &State<NymApiStorage>,
 ) -> Result<(), RocketErrorResponse> {
-    if !message.from_allowed() {
-        return Err(RocketErrorResponse::new(
-            "Monitor not registered to submit results".to_string(),
-            rocket::http::Status::Forbidden,
-        ));
-    }
-
-    if !message.timely() {
-        return Err(RocketErrorResponse::new(
-            "Message is too old".to_string(),
-            rocket::http::Status::BadRequest,
-        ));
-    }
-
-    if !message.verify() {
-        return Err(RocketErrorResponse::new(
-            "Invalid signature".to_string(),
-            rocket::http::Status::BadRequest,
-        ));
-    }
-
-    match storage
-        .manager
-        .submit_gateway_statuses_v2(message.results())
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            error!("failed to submit gateway monitoring results: {}", err);
-            Err(RocketErrorResponse::new(
-                "failed to submit gateway monitoring results".to_string(),
-                rocket::http::Status::InternalServerError,
-            ))
-        }
-    }
+    todo!("rebasing");
+    // if !message.from_allowed() {
+    //     return Err(RocketErrorResponse::new(
+    //         "Monitor not registered to submit results".to_string(),
+    //         rocket::http::Status::Forbidden,
+    //     ));
+    // }
+    //
+    // if !message.timely() {
+    //     return Err(RocketErrorResponse::new(
+    //         "Message is too old".to_string(),
+    //         rocket::http::Status::BadRequest,
+    //     ));
+    // }
+    //
+    // if !message.verify() {
+    //     return Err(RocketErrorResponse::new(
+    //         "Invalid signature".to_string(),
+    //         rocket::http::Status::BadRequest,
+    //     ));
+    // }
+    //
+    // match storage
+    //     .manager
+    //     .submit_gateway_statuses_v2(message.results())
+    //     .await
+    // {
+    //     Ok(_) => Ok(()),
+    //     Err(err) => {
+    //         error!("failed to submit gateway monitoring results: {}", err);
+    //         Err(RocketErrorResponse::new(
+    //             "failed to submit gateway monitoring results".to_string(),
+    //             rocket::http::Status::InternalServerError,
+    //         ))
+    //     }
+    // }
 }
 
 #[openapi(tag = "status")]
@@ -79,62 +77,71 @@ pub(crate) async fn submit_node_monitoring_results(
     message: Json<MonitorMessage>,
     storage: &State<NymApiStorage>,
 ) -> Result<(), RocketErrorResponse> {
-    if !message.from_allowed() {
-        return Err(RocketErrorResponse::new(
-            "Monitor not registered to submit results".to_string(),
-            rocket::http::Status::Forbidden,
-        ));
-    }
+    todo!("rebasing");
 
-    if !message.timely() {
-        return Err(RocketErrorResponse::new(
-            "Message is too old".to_string(),
-            rocket::http::Status::BadRequest,
-        ));
-    }
-
-    if !message.verify() {
-        return Err(RocketErrorResponse::new(
-            "Invalid signature".to_string(),
-            rocket::http::Status::BadRequest,
-        ));
-    }
-
-    match storage
-        .manager
-        .submit_mixnode_statuses_v2(message.results())
-        .await
-    {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            error!("failed to submit node monitoring results: {}", err);
-            Err(RocketErrorResponse::new(
-                "failed to submit node monitoring results".to_string(),
-                rocket::http::Status::InternalServerError,
-            ))
-        }
-    }
+    // if !message.from_allowed() {
+    //     return Err(RocketErrorResponse::new(
+    //         "Monitor not registered to submit results".to_string(),
+    //         rocket::http::Status::Forbidden,
+    //     ));
+    // }
+    //
+    // if !message.timely() {
+    //     return Err(RocketErrorResponse::new(
+    //         "Message is too old".to_string(),
+    //         rocket::http::Status::BadRequest,
+    //     ));
+    // }
+    //
+    // if !message.verify() {
+    //     return Err(RocketErrorResponse::new(
+    //         "Invalid signature".to_string(),
+    //         rocket::http::Status::BadRequest,
+    //     ));
+    // }
+    //
+    // match storage
+    //     .manager
+    //     .submit_mixnode_statuses_v2(message.results())
+    //     .await
+    // {
+    //     Ok(_) => Ok(()),
+    //     Err(err) => {
+    //         error!("failed to submit node monitoring results: {}", err);
+    //         Err(RocketErrorResponse::new(
+    //             "failed to submit node monitoring results".to_string(),
+    //             rocket::http::Status::InternalServerError,
+    //         ))
+    //     }
+    // }
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/gateway/<identity>/report")]
 pub(crate) async fn gateway_report(
     cache: &State<NodeStatusCache>,
     identity: &str,
 ) -> Result<Json<GatewayStatusReportResponse>, RocketErrorResponse> {
-    Ok(Json(_gateway_report(cache, identity).await?))
+    todo!("rebasing");
+
+    // Ok(Json(_gateway_report(cache, identity).await?))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/gateway/<identity>/history")]
 pub(crate) async fn gateway_uptime_history(
     storage: &State<NymApiStorage>,
+    nym_contract_cache: &State<NymContractCache>,
     identity: &str,
 ) -> Result<Json<GatewayUptimeHistoryResponse>, RocketErrorResponse> {
-    Ok(Json(_gateway_uptime_history(storage, identity).await?))
+    todo!("rebasing");
+
+    // Ok(Json(
+    //     _gateway_uptime_history(storage, nym_contract_cache, identity).await?,
+    // ))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/gateway/<identity>/core-status-count?<since>")]
 pub(crate) async fn gateway_core_status_count(
     storage: &State<NymApiStorage>,
@@ -146,29 +153,34 @@ pub(crate) async fn gateway_core_status_count(
     ))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnode/<mix_id>/report")]
 pub(crate) async fn mixnode_report(
     cache: &State<NodeStatusCache>,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Json<MixnodeStatusReportResponse>, RocketErrorResponse> {
     Ok(Json(_mixnode_report(cache, mix_id).await?))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnode/<mix_id>/history")]
 pub(crate) async fn mixnode_uptime_history(
     storage: &State<NymApiStorage>,
-    mix_id: MixId,
+    nym_contract_cache: &State<NymContractCache>,
+    mix_id: NodeId,
 ) -> Result<Json<MixnodeUptimeHistoryResponse>, RocketErrorResponse> {
-    Ok(Json(_mixnode_uptime_history(storage, mix_id).await?))
+    todo!("rebasing");
+
+    // Ok(Json(
+    //     _mixnode_uptime_history(storage, nym_contract_cache, mix_id).await?,
+    // ))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnode/<mix_id>/core-status-count?<since>")]
 pub(crate) async fn mixnode_core_status_count(
     storage: &State<NymApiStorage>,
-    mix_id: MixId,
+    mix_id: NodeId,
     since: Option<i64>,
 ) -> Result<Json<MixnodeCoreStatusResponse>, RocketErrorResponse> {
     Ok(Json(
@@ -176,28 +188,28 @@ pub(crate) async fn mixnode_core_status_count(
     ))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnode/<mix_id>/status")]
 pub(crate) async fn get_mixnode_status(
     cache: &State<NymContractCache>,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Json<MixnodeStatusResponse> {
     Json(_get_mixnode_status(cache, mix_id).await)
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnode/<mix_id>/reward-estimation")]
 pub(crate) async fn get_mixnode_reward_estimation(
     cache: &State<NodeStatusCache>,
     validator_cache: &State<NymContractCache>,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Json<RewardEstimationResponse>, RocketErrorResponse> {
     Ok(Json(
         _get_mixnode_reward_estimation(cache, validator_cache, mix_id).await?,
     ))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[post(
     "/mixnode/<mix_id>/compute-reward-estimation",
     data = "<user_reward_param>"
@@ -206,7 +218,7 @@ pub(crate) async fn compute_mixnode_reward_estimation(
     user_reward_param: Json<ComputeRewardEstParam>,
     cache: &State<NodeStatusCache>,
     validator_cache: &State<NymContractCache>,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Json<RewardEstimationResponse>, RocketErrorResponse> {
     Ok(Json(
         _compute_mixnode_reward_estimation(
@@ -219,39 +231,39 @@ pub(crate) async fn compute_mixnode_reward_estimation(
     ))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnode/<mix_id>/stake-saturation")]
 pub(crate) async fn get_mixnode_stake_saturation(
     cache: &State<NodeStatusCache>,
     validator_cache: &State<NymContractCache>,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Json<StakeSaturationResponse>, RocketErrorResponse> {
     Ok(Json(
         _get_mixnode_stake_saturation(cache, validator_cache, mix_id).await?,
     ))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnode/<mix_id>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
     cache: &State<NodeStatusCache>,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Json<InclusionProbabilityResponse>, RocketErrorResponse> {
     Ok(Json(
         _get_mixnode_inclusion_probability(cache, mix_id).await?,
     ))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnode/<mix_id>/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptime(
     cache: &State<NodeStatusCache>,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Json<UptimeResponse>, RocketErrorResponse> {
     Ok(Json(_get_mixnode_avg_uptime(cache, mix_id).await?))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/gateway/<identity>/avg_uptime")]
 pub(crate) async fn get_gateway_avg_uptime(
     cache: &State<NodeStatusCache>,
@@ -260,7 +272,7 @@ pub(crate) async fn get_gateway_avg_uptime(
     Ok(Json(_get_gateway_avg_uptime(cache, identity).await?))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnodes/inclusion_probability")]
 pub(crate) async fn get_mixnode_inclusion_probabilities(
     cache: &State<NodeStatusCache>,
@@ -268,15 +280,17 @@ pub(crate) async fn get_mixnode_inclusion_probabilities(
     Ok(Json(_get_mixnode_inclusion_probabilities(cache).await?))
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnodes/detailed")]
 pub async fn get_mixnodes_detailed(
     cache: &State<NodeStatusCache>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
-    Json(_get_mixnodes_detailed(cache).await)
+    todo!("rebasing");
+
+    // Json(_get_legacy_mixnodes_detailed(cache).await)
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnodes/detailed-unfiltered")]
 pub async fn get_mixnodes_detailed_unfiltered(
     cache: &State<NodeStatusCache>,
@@ -284,36 +298,45 @@ pub async fn get_mixnodes_detailed_unfiltered(
     Json(_get_mixnodes_detailed_unfiltered(cache).await)
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnodes/rewarded/detailed")]
 pub async fn get_rewarded_set_detailed(
-    cache: &State<NodeStatusCache>,
+    status_cache: &State<NodeStatusCache>,
+    contract_cache: &State<NymContractCache>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
-    Json(_get_rewarded_set_detailed(cache).await)
+    todo!("rebasing");
+
+    // Json(_get_rewarded_set_legacy_mixnodes_detailed(status_cache, contract_cache).await)
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/mixnodes/active/detailed")]
 pub async fn get_active_set_detailed(
-    cache: &State<NodeStatusCache>,
+    status_cache: &State<NodeStatusCache>,
+    contract_cache: &State<NymContractCache>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
-    Json(_get_active_set_detailed(cache).await)
+    todo!("rebasing");
+
+    // Json(_get_active_set_legacy_mixnodes_detailed(status_cache, contract_cache).await)
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/gateways/detailed")]
 pub async fn get_gateways_detailed(
     cache: &State<NodeStatusCache>,
 ) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_gateways_detailed(cache).await)
+    todo!("rebasing");
+
+    // Json(_get_legacy_gateways_detailed(cache).await)
 }
 
-#[openapi(tag = "status")]
+#[openapi(tag = "status", deprecated = true)]
 #[get("/gateways/detailed-unfiltered")]
 pub async fn get_gateways_detailed_unfiltered(
     cache: &State<NodeStatusCache>,
 ) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_gateways_detailed_unfiltered(cache).await)
+    todo!("rebasing");
+    // Json(_get_legacy_gateways_detailed_unfiltered(cache).await)
 }
 
 pub mod unstable {
@@ -325,7 +348,7 @@ pub mod unstable {
         TestRoute,
     };
     use nym_api_requests::pagination::Pagination;
-    use nym_mixnet_contract_common::MixId;
+    use nym_mixnet_contract_common::NodeId;
     use rocket::http::Status;
     use rocket::serde::json::Json;
     use rocket::State;
@@ -421,7 +444,7 @@ pub mod unstable {
     const DEFAULT_TEST_RESULTS_PAGE_SIZE: u32 = 50;
 
     async fn _mixnode_test_results(
-        mix_id: MixId,
+        mix_id: NodeId,
         page: u32,
         per_page: u32,
         info_cache: &State<NodeInfoCache>,
@@ -482,7 +505,7 @@ pub mod unstable {
     #[openapi(tag = "UNSTABLE - DO **NOT** USE")]
     #[get("/mixnodes/unstable/<mix_id>/test-results?<pagination..>")]
     pub async fn mixnode_test_results(
-        mix_id: MixId,
+        mix_id: NodeId,
         pagination: PaginationRequest,
         info_cache: &State<NodeInfoCache>,
         storage: &State<NymApiStorage>,

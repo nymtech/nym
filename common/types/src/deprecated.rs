@@ -4,7 +4,7 @@
 use crate::currency::DecCoin;
 use crate::error::TypesError;
 use crate::pending_events::{PendingEpochEvent, PendingEpochEventData};
-use nym_mixnet_contract_common::{IdentityKey, MixId};
+use nym_mixnet_contract_common::{IdentityKey, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +27,7 @@ pub enum DelegationEventKind {
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
 pub struct DelegationEvent {
     pub kind: DelegationEventKind,
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     pub address: String,
     pub amount: Option<DecCoin>,
     pub proxy: Option<String>,

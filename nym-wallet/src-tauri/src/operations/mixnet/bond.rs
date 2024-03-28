@@ -9,10 +9,11 @@ use crate::state::WalletState;
 use crate::{nyxd_client, Gateway, MixNode};
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
-use nym_mixnet_contract_common::{MixId, MixNodeConfigUpdate};
+use nym_mixnet_contract_common::{MixNodeConfigUpdate, NodeId};
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
-use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
+use nym_types::mixnode::{MixNodeDetails, NodeCostParams};
+use nym_types::nym_node::NymNodeDetails;
 use nym_types::transaction::TransactionExecuteResult;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
@@ -89,7 +90,7 @@ pub async fn unbond_gateway(
 #[tauri::command]
 pub async fn bond_mixnode(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     msg_signature: MessageSignature,
     pledge: DecCoin,
     fee: Option<Fee>,
@@ -256,7 +257,7 @@ pub async fn unbond_mixnode(
 
 #[tauri::command]
 pub async fn update_mixnode_cost_params(
-    new_costs: MixNodeCostParams,
+    new_costs: NodeCostParams,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -272,7 +273,7 @@ pub async fn update_mixnode_cost_params(
     let res = guard
         .current_client()?
         .nyxd
-        .update_mixnode_cost_params(cost_params, fee)
+        .update_cost_params(cost_params, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -421,6 +422,37 @@ pub async fn gateway_bond_details(
 }
 
 #[tauri::command]
+pub async fn nym_node_bond_details(
+    state: tauri::State<'_, WalletState>,
+) -> Result<Option<NymNodeDetails>, BackendError> {
+    log::info!(">>> Get nym-node bond details");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let res = client
+        .nyxd
+        .get_owned_nymnode(&client.nyxd.address())
+        .await?;
+    let details = res
+        .details
+        .map(|details| {
+            guard
+                .registered_coins()
+                .map(|reg| NymNodeDetails::from_mixnet_contract_nym_node_details(details, reg))
+        })
+        .transpose()?
+        .transpose()?;
+    log::info!(
+        "<<< node_id/identity_key = {:?}",
+        details.as_ref().map(|r| (
+            r.bond_information.node_id,
+            &r.bond_information.node.identity_key
+        ))
+    );
+    log::trace!("<<< {:?}", details);
+    Ok(details)
+}
+
+#[tauri::command]
 pub async fn get_pending_operator_rewards(
     address: String,
     state: tauri::State<'_, WalletState>,
@@ -459,7 +491,7 @@ pub async fn get_pending_operator_rewards(
 
 #[tauri::command]
 pub async fn get_number_of_mixnode_delegators(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<usize, BackendError> {
     Ok(nyxd_client!(state)
@@ -487,7 +519,7 @@ pub async fn get_mix_node_description(
 
 #[tauri::command]
 pub async fn get_mixnode_uptime(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<u8, BackendError> {
     log::info!(">>> Get mixnode uptime");

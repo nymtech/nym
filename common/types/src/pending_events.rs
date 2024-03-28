@@ -3,9 +3,9 @@
 
 use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
-use crate::mixnode::MixNodeCostParams;
+use crate::mixnode::NodeCostParams;
 use nym_mixnet_contract_common::{
-    BlockHeight, EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, MixId,
+    BlockHeight, EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, NodeId,
     PendingEpochEvent as MixnetContractPendingEpochEvent,
     PendingEpochEventKind as MixnetContractPendingEpochEventKind,
     PendingIntervalEvent as MixnetContractPendingIntervalEvent,
@@ -48,25 +48,25 @@ impl PendingEpochEvent {
 pub enum PendingEpochEventData {
     Delegate {
         owner: String,
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: DecCoin,
         proxy: Option<String>,
     },
     Undelegate {
         owner: String,
-        mix_id: MixId,
+        mix_id: NodeId,
         proxy: Option<String>,
     },
     PledgeMore {
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: DecCoin,
     },
     DecreasePledge {
-        mix_id: MixId,
+        mix_id: NodeId,
         decrease_by: DecCoin,
     },
     UnbondMixnode {
-        mix_id: MixId,
+        mix_id: NodeId,
     },
     UpdateActiveSetSize {
         new_size: u32,
@@ -81,7 +81,7 @@ impl PendingEpochEventData {
         match pending_event {
             MixnetContractPendingEpochEventKind::Delegate {
                 owner,
-                mix_id,
+                node_id: mix_id,
                 amount,
                 proxy,
                 ..
@@ -93,7 +93,7 @@ impl PendingEpochEventData {
             }),
             MixnetContractPendingEpochEventKind::Undelegate {
                 owner,
-                mix_id,
+                node_id: mix_id,
                 proxy,
                 ..
             } => Ok(PendingEpochEventData::Undelegate {
@@ -101,13 +101,13 @@ impl PendingEpochEventData {
                 mix_id,
                 proxy: proxy.map(|p| p.into_string()),
             }),
-            MixnetContractPendingEpochEventKind::PledgeMore { mix_id, amount } => {
+            MixnetContractPendingEpochEventKind::MixnodePledgeMore { mix_id, amount } => {
                 Ok(PendingEpochEventData::PledgeMore {
                     mix_id,
                     amount: reg.attempt_convert_to_display_dec_coin(amount.into())?,
                 })
             }
-            MixnetContractPendingEpochEventKind::DecreasePledge {
+            MixnetContractPendingEpochEventKind::MixnodeDecreasePledge {
                 mix_id,
                 decrease_by,
             } => Ok(PendingEpochEventData::DecreasePledge {
@@ -117,9 +117,7 @@ impl PendingEpochEventData {
             MixnetContractPendingEpochEventKind::UnbondMixnode { mix_id } => {
                 Ok(PendingEpochEventData::UnbondMixnode { mix_id })
             }
-            MixnetContractPendingEpochEventKind::UpdateActiveSetSize { new_size } => {
-                Ok(PendingEpochEventData::UpdateActiveSetSize { new_size })
-            }
+            _ => todo!(),
         }
     }
 }
@@ -160,8 +158,8 @@ impl PendingIntervalEvent {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub enum PendingIntervalEventData {
     ChangeMixCostParams {
-        mix_id: MixId,
-        new_costs: MixNodeCostParams,
+        mix_id: NodeId,
+        new_costs: NodeCostParams,
     },
 
     UpdateRewardingParams {
@@ -182,7 +180,7 @@ impl PendingIntervalEventData {
             MixnetContractPendingIntervalEventKind::ChangeMixCostParams { mix_id, new_costs } => {
                 Ok(PendingIntervalEventData::ChangeMixCostParams {
                     mix_id,
-                    new_costs: MixNodeCostParams::from_mixnet_contract_mixnode_cost_params(
+                    new_costs: NodeCostParams::from_mixnet_contract_mixnode_cost_params(
                         new_costs, reg,
                     )?,
                 })
@@ -197,6 +195,7 @@ impl PendingIntervalEventData {
                 epochs_in_interval,
                 epoch_duration_secs,
             }),
+            _ => todo!(),
         }
     }
 }

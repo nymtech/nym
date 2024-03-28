@@ -10,8 +10,8 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
-use nym_api_requests::models::DescribedMixNode;
-use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
+use nym_api_requests::legacy::LegacyGatewayBondWithId;
+use nym_api_requests::models::LegacyDescribedMixNode;
 pub use nym_api_requests::{
     ecash::{
         models::{
@@ -23,19 +23,20 @@ pub use nym_api_requests::{
         VerifyEcashCredentialBody,
     },
     models::{
-        ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
+        ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
         GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-        MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-        MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-        StakeSaturationResponse, UptimeResponse,
+        LegacyDescribedGateway, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+        MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+        RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
     },
+    nym_nodes::{CachedNodesResponse, SkimmedNode},
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_contracts_common::IdentityKey;
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use nym_mixnet_contract_common::{IdentityKeyRef, NodeId};
 use time::format_description::BorrowedFormatItem;
 use time::Date;
 
@@ -95,12 +96,12 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
+    async fn get_gateways(&self) -> Result<Vec<LegacyGatewayBondWithId>, NymAPIError> {
         self.get_json(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
     }
 
-    async fn get_gateways_described(&self) -> Result<Vec<DescribedGateway>, NymAPIError> {
+    async fn get_gateways_described(&self) -> Result<Vec<LegacyDescribedGateway>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
             NO_PARAMS,
@@ -108,7 +109,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_mixnodes_described(&self) -> Result<Vec<DescribedMixNode>, NymAPIError> {
+    async fn get_mixnodes_described(&self) -> Result<Vec<LegacyDescribedMixNode>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::DESCRIBED],
             NO_PARAMS,
@@ -194,7 +195,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_report(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeStatusReportResponse, NymAPIError> {
         self.get_json(
             &[
@@ -228,7 +229,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_history(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeUptimeHistoryResponse, NymAPIError> {
         self.get_json(
             &[
@@ -309,7 +310,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_core_status_count(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, NymAPIError> {
         if let Some(since) = since {
@@ -341,7 +342,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_status(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeStatusResponse, NymAPIError> {
         self.get_json(
             &[
@@ -358,7 +359,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_reward_estimation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<RewardEstimationResponse, NymAPIError> {
         self.get_json(
             &[
@@ -375,7 +376,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn compute_mixnode_reward_estimation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         request_body: &ComputeRewardEstParam,
     ) -> Result<RewardEstimationResponse, NymAPIError> {
         self.post_json(
@@ -394,7 +395,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_stake_saturation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<StakeSaturationResponse, NymAPIError> {
         self.get_json(
             &[
@@ -411,7 +412,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_inclusion_probability(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<InclusionProbabilityResponse, NymAPIError> {
         self.get_json(
             &[
@@ -426,7 +427,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_mixnode_avg_uptime(&self, mix_id: MixId) -> Result<UptimeResponse, NymAPIError> {
+    async fn get_mixnode_avg_uptime(&self, mix_id: NodeId) -> Result<UptimeResponse, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -440,7 +441,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_mixnodes_blacklisted(&self) -> Result<Vec<MixId>, NymAPIError> {
+    async fn get_mixnodes_blacklisted(&self) -> Result<Vec<NodeId>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::BLACKLISTED],
             NO_PARAMS,

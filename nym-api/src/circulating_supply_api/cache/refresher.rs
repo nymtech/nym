@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::time;
+use tracing::{error, trace};
 
 pub(crate) struct CirculatingSupplyCacheRefresher {
     nyxd_client: Client,

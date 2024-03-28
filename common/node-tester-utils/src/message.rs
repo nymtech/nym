@@ -3,6 +3,7 @@
 
 use crate::error::NetworkTestingError;
 use crate::node::TestableNode;
+use crate::NodeId;
 use nym_sphinx::message::NymMessage;
 use nym_topology::{gateway, mix};
 use serde::de::DeserializeOwned;
@@ -34,13 +35,13 @@ impl<T> TestMessage<T> {
         }
     }
 
-    pub fn new_mix(node: &mix::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
+    pub fn new_mix(node: &mix::LegacyNode, msg_id: u32, total_msgs: u32, ext: T) -> Self {
         Self::new(node, msg_id, total_msgs, ext)
     }
 
-    pub fn new_gateway(node: &gateway::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
-        Self::new(node, msg_id, total_msgs, ext)
-    }
+    // pub fn new_gateway(node: &gateway::Node, msg_id: u32, total_msgs: u32, ext: T) -> Self {
+    //     Self::new(node, msg_id, total_msgs, ext)
+    // }
 
     pub fn new_serialized<N>(
         node: N,
@@ -72,7 +73,7 @@ impl<T> TestMessage<T> {
     }
 
     pub fn mix_plaintexts(
-        node: &mix::Node,
+        node: &mix::LegacyNode,
         total_msgs: u32,
         ext: T,
     ) -> Result<Vec<Vec<u8>>, NetworkTestingError>
@@ -82,15 +83,16 @@ impl<T> TestMessage<T> {
         Self::new_plaintexts(node, total_msgs, ext)
     }
 
-    pub fn gateway_plaintexts(
-        node: &gateway::Node,
+    pub fn legacy_gateway_plaintexts(
+        node: &gateway::LegacyNode,
+        node_id: NodeId,
         total_msgs: u32,
         ext: T,
     ) -> Result<Vec<Vec<u8>>, NetworkTestingError>
     where
         T: Serialize + Clone,
     {
-        Self::new_plaintexts(node, total_msgs, ext)
+        Self::new_plaintexts(&(node, node_id), total_msgs, ext)
     }
 
     pub fn as_json_string(&self) -> Result<String, NetworkTestingError>

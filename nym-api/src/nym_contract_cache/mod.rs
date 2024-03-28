@@ -4,33 +4,30 @@
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::{self, config, nyxd};
 use nym_task::TaskManager;
-use okapi::openapi3::OpenApi;
-use rocket::Route;
-use rocket_okapi::openapi_get_routes_spec;
-use rocket_okapi::settings::OpenApiSettings;
 
 use self::cache::refresher::NymContractCacheRefresher;
 
 pub(crate) mod cache;
-#[cfg(feature = "axum")]
 pub(crate) mod handlers;
-pub(crate) mod routes;
-
-pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
-    openapi_get_routes_spec![
-        settings: routes::get_mixnodes,
-        routes::get_mixnodes_detailed,
-        routes::get_gateways,
-        routes::get_active_set,
-        routes::get_active_set_detailed,
-        routes::get_rewarded_set,
-        routes::get_rewarded_set_detailed,
-        routes::get_blacklisted_mixnodes,
-        routes::get_blacklisted_gateways,
-        routes::get_interval_reward_params,
-        routes::get_current_epoch,
-    ]
-}
+pub(crate) mod legacy_helpers;
+// pub(crate) mod routes;
+//
+// pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+//     openapi_get_routes_spec![
+//         settings: routes::get_mixnodes,
+//         routes::get_mixnodes_detailed,
+//         routes::get_gateways,
+//         routes::get_active_set,
+//         routes::get_active_set_detailed,
+//         routes::get_rewarded_set,
+//         routes::get_rewarded_set_detailed,
+//         routes::get_blacklisted_mixnodes,
+//         routes::get_blacklisted_gateways,
+//         routes::get_blacklisted_gateways_v2,
+//         routes::get_interval_reward_params,
+//         routes::get_current_epoch,
+//     ]
+// }
 
 pub(crate) fn start_refresher(
     config: &config::NodeStatusAPI,

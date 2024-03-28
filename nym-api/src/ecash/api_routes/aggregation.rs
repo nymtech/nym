@@ -3,7 +3,6 @@
 
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::state::EcashState;
-use log::trace;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
 };
@@ -14,6 +13,7 @@ use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use rocket_okapi::openapi;
 use time::Date;
+use tracing::trace;
 
 // routes with globally aggregated keys, signatures, etc.
 

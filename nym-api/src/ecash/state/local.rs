@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use time::{Date, OffsetDateTime};
 use tokio::sync::RwLock;
+use tracing::debug;
 
 pub(crate) struct TicketDoubleSpendingFilter {
     built_on: Date,
@@ -144,7 +145,7 @@ impl LocalEcashState {
 
         if should_export {
             tokio::spawn(async move {
-                log::debug!("exporting bloomfilter bitmap");
+                debug!("exporting bloomfilter bitmap");
                 let new = filter.read().await.export_global_bitmap();
                 let mut exported_guard = exported.data.write().await;
                 exported_guard.last_exported_at = OffsetDateTime::now_utc();

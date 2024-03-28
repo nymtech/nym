@@ -16,7 +16,6 @@ id = '{{ base.id }}'
 local_validator = '{{ base.local_validator }}'
 
 # Socket address this api will use for binding its http API.
-# Note: only used if `axum` feature is enabled.
 bind_address = '{{ base.bind_address }}'
 
 # Mnemonic used for rewarding and validator interaction
@@ -109,26 +108,26 @@ enabled = {{ rewarding.enabled }}
 # Note, only values in range 0-100 are valid
 minimum_interval_monitor_threshold = {{ rewarding.debug.minimum_interval_monitor_threshold }}
 
-[coconut_signer]
+[ecash_signer]
 
-# Specifies whether coconut signing protocol is enabled in this process.
-enabled = {{ coconut_signer.enabled }}
+# Specifies whether ecash signing protocol is enabled in this process.
+enabled = {{ ecash_signer.enabled }}
 
 # address of this nym-api as announced to other instances for the purposes of performing the DKG.
-announce_address = '{{ coconut_signer.announce_address }}'
+announce_address = '{{ ecash_signer.announce_address }}'
 
-[coconut_signer.storage_paths]
+[ecash_signer.storage_paths]
 
 # Path to a JSON file where state is persisted between different stages of DKG.
-dkg_persistent_state_path = '{{ coconut_signer.storage_paths.dkg_persistent_state_path }}'
+dkg_persistent_state_path = '{{ ecash_signer.storage_paths.dkg_persistent_state_path }}'
 
-# Path to the coconut key.
-coconut_key_path = '{{ coconut_signer.storage_paths.coconut_key_path }}'
+# Path to the ecash key.
+ecash_key_path = '{{ ecash_signer.storage_paths.ecash_key_path }}'
 
 # Path to the dkg dealer decryption key
-decryption_key_path = '{{ coconut_signer.storage_paths.decryption_key_path }}'
+decryption_key_path = '{{ ecash_signer.storage_paths.decryption_key_path }}'
 
 # Path to the dkg dealer public key with proof
-public_key_with_proof_path = '{{ coconut_signer.storage_paths.public_key_with_proof_path }}'
+public_key_with_proof_path = '{{ ecash_signer.storage_paths.public_key_with_proof_path }}'
 
 "#;

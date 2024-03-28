@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::error::EcashError;
-use crate::epoch_operations::MixnodeWithPerformance;
+use crate::epoch_operations::RewardedNodeWithParams;
 use crate::support::config::Config;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -24,14 +24,16 @@ use nym_config::defaults::{ChainDetails, NymNetworkDetails};
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
-use nym_mixnet_contract_common::families::FamilyHead;
+use nym_mixnet_contract_common::gateway::PreassignedId;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment,
-    MixId, RewardedSetNodeStatus,
+    CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, NymNodeDetails,
+    RewardedSet, RoleAssignment,
 };
 use nym_validator_client::coconut::EcashApiError;
+use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
 use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{
@@ -213,12 +215,20 @@ impl Client {
         Ok(hash)
     }
 
+    pub(crate) async fn get_nymnodes(&self) -> Result<Vec<NymNodeDetails>, NyxdError> {
+        nyxd_query!(self, get_all_nymnodes_detailed().await)
+    }
+
     pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NyxdError> {
         nyxd_query!(self, get_all_mixnodes_detailed().await)
     }
 
     pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NyxdError> {
         nyxd_query!(self, get_all_gateways().await)
+    }
+
+    pub(crate) async fn get_gateway_ids(&self) -> Result<Vec<PreassignedId>, NyxdError> {
+        nyxd_query!(self, get_all_preassigned_gateway_ids().await)
     }
 
     pub(crate) async fn get_current_interval(&self) -> Result<CurrentIntervalResponse, NyxdError> {
@@ -235,10 +245,8 @@ impl Client {
         nyxd_query!(self, get_rewarding_parameters().await)
     }
 
-    pub(crate) async fn get_rewarded_set_mixnodes(
-        &self,
-    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, NyxdError> {
-        nyxd_query!(self, get_all_rewarded_set_mixnodes().await)
+    pub(crate) async fn get_rewarded_set_nodes(&self) -> Result<RewardedSet, NyxdError> {
+        nyxd_query!(self, get_rewarded_set().await)
     }
 
     pub(crate) async fn get_current_vesting_account_storage_key(&self) -> Result<u32, NyxdError> {
@@ -266,13 +274,6 @@ impl Client {
     ) -> Result<Vec<AccountVestingCoins>, NyxdError> {
         nyxd_query!(self, get_all_accounts_vesting_coins().await)
     }
-
-    pub(crate) async fn get_all_family_members(
-        &self,
-    ) -> Result<Vec<(IdentityKey, FamilyHead)>, NyxdError> {
-        nyxd_query!(self, get_all_family_members().await)
-    }
-
     pub(crate) async fn get_pending_events_count(&self) -> Result<u32, NyxdError> {
         let pending = nyxd_query!(self, get_number_of_pending_events().await?);
         Ok(pending.epoch_events + pending.interval_events)
@@ -283,29 +284,21 @@ impl Client {
         Ok(())
     }
 
+    fn generate_reward_messages(
+        &self,
+        rewarded_set: &[RewardedNodeWithParams],
+    ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
+        rewarded_set
+            .iter()
+            .map(|node| (*node).into())
+            .zip(std::iter::repeat(Vec::new()))
+            .collect()
+    }
+
     pub(crate) async fn send_rewarding_messages(
         &self,
-        nodes: &[MixnodeWithPerformance],
+        rewarded_set: &[RewardedNodeWithParams],
     ) -> Result<(), NyxdError> {
-        // for some reason, compiler complains if this is explicitly inline in code ¯\_(ツ)_/¯
-        #[inline]
-        #[allow(unused_variables)]
-        fn generate_reward_messages(
-            eligible_mixnodes: &[MixnodeWithPerformance],
-        ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
-            cfg_if::cfg_if! {
-                if #[cfg(feature = "no-reward")] {
-                    vec![]
-                } else {
-                    eligible_mixnodes
-                        .iter()
-                    .map(|node| (*node).into())
-                        .zip(std::iter::repeat(Vec::new()))
-                        .collect()
-                }
-            }
-        }
-
         // the expect is fine as we always construct the client with the mixnet contract explicitly set
         let mixnet_contract = nyxd_query!(
             self,
@@ -314,7 +307,7 @@ impl Client {
                 .clone()
         );
 
-        let msgs = generate_reward_messages(nodes);
+        let msgs = self.generate_reward_messages(rewarded_set);
 
         // "technically" we don't need a write access to the client,
         // but we REALLY don't want to accidentally send any transactions while we're sending rewarding messages
@@ -325,21 +318,65 @@ impl Client {
                 &mixnet_contract,
                 msgs,
                 Default::default(),
-                format!("rewarding {} mixnodes", nodes.len()),
+                format!("rewarding {} nodes", rewarded_set.len()),
             )
             .await?
         );
         Ok(())
     }
 
-    pub(crate) async fn advance_current_epoch(
+    fn generate_role_assignment_messages(
         &self,
-        new_rewarded_set: Vec<LayerAssignment>,
-        expected_active_set_size: u32,
+        rewarded_set: RewardedSet,
+    ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
+        // currently we just assign all of them together,
+        // but the contract is ready to handle them separately should we need it
+        // if the tx is too big
+        let mut msgs = Vec::new();
+        for (role, nodes) in [
+            (Role::ExitGateway, rewarded_set.exit_gateways),
+            (Role::EntryGateway, rewarded_set.entry_gateways),
+            (Role::Layer1, rewarded_set.layer1),
+            (Role::Layer2, rewarded_set.layer2),
+            (Role::Layer3, rewarded_set.layer3),
+            (Role::Standby, rewarded_set.standby),
+        ] {
+            msgs.push((
+                ExecuteMsg::AssignRoles {
+                    assignment: RoleAssignment { role, nodes },
+                },
+                Vec::new(),
+            ));
+        }
+        msgs
+    }
+
+    pub(crate) async fn send_role_assignment_messages(
+        &self,
+        rewarded_set: RewardedSet,
     ) -> Result<(), NyxdError> {
+        // the expect is fine as we always construct the client with the mixnet contract explicitly set
+        let mixnet_contract = nyxd_query!(
+            self,
+            mixnet_contract_address()
+                .expect("mixnet contract address is not available")
+                .clone()
+        );
+
+        let msgs = self.generate_role_assignment_messages(rewarded_set);
+
+        // "technically" we don't need a write access to the client,
+        // but we REALLY don't want to accidentally send any transactions while we're sending rewarding messages
+        // as that would have messed up sequence numbers
         nyxd_signing!(
             self,
-            advance_current_epoch(new_rewarded_set, expected_active_set_size, None).await?
+            execute_multiple(
+                &mixnet_contract,
+                msgs,
+                Default::default(),
+                "assigning all the rewarded set roles",
+            )
+            .await?
         );
         Ok(())
     }

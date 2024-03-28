@@ -4,7 +4,7 @@
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp, Uint128};
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::NodeId;
 use std::str::FromStr;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -155,7 +155,7 @@ pub struct VestingDelegation {
     pub account_id: u32,
 
     /// The id of the mixnode towards which the delegation has been made.
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
 
     /// The block timestamp when the delegation has been made.
     pub block_timestamp: u64,
@@ -165,7 +165,7 @@ pub struct VestingDelegation {
 }
 
 impl VestingDelegation {
-    pub fn storage_key(&self) -> (u32, MixId, u64) {
+    pub fn storage_key(&self) -> (u32, NodeId, u64) {
         (self.account_id, self.mix_id, self.block_timestamp)
     }
 }

@@ -18,6 +18,27 @@ pub struct NodeRoles {
     pub ip_packet_router_enabled: bool,
 }
 
+impl NodeRoles {
+    pub fn can_operate_mixnode(&self) -> bool {
+        self.mixnode_enabled
+    }
+
+    pub fn can_operate_entry_gateway(&self) -> bool {
+        self.gateway_enabled
+    }
+
+    pub fn can_operate_exit_gateway(&self) -> bool {
+        self.gateway_enabled && self.network_requester_enabled && self.ip_packet_router_enabled
+    }
+}
+
+#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AnnouncePorts {
+    pub verloc_port: Option<u16>,
+    pub mix_port: Option<u16>,
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostInformation {
@@ -174,6 +195,9 @@ pub struct AuxiliaryDetails {
     #[schemars(with = "Option<String>")]
     #[schemars(length(equal = 2))]
     pub location: Option<Country>,
+
+    #[serde(default)]
+    pub announce_ports: AnnouncePorts,
 
     /// Specifies whether this node operator has agreed to the terms and conditions
     /// as defined at <https://nymtech.net/terms-and-conditions/operators/v1.0.0>

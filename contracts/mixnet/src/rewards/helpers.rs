@@ -4,16 +4,18 @@
 use super::storage;
 use crate::delegations::storage as delegations_storage;
 use crate::interval::storage as interval_storage;
+use crate::nodes::storage::read_assigned_roles;
 use cosmwasm_std::{Coin, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::helpers::IntoBaseDecimal;
-use mixnet_contract_common::mixnode::{MixNodeDetails, MixNodeRewarding};
-use mixnet_contract_common::{Delegation, EpochState, EpochStatus, MixId};
+use mixnet_contract_common::helpers::{IntoBaseDecimal, NodeBond, NodeDetails};
+use mixnet_contract_common::mixnode::NodeRewarding;
+use mixnet_contract_common::nym_node::Role;
+use mixnet_contract_common::{Delegation, EpochState, EpochStatus, NodeId};
 
 pub(crate) fn update_and_save_last_rewarded(
     storage: &mut dyn Storage,
     mut current_epoch_status: EpochStatus,
-    new_last_rewarded: MixId,
+    new_last_rewarded: NodeId,
 ) -> Result<(), MixnetContractError> {
     let is_done = current_epoch_status.update_last_rewarded(new_last_rewarded)?;
     if is_done {
@@ -39,7 +41,7 @@ pub(crate) fn apply_reward_pool_changes(
     let epoch_reward_budget = reward_pool / interval.epochs_in_interval().into_base_decimal()?
         * rewarding_params.interval.interval_pool_emission;
     let stake_saturation_point =
-        staking_supply / rewarding_params.rewarded_set_size.into_base_decimal()?;
+        staking_supply / rewarding_params.rewarded_set_size().into_base_decimal()?;
 
     rewarding_params.interval.reward_pool = reward_pool;
     rewarding_params.interval.staking_supply = staking_supply;
@@ -52,26 +54,29 @@ pub(crate) fn apply_reward_pool_changes(
     Ok(())
 }
 
-pub(crate) fn withdraw_operator_reward(
+pub(crate) fn withdraw_operator_reward<D>(
     store: &mut dyn Storage,
-    mix_details: MixNodeDetails,
-) -> Result<Coin, MixnetContractError> {
-    let mix_id = mix_details.mix_id();
-    let mut mix_rewarding = mix_details.rewarding_details;
-    let original_pledge = mix_details.bond_information.original_pledge;
-    let reward = mix_rewarding.withdraw_operator_reward(&original_pledge)?;
+    node_details: D,
+) -> Result<Coin, MixnetContractError>
+where
+    D: NodeDetails,
+{
+    let (bond_info, mut node_rewarding, _) = node_details.split();
+    let node_id = bond_info.node_id();
+    let original_pledge = bond_info.original_pledge();
+    let reward = node_rewarding.withdraw_operator_reward(original_pledge)?;
 
     // save updated rewarding info
-    storage::MIXNODE_REWARDING.save(store, mix_id, &mix_rewarding)?;
+    storage::NYMNODE_REWARDING.save(store, node_id, &node_rewarding)?;
     Ok(reward)
 }
 
 pub(crate) fn withdraw_delegator_reward(
     store: &mut dyn Storage,
     delegation: Delegation,
-    mut mix_rewarding: MixNodeRewarding,
+    mut mix_rewarding: NodeRewarding,
 ) -> Result<Coin, MixnetContractError> {
-    let mix_id = delegation.mix_id;
+    let mix_id = delegation.node_id;
     let mut updated_delegation = delegation.clone();
     let reward = mix_rewarding.withdraw_delegator_reward(&mut updated_delegation)?;
 
@@ -84,6 +89,47 @@ pub(crate) fn withdraw_delegator_reward(
     )?;
     storage::MIXNODE_REWARDING.save(store, mix_id, &mix_rewarding)?;
     Ok(reward)
+}
+
+pub(crate) fn ensure_assignment(
+    storage: &dyn Storage,
+    node_id: NodeId,
+    role: Role,
+) -> Result<(), MixnetContractError> {
+    // that's a bit expensive to read the whole thing each time, but I'm not sure if there's a much better way
+    // (creating a reverse map would be more expensive in the long run due to writes being more costly than reads)
+    let assignment = read_assigned_roles(storage, role)?;
+    if !assignment.contains(&node_id) {
+        return Err(MixnetContractError::IncorrectEpochRole { node_id, role });
+    }
+    Ok(())
+}
+
+// this is **ONLY** to be used in queries
+// unless a better way can be figured out
+pub(crate) fn expensive_role_lookup(
+    storage: &dyn Storage,
+    node_id: NodeId,
+) -> Result<Option<Role>, MixnetContractError> {
+    if ensure_assignment(storage, node_id, Role::EntryGateway).is_ok() {
+        return Ok(Some(Role::EntryGateway));
+    }
+    if ensure_assignment(storage, node_id, Role::ExitGateway).is_ok() {
+        return Ok(Some(Role::ExitGateway));
+    }
+    if ensure_assignment(storage, node_id, Role::Layer1).is_ok() {
+        return Ok(Some(Role::Layer1));
+    }
+    if ensure_assignment(storage, node_id, Role::Layer2).is_ok() {
+        return Ok(Some(Role::Layer2));
+    }
+    if ensure_assignment(storage, node_id, Role::Layer3).is_ok() {
+        return Ok(Some(Role::Layer3));
+    }
+    if ensure_assignment(storage, node_id, Role::Standby).is_ok() {
+        return Ok(Some(Role::Standby));
+    }
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -145,10 +191,7 @@ mod tests {
         assert_eq!(
             updated_rewarding_params.interval.stake_saturation_point,
             updated_rewarding_params.interval.staking_supply
-                / updated_rewarding_params
-                    .rewarded_set_size
-                    .into_base_decimal()
-                    .unwrap()
+                / updated_rewarding_params.dec_rewarded_set_size()
         );
 
         // resets changes back to 0
@@ -197,10 +240,7 @@ mod tests {
         assert_eq!(
             updated_rewarding_params2.interval.stake_saturation_point,
             updated_rewarding_params2.interval.staking_supply
-                / updated_rewarding_params2
-                    .rewarded_set_size
-                    .into_base_decimal()
-                    .unwrap()
+                / updated_rewarding_params2.dec_rewarded_set_size()
         );
 
         // resets changes back to 0
@@ -218,7 +258,7 @@ mod tests {
 
         let pledge = Uint128::new(250_000_000);
         let pledge_dec = 250_000_000u32.into_base_decimal().unwrap();
-        let mix_id = test.add_dummy_mixnode("mix-owner", Some(pledge));
+        let mix_id = test.add_legacy_mixnode("mix-owner", Some(pledge));
 
         // no rewards
         let mix_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
@@ -229,13 +269,16 @@ mod tests {
 
         test.skip_to_next_epoch_end();
         test.force_change_rewarded_set(vec![mix_id]);
-        let dist1 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist1 =
+            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist2 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist2 =
+            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist3 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist3 =
+            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         let mix_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
             .unwrap()
@@ -255,7 +298,7 @@ mod tests {
 
         let delegation_amount = Uint128::new(2_500_000_000);
         let delegation_dec = 2_500_000_000_u32.into_base_decimal().unwrap();
-        let mix_id = test.add_dummy_mixnode("mix-owner", None);
+        let mix_id = test.add_legacy_mixnode("mix-owner", None);
         let delegator = "delegator";
         test.add_immediate_delegation(delegator, delegation_amount, mix_id);
 
@@ -268,13 +311,16 @@ mod tests {
 
         test.skip_to_next_epoch_end();
         test.force_change_rewarded_set(vec![mix_id]);
-        let dist1 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist1 =
+            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist2 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist2 =
+            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist3 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist3 =
+            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         let delegation_pre = test.delegation(mix_id, delegator, &None);
         let mix_rewarding = test.mix_rewarding(mix_id);

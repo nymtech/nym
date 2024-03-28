@@ -5,6 +5,7 @@ use super::storage;
 use crate::constants::{GATEWAY_BOND_DEFAULT_RETRIEVAL_LIMIT, GATEWAY_BOND_MAX_RETRIEVAL_LIMIT}; // Keeps gateway and mixnode retrieval in sync by re-using the constant. Could be split into its own constant.
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
+use mixnet_contract_common::gateway::{PreassignedGatewayIdsResponse, PreassignedId};
 use mixnet_contract_common::{
     GatewayBond, GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, PagedGatewayResponse,
 };
@@ -53,6 +54,29 @@ pub fn query_gateway_bond(deps: Deps<'_>, identity: IdentityKey) -> StdResult<Ga
     Ok(GatewayBondResponse {
         gateway: storage::gateways().may_load(deps.storage, &identity)?,
         identity,
+    })
+}
+
+pub(crate) fn query_preassigned_ids_paged(
+    deps: Deps<'_>,
+    start_after: Option<IdentityKey>,
+    limit: Option<u32>,
+) -> StdResult<PreassignedGatewayIdsResponse> {
+    let limit = limit.unwrap_or(50).min(100) as usize;
+
+    let start = start_after.as_deref().map(Bound::exclusive);
+
+    let ids = storage::PREASSIGNED_LEGACY_IDS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| res.map(|(identity, node_id)| PreassignedId { identity, node_id }))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = ids.last().map(|id| id.identity.clone());
+
+    Ok(PreassignedGatewayIdsResponse {
+        ids,
+        start_next_after,
     })
 }
 
@@ -113,61 +137,44 @@ pub(crate) mod tests {
 
     #[test]
     fn gateway_pagination_works() {
-        let mut deps = test_helpers::init_contract();
-        let mut rng = test_helpers::test_rng();
         let stake = tests::fixtures::good_gateway_pledge();
+        let mut test = TestSetup::new();
 
-        // prepare 4 messages and identities that are sorted by the generated identities
+        // prepare 4 gateways that are sorted by the generated identities
         // (because we query them in an ascended manner)
-        let mut exec_data = (0..4)
-            .map(|i| {
-                let sender = format!("nym-addr{}", i);
-                let (msg, identity) = tests::messages::valid_bond_gateway_msg(
-                    &mut rng,
-                    deps.as_ref(),
-                    stake.clone(),
-                    &sender,
-                );
-                (msg, (sender, identity))
-            })
+        let mut gateways = (0..4)
+            .map(|i| test.gateway_with_signature(format!("sender{}", i), None).0)
             .collect::<Vec<_>>();
-        exec_data.sort_by(|(_, (_, id1)), (_, (_, id2))| id1.cmp(id2));
-        let (messages, sender_identities): (Vec<_>, Vec<_>) = exec_data.into_iter().unzip();
+        gateways.sort_by(|g1, g2| g1.identity_key.cmp(&g2.identity_key));
 
-        let info = mock_info(&sender_identities[0].0.clone(), &stake);
-        execute(deps.as_mut(), mock_env(), info, messages[0].clone()).unwrap();
+        let info = mock_info("sender0", &stake);
+        test.save_legacy_gateway(gateways[0].clone(), &info);
 
         let per_page = 2;
-        let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
 
         // page should have 1 result on it
         assert_eq!(1, page1.nodes.len());
 
         // save another
-        let info = mock_info(
-            &sender_identities[1].0.clone(),
-            &tests::fixtures::good_gateway_pledge(),
-        );
-        execute(deps.as_mut(), mock_env(), info, messages[1].clone()).unwrap();
+        let info = mock_info("sender1", &stake);
+        test.save_legacy_gateway(gateways[1].clone(), &info);
 
         // page1 should have 2 results on it
-        let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
-        let info = mock_info(
-            &sender_identities[2].0.clone(),
-            &tests::fixtures::good_gateway_pledge(),
-        );
-        execute(deps.as_mut(), mock_env(), info, messages[2].clone()).unwrap();
+        let info = mock_info("sender2", &stake);
+        test.save_legacy_gateway(gateways[2].clone(), &info);
 
         // page1 still has 2 results
-        let page1 = query_gateways_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_gateways_paged(test.deps(), None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.nodes.len());
 
         // retrieving the next page should start after the last key on this page
         let start_after = page1.start_next_after.unwrap();
         let page2 = query_gateways_paged(
-            deps.as_ref(),
+            test.deps(),
             Option::from(start_after.clone()),
             Option::from(per_page),
         )
@@ -176,14 +183,11 @@ pub(crate) mod tests {
         assert_eq!(1, page2.nodes.len());
 
         // save another one
-        let info = mock_info(
-            &sender_identities[3].0.clone(),
-            &tests::fixtures::good_gateway_pledge(),
-        );
-        execute(deps.as_mut(), mock_env(), info, messages[3].clone()).unwrap();
+        let info = mock_info("sender3", &stake);
+        test.save_legacy_gateway(gateways[3].clone(), &info);
 
         let page2 = query_gateways_paged(
-            deps.as_ref(),
+            test.deps(),
             Option::from(start_after),
             Option::from(per_page),
         )
@@ -202,13 +206,13 @@ pub(crate) mod tests {
         assert!(res.gateway.is_none());
 
         // gateway was added to "bob", "fred" still does not own one
-        test.add_dummy_gateway("bob", None);
+        test.add_legacy_gateway("bob", None);
 
         let res = query_owned_gateway(test.deps(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_none());
 
         // "fred" now owns a gateway!
-        test.add_dummy_gateway("fred", None);
+        test.add_legacy_gateway("fred", None);
 
         let res = query_owned_gateway(test.deps(), "fred".to_string()).unwrap();
         assert!(res.gateway.is_some());

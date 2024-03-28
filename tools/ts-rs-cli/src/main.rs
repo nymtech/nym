@@ -6,7 +6,7 @@ use nym_api_requests::models::{
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
     GatewayConfigUpdate, Interval as ContractInterval, IntervalRewardParams,
-    IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate, RewardedSetNodeStatus,
+    IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate, NymNode, PendingNodeChanges,
     RewardingParams, UnbondedMixnode,
 };
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
@@ -18,7 +18,8 @@ use nym_types::deprecated::{DelegationEvent, DelegationEventKind, WrappedDelegat
 use nym_types::fees::{self, FeeDetails};
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
-use nym_types::mixnode::{MixNodeBond, MixNodeCostParams, MixNodeDetails, MixNodeRewarding};
+use nym_types::mixnode::{MixNodeBond, MixNodeDetails, NodeCostParams, NodeRewarding};
+use nym_types::nym_node::{NymNodeBond, NymNodeDetails};
 use nym_types::pending_events::{
     PendingEpochEvent, PendingEpochEventData, PendingIntervalEvent, PendingIntervalEventData,
 };
@@ -69,10 +70,11 @@ fn main() {
     do_export!(MixNode);
     do_export!(MixNodeConfigUpdate);
     do_export!(RewardingParams);
-    do_export!(RewardedSetNodeStatus);
     do_export!(UnbondedMixnode);
     do_export!(RewardEstimate);
     do_export!(ContractInterval);
+    do_export!(NymNode);
+    do_export!(PendingNodeChanges);
 
     // common/types/src
     do_export!(Account);
@@ -99,9 +101,14 @@ fn main() {
     do_export!(CurrencyDenom);
     do_export!(DecCoin);
     do_export!(MixNodeBond);
-    do_export!(MixNodeCostParams);
+    do_export!(NodeCostParams);
     do_export!(MixNodeDetails);
-    do_export!(MixNodeRewarding);
+
+    // for nym-node:
+    do_export!(NymNodeDetails);
+    do_export!(NymNodeBond);
+
+    do_export!(NodeRewarding);
     do_export!(OriginalVestingResponse);
     do_export!(PendingEpochEvent);
     do_export!(PendingEpochEventData);
@@ -155,6 +162,7 @@ fn main() {
                 && !path.starts_with("./Cargo.toml")
                 && !path.starts_with("./.gitignore")
                 && f.file_type().is_file()
+                && f.path().extension() == Some("ts".as_ref())
         })
     {
         // construct the source and destination paths that can be used to replace the output file

@@ -10,10 +10,11 @@ use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use thiserror::__private::AsDisplay;
+use tracing::warn;
 
 pub(crate) fn init_bte_keypair<R: RngCore + CryptoRng>(
     rng: &mut R,
-    config: &config::CoconutSigner,
+    config: &config::EcashSigner,
 ) -> anyhow::Result<()> {
     let dkg_params = nym_dkg::bte::setup();
     let kp = DkgKeyPair::new(&dkg_params, rng);
@@ -27,7 +28,7 @@ pub(crate) fn init_bte_keypair<R: RngCore + CryptoRng>(
     .context("DKG BTE keypair store failure")
 }
 
-pub(crate) fn load_bte_keypair(config: &config::CoconutSigner) -> anyhow::Result<DkgKeyPair> {
+pub(crate) fn load_bte_keypair(config: &config::EcashSigner) -> anyhow::Result<DkgKeyPair> {
     nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
         &config.storage_paths.decryption_key_path,
         &config.storage_paths.public_key_with_proof_path,
@@ -36,25 +37,25 @@ pub(crate) fn load_bte_keypair(config: &config::CoconutSigner) -> anyhow::Result
 }
 
 pub(crate) fn load_ecash_keypair_if_exists(
-    config: &config::CoconutSigner,
+    config: &config::EcashSigner,
 ) -> anyhow::Result<Option<KeyPairWithEpoch>> {
-    if !config.storage_paths.coconut_key_path.exists() {
+    if !config.storage_paths.ecash_key_path.exists() {
         return Ok(None);
     }
 
     // first attempt to load ecash keys directly,
     // if that fails fallback to coconut keys and perform migration
     if let Ok(ecash_key) =
-        nym_pemstore::load_key::<KeyPairWithEpoch, _>(&config.storage_paths.coconut_key_path)
+        nym_pemstore::load_key::<KeyPairWithEpoch, _>(&config.storage_paths.ecash_key_path)
     {
         return Ok(Some(ecash_key));
     }
 
-    if let Ok(legacy_coconut_key) = nym_pemstore::load_key::<LegacyCoconutKeyWithEpoch, _>(
-        &config.storage_paths.coconut_key_path,
-    ) {
+    if let Ok(legacy_coconut_key) =
+        nym_pemstore::load_key::<LegacyCoconutKeyWithEpoch, _>(&config.storage_paths.ecash_key_path)
+    {
         let migrated_key: KeyPairWithEpoch = legacy_coconut_key.into();
-        nym_pemstore::store_key(&migrated_key, &config.storage_paths.coconut_key_path)
+        nym_pemstore::store_key(&migrated_key, &config.storage_paths.ecash_key_path)
             .context("migrated key storage failure")?;
 
         return Ok(Some(migrated_key));

@@ -6,7 +6,7 @@ use crate::ecash::error::EcashError;
 use crate::ecash::helpers::blind_sign;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::AxumResult;
-use crate::v2::AxumAppState;
+use crate::support::http::state::AppState;
 use axum::extract::Path;
 use axum::{Json, Router};
 use nym_api_requests::ecash::{
@@ -19,9 +19,10 @@ use serde::Deserialize;
 use std::ops::Deref;
 use std::sync::Arc;
 use time::Date;
+use tracing::{debug, trace};
 use utoipa::IntoParams;
 
-pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState> {
+pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
     Router::new()
         .route(
             "/blind-sign",

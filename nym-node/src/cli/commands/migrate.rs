@@ -235,6 +235,7 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
         .with_mixnode(args.mixnode.override_config_section(config::MixnodeConfig {
             verloc: config::mixnode::Verloc {
                 bind_address: SocketAddr::new(ip, cfg.mixnode.verloc_port),
+                announce_port: None,
                 debug: config::mixnode::VerlocDebug {
                     packets_per_node: cfg.verloc.packets_per_node,
                     connection_timeout: cfg.verloc.connection_timeout,
@@ -386,6 +387,7 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
         }))
         .with_mixnet(args.mixnet.override_config_section(config::Mixnet {
             bind_address: SocketAddr::new(ip, cfg.gateway.mix_port),
+            announce_port: None,
             nym_api_urls: cfg.gateway.nym_api_urls.clone(),
             nyxd_urls: cfg.gateway.nyxd_urls.clone(),
             debug: config::MixnetDebug {

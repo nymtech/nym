@@ -5,10 +5,9 @@ use crate::ecash::api_routes::helpers::EpochIdParam;
 use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::AxumResult;
-use crate::v2::AxumAppState;
+use crate::support::http::state::AppState;
 use axum::extract::Path;
 use axum::{Json, Router};
-use log::trace;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
 };
@@ -18,10 +17,11 @@ use nym_validator_client::nym_api::rfc_3339_date;
 use serde::Deserialize;
 use std::sync::Arc;
 use time::Date;
+use tracing::trace;
 use utoipa::IntoParams;
 
 /// routes with globally aggregated keys, signatures, etc.
-pub(crate) fn aggregation_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState> {
+pub(crate) fn aggregation_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
     Router::new()
         .route(
             "/master-verification-key:epoch_id",

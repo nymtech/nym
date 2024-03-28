@@ -4,7 +4,7 @@
 use clap::Parser;
 use log::info;
 
-use nym_mixnet_contract_common::{Coin, MixId};
+use nym_mixnet_contract_common::{Coin, NodeId};
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::nyxd::contract_traits::VestingSigningClient;
 
@@ -13,7 +13,7 @@ use crate::context::SigningClient;
 #[derive(Debug, Parser)]
 pub struct Args {
     #[clap(long)]
-    pub mix_id: Option<MixId>,
+    pub mix_id: Option<NodeId>,
 
     #[clap(long)]
     pub identity_key: Option<String>,

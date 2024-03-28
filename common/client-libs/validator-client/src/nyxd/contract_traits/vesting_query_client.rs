@@ -9,7 +9,7 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
 use nym_contracts_common::ContractBuildInformation;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 use nym_vesting_contract_common::{
     messages::QueryMsg as VestingQueryMsg, Account, AccountVestingCoins, AccountsResponse,
     AllDelegationsResponse, BaseVestingAccountInfo, DelegationTimesResponse,
@@ -238,7 +238,7 @@ pub trait VestingQueryClient {
     async fn get_vesting_delegation(
         &self,
         address: &str,
-        mix_id: MixId,
+        mix_id: NodeId,
         block_timestamp_secs: u64,
     ) -> Result<VestingDelegation, NyxdError> {
         self.query_vesting_contract(VestingQueryMsg::GetDelegation {
@@ -252,7 +252,7 @@ pub trait VestingQueryClient {
     async fn get_total_delegation_amount(
         &self,
         address: &str,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<Coin, NyxdError> {
         self.query_vesting_contract(VestingQueryMsg::GetTotalDelegationAmount {
             address: address.to_string(),
@@ -264,7 +264,7 @@ pub trait VestingQueryClient {
     async fn get_delegation_timestamps(
         &self,
         address: &str,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<DelegationTimesResponse, NyxdError> {
         self.query_vesting_contract(VestingQueryMsg::GetDelegationTimes {
             address: address.to_string(),
@@ -275,7 +275,7 @@ pub trait VestingQueryClient {
 
     async fn get_all_vesting_delegations_paged(
         &self,
-        start_after: Option<(u32, MixId, u64)>,
+        start_after: Option<(u32, NodeId, u64)>,
         limit: Option<u32>,
     ) -> Result<AllDelegationsResponse, NyxdError> {
         self.query_vesting_contract(VestingQueryMsg::GetAllDelegations { start_after, limit })

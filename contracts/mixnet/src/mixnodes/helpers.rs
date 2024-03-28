@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::interval::storage as interval_storage;
-use crate::mixnodes::storage::{assign_layer, next_mixnode_id_counter};
 use crate::rewards::storage as rewards_storage;
-use cosmwasm_std::{Addr, Coin, Decimal, Env, StdResult, Storage};
+use cosmwasm_std::{Addr, Decimal, Env, StdResult, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::mixnode::{
-    MixNodeCostParams, MixNodeDetails, MixNodeRewarding, UnbondedMixnode,
-};
-use mixnet_contract_common::{IdentityKey, Layer, MixId, MixNode, MixNodeBond};
+use mixnet_contract_common::mixnode::{MixNodeDetails, UnbondedMixnode};
+use mixnet_contract_common::{IdentityKey, MixNodeBond, NodeId};
 
 pub(crate) fn must_get_mixnode_bond_by_owner(
     store: &dyn Storage,
@@ -50,7 +46,7 @@ pub(crate) fn attach_mix_details(
 
 pub(crate) fn get_mixnode_details_by_id(
     store: &dyn Storage,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> StdResult<Option<MixNodeDetails>> {
     if let Some(bond_information) = storage::mixnode_bonds().may_load(store, mix_id)? {
         attach_mix_details(store, bond_information).map(Some)
@@ -91,38 +87,13 @@ pub(crate) fn get_mixnode_details_by_identity(
     }
 }
 
-pub(crate) fn save_new_mixnode(
-    storage: &mut dyn Storage,
-    env: Env,
-    mixnode: MixNode,
-    cost_params: MixNodeCostParams,
-    owner: Addr,
-    pledge: Coin,
-) -> Result<(MixId, Layer), MixnetContractError> {
-    let layer = assign_layer(storage)?;
-    let mix_id = next_mixnode_id_counter(storage)?;
-    let current_epoch = interval_storage::current_interval(storage)?.current_epoch_absolute_id();
-
-    let mixnode_rewarding = MixNodeRewarding::initialise_new(cost_params, &pledge, current_epoch)?;
-    let mixnode_bond = MixNodeBond::new(mix_id, owner, pledge, layer, mixnode, env.block.height);
-
-    // save mixnode bond data
-    // note that this implicitly checks for uniqueness on identity key, sphinx key and owner
-    storage::mixnode_bonds().save(storage, mix_id, &mixnode_bond)?;
-
-    // save rewarding data
-    rewards_storage::MIXNODE_REWARDING.save(storage, mix_id, &mixnode_rewarding)?;
-
-    Ok((mix_id, layer))
-}
-
 pub(crate) fn cleanup_post_unbond_mixnode_storage(
     storage: &mut dyn Storage,
     env: &Env,
     current_details: &MixNodeDetails,
 ) -> Result<(), MixnetContractError> {
     let mix_id = current_details.bond_information.mix_id;
-    // remove all bond information (we don't need it anymore
+    // remove all bond information since we don't need it anymore
     // note that "normal" remove is `may_load` followed by `replace` with a `None`
     // and we have already loaded the data from the storage
     storage::mixnode_bonds().replace(
@@ -160,20 +131,17 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
             unbonding_height: env.block.height,
         },
     )?;
-    storage::decrement_layer_count(storage, current_details.bond_information.layer)
+    Ok(())
 }
 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::support::tests::fixtures::{
-        mix_node_cost_params_fixture, mix_node_fixture, TEST_COIN_DENOM,
-    };
     use crate::support::tests::test_helpers::TestSetup;
-    use cosmwasm_std::{coin, Uint128};
+    use cosmwasm_std::Uint128;
 
     pub(crate) struct DummyMixnode {
-        pub mix_id: MixId,
+        pub mix_id: NodeId,
         pub owner: Addr,
         pub identity: IdentityKey,
     }
@@ -376,100 +344,11 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn saving_new_mixnode() {
-        let mut test = TestSetup::new();
-
-        // get some mixnodes in
-        test.add_dummy_mixnode("owner1", None);
-        test.add_dummy_mixnode("owner2", None);
-        test.add_dummy_mixnode("owner3", None);
-        test.add_dummy_mixnode("owner4", None);
-        test.add_dummy_mixnode("owner5", None);
-
-        let env = test.env();
-        let id_key = "identity-key";
-        let sphinx_key = "sphinx-key";
-        let mut mixnode = mix_node_fixture();
-        mixnode.identity_key = id_key.into();
-        mixnode.sphinx_key = sphinx_key.into();
-        let cost_params = mix_node_cost_params_fixture();
-        let owner = Addr::unchecked("mix-owner");
-        let pledge = coin(100_000_000, TEST_COIN_DENOM);
-
-        let (id, layer) = save_new_mixnode(
-            test.deps_mut().storage,
-            env.clone(),
-            mixnode,
-            cost_params.clone(),
-            owner.clone(),
-            pledge.clone(),
-        )
-        .unwrap();
-        assert_eq!(id, 6);
-        assert_eq!(layer, Layer::Three);
-
-        assert_eq!(
-            storage::MIXNODE_ID_COUNTER
-                .load(test.deps().storage)
-                .unwrap(),
-            6
-        );
-        assert_eq!(storage::LAYERS.load(test.deps().storage).unwrap().layer3, 2);
-        let mix_details = get_mixnode_details_by_id(test.deps().storage, id)
-            .unwrap()
-            .unwrap();
-        assert_eq!(mix_details.mix_id(), id);
-        assert_eq!(mix_details.original_pledge(), &pledge);
-        assert_eq!(
-            mix_details.bond_information.bonding_height,
-            env.block.height
-        );
-
-        // try to add node with duplicate identity...
-        let mut mixnode = mix_node_fixture();
-        mixnode.identity_key = id_key.into();
-        let res = save_new_mixnode(
-            test.deps_mut().storage,
-            env.clone(),
-            mixnode,
-            cost_params.clone(),
-            Addr::unchecked("different-owner"),
-            pledge.clone(),
-        );
-        assert!(res.is_err());
-
-        // and duplicate owner...
-        let mixnode = mix_node_fixture();
-        let res = save_new_mixnode(
-            test.deps_mut().storage,
-            env.clone(),
-            mixnode,
-            cost_params.clone(),
-            owner,
-            pledge.clone(),
-        );
-        assert!(res.is_err());
-
-        // and duplicate sphinx key...
-        let mut mixnode = mix_node_fixture();
-        mixnode.sphinx_key = sphinx_key.into();
-        let res = save_new_mixnode(
-            test.deps_mut().storage,
-            env,
-            mixnode,
-            cost_params,
-            Addr::unchecked("different-owner"),
-            pledge,
-        );
-        assert!(res.is_err());
-    }
-
-    #[test]
     fn cleaning_post_unbond_storage() {
         let mut test = TestSetup::new();
 
-        let mix_id = test.add_dummy_mixnode("mix-owner", None);
-        let mix_id_leftover = test.add_dummy_mixnode("mix-owner-leftover", None);
+        let mix_id = test.add_legacy_mixnode("mix-owner", None);
+        let mix_id_leftover = test.add_legacy_mixnode("mix-owner-leftover", None);
 
         // manually adjust delegation info as to indicate the rewarding information shouldnt get removed
         let mut rewarding_details = test.mix_rewarding(mix_id_leftover);
@@ -516,9 +395,6 @@ pub(crate) mod tests {
         };
         assert_eq!(unbonded_details, expected);
 
-        // layers are decremented
-        assert_eq!(storage::LAYERS.load(test.deps().storage).unwrap().layer1, 0);
-
         let details2 = get_mixnode_details_by_id(test.deps().storage, mix_id_leftover)
             .unwrap()
             .unwrap();
@@ -549,8 +425,5 @@ pub(crate) mod tests {
             unbonding_height: env.block.height,
         };
         assert_eq!(unbonded_details, expected);
-
-        // layers are decremented
-        assert_eq!(storage::LAYERS.load(test.deps().storage).unwrap().layer2, 0);
     }
 }

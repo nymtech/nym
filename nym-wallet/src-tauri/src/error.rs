@@ -158,6 +158,9 @@ pub enum BackendError {
 
     #[error("there aren't any vesting delegations to migrate")]
     NoVestingDelegations,
+
+    #[error("this operation is no longer allowed to be performed with vesting tokens. please move them to your liquid balance and try again")]
+    DisabledVestingOperation,
 }
 
 impl Serialize for BackendError {

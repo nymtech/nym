@@ -5,10 +5,9 @@ use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use cosmwasm_std::Decimal;
 use nym_mixnet_contract_common::{
-    EpochId, MixId, MixNode, MixNodeBond as MixnetContractMixNodeBond,
-    MixNodeCostParams as MixnetContractMixNodeCostParams,
-    MixNodeDetails as MixnetContractMixNodeDetails,
-    MixNodeRewarding as MixnetContractMixNodeRewarding, Percent,
+    EpochId, MixNode, MixNodeBond as MixnetContractMixNodeBond,
+    MixNodeDetails as MixnetContractMixNodeDetails, NodeCostParams as MixnetContractNodeCostParams,
+    NodeId, NodeRewarding as MixnetContractNodeRewarding, Percent,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,7 +22,7 @@ use std::net::IpAddr;
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
-    pub rewarding_details: MixNodeRewarding,
+    pub rewarding_details: NodeRewarding,
 }
 
 impl MixNodeDetails {
@@ -36,7 +35,7 @@ impl MixNodeDetails {
                 details.bond_information,
                 reg,
             )?,
-            rewarding_details: MixNodeRewarding::from_mixnet_contract_mixnode_rewarding(
+            rewarding_details: NodeRewarding::from_mixnet_contract_node_rewarding(
                 details.rewarding_details,
                 reg,
             )?,
@@ -51,10 +50,9 @@ impl MixNodeDetails {
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     pub owner: String,
     pub original_pledge: DecCoin,
-    pub layer: String,
     pub mix_node: MixNode,
     pub proxy: Option<String>,
     pub bonding_height: u64,
@@ -71,7 +69,6 @@ impl MixNodeBond {
             owner: bond.owner.into_string(),
             original_pledge: reg
                 .attempt_convert_to_display_dec_coin(bond.original_pledge.into())?,
-            layer: bond.layer.into(),
             mix_node: bond.mix_node,
             proxy: bond.proxy.map(|p| p.into_string()),
             bonding_height: bond.bonding_height,
@@ -83,11 +80,11 @@ impl MixNodeBond {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixNodeRewarding.ts")
+    ts(export_to = "ts-packages/types/src/types/rust/NodeRewarding.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct MixNodeRewarding {
-    pub cost_params: MixNodeCostParams,
+pub struct NodeRewarding {
+    pub cost_params: NodeCostParams,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub operator: Decimal,
@@ -106,13 +103,13 @@ pub struct MixNodeRewarding {
     pub unique_delegations: u32,
 }
 
-impl MixNodeRewarding {
-    pub fn from_mixnet_contract_mixnode_rewarding(
-        mix_rewarding: MixnetContractMixNodeRewarding,
+impl NodeRewarding {
+    pub fn from_mixnet_contract_node_rewarding(
+        mix_rewarding: MixnetContractNodeRewarding,
         reg: &RegisteredCoins,
-    ) -> Result<MixNodeRewarding, TypesError> {
-        Ok(MixNodeRewarding {
-            cost_params: MixNodeCostParams::from_mixnet_contract_mixnode_cost_params(
+    ) -> Result<NodeRewarding, TypesError> {
+        Ok(NodeRewarding {
+            cost_params: NodeCostParams::from_mixnet_contract_mixnode_cost_params(
                 mix_rewarding.cost_params,
                 reg,
             )?,
@@ -132,19 +129,19 @@ impl MixNodeRewarding {
     ts(export_to = "ts-packages/types/src/types/rust/MixNodeCostParams.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
-pub struct MixNodeCostParams {
+pub struct NodeCostParams {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub profit_margin_percent: Percent,
 
     pub interval_operating_cost: DecCoin,
 }
 
-impl MixNodeCostParams {
+impl NodeCostParams {
     pub fn from_mixnet_contract_mixnode_cost_params(
-        cost_params: MixnetContractMixNodeCostParams,
+        cost_params: MixnetContractNodeCostParams,
         reg: &RegisteredCoins,
-    ) -> Result<MixNodeCostParams, TypesError> {
-        Ok(MixNodeCostParams {
+    ) -> Result<NodeCostParams, TypesError> {
+        Ok(NodeCostParams {
             profit_margin_percent: cost_params.profit_margin_percent,
             interval_operating_cost: reg
                 .attempt_convert_to_display_dec_coin(cost_params.interval_operating_cost.into())?,
@@ -154,8 +151,8 @@ impl MixNodeCostParams {
     pub fn try_convert_to_mixnet_contract_cost_params(
         self,
         reg: &RegisteredCoins,
-    ) -> Result<MixnetContractMixNodeCostParams, TypesError> {
-        Ok(MixnetContractMixNodeCostParams {
+    ) -> Result<MixnetContractNodeCostParams, TypesError> {
+        Ok(MixnetContractNodeCostParams {
             profit_margin_percent: self.profit_margin_percent,
             interval_operating_cost: reg
                 .attempt_convert_to_base_coin(self.interval_operating_cost)?

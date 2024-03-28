@@ -12,6 +12,7 @@ use crate::ecash::storage::models::{
 };
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
+use async_trait::async_trait;
 use nym_api_requests::ecash::models::Pagination;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
@@ -24,6 +25,7 @@ use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::nyxd::AccountId;
 use time::{Date, OffsetDateTime};
+use tracing::info;
 
 mod helpers;
 pub(crate) mod manager;

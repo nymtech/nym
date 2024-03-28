@@ -5,6 +5,9 @@ use cosmwasm_std::{Decimal, Uint128};
 
 pub const TOKEN_SUPPLY: Uint128 = Uint128::new(1_000_000_000_000_000);
 
+pub const DEFAULT_INTERVAL_OPERATING_COST_AMOUNT: u128 = 40_000_000;
+pub const DEFAULT_PROFIT_MARGIN_PERCENT: u64 = 20;
+
 // I'm still not 100% sure how to feel about existence of this file
 // This is equivalent of representing our display coin with 6 decimal places.
 // I'm using this one as opposed to "Decimal::one()", as this provides us with higher accuracy

@@ -5,9 +5,9 @@ use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
 use cosmwasm_std::Decimal;
-use nym_mixnet_contract_common::{IdentityKey, MixId, Percent};
+use nym_mixnet_contract_common::{IdentityKey, NodeId, Percent};
 use nym_types::currency::DecCoin;
-use nym_types::mixnode::MixNodeCostParams;
+use nym_types::mixnode::NodeCostParams;
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_wallet_types::app::AppEnv;
 
@@ -46,10 +46,19 @@ pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, 
 }
 
 #[tauri::command]
+pub async fn owns_nym_node(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
+    Ok(nyxd_client!(state)
+        .get_owned_nym_node(&nyxd_client!(state).address())
+        .await?
+        .details
+        .is_some())
+}
+
+#[tauri::command]
 pub async fn try_convert_pubkey_to_mix_id(
     state: tauri::State<'_, WalletState>,
     mix_identity: IdentityKey,
-) -> Result<Option<MixId>, BackendError> {
+) -> Result<Option<NodeId>, BackendError> {
     let res = nyxd_client!(state)
         .get_mixnode_details_by_identity(mix_identity)
         .await?;
@@ -62,7 +71,7 @@ pub async fn try_convert_pubkey_to_mix_id(
 pub async fn default_mixnode_cost_params(
     state: tauri::State<'_, WalletState>,
     profit_margin_percent: Percent,
-) -> Result<MixNodeCostParams, BackendError> {
+) -> Result<NodeCostParams, BackendError> {
     // attaches the old pre-update default operating cost of 40 nym per interval
     let guard = state.read().await;
 
@@ -71,7 +80,7 @@ pub async fn default_mixnode_cost_params(
     let current_network = guard.current_network();
     let denom = current_network.mix_denom().display;
 
-    Ok(MixNodeCostParams {
+    Ok(NodeCostParams {
         profit_margin_percent,
         interval_operating_cost: DecCoin {
             denom: denom.into(),

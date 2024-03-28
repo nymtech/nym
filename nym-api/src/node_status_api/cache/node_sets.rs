@@ -1,59 +1,23 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::helpers::RewardedSetStatus;
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
 use crate::support::storage::NymApiStorage;
-use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodePerformance};
-use nym_mixnet_contract_common::families::FamilyHead;
-use nym_mixnet_contract_common::{reward_params::Performance, Interval, MixId};
-use nym_mixnet_contract_common::{
-    GatewayBond, IdentityKey, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
+use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
+use nym_api_requests::models::{
+    GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation, NodePerformance,
 };
+use nym_mixnet_contract_common::{reward_params::Performance, Interval, NodeId, RewardedSet};
+use nym_mixnet_contract_common::{NymNodeDetails, RewardingParams};
 use nym_topology::NetworkAddress;
 use std::collections::{HashMap, HashSet};
 use std::net::ToSocketAddrs;
 use std::str::FromStr;
 
-pub(super) fn to_rewarded_set_node_status(
-    rewarded_set: &[MixNodeDetails],
-    active_set: &[MixNodeDetails],
-) -> HashMap<MixId, RewardedSetNodeStatus> {
-    let mut rewarded_set_node_status: HashMap<MixId, RewardedSetNodeStatus> = rewarded_set
-        .iter()
-        .map(|m| (m.mix_id(), RewardedSetNodeStatus::Standby))
-        .collect();
-    for mixnode in active_set {
-        *rewarded_set_node_status
-            .get_mut(&mixnode.mix_id())
-            .expect("All active nodes are rewarded nodes") = RewardedSetNodeStatus::Active;
-    }
-    rewarded_set_node_status
-}
-
-pub(super) fn split_into_active_and_rewarded_set(
-    mixnodes_annotated: &HashMap<MixId, MixNodeBondAnnotated>,
-    rewarded_set_node_status: &HashMap<u32, RewardedSetNodeStatus>,
-) -> (Vec<MixNodeBondAnnotated>, Vec<MixNodeBondAnnotated>) {
-    let rewarded_set: Vec<_> = mixnodes_annotated
-        .values()
-        .filter(|mixnode| rewarded_set_node_status.get(&mixnode.mix_id()).is_some())
-        .cloned()
-        .collect();
-    let active_set: Vec<_> = rewarded_set
-        .iter()
-        .filter(|mixnode| {
-            rewarded_set_node_status
-                .get(&mixnode.mix_id())
-                .map_or(false, RewardedSetNodeStatus::is_active)
-        })
-        .cloned()
-        .collect();
-    (rewarded_set, active_set)
-}
-
 pub(super) async fn get_mixnode_performance_from_storage(
     storage: &NymApiStorage,
-    mix_id: MixId,
+    mix_id: NodeId,
     epoch: Interval,
 ) -> Option<Performance> {
     storage
@@ -68,12 +32,12 @@ pub(super) async fn get_mixnode_performance_from_storage(
 
 pub(super) async fn get_gateway_performance_from_storage(
     storage: &NymApiStorage,
-    gateway_id: &str,
+    node_id: NodeId,
     epoch: Interval,
 ) -> Option<Performance> {
     storage
         .get_average_gateway_uptime_in_the_last_24hrs(
-            gateway_id,
+            node_id,
             epoch.current_epoch_end_unix_timestamp(),
         )
         .await
@@ -81,19 +45,25 @@ pub(super) async fn get_gateway_performance_from_storage(
         .map(Into::into)
 }
 
-pub(super) async fn annotate_nodes_with_details(
+// TODO: this might have to be moved to a different file if other places also rely on this functionality
+fn get_rewarded_set_status(rewarded_set: &RewardedSet, node_id: NodeId) -> RewardedSetStatus {
+    if rewarded_set.is_standby(&node_id) {
+        RewardedSetStatus::Standby
+    } else if rewarded_set.is_active_mixnode(&node_id) {
+        RewardedSetStatus::Active
+    } else {
+        RewardedSetStatus::Inactive
+    }
+}
+
+pub(super) async fn annotate_legacy_mixnodes_nodes_with_details(
     storage: &NymApiStorage,
-    mixnodes: Vec<MixNodeDetails>,
+    mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
     interval_reward_params: RewardingParams,
     current_interval: Interval,
-    rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
-    mix_to_family: Vec<(IdentityKey, FamilyHead)>,
-    blacklist: &HashSet<MixId>,
-) -> HashMap<MixId, MixNodeBondAnnotated> {
-    let mix_to_family = mix_to_family
-        .into_iter()
-        .collect::<HashMap<IdentityKey, FamilyHead>>();
-
+    rewarded_set: &RewardedSet,
+    blacklist: &HashSet<NodeId>,
+) -> HashMap<NodeId, MixNodeBondAnnotated> {
     let mut annotated = HashMap::new();
     for mixnode in mixnodes {
         let stake_saturation = mixnode
@@ -104,7 +74,7 @@ pub(super) async fn annotate_nodes_with_details(
             .rewarding_details
             .uncapped_bond_saturation(&interval_reward_params);
 
-        let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
+        let rewarded_set_status = get_rewarded_set_status(rewarded_set, mixnode.mix_id());
 
         // If the performance can't be obtained, because the nym-api was not started with
         // the monitoring (and hence, storage), then reward estimates will be all zero
@@ -147,10 +117,6 @@ pub(super) async fn annotate_nodes_with_details(
         let (estimated_operator_apy, estimated_delegators_apy) =
             compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
 
-        let family = mix_to_family
-            .get(mixnode.bond_information.identity())
-            .cloned();
-
         annotated.insert(
             mixnode.mix_id(),
             MixNodeBondAnnotated {
@@ -162,7 +128,6 @@ pub(super) async fn annotate_nodes_with_details(
                 node_performance,
                 estimated_operator_apy,
                 estimated_delegators_apy,
-                family,
                 ip_addresses,
             },
         );
@@ -170,35 +135,33 @@ pub(super) async fn annotate_nodes_with_details(
     annotated
 }
 
-pub(crate) async fn annotate_gateways_with_details(
+pub(crate) async fn annotate_legacy_gateways_with_details(
     storage: &NymApiStorage,
-    gateway_bonds: Vec<GatewayBond>,
+    gateway_bonds: Vec<LegacyGatewayBondWithId>,
     current_interval: Interval,
-    blacklist: &HashSet<IdentityKey>,
-) -> HashMap<IdentityKey, GatewayBondAnnotated> {
+    blacklist: &HashSet<NodeId>,
+) -> HashMap<NodeId, GatewayBondAnnotated> {
     let mut annotated = HashMap::new();
     for gateway_bond in gateway_bonds {
-        let performance = get_gateway_performance_from_storage(
-            storage,
-            gateway_bond.identity(),
-            current_interval,
-        )
-        .await
-        .unwrap_or_default();
+        let performance =
+            get_gateway_performance_from_storage(storage, gateway_bond.node_id, current_interval)
+                .await
+                .unwrap_or_default();
 
         let node_performance = storage
-            .construct_gateway_report(gateway_bond.identity())
+            .construct_gateway_report(gateway_bond.node_id)
             .await
             .map(NodePerformance::from)
             .ok()
             .unwrap_or_default();
 
         // safety: this conversion is infallible
-        let ip_addresses = match NetworkAddress::from_str(&gateway_bond.gateway.host).unwrap() {
+        let ip_addresses = match NetworkAddress::from_str(&gateway_bond.bond.gateway.host).unwrap()
+        {
             NetworkAddress::IpAddr(ip) => vec![ip],
             NetworkAddress::Hostname(hostname) => {
                 // try to resolve it
-                (hostname.as_str(), gateway_bond.gateway.mix_port)
+                (hostname.as_str(), gateway_bond.bond.gateway.mix_port)
                     .to_socket_addrs()
                     .map(|iter| iter.map(|s| s.ip()).collect::<Vec<_>>())
                     .unwrap_or_default()
@@ -206,9 +169,9 @@ pub(crate) async fn annotate_gateways_with_details(
         };
 
         annotated.insert(
-            gateway_bond.identity().to_string(),
+            gateway_bond.node_id,
             GatewayBondAnnotated {
-                blacklisted: blacklist.contains(&gateway_bond.gateway.identity_key),
+                blacklisted: blacklist.contains(&gateway_bond.node_id),
                 gateway_bond,
                 self_described: None,
                 performance,
@@ -218,4 +181,73 @@ pub(crate) async fn annotate_gateways_with_details(
         );
     }
     annotated
+}
+
+pub(crate) async fn produce_node_annotations(
+    storage: &NymApiStorage,
+    legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
+    legacy_gateways: &[LegacyGatewayBondWithId],
+    nym_nodes: &[NymNodeDetails],
+    current_interval: Interval,
+) -> HashMap<NodeId, NodeAnnotation> {
+    let mut annotations = HashMap::new();
+
+    for legacy_mix in legacy_mixnodes {
+        let perf = storage
+            .get_average_mixnode_uptime_in_the_last_24hrs(
+                legacy_mix.mix_id(),
+                current_interval.current_epoch_end_unix_timestamp(),
+            )
+            .await
+            .ok()
+            .unwrap_or_default()
+            .into();
+
+        annotations.insert(
+            legacy_mix.mix_id(),
+            NodeAnnotation {
+                last_24h_performance: perf,
+            },
+        );
+    }
+
+    for legacy_gateway in legacy_gateways {
+        let perf = storage
+            .get_average_gateway_uptime_in_the_last_24hrs(
+                legacy_gateway.node_id,
+                current_interval.current_epoch_end_unix_timestamp(),
+            )
+            .await
+            .ok()
+            .unwrap_or_default()
+            .into();
+
+        annotations.insert(
+            legacy_gateway.node_id,
+            NodeAnnotation {
+                last_24h_performance: perf,
+            },
+        );
+    }
+
+    for nym_node in nym_nodes {
+        let perf = storage
+            .get_average_node_uptime_in_the_last_24hrs(
+                nym_node.node_id(),
+                current_interval.current_epoch_end_unix_timestamp(),
+            )
+            .await
+            .ok()
+            .unwrap_or_default()
+            .into();
+
+        annotations.insert(
+            nym_node.node_id(),
+            NodeAnnotation {
+                last_24h_performance: perf,
+            },
+        );
+    }
+
+    annotations
 }

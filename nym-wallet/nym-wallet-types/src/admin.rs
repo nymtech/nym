@@ -17,9 +17,8 @@ use serde::{Deserialize, Serialize};
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TauriContractStateParams {
-    minimum_mixnode_pledge: DecCoin,
-    minimum_gateway_pledge: DecCoin,
-    minimum_mixnode_delegation: Option<DecCoin>,
+    minimum_pledge: DecCoin,
+    minimum_delegation: Option<DecCoin>,
 
     operating_cost: TauriOperatingCostRange,
     profit_margin: TauriProfitMarginRange,
@@ -52,7 +51,7 @@ impl TauriContractStateParams {
         state_params: ContractStateParams,
         reg: &RegisteredCoins,
     ) -> Result<Self, TypesError> {
-        let rewarding_denom = &state_params.minimum_mixnode_pledge.denom;
+        let rewarding_denom = &state_params.minimum_pledge.denom;
         let min_operating_cost_c = Coin {
             denom: rewarding_denom.into(),
             amount: state_params.interval_operating_cost.minimum,
@@ -63,12 +62,10 @@ impl TauriContractStateParams {
         };
 
         Ok(TauriContractStateParams {
-            minimum_mixnode_pledge: reg
-                .attempt_convert_to_display_dec_coin(state_params.minimum_mixnode_pledge.into())?,
-            minimum_gateway_pledge: reg
-                .attempt_convert_to_display_dec_coin(state_params.minimum_gateway_pledge.into())?,
-            minimum_mixnode_delegation: state_params
-                .minimum_mixnode_delegation
+            minimum_pledge: reg
+                .attempt_convert_to_display_dec_coin(state_params.minimum_pledge.into())?,
+            minimum_delegation: state_params
+                .minimum_delegation
                 .map(|min_del| reg.attempt_convert_to_display_dec_coin(min_del.into()))
                 .transpose()?,
 
@@ -96,16 +93,13 @@ impl TauriContractStateParams {
         let max_operating_cost_c = reg.attempt_convert_to_base_coin(self.operating_cost.maximum)?;
 
         Ok(ContractStateParams {
-            minimum_mixnode_delegation: self
-                .minimum_mixnode_delegation
+            minimum_delegation: self
+                .minimum_delegation
                 .map(|min_del| reg.attempt_convert_to_base_coin(min_del))
                 .transpose()?
                 .map(Into::into),
-            minimum_mixnode_pledge: reg
-                .attempt_convert_to_base_coin(self.minimum_mixnode_pledge)?
-                .into(),
-            minimum_gateway_pledge: reg
-                .attempt_convert_to_base_coin(self.minimum_gateway_pledge)?
+            minimum_pledge: reg
+                .attempt_convert_to_base_coin(self.minimum_pledge)?
                 .into(),
 
             profit_margin: ContractProfitMarginRange {

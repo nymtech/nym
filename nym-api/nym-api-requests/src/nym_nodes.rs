@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{
-    GatewayBondAnnotated, MixNodeBondAnnotated, NymNodeDescription, OffsetDateTimeJsonSchemaWrapper,
+    GatewayBondAnnotated, MixNodeBondAnnotated, NymNodeData, OffsetDateTimeJsonSchemaWrapper,
 };
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
@@ -16,9 +17,23 @@ pub struct CachedNodesResponse<T> {
     pub nodes: Vec<T>,
 }
 
+impl<T> From<Vec<T>> for CachedNodesResponse<T> {
+    fn from(nodes: Vec<T>) -> Self {
+        CachedNodesResponse::new(nodes)
+    }
+}
+
+impl<T> CachedNodesResponse<T> {
+    pub fn new(nodes: Vec<T>) -> Self {
+        CachedNodesResponse {
+            refreshed_at: OffsetDateTime::now_utc().into(),
+            nodes,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "rocket-traits", derive(rocket::form::FromFormField))]
 pub enum NodeRoleQueryParam {
     ActiveMixnode,
 
@@ -56,8 +71,6 @@ pub struct BasicEntryInformation {
     pub wss_port: Option<u16>,
 }
 
-type NodeId = MixId;
-
 // the bare minimum information needed to construct sphinx packets
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct SkimmedNode {
@@ -82,9 +95,16 @@ pub struct SkimmedNode {
 }
 
 impl SkimmedNode {
+    pub fn get_mix_layer(&self) -> Option<u8> {
+        match self.role {
+            NodeRole::Mixnode { layer } => Some(layer),
+            _ => None,
+        }
+    }
+
     pub fn from_described_gateway(
         annotated: &GatewayBondAnnotated,
-        description: Option<&NymNodeDescription>,
+        description: Option<&NymNodeData>,
     ) -> Self {
         let mut base: SkimmedNode = annotated.into();
         let Some(description) = description else {
@@ -129,15 +149,15 @@ impl<'a> From<&'a MixNodeBondAnnotated> for SkimmedNode {
 impl<'a> From<&'a GatewayBondAnnotated> for SkimmedNode {
     fn from(value: &'a GatewayBondAnnotated) -> Self {
         SkimmedNode {
-            node_id: MixId::MAX,
+            node_id: value.gateway_bond.node_id,
             ip_addresses: value.ip_addresses.clone(),
-            ed25519_identity_pubkey: value.gateway_bond.identity().clone(),
-            mix_port: value.gateway_bond.gateway.mix_port,
-            x25519_sphinx_pubkey: value.gateway_bond.gateway.sphinx_key.clone(),
+            ed25519_identity_pubkey: value.gateway_bond.bond.identity().clone(),
+            mix_port: value.gateway_bond.bond.gateway.mix_port,
+            x25519_sphinx_pubkey: value.gateway_bond.bond.gateway.sphinx_key.clone(),
             role: NodeRole::EntryGateway,
             entry: Some(BasicEntryInformation {
                 hostname: None,
-                ws_port: value.gateway_bond.gateway.clients_port,
+                ws_port: value.gateway_bond.bond.gateway.clients_port,
                 wss_port: None,
             }),
             performance: value.node_performance.last_24h,
@@ -159,5 +179,5 @@ pub struct FullFatNode {
     pub expanded: SemiSkimmedNode,
 
     // kinda temporary for now to make as few changes as possible for now
-    pub self_described: Option<NymNodeDescription>,
+    pub self_described: Option<NymNodeData>,
 }

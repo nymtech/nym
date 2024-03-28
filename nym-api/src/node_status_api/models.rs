@@ -1,29 +1,25 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::ecash::error::{EcashError, RedemptionError};
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
+use crate::support::caching::cache::UninitialisedCache;
 use nym_api_requests::models::{
-    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
-    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, NodePerformance, RequestError,
+    HistoricalPerformanceResponse, HistoricalUptimeResponse, NodePerformance,
+    OldHistoricalUptimeResponse, RequestError,
 };
+use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{IdentityKey, MixId};
-use okapi::openapi3::{Responses, SchemaObject};
-use rocket::http::Status;
-use rocket::response::{self, Responder, Response};
-use rocket::serde::json::Json;
-use rocket::Request;
-use rocket_okapi::gen::OpenApiGenerator;
-use rocket_okapi::response::OpenApiResponderInner;
-use rocket_okapi::util::ensure_status_code_exists;
-use schemars::gen::SchemaGenerator;
-use schemars::schema::{InstanceType, Schema};
+use nym_mixnet_contract_common::{IdentityKey, NodeId};
+use nym_serde_helpers::date::DATE_FORMAT;
+use reqwest::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
+use std::fmt::Display;
 use thiserror::Error;
-use time::OffsetDateTime;
+use time::{Date, OffsetDateTime};
+use tracing::error;
 
 #[derive(Error, Debug)]
 #[error("Received uptime value was within 0-100 range (got {received})")]
@@ -38,6 +34,10 @@ pub struct Uptime(u8);
 impl Uptime {
     pub const fn zero() -> Self {
         Uptime(0)
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
     }
 
     pub fn new(uptime: f32) -> Self {
@@ -128,9 +128,8 @@ impl From<Uptime> for Performance {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeStatusReport {
-    pub(crate) mix_id: MixId,
+    pub(crate) mix_id: NodeId,
     pub(crate) identity: IdentityKey,
-    pub(crate) owner: String,
 
     pub(crate) most_recent: Uptime,
 
@@ -141,9 +140,8 @@ pub struct MixnodeStatusReport {
 impl MixnodeStatusReport {
     pub(crate) fn construct_from_last_day_reports(
         report_time: OffsetDateTime,
-        mix_id: MixId,
+        mix_id: NodeId,
         identity: IdentityKey,
-        owner: String,
         last_day: Vec<NodeStatus>,
         last_hour_test_runs: usize,
         last_day_test_runs: usize,
@@ -158,23 +156,9 @@ impl MixnodeStatusReport {
         MixnodeStatusReport {
             mix_id,
             identity,
-            owner,
             most_recent: node_uptimes.most_recent,
             last_hour: node_uptimes.last_hour,
             last_day: node_uptimes.last_day,
-        }
-    }
-}
-
-impl From<MixnodeStatusReport> for MixnodeStatusReportResponse {
-    fn from(status: MixnodeStatusReport) -> Self {
-        MixnodeStatusReportResponse {
-            mix_id: status.mix_id,
-            identity: status.identity,
-            owner: status.owner,
-            most_recent: status.most_recent.0,
-            last_hour: status.last_hour.0,
-            last_day: status.last_day.0,
         }
     }
 }
@@ -191,8 +175,8 @@ impl From<MixnodeStatusReport> for NodePerformance {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayStatusReport {
+    pub(crate) node_id: NodeId,
     pub(crate) identity: String,
-    pub(crate) owner: String,
 
     pub(crate) most_recent: Uptime,
 
@@ -203,8 +187,8 @@ pub struct GatewayStatusReport {
 impl GatewayStatusReport {
     pub(crate) fn construct_from_last_day_reports(
         report_time: OffsetDateTime,
+        node_id: NodeId,
         identity: String,
-        owner: String,
         last_day: Vec<NodeStatus>,
         last_hour_test_runs: usize,
         last_day_test_runs: usize,
@@ -218,22 +202,10 @@ impl GatewayStatusReport {
 
         GatewayStatusReport {
             identity,
-            owner,
+            node_id,
             most_recent: node_uptimes.most_recent,
             last_hour: node_uptimes.last_hour,
             last_day: node_uptimes.last_day,
-        }
-    }
-}
-
-impl From<GatewayStatusReport> for GatewayStatusReportResponse {
-    fn from(status: GatewayStatusReport) -> Self {
-        GatewayStatusReportResponse {
-            identity: status.identity,
-            owner: status.owner,
-            most_recent: status.most_recent.0,
-            last_hour: status.last_hour.0,
-            last_day: status.last_day.0,
         }
     }
 }
@@ -250,64 +222,40 @@ impl From<GatewayStatusReport> for NodePerformance {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeUptimeHistory {
-    pub(crate) mix_id: MixId,
+    pub(crate) mix_id: NodeId,
     pub(crate) identity: String,
-    pub(crate) owner: String,
 
     pub(crate) history: Vec<HistoricalUptime>,
 }
 
 impl MixnodeUptimeHistory {
-    pub(crate) fn new(
-        mix_id: MixId,
-        identity: String,
-        owner: String,
-        history: Vec<HistoricalUptime>,
-    ) -> Self {
+    pub(crate) fn new(mix_id: NodeId, identity: String, history: Vec<HistoricalUptime>) -> Self {
         MixnodeUptimeHistory {
             mix_id,
             identity,
-            owner,
             history,
         }
     }
 }
 
-impl From<MixnodeUptimeHistory> for MixnodeUptimeHistoryResponse {
-    fn from(history: MixnodeUptimeHistory) -> Self {
-        MixnodeUptimeHistoryResponse {
-            mix_id: history.mix_id,
-            identity: history.identity,
-            owner: history.owner,
-            history: history.history.into_iter().map(Into::into).collect(),
-        }
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Default, Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayUptimeHistory {
     pub(crate) identity: String,
-    pub(crate) owner: String,
+    pub(crate) node_id: NodeId,
 
     pub(crate) history: Vec<HistoricalUptime>,
 }
 
 impl GatewayUptimeHistory {
-    pub(crate) fn new(identity: String, owner: String, history: Vec<HistoricalUptime>) -> Self {
+    pub(crate) fn new(
+        node_id: NodeId,
+        identity: impl Into<String>,
+        history: Vec<HistoricalUptime>,
+    ) -> Self {
         GatewayUptimeHistory {
-            identity,
-            owner,
+            node_id,
+            identity: identity.into(),
             history,
-        }
-    }
-}
-
-impl From<GatewayUptimeHistory> for GatewayUptimeHistoryResponse {
-    fn from(history: GatewayUptimeHistory) -> Self {
-        GatewayUptimeHistoryResponse {
-            identity: history.identity,
-            owner: history.owner,
-            history: history.history.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -321,188 +269,172 @@ pub struct HistoricalUptime {
     pub(crate) uptime: Uptime,
 }
 
-impl From<HistoricalUptime> for HistoricalUptimeResponse {
+#[derive(Error, Debug)]
+pub enum InvalidHistoricalPerformance {
+    #[error("the provided date could not be parsed")]
+    UnparsableDate,
+
+    #[error("the provided uptime could not be parsed")]
+    MalformedPerformance,
+}
+
+impl TryFrom<HistoricalUptime> for HistoricalPerformanceResponse {
+    type Error = InvalidHistoricalPerformance;
+    fn try_from(value: HistoricalUptime) -> Result<Self, Self::Error> {
+        Ok(HistoricalPerformanceResponse {
+            date: Date::parse(&value.date, DATE_FORMAT)
+                .map_err(|_| InvalidHistoricalPerformance::UnparsableDate)?,
+            performance: Performance::from_percentage_value(value.uptime.u8() as u64)
+                .map_err(|_| InvalidHistoricalPerformance::MalformedPerformance)?
+                .naive_to_f64(),
+        })
+    }
+}
+
+impl TryFrom<HistoricalUptime> for HistoricalUptimeResponse {
+    type Error = InvalidHistoricalPerformance;
+    fn try_from(value: HistoricalUptime) -> Result<Self, Self::Error> {
+        Ok(HistoricalUptimeResponse {
+            date: Date::parse(&value.date, DATE_FORMAT)
+                .map_err(|_| InvalidHistoricalPerformance::UnparsableDate)?,
+            uptime: value.uptime.u8(),
+        })
+    }
+}
+
+impl From<HistoricalUptime> for OldHistoricalUptimeResponse {
     fn from(uptime: HistoricalUptime) -> Self {
-        HistoricalUptimeResponse {
+        OldHistoricalUptimeResponse {
             date: uptime.date,
             uptime: uptime.uptime.0,
         }
     }
 }
 
-#[deprecated(note = "TODO rocket remove once Rocket is phased out")]
-pub(crate) struct RocketErrorResponse {
-    error_message: RequestError,
-    status: Status,
+// TODO rocket remove smurf name after eliminating `rocket`
+pub(crate) type AxumResult<T> = Result<T, AxumErrorResponse>;
+pub(crate) struct AxumErrorResponse {
+    message: RequestError,
+    status: StatusCode,
 }
 
-impl RocketErrorResponse {
-    pub(crate) fn new(error_message: impl Into<String>, status: Status) -> Self {
-        RocketErrorResponse {
-            error_message: RequestError::new(error_message),
-            status,
-        }
-    }
-}
-
-impl<'r, 'o: 'r> Responder<'r, 'o> for RocketErrorResponse {
-    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'o> {
-        // piggyback on the existing implementation
-        // also prefer json over plain for ease of use in frontend
-        Response::build()
-            .merge(Json(self.error_message).respond_to(req)?)
-            .status(self.status)
-            .ok()
-    }
-}
-
-impl JsonSchema for RocketErrorResponse {
-    fn schema_name() -> String {
-        "ErrorResponse".to_owned()
-    }
-
-    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
-        let mut schema_object = SchemaObject {
-            instance_type: Some(InstanceType::Object.into()),
-            ..SchemaObject::default()
-        };
-
-        let object_validation = schema_object.object();
-        object_validation
-            .properties
-            .insert("error_message".to_owned(), gen.subschema_for::<String>());
-        object_validation
-            .required
-            .insert("error_message".to_owned());
-
-        // Status does not implement JsonSchema so we just explicitly specify the inner type.
-        object_validation
-            .properties
-            .insert("status".to_owned(), gen.subschema_for::<u16>());
-        object_validation.required.insert("status".to_owned());
-
-        Schema::Object(schema_object)
-    }
-}
-
-impl OpenApiResponderInner for RocketErrorResponse {
-    fn responses(_gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
-        let mut responses = Responses::default();
-        ensure_status_code_exists(&mut responses, 404);
-        Ok(responses)
-    }
-}
-
-#[cfg(feature = "axum")]
-pub(crate) use axum_error::{AxumErrorResponse, AxumResult};
-
-#[cfg(feature = "axum")]
-/// TODO rocket: extract types from this module when axum becomes the only server in Nym API
-mod axum_error {
-    pub use super::*;
-    use crate::ecash::error::{EcashError, RedemptionError};
-    use std::fmt::Display;
-
-    // TODO rocket remove smurf name after eliminating `rocket`
-    pub(crate) type AxumResult<T> = Result<T, AxumErrorResponse>;
-    pub(crate) struct AxumErrorResponse {
-        message: RequestError,
-        status: axum::http::StatusCode,
-    }
-
-    impl AxumErrorResponse {
-        pub(crate) fn internal_msg(msg: impl Display) -> Self {
-            Self {
-                message: RequestError::new(msg.to_string()),
-                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            }
-        }
-
-        pub(crate) fn internal() -> Self {
-            Self {
-                message: RequestError::new("Internal server error"),
-                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            }
-        }
-
-        pub(crate) fn not_implemented() -> Self {
-            Self {
-                message: RequestError::empty(),
-                status: axum::http::StatusCode::NOT_IMPLEMENTED,
-            }
-        }
-
-        pub(crate) fn not_found(msg: impl Display) -> Self {
-            Self {
-                message: RequestError::new(msg.to_string()),
-                status: axum::http::StatusCode::NOT_FOUND,
-            }
-        }
-
-        pub(crate) fn service_unavailable() -> Self {
-            Self {
-                message: RequestError::empty(),
-                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-            }
-        }
-
-        pub(crate) fn unprocessable_entity(msg: impl Display) -> Self {
-            Self {
-                message: RequestError::new(msg.to_string()),
-                status: axum::http::StatusCode::UNPROCESSABLE_ENTITY,
-            }
+impl AxumErrorResponse {
+    pub(crate) fn internal_msg(msg: impl Display) -> Self {
+        Self {
+            message: RequestError::new(msg.to_string()),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
-    impl axum::response::IntoResponse for AxumErrorResponse {
-        fn into_response(self) -> axum::response::Response {
-            (self.status, self.message.message().to_string()).into_response()
+    pub(crate) fn internal() -> Self {
+        Self {
+            message: RequestError::new("Internal server error"),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
-    impl From<NymApiStorageError> for AxumErrorResponse {
-        fn from(value: NymApiStorageError) -> Self {
-            error!("{value}");
-            Self {
-                message: RequestError::empty(),
-                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            }
+    pub(crate) fn not_implemented() -> Self {
+        Self {
+            message: RequestError::empty(),
+            status: StatusCode::NOT_IMPLEMENTED,
         }
     }
 
-    impl From<EcashError> for AxumErrorResponse {
-        fn from(value: EcashError) -> Self {
-            Self {
-                message: RequestError::new(value.to_string()),
-                status: axum::http::StatusCode::BAD_REQUEST,
-            }
+    pub(crate) fn not_found(msg: impl Display) -> Self {
+        Self {
+            message: RequestError::new(msg.to_string()),
+            status: StatusCode::NOT_FOUND,
         }
     }
 
-    #[cfg(feature = "axum")]
-    impl From<RedemptionError> for AxumErrorResponse {
-        fn from(value: RedemptionError) -> Self {
-            Self {
-                message: RequestError::new(value.to_string()),
-                status: axum::http::StatusCode::BAD_REQUEST,
-            }
+    pub(crate) fn service_unavailable() -> Self {
+        Self {
+            message: RequestError::empty(),
+            status: StatusCode::SERVICE_UNAVAILABLE,
+        }
+    }
+
+    pub(crate) fn unprocessable_entity(msg: impl Display) -> Self {
+        Self {
+            message: RequestError::new(msg.to_string()),
+            status: StatusCode::UNPROCESSABLE_ENTITY,
+        }
+    }
+
+    pub(crate) fn forbidden(msg: impl Display) -> Self {
+        Self {
+            message: RequestError::new(msg.to_string()),
+            status: StatusCode::FORBIDDEN,
+        }
+    }
+
+    pub(crate) fn bad_request(msg: impl Display) -> Self {
+        Self {
+            message: RequestError::new(msg.to_string()),
+            status: StatusCode::BAD_REQUEST,
         }
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+impl From<UninitialisedCache> for AxumErrorResponse {
+    fn from(_: UninitialisedCache) -> Self {
+        AxumErrorResponse {
+            message: RequestError::new("relevant cache hasn't been initialised yet"),
+            status: StatusCode::SERVICE_UNAVAILABLE,
+        }
+    }
+}
+
+impl axum::response::IntoResponse for AxumErrorResponse {
+    fn into_response(self) -> axum::response::Response {
+        (self.status, self.message.message().to_string()).into_response()
+    }
+}
+
+impl From<NymApiStorageError> for AxumErrorResponse {
+    fn from(value: NymApiStorageError) -> Self {
+        error!("{value}");
+        Self {
+            message: RequestError::empty(),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl From<EcashError> for AxumErrorResponse {
+    fn from(value: EcashError) -> Self {
+        Self {
+            message: RequestError::new(value.to_string()),
+            status: StatusCode::BAD_REQUEST,
+        }
+    }
+}
+
+impl From<RedemptionError> for AxumErrorResponse {
+    fn from(value: RedemptionError) -> Self {
+        Self {
+            message: RequestError::new(value.to_string()),
+            status: StatusCode::BAD_REQUEST,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
 pub enum NymApiStorageError {
     #[error("could not find status report associated with mixnode {mix_id}")]
-    MixnodeReportNotFound { mix_id: MixId },
+    MixnodeReportNotFound { mix_id: NodeId },
 
-    #[error("Could not find status report associated with gateway {identity}")]
-    GatewayReportNotFound { identity: IdentityKey },
+    #[error("Could not find status report associated with gateway {node_id}")]
+    GatewayReportNotFound { node_id: NodeId },
 
     #[error("could not find uptime history associated with mixnode {mix_id}")]
-    MixnodeUptimeHistoryNotFound { mix_id: MixId },
+    MixnodeUptimeHistoryNotFound { mix_id: NodeId },
 
-    #[error("could not find uptime history associated with gateway {identity}")]
-    GatewayUptimeHistoryNotFound { identity: IdentityKey },
+    #[error("could not find uptime history associated with gateway {node_id}")]
+    GatewayUptimeHistoryNotFound { node_id: NodeId },
+
+    #[error("could not find gateway {identity} in the storage")]
+    GatewayNotFound { identity: String },
 
     // I don't think we want to expose errors to the user about what really happened
     #[error("experienced internal database error")]
@@ -523,4 +455,12 @@ impl NymApiStorageError {
             reason: reason.into(),
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uptime_response_conversion() {}
 }

@@ -3,15 +3,17 @@
 
 use crate::delegation::{self, OwnerProxySubKey};
 use crate::error::MixnetContractError;
-use crate::families::FamilyHead;
 use crate::gateway::{Gateway, GatewayConfigUpdate};
 use crate::helpers::IntoBaseDecimal;
-use crate::mixnode::{Layer, MixNode, MixNodeConfigUpdate, MixNodeCostParams};
+use crate::mixnode::{MixNode, MixNodeConfigUpdate, NodeCostParams};
+use crate::nym_node::{NodeConfigUpdate, Role};
 use crate::pending_events::{EpochEventId, IntervalEventId};
 use crate::reward_params::{
-    IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
+    ActiveSetUpdate, IntervalRewardParams, IntervalRewardingParamsUpdate, NodeRewardingParameters,
+    Performance, RewardedSetParams, RewardingParams, WorkFactor,
 };
-use crate::types::{ContractStateParams, LayerAssignment, MixId};
+use crate::types::{ContractStateParams, NodeId};
+use crate::{NymNode, RoleAssignment};
 use crate::{OperatingCostRange, ProfitMarginRange};
 use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
 use cosmwasm_schema::cw_serde;
@@ -21,28 +23,31 @@ use std::time::Duration;
 #[cfg(feature = "schema")]
 use crate::{
     delegation::{
-        MixNodeDelegationResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-        PagedMixNodeDelegationsResponse,
+        NodeDelegationResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+        PagedNodeDelegationsResponse,
     },
-    families::{
-        FamilyByHeadResponse, FamilyByLabelResponse, FamilyMembersByHeadResponse,
-        FamilyMembersByLabelResponse, PagedFamiliesResponse, PagedMembersResponse,
+    gateway::{
+        GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse,
+        PreassignedGatewayIdsResponse,
     },
-    gateway::{GatewayBondResponse, GatewayOwnershipResponse, PagedGatewayResponse},
     interval::{CurrentIntervalResponse, EpochStatus},
     mixnode::{
-        MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
-        MixnodeRewardingDetailsResponse, PagedMixnodeBondsResponse, PagedMixnodesDetailsResponse,
-        PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
+        MixOwnershipResponse, MixStakeSaturationResponse, MixnodeDetailsByIdentityResponse,
+        MixnodeDetailsResponse, MixnodeRewardingDetailsResponse, PagedMixnodeBondsResponse,
+        PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse, UnbondedMixnodeResponse,
+    },
+    nym_node::{
+        EpochAssignmentResponse, NodeDetailsByIdentityResponse, NodeDetailsResponse,
+        NodeOwnershipResponse, NodeRewardingDetailsResponse, PagedNymNodeBondsResponse,
+        PagedNymNodeDetailsResponse, PagedUnbondedNymNodesResponse, RolesMetadataResponse,
+        StakeSaturationResponse, UnbondedNodeResponse,
     },
     pending_events::{
         NumberOfPendingEventsResponse, PendingEpochEventResponse, PendingEpochEventsResponse,
         PendingIntervalEventResponse, PendingIntervalEventsResponse,
     },
-    rewarding::{
-        EstimatedCurrentEpochRewardResponse, PagedRewardedSetResponse, PendingRewardResponse,
-    },
-    types::{ContractState, LayerDistribution},
+    rewarding::{EstimatedCurrentEpochRewardResponse, PendingRewardResponse},
+    types::ContractState,
 };
 #[cfg(feature = "schema")]
 use contracts_common::{signing::Nonce, ContractBuildInformation};
@@ -76,8 +81,7 @@ pub struct InitialRewardingParams {
     pub active_set_work_factor: Decimal,
     pub interval_pool_emission: Percent,
 
-    pub rewarded_set_size: u32,
-    pub active_set_size: u32,
+    pub rewarded_set_params: RewardedSetParams,
 }
 
 impl InitialRewardingParams {
@@ -88,8 +92,11 @@ impl InitialRewardingParams {
         let epoch_reward_budget = self.initial_reward_pool
             / epochs_in_interval.into_base_decimal()?
             * self.interval_pool_emission;
-        let stake_saturation_point =
-            self.initial_staking_supply / self.rewarded_set_size.into_base_decimal()?;
+        let stake_saturation_point = self.initial_staking_supply
+            / self
+                .rewarded_set_params
+                .rewarded_set_size()
+                .into_base_decimal()?;
 
         Ok(RewardingParams {
             interval: IntervalRewardParams {
@@ -102,8 +109,7 @@ impl InitialRewardingParams {
                 active_set_work_factor: self.active_set_work_factor,
                 interval_pool_emission: self.interval_pool_emission,
             },
-            rewarded_set_size: self.rewarded_set_size,
-            active_set_size: self.active_set_size,
+            rewarded_set: self.rewarded_set_params,
         })
     }
 }
@@ -115,45 +121,6 @@ pub enum ExecuteMsg {
         admin: String,
     },
 
-    AssignNodeLayer {
-        mix_id: MixId,
-        layer: Layer,
-    },
-    // Families
-    /// Only owner of the node can crate the family with node as head
-    CreateFamily {
-        label: String,
-    },
-    /// Family head needs to sign the joining node IdentityKey
-    JoinFamily {
-        join_permit: MessageSignature,
-        family_head: FamilyHead,
-    },
-    LeaveFamily {
-        family_head: FamilyHead,
-    },
-    KickFamilyMember {
-        member: IdentityKey,
-    },
-    CreateFamilyOnBehalf {
-        owner_address: String,
-        label: String,
-    },
-    /// Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family
-    JoinFamilyOnBehalf {
-        member_address: String,
-        join_permit: MessageSignature,
-        family_head: FamilyHead,
-    },
-    LeaveFamilyOnBehalf {
-        member_address: String,
-        family_head: FamilyHead,
-    },
-    KickFamilyMemberOnBehalf {
-        head_address: String,
-        member: IdentityKey,
-    },
-
     // state/sys-params-related
     UpdateRewardingValidatorAddress {
         address: String,
@@ -161,8 +128,8 @@ pub enum ExecuteMsg {
     UpdateContractStateParams {
         updated_parameters: ContractStateParams,
     },
-    UpdateActiveSetSize {
-        active_set_size: u32,
+    UpdateActiveSetDistribution {
+        update: ActiveSetUpdate,
         force_immediately: bool,
     },
     UpdateRewardingParams {
@@ -174,25 +141,24 @@ pub enum ExecuteMsg {
         epoch_duration_secs: u64,
         force_immediately: bool,
     },
+
     BeginEpochTransition {},
-    AdvanceCurrentEpoch {
-        new_rewarded_set: Vec<LayerAssignment>,
-        // families_in_layer: HashMap<String, Layer>,
-        expected_active_set_size: u32,
-    },
     ReconcileEpochEvents {
         limit: Option<u32>,
+    },
+    AssignRoles {
+        assignment: RoleAssignment,
     },
 
     // mixnode-related:
     BondMixnode {
         mix_node: MixNode,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         owner_signature: MessageSignature,
     },
     BondMixnodeOnBehalf {
         mix_node: MixNode,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         owner_signature: MessageSignature,
         owner: String,
     },
@@ -211,11 +177,15 @@ pub enum ExecuteMsg {
     UnbondMixnodeOnBehalf {
         owner: String,
     },
-    UpdateMixnodeCostParams {
-        new_costs: MixNodeCostParams,
+    #[serde(
+        alias = "UpdateMixnodeCostParams",
+        alias = "update_mixnode_cost_params"
+    )]
+    UpdateCostParams {
+        new_costs: NodeCostParams,
     },
     UpdateMixnodeCostParamsOnBehalf {
-        new_costs: MixNodeCostParams,
+        new_costs: NodeCostParams,
         owner: String,
     },
     UpdateMixnodeConfig {
@@ -225,6 +195,7 @@ pub enum ExecuteMsg {
         new_config: MixNodeConfigUpdate,
         owner: String,
     },
+    MigrateMixnode {},
 
     // gateway-related:
     BondGateway {
@@ -247,44 +218,64 @@ pub enum ExecuteMsg {
         new_config: GatewayConfigUpdate,
         owner: String,
     },
+    MigrateGateway {
+        cost_params: Option<NodeCostParams>,
+    },
+
+    // nym-node related:
+    BondNymNode {
+        node: NymNode,
+        cost_params: NodeCostParams,
+        owner_signature: MessageSignature,
+    },
+    UnbondNymNode {},
+    UpdateNodeConfig {
+        update: NodeConfigUpdate,
+    },
 
     // delegation-related:
-    DelegateToMixnode {
-        mix_id: MixId,
+    #[serde(alias = "DelegateToMixnode", alias = "delegate_to_mixnode")]
+    Delegate {
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
     },
     DelegateToMixnodeOnBehalf {
-        mix_id: MixId,
+        mix_id: NodeId,
         delegate: String,
     },
-    UndelegateFromMixnode {
-        mix_id: MixId,
+    #[serde(alias = "UndelegateFromMixnode", alias = "undelegate_from_mixnode")]
+    Undelegate {
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
     },
     UndelegateFromMixnodeOnBehalf {
-        mix_id: MixId,
+        mix_id: NodeId,
         delegate: String,
     },
 
     // reward-related
-    RewardMixnode {
-        mix_id: MixId,
-        performance: Performance,
+    RewardNode {
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
+        params: NodeRewardingParameters,
     },
     WithdrawOperatorReward {},
     WithdrawOperatorRewardOnBehalf {
         owner: String,
     },
     WithdrawDelegatorReward {
-        mix_id: MixId,
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
     },
     WithdrawDelegatorRewardOnBehalf {
-        mix_id: MixId,
+        mix_id: NodeId,
         owner: String,
     },
 
     // vesting migration:
     MigrateVestedMixNode {},
     MigrateVestedDelegation {
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 
     // testing-only
@@ -292,47 +283,31 @@ pub enum ExecuteMsg {
     TestingResolveAllPendingEvents {
         limit: Option<u32>,
     },
+
+    // TO BE REMOVED BEFORE MERGING
+    TestingUncheckedBondLegacyMixnode {
+        node: MixNode,
+    },
+    TestingUncheckedBondLegacyGateway {
+        node: Gateway,
+    },
 }
+
+const bad_const: &str = "clippy will yell so that i'd remember to remove those legacy bonding ops";
 
 impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
         match self {
             ExecuteMsg::UpdateAdmin { admin } => format!("updating contract admin to {admin}"),
-            ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
-                format!("assigning mix {mix_id} for layer {layer:?}")
-            }
-            ExecuteMsg::CreateFamily { .. } => "crating node family with".to_string(),
-            ExecuteMsg::JoinFamily { family_head, .. } => {
-                format!("joining family {family_head}")
-            }
-            ExecuteMsg::LeaveFamily { family_head, .. } => {
-                format!("leaving family {family_head}")
-            }
-            ExecuteMsg::KickFamilyMember { member, .. } => {
-                format!("kicking {member} from family")
-            }
-            ExecuteMsg::CreateFamilyOnBehalf { .. } => "crating node family with".to_string(),
-            ExecuteMsg::JoinFamilyOnBehalf { family_head, .. } => {
-                format!("joining family {family_head}")
-            }
-            ExecuteMsg::LeaveFamilyOnBehalf { family_head, .. } => {
-                format!("leaving family {family_head}")
-            }
-            ExecuteMsg::KickFamilyMemberOnBehalf { member, .. } => {
-                format!("kicking {member} from family")
-            }
             ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
                 format!("updating rewarding validator to {address}")
             }
             ExecuteMsg::UpdateContractStateParams { .. } => {
                 "updating mixnet state parameters".into()
             }
-            ExecuteMsg::UpdateActiveSetSize {
-                active_set_size,
-                force_immediately,
-            } => format!(
-                "updating active set size to {active_set_size}. forced: {force_immediately}"
-            ),
+            ExecuteMsg::UpdateActiveSetDistribution {
+                force_immediately, ..
+            } => format!("updating active set distribution. forced: {force_immediately}"),
             ExecuteMsg::UpdateRewardingParams {
                 force_immediately, ..
             } => format!("updating mixnet rewarding parameters. forced: {force_immediately}"),
@@ -340,7 +315,6 @@ impl ExecuteMsg {
                 force_immediately, ..
             } => format!("updating mixnet interval configuration. forced: {force_immediately}"),
             ExecuteMsg::BeginEpochTransition {} => "beginning epoch transition".into(),
-            ExecuteMsg::AdvanceCurrentEpoch { .. } => "advancing current epoch".into(),
             ExecuteMsg::ReconcileEpochEvents { .. } => "reconciling epoch events".into(),
             ExecuteMsg::BondMixnode { mix_node, .. } => {
                 format!("bonding mixnode {}", mix_node.identity_key)
@@ -356,7 +330,7 @@ impl ExecuteMsg {
             }
             ExecuteMsg::UnbondMixnode { .. } => "unbonding mixnode".into(),
             ExecuteMsg::UnbondMixnodeOnBehalf { .. } => "unbonding mixnode on behalf".into(),
-            ExecuteMsg::UpdateMixnodeCostParams { .. } => "updating mixnode cost parameters".into(),
+            ExecuteMsg::UpdateCostParams { .. } => "updating mixnode cost parameters".into(),
             ExecuteMsg::UpdateMixnodeCostParamsOnBehalf { .. } => {
                 "updating mixnode cost parameters on behalf".into()
             }
@@ -376,25 +350,22 @@ impl ExecuteMsg {
             ExecuteMsg::UpdateGatewayConfigOnBehalf { .. } => {
                 "updating gateway configuration on behalf".into()
             }
-            ExecuteMsg::DelegateToMixnode { mix_id } => format!("delegating to mixnode {mix_id}"),
+            ExecuteMsg::Delegate { node_id: mix_id } => format!("delegating to mixnode {mix_id}"),
             ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, .. } => {
                 format!("delegating to mixnode {mix_id} on behalf")
             }
-            ExecuteMsg::UndelegateFromMixnode { mix_id } => {
+            ExecuteMsg::Undelegate { node_id: mix_id } => {
                 format!("removing delegation from mixnode {mix_id}")
             }
             ExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, .. } => {
                 format!("removing delegation from mixnode {mix_id} on behalf")
             }
-            ExecuteMsg::RewardMixnode {
-                mix_id,
-                performance,
-            } => format!("rewarding mixnode {mix_id} for performance {performance}"),
+            ExecuteMsg::RewardNode { node_id, .. } => format!("rewarding node {node_id}"),
             ExecuteMsg::WithdrawOperatorReward { .. } => "withdrawing operator reward".into(),
             ExecuteMsg::WithdrawOperatorRewardOnBehalf { .. } => {
                 "withdrawing operator reward on behalf".into()
             }
-            ExecuteMsg::WithdrawDelegatorReward { mix_id } => {
+            ExecuteMsg::WithdrawDelegatorReward { node_id: mix_id } => {
                 format!("withdrawing delegator reward from mixnode {mix_id}")
             }
             ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, .. } => {
@@ -402,11 +373,19 @@ impl ExecuteMsg {
             }
             ExecuteMsg::MigrateVestedMixNode { .. } => "migrate vested mixnode".into(),
             ExecuteMsg::MigrateVestedDelegation { .. } => "migrate vested delegation".to_string(),
+            ExecuteMsg::AssignRoles { .. } => "assigning epoch roles".into(),
+            ExecuteMsg::MigrateMixnode { .. } => "migrating legacy mixnode".into(),
+            ExecuteMsg::MigrateGateway { .. } => "migrating legacy gateway".into(),
+            ExecuteMsg::BondNymNode { .. } => "bonding nym-node".into(),
+            ExecuteMsg::UnbondNymNode { .. } => "unbonding nym-node".into(),
+            ExecuteMsg::UpdateNodeConfig { .. } => "updating node config".into(),
 
             #[cfg(feature = "contract-testing")]
             ExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 "resolving all pending events".into()
             }
+            ExecuteMsg::TestingUncheckedBondLegacyMixnode { .. } => "todo!".into(),
+            ExecuteMsg::TestingUncheckedBondLegacyGateway { .. } => "todo!".into(),
         }
     }
 }
@@ -416,43 +395,6 @@ impl ExecuteMsg {
 pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(cw_controllers::AdminResponse))]
     Admin {},
-
-    // families
-    /// Gets the list of families registered in this contract.
-    #[cfg_attr(feature = "schema", returns(PagedFamiliesResponse))]
-    GetAllFamiliesPaged {
-        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
-        limit: Option<u32>,
-
-        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<String>,
-    },
-
-    /// Gets the list of all family members registered in this contract.
-    #[cfg_attr(feature = "schema", returns(PagedMembersResponse))]
-    GetAllMembersPaged {
-        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
-        limit: Option<u32>,
-
-        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<String>,
-    },
-
-    /// Attempts to lookup family information given the family head.
-    #[cfg_attr(feature = "schema", returns(FamilyByHeadResponse))]
-    GetFamilyByHead { head: String },
-
-    /// Attempts to lookup family information given the family label.
-    #[cfg_attr(feature = "schema", returns(FamilyByLabelResponse))]
-    GetFamilyByLabel { label: String },
-
-    /// Attempts to retrieve family members given the family head.
-    #[cfg_attr(feature = "schema", returns(FamilyMembersByHeadResponse))]
-    GetFamilyMembersByHead { head: String },
-
-    /// Attempts to retrieve family members given the family label.
-    #[cfg_attr(feature = "schema", returns(FamilyMembersByLabelResponse))]
-    GetFamilyMembersByLabel { label: String },
 
     // state/sys-params-related
     /// Gets build information of this contract, such as the commit hash used for the build or rustc version.
@@ -488,16 +430,6 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(CurrentIntervalResponse))]
     GetCurrentIntervalDetails {},
 
-    /// Gets the current list of mixnodes in the rewarded set.
-    #[cfg_attr(feature = "schema", returns(PagedRewardedSetResponse))]
-    GetRewardedSet {
-        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
-        limit: Option<u32>,
-
-        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<MixId>,
-    },
-
     // mixnode-related:
     /// Gets the basic list of all currently bonded mixnodes.
     #[cfg_attr(feature = "schema", returns(PagedMixnodeBondsResponse))]
@@ -506,7 +438,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
 
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
     },
 
     /// Gets the detailed list of all currently bonded mixnodes.
@@ -516,7 +448,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
 
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
     },
 
     /// Gets the basic list of all unbonded mixnodes.
@@ -526,20 +458,20 @@ pub enum QueryMsg {
         limit: Option<u32>,
 
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
     },
 
     /// Gets the basic list of all unbonded mixnodes that belonged to a particular owner.
     #[cfg_attr(feature = "schema", returns(PagedUnbondedMixnodesResponse))]
     GetUnbondedMixNodesByOwner {
-        /// The address of the owner of the the mixnodes used for the query.
+        /// The address of the owner of the mixnodes used for the query.
         owner: String,
 
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,
 
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
     },
 
     /// Gets the basic list of all unbonded mixnodes that used the particular identity key.
@@ -552,7 +484,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
 
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<MixId>,
+        start_after: Option<NodeId>,
     },
 
     /// Gets the detailed mixnode information belonging to the particular owner.
@@ -566,28 +498,28 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(MixnodeDetailsResponse))]
     GetMixnodeDetails {
         /// Id of the node to query.
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 
     /// Gets the rewarding information of a mixnode with the provided id.
     #[cfg_attr(feature = "schema", returns(MixnodeRewardingDetailsResponse))]
     GetMixnodeRewardingDetails {
         /// Id of the node to query.
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 
     /// Gets the stake saturation of a mixnode with the provided id.
-    #[cfg_attr(feature = "schema", returns(StakeSaturationResponse))]
+    #[cfg_attr(feature = "schema", returns(MixStakeSaturationResponse))]
     GetStakeSaturation {
         /// Id of the node to query.
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 
     /// Gets the basic information of an unbonded mixnode with the provided id.
     #[cfg_attr(feature = "schema", returns(UnbondedMixnodeResponse))]
     GetUnbondedMixNodeInformation {
         /// Id of the node to query.
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 
     /// Gets the detailed mixnode information of a node given its current identity key.
@@ -596,10 +528,6 @@ pub enum QueryMsg {
         /// The identity key (base58-encoded ed25519 public key) of the mixnode used for the query.
         mix_identity: IdentityKey,
     },
-
-    /// Gets the current layer configuration of the mix network.
-    #[cfg_attr(feature = "schema", returns(LayerDistribution))]
-    GetLayerDistribution {},
 
     // gateway-related:
     /// Gets the basic list of all currently bonded gateways.
@@ -626,12 +554,128 @@ pub enum QueryMsg {
         address: String,
     },
 
-    // delegation-related:
-    /// Gets all delegations associated with particular mixnode
-    #[cfg_attr(feature = "schema", returns(PagedMixNodeDelegationsResponse))]
-    GetMixnodeDelegations {
+    /// Get the `NodeId`s of all the legacy gateways that they will get assigned once migrated into NymNodes
+    #[cfg_attr(feature = "schema", returns(PreassignedGatewayIdsResponse))]
+    GetPreassignedGatewayIds {
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<IdentityKey>,
+
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+    },
+
+    // nym-node-related:
+    /// Gets the basic list of all currently bonded nymnodes.
+    #[cfg_attr(feature = "schema", returns(PagedNymNodeBondsResponse))]
+    GetNymNodeBondsPaged {
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<NodeId>,
+    },
+
+    /// Gets the detailed list of all currently bonded nymnodes.
+    #[cfg_attr(feature = "schema", returns(PagedNymNodeDetailsResponse))]
+    GetNymNodesDetailedPaged {
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<NodeId>,
+    },
+
+    /// Gets the basic information of an unbonded nym-node with the provided id.
+    #[cfg_attr(feature = "schema", returns(UnbondedNodeResponse))]
+    GetUnbondedNymNode {
         /// Id of the node to query.
-        mix_id: MixId,
+        node_id: NodeId,
+    },
+
+    /// Gets the basic list of all unbonded nymnodes.
+    #[cfg_attr(feature = "schema", returns(PagedUnbondedNymNodesResponse))]
+    GetUnbondedNymNodesPaged {
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<NodeId>,
+    },
+
+    /// Gets the basic list of all unbonded nymnodes that belonged to a particular owner.
+    #[cfg_attr(feature = "schema", returns(PagedUnbondedNymNodesResponse))]
+    GetUnbondedNymNodesByOwnerPaged {
+        /// The address of the owner of the nym-node used for the query
+        owner: String,
+
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<NodeId>,
+    },
+
+    /// Gets the basic list of all unbonded nymnodes that used the particular identity key.
+    #[cfg_attr(feature = "schema", returns(PagedUnbondedNymNodesResponse))]
+    GetUnbondedNymNodesByIdentityKeyPaged {
+        /// The identity key (base58-encoded ed25519 public key) of the node used for the query.
+        identity_key: IdentityKey,
+
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<NodeId>,
+    },
+
+    /// Gets the detailed nymnode information belonging to the particular owner.
+    #[cfg_attr(feature = "schema", returns(NodeOwnershipResponse))]
+    GetOwnedNymNode {
+        /// Address of the node owner to use for the query.
+        address: String,
+    },
+
+    /// Gets the detailed nymnode information of a node with the provided id.
+    #[cfg_attr(feature = "schema", returns(NodeDetailsResponse))]
+    GetNymNodeDetails {
+        /// Id of the node to query.
+        node_id: NodeId,
+    },
+
+    /// Gets the detailed nym-node information given its current identity key.
+    #[cfg_attr(feature = "schema", returns(NodeDetailsByIdentityResponse))]
+    GetNymNodeDetailsByIdentityKey {
+        /// The identity key (base58-encoded ed25519 public key) of the nym-node used for the query.
+        node_identity: IdentityKey,
+    },
+
+    /// Gets the rewarding information of a nym-node with the provided id.
+    #[cfg_attr(feature = "schema", returns(NodeRewardingDetailsResponse))]
+    GetNodeRewardingDetails {
+        /// Id of the node to query.
+        node_id: NodeId,
+    },
+
+    /// Gets the stake saturation of a nym-node with the provided id.
+    #[cfg_attr(feature = "schema", returns(StakeSaturationResponse))]
+    GetNodeStakeSaturation {
+        /// Id of the node to query.
+        node_id: NodeId,
+    },
+
+    #[cfg_attr(feature = "schema", returns(EpochAssignmentResponse))]
+    GetRoleAssignment { role: Role },
+
+    #[cfg_attr(feature = "schema", returns(RolesMetadataResponse))]
+    GetRewardedSetMetadata {},
+
+    // delegation-related:
+    /// Gets all delegations associated with particular node
+    #[cfg_attr(feature = "schema", returns(PagedNodeDelegationsResponse))]
+    GetNodeDelegations {
+        /// Id of the node to query.
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
 
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
         start_after: Option<OwnerProxySubKey>,
@@ -649,17 +693,18 @@ pub enum QueryMsg {
         delegator: String,
 
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<(MixId, OwnerProxySubKey)>,
+        start_after: Option<(NodeId, OwnerProxySubKey)>,
 
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,
     },
 
     /// Gets delegation information associated with particular mixnode - delegator pair
-    #[cfg_attr(feature = "schema", returns(MixNodeDelegationResponse))]
+    #[cfg_attr(feature = "schema", returns(NodeDelegationResponse))]
     GetDelegationDetails {
         /// Id of the node to query.
-        mix_id: MixId,
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
 
         /// The address of the owner of the delegation.
         delegator: String,
@@ -689,9 +734,14 @@ pub enum QueryMsg {
 
     /// Gets the reward amount accrued by the particular mixnode that has not yet been claimed.
     #[cfg_attr(feature = "schema", returns(PendingRewardResponse))]
-    GetPendingMixNodeOperatorReward {
+    #[serde(
+        alias = "GetPendingMixNodeOperatorReward",
+        alias = "get_pending_mix_node_operator_reward"
+    )]
+    GetPendingNodeOperatorReward {
         /// Id of the node to query.
-        mix_id: MixId,
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
     },
 
     /// Gets the reward amount accrued by the particular delegator that has not yet been claimed.
@@ -701,7 +751,8 @@ pub enum QueryMsg {
         address: String,
 
         /// Id of the node to query.
-        mix_id: MixId,
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
 
         /// Entity who made the delegation on behalf of the owner.
         /// If present, it's most likely the address of the vesting contract.
@@ -712,10 +763,14 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(EstimatedCurrentEpochRewardResponse))]
     GetEstimatedCurrentEpochOperatorReward {
         /// Id of the node to query.
-        mix_id: MixId,
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
 
         /// The estimated performance for the current epoch of the given node.
         estimated_performance: Performance,
+
+        /// The estimated work for the current epoch of the given node.
+        estimated_work: Option<WorkFactor>,
     },
 
     /// Given the provided node performance, attempt to estimate the delegator reward for the current epoch.
@@ -725,14 +780,14 @@ pub enum QueryMsg {
         address: String,
 
         /// Id of the node to query.
-        mix_id: MixId,
-
-        /// Entity who made the delegation on behalf of the owner.
-        /// If present, it's most likely the address of the vesting contract.
-        proxy: Option<String>,
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
 
         /// The estimated performance for the current epoch of the given node.
         estimated_performance: Performance,
+
+        /// The estimated work for the current epoch of the given node.
+        estimated_work: Option<WorkFactor>,
     },
 
     // interval-related

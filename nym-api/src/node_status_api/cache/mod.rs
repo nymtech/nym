@@ -4,15 +4,15 @@
 use self::data::NodeStatusCacheData;
 use self::inclusion_probabilities::InclusionProbabilities;
 use crate::support::caching::Cache;
-use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, MixnodeStatus};
-use nym_contracts_common::{IdentityKey, IdentityKeyRef};
-use nym_mixnet_contract_common::MixId;
-use rocket::fairing::AdHoc;
+use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
+use nym_contracts_common::IdentityKey;
+use nym_mixnet_contract_common::NodeId;
 use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::sync::RwLockReadGuard;
 use tokio::{sync::RwLock, time};
+use tracing::error;
 
 const CACHE_TIMEOUT_MS: u64 = 100;
 
@@ -47,27 +47,22 @@ impl NodeStatusCache {
         }
     }
 
-    #[deprecated(note = "TODO rocket: obsolete because it's used for Rocket")]
-    pub fn stage() -> AdHoc {
-        AdHoc::on_ignite("Node Status Cache", |rocket| async {
-            rocket.manage(Self::new())
-        })
-    }
-
     /// Updates the cache with the latest data.
     async fn update(
         &self,
-        mixnodes: HashMap<MixId, MixNodeBondAnnotated>,
-        rewarded_set: Vec<MixNodeBondAnnotated>,
-        active_set: Vec<MixNodeBondAnnotated>,
-        gateways: HashMap<IdentityKey, GatewayBondAnnotated>,
+        legacy_gateway_mapping: HashMap<IdentityKey, NodeId>,
+        node_annotations: HashMap<NodeId, NodeAnnotation>,
+        mixnodes: HashMap<NodeId, MixNodeBondAnnotated>,
+        gateways: HashMap<NodeId, GatewayBondAnnotated>,
         inclusion_probabilities: InclusionProbabilities,
     ) {
         match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.write()).await {
             Ok(mut cache) => {
                 cache.mixnodes_annotated.unchecked_update(mixnodes);
-                cache.rewarded_set_annotated.unchecked_update(rewarded_set);
-                cache.active_set_annotated.unchecked_update(active_set);
+                cache
+                    .legacy_gateway_mapping
+                    .unchecked_update(legacy_gateway_mapping);
+                cache.node_annotations.unchecked_update(node_annotations);
                 cache.gateways_annotated.unchecked_update(gateways);
                 cache
                     .inclusion_probabilities
@@ -104,10 +99,25 @@ impl NodeStatusCache {
         }
     }
 
-    pub(crate) async fn active_mixnodes_cache(
+    pub(crate) async fn node_annotations(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<Vec<MixNodeBondAnnotated>>>> {
-        self.get(|c| &c.active_set_annotated).await
+    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, NodeAnnotation>>>> {
+        self.get(|c| &c.node_annotations).await
+    }
+
+    pub(crate) async fn map_identity_to_node_id(&self, identity: &str) -> Option<NodeId> {
+        self.inner
+            .read()
+            .await
+            .legacy_gateway_mapping
+            .get(identity)
+            .copied()
+    }
+
+    pub(crate) async fn annotated_legacy_mixnodes(
+        &self,
+    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, MixNodeBondAnnotated>>>> {
+        self.get(|c| &c.mixnodes_annotated).await
     }
 
     pub(crate) async fn mixnodes_annotated_full(&self) -> Option<Vec<MixNodeBondAnnotated>> {
@@ -122,24 +132,14 @@ impl NodeStatusCache {
         Some(full.iter().filter(|m| !m.blacklisted).cloned().collect())
     }
 
-    pub(crate) async fn mixnode_annotated(&self, mix_id: MixId) -> Option<MixNodeBondAnnotated> {
+    pub(crate) async fn mixnode_annotated(&self, mix_id: NodeId) -> Option<MixNodeBondAnnotated> {
         let mixnodes = self.get(|c| &c.mixnodes_annotated).await?;
         mixnodes.get(&mix_id).cloned()
     }
 
-    pub(crate) async fn rewarded_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
-        self.get_owned(|c| c.rewarded_set_annotated.clone_cache())
-            .await
-    }
-
-    pub(crate) async fn active_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
-        self.get_owned(|c| c.active_set_annotated.clone_cache())
-            .await
-    }
-
-    pub(crate) async fn gateways_cache(
+    pub(crate) async fn annotated_legacy_gateways(
         &self,
-    ) -> Option<RwLockReadGuard<Cache<HashMap<IdentityKey, GatewayBondAnnotated>>>> {
+    ) -> Option<RwLockReadGuard<Cache<HashMap<NodeId, GatewayBondAnnotated>>>> {
         self.get(|c| &c.gateways_annotated).await
     }
 
@@ -155,41 +155,13 @@ impl NodeStatusCache {
         Some(full.iter().filter(|m| !m.blacklisted).cloned().collect())
     }
 
-    pub(crate) async fn gateway_annotated(
-        &self,
-        gateway_id: IdentityKeyRef<'_>,
-    ) -> Option<GatewayBondAnnotated> {
+    pub(crate) async fn gateway_annotated(&self, node_id: NodeId) -> Option<GatewayBondAnnotated> {
         let gateways = self.get(|c| &c.gateways_annotated).await?;
-        gateways.get(gateway_id).cloned()
+        gateways.get(&node_id).cloned()
     }
 
     pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
         self.get_owned(|c| c.inclusion_probabilities.clone_cache())
             .await
-    }
-
-    pub async fn mixnode_details(
-        &self,
-        mix_id: MixId,
-    ) -> (Option<MixNodeBondAnnotated>, MixnodeStatus) {
-        // it might not be the most optimal to possibly iterate the entire vector to find (or not)
-        // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
-
-        let active_set = &self.active_set_annotated().await.unwrap().into_inner();
-        if let Some(bond) = active_set.iter().find(|mix| mix.mix_id() == mix_id) {
-            return (Some(bond.clone()), MixnodeStatus::Active);
-        }
-
-        let rewarded_set = &self.rewarded_set_annotated().await.unwrap().into_inner();
-        if let Some(bond) = rewarded_set.iter().find(|mix| mix.mix_id() == mix_id) {
-            return (Some(bond.clone()), MixnodeStatus::Standby);
-        }
-
-        let all_bonded = &self.mixnodes_annotated_filtered().await.unwrap();
-        if let Some(bond) = all_bonded.iter().find(|mix| mix.mix_id() == mix_id) {
-            (Some(bond.clone()), MixnodeStatus::Inactive)
-        } else {
-            (None, MixnodeStatus::NotFound)
-        }
     }
 }

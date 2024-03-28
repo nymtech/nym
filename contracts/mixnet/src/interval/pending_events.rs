@@ -1,21 +1,22 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Addr, Coin, DepsMut, Env, Response};
+use cosmwasm_std::{Addr, BankMsg, Coin, DepsMut, Env, Response};
 
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
-    new_active_set_update_event, new_delegation_event, new_delegation_on_unbonded_node_event,
-    new_mixnode_cost_params_update_event, new_mixnode_unbonding_event, new_pledge_decrease_event,
-    new_pledge_increase_event, new_rewarding_params_update_event, new_undelegation_event,
+    new_active_set_update_event, new_active_set_update_failure, new_cost_params_update_event,
+    new_delegation_event, new_delegation_on_unbonded_node_event, new_mixnode_unbonding_event,
+    new_nym_node_unbonding_event, new_pledge_decrease_event, new_pledge_increase_event,
+    new_rewarding_params_update_event, new_undelegation_event,
 };
-use mixnet_contract_common::mixnode::MixNodeCostParams;
+use mixnet_contract_common::mixnode::NodeCostParams;
 use mixnet_contract_common::pending_events::{
     PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,
     PendingIntervalEventKind,
 };
-use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-use mixnet_contract_common::{BlockHeight, Delegation, MixId};
+use mixnet_contract_common::reward_params::{ActiveSetUpdate, IntervalRewardingParamsUpdate};
+use mixnet_contract_common::{BlockHeight, Delegation, NodeId};
 
 use crate::delegations;
 use crate::delegations::storage as delegations_storage;
@@ -23,8 +24,11 @@ use crate::interval::helpers::change_interval_config;
 use crate::interval::storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
 use crate::mixnodes::storage as mixnodes_storage;
+use crate::nodes::helpers::{cleanup_post_unbond_nym_node_storage, get_node_details_by_id};
+use crate::nodes::storage as nymnodes_storage;
 use crate::rewards::storage as rewards_storage;
-use crate::support::helpers::AttachSendTokens;
+use crate::rewards::storage::RewardingStorage;
+use crate::support::helpers::{ensure_any_node_bonded, AttachSendTokens};
 
 pub(crate) trait ContractExecutableEvent {
     // note: the error only means a HARD error like we failed to read from storage.
@@ -38,33 +42,37 @@ pub(crate) fn delegate(
     env: &Env,
     created_at: BlockHeight,
     owner: Addr,
-    mix_id: MixId,
+    node_id: NodeId,
     amount: Coin,
 ) -> Result<Response, MixnetContractError> {
-    // check if the target node still exists (it might have unbonded between this event getting created
-    // and being executed). Do note that it's absolutely possible for a mixnode to get immediately
-    // unbonded at this very block (if the event was pending), but that's tough luck, then it's up
-    // to the delegator to click the undelegate button
-    let mixnode_details = match get_mixnode_details_by_id(deps.storage, mix_id)? {
-        Some(details)
-            if details.rewarding_details.still_bonded()
-                && !details.bond_information.is_unbonding =>
-        {
-            details
-        }
-        _ => {
-            // if mixnode is no longer bonded or in the process of unbonding, return the tokens back to the
-            // delegator;
-            let response = Response::new()
-                .send_tokens(&owner, amount.clone())
-                .add_event(new_delegation_on_unbonded_node_event(&owner, mix_id));
-
-            return Ok(response);
-        }
+    // first check - see if we have any rewarding information in the storage, if not, the node has fully unbonded
+    // (and also didn't have any delegations)
+    let Some(mut node_rewarding) =
+        rewards_storage::NYMNODE_REWARDING.may_load(deps.storage, node_id)?
+    else {
+        return Ok(Response::new()
+            .send_tokens(&owner, amount)
+            .add_event(new_delegation_on_unbonded_node_event(&owner, node_id)));
     };
 
+    // more extensive check to see if node is still bonded, however, this time we have to unfortunately check
+    // BOTH nym-node and legacy nym-node.
+    // the underlying target node might have unbonded between this event getting created
+    // and being executed. Do note that it's absolutely possible for a node to get immediately
+    // unbonded at this very block (if the event was pending), but that's tough luck, then it's up
+    // to the delegator to click the undelegate button
+    match ensure_any_node_bonded(deps.storage, node_id) {
+        // cosmwasm-std errors are critical and recoverable because they imply issues with the underlying storage
+        Err(MixnetContractError::StdErr { source }) => return Err(source.into()),
+        Err(_unbonded) => {
+            return Ok(Response::new()
+                .send_tokens(&owner, amount)
+                .add_event(new_delegation_on_unbonded_node_event(&owner, node_id)));
+        }
+        Ok(_) => {}
+    }
+
     let new_delegation_amount = amount.clone();
-    let mut mix_rewarding = mixnode_details.rewarding_details;
 
     // the delegation_amount might get increased if there's already a pre-existing delegation on this mixnode
     // (in that case we just create a fresh delegation with the sum of both)
@@ -72,12 +80,12 @@ pub(crate) fn delegate(
 
     // if there's an existing delegation, then withdraw the full reward and create a new delegation
     // with the sum of both
-    let storage_key = Delegation::generate_storage_key(mix_id, &owner, None);
+    let storage_key = Delegation::generate_storage_key(node_id, &owner, None);
     let old_delegation = if let Some(existing_delegation) =
         delegations_storage::delegations().may_load(deps.storage, storage_key.clone())?
     {
         // completely remove the delegation from the node
-        let og_with_reward = mix_rewarding.undelegate(&existing_delegation)?;
+        let og_with_reward = node_rewarding.undelegate(&existing_delegation)?;
 
         // and adjust the new value by the amount removed (which contains the original delegation
         // alongside any earned rewards)
@@ -89,20 +97,20 @@ pub(crate) fn delegate(
     };
 
     // add the amount we're intending to delegate (whether it's fresh or we're adding to the existing one)
-    mix_rewarding.add_base_delegation(stored_delegation_amount.amount)?;
+    node_rewarding.add_base_delegation(stored_delegation_amount.amount)?;
 
     let cosmos_event = new_delegation_event(
         created_at,
         &owner,
         &new_delegation_amount,
-        mix_id,
-        mix_rewarding.total_unit_reward,
+        node_id,
+        node_rewarding.total_unit_reward,
     );
 
     let delegation = Delegation::new(
         owner,
-        mix_id,
-        mix_rewarding.total_unit_reward,
+        node_id,
+        node_rewarding.total_unit_reward,
         stored_delegation_amount,
         env.block.height,
     );
@@ -114,7 +122,7 @@ pub(crate) fn delegate(
         Some(&delegation),
         old_delegation.as_ref(),
     )?;
-    rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
+    rewards_storage::NYMNODE_REWARDING.save(deps.storage, node_id, &node_rewarding)?;
 
     Ok(Response::new().add_event(cosmos_event))
 }
@@ -123,7 +131,7 @@ pub(crate) fn undelegate(
     deps: DepsMut<'_>,
     created_at: BlockHeight,
     owner: Addr,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
     // see if the delegation still exists (in case of impatient user who decided to send multiple
     // undelegation requests in an epoch)
@@ -132,13 +140,17 @@ pub(crate) fn undelegate(
         None => return Ok(Response::default()),
         Some(delegation) => delegation,
     };
-    let mix_rewarding =
-        rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::inconsistent_state(
-            "mixnode rewarding got removed from the storage whilst there's still an existing delegation",
+
+    // note: rewarding information for nym-nodes and mixnodes are stored under the same storage structure
+    // and in the same underlying map so it doesn't matter which one we load
+
+    let rewarding_info =
+        rewards_storage::NYMNODE_REWARDING.may_load(deps.storage, mix_id)?.ok_or(MixnetContractError::inconsistent_state(
+            "node rewarding got removed from the storage whilst there's still an existing delegation",
         ))?;
     // this also appropriately adjusts the storage
     let tokens_to_return =
-        delegations::helpers::undelegate(deps.storage, delegation, mix_rewarding)?;
+        delegations::helpers::undelegate(deps.storage, delegation, rewarding_info)?;
 
     let response = Response::new()
         .send_tokens(&owner, tokens_to_return.clone())
@@ -147,11 +159,55 @@ pub(crate) fn undelegate(
     Ok(response)
 }
 
+pub(crate) fn unbond_nym_node(
+    deps: DepsMut<'_>,
+    env: &Env,
+    created_at: BlockHeight,
+    node_id: NodeId,
+) -> Result<Response, MixnetContractError> {
+    // if we're here it means user executed `try_remove_nym_node` and as a result node was set to be
+    // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
+    // thus the node with all its associated information MUST exist in the storage.
+    let node_details = get_node_details_by_id(deps.storage, node_id)?.ok_or(
+        MixnetContractError::inconsistent_state(
+            "nym node getting processed to get unbonded doesn't exist in the storage",
+        ),
+    )?;
+    if node_details.pending_changes.pledge_change.is_some() {
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to unbond nym node while there are associated pending pledge changes",
+        ));
+    }
+
+    // the denom on the original pledge was validated at the time of bonding, so we can safely reuse it here
+    let rewarding_denom = &node_details.bond_information.original_pledge.denom;
+    let tokens = node_details
+        .rewarding_details
+        .operator_pledge_with_reward(rewarding_denom);
+
+    let owner = &node_details.bond_information.owner;
+
+    // send bonded funds (alongside all earned rewards) to the bond owner
+    let return_tokens = BankMsg::Send {
+        to_address: owner.to_string(),
+        amount: vec![tokens],
+    };
+
+    // remove the bond and if there are no delegations left, also the rewarding information
+    cleanup_post_unbond_nym_node_storage(deps.storage, env, &node_details)?;
+
+    let response = Response::new()
+        .add_message(return_tokens)
+        .add_event(new_nym_node_unbonding_event(created_at, node_id));
+
+    Ok(response)
+}
+
 pub(crate) fn unbond_mixnode(
     deps: DepsMut<'_>,
     env: &Env,
     created_at: BlockHeight,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
     // if we're here it means user executed `_try_remove_mixnode` and as a result node was set to be
     // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
@@ -186,28 +242,76 @@ pub(crate) fn unbond_mixnode(
     Ok(response)
 }
 
-pub(crate) fn update_active_set_size(
+pub(crate) fn update_active_set(
     deps: DepsMut<'_>,
     created_at: BlockHeight,
-    active_set_size: u32,
+    update: ActiveSetUpdate,
 ) -> Result<Response, MixnetContractError> {
     // We don't have to check for authorization as this event can only be pushed
     // by the authorized entity.
     // Furthermore, we don't need to check whether the epoch is finished as the
     // queue is only emptied upon the epoch finishing.
-    // Also, we know the update is valid as we checked for that before pushing the event onto the queue.
+    let global_rewarding_params_storage = RewardingStorage::load().global_rewarding_params;
+    let mut rewarding_params = global_rewarding_params_storage.load(deps.storage)?;
 
-    let mut rewarding_params = rewards_storage::REWARDING_PARAMS.load(deps.storage)?;
-    rewarding_params.try_change_active_set_size(active_set_size)?;
-    rewards_storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
+    // unfortunately this will be a silent error,
+    // but for this to happen an admin must have been screwing around by pushing active set update onto the queue
+    // but updating rewarded set immediately, so it's on them
+    if let Err(err) = rewarding_params.try_change_active_set(update) {
+        return Ok(Response::new().add_event(new_active_set_update_failure(err)));
+    }
+    global_rewarding_params_storage.save(deps.storage, &rewarding_params)?;
 
-    Ok(Response::new().add_event(new_active_set_update_event(created_at, active_set_size)))
+    Ok(Response::new().add_event(new_active_set_update_event(created_at, update)))
 }
 
-pub(crate) fn increase_pledge(
+pub(crate) fn increase_nym_node_pledge(
     deps: DepsMut<'_>,
     created_at: BlockHeight,
-    mix_id: MixId,
+    node_id: NodeId,
+    increase: Coin,
+) -> Result<Response, MixnetContractError> {
+    // note: we have already validated the amount to know it has the correct denomination
+
+    // the target node MUST exist - we have checked it at the time of putting this event onto the queue
+    // we have also verified there were no preceding unbond events
+    let node_details = get_node_details_by_id(deps.storage, node_id)?.ok_or(
+        MixnetContractError::inconsistent_state(
+            "nym node getting processed to increase its pledge doesn't exist in the storage",
+        ),
+    )?;
+    if node_details.pending_changes.pledge_change.is_none() {
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to increase nym node pledge while there are no associated pending changes",
+        ));
+    }
+
+    let mut updated_bond = node_details.bond_information.clone();
+    let mut updated_rewarding = node_details.rewarding_details;
+
+    updated_bond.original_pledge.amount += increase.amount;
+    updated_rewarding.increase_operator_uint128(increase.amount)?;
+
+    let mut pending_changes = node_details.pending_changes;
+    pending_changes.pledge_change = None;
+
+    // update all: bond information, rewarding details and pending pledge changes
+    nymnodes_storage::nym_nodes().replace(
+        deps.storage,
+        node_id,
+        Some(&updated_bond),
+        Some(&node_details.bond_information),
+    )?;
+    rewards_storage::NYMNODE_REWARDING.save(deps.storage, node_id, &updated_rewarding)?;
+    nymnodes_storage::PENDING_NYMNODE_CHANGES.save(deps.storage, node_id, &pending_changes)?;
+
+    Ok(Response::new().add_event(new_pledge_increase_event(created_at, node_id, &increase)))
+}
+
+pub(crate) fn increase_mixnode_pledge(
+    deps: DepsMut<'_>,
+    created_at: BlockHeight,
+    mix_id: NodeId,
     increase: Coin,
 ) -> Result<Response, MixnetContractError> {
     // note: we have already validated the amount to know it has the correct denomination
@@ -247,10 +351,10 @@ pub(crate) fn increase_pledge(
     Ok(Response::new().add_event(new_pledge_increase_event(created_at, mix_id, &increase)))
 }
 
-pub(crate) fn decrease_pledge(
+pub(crate) fn decrease_mixnode_pledge(
     deps: DepsMut<'_>,
     created_at: BlockHeight,
-    mix_id: MixId,
+    mix_id: NodeId,
     decrease_by: Coin,
 ) -> Result<Response, MixnetContractError> {
     // the target node MUST exist - we have checked it at the time of putting this event onto the queue
@@ -296,6 +400,61 @@ pub(crate) fn decrease_pledge(
     Ok(response)
 }
 
+pub(crate) fn decrease_nym_node_pledge(
+    deps: DepsMut<'_>,
+    created_at: BlockHeight,
+    node_id: NodeId,
+    decrease_by: Coin,
+) -> Result<Response, MixnetContractError> {
+    // the target node MUST exist - we have checked it at the time of putting this event onto the queue
+    // we have also verified there were no preceding unbond events
+    let node_details = get_node_details_by_id(deps.storage, node_id)?.ok_or(
+        MixnetContractError::inconsistent_state(
+            "nym node getting processed to increase its pledge doesn't exist in the storage",
+        ),
+    )?;
+    if node_details.pending_changes.pledge_change.is_none() {
+        return Err(MixnetContractError::inconsistent_state(
+            "attempted to increase nym node pledge while there are no associated pending changes",
+        ));
+    }
+
+    let mut updated_bond = node_details.bond_information.clone();
+    let mut updated_rewarding = node_details.rewarding_details;
+
+    let mut pending_changes = node_details.pending_changes;
+    pending_changes.pledge_change = None;
+
+    // SAFETY: the subtraction here can't overflow as before the event was pushed into the queue,
+    // we checked that the new value will be higher than minimum pledge (which is also strictly positive)
+    updated_bond.original_pledge.amount -= decrease_by.amount;
+    updated_rewarding.decrease_operator_uint128(decrease_by.amount)?;
+
+    let owner = &node_details.bond_information.owner;
+
+    // send the removed tokens back to the operator
+    let return_tokens = BankMsg::Send {
+        to_address: owner.to_string(),
+        amount: vec![decrease_by.clone()],
+    };
+
+    // update all: bond information, rewarding details and pending pledge changes
+    nymnodes_storage::nym_nodes().replace(
+        deps.storage,
+        node_id,
+        Some(&updated_bond),
+        Some(&node_details.bond_information),
+    )?;
+    rewards_storage::NYMNODE_REWARDING.save(deps.storage, node_id, &updated_rewarding)?;
+    nymnodes_storage::PENDING_NYMNODE_CHANGES.save(deps.storage, node_id, &pending_changes)?;
+
+    let response = Response::new()
+        .add_message(return_tokens)
+        .add_event(new_pledge_decrease_event(created_at, node_id, &decrease_by));
+
+    Ok(response)
+}
+
 impl ContractExecutableEvent for PendingEpochEventData {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
@@ -303,25 +462,37 @@ impl ContractExecutableEvent for PendingEpochEventData {
         match self.kind {
             PendingEpochEventKind::Delegate {
                 owner,
-                mix_id,
+                node_id: mix_id,
                 amount,
                 ..
             } => delegate(deps, env, self.created_at, owner, mix_id, amount),
-            PendingEpochEventKind::Undelegate { owner, mix_id, .. } => {
-                undelegate(deps, self.created_at, owner, mix_id)
+            PendingEpochEventKind::Undelegate {
+                owner,
+                node_id: mix_id,
+                ..
+            } => undelegate(deps, self.created_at, owner, mix_id),
+            PendingEpochEventKind::NymNodePledgeMore { node_id, amount } => {
+                increase_nym_node_pledge(deps, self.created_at, node_id, amount)
             }
-            PendingEpochEventKind::PledgeMore { mix_id, amount } => {
-                increase_pledge(deps, self.created_at, mix_id, amount)
+            PendingEpochEventKind::MixnodePledgeMore { mix_id, amount } => {
+                increase_mixnode_pledge(deps, self.created_at, mix_id, amount)
             }
-            PendingEpochEventKind::DecreasePledge {
+            PendingEpochEventKind::NymNodeDecreasePledge {
+                node_id,
+                decrease_by,
+            } => decrease_nym_node_pledge(deps, self.created_at, node_id, decrease_by),
+            PendingEpochEventKind::MixnodeDecreasePledge {
                 mix_id,
                 decrease_by,
-            } => decrease_pledge(deps, self.created_at, mix_id, decrease_by),
+            } => decrease_mixnode_pledge(deps, self.created_at, mix_id, decrease_by),
             PendingEpochEventKind::UnbondMixnode { mix_id } => {
                 unbond_mixnode(deps, env, self.created_at, mix_id)
             }
-            PendingEpochEventKind::UpdateActiveSetSize { new_size } => {
-                update_active_set_size(deps, self.created_at, new_size)
+            PendingEpochEventKind::UnbondNymNode { node_id } => {
+                unbond_nym_node(deps, env, self.created_at, node_id)
+            }
+            PendingEpochEventKind::UpdateActiveSet { update } => {
+                update_active_set(deps, self.created_at, update)
             }
         }
     }
@@ -330,8 +501,8 @@ impl ContractExecutableEvent for PendingEpochEventData {
 pub(crate) fn change_mix_cost_params(
     deps: DepsMut<'_>,
     created_at: BlockHeight,
-    mix_id: MixId,
-    new_costs: MixNodeCostParams,
+    mix_id: NodeId,
+    new_costs: NodeCostParams,
 ) -> Result<Response, MixnetContractError> {
     // almost an entire interval might have passed since the request was issued -> check if the
     // node still exists
@@ -345,12 +516,48 @@ pub(crate) fn change_mix_cost_params(
             _ => return Ok(Response::default()),
         };
 
-    let cosmos_event = new_mixnode_cost_params_update_event(created_at, mix_id, &new_costs);
+    let mut pending_changes =
+        mixnodes_storage::PENDING_MIXNODE_CHANGES.load(deps.storage, mix_id)?;
+    pending_changes.cost_params_change = None;
+
+    let cosmos_event = new_cost_params_update_event(created_at, mix_id, &new_costs);
 
     // TODO: can we just change cost_params without breaking rewarding calculation?
     // (I'm almost certain we can, but well, it has to be tested)
     mix_rewarding.cost_params = new_costs;
     rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
+    mixnodes_storage::PENDING_MIXNODE_CHANGES.save(deps.storage, mix_id, &pending_changes)?;
+
+    Ok(Response::new().add_event(cosmos_event))
+}
+
+pub(crate) fn change_nym_node_cost_params(
+    deps: DepsMut<'_>,
+    created_at: BlockHeight,
+    node_id: NodeId,
+    new_costs: NodeCostParams,
+) -> Result<Response, MixnetContractError> {
+    // almost an entire interval might have passed since the request was issued -> check if the
+    // node still exists
+    //
+    // note: there's no check if the bond is in "unbonding" state, as epoch actions would get
+    // cleared before touching interval actions
+    let mut node_rewarding =
+        match rewards_storage::NYMNODE_REWARDING.may_load(deps.storage, node_id)? {
+            Some(node_rewarding) if node_rewarding.still_bonded() => node_rewarding,
+            // if node doesn't exist anymore, don't do anything, simple as that.
+            _ => return Ok(Response::default()),
+        };
+
+    let mut pending_changes =
+        nymnodes_storage::PENDING_NYMNODE_CHANGES.load(deps.storage, node_id)?;
+    pending_changes.cost_params_change = None;
+
+    let cosmos_event = new_cost_params_update_event(created_at, node_id, &new_costs);
+
+    node_rewarding.cost_params = new_costs;
+    rewards_storage::NYMNODE_REWARDING.save(deps.storage, node_id, &node_rewarding)?;
+    nymnodes_storage::PENDING_NYMNODE_CHANGES.save(deps.storage, node_id, &pending_changes)?;
 
     Ok(Response::new().add_event(cosmos_event))
 }
@@ -404,10 +611,12 @@ impl ContractExecutableEvent for PendingIntervalEventData {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
         match self.kind {
-            PendingIntervalEventKind::ChangeMixCostParams {
-                mix_id: mix,
-                new_costs,
-            } => change_mix_cost_params(deps, self.created_at, mix, new_costs),
+            PendingIntervalEventKind::ChangeMixCostParams { mix_id, new_costs } => {
+                change_mix_cost_params(deps, self.created_at, mix_id, new_costs)
+            }
+            PendingIntervalEventKind::ChangeNymNodeCostParams { node_id, new_costs } => {
+                change_nym_node_cost_params(deps, self.created_at, node_id, new_costs)
+            }
             PendingIntervalEventKind::UpdateRewardingParams { update } => {
                 update_rewarding_params(deps, self.created_at, update)
             }
@@ -449,7 +658,7 @@ mod tests {
         #[test]
         fn returns_the_tokens_if_mixnode_has_unbonded() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             let delegation = 120_000_000u128;
             let delegation_coin = coin(delegation, TEST_COIN_DENOM);
@@ -512,7 +721,7 @@ mod tests {
         #[test]
         fn returns_the_tokens_is_mixnode_is_unbonding() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             let delegation = 120_000_000u128;
             let delegation_coin = coin(delegation, TEST_COIN_DENOM);
@@ -575,7 +784,8 @@ mod tests {
         #[test]
         fn if_delegation_already_exists_a_fresh_one_with_sum_of_both_is_created() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let mix_id =
+                test.add_rewarded_legacy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
 
             let delegation_og = 120_000_000u128;
             let delegation_new = 543_000_000u128;
@@ -619,7 +829,8 @@ mod tests {
         #[test]
         fn if_delegation_already_exists_with_unclaimed_rewards_fresh_one_is_created() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let mix_id =
+                test.add_rewarded_legacy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
 
             let delegation_og = 120_000_000u128;
             let delegation_new = 543_000_000u128;
@@ -628,12 +839,12 @@ mod tests {
             // perform some rewarding here to advance the unit delegation beyond the initial value
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -642,12 +853,12 @@ mod tests {
             test.add_immediate_delegation(owner, delegation_og, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -701,7 +912,8 @@ mod tests {
         #[test]
         fn appropriately_updates_state_for_fresh_delegation() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let mix_id =
+                test.add_rewarded_legacy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
             let owner = "delegator";
 
             let delegation = 120_000_000u128;
@@ -710,12 +922,12 @@ mod tests {
             // perform some rewarding here to advance the unit delegation beyond the initial value
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -766,7 +978,7 @@ mod tests {
         #[test]
         fn doesnt_return_any_tokens_if_it_doesnt_exist() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             let owner = Addr::unchecked("delegator");
 
@@ -777,7 +989,7 @@ mod tests {
         #[test]
         fn errors_out_if_mix_rewarding_doesnt_exist() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             let owner = Addr::unchecked("delegator");
             test.add_immediate_delegation(owner.as_str(), 100_000_000u32, mix_id);
@@ -795,36 +1007,27 @@ mod tests {
         #[test]
         fn returns_all_delegated_tokens_with_earned_rewards() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
+            let mix_id =
+                test.add_rewarded_legacy_mixnode("mix-owner", Some(100_000_000_000u128.into()));
 
             let owner = "delegator";
             let delegation = 120_000_000u128;
 
+            let active_params = test.active_node_params(100.0);
+
             // perform some rewarding here to advance the unit delegation beyond the initial value
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             test.add_immediate_delegation(owner, delegation, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let expected_reward = dist1.delegates + dist2.delegates;
             let truncated_reward = truncate_reward_amount(expected_reward);
@@ -853,12 +1056,19 @@ mod tests {
 
     #[cfg(test)]
     mod mixnode_unbonding {
-        use super::*;
+        use crate::compat::transactions::{try_decrease_pledge, try_increase_pledge};
+        use crate::interval::pending_events::unbond_mixnode;
         use crate::mixnodes::storage as mixnodes_storage;
-        use crate::mixnodes::transactions::{try_decrease_pledge, try_increase_pledge};
-        use crate::support::tests::test_helpers::get_bank_send_msg;
+        use crate::mixnodes::transactions::{
+            try_decrease_mixnode_pledge, try_increase_mixnode_pledge,
+        };
+        use crate::rewards::storage as rewards_storage;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use crate::support::tests::test_helpers;
+        use crate::support::tests::test_helpers::{get_bank_send_msg, TestSetup};
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::Uint128;
+        use cosmwasm_std::{coin, to_binary, Addr, CosmosMsg, Uint128, WasmMsg};
+        use mixnet_contract_common::error::MixnetContractError;
         use mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
@@ -884,14 +1094,9 @@ mod tests {
             // increase
             let owner = "mix-owner1";
             let pledge = Uint128::new(250_000_000);
-            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+            let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
-            try_increase_pledge(
-                test.deps_mut(),
-                env.clone(),
-                mock_info(owner, &change.clone()),
-            )
-            .unwrap();
+            try_increase_pledge(test.deps_mut(), env.clone(), mock_info(owner, &change)).unwrap();
 
             let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id);
             assert!(matches!(
@@ -902,7 +1107,7 @@ mod tests {
             // decrease
             let owner = "mix-owner2";
             let pledge = Uint128::new(250_000_000);
-            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+            let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
             try_decrease_pledge(
                 test.deps_mut(),
@@ -921,10 +1126,11 @@ mod tests {
             // artificial
             let owner = "mix-owner3";
             let pledge = Uint128::new(250_000_000);
-            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+            let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
             let changes = PendingMixNodeChanges {
                 pledge_change: Some(1234),
+                cost_params_change: None,
             };
 
             mixnodes_storage::PENDING_MIXNODE_CHANGES
@@ -943,20 +1149,19 @@ mod tests {
 
             let owner = "mix-owner";
             let pledge = Uint128::new(250_000_000);
-            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+            let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
             let mix_details = mixnodes_storage::mixnode_bonds()
                 .load(test.deps().storage, mix_id)
                 .unwrap();
-            let layer = mix_details.layer;
 
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -991,10 +1196,6 @@ mod tests {
                     .load(test.deps().storage, mix_id)
                     .unwrap()
             );
-            assert_eq!(
-                mixnodes_storage::LAYERS.load(test.deps().storage).unwrap()[layer],
-                0
-            )
         }
     }
 
@@ -1012,7 +1213,7 @@ mod tests {
             let mut test = TestSetup::new();
 
             let amount = test.coin(123);
-            let res = increase_pledge(test.deps_mut(), 123, 1, amount);
+            let res = increase_mixnode_pledge(test.deps_mut(), 123, 1, amount);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -1026,9 +1227,9 @@ mod tests {
 
             let owner = "mix-owner";
             let pledge = Uint128::new(250_000_000);
-            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+            let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
-            let res = increase_pledge(test.deps_mut(), 123, mix_id, change);
+            let res = increase_mixnode_pledge(test.deps_mut(), 123, mix_id, change);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -1038,7 +1239,7 @@ mod tests {
         #[test]
         fn updates_stored_bond_information_and_rewarding_details() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
             test.set_pending_pledge_change(mix_id, None);
 
             let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
@@ -1046,7 +1247,7 @@ mod tests {
                 .unwrap();
 
             let amount = test.coin(12345);
-            increase_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+            increase_mixnode_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
 
             let updated_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
                 .unwrap()
@@ -1071,13 +1272,13 @@ mod tests {
             let pledge2 = Uint128::new(50_000_000);
             let pledge3 = Uint128::new(200_000_000);
 
-            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
             let increase = test.coin(pledge2.u128());
-            increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
+            increase_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
 
-            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
 
             test.add_immediate_delegation("alice", 123_456_789u128, mix_id_repledge);
             test.add_immediate_delegation("bob", 500_000_000u128, mix_id_repledge);
@@ -1090,11 +1291,11 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_repledge,
                 test_helpers::performance(100.0),
             );
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_full_pledge,
                 test_helpers::performance(100.0),
             );
@@ -1108,7 +1309,7 @@ mod tests {
             let pledge1 = Uint128::new(150_000_000_000);
             let pledge2 = Uint128::new(50_000_000_000);
 
-            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
@@ -1118,16 +1319,16 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge]);
 
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_repledge,
                 test_helpers::performance(100.0),
             );
 
             let increase = test.coin(pledge2.u128());
-            increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
+            increase_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
 
             let pledge3 = Uint128::new(200_000_000_000) + truncate_reward_amount(dist.operator);
-            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
@@ -1162,11 +1363,11 @@ mod tests {
             // go through few epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.reward_with_distribution_with_state_bypass(
+                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
-                let dist2 = test.reward_with_distribution_with_state_bypass(
+                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_full_pledge,
                     test_helpers::performance(100.0),
                 );
@@ -1181,7 +1382,7 @@ mod tests {
             let pledge1 = Uint128::new(150_000_000_000);
             let pledge2 = Uint128::new(50_000_000_000);
 
-            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
@@ -1197,7 +1398,7 @@ mod tests {
             // go few epochs of rewarding before adding more pledge
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist = test.reward_with_distribution_with_state_bypass(
+                let dist = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
@@ -1206,11 +1407,11 @@ mod tests {
             }
 
             let increase = test.coin(pledge2.u128());
-            increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
+            increase_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
 
             let pledge3 =
                 Uint128::new(200_000_000_000) + truncate_reward_amount(cumulative_op_reward);
-            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
@@ -1245,11 +1446,11 @@ mod tests {
             // go through few more epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.reward_with_distribution_with_state_bypass(
+                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
-                let dist2 = test.reward_with_distribution_with_state_bypass(
+                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_full_pledge,
                     test_helpers::performance(100.0),
                 );
@@ -1261,11 +1462,11 @@ mod tests {
         #[test]
         fn updates_the_pending_pledge_changes_field() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
             test.set_pending_pledge_change(mix_id, None);
 
             let amount = test.coin(12345);
-            increase_pledge(test.deps_mut(), 123, mix_id, amount).unwrap();
+            increase_mixnode_pledge(test.deps_mut(), 123, mix_id, amount).unwrap();
             let pending = mixnodes_storage::PENDING_MIXNODE_CHANGES
                 .load(test.deps().storage, mix_id)
                 .unwrap();
@@ -1285,7 +1486,7 @@ mod tests {
             let mut test = TestSetup::new();
 
             let amount = test.coin(123);
-            let res = decrease_pledge(test.deps_mut(), 123, 1, amount);
+            let res = decrease_mixnode_pledge(test.deps_mut(), 123, 1, amount);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -1299,9 +1500,9 @@ mod tests {
 
             let owner = "mix-owner";
             let pledge = Uint128::new(250_000_000);
-            let mix_id = test.add_dummy_mixnode(owner, Some(pledge));
+            let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(pledge));
 
-            let res = decrease_pledge(test.deps_mut(), 123, mix_id, change);
+            let res = decrease_mixnode_pledge(test.deps_mut(), 123, mix_id, change);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -1311,7 +1512,7 @@ mod tests {
         #[test]
         fn updates_stored_bond_information_and_rewarding_details() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
             test.set_pending_pledge_change(mix_id, None);
 
             let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
@@ -1319,7 +1520,7 @@ mod tests {
                 .unwrap();
 
             let amount = test.coin(12345);
-            decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+            decrease_mixnode_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
 
             let updated_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
                 .unwrap()
@@ -1341,11 +1542,12 @@ mod tests {
         fn returns_tokens_back_to_the_owner() {
             let mut test = TestSetup::new();
             let owner = "mix-owner";
-            let mix_id = test.add_dummy_mixnode(owner, None);
+            let mix_id = test.add_rewarded_legacy_mixnode(owner, None);
             test.set_pending_pledge_change(mix_id, None);
 
             let amount = test.coin(12345);
-            let res = decrease_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+            let res =
+                decrease_mixnode_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
 
             assert_eq!(res.messages.len(), 1);
             assert_eq!(
@@ -1364,13 +1566,13 @@ mod tests {
             let pledge_change = Uint128::new(50_000_000);
             let pledge3 = Uint128::new(150_000_000);
 
-            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
             let decrease = test.coin(pledge_change.u128());
-            decrease_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
+            decrease_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
 
-            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
 
             test.add_immediate_delegation("alice", 123_456_789u128, mix_id_repledge);
             test.add_immediate_delegation("bob", 500_000_000u128, mix_id_repledge);
@@ -1383,11 +1585,11 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_repledge,
                 test_helpers::performance(100.0),
             );
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_full_pledge,
                 test_helpers::performance(100.0),
             );
@@ -1401,7 +1603,7 @@ mod tests {
             let pledge1 = Uint128::new(200_000_000_000);
             let pledge_change = Uint128::new(50_000_000_000);
 
-            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
@@ -1411,16 +1613,16 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge]);
 
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_repledge,
                 test_helpers::performance(100.0),
             );
 
             let decrease = test.coin(pledge_change.u128());
-            decrease_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
+            decrease_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
 
             let pledge3 = Uint128::new(150_000_000_000) + truncate_reward_amount(dist.operator);
-            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
@@ -1455,11 +1657,11 @@ mod tests {
             // go through few epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.reward_with_distribution_with_state_bypass(
+                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
-                let dist2 = test.reward_with_distribution_with_state_bypass(
+                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_full_pledge,
                     test_helpers::performance(100.0),
                 );
@@ -1474,7 +1676,7 @@ mod tests {
             let pledge1 = Uint128::new(200_000_000_000);
             let pledge_change = Uint128::new(50_000_000_000);
 
-            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
@@ -1490,7 +1692,7 @@ mod tests {
             // go few epochs of rewarding before decreasing pledge
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist = test.reward_with_distribution_with_state_bypass(
+                let dist = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
@@ -1499,11 +1701,11 @@ mod tests {
             }
 
             let decrease = test.coin(pledge_change.u128());
-            decrease_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
+            decrease_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
 
             let pledge3 =
                 Uint128::new(150_000_000_000) + truncate_reward_amount(cumulative_op_reward);
-            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+            let mix_id_full_pledge = test.add_rewarded_legacy_mixnode("mix-owner2", Some(pledge3));
 
             test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
             test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
@@ -1538,11 +1740,11 @@ mod tests {
             // go through few more epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.reward_with_distribution_with_state_bypass(
+                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
-                let dist2 = test.reward_with_distribution_with_state_bypass(
+                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_full_pledge,
                     test_helpers::performance(100.0),
                 );
@@ -1554,11 +1756,11 @@ mod tests {
         #[test]
         fn updates_the_pending_pledge_changes_field() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
             test.set_pending_pledge_change(mix_id, None);
 
             let amount = test.coin(12345);
-            decrease_pledge(test.deps_mut(), 123, mix_id, amount).unwrap();
+            decrease_mixnode_pledge(test.deps_mut(), 123, mix_id, amount).unwrap();
             let pending = mixnodes_storage::PENDING_MIXNODE_CHANGES
                 .load(test.deps().storage, mix_id)
                 .unwrap();
@@ -1573,12 +1775,23 @@ mod tests {
             .load(test.deps().storage)
             .unwrap();
 
-        update_active_set_size(test.deps_mut(), 123, 50).unwrap();
+        update_active_set(
+            test.deps_mut(),
+            123,
+            ActiveSetUpdate {
+                entry_gateways: 50,
+                exit_gateways: 50,
+                mixnodes: 100,
+            },
+        )
+        .unwrap();
         let updated = rewards_storage::REWARDING_PARAMS
             .load(test.deps().storage)
             .unwrap();
-        assert_ne!(current.active_set_size, updated.active_set_size);
-        assert_eq!(updated.active_set_size, 50)
+        assert_ne!(updated.rewarded_set, current.rewarded_set);
+        assert_eq!(updated.rewarded_set.mixnodes, 100);
+        assert_eq!(updated.rewarded_set.entry_gateways, 50);
+        assert_eq!(updated.rewarded_set.exit_gateways, 50);
     }
 
     #[cfg(test)]
@@ -1591,12 +1804,12 @@ mod tests {
         #[test]
         fn doesnt_do_anything_if_mixnode_has_unbonded() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             let env = test.env();
             unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
 
-            let new_params = MixNodeCostParams {
+            let new_params = NodeCostParams {
                 profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
                 interval_operating_cost: coin(123_456_789, TEST_COIN_DENOM),
             };
@@ -1608,11 +1821,16 @@ mod tests {
         #[test]
         fn for_bonded_mixnode_updates_saved_value() {
             let mut test = TestSetup::new();
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             let before = test.mix_rewarding(mix_id).cost_params;
 
-            let new_params = MixNodeCostParams {
+            // this would have been normally populated when creating the event itself
+            mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .save(test.deps_mut().storage, mix_id, &Default::default())
+                .unwrap();
+
+            let new_params = NodeCostParams {
                 profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
                 interval_operating_cost: coin(123_456_789, TEST_COIN_DENOM),
             };
@@ -1620,13 +1838,11 @@ mod tests {
             let res = change_mix_cost_params(test.deps_mut(), 123, mix_id, new_params.clone());
             assert_eq!(
                 res,
-                Ok(
-                    Response::new().add_event(new_mixnode_cost_params_update_event(
-                        123,
-                        mix_id,
-                        &new_params,
-                    ))
-                )
+                Ok(Response::new().add_event(new_cost_params_update_event(
+                    123,
+                    mix_id,
+                    &new_params,
+                )))
             );
 
             let after = test.mix_rewarding(mix_id).cost_params;
@@ -1655,7 +1871,7 @@ mod tests {
             sybil_resistance_percent: Some(Percent::from_percentage_value(42).unwrap()),
             active_set_work_factor: None,
             interval_pool_emission: None,
-            rewarded_set_size: None,
+            rewarded_set_params: None,
         };
 
         let res = update_rewarding_params(test.deps_mut(), 123, update);

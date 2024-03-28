@@ -6,6 +6,7 @@ use crate::ecash::storage::models::{
     StoredBloomfilterParams, TicketProvider, VerifiedTicket,
 };
 use crate::support::storage::manager::StorageManager;
+use async_trait::async_trait;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_contract_common::deposit::DepositId;
 use time::{Date, OffsetDateTime};

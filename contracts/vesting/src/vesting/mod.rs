@@ -26,7 +26,7 @@ mod tests {
     use contracts_common::signing::MessageSignature;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
-    use mixnet_contract_common::mixnode::MixNodeCostParams;
+    use mixnet_contract_common::mixnode::NodeCostParams;
     use mixnet_contract_common::{Gateway, MixNode, Percent};
     use vesting_contract_common::messages::ExecuteMsg;
     use vesting_contract_common::{Account, PledgeCap, VestingSpecification};
@@ -428,7 +428,7 @@ mod tests {
             version: "0.10.0".to_string(),
         };
 
-        let cost_params = MixNodeCostParams {
+        let cost_params = NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
             interval_operating_cost: Coin {
                 denom: "NYM".to_string(),

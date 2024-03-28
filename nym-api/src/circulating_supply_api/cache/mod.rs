@@ -6,7 +6,6 @@ use cosmwasm_std::Addr;
 use nym_api_requests::models::CirculatingSupplyResponse;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
-use rocket::fairing::AdHoc;
 use std::ops::Deref;
 use std::{
     sync::{atomic::AtomicBool, Arc},
@@ -15,6 +14,7 @@ use std::{
 use thiserror::Error;
 use tokio::sync::RwLock;
 use tokio::time;
+use tracing::{error, info};
 
 mod data;
 pub(crate) mod refresher;
@@ -67,13 +67,6 @@ impl CirculatingSupplyCache {
         }
     }
 
-    #[deprecated(note = "TODO rocket: obsolete because it's used for Rocket")]
-    pub(crate) fn stage(mix_denom: String) -> AdHoc {
-        AdHoc::on_ignite("Circulating Supply Cache Stage", |rocket| async {
-            rocket.manage(Self::new(mix_denom))
-        })
-    }
-
     pub(crate) async fn update(&self, mixmining_reserve: Coin, vesting_tokens: Coin) {
         let mut cache = self.data.write().await;
 
@@ -81,10 +74,10 @@ impl CirculatingSupplyCache {
         circulating_supply.amount -= mixmining_reserve.amount;
         circulating_supply.amount -= vesting_tokens.amount;
 
-        log::info!("Updating circulating supply cache");
-        log::info!("the mixmining reserve is now {mixmining_reserve}");
-        log::info!("the number of tokens still vesting is now {vesting_tokens}");
-        log::info!("the circulating supply is now {circulating_supply}");
+        info!("Updating circulating supply cache");
+        info!("the mixmining reserve is now {mixmining_reserve}");
+        info!("the number of tokens still vesting is now {vesting_tokens}");
+        info!("the circulating supply is now {circulating_supply}");
 
         cache.mixmining_reserve.unchecked_update(mixmining_reserve);
         cache.vesting_tokens.unchecked_update(vesting_tokens);

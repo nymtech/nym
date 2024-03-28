@@ -4,7 +4,7 @@
 use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::AxumResult;
-use crate::v2::AxumAppState;
+use crate::support::http::state::AppState;
 use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{
@@ -18,8 +18,9 @@ use std::ops::Deref;
 use std::sync::Arc;
 use time::macros::time;
 use time::{OffsetDateTime, Time};
+use tracing::{error, warn};
 
-pub(crate) fn spending_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState> {
+pub(crate) fn spending_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
     Router::new()
         .route(
             "/verify-ecash-ticket",
@@ -111,16 +112,16 @@ async fn verify_ticket(
         ) {
             IdentifyResult::NotADuplicatePayment => {} //SW NOTE This should never happen, quick message?
             IdentifyResult::DuplicatePayInfo(_) => {
-                log::warn!("Identical payInfo");
+                warn!("Identical payInfo");
                 return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
             }
             IdentifyResult::DoubleSpendingPublicKeys(pub_key) => {
                 //Actual double spending
-                log::warn!(
+                warn!(
                     "Double spending attempt for key {}",
                     pub_key.to_base58_string()
                 );
-                log::error!("UNIMPLEMENTED: blacklisting the double spend key");
+                error!("UNIMPLEMENTED: blacklisting the double spend key");
                 return reject_ticket(EcashTicketVerificationRejection::DoubleSpend);
             }
         }

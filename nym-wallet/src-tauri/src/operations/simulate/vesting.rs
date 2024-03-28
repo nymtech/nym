@@ -1,18 +1,17 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::cmp::Ordering;
-
 use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
 use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
+use nym_mixnet_contract_common::{Gateway, MixNode, NodeId};
 use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
-use nym_types::mixnode::MixNodeCostParams;
+use nym_types::mixnode::NodeCostParams;
 use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_vesting_contract_common::ExecuteMsg;
+use std::cmp::Ordering;
 
 async fn simulate_vesting_operation(
     msg: ExecuteMsg,
@@ -75,7 +74,7 @@ pub async fn simulate_vesting_unbond_gateway(
 #[tauri::command]
 pub async fn simulate_vesting_bond_mixnode(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     msg_signature: MessageSignature,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
@@ -173,7 +172,7 @@ pub async fn simulate_vesting_unbond_mixnode(
 
 #[tauri::command]
 pub async fn simulate_vesting_update_mixnode_cost_params(
-    new_costs: MixNodeCostParams,
+    new_costs: NodeCostParams,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
@@ -216,7 +215,7 @@ pub async fn simulate_vesting_update_gateway_config(
 
 #[tauri::command]
 pub async fn simulate_vesting_delegate_to_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     amount: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -237,7 +236,7 @@ pub async fn simulate_vesting_delegate_to_mixnode(
 
 #[tauri::command]
 pub async fn simulate_vesting_undelegate_from_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     simulate_vesting_operation(
@@ -270,7 +269,7 @@ pub async fn simulate_vesting_claim_operator_reward(
 
 #[tauri::command]
 pub async fn simulate_vesting_claim_delegator_reward(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     simulate_vesting_operation(ExecuteMsg::ClaimDelegatorReward { mix_id }, None, &state).await

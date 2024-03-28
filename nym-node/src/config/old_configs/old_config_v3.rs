@@ -992,6 +992,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
         },
         mixnet: Mixnet {
             bind_address: old_cfg.mixnet.bind_address,
+            announce_port: None,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
             nyxd_urls: old_cfg.mixnet.nyxd_urls,
             debug: MixnetDebug {
@@ -1066,6 +1067,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             storage_paths: MixnodePaths {},
             verloc: Verloc {
                 bind_address: old_cfg.mixnode.verloc.bind_address,
+                announce_port: None,
                 debug: VerlocDebug {
                     packets_per_node: old_cfg.mixnode.verloc.debug.packets_per_node,
                     connection_timeout: old_cfg.mixnode.verloc.debug.connection_timeout,

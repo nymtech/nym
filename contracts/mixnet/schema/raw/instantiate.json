@@ -82,21 +82,15 @@
     "InitialRewardingParams": {
       "type": "object",
       "required": [
-        "active_set_size",
         "active_set_work_factor",
         "initial_reward_pool",
         "initial_staking_supply",
         "interval_pool_emission",
-        "rewarded_set_size",
+        "rewarded_set_params",
         "staking_supply_scale_factor",
         "sybil_resistance"
       ],
       "properties": {
-        "active_set_size": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
-        },
         "active_set_work_factor": {
           "$ref": "#/definitions/Decimal"
         },
@@ -109,10 +103,8 @@
         "interval_pool_emission": {
           "$ref": "#/definitions/Percent"
         },
-        "rewarded_set_size": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
+        "rewarded_set_params": {
+          "$ref": "#/definitions/RewardedSetParams"
         },
         "staking_supply_scale_factor": {
           "$ref": "#/definitions/Percent"
@@ -159,6 +151,42 @@
         },
         "minimum": {
           "$ref": "#/definitions/Uint128"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RewardedSetParams": {
+      "type": "object",
+      "required": [
+        "entry_gateways",
+        "exit_gateways",
+        "mixnodes",
+        "standby"
+      ],
+      "properties": {
+        "entry_gateways": {
+          "description": "The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "exit_gateways": {
+          "description": "The expected number of nodes assigned exit gateway role (i.e. [`Role::ExitGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "mixnodes": {
+          "description": "The expected number of nodes assigned the 'mixnode' role, i.e. total of [`Role::Layer1`], [`Role::Layer2`] and [`Role::Layer3`].",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "standby": {
+          "description": "Number of nodes in the 'standby' set. (i.e. [`Role::Standby`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
         }
       },
       "additionalProperties": false

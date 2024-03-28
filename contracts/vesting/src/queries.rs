@@ -8,7 +8,7 @@ use crate::vesting::StorableVestingAccountExt;
 use contracts_common::{get_build_information, ContractBuildInformation};
 use cosmwasm_std::{Coin, Deps, Env, Order, StdResult, Timestamp, Uint128};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::NodeId;
 use vesting_contract_common::{
     Account, AccountVestingCoins, AccountsResponse, AllDelegationsResponse, BaseVestingAccountInfo,
     DelegationTimesResponse, OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse,
@@ -259,7 +259,7 @@ pub fn try_get_withdrawn_coins(
 pub fn try_get_delegation_times(
     deps: Deps<'_>,
     vesting_account_address: &str,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<DelegationTimesResponse, VestingContractError> {
     let owner = deps.api.addr_validate(vesting_account_address)?;
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
@@ -277,7 +277,7 @@ pub fn try_get_delegation_times(
 
 pub fn try_get_all_delegations(
     deps: Deps<'_>,
-    start_after: Option<(u32, MixId, BlockTimestampSecs)>,
+    start_after: Option<(u32, NodeId, BlockTimestampSecs)>,
     limit: Option<u32>,
 ) -> Result<AllDelegationsResponse, VestingContractError> {
     let limit = limit.unwrap_or(100).min(200) as usize;
@@ -314,7 +314,7 @@ pub fn try_get_all_delegations(
 pub fn try_get_delegation(
     deps: Deps<'_>,
     vesting_account_address: &str,
-    mix_id: MixId,
+    mix_id: NodeId,
     block_timestamp_secs: BlockTimestampSecs,
 ) -> Result<VestingDelegation, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
@@ -333,7 +333,7 @@ pub fn try_get_delegation(
 pub fn try_get_delegation_amount(
     deps: Deps<'_>,
     vesting_account_address: &str,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
 

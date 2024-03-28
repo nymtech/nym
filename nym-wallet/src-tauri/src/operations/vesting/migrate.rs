@@ -68,7 +68,7 @@ pub async fn migrate_vested_delegations(
     for delegation in &vesting_delegations {
         migrate_msgs.push((
             ExecuteMsg::MigrateVestedDelegation {
-                mix_id: delegation.mix_id,
+                mix_id: delegation.node_id,
             },
             Vec::new(),
         ));

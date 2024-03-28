@@ -1,21 +1,126 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::MixnetContractError;
-use crate::Layer;
+use crate::nym_node::Role;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Uint128};
 use std::fmt::{Display, Formatter};
-use std::ops::Index;
 
 // type aliases for better reasoning about available data
 pub type SphinxKey = String;
 pub type SphinxKeyRef<'a> = &'a str;
 
-pub type MixId = u32;
+pub type NodeId = u32;
 pub type BlockHeight = u64;
+
+#[cw_serde]
+pub struct RoleAssignment {
+    pub role: Role,
+    pub nodes: Vec<NodeId>,
+}
+
+impl RoleAssignment {
+    pub fn is_final_assignment(&self) -> bool {
+        self.role.is_standby()
+    }
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct RewardedSet {
+    pub entry_gateways: Vec<NodeId>,
+
+    pub exit_gateways: Vec<NodeId>,
+
+    pub layer1: Vec<NodeId>,
+
+    pub layer2: Vec<NodeId>,
+
+    pub layer3: Vec<NodeId>,
+
+    pub standby: Vec<NodeId>,
+}
+
+impl RewardedSet {
+    pub fn is_empty(&self) -> bool {
+        self.entry_gateways.is_empty()
+            && self.exit_gateways.is_empty()
+            && self.layer1.is_empty()
+            && self.layer2.is_empty()
+            && self.layer3.is_empty()
+            && self.standby.is_empty()
+    }
+
+    pub fn active_set_size(&self) -> usize {
+        self.entry_gateways.len()
+            + self.exit_gateways.len()
+            + self.layer1.len()
+            + self.layer2.len()
+            + self.layer3.len()
+    }
+
+    pub fn rewarded_set_size(&self) -> usize {
+        self.active_set_size() + self.standby.len()
+    }
+
+    pub fn try_get_mix_layer(&self, node_id: &NodeId) -> Option<u8> {
+        if self.layer1.contains(node_id) {
+            Some(1)
+        } else if self.layer2.contains(node_id) {
+            Some(2)
+        } else if self.layer3.contains(node_id) {
+            Some(3)
+        } else {
+            None
+        }
+    }
+
+    pub fn is_entry(&self, node_id: &NodeId) -> bool {
+        self.entry_gateways.contains(node_id)
+    }
+
+    pub fn is_exit(&self, node_id: &NodeId) -> bool {
+        self.exit_gateways.contains(node_id)
+    }
+
+    pub fn is_active_mixnode(&self, node_id: &NodeId) -> bool {
+        self.layer1.contains(node_id)
+            || self.layer2.contains(node_id)
+            || self.layer3.contains(node_id)
+    }
+
+    pub fn gateways(&self) -> Vec<NodeId> {
+        let mut gateways = Vec::with_capacity(self.entry_gateways.len() + self.exit_gateways.len());
+        for entry in &self.entry_gateways {
+            gateways.push(*entry)
+        }
+        for exit in &self.exit_gateways {
+            gateways.push(*exit)
+        }
+        gateways
+    }
+
+    pub fn active_mixnodes(&self) -> Vec<NodeId> {
+        let mut mixnodes =
+            Vec::with_capacity(self.layer1.len() + self.layer2.len() + self.layer3.len());
+        for mix in &self.layer1 {
+            mixnodes.push(*mix)
+        }
+        for mix in &self.layer2 {
+            mixnodes.push(*mix)
+        }
+        for mix in &self.layer3 {
+            mixnodes.push(*mix)
+        }
+        mixnodes
+    }
+
+    pub fn is_standby(&self, node_id: &NodeId) -> bool {
+        self.standby.contains(node_id)
+    }
+}
 
 #[cw_serde]
 pub struct RangedValue<T> {
@@ -76,113 +181,6 @@ where
     }
 }
 
-/// Specifies layer assignment for the given mixnode.
-#[cw_serde]
-pub struct LayerAssignment {
-    /// The id of the mixnode.
-    mix_id: MixId,
-
-    /// The layer to which it's going to be assigned
-    layer: Layer,
-}
-
-impl LayerAssignment {
-    pub fn new(mix_id: MixId, layer: Layer) -> Self {
-        LayerAssignment { mix_id, layer }
-    }
-
-    pub fn mix_id(&self) -> MixId {
-        self.mix_id
-    }
-
-    pub fn layer(&self) -> Layer {
-        self.layer
-    }
-}
-
-/// The current layer distribution of the mix network.
-#[cw_serde]
-#[derive(Copy, Default)]
-pub struct LayerDistribution {
-    /// Number of nodes on the first layer.
-    pub layer1: u64,
-
-    /// Number of nodes on the second layer.
-    pub layer2: u64,
-
-    /// Number of nodes on the third layer.
-    pub layer3: u64,
-}
-
-impl LayerDistribution {
-    pub fn choose_with_fewest(&self) -> Layer {
-        let layers = [
-            (Layer::One, self.layer1),
-            (Layer::Two, self.layer2),
-            (Layer::Three, self.layer3),
-        ];
-
-        // we explicitly put 3 elements into the iterator, so the iterator is DEFINITELY
-        // not empty and thus the unwrap cannot fail
-        #[allow(clippy::unwrap_used)]
-        layers.iter().min_by_key(|x| x.1).unwrap().0
-    }
-
-    pub fn increment_layer_count(&mut self, layer: Layer) {
-        match layer {
-            Layer::One => self.layer1 += 1,
-            Layer::Two => self.layer2 += 1,
-            Layer::Three => self.layer3 += 1,
-        }
-    }
-
-    pub fn decrement_layer_count(&mut self, layer: Layer) -> Result<(), MixnetContractError> {
-        match layer {
-            Layer::One => {
-                self.layer1 =
-                    self.layer1
-                        .checked_sub(1)
-                        .ok_or(MixnetContractError::OverflowSubtraction {
-                            minuend: self.layer1,
-                            subtrahend: 1,
-                        })?
-            }
-            Layer::Two => {
-                self.layer2 =
-                    self.layer2
-                        .checked_sub(1)
-                        .ok_or(MixnetContractError::OverflowSubtraction {
-                            minuend: self.layer2,
-                            subtrahend: 1,
-                        })?
-            }
-            Layer::Three => {
-                self.layer3 =
-                    self.layer3
-                        .checked_sub(1)
-                        .ok_or(MixnetContractError::OverflowSubtraction {
-                            minuend: self.layer3,
-                            subtrahend: 1,
-                        })?
-            }
-        }
-
-        Ok(())
-    }
-}
-
-impl Index<Layer> for LayerDistribution {
-    type Output = u64;
-
-    fn index(&self, index: Layer) -> &Self::Output {
-        match index {
-            Layer::One => &self.layer1,
-            Layer::Two => &self.layer2,
-            Layer::Three => &self.layer3,
-        }
-    }
-}
-
 /// The current state of the mixnet contract.
 #[cw_serde]
 pub struct ContractState {
@@ -212,13 +210,10 @@ pub struct ContractState {
 #[cw_serde]
 pub struct ContractStateParams {
     /// Minimum amount a delegator must stake in orders for his delegation to get accepted.
-    pub minimum_mixnode_delegation: Option<Coin>,
+    pub minimum_delegation: Option<Coin>,
 
-    /// Minimum amount a mixnode must pledge to get into the system.
-    pub minimum_mixnode_pledge: Coin,
-
-    /// Minimum amount a gateway must pledge to get into the system.
-    pub minimum_gateway_pledge: Coin,
+    /// Minimum amount a node must pledge to get into the system.
+    pub minimum_pledge: Coin,
 
     /// Defines the allowed profit margin range of operators.
     /// default: 0% - 100%

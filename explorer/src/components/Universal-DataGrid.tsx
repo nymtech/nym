@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { makeStyles } from '@mui/styles';
-import { DataGrid, GridColDef, useGridApiContext, useGridState } from '@mui/x-data-grid';
+import { DataGrid, GridColDef, GridEventListener, useGridApiContext, useGridState } from '@mui/x-data-grid';
 import Pagination from '@mui/material/Pagination';
-import { SxProps } from '@mui/system';
 import { LinearProgress } from '@mui/material';
 import { GridInitialStateCommunity } from '@mui/x-data-grid/models/gridStateCommunity';
 
@@ -11,20 +10,6 @@ const useStyles = makeStyles({
     display: 'flex',
   },
 });
-
-export const cellStyles: SxProps = {
-  width: '100%',
-  padding: 0,
-  maxHeight: 100,
-  color: 'inherit',
-  textDecoration: 'none',
-  fontWeight: 400,
-  fontSize: 12,
-  lineHeight: 2,
-  textAlign: 'start',
-  wordBreak: 'break-word',
-  whiteSpace: 'break-spaces',
-};
 
 const CustomPagination = () => {
   const apiRef = useGridApiContext();
@@ -51,6 +36,7 @@ type DataGridProps = {
   rows: any;
   loading?: boolean;
   initialState?: GridInitialStateCommunity;
+  onRowClick?: GridEventListener<'rowClick'> | undefined;
 };
 export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
   rows,
@@ -59,11 +45,13 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
   pagination,
   pageSize,
   initialState,
+  onRowClick,
 }) => {
   if (loading) return <LinearProgress />;
 
   return (
     <DataGrid
+      onRowClick={onRowClick}
       pagination={pagination}
       rows={rows}
       components={{
@@ -99,7 +87,6 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
       }}
     />
   );
-  return null;
 };
 
 UniversalDataGrid.defaultProps = {

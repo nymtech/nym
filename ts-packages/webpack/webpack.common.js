@@ -84,7 +84,9 @@ module.exports = (baseDir, htmlPath) => ({
       src: path.resolve(__dirname, '../../assets/favicon/favicon.png'), // the asset directory is relative to THIS file
     }),
 
-    new Dotenv(),
+    new Dotenv({
+      systemvars: true,
+    }),
   ],
   output: {
     path: path.resolve(baseDir, 'dist'),

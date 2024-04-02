@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { Link as RRDLink } from 'react-router-dom';
-import { Box, Card, Grid, Link as MuiLink } from '@mui/material';
+import { Box, Card, Grid, Stack } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -13,12 +12,13 @@ import { GatewayResponse } from '../../typeDefs/explorer-api';
 import { TableToolbar } from '../../components/TableToolbar';
 import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 import { Title } from '../../components/Title';
-import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
+import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { unymToNym } from '../../utils/currency';
 import { Tooltip } from '../../components/Tooltip';
 import { NYM_BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
 import { VersionDisplaySelector, VersionSelectOptions } from '../../components/Gateways/VersionDisplaySelector';
+import StyledLink from '../../components/StyledLink';
 
 export const PageGateways: FCWithChildren = () => {
   const { gateways } = useMainContext();
@@ -100,28 +100,19 @@ export const PageGateways: FCWithChildren = () => {
       field: 'identity_key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 380,
+      width: 400,
       disableColumnMenu: true,
-      headerAlign: 'left',
+      headerAlign: 'center',
       renderCell: (params: GridRenderCellParams) => (
-        <>
-          <CopyToClipboard
-            sx={{ mr: 1, fontSize: 12 }}
-            value={params.value}
-            tooltip={`Copy identity key ${params.value} to clipboard`}
-          />
-          <MuiLink
-            sx={{ ...cellStyles }}
-            component={RRDLink}
-            to={`/network-components/gateway/${params.row.identity_key}`}
-          >
-            {params.value}
-          </MuiLink>
-        </>
+        <Stack direction="row" gap={1}>
+          <CopyToClipboard smallIcons value={params.value} tooltip={`Copy identity key ${params.value} to clipboard`} />
+          <StyledLink to={`/network-components/gateway/${params.row.identity_key}`}>{params.value}</StyledLink>
+        </Stack>
       ),
     },
     {
       field: 'node_performance',
+      align: 'center',
       renderHeader: () => (
         <>
           <InfoTooltip
@@ -136,37 +127,28 @@ export const PageGateways: FCWithChildren = () => {
           <CustomColumnHeading headingTitle="Routing Score" />
         </>
       ),
-      width: 175,
+      width: 120,
       disableColumnMenu: true,
-      headerAlign: 'left',
+      headerAlign: 'center',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...cellStyles }}
-          component={RRDLink}
-          to={`/network-components/gateway/${params.row.identity_key}`}
-          data-testid="pledge-amount"
-        >
+        <StyledLink to={`/network-components/gateway/${params.row.identity_key}`} data-testid="pledge-amount">
           {`${params.value}%`}
-        </MuiLink>
+        </StyledLink>
       ),
     },
     {
       field: 'version',
+      align: 'center',
       renderHeader: () => <CustomColumnHeading headingTitle="Version" />,
       width: 150,
       disableColumnMenu: true,
-      headerAlign: 'left',
+      headerAlign: 'center',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...cellStyles }}
-          component={RRDLink}
-          to={`/network-components/gateway/${params.row.identity_key}`}
-          data-testid="version"
-        >
+        <StyledLink to={`/network-components/gateway/${params.row.identity_key}`} data-testid="version">
           {params.value}
-        </MuiLink>
+        </StyledLink>
       ),
       sortComparator: (a, b) => {
         if (gte(a, b)) return 1;
@@ -183,7 +165,7 @@ export const PageGateways: FCWithChildren = () => {
       renderCell: (params: GridRenderCellParams) => (
         <Box
           onClick={() => handleSearch(params.value as string)}
-          sx={{ ...cellStyles, justifyContent: 'flex-start', cursor: 'pointer' }}
+          sx={{ justifyContent: 'flex-start', cursor: 'pointer' }}
           data-testid="location-button"
         >
           <Tooltip text={params.value} id="gateway-location-text">
@@ -208,14 +190,9 @@ export const PageGateways: FCWithChildren = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...cellStyles }}
-          component={RRDLink}
-          to={`/network-components/gateway/${params.row.identity_key}`}
-          data-testid="host"
-        >
+        <StyledLink to={`/network-components/gateway/${params.row.identity_key}`} data-testid="host">
           {params.value}
-        </MuiLink>
+        </StyledLink>
       ),
     },
     {
@@ -227,14 +204,9 @@ export const PageGateways: FCWithChildren = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...cellStyles }}
-          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
-          target="_blank"
-          data-testid="owner"
-        >
+        <StyledLink to={`${NYM_BIG_DIPPER}/account/${params.value}`} target="_blank" data-testid="owner">
           {splice(7, 29, params.value)}
-        </MuiLink>
+        </StyledLink>
       ),
     },
     {
@@ -246,14 +218,9 @@ export const PageGateways: FCWithChildren = () => {
       headerClassName: 'MuiDataGrid-header-override',
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...cellStyles }}
-          component={RRDLink}
-          to={`/network-components/gateway/${params.row.identity_key}`}
-          data-testid="pledge-amount"
-        >
-          {unymToNym(params.value, 6)}
-        </MuiLink>
+        <StyledLink to={`/network-components/gateway/${params.row.identity_key}`} data-testid="pledge-amount">
+          {`${unymToNym(params.value, 6)}`}
+        </StyledLink>
       ),
     },
   ];
@@ -265,7 +232,9 @@ export const PageGateways: FCWithChildren = () => {
   if (gateways?.data) {
     return (
       <>
-        <Title text="Gateways" />
+        <Box mb={2}>
+          <Title text="Gateways" />
+        </Box>
         <Grid container>
           <Grid item xs={12}>
             <Card

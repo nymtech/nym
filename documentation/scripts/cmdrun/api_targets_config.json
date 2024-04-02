@@ -1,0 +1,5 @@
+[
+  { "nym_api": "https://sandbox-nym-api1.nymtech.net", "env": "sandbox" },
+  { "nym_api": "https://api.performance.nymte.ch", "env": "performance" },
+  { "nym_api": "https://validator.nymtech.net", "env": "mainnet" }
+]

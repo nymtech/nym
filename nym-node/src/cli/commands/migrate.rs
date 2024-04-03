@@ -5,8 +5,9 @@ use crate::cli::helpers::{
     EntryGatewayArgs, ExitGatewayArgs, HostArgs, HttpArgs, MixnetArgs, MixnodeArgs, WireguardArgs,
 };
 use crate::node::description::save_node_description;
-use crate::node::helpers::load_ed25519_identity_public_key;
+use crate::node::helpers::{load_ed25519_identity_public_key, store_x25519_noise_keypair};
 use clap::ValueEnum;
+use nym_crypto::asymmetric::x25519;
 use nym_gateway::helpers::{load_ip_packet_router_config, load_network_requester_config};
 use nym_gateway::GatewayError;
 use nym_mixnode::MixnodeError;
@@ -260,6 +261,15 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
     };
     save_node_description(&config.storage_paths.description, &node_description)?;
 
+    // create noise keypair
+    let mut rng = OsRng;
+    let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
+    trace!("attempting to store x25519 noise keypair");
+    store_x25519_noise_keypair(
+        &x25519_noise_keys,
+        config.storage_paths.keys.x25519_noise_storage_paths(),
+    )?;
+
     // move existing keys and generate missing data
     info!("attempting to copy mixnode keys to their new locations");
     copy_old_data(
@@ -448,6 +458,15 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                 }),
         )
         .build();
+
+    // create noise keypair
+    let mut rng = OsRng;
+    let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
+    trace!("attempting to store x25519 noise keypair");
+    store_x25519_noise_keypair(
+        &x25519_noise_keys,
+        config.storage_paths.keys.x25519_noise_storage_paths(),
+    )?;
 
     // move existing keys and generate missing data
     info!("attempting to copy gateway keys to their new locations");

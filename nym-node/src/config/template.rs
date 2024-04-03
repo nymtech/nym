@@ -136,11 +136,6 @@ private_network_prefix = {{ wireguard.private_network_prefix }}
 
 [mixnode]
 
-[mixnode.storage_paths]
-# Path to a file containing basic node description: human-readable name, description, link and location.
-# To be replaced by just putting this information as part of the self-described API.
-node_description = '{{ mixnode.storage_paths.node_description }}'
-
 [mixnode.verloc]
 # Socket address this node will use for binding its verloc API.
 # default: `0.0.0.0:1790`

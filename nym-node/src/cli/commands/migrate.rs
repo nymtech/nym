@@ -90,7 +90,7 @@ impl Args {
         // SAFETY:
         // if `config_file` hasn't been specified, `id` MUST be available due to clap's ArgGroup
         #[allow(clippy::unwrap_used)]
-        self.config_file.clone().unwrap_or({
+        self.config_file.clone().unwrap_or_else(|| {
             let id = self.id.as_ref().unwrap();
             match self.node_type {
                 NodeType::Mixnode => nym_mixnode::config::default_config_filepath(id),

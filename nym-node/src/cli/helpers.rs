@@ -46,7 +46,7 @@ impl ConfigArgs {
         #[allow(clippy::unwrap_used)]
         self.config_file
             .clone()
-            .unwrap_or(default_config_filepath(self.id.as_ref().unwrap()))
+            .unwrap_or_else(|| default_config_filepath(self.id.as_ref().unwrap()))
     }
 }
 

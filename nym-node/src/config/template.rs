@@ -54,6 +54,9 @@ nyxd_urls = [
 # Storage paths to persistent nym-node data, such as its long term keys.
 [storage_paths]
 
+# Path to a file containing basic node description: human-readable name, website, details, etc.
+description = '{{ storage_paths.description }}' 
+
 [storage_paths.keys]
 # Path to file containing ed25519 identity private key.
 private_ed25519_identity_key_file = '{{ storage_paths.keys.private_ed25519_identity_key_file }}'

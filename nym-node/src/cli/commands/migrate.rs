@@ -581,6 +581,11 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
         .await?;
     }
 
+    save_node_description(
+        &config.storage_paths.description,
+        &NodeDescription::default(),
+    )?;
+
     // finally move the mnemonic
     config
         .entry_gateway

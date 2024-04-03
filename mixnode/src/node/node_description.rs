@@ -9,9 +9,16 @@ use std::{fs, io};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NodeDescription {
+    #[serde(default)]
     pub name: String,
+
+    #[serde(default)]
     pub description: String,
+
+    #[serde(default)]
     pub link: String,
+
+    #[serde(default)]
     pub location: String,
 }
 

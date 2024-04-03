@@ -83,6 +83,7 @@ pub struct Config {
     pub gateway: Gateway,
 
     // currently not really used for anything useful
+    #[serde(default)]
     pub wireguard: Wireguard,
 
     pub storage_paths: GatewayPaths,

@@ -19,9 +19,10 @@ use nym_node::error::{EntryGatewayError, ExitGatewayError, NymNodeError};
 use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
 use rand::rngs::OsRng;
 use std::fmt::{Display, Formatter};
-use std::fs;
+use std::fs::create_dir_all;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 use tracing::{info, trace, warn};
 use zeroize::Zeroizing;
 
@@ -135,7 +136,15 @@ fn copy_old_data<P: AsRef<Path>, Q: AsRef<Path>>(
     from: P,
     to: Q,
 ) -> Result<(), NymNodeError> {
-    if let Err(err) = fs::copy(from.as_ref(), to.as_ref()) {
+    fn copy_inner<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> io::Result<()> {
+        if let Some(parent) = to.as_ref().parent() {
+            create_dir_all(parent)?;
+        }
+        fs::copy(from, to)?;
+        Ok(())
+    }
+
+    if let Err(err) = copy_inner(from.as_ref(), to.as_ref()) {
         return Err(NymNodeError::MigrationFailure {
             node_type: node_type.to_string(),
             message: format!(

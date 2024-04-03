@@ -3,6 +3,7 @@ import os
 import requests
 import json
 import sys
+import pandas as pd
 from collections import namedtuple
 
 def get_url(args):
@@ -18,7 +19,46 @@ def subparser_read(args):
     url = get_url(args)
     r = requests.get(url)
     response = r.json()
-    print(response)
+    return response
+
+def convert_u_nym(unym):
+    unym = int(unym)
+    nym = unym / 1000000
+    nym = int(nym)
+    return nym
+
+def thousand_separator(n):
+    n = f'{n:_}'
+    return n
+
+def remove_underscore(arg):
+    string = arg.replace("_", " ")
+    string = string.title()
+    return string
+
+def display_supply_table(response, args):
+    df = pd.DataFrame(response)
+    df = df.T
+    del df['denom']
+#    df.set_axis(['**Item**', '**Amount in NYM**'], axis=1, inplace=True)
+    df = df.rename_axis('index1').reset_index()
+    df = df.rename(columns={'index1': '**Item**', 'amount': '**Amount in NYM**'})
+    df['**Item**'] = df['**Item**'].apply(remove_underscore)
+    df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(convert_u_nym)
+    df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(thousand_separator)
+    table = df.to_markdown(index=False)
+    print(table)
+
+def read_supply(args):
+    response = subparser_read(args)
+    if args.endpoint == "circulating-supply":
+        display_supply_table(response, args)
+    elif args.endpoint == "foo":
+        # placeholder for other endpoint args
+        pass
+    else:
+        # placeholder for other endpoint args
+        pass
 
 
 def parser_main():
@@ -28,23 +68,23 @@ def parser_main():
             epilog=''
             )
     subparsers = parser.add_subparsers(help="prints this message")
-    parser_api_read = subparsers.add_parser('read',
-            help='reads API endpoint value',
-            aliases=['r','R']
+    parser_supply = subparsers.add_parser('supply',
+            help='reads API on supply',
+            aliases=['s','S']
             )
 
-    parser_api_read.add_argument(
+    parser_supply.add_argument(
             "-v","--env",
             type=str,
             default="mainnet",
             help="choose: mainnet, perf, sandbox"
             )
-    parser_api_read.add_argument(
+    parser_supply.add_argument(
             "-e","--endpoint",
             type=str,
             help="choose from: https://validator.nymtech.net/api/swagger/index.html"
             )
-    parser_api_read.set_defaults(func=subparser_read)
+    parser_supply.set_defaults(func=read_supply)
 
 
     args = parser.parse_args()

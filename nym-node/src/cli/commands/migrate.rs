@@ -187,13 +187,17 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
 
     let ip = cfg.mixnode.listening_address;
 
+    let location = old_description
+        .as_ref()
+        .and_then(|d| d.location.parse().ok());
+
     // generate nym-node config
     let config = ConfigBuilder::new(nymnode_id, nym_node_config_path, data_dir.clone())
         .with_mode(NodeMode::Mixnode)
         .with_host(args.host.override_config_section(config::Host {
             public_ips: cfg.host.public_ips,
             hostname: cfg.host.hostname,
-            ..Default::default()
+            location,
         }))
         .with_http(args.http.override_config_section(config::Http {
             bind_address: cfg.http.bind_address,

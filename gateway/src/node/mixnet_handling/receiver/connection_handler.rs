@@ -155,7 +155,15 @@ impl<St: Storage> ConnectionHandler<St> {
         let client_address = processed_final_hop.destination;
         let message = processed_final_hop.message;
         let forward_ack = processed_final_hop.forward_ack;
-
+        if client_address
+            == DestinationAddressBytes::from_bytes([
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0,
+            ])
+        {
+            trace!("NULL address, dropping the packet");
+            return Ok(());
+        }
         // we failed to push message directly to the client - it's probably offline.
         // we should store it on the disk instead.
         match self.try_push_message_to_client(client_address, message) {

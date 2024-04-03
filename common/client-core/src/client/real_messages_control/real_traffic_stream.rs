@@ -8,13 +8,14 @@ use crate::client::real_messages_control::acknowledgement_control::SentPacketNot
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
 use crate::config;
+use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::chunking::fragment::FragmentIdentifier;
-use nym_sphinx::cover::generate_loop_cover_packet;
+use nym_sphinx::cover::{generate_drop_cover_packet, generate_loop_cover_packet};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::preparer::PreparedFragment;
@@ -117,6 +118,8 @@ where
 
     /// Channel used for sending statistics events to `PacketStatisticsControl`.
     stats_tx: PacketStatisticsReporter,
+    //counter for drop cover traffic
+    counter_receiver: mpsc::Receiver<u8>,
 }
 
 #[derive(Debug)]
@@ -155,7 +158,7 @@ pub(crate) type BatchRealMessageSender =
 type BatchRealMessageReceiver = tokio::sync::mpsc::Receiver<(Vec<RealMessage>, TransmissionLane)>;
 
 pub(crate) enum StreamMessage {
-    Cover,
+    Cover(bool),
     Real(Box<RealMessage>),
 }
 
@@ -176,6 +179,7 @@ where
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         stats_tx: PacketStatisticsReporter,
+        counter_receiver: mpsc::Receiver<u8>,
     ) -> Self {
         OutQueueControl {
             config,
@@ -190,6 +194,7 @@ where
             client_connection_rx,
             lane_queue_lengths,
             stats_tx,
+            counter_receiver,
         }
     }
 
@@ -221,7 +226,7 @@ where
         trace!("created new message");
 
         let (next_message, fragment_id, packet_size) = match next_message {
-            StreamMessage::Cover => {
+            StreamMessage::Cover(drop) => {
                 let cover_traffic_packet_size = self.loop_cover_message_size();
                 trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
 
@@ -240,24 +245,44 @@ where
                         return;
                     }
                 };
-
-                (
-                    generate_loop_cover_packet(
-                        &mut self.rng,
-                        topology_ref,
-                        &self.config.ack_key,
-                        &self.config.our_full_destination,
-                        self.config.average_ack_delay,
-                        self.config.traffic.average_packet_delay,
-                        cover_traffic_packet_size,
-                        self.config.traffic.packet_type,
+                if drop {
+                    debug!("Sending a drop cover message");
+                    (
+                        generate_drop_cover_packet(
+                            &mut self.rng,
+                            topology_ref,
+                            &self.config.ack_key,
+                            &self.config.our_full_destination,
+                            self.config.average_ack_delay,
+                            self.config.traffic.average_packet_delay,
+                            cover_traffic_packet_size,
+                            self.config.traffic.packet_type,
+                        )
+                        .expect(
+                            "Somehow failed to generate a drop cover message with a valid topology",
+                        ),
+                        None,
+                        cover_traffic_packet_size.size(),
                     )
-                    .expect(
-                        "Somehow failed to generate a loop cover message with a valid topology",
-                    ),
-                    None,
-                    cover_traffic_packet_size.size(),
-                )
+                } else {
+                    (
+                        generate_loop_cover_packet(
+                            &mut self.rng,
+                            topology_ref,
+                            &self.config.ack_key,
+                            &self.config.our_full_destination,
+                            self.config.average_ack_delay,
+                            self.config.traffic.average_packet_delay,
+                            cover_traffic_packet_size,
+                            self.config.traffic.packet_type,
+                        )
+                        .expect(
+                            "Somehow failed to generate a loop cover message with a valid topology",
+                        ),
+                        None,
+                        cover_traffic_packet_size.size(),
+                    )
+                }
             }
             StreamMessage::Real(real_message) => {
                 let packet_size = real_message.packet_size();
@@ -385,6 +410,10 @@ where
     }
 
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
+        //For instantaneous drop cover traffic
+        // if let Ok(_) = self.counter_receiver.try_next() {
+        //     return Poll::Ready(Some(StreamMessage::Cover(true)));
+        // };
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
         self.adjust_current_average_message_sending_delay();
@@ -419,6 +448,7 @@ where
             // in `Vec`, this ensures that on average we will fetch messages faster than we can
             // send, which is a condition for being able to multiplex packets from multiple
             // data streams.
+            let need_drop = self.counter_receiver.try_next();
             match Pin::new(&mut self.real_receiver).poll_recv(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)
@@ -438,7 +468,10 @@ where
                         Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                     } else {
                         // otherwise construct a dummy one
-                        Poll::Ready(Some(StreamMessage::Cover))
+                        match need_drop {
+                            Ok(_) => Poll::Ready(Some(StreamMessage::Cover(true))),
+                            _ => Poll::Ready(Some(StreamMessage::Cover(false))),
+                        }
                     }
                 }
             }

@@ -290,6 +290,7 @@ where
         shutdown: TaskClient,
         packet_type: PacketType,
         stats_tx: PacketStatisticsReporter,
+        counter_receiver: mpsc::Receiver<u8>,
     ) {
         info!("Starting real traffic stream...");
 
@@ -305,12 +306,14 @@ where
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
+            counter_receiver,
         )
         .start_with_shutdown(shutdown, packet_type);
     }
 
     // buffer controlling all messages fetched from provider
     // required so that other components would be able to use them (say the websocket)
+    #[allow(clippy::too_many_arguments)]
     fn start_received_messages_buffer_controller(
         local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
@@ -319,6 +322,7 @@ where
         reply_controller_sender: ReplyControllerSender,
         shutdown: TaskClient,
         packet_statistics_control: PacketStatisticsReporter,
+        counter_sender: mpsc::Sender<u8>,
     ) {
         info!("Starting received messages buffer controller...");
         let controller: ReceivedMessagesBufferController<SphinxMessageReceiver> =
@@ -329,6 +333,7 @@ where
                 reply_key_storage,
                 reply_controller_sender,
                 packet_statistics_control,
+                counter_sender,
             );
         controller.start_with_shutdown(shutdown)
     }
@@ -606,6 +611,9 @@ where
         // channels responsible for controlling real messages
         let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
+        // drop cover traffic counter channel
+        let (counter_sender, counter_receiver) = mpsc::channel::<u8>(10000);
+
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
@@ -681,6 +689,7 @@ where
             reply_controller_sender.clone(),
             shutdown.fork("received_messages_buffer"),
             packet_stats_reporter.clone(),
+            counter_sender,
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -720,6 +729,7 @@ where
             shutdown.fork("real_traffic_controller"),
             self.config.debug.traffic.packet_type,
             packet_stats_reporter.clone(),
+            counter_receiver,
         );
 
         if !self

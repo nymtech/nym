@@ -47,6 +47,7 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     recently_reconstructed: HashSet<i32>,
 
     stats_tx: PacketStatisticsReporter,
+    counter_sender: mpsc::Sender<u8>,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
@@ -71,6 +72,11 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
             .report(PacketStatisticsEvent::RealPacketReceived(
                 fragment_data_size,
             ));
+        if self.counter_sender.try_send(1).is_err() {
+            {
+                log::debug!("Failed to send counter message");
+            }
+        };
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {
@@ -164,6 +170,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: PacketStatisticsReporter,
+        counter_sender: mpsc::Sender<u8>,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -173,6 +180,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
                 stats_tx,
+                counter_sender,
             })),
             reply_key_storage,
             reply_controller_sender,
@@ -505,12 +513,14 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         packet_statistics_reporter: PacketStatisticsReporter,
+        counter_sender: mpsc::Sender<u8>,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
             reply_controller_sender,
             packet_statistics_reporter,
+            counter_sender,
         );
 
         ReceivedMessagesBufferController {

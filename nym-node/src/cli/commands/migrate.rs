@@ -165,15 +165,21 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
         }
     })?;
 
-    let mixnode_description = nym_mixnode::node::node_description::NodeDescription::load_from_file(
-        &cfg.storage_paths.node_description,
-    )
-    .map_err(
-        |source| nym_node::error::MixnodeError::DescriptionLoadFailure {
-            path: cfg.storage_paths.node_description,
-            source,
-        },
-    )?;
+    let old_description = if cfg.storage_paths.node_description.exists() {
+        Some(
+            nym_mixnode::node::node_description::NodeDescription::load_from_file(
+                &cfg.storage_paths.node_description,
+            )
+            .map_err(|source| {
+                nym_node::error::MixnodeError::DescriptionLoadFailure {
+                    path: cfg.storage_paths.node_description,
+                    source,
+                }
+            })?,
+        )
+    } else {
+        None
+    };
 
     let nymnode_id = nym_node_id(NodeType::Mixnode, &cfg.mixnode.id, preserve_id)?;
     let nym_node_config_path = default_config_filepath(&nymnode_id);
@@ -230,12 +236,14 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
         .with_exit_gateway(args.exit_gateway.build_config_section(&data_dir))
         .build();
 
+    let d_ref = old_description.as_ref();
+
     // update description
     let node_description = NodeDescription {
-        moniker: mixnode_description.name,
-        website: mixnode_description.link,
+        moniker: d_ref.map(|d| &d.name).cloned().unwrap_or_default(),
+        website: d_ref.map(|d| &d.link).cloned().unwrap_or_default(),
         security_contact: "".to_string(),
-        details: mixnode_description.description,
+        details: d_ref.map(|d| &d.description).cloned().unwrap_or_default(),
     };
     save_node_description(&config.storage_paths.description, &node_description)?;
 

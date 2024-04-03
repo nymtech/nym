@@ -141,7 +141,8 @@ private_network_prefix = {{ wireguard.private_network_prefix }}
 # default: `0.0.0.0:1790`
 bind_address = '{{ mixnode.verloc.bind_address }}'
 
-[mixnode_storage_paths]
+[mixnode.storage_paths]
+# currently empty
 
 ##### entry-gateway mode nym-node config options #####
 

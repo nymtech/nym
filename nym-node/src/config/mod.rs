@@ -339,6 +339,7 @@ pub struct Host {
     pub hostname: Option<String>,
 
     /// Optional ISO 3166 alpha-2 two-letter country code of the node's **physical** location
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub location: Option<Country>,
 }
 

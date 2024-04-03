@@ -496,6 +496,7 @@ impl NymNode {
             NodeMode::Mixnode => config.api.v1_config.node.roles.mixnode_enabled = true,
             NodeMode::EntryGateway => config.api.v1_config.node.roles.gateway_enabled = true,
             NodeMode::ExitGateway => {
+                config.api.v1_config.node.roles.gateway_enabled = true;
                 config.api.v1_config.node.roles.network_requester_enabled = true;
                 config.api.v1_config.node.roles.ip_packet_router_enabled = true;
             }

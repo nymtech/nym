@@ -63,6 +63,9 @@ def read_supply(args):
         # placeholder for other endpoint args
         pass
 
+def get_nym_vpn_version(args):
+    # fooo
+
 
 def parser_main():
     parser = argparse.ArgumentParser(
@@ -95,6 +98,20 @@ def parser_main():
 
     parser_supply.set_defaults(func=read_supply)
 
+    subparsers = parser.add_subparsers(help="")
+    parser_nym_vpn = subparsers.add_parser('nym_vpn',
+            help='reads NymVPN latest version',
+            aliases=['n','N']
+            )
+
+    parser_nym_vpn.add_argument(
+            "-c","--client",
+            type=str,
+            default="desktop",
+            help="choose: desktop, cli - default: desktop"
+            )
+
+    parrser_nym_vpn.set_defaults(func=get_nym_vpn_version)
 
     args = parser.parse_args()
     try:

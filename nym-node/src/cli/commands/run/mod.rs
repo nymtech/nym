@@ -60,8 +60,9 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
             bonding_info_path.display()
         );
         let info = BondingInformationV1::from_data(
-            nym_node.ed25519_identity_key(),
-            nym_node.x25519_sphinx_key(),
+            nym_node.mode(),
+            nym_node.ed25519_identity_key().to_base58_string(),
+            nym_node.x25519_sphinx_key().to_base58_string(),
         );
         let data = output.format(&info);
         fs::write(&bonding_info_path, data).map_err(|source| {

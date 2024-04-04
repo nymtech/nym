@@ -303,6 +303,10 @@ impl NymNode {
         })
     }
 
+    pub(crate) fn mode(&self) -> NodeMode {
+        self.config.mode
+    }
+
     pub(crate) fn ed25519_identity_key(&self) -> &identity::PublicKey {
         self.ed25519_identity_keys.public_key()
     }

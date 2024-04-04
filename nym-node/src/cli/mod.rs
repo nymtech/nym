@@ -58,9 +58,7 @@ pub(crate) enum Commands {
     /// Show build information of this binary
     BuildInfo(build_info::Args),
 
-    /// Show bonding information of this node
-    /// NOTE: the required bonding information is still a subject to change and this command should be treated
-    /// only as a preview of future features.
+    /// Show bonding information of this node depending on its currently selected mode.
     BondingInformation(bonding_information::Args),
 
     /// Attempt to migrate an existing mixnode or gateway into a nym-node.

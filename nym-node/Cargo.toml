@@ -31,6 +31,9 @@ toml = "0.8.12"
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
+# temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
+semver = "1.0.22"
+
 # system info:
 cupid = "0.6.1"
 sysinfo = "0.30.7"
@@ -52,3 +55,7 @@ nym-mixnode = { path = "../mixnode" }
 nym-gateway = { path = "../gateway" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
+
+[build-dependencies]
+# temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
+cargo_metadata = "0.18.1"

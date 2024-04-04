@@ -7,16 +7,20 @@ import pandas as pd
 from collections import namedtuple
 
 ############################################
-########### NYX RELATED FNs ################
+############## GENERAL FNs #################
 ############################################
 
 def get_url(args):
     config_file = "./api_targets_config.json"
     with open(config_file, "r") as f:
         config = json.load(f)
-    env = args.env
+    env = args.api
     endpoint = args.endpoint
-    url = f"{config[env]}/api/v1/{endpoint}"
+    if env == "github":
+        url = f"{config[env]}/{endpoint}"
+        print(url)
+    else:
+        url = f"{config[env]}/api/v1/{endpoint}"
     return url
 
 def subparser_read(args):
@@ -24,6 +28,10 @@ def subparser_read(args):
     r = requests.get(url)
     response = r.json()
     return response
+
+############################################
+########### NYX RELATED FNs ################
+############################################
 
 def convert_u_nym(unym):
     unym = int(unym)
@@ -72,23 +80,21 @@ def read_supply(args):
 ###########################################
 
 def get_nym_vpn_version(args):
-    release_url = "https://api.github.com/repos/nymtech/nym-vpn-client/releases"
-    r = requests.get(release_url)
-    response = r.json()
+    response = subparser_read(args)
     if args.client == "desktop":
         version = current_desktop_version(args, response)
     elif args.client == "cli":
-        version = current_cli_version(args, response):
+        version = current_cli_version(args, response)
     else:
         print("Incorrect argument for -c, --client")
         sys.exit(-1)
 
 def current_cli_version(args, response):
-
+    print(response)
 
 
 def current_desktop_version(args, response):
-
+    print(response)
 
 ###########################################
 ############### MAIN PARSER ###############
@@ -107,7 +113,7 @@ def parser_main():
             )
 
     parser_supply.add_argument(
-            "-v","--env",
+            "-a","--api",
             type=str,
             default="mainnet",
             help="choose: mainnet, perf, sandbox"
@@ -125,7 +131,7 @@ def parser_main():
 
     parser_supply.set_defaults(func=read_supply)
 
-    subparsers = parser.add_subparsers(help="")
+
     parser_nym_vpn = subparsers.add_parser('nym_vpn',
             help='reads NymVPN latest version',
             aliases=['n','N']
@@ -138,7 +144,22 @@ def parser_main():
             help="choose: desktop, cli - default: desktop"
             )
 
-    parrser_nym_vpn.set_defaults(func=get_nym_vpn_version)
+    parser_nym_vpn.add_argument(
+            "-a","--api",
+            type=str,
+            default="github",
+            help="choose: mainnet, perf, sandbox"
+            )
+
+    parser_nym_vpn.add_argument(
+            "-e","--endpoint",
+            type=str,
+            help="add the url suffix",
+            default="repos/nymtech/nym-vpn-client/releases"
+            )
+
+
+    parser_nym_vpn.set_defaults(func=get_nym_vpn_version)
 
     args = parser.parse_args()
     try:

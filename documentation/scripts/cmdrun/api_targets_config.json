@@ -1,5 +1,6 @@
 {
 	"sandbox": "https://sandbox-nym-api1.nymtech.net",
 	"perf": "https://api.performance.nymte.ch",
-	"mainnet": "https://validator.nymtech.net"
+	"mainnet": "https://validator.nymtech.net",
+	"github": "https://api.github.com"
 }

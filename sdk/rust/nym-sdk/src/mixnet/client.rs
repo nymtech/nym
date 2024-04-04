@@ -252,13 +252,15 @@ where
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
-        let client = DisconnectedMixnetClient::new(self.config, self.socks5_config, self.storage)?
-            .custom_gateway_transceiver(self.custom_gateway_transceiver)
-            .custom_topology_provider(self.custom_topology_provider)
-            .custom_shutdown(self.custom_shutdown)
-            .wireguard_mode(self.wireguard_mode)
-            .wait_for_gateway(self.wait_for_gateway)
-            .force_tls(self.force_tls);
+        let mut client =
+            DisconnectedMixnetClient::new(self.config, self.socks5_config, self.storage)?;
+
+        client.custom_gateway_transceiver = self.custom_gateway_transceiver;
+        client.custom_topology_provider = self.custom_topology_provider;
+        client.custom_shutdown = self.custom_shutdown;
+        client.wireguard_mode = self.wireguard_mode;
+        client.wait_for_gateway = self.wait_for_gateway;
+        client.force_tls = self.force_tls;
 
         Ok(client)
     }
@@ -357,48 +359,6 @@ where
             force_tls: false,
             custom_shutdown: None,
         })
-    }
-
-    #[must_use]
-    fn custom_shutdown(mut self, shutdown: Option<TaskClient>) -> Self {
-        self.custom_shutdown = shutdown;
-        self
-    }
-
-    #[must_use]
-    fn custom_topology_provider(
-        mut self,
-        provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-    ) -> Self {
-        self.custom_topology_provider = provider;
-        self
-    }
-
-    #[must_use]
-    fn custom_gateway_transceiver(
-        mut self,
-        gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    ) -> Self {
-        self.custom_gateway_transceiver = gateway_transceiver;
-        self
-    }
-
-    #[must_use]
-    fn wireguard_mode(mut self, wireguard_mode: bool) -> Self {
-        self.wireguard_mode = wireguard_mode;
-        self
-    }
-
-    #[must_use]
-    fn wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
-        self.wait_for_gateway = wait_for_gateway;
-        self
-    }
-
-    #[must_use]
-    fn force_tls(mut self, must_use_tls: bool) -> Self {
-        self.force_tls = must_use_tls;
-        self
     }
 
     fn get_api_endpoints(&self) -> Vec<Url> {

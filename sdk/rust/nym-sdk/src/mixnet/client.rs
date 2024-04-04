@@ -522,8 +522,7 @@ where
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
     /// credentials for this client to consume.
-    #[allow(unused)]
-    fn create_bandwidth_client(
+    pub fn create_bandwidth_client(
         &self,
         mnemonic: String,
     ) -> Result<BandwidthAcquireClient<S::CredentialStore>> {

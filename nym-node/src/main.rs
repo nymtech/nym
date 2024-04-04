@@ -15,10 +15,10 @@ pub(crate) mod node;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // std::env::set_var(
-    //     "RUST_LOG",
-    //     "trace,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn,tokio_tungstenite=warn,tokio-util=warn",
-    // );
+    std::env::set_var(
+        "RUST_LOG",
+        "trace,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn,tokio_util=warn,tokio_tungstenite=warn,tokio-util=warn",
+    );
 
     let cli = Cli::parse();
     setup_env(cli.config_env_file.as_ref());

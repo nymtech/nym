@@ -481,6 +481,8 @@ impl<St> Gateway<St> {
                 .await?
                 .unwrap_or(Coin::new(0, mix_denom_base));
 
+            error!("this gateway does not have enough tokens for covering transaction fees for credential redemption");
+
             // see if we have at least 1nym (i.e. 1'000'000unym)
             if balance.amount < 1_000_000 {
                 return Err(GatewayError::InsufficientNodeBalance { account, balance });

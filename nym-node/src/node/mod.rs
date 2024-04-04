@@ -36,7 +36,7 @@ use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use std::sync::Arc;
-use tracing::{debug, info, trace};
+use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
 
 pub mod bonding_information;
@@ -396,7 +396,11 @@ impl NymNode {
         mixnode.set_mixing_stats(self.mixnode.mixing_stats.clone());
         mixnode.set_verloc_stats(self.verloc_stats.clone());
 
-        tokio::spawn(async move { mixnode.run().await });
+        tokio::spawn(async move {
+            if let Err(err) = mixnode.run().await {
+                error!("the mixnode subtask has failed with the following message: {err}")
+            }
+        });
         Ok(())
     }
 
@@ -417,7 +421,11 @@ impl NymNode {
         entry_gateway.set_task_client(task_client);
         entry_gateway.set_wireguard_client_registry(self.entry_gateway.client_registry.clone());
 
-        tokio::spawn(async move { entry_gateway.run().await });
+        tokio::spawn(async move {
+            if let Err(err) = entry_gateway.run().await {
+                error!("the entry gateway subtask has failed with the following message: {err}")
+            }
+        });
         Ok(())
     }
 
@@ -439,7 +447,11 @@ impl NymNode {
         exit_gateway.set_task_client(task_client);
         exit_gateway.set_wireguard_client_registry(self.entry_gateway.client_registry.clone());
 
-        tokio::spawn(async move { exit_gateway.run().await });
+        tokio::spawn(async move {
+            if let Err(err) = exit_gateway.run().await {
+                error!("the exit gateway subtask has failed with the following message: {err}")
+            }
+        });
         Ok(())
     }
 

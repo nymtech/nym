@@ -48,6 +48,7 @@ pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
     None
 }
 
+#[derive(Debug)]
 pub(crate) struct PartiallyDelegated {
     sink_half: SplitSink<WsConn, Message>,
     delegated_stream: (SplitStreamReceiver, oneshot::Sender<()>),
@@ -221,6 +222,7 @@ impl PartiallyDelegated {
 // we can either have the stream itself or an option to re-obtain it
 // by notifying the future owning it to finish the execution and awaiting the result
 // which should be almost immediate (or an invalid state which should never, ever happen)
+#[derive(Debug)]
 pub(crate) enum SocketState {
     Available(Box<WsConn>),
     PartiallyDelegated(PartiallyDelegated),

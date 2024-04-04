@@ -18,6 +18,7 @@ use nym_config::{
 };
 use serde::{Deserialize, Serialize};
 use std::env;
+use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -73,6 +74,16 @@ pub enum NodeMode {
 
     #[clap(alias = "exit")]
     ExitGateway,
+}
+
+impl Display for NodeMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NodeMode::Mixnode => "mixnode".fmt(f),
+            NodeMode::EntryGateway => "entry-gateway".fmt(f),
+            NodeMode::ExitGateway => "exit-gateway".fmt(f),
+        }
+    }
 }
 
 pub struct ConfigBuilder {

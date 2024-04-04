@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::commands::{bonding_information, build_info, migrate, run, sign};
+use crate::cli::commands::{bonding_information, build_info, migrate, node_details, run, sign};
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
@@ -46,6 +46,7 @@ impl Cli {
         match self.command {
             Commands::BuildInfo(args) => build_info::execute(args),
             Commands::BondingInformation(args) => bonding_information::execute(args).await,
+            Commands::NodeDetails(args) => node_details::execute(args).await,
             Commands::Run(args) => run::execute(*args).await,
             Commands::Migrate(args) => migrate::execute(*args).await,
             Commands::Sign(args) => sign::execute(args).await,
@@ -60,6 +61,9 @@ pub(crate) enum Commands {
 
     /// Show bonding information of this node depending on its currently selected mode.
     BondingInformation(bonding_information::Args),
+
+    /// Show details of this node.
+    NodeDetails(node_details::Args),
 
     /// Attempt to migrate an existing mixnode or gateway into a nym-node.
     Migrate(Box<migrate::Args>),

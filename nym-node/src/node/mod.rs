@@ -5,12 +5,12 @@ use crate::node::description::{load_node_description, save_node_description};
 use crate::node::helpers::{
     load_ed25519_identity_keypair, load_key, load_x25519_noise_keypair, load_x25519_sphinx_keypair,
     store_ed25519_identity_keypair, store_key, store_keypair, store_x25519_noise_keypair,
-    store_x25519_sphinx_keypair,
+    store_x25519_sphinx_keypair, DisplayDetails,
 };
 use crate::node::http::{sign_host_details, system_info::get_system_info};
 use ipnetwork::IpNetwork;
 use nym_bin_common::bin_info_owned;
-use nym_crypto::asymmetric::{ed25519, encryption, identity, x25519};
+use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::Gateway;
 use nym_mixnode::MixNode;
 use nym_network_requester::{
@@ -98,6 +98,13 @@ impl EntryGatewayData {
 pub struct ExitGatewayData {
     // ideally we'd be storing all the keys here, but unfortunately due to how the service providers
     // are currently implemented, they will be loading the data themselves from the provided paths
+
+    // those public keys are just convenience wrappers for http builder and details displayer
+    nr_ed25519: ed25519::PublicKey,
+    nr_x25519: x25519::PublicKey,
+
+    ipr_ed25519: ed25519::PublicKey,
+    ipr_x25519: x25519::PublicKey,
 }
 
 impl ExitGatewayData {
@@ -108,8 +115,8 @@ impl ExitGatewayData {
         x25519_paths: nym_pemstore::KeyPairPath,
         ack_key_path: &Path,
     ) -> Result<(), ExitGatewayError> {
-        let ed25519_keys = identity::KeyPair::new(rng);
-        let x25519_keys = encryption::KeyPair::new(rng);
+        let ed25519_keys = ed25519::KeyPair::new(rng);
+        let x25519_keys = x25519::KeyPair::new(rng);
         let aes128ctr_key = AckKey::new(rng);
 
         store_keypair(
@@ -189,7 +196,7 @@ impl ExitGatewayData {
 
     pub async fn initialise(
         config: &ExitGatewayConfig,
-        public_key: identity::PublicKey,
+        public_key: ed25519::PublicKey,
     ) -> Result<(), ExitGatewayError> {
         // generate all the keys for NR and IPR
         let mut rng = OsRng;
@@ -205,8 +212,35 @@ impl ExitGatewayData {
         Ok(())
     }
 
-    fn new(_config: &ExitGatewayConfig) -> Result<ExitGatewayData, ExitGatewayError> {
-        Ok(ExitGatewayData {})
+    fn new(config: &ExitGatewayConfig) -> Result<ExitGatewayData, ExitGatewayError> {
+        let nr_paths = &config.storage_paths.network_requester;
+        let nr_ed25519 = load_key(
+            &nr_paths.public_ed25519_identity_key_file,
+            "network requester ed25519",
+        )?;
+
+        let nr_x25519 = load_key(
+            &nr_paths.public_x25519_diffie_hellman_key_file,
+            "network requester x25519",
+        )?;
+
+        let ipr_paths = &config.storage_paths.ip_packet_router;
+        let ipr_ed25519 = load_key(
+            &ipr_paths.public_ed25519_identity_key_file,
+            "ip packet router ed25519",
+        )?;
+
+        let ipr_x25519 = load_key(
+            &ipr_paths.public_x25519_diffie_hellman_key_file,
+            "ip packet router x25519",
+        )?;
+
+        Ok(ExitGatewayData {
+            nr_ed25519,
+            nr_x25519,
+            ipr_ed25519,
+            ipr_x25519,
+        })
     }
 }
 
@@ -303,16 +337,48 @@ impl NymNode {
         })
     }
 
+    fn exit_network_requester_address(&self) -> Recipient {
+        Recipient::new(
+            self.exit_gateway.nr_ed25519,
+            self.exit_gateway.nr_x25519,
+            *self.ed25519_identity_keys.public_key(),
+        )
+    }
+
+    fn exit_ip_packet_router_address(&self) -> Recipient {
+        Recipient::new(
+            self.exit_gateway.ipr_ed25519,
+            self.exit_gateway.ipr_x25519,
+            *self.ed25519_identity_keys.public_key(),
+        )
+    }
+
+    pub(crate) fn display_details(&self) -> DisplayDetails {
+        DisplayDetails {
+            current_mode: self.config.mode,
+            description: self.description.clone(),
+            ed25519_identity_key: self.ed25519_identity_key().to_base58_string(),
+            x25519_sphinx_key: self.x25519_sphinx_key().to_base58_string(),
+            x25519_noise_key: self.x25519_noise_key().to_base58_string(),
+            exit_network_requester_address: self.exit_network_requester_address().to_string(),
+            exit_ip_packet_router_address: self.exit_ip_packet_router_address().to_string(),
+        }
+    }
+
     pub(crate) fn mode(&self) -> NodeMode {
         self.config.mode
     }
 
-    pub(crate) fn ed25519_identity_key(&self) -> &identity::PublicKey {
+    pub(crate) fn ed25519_identity_key(&self) -> &ed25519::PublicKey {
         self.ed25519_identity_keys.public_key()
     }
 
-    pub(crate) fn x25519_sphinx_key(&self) -> &encryption::PublicKey {
+    pub(crate) fn x25519_sphinx_key(&self) -> &x25519::PublicKey {
         self.x25519_sphinx_keys.public_key()
+    }
+
+    pub(crate) fn x25519_noise_key(&self) -> &x25519::PublicKey {
+        self.x25519_noise_keys.public_key()
     }
 
     fn start_mixnode(&self, task_client: TaskClient) -> Result<(), NymNodeError> {
@@ -413,48 +479,16 @@ impl NymNode {
         };
 
         // exit gateway info
-        let nr_paths = &self.config.exit_gateway.storage_paths.network_requester;
-        let nr_ed25519: identity::PublicKey = load_key(
-            &nr_paths.public_ed25519_identity_key_file,
-            "network requester ed25519",
-        )?;
-
-        let nr_x25519: encryption::PublicKey = load_key(
-            &nr_paths.public_x25519_diffie_hellman_key_file,
-            "network requester x25519",
-        )?;
-
         let nr_details = api_requests::v1::network_requester::models::NetworkRequester {
-            encoded_identity_key: nr_ed25519.to_base58_string(),
-            encoded_x25519_key: nr_x25519.to_base58_string(),
-            address: Recipient::new(
-                nr_ed25519,
-                nr_x25519,
-                *self.ed25519_identity_keys.public_key(),
-            )
-            .to_string(),
+            encoded_identity_key: self.exit_gateway.nr_ed25519.to_base58_string(),
+            encoded_x25519_key: self.exit_gateway.nr_x25519.to_base58_string(),
+            address: self.exit_network_requester_address().to_string(),
         };
 
-        let ipr_paths = &self.config.exit_gateway.storage_paths.ip_packet_router;
-        let ipr_ed25519: identity::PublicKey = load_key(
-            &ipr_paths.public_ed25519_identity_key_file,
-            "ip packet router ed25519",
-        )?;
-
-        let ipr_x25519: encryption::PublicKey = load_key(
-            &ipr_paths.public_x25519_diffie_hellman_key_file,
-            "ip packet router x25519",
-        )?;
-
         let ipr_details = api_requests::v1::ip_packet_router::models::IpPacketRouter {
-            encoded_identity_key: ipr_ed25519.to_base58_string(),
-            encoded_x25519_key: ipr_x25519.to_base58_string(),
-            address: Recipient::new(
-                ipr_ed25519,
-                ipr_x25519,
-                *self.ed25519_identity_keys.public_key(),
-            )
-            .to_string(),
+            encoded_identity_key: self.exit_gateway.ipr_ed25519.to_base58_string(),
+            encoded_x25519_key: self.exit_gateway.ipr_x25519.to_base58_string(),
+            address: self.exit_ip_packet_router_address().to_string(),
         };
         let exit_policy_details =
             api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy {

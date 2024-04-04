@@ -2,10 +2,56 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_node::config::NodeMode;
 use nym_node::error::{KeyIOFailure, NymNodeError};
+use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_pemstore::KeyPairPath;
+use serde::Serialize;
+use std::fmt::{Display, Formatter};
 use std::path::Path;
+
+#[derive(Debug, Serialize)]
+pub(crate) struct DisplayDetails {
+    pub(crate) current_mode: NodeMode,
+
+    pub(crate) description: NodeDescription,
+
+    pub(crate) ed25519_identity_key: String,
+    pub(crate) x25519_sphinx_key: String,
+    pub(crate) x25519_noise_key: String,
+
+    pub(crate) exit_network_requester_address: String,
+    pub(crate) exit_ip_packet_router_address: String,
+}
+
+impl Display for DisplayDetails {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "current mode: {}", self.current_mode)?;
+        writeln!(f, "moniker: '{}'", self.description.moniker)?;
+        writeln!(f, "website: '{}'", self.description.website)?;
+        writeln!(
+            f,
+            "security contact: '{}'",
+            self.description.security_contact
+        )?;
+        writeln!(f, "details: '{}'", self.description.details)?;
+        writeln!(f, "ed25519 identity: {}", self.ed25519_identity_key)?;
+        writeln!(f, "x25519 sphinx: {}", self.x25519_sphinx_key)?;
+        writeln!(f, "x25519 noise: {}", self.x25519_noise_key)?;
+        writeln!(
+            f,
+            "exit network requester address: {}",
+            self.exit_network_requester_address
+        )?;
+        writeln!(
+            f,
+            "exit ip packet router address: {}",
+            self.exit_ip_packet_router_address
+        )?;
+        Ok(())
+    }
+}
 
 pub(crate) fn load_keypair<T: PemStorableKeyPair>(
     paths: KeyPairPath,

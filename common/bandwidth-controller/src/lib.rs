@@ -18,6 +18,7 @@ pub mod acquire;
 pub mod error;
 mod utils;
 
+#[derive(Debug)]
 pub struct BandwidthController<C, St> {
     storage: St,
     client: C,

@@ -1,6 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::{self, Debug, Formatter};
+
 use crate::backends::memory::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::models::{StorableIssuedCredential, StoredIssuedCredential};
@@ -20,6 +22,12 @@ impl Default for EphemeralStorage {
         EphemeralStorage {
             coconut_credential_manager: CoconutCredentialManager::new(),
         }
+    }
+}
+
+impl Debug for EphemeralStorage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "EphemeralStorage")
     }
 }
 

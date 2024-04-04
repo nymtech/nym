@@ -52,7 +52,10 @@ def display_supply_table(response, args):
 def read_supply(args):
     response = subparser_read(args)
     if args.endpoint == "circulating-supply":
-        display_supply_table(response, args)
+        if args.format:
+            display_supply_table(response, args)
+        else:
+            print(response)
     elif args.endpoint == "foo":
         # placeholder for other endpoint args
         pass
@@ -67,7 +70,7 @@ def parser_main():
             description='''Get any live data from Nyx validator''',
             epilog=''
             )
-    subparsers = parser.add_subparsers(help="prints this message")
+    subparsers = parser.add_subparsers(help="")
     parser_supply = subparsers.add_parser('supply',
             help='reads API on supply',
             aliases=['s','S']
@@ -84,6 +87,12 @@ def parser_main():
             type=str,
             help="choose from: https://validator.nymtech.net/api/swagger/index.html"
             )
+    parser_supply.add_argument(
+            "-f","--format",
+            action="store_true",
+            help="format the output for documentation purpose (.md) - default: False (raw output)",
+            )
+
     parser_supply.set_defaults(func=read_supply)
 
 

@@ -201,7 +201,7 @@ where
     log::debug!("Setting up gateway");
     match setup {
         GatewaySetup::MustLoad { gateway_id } => {
-            log::trace!("GatewaySetup::MustLoad with id: {gateway_id:?}");
+            log::debug!("GatewaySetup::MustLoad with id: {gateway_id:?}");
             use_loaded_gateway_details(key_store, details_store, gateway_id).await
         }
         GatewaySetup::New {
@@ -209,7 +209,7 @@ where
             available_gateways,
             wg_tun_address,
         } => {
-            log::trace!("GatewaySetup::New with spec: {specification:?}");
+            log::debug!("GatewaySetup::New with spec: {specification:?}");
             setup_new_gateway(
                 key_store,
                 details_store,
@@ -224,7 +224,7 @@ where
             gateway_details,
             client_keys: managed_keys,
         } => {
-            log::trace!("GatewaySetup::ReuseConnection");
+            log::debug!("GatewaySetup::ReuseConnection");
             Ok(reuse_gateway_connection(
                 authenticated_ephemeral_client,
                 *gateway_details,

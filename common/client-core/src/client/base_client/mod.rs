@@ -1,6 +1,8 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::storage::helpers::set_active_gateway;
+
 use super::packet_statistics_control::PacketStatisticsReporter;
 use super::received_buffer::ReceivedBufferMessage;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
@@ -614,7 +616,21 @@ where
             store_client_keys(keys, key_store).await?;
         }
 
-        setup_gateway(setup_method, key_store, details_store).await
+        let init_result = setup_gateway(setup_method, key_store, details_store).await?;
+
+        // Should we really set active gateway here? Was it an omission to not set it there before?
+        // Or was it omitted on purpose?
+        set_active_gateway(
+            details_store,
+            &init_result
+                .gateway_registration
+                .details
+                .gateway_id()
+                .to_base58_string(),
+        )
+        .await?;
+
+        Ok(init_result)
     }
 
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>

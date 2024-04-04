@@ -409,9 +409,9 @@ where
             }
             Ok(all_ids) => {
                 if !all_ids.is_empty() {
-                    warn!("this client is already registered with the following gateways:");
+                    debug!("this client is already registered with the following gateways:");
                     for id in all_ids {
-                        warn!("{id}")
+                        debug!("{id}")
                     }
                 }
             }

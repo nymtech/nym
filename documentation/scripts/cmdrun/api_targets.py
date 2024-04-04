@@ -6,6 +6,10 @@ import sys
 import pandas as pd
 from collections import namedtuple
 
+############################################
+########### NYX RELATED FNs ################
+############################################
+
 def get_url(args):
     config_file = "./api_targets_config.json"
     with open(config_file, "r") as f:
@@ -63,9 +67,32 @@ def read_supply(args):
         # placeholder for other endpoint args
         pass
 
-def get_nym_vpn_version(args):
-    # fooo
+###########################################
+############ GH RELATED FNs ###############
+###########################################
 
+def get_nym_vpn_version(args):
+    release_url = "https://api.github.com/repos/nymtech/nym-vpn-client/releases"
+    r = requests.get(release_url)
+    response = r.json()
+    if args.client == "desktop":
+        version = current_desktop_version(args, response)
+    elif args.client == "cli":
+        version = current_cli_version(args, response):
+    else:
+        print("Incorrect argument for -c, --client")
+        sys.exit(-1)
+
+def current_cli_version(args, response):
+
+
+
+def current_desktop_version(args, response):
+
+
+###########################################
+############### MAIN PARSER ###############
+###########################################
 
 def parser_main():
     parser = argparse.ArgumentParser(

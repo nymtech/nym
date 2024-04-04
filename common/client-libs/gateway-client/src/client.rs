@@ -79,6 +79,7 @@ impl GatewayConfig {
 }
 
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
+#[derive(Debug)]
 pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
@@ -849,6 +850,7 @@ impl<C, St> GatewayClient<C, St> {
 // type alias for an ease of use
 pub type InitGatewayClient = GatewayClient<InitOnly>;
 
+#[derive(Debug)]
 pub struct InitOnly;
 
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {

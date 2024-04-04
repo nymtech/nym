@@ -42,8 +42,13 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
             "attempting to load nym-node configuration from {}",
             config_path.display()
         );
-        let config = try_load_current_config(config_path).await?;
-        args.override_config(config)
+        let write_changes = args.write_changes;
+        let config = args.override_config(try_load_current_config(config_path).await?);
+
+        if write_changes {
+            config.save()?;
+        }
+        config
     };
 
     let nym_node = NymNode::new(config).await?;

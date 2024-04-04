@@ -10,8 +10,11 @@ use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::warn;
-use nym_client_core::client::base_client::storage::helpers::get_all_registered_identities;
+use log::{debug, warn};
+use nym_client_core::client::base_client::storage::helpers::{
+    get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
+    set_active_gateway,
+};
 use nym_client_core::client::base_client::storage::{
     Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
 };
@@ -23,6 +26,7 @@ use nym_client_core::client::{
 use nym_client_core::config::DebugConfig;
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_network_defaults::WG_TUN_DEVICE_IP_ADDRESS;
 use nym_socks5_client_core::config::Socks5;
@@ -419,6 +423,62 @@ where
         }
     }
 
+    async fn setup_client_keys(&self) -> Result<()> {
+        let mut rng = OsRng;
+        let key_store = self.storage.key_store();
+
+        if key_store.load_keys().await.is_err() {
+            debug!("Generating new client keys");
+            nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn print_all_registered_gateway_identities(&self) {
+        match get_all_registered_identities(self.storage.gateway_details_store()).await {
+            Err(err) => {
+                warn!("failed to query for all registered gateways: {err}")
+            }
+            Ok(all_ids) => {
+                if !all_ids.is_empty() {
+                    warn!("this client is already registered with the following gateways:");
+                    for id in all_ids {
+                        warn!("{id}")
+                    }
+                }
+            }
+        }
+    }
+
+    async fn print_selected_gateway(&self) {
+        match self.storage.gateway_details_store().active_gateway().await {
+            Err(err) => {
+                warn!("failed to query for the current active gateway: {err}")
+            }
+            Ok(active) => {
+                if let Some(active) = active.registration {
+                    let id = active.details.gateway_id();
+                    debug!("currently selected gateway: {0}", id);
+                }
+            }
+        }
+    }
+
+    async fn set_active_gateway(&self, user_chosen_gateway: &str) -> Result<bool> {
+        let storage = self.storage.gateway_details_store();
+        // Stricly speaking, `set_active_gateway` does this check internally as well, but since the
+        // error is boxed away and we're using a generic storage, it's not so easy to match on it.
+        // This function is at least less likely to fail on something unrelated to the existence of
+        // the gateway in the set of registered gateways
+        if has_gateway_details(storage, user_chosen_gateway).await? {
+            set_active_gateway(storage, user_chosen_gateway).await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     async fn new_gateway_setup(&self) -> Result<GatewaySetup, ClientCoreError> {
         let nym_api_endpoints = self.get_api_endpoints();
 
@@ -438,64 +498,61 @@ where
         })
     }
 
-    /// Check if the client already has an active gateway enabled.
-    async fn has_active_gateway(&self) -> bool {
-        let storage = self.storage.gateway_details_store();
-
-        match storage.active_gateway().await {
-            Err(err) => {
-                warn!("failed to query for the current active gateway: {err}");
-                return false;
-            }
-            Ok(active) => {
-                if active.registration.is_some() {
-                    return true;
-                }
-            }
-        }
-
-        match get_all_registered_identities(storage).await {
-            Err(err) => {
-                warn!("failed to query for all registered gateways: {err}")
-            }
-            Ok(all_ids) => {
-                if !all_ids.is_empty() {
-                    warn!("this client doesn't have an active gateway set, however, it's already registered with the following gateways (consider making one of them active):");
-                    for id in all_ids {
-                        warn!("{id}")
-                    }
-                }
-            }
-        }
-
-        false
-    }
-
     /// Register with a gateway. If a gateway is provided in the config then that will try to be
-    /// used. If none is specified, a gateway at random will be picked.
+    /// used. If none is specified, a gateway at random will be picked. The used gateway is saved
+    /// as the active gateway.
     ///
     /// # Errors
     ///
     /// This function will return an error if you try to re-register when in an already registered
     /// state.
-    pub async fn register_and_authenticate_gateway(&mut self) -> Result<()> {
+    pub async fn setup_gateway(&mut self) -> Result<()> {
         if !matches!(self.state, BuilderState::New) {
             return Err(Error::ReregisteringGatewayNotSupported);
         }
 
-        log::debug!("Registering with gateway");
+        self.print_all_registered_gateway_identities().await;
+        self.print_selected_gateway().await;
 
-        let gateway_setup = if self.has_active_gateway().await {
-            GatewaySetup::MustLoad { gateway_id: None }
-        } else {
-            self.new_gateway_setup().await?
+        // Try to set active gateway to the same as the user chosen one, if it's in the set of
+        // gateways that is already registered.
+        if let Some(ref user_chosen_gateway) = self.config.user_chosen_gateway {
+            if self.set_active_gateway(user_chosen_gateway).await? {
+                debug!("user chosen gateway is already registered, set as active");
+            }
+        }
+
+        let active_gateway =
+            get_active_gateway_identity(self.storage.gateway_details_store()).await?;
+
+        // Determine the gateway setup based on the currently active gateway and the user-chosen
+        // gateway.
+        let gateway_setup = match (self.config.user_chosen_gateway.as_ref(), active_gateway) {
+            // When a user-chosen gateway exists and matches the active one.
+            (Some(user_chosen_gateway), Some(active_gateway))
+                if &active_gateway.to_base58_string() == user_chosen_gateway =>
+            {
+                GatewaySetup::MustLoad { gateway_id: None }
+            }
+            // When a user-chosen gateway exists but there's no active gateway, or it doesn't match the active one.
+            (Some(_), _) => self.new_gateway_setup().await?,
+            // When no user-chosen gateway exists but there's an active gateway.
+            (None, Some(_)) => GatewaySetup::MustLoad { gateway_id: None },
+            // When there's no user-chosen gateway and no active gateway.
+            (None, None) => self.new_gateway_setup().await?,
         };
 
         // this will perform necessary key and details load and optional store
-        let _init_result = nym_client_core::init::setup_gateway(
+        let init_results = setup_gateway(
             gateway_setup,
             self.storage.key_store(),
             self.storage.gateway_details_store(),
+        )
+        .await?;
+
+        set_active_gateway(
+            self.storage.gateway_details_store(),
+            &init_results.gateway_id().to_base58_string(),
         )
         .await?;
 
@@ -520,13 +577,8 @@ where
     }
 
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
-        // if we don't care about our keys, explicitly register
-        if !self.config.key_mode.is_keep() {
-            self.register_and_authenticate_gateway().await?;
-        }
-
-        // otherwise, the whole key setup and gateway selection dance will be done for us
-        // when we start the base client
+        self.setup_client_keys().await?;
+        self.setup_gateway().await?;
 
         let nyxd_endpoints = self.get_nyxd_endpoints();
         let nym_api_endpoints = self.get_api_endpoints();
@@ -536,24 +588,10 @@ where
             .config
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
-        let known_gateway = self.has_active_gateway().await;
-
-        // if we have a known gateway, don't bother doing all of those queries
-        let gateway_setup = if known_gateway {
-            None
-        } else {
-            Some(self.new_gateway_setup().await?)
-        };
-
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_wireguard_connection(self.wireguard_mode);
-
-        if !known_gateway {
-            // safety: `gateway_setup` is always set whenever `known_gateway` is false
-            base_builder = base_builder.with_gateway_setup(gateway_setup.unwrap());
-        }
 
         // let mut base_builder: BaseClientBuilder<_, _> = if !known_gateway {
         //     // we need to setup a new gateway

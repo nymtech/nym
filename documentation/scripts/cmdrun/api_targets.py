@@ -18,7 +18,6 @@ def get_url(args):
     endpoint = args.endpoint
     if env == "github":
         url = f"{config[env]}/{endpoint}"
-        print(url)
     else:
         url = f"{config[env]}/api/v1/{endpoint}"
     return url
@@ -90,11 +89,19 @@ def get_nym_vpn_version(args):
         sys.exit(-1)
 
 def current_cli_version(args, response):
-    print(response)
+    df = pd.DataFrame(response)
+    print(df)
+
+    # NEEDS THIS IN PYTHON:
+    # current_cli_version=$(curl -s $release_url | jq -r '.[].tag_name' | grep '^nym-vpn-cli-v' | sort -Vr | head -n 1 | awk -F'-v' '{print $NF}')
 
 
 def current_desktop_version(args, response):
-    print(response)
+    # NEEDS THIS IN PYTHON:
+    df = pd.DataFrame(response)
+    print(df)
+    # version=$(curl -s $release_url | jq -r '.[].tag_name' | grep '^nym-vpn-desktop-v' | sort -Vr | head -n 1 | awk -F'-v' '{print $NF}')
+
 
 ###########################################
 ############### MAIN PARSER ###############

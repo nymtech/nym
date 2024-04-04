@@ -360,13 +360,13 @@ where
     }
 
     #[must_use]
-    pub fn custom_shutdown(mut self, shutdown: Option<TaskClient>) -> Self {
+    fn custom_shutdown(mut self, shutdown: Option<TaskClient>) -> Self {
         self.custom_shutdown = shutdown;
         self
     }
 
     #[must_use]
-    pub fn custom_topology_provider(
+    fn custom_topology_provider(
         mut self,
         provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     ) -> Self {
@@ -375,7 +375,7 @@ where
     }
 
     #[must_use]
-    pub fn custom_gateway_transceiver(
+    fn custom_gateway_transceiver(
         mut self,
         gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     ) -> Self {
@@ -384,19 +384,19 @@ where
     }
 
     #[must_use]
-    pub fn wireguard_mode(mut self, wireguard_mode: bool) -> Self {
+    fn wireguard_mode(mut self, wireguard_mode: bool) -> Self {
         self.wireguard_mode = wireguard_mode;
         self
     }
 
     #[must_use]
-    pub fn wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
+    fn wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
         self
     }
 
     #[must_use]
-    pub fn force_tls(mut self, must_use_tls: bool) -> Self {
+    fn force_tls(mut self, must_use_tls: bool) -> Self {
         self.force_tls = must_use_tls;
         self
     }
@@ -569,7 +569,8 @@ where
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
     /// credentials for this client to consume.
-    pub fn create_bandwidth_client(
+    #[allow(unused)]
+    fn create_bandwidth_client(
         &self,
         mnemonic: String,
     ) -> Result<BandwidthAcquireClient<S::CredentialStore>> {

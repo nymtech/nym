@@ -5,29 +5,11 @@ use url::Url;
 
 const DEFAULT_SDK_CLIENT_ID: &str = "_default-nym-sdk-client";
 
-#[derive(Clone, Debug, Default)]
-pub enum KeyMode {
-    /// Use existing key files if they exists, otherwise create new ones.
-    #[default]
-    Keep,
-    /// Create new keys, overwriting any potential previously existing keys.
-    Overwrite,
-}
-
-impl KeyMode {
-    pub(crate) fn is_keep(&self) -> bool {
-        matches!(self, KeyMode::Keep)
-    }
-}
-
 /// Config struct for [`crate::mixnet::MixnetClient`]
 #[derive(Default)]
 pub struct Config {
     /// If the user has explicitly specified a gateway.
     pub user_chosen_gateway: Option<String>,
-
-    /// Determines how to handle existing key files found.
-    pub key_mode: KeyMode,
 
     /// The details of the network we're using. It defaults to the mainnet network.
     pub network_details: NymNetworkDetails,

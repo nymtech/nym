@@ -432,7 +432,10 @@ where
         }
     }
 
-    async fn set_active_gateway(&self, user_chosen_gateway: &str) -> Result<bool> {
+    async fn set_active_gateway_if_previously_registered(
+        &self,
+        user_chosen_gateway: &str,
+    ) -> Result<bool> {
         let storage = self.storage.gateway_details_store();
         // Stricly speaking, `set_active_gateway` does this check internally as well, but since the
         // error is boxed away and we're using a generic storage, it's not so easy to match on it.
@@ -484,7 +487,10 @@ where
         // Try to set active gateway to the same as the user chosen one, if it's in the set of
         // gateways that is already registered.
         if let Some(ref user_chosen_gateway) = self.config.user_chosen_gateway {
-            if self.set_active_gateway(user_chosen_gateway).await? {
+            if self
+                .set_active_gateway_if_previously_registered(user_chosen_gateway)
+                .await?
+            {
                 debug!("user chosen gateway is already registered, set as active");
             }
         }

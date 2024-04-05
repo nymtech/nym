@@ -7,17 +7,21 @@
 pub mod api;
 pub mod error;
 
+macro_rules! absolute_route {
+    ( $name:ident, $parent:expr, $suffix:expr ) => {
+        pub fn $name() -> String {
+            format!("{}{}", $parent, $suffix)
+        }
+    };
+}
+
 // still thinking how to nicely organise it
 pub mod routes {
-    use crate::absolute_route;
-
     pub const LANDING_PAGE: &str = "/";
     pub const ROOT: &str = "/";
     pub const API: &str = "/api";
 
     pub mod api {
-        use super::*;
-
         pub const V1: &str = "/v1";
 
         absolute_route!(v1_absolute, super::API, V1);
@@ -28,24 +32,43 @@ pub mod routes {
             pub const ROLES: &str = "/roles";
             pub const BUILD_INFO: &str = "/build-information";
             pub const HOST_INFO: &str = "/host-information";
-
+            pub const SYSTEM_INFO: &str = "/system-info";
+            pub const NODE_DESCRIPTION: &str = "/description";
             pub const HEALTH: &str = "/health";
+            pub const SWAGGER: &str = "/swagger";
+
             pub const GATEWAY: &str = "/gateway";
             pub const MIXNODE: &str = "/mixnode";
+            pub const METRICS: &str = "/metrics";
             pub const NETWORK_REQUESTER: &str = "/network-requester";
             pub const IP_PACKET_ROUTER: &str = "/ip-packet-router";
-            pub const SWAGGER: &str = "/swagger";
 
             // define helper functions to get absolute routes
             absolute_route!(health_absolute, v1_absolute(), HEALTH);
             absolute_route!(roles_absolute, v1_absolute(), ROLES);
             absolute_route!(build_info_absolute, v1_absolute(), BUILD_INFO);
             absolute_route!(host_info_absolute, v1_absolute(), HOST_INFO);
+            absolute_route!(system_info_absolute, v1_absolute(), SYSTEM_INFO);
+            absolute_route!(description_absolute, v1_absolute(), NODE_DESCRIPTION);
+
             absolute_route!(gateway_absolute, v1_absolute(), GATEWAY);
             absolute_route!(mixnode_absolute, v1_absolute(), MIXNODE);
+            absolute_route!(metrics_absolute, v1_absolute(), METRICS);
             absolute_route!(network_requester_absolute, v1_absolute(), NETWORK_REQUESTER);
             absolute_route!(ip_packet_router_absolute, v1_absolute(), IP_PACKET_ROUTER);
             absolute_route!(swagger_absolute, v1_absolute(), SWAGGER);
+
+            pub mod metrics {
+                use super::*;
+
+                pub const MIXING: &str = "/mixing";
+                pub const VERLOC: &str = "/verloc";
+                pub const PROMETHEUS: &str = "/prometheus";
+
+                absolute_route!(mixing_absolute, metrics_absolute(), MIXING);
+                absolute_route!(verloc_absolute, metrics_absolute(), VERLOC);
+                absolute_route!(prometheus_absolute, metrics_absolute(), PROMETHEUS);
+            }
 
             pub mod gateway {
                 use super::*;
@@ -104,15 +127,6 @@ pub mod routes {
             }
         }
     }
-}
-
-#[macro_export]
-macro_rules! absolute_route {
-    ( $name:ident, $parent:expr, $suffix:expr ) => {
-        pub fn $name() -> String {
-            format!("{}{}", $parent, $suffix)
-        }
-    };
 }
 
 #[cfg(test)]

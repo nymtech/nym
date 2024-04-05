@@ -44,7 +44,6 @@ pub enum MixnodeError {
         source: io::Error,
     },
 
-    // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
     #[error(transparent)]
-    NymNodeError(#[from] nym_node::error::NymNodeError),
+    NymNodeHttpError(#[from] nym_node_http_api::NymNodeHttpError),
 }

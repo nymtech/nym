@@ -1,0 +1,20 @@
+[package]
+name = "nym-http-api-common"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum.workspace = true
+bytes = "1.5.0"
+mime = "0.3.17"
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+serde_yaml = "0.9.25"
+utoipa = { workspace = true }

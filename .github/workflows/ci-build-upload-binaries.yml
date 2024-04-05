@@ -112,6 +112,7 @@ jobs:
             target/release/nym-network-statistics
             target/release/nym-cli
             target/release/nymvisor
+            target/release/nym-node
           retention-days: 30
 
       # If this was a pull_request or nightly, upload to build server
@@ -130,6 +131,7 @@ jobs:
           cp target/release/nym-network-requester $OUTPUT_DIR
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nymvisor $OUTPUT_DIR
+          cp target/release/nym-node $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
           if [ ${{ github.event_name == 'workflow_dispatch' && inputs.enable_deb == true }} = true ]; then

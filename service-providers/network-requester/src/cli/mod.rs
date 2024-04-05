@@ -110,7 +110,7 @@ pub(crate) struct OverrideConfig {
     statistics_recipient: Option<String>,
 }
 
-// NOTE: make sure this is in sync with `gateway/src/commands/helpers.rs::override_network_requester_config`
+// NOTE: make sure this is in sync with `gateway/src/helpers.rs::override_network_requester_config`
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
     // medium_toggle:

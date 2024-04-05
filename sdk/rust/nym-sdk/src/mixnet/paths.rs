@@ -7,7 +7,7 @@ use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config;
-use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
+use nym_client_core::config::disk_persistence::ClientKeysPaths;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};

@@ -27,6 +27,12 @@ pub struct GatewayRegistration {
     pub registration_timestamp: OffsetDateTime,
 }
 
+impl GatewayRegistration {
+    pub fn gateway_id(&self) -> identity::PublicKey {
+        self.details.gateway_id()
+    }
+}
+
 impl<'a> From<&'a GatewayRegistration> for RawRegisteredGateway {
     fn from(value: &'a GatewayRegistration) -> Self {
         RawRegisteredGateway {
@@ -297,4 +303,13 @@ impl<'a> From<&'a CustomGatewayDetails> for RawCustomGatewayDetails {
 pub struct CustomGatewayDetails {
     pub gateway_id: identity::PublicKey,
     pub data: Option<Vec<u8>>,
+}
+
+impl CustomGatewayDetails {
+    pub fn new(gateway_id: identity::PublicKey) -> CustomGatewayDetails {
+        Self {
+            gateway_id,
+            data: None,
+        }
+    }
 }

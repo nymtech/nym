@@ -4,6 +4,7 @@
 pub mod gateway;
 pub mod health;
 pub mod ip_packet_router;
+pub mod metrics;
 pub mod mixnode;
 pub mod network_requester;
 pub mod node;

@@ -25,7 +25,7 @@ console-subscriber = { version = "0.1.1", optional = true } # validator-api need
 dirs = "4.0"
 futures = { workspace = true }
 itertools = "0.12.0"
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 k256 = { version = "*", features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
 log = { workspace = true }
 pin-project = "1.0"

@@ -2,20 +2,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::upgrade_helpers;
-use crate::config::default_config_filepath;
-use crate::config::persistence::paths::{
-    default_ip_packet_router_data_dir, default_network_requester_data_dir,
-};
-use crate::config::Config;
-use crate::error::GatewayError;
 use log::{error, info};
-use nym_bin_common::version_checker;
 use nym_config::{save_formatted_config_to_file, OptionalSet};
 use nym_crypto::asymmetric::identity;
+use nym_gateway::config::default_config_filepath;
+use nym_gateway::config::persistence::paths::{
+    default_ip_packet_router_data_dir, default_network_requester_data_dir,
+};
+use nym_gateway::config::Config;
+use nym_gateway::error::GatewayError;
+use nym_gateway::helpers::{
+    override_ip_packet_router_config, override_network_requester_config,
+    OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig,
+};
 use nym_network_defaults::mainnet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
-use nym_network_requester::config::BaseClientConfig;
+
 use nym_network_requester::{
     generate_new_client_keys, set_active_gateway, setup_fs_gateways_storage, setup_gateway,
     GatewaySetup, OnDiskKeys,
@@ -102,21 +105,11 @@ impl OverrideConfig {
     }
 }
 
-#[derive(Default, Debug)]
-pub(crate) struct OverrideNetworkRequesterConfig {
-    pub(crate) fastmode: bool,
-    pub(crate) no_cover: bool,
-    pub(crate) medium_toggle: bool,
-
-    pub(crate) open_proxy: Option<bool>,
-
-    pub(crate) enable_statistics: Option<bool>,
-    pub(crate) statistics_recipient: Option<String>,
-}
-
-#[derive(Default, Debug)]
-pub(crate) struct OverrideIpPacketRouterConfig {
-    // TODO
+pub(crate) fn try_override_config<O: Into<OverrideConfig>>(
+    config: Config,
+    override_args: O,
+) -> Result<Config, GatewayError> {
+    override_args.into().do_override(config)
 }
 
 /// Ensures that a given bech32 address is valid
@@ -134,30 +127,6 @@ pub(crate) fn ensure_correct_bech32_prefix(address: &AccountId) -> Result<(), Ga
     }
 
     Ok(())
-}
-
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), GatewayError> {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = &cfg.gateway.version;
-
-    if binary_version == config_version {
-        Ok(())
-    } else if version_checker::is_minor_version_compatible(binary_version, config_version) {
-        log::warn!(
-            "The gateway binary has different version than what is specified in config file! {binary_version} and {config_version}. \
-             But, they are still semver compatible. However, consider running the `upgrade` command.");
-        Ok(())
-    } else {
-        log::error!(
-            "The gateway binary has different version than what is specified in config file! {binary_version} and {config_version}. \
-             And they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-        Err(GatewayError::LocalVersionCheckFailure {
-            binary_version: binary_version.to_owned(),
-            config_version: config_version.to_owned(),
-        })
-    }
 }
 
 pub(crate) fn try_load_current_config(id: &str) -> Result<Config, GatewayError> {
@@ -181,77 +150,6 @@ fn make_nr_id(gateway_id: &str) -> String {
 
 fn make_ip_id(gateway_id: &str) -> String {
     format!("{gateway_id}-ip-packet-router")
-}
-
-// NOTE: make sure this is in sync with service-providers/network-requester/src/cli/mod.rs::override_config
-pub(crate) fn override_network_requester_config(
-    mut cfg: nym_network_requester::Config,
-    opts: Option<OverrideNetworkRequesterConfig>,
-) -> nym_network_requester::Config {
-    let Some(opts) = opts else { return cfg };
-
-    // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
-    // medium_toggle:
-    // - sets secondary packet size to 16kb
-    // - disables poisson distribution of the main traffic stream
-    // - sets the cover traffic stream to 1 packet / 5s (on average)
-    // - disables per hop delay
-    //
-    // fastmode (to be renamed to `fast-poisson`):
-    // - sets average per hop delay to 10ms
-    // - sets the cover traffic stream to 1 packet / 2000s (on average); for all intents and purposes it disables the stream
-    // - sets the poisson distribution of the main traffic stream to 4ms, i.e. 250 packets / s on average
-    //
-    // no_cover:
-    // - disables poisson distribution of the main traffic stream
-    // - disables the secondary cover traffic stream
-
-    // disable poisson rate in the BASE client if the NR option is enabled
-    if cfg.network_requester.disable_poisson_rate {
-        cfg.set_no_poisson_process();
-    }
-
-    // those should be enforced by `clap` when parsing the arguments
-    if opts.medium_toggle {
-        assert!(!opts.fastmode);
-        assert!(!opts.no_cover);
-
-        cfg.set_medium_toggle();
-    }
-
-    cfg.with_base(
-        BaseClientConfig::with_high_default_traffic_volume,
-        opts.fastmode,
-    )
-    .with_base(BaseClientConfig::with_disabled_cover_traffic, opts.no_cover)
-    .with_optional(
-        nym_network_requester::Config::with_open_proxy,
-        opts.open_proxy,
-    )
-    .with_optional(
-        nym_network_requester::Config::with_enabled_statistics,
-        opts.enable_statistics,
-    )
-    .with_optional(
-        nym_network_requester::Config::with_statistics_recipient,
-        opts.statistics_recipient,
-    )
-}
-
-// NOTE: make sure this is in sync with service-providers/ip-packet-router/src/cli/mod.rs::override_config
-pub(crate) fn override_ip_packet_router_config(
-    mut cfg: nym_ip_packet_router::Config,
-    opts: Option<OverrideIpPacketRouterConfig>,
-) -> nym_ip_packet_router::Config {
-    let Some(_opts) = opts else { return cfg };
-
-    // disable poisson rate in the BASE client if the IPR option is enabled
-    if cfg.ip_packet_router.disable_poisson_rate {
-        info!("Disabling poisson rate for ip packet router");
-        cfg.set_no_poisson_process();
-    }
-
-    cfg
 }
 
 pub(crate) async fn initialise_local_network_requester(

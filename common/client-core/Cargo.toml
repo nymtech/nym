@@ -15,7 +15,7 @@ bs58 = { workspace = true }
 cfg-if = "1.0.0"
 clap = { workspace = true, optional = true }
 futures = { workspace = true }
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
@@ -34,6 +34,7 @@ zeroize = { workspace = true }
 nym-id = { path = "../nym-id" }
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
 nym-config = { path = "../config" }
+nym-country-group = { path = "../country-group" }
 nym-crypto = { path = "../crypto" }
 nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
@@ -47,6 +48,7 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
+nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"]}
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 

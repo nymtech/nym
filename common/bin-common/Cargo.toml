@@ -8,7 +8,6 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-atty = "0.2"
 const-str = "0.5.6"
 clap = { workspace = true, features = ["derive"] }
 clap_complete = "4.0"

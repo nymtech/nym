@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::cli_helpers::CliClientConfig;
@@ -21,6 +20,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
+pub use crate::config::persistence::NetworkRequesterPaths;
 pub use nym_client_core::config::Config as BaseClientConfig;
 
 pub mod helpers;

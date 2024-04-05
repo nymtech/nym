@@ -71,5 +71,8 @@ pub enum NetworkRequesterError {
     NoUpstreamExitPolicy,
 
     #[error(transparent)]
+    ConfigUpgradeFailure(#[from] nym_client_core::config::ConfigUpgradeFailure),
+
+    #[error(transparent)]
     NymIdError(#[from] NymIdError),
 }

@@ -177,6 +177,13 @@ where
         self
     }
 
+    /// Enable paid coconut bandwidth credentials mode.
+    #[must_use]
+    pub fn credentials_mode(mut self, credentials_mode: bool) -> Self {
+        self.config.enabled_credentials_mode = credentials_mode;
+        self
+    }
+
     /// Use a custom debugging configuration.
     #[must_use]
     pub fn debug_config(mut self, debug_config: DebugConfig) -> Self {

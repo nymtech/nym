@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use cargo_metadata::MetadataCommand;
+use std::fs;
 use std::path::PathBuf;
 
 // that's disgusting, but it works, so it's good enough for now ¯\_(ツ)_/¯
 fn main() {
+    let out_dir: PathBuf = std::env::var("OUT_DIR").unwrap().into();
+
     let path: PathBuf = std::env::var("CARGO_MANIFEST_DIR").unwrap().into();
 
     let mix_path = path.parent().unwrap().join("mixnode");
@@ -26,6 +29,8 @@ fn main() {
 
     let gateway_version = &gateway_meta.root_package().unwrap().version;
 
-    println!("cargo:rustc-env=NYM_MIXNODE_VERSION={mix_version}");
-    println!("cargo:rustc-env=NYM_GATEWAY_VERSION={gateway_version}");
+    fs::write(out_dir.join("mixnode_version"), mix_version.to_string()).unwrap();
+    fs::write(out_dir.join("gateway_version"), gateway_version.to_string()).unwrap();
+
+    println!("cargo::rerun-if-changed=build.rs");
 }

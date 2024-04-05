@@ -72,7 +72,7 @@ impl MixnodeBondingInformation {
         // SAFETY:
         // 1. the value has been put into the environment during build.rs, so it must exist,
         // 2. and the obtained version has already been parsed into semver in build.rs, so it must be a valid semver
-        let raw = std::env::var("NYM_MIXNODE_VERSION").unwrap();
+        let raw = include_str!(concat!(env!("OUT_DIR"), "/mixnode_version"));
         let mut semver: Version = raw.parse().unwrap();
 
         // if it's not empty, then we messed up our own versioning
@@ -119,9 +119,9 @@ impl GatewayBondingInformation {
     #[allow(clippy::unwrap_used)]
     fn get_version() -> String {
         // SAFETY:
-        // 1. the value has been put into the environment during build.rs, so it must exist,
+        // 1. the value has been put into the file during build.rs, so it must exist,
         // 2. and the obtained version has already been parsed into semver in build.rs, so it must be a valid semver
-        let raw = std::env::var("NYM_GATEWAY_VERSION").unwrap();
+        let raw = include_str!(concat!(env!("OUT_DIR"), "/gateway_version"));
         let mut semver: Version = raw.parse().unwrap();
 
         // if it's not empty, then we messed up our own versioning

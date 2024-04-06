@@ -7,8 +7,13 @@ use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config;
-use nym_client_core::config::disk_persistence::ClientKeysPaths;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_client_core::config::disk_persistence::{
+    ClientKeysPaths, DEFAULT_ACK_KEY_FILENAME, DEFAULT_CREDENTIALS_DB_FILENAME,
+    DEFAULT_GATEWAYS_DETAILS_DB_FILENAME, DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME,
+    DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME, DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME,
+    DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME, DEFAULT_REPLY_SURB_DB_FILENAME,
+};
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};
 
@@ -55,14 +60,14 @@ impl StoragePaths {
         }
 
         Ok(Self {
-            private_identity: dir.join("private_identity.pem"),
-            public_identity: dir.join("public_identity.pem"),
-            private_encryption: dir.join("private_encryption.pem"),
-            public_encryption: dir.join("public_encryption.pem"),
-            ack_key: dir.join("ack_key.pem"),
-            credential_database_path: dir.join("db.sqlite"),
-            reply_surb_database_path: dir.join("persistent_reply_store.sqlite"),
-            gateway_registrations: dir.join("gateways_registrations.sqlite"),
+            private_identity: dir.join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME),
+            public_identity: dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME),
+            private_encryption: dir.join(DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME),
+            public_encryption: dir.join(DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME),
+            ack_key: dir.join(DEFAULT_ACK_KEY_FILENAME),
+            credential_database_path: dir.join(DEFAULT_CREDENTIALS_DB_FILENAME),
+            reply_surb_database_path: dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
+            gateway_registrations: dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
         })
     }
 

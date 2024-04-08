@@ -80,7 +80,7 @@ The example value of `100` for `pruning-interval` can be customised as per your 
 ### Credential Generation
 Validators that take part in the DKG ceremony will become part of the 'quorum' generating and verifying zk-nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221).
 
-The DKG ceremony will be used to create a subset of existing validators who run `nym-api` alongside a Nyx full-node. As outlined above, they will be the ones taking part in the generation and verification of zk-nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a Validator dropping or going offline.
+The DKG ceremony will be used to create a subset of existing validators who run `nym-api` alongside a Nyx full-node. As outlined above, they will be the ones taking part in the generation and verification of zk-nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a validator dropping or going offline.
 
 We will be releasing more detailed step-by-step documentation for involved validators nearer to the ceremony itself, but at a high level it will involve:
 * the deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the `group` contract are the only ones that will be able to take part in the ceremony.
@@ -138,8 +138,9 @@ Begin by generating a new wallet address specifically for your instance to use i
 nyxd keys add signer
 ```
 
+~~~admonish warning title="Backup your keys!"
 It's critical to securely back up the mnemonic phrase generated during this process. This mnemonic is your key to recovering the wallet in the future, so store it in a secure, offline location.
-
+~~~
 
 #### Fund the address
 
@@ -166,7 +167,7 @@ Set your announce address if it is empty. This is the URL you previously configu
 ```
 # This is the address you previously configured for the nym-api
 # Not to be confused with the Cosmos REST API URL
-announce_address = 'https://nym-api.your.tld'
+announce_address = 'https://nym-api.your.tld/'
 ```
 
 Finally, input the mnemonic phrase generated during the wallet creation step into the mnemonic field

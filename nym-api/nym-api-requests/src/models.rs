@@ -402,3 +402,35 @@ pub struct IpPacketRouterDetails {
     /// address of the embedded ip packet router
     pub address: String,
 }
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ApiHealthResponse {
+    pub status: ApiStatus,
+    pub uptime: u64,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ApiStatus {
+    Up,
+}
+
+impl ApiHealthResponse {
+    pub fn new_healthy(uptime: Duration) -> Self {
+        ApiHealthResponse {
+            status: ApiStatus::Up,
+            uptime: uptime.as_secs(),
+        }
+    }
+}
+
+impl ApiStatus {
+    pub fn is_up(&self) -> bool {
+        matches!(self, ApiStatus::Up)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SignerInformation {
+    pub cosmos_address: String,
+}

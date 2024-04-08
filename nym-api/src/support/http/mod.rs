@@ -9,11 +9,13 @@ use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
+use crate::status::{api_status_routes, ApiStatusState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::{nyxd, storage};
 use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
 use anyhow::{bail, Result};
+use nym_api_requests::models::SignerInformation;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::Coin;
 use rocket::http::Method;
@@ -27,7 +29,7 @@ pub(crate) mod openapi;
 pub(crate) async fn setup_rocket(
     config: &Config,
     network_details: NetworkDetails,
-    _nyxd_client: nyxd::Client,
+    nyxd_client: nyxd::Client,
     identity_keypair: identity::KeyPair,
     coconut_keypair: coconut::keys::KeyPair,
 ) -> anyhow::Result<Rocket<Ignite>> {
@@ -45,6 +47,7 @@ pub(crate) async fn setup_rocket(
         "" => nym_contract_cache::nym_contract_cache_routes(&openapi_settings),
         "/status" => node_status_api::node_status_routes(&openapi_settings, config.network_monitor.enabled),
         "/network" => network_routes(&openapi_settings),
+        "/api-status" => api_status_routes(&openapi_settings),
         "" => nym_node_routes(&openapi_settings),
     }
 
@@ -68,18 +71,23 @@ pub(crate) async fn setup_rocket(
         None
     };
 
+    let mut status_state = ApiStatusState::new();
+
     let rocket = if config.coconut_signer.enabled {
         // make sure we have some tokens to cover multisig fees
-        let balance = _nyxd_client.balance(&mix_denom).await?;
+        let balance = nyxd_client.balance(&mix_denom).await?;
         if balance.amount < coconut::MINIMUM_BALANCE {
-            let address = _nyxd_client.address().await;
+            let address = nyxd_client.address().await;
             let min = Coin::new(coconut::MINIMUM_BALANCE, mix_denom);
             bail!("the account ({address}) doesn't have enough funds to cover verification fees. it has {balance} while it needs at least {min}")
         }
 
-        let comm_channel = QueryCommunicationChannel::new(_nyxd_client.clone());
+        let cosmos_address = nyxd_client.address().await.to_string();
+        status_state.add_zk_nym_signer(SignerInformation { cosmos_address });
+
+        let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
         rocket.attach(coconut::stage(
-            _nyxd_client.clone(),
+            nyxd_client.clone(),
             mix_denom,
             identity_keypair,
             coconut_keypair,
@@ -97,7 +105,7 @@ pub(crate) async fn setup_rocket(
         rocket
     };
 
-    Ok(rocket.ignite().await?)
+    Ok(rocket.manage(status_state).ignite().await?)
 }
 
 fn setup_cors() -> Result<Cors> {

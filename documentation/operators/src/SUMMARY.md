@@ -1,3 +1,4 @@
+#
 # Summary
 
 - [Introduction](introduction.md)
@@ -28,6 +29,11 @@
     - [ExploreNYM scripts](testing/explorenym-scripts.md)
 <!--    - [Run in a Docker](testing/docker-monitor.md) -->
 - [Troubleshooting](nodes/troubleshooting.md)
+<!--
+  - [Nym Nodes]()
+  - [Validators]
+  - [Binary]
+-->
 
 # Token Economics
 

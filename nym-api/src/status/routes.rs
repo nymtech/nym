@@ -3,8 +3,9 @@
 
 use crate::node_status_api::models::ErrorResponse;
 use crate::status::ApiStatusState;
-use nym_api_requests::models::{ApiHealthResponse, SignerInformation};
+use nym_api_requests::models::{ApiHealthResponse, SignerInformationResponse};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_coconut::Base58;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -30,15 +31,22 @@ pub(crate) async fn build_information(
 #[get("/signer-information")]
 pub(crate) async fn signer_information(
     state: &State<ApiStatusState>,
-) -> Result<Json<SignerInformation>, ErrorResponse> {
-    state
-        .signer_information
-        .clone()
-        .ok_or_else(|| {
-            ErrorResponse::new(
-                "this api does not expose zk-nym signing functionalities",
-                Status::InternalServerError,
-            )
-        })
-        .map(Json)
+) -> Result<Json<SignerInformationResponse>, ErrorResponse> {
+    let signer_state = state.signer_information.as_ref().ok_or_else(|| {
+        ErrorResponse::new(
+            "this api does not expose zk-nym signing functionalities",
+            Status::InternalServerError,
+        )
+    })?;
+
+    Ok(Json(SignerInformationResponse {
+        cosmos_address: signer_state.cosmos_address.clone(),
+        identity: signer_state.identity.clone(),
+        announce_address: signer_state.announce_address.clone(),
+        verification_key: signer_state
+            .coconut_keypair
+            .verification_key()
+            .await
+            .map(|maybe_vk| maybe_vk.to_bs58()),
+    }))
 }

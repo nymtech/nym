@@ -1,6 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_coconut::VerificationKey;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_dkg::Scalar;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -61,6 +62,13 @@ impl KeyPair {
         } else {
             None
         }
+    }
+
+    pub async fn verification_key(&self) -> Option<RwLockReadGuard<'_, VerificationKey>> {
+        RwLockReadGuard::try_map(self.get().await?, |maybe_keypair| {
+            maybe_keypair.as_ref().map(|k| k.keys.verification_key())
+        })
+        .ok()
     }
 
     pub async fn read_keys(&self) -> RwLockReadGuard<'_, Option<KeyPairWithEpoch>> {

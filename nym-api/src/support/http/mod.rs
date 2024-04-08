@@ -9,13 +9,12 @@ use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
-use crate::status::{api_status_routes, ApiStatusState};
+use crate::status::{api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::{nyxd, storage};
 use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
 use anyhow::{bail, Result};
-use nym_api_requests::models::SignerInformation;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::Coin;
 use rocket::http::Method;
@@ -83,7 +82,18 @@ pub(crate) async fn setup_rocket(
         }
 
         let cosmos_address = nyxd_client.address().await.to_string();
-        status_state.add_zk_nym_signer(SignerInformation { cosmos_address });
+        let announce_address = config
+            .coconut_signer
+            .announce_address
+            .clone()
+            .map(|u| u.to_string())
+            .unwrap_or_default();
+        status_state.add_zk_nym_signer(SignerState {
+            cosmos_address,
+            identity: identity_keypair.public_key().to_base58_string(),
+            announce_address,
+            coconut_keypair: coconut_keypair.clone(),
+        });
 
         let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
         rocket.attach(coconut::stage(

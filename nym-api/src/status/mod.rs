@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::models::SignerInformation;
+use crate::coconut;
 use nym_bin_common::bin_info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use okapi::openapi3::OpenApi;
@@ -12,11 +12,21 @@ use tokio::time::Instant;
 
 pub(crate) mod routes;
 
-#[derive(Debug)]
 pub(crate) struct ApiStatusState {
     startup_time: Instant,
     build_information: BinaryBuildInformation,
-    signer_information: Option<SignerInformation>,
+    signer_information: Option<SignerState>,
+}
+
+pub(crate) struct SignerState {
+    // static information
+    pub cosmos_address: String,
+
+    pub identity: String,
+
+    pub announce_address: String,
+
+    pub(crate) coconut_keypair: coconut::keys::KeyPair,
 }
 
 impl ApiStatusState {
@@ -28,7 +38,7 @@ impl ApiStatusState {
         }
     }
 
-    pub fn add_zk_nym_signer(&mut self, signer_information: SignerInformation) {
+    pub fn add_zk_nym_signer(&mut self, signer_information: SignerState) {
         self.signer_information = Some(signer_information)
     }
 }

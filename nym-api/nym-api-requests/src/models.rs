@@ -431,6 +431,12 @@ impl ApiStatus {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct SignerInformation {
+pub struct SignerInformationResponse {
     pub cosmos_address: String,
+
+    pub identity: String,
+
+    pub announce_address: String,
+
+    pub verification_key: Option<String>,
 }

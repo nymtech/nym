@@ -1,3 +1,4 @@
+#
 # Summary
 [Introduction](introduction.md)
 
@@ -14,7 +15,7 @@
 <!-- - [Version Compatibility Table](binaries/version-compatiblity.md) -->
 
 # Nodes
-- [Node Types (Previously Setup Guides)](nodes/overview.md)  
+- [Node Types (Previously Setup Guides)](nodes/overview.md)
     - [Mix Node](nodes/mixnode.md)
     - [Gateway](nodes/gateway.md)
     - [Network Requester](nodes/network-requester.md)
@@ -56,7 +57,7 @@
 - [Mixnet Explorer](explorers/mixnet-explorer.md)
 
 # Nyx Blockchain
-- [Interacting with Nyx Chain and Smart Contracts](nyx/interacting-with-chain.md) 
+- [Interacting with Nyx Chain and Smart Contracts](nyx/interacting-with-chain.md)
 - [Smart Contracts](nyx/smart-contracts.md)
     - [Mixnet Contract](nyx/mixnet-contract.md)
     - [Vesting Contract](nyx/vesting-contract.md)

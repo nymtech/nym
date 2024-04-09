@@ -33,6 +33,7 @@ fn load_gateway_details(
     };
 
     Ok(api_requests::v1::gateway::models::Gateway {
+        enforces_zk_nyms: config.gateway.only_coconut_credentials,
         client_interfaces: api_requests::v1::gateway::models::ClientInterfaces {
             wireguard,
             mixnet_websockets: Some(api_requests::v1::gateway::models::WebSockets {

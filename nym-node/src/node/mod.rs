@@ -484,6 +484,7 @@ impl NymNode {
             wss_port: self.config.entry_gateway.announce_wss_port,
         });
         let gateway_details = api_requests::v1::gateway::models::Gateway {
+            enforces_zk_nyms: self.config.entry_gateway.enforce_zk_nyms,
             client_interfaces: api_requests::v1::gateway::models::ClientInterfaces {
                 wireguard,
                 mixnet_websockets,

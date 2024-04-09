@@ -28,7 +28,7 @@ tar -xvf <BINARY>.tar.gz
 4. Make executable:
 ```sh
 # make sure you are in the right sub-directory
-chmod u+x ./nym-vpn-cli
+chmod u+x nym-vpn-cli
 ```
 
 ## Run NymVPN
@@ -37,15 +37,21 @@ chmod u+x ./nym-vpn-cli
 
 Make sure your terminal is open in the same directory as your `nym-vpn-cli` binary.
 
-1. Go to [nymvpn.com/en/alpha](https://nymvpn.com/en/alpha) to get the entire command with all the needed arguments' values and your wireguard private key for testing purposes
-2. Run it as root with `sudo` - the command will look like this with specified arguments:
+1. Run it as root with `sudo` - the command will look like this with specified arguments:
 ```sh
 sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WIREGUARD_IP>
 ```
-3. To choose different Gateways, visit [explorer.nymtech.net/network-components/gateways](https://explorer.nymtech.net/network-components/gateways) and copy-paste an identity key of your choice
-4. See all possibilities in [command explanation](#cli-commands-and-options) section below
+
+```admonish note
+Nym Exit Gateway functionality was implemented just recently and not all the Gateways are upgraded and ready to handle the VPN connections. If you want to make sure you are connecting to a Gateway with an embedded Network Requester, IP Packet Router and applied Nym exit policy, visit [this page](https://nymtech.net/events/fast-and-furious), scroll down to the list and search Gateways with all the functionalities enabled.
+```
+
+2. To choose different Gateways, visit [explorer.nymtech.net/network-components/gateways](https://explorer.nymtech.net/network-components/gateways), the gateways and copy-paste an identity key of your choice
+
+3. See all possibilities in [command explanation](#cli-commands-and-options) section below
 
 In case of errors, see [troubleshooting section](troubleshooting.md).
+
 
 ### CLI Commands and Options
 
@@ -53,8 +59,8 @@ The basic syntax of `nym-vpn-cli` is:
 ```sh
 sudo ./nym-vpn-cli <--exit-router-address <EXIT_ROUTER_ADDRESS>|--exit-gateway-id <EXIT_GATEWAY_ID>|--exit-gateway-country <EXIT_GATEWAY_COUNTRY>>
 ```
-* To choose different Gateways, visit [nymvpn.com/en/alpha/api/gateways](https://explorer.nymtech.net/network-components/gateways)
-* To see all possibilities run with `--help` flag:
+
+To see all the possibilities run with `--help` flag:
 ```sh
 ./nym-vpn-cli --help
 ```

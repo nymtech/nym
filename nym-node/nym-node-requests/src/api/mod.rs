@@ -99,20 +99,6 @@ mod tests {
     use super::*;
     use nym_crypto::asymmetric::{ed25519, x25519};
     use rand_chacha::rand_core::SeedableRng;
-    use std::net::IpAddr;
-
-    #[derive(Serialize, Deserialize)]
-    struct LegacyHostInformation {
-        pub ip_address: Vec<IpAddr>,
-        pub hostname: Option<String>,
-        pub keys: LegacyKeys,
-    }
-
-    #[derive(Serialize, Deserialize)]
-    struct LegacyKeys {
-        pub ed25519: String,
-        pub x25519: String,
-    }
 
     #[test]
     fn dummy_signed_host_verification() {

@@ -224,7 +224,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
             match res {
                 Ok((identity, description)) => Some((identity, description)),
                 Err(err) => {
-                    debug!("{err}");
+                    debug!("failed to obtain gateway self-described data: {err}");
                     None
                 }
             }

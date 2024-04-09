@@ -6247,6 +6247,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-wireguard-types",
+ "rand_chacha 0.2.2",
  "schemars",
  "serde",
  "serde_json",

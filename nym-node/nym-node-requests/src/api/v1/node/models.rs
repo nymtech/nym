@@ -32,6 +32,23 @@ pub struct HostInformation {
     pub keys: HostKeys,
 }
 
+#[derive(Serialize)]
+pub struct LegacyHostInformation {
+    pub ip_address: Vec<IpAddr>,
+    pub hostname: Option<String>,
+    pub keys: LegacyHostKeys,
+}
+
+impl From<HostInformation> for LegacyHostInformation {
+    fn from(value: HostInformation) -> Self {
+        LegacyHostInformation {
+            ip_address: value.ip_address,
+            hostname: value.hostname,
+            keys: value.keys.into(),
+        }
+    }
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostKeys {
@@ -47,6 +64,21 @@ pub struct HostKeys {
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
     pub x25519_noise: String,
+}
+
+impl From<HostKeys> for LegacyHostKeys {
+    fn from(value: HostKeys) -> Self {
+        LegacyHostKeys {
+            ed25519: value.ed25519_identity,
+            x25519: value.x25519_sphinx,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct LegacyHostKeys {
+    pub ed25519: String,
+    pub x25519: String,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]

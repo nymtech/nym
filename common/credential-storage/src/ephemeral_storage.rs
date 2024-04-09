@@ -15,6 +15,12 @@ pub struct EphemeralStorage {
     coconut_credential_manager: CoconutCredentialManager,
 }
 
+impl EphemeralStorage {
+    pub async fn take_credentials(self) -> Vec<StoredIssuedCredential> {
+        self.coconut_credential_manager.take_credentials().await
+    }
+}
+
 impl Default for EphemeralStorage {
     fn default() -> Self {
         EphemeralStorage {

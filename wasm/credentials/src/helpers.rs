@@ -22,6 +22,7 @@ pub(crate) fn minimal_coconut_sandbox() -> NymNetworkDetails {
         endpoints: vec![ValidatorDetails::new(
             "https://sandbox-validator1.nymtech.net",
             None,
+            None,
         )],
         contracts: NymContracts {
             coconut_bandwidth_contract_address: Some(

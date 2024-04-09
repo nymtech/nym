@@ -5,8 +5,7 @@ use crate::error::WasmCredentialClientError;
 use crate::opts::CredentialClientOpts;
 use js_sys::Promise;
 use nym_credential_storage::ephemeral_storage::EphemeralCredentialStorage;
-use nym_credential_storage::models::CoconutCredential;
-use nym_credential_storage::storage::Storage;
+use nym_credential_storage::models::StoredIssuedCredential;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::{Config, CosmWasmCoin};
 use nym_validator_client::DirectSigningReqwestRpcNyxdClient;
@@ -16,6 +15,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::console_log;
 use wasm_utils::error::PromisableResult;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[wasm_bindgen(js_name = acquireCredential)]
 pub fn acquire_credential(mnemonic: String, amount: String, opts: CredentialClientOpts) -> Promise {
@@ -33,7 +33,7 @@ async fn acquire_credential_async(
     mnemonic: String,
     amount: String,
     opts: CredentialClientOpts,
-) -> Result<WasmCoconutCredential, WasmCredentialClientError> {
+) -> Result<WasmIssuedCredential, WasmCredentialClientError> {
     // start by parsing mnemonic so that we could immediately move it into a Zeroizing wrapper
     let mnemonic = crate::helpers::parse_mnemonic(mnemonic)?;
 
@@ -78,43 +78,45 @@ async fn acquire_credential_async(
 
     console_log!("starting the deposit...");
     let deposit_state = nym_bandwidth_controller::acquire::deposit(&client, amount).await?;
-    console_log!("obtained voucher: {:#?}", deposit_state.voucher);
+    let blinded_serial = deposit_state.voucher.blinded_serial_number_bs58();
+    console_log!(
+        "obtained bandwidth voucher with the following blinded serial number: {blinded_serial}"
+    );
 
     // TODO: use proper persistent storage here. probably indexeddb like we have for our 'normal' wasm client
     let ephemeral_storage = EphemeralCredentialStorage::default();
 
     // store credential in the ephemeral storage...
-    nym_bandwidth_controller::acquire::get_credential(&deposit_state, &client, &ephemeral_storage)
-        .await?;
+    nym_bandwidth_controller::acquire::get_bandwidth_voucher(
+        &deposit_state,
+        &client,
+        &ephemeral_storage,
+    )
+    .await?;
 
     // and immediately get it out!
-    let cred = ephemeral_storage.get_next_coconut_credential().await?;
+    let mut credentials = ephemeral_storage.take_credentials().await;
+    let cred = credentials.pop().expect("we just got a credential issued");
 
     Ok(cred.into())
 }
 
-#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
-// we could have implemented all ts traits on normal CoconutCredential,
-// but it felt very awkward to import those crates in there; plus the underlying type might change
-pub struct WasmCoconutCredential {
-    pub voucher_value: String,
-    pub voucher_info: String,
-    pub serial_number: String,
-    pub binding_number: String,
-    pub signature: String,
-    pub epoch_id: String,
+pub struct WasmIssuedCredential {
+    pub serialization_revision: u8,
+    pub credential_data: Vec<u8>,
+    pub credential_type: String,
+    pub epoch_id: u32,
 }
 
-impl From<CoconutCredential> for WasmCoconutCredential {
-    fn from(value: CoconutCredential) -> Self {
-        WasmCoconutCredential {
-            voucher_value: value.voucher_value,
-            voucher_info: value.voucher_info,
-            serial_number: value.serial_number,
-            binding_number: value.binding_number,
-            signature: value.signature,
+impl From<StoredIssuedCredential> for WasmIssuedCredential {
+    fn from(value: StoredIssuedCredential) -> Self {
+        WasmIssuedCredential {
+            serialization_revision: value.serialization_revision,
+            credential_data: value.credential_data.clone(),
+            credential_type: value.credential_type.clone(),
             epoch_id: value.epoch_id,
         }
     }

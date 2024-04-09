@@ -33,6 +33,12 @@ impl CoconutCredentialManager {
         }
     }
 
+    pub async fn take_credentials(self) -> Vec<StoredIssuedCredential> {
+        let mut inner = self.inner.write().await;
+        inner.credential_usage = Vec::new();
+        std::mem::take(&mut inner.credentials)
+    }
+
     pub async fn insert_issued_credential(
         &self,
         credential_type: String,

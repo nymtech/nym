@@ -46,7 +46,7 @@ pub struct MixNode {
 impl MixNode {
     pub fn new(config: Config) -> Result<Self, MixnodeError> {
         Ok(MixNode {
-            run_http_server: false,
+            run_http_server: true,
             descriptor: Self::load_node_description(&config),
             identity_keypair: Arc::new(load_identity_keys(&config)?),
             sphinx_keypair: Arc::new(load_sphinx_keys(&config)?),
@@ -64,7 +64,7 @@ impl MixNode {
         sphinx_keypair: Arc<encryption::KeyPair>,
     ) -> Self {
         MixNode {
-            run_http_server: false,
+            run_http_server: true,
             task_client: None,
             config,
             descriptor,

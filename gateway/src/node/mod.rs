@@ -150,7 +150,7 @@ impl<St> Gateway<St> {
             network_requester_opts,
             ip_packet_router_opts,
             client_registry: Arc::new(DashMap::new()),
-            run_http_server: false,
+            run_http_server: true,
             task_client: None,
         })
     }
@@ -171,7 +171,7 @@ impl<St> Gateway<St> {
             sphinx_keypair,
             storage,
             client_registry: Arc::new(DashMap::new()),
-            run_http_server: false,
+            run_http_server: true,
             task_client: None,
         }
     }

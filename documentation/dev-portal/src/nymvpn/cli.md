@@ -42,15 +42,15 @@ Make sure your terminal is open in the same directory as your `nym-vpn-cli` bina
 sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WIREGUARD_IP>
 ```
 
+2. To choose different Gateways, visit [explorer.nymtech.net/network-components/gateways](https://explorer.nymtech.net/network-components/gateways) and copy-paste an identity key of your choice
+
 ```admonish note
 Nym Exit Gateway functionality was implemented just recently and not all the Gateways are upgraded and ready to handle the VPN connections. If you want to make sure you are connecting to a Gateway with an embedded Network Requester, IP Packet Router and applied Nym exit policy, visit [this page](https://nymtech.net/events/fast-and-furious), scroll down to the list and search Gateways with all the functionalities enabled.
 ```
 
-2. To choose different Gateways, visit [explorer.nymtech.net/network-components/gateways](https://explorer.nymtech.net/network-components/gateways), the gateways and copy-paste an identity key of your choice
-
 3. See all possibilities in [command explanation](#cli-commands-and-options) section below
 
-In case of errors, see [troubleshooting section](troubleshooting.md).
+4. In case of errors, see [troubleshooting section](troubleshooting.md)
 
 
 ### CLI Commands and Options
@@ -116,9 +116,9 @@ Here is a list of the options and their descriptions. Some are essential, some a
 
 **Fundamental commands and arguments**
 
-- `-c` is a path to the [Sandbox config](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) file saved as `sandbox.env`
-- `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`) from [here](https://nymvpn.com/en/alpha/api/gateways)
-- `--exit-router-address`: paste one of the values labeled with a key `"address"` (without `" "`) from here [here](https://nymvpn.com/en/alpha/api/gateways)
+- `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`)
+- `--exit-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`)
+- `--exit-router-address`: paste one of the values labeled with a key `"address"` (without `" "`)
 - `--enable-wireguard`: Enable the wireguard traffic between the client and the entry gateway. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device
 - `--wg-ip`: The address of the wireguard interface, you can get it [here](https://nymvpn.com/en/alpha)
 - `--private-key`: get your private key for testing purposes [here](https://nymvpn.com/en/alpha)
@@ -126,6 +126,7 @@ Here is a list of the options and their descriptions. Some are essential, some a
 
 **Advanced options**
 
+- `-c` is a path to an enviroment config, like [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env)
 - `--enable-poisson`: Enables process rate limiting of outbound traffic (disabled by default). It means that NymVPN client will send packets at a steady stream to the Entry Gateway. By default it's on average one sphinx packet per 20ms, but there is some randomness (poisson distribution). When there are no real data to fill the sphinx packets with, cover packets are generated instead.
 - `--ip` is the IP address of the TUN device. That is the IP address of the local private network that is set up between local client and the Exit Gateway.
 - `--mtu`: The MTU of the TUN device. That is the max IP packet size of the local private network that is set up between local client and the Exit Gateway.

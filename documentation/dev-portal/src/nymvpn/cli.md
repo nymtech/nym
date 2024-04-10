@@ -39,8 +39,7 @@ Make sure your terminal is open in the same directory as your `nym-vpn-cli` bina
 
 1. Run it as root with `sudo` - the command will look like this with specified arguments:
 ```sh
-sudo ./nym-vpn-cli`:w
---entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WIREGUARD_IP>
+sudo ./nym-vpn-cli --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WIREGUARD_IP>
 ```
 
 2. To choose different Gateways, visit [explorer.nymtech.net/network-components/gateways](https://explorer.nymtech.net/network-components/gateways) and copy-paste an identity key of your choice

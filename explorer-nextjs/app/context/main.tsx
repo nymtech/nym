@@ -39,14 +39,12 @@ interface StateApi {
   ) => Promise<MixNodeResponse | undefined>
   filterMixnodes: (filters: any, status: any) => void
   toggleMode: () => void
-  updateNavState: (title: string) => void
 }
 
 type State = StateData & StateApi
 
 export const MainContext = React.createContext<State>({
   mode: 'dark',
-  updateNavState: () => null,
   navState: originalNavOptions,
   toggleMode: () => undefined,
   filterMixnodes: () => null,
@@ -62,10 +60,6 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
 
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark')
-
-  // nav state
-  const [navState, updateNav] =
-    React.useState<NavOptionType[]>(originalNavOptions)
 
   // global / banner error messaging
   const [globalError] = React.useState<string>()
@@ -213,14 +207,6 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
     }
   }
 
-  const updateNavState = (url: string) => {
-    const updated = navState.map((option) => ({
-      ...option,
-      isActive: option.url === url,
-    }))
-    updateNav(updated)
-  }
-
   React.useEffect(() => {
     if (environment === 'mainnet') {
       fetchServiceProviders()
@@ -238,25 +224,21 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
     ])
   }, [])
 
-  console.log(block)
-
   const state = React.useMemo<State>(
     () => ({
       environment,
       block,
       countryData,
-      fetchMixnodes,
-      filterMixnodes,
       gateways,
       globalError,
       mixnodes,
       mode,
-      navState,
       summaryOverview,
-      toggleMode,
-      updateNavState,
       validators,
       serviceProviders,
+      toggleMode,
+      fetchMixnodes,
+      filterMixnodes,
     }),
     [
       environment,
@@ -266,7 +248,6 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       globalError,
       mixnodes,
       mode,
-      navState,
       summaryOverview,
       validators,
       serviceProviders,

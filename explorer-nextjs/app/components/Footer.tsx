@@ -33,11 +33,12 @@ export const Footer: FCWithChildren = () => {
           mb: 2,
         }}
       >
-        <Link href="http://nymvpn.com" target="_blank">
-          <MuiLink underline="none" marginRight={1}>
+        <Box marginRight={1}>
+          <Link href="http://nymvpn.com" target="_blank">
             <NymVpnIcon />
-          </MuiLink>
-        </Link>
+          </Link>
+        </Box>
+
         <Socials isFooter />
       </Box>
 

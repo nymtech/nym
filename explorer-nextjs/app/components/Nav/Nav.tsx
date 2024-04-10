@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { ExpandLess, ExpandMore, Menu } from '@mui/icons-material'
 import { CSSObject, styled, Theme, useTheme } from '@mui/material/styles'
+import { Link as MuiLink } from '@mui/material'
 import Button from '@mui/material/Button'
 import Box from '@mui/material/Box'
 import ListItem from '@mui/material/ListItem'
@@ -18,10 +19,11 @@ import ListItemText from '@mui/material/ListItemText'
 import { NYM_WEBSITE } from '@/app/api/constants'
 import { useMainContext } from '@/app/context/main'
 import { MobileDrawerClose } from '@/app/icons/MobileDrawerClose'
-import { NavOptionType } from '@/app/context/nav'
-import { Footer } from './Footer'
-import { DarkLightSwitchDesktop } from './Switch'
-import { ConnectKeplrWallet } from './Wallet/ConnectKeplrWallet'
+import { NavOptionType, originalNavOptions } from '@/app/context/nav'
+import { DarkLightSwitchDesktop } from '@/app/components/Switch'
+import { Footer } from '@/app/components/Footer'
+import { ConnectKeplrWallet } from '@/app/components/Wallet/ConnectKeplrWallet'
+import { usePathname, useRouter } from 'next/navigation'
 
 const drawerWidth = 255
 const bannerHeight = 80
@@ -76,72 +78,56 @@ type ExpandableButtonType = {
   Icon?: React.ReactNode
   nested?: NavOptionType[]
   isChild?: boolean
-  openDrawer: () => void
-  closeDrawer?: () => void
+  isMobile: boolean
   drawIsTempOpen: boolean
   drawIsFixed: boolean
+  isExternalLink?: boolean
+  openDrawer: () => void
+  closeDrawer?: () => void
   fixDrawerClose?: () => void
-  isMobile: boolean
-  setToActive: (url: string) => void
 }
 
 export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
+  title,
   url,
-  setToActive,
-  isActive,
-  openDrawer,
-  closeDrawer,
   drawIsTempOpen,
   drawIsFixed,
-  fixDrawerClose,
   Icon,
-  title,
   nested,
   isMobile,
   isChild,
+  isExternalLink,
+  openDrawer,
+  closeDrawer,
+  fixDrawerClose,
 }) => {
-  const [dynamicStyle, setDynamicStyle] = React.useState({})
   const [nestedOptions, toggleNestedOptions] = React.useState(false)
-  const [isExternal, setIsExternal] = React.useState<boolean>(false)
   const { palette } = useTheme()
+  const pathname = usePathname()
+  const router = useRouter()
 
   const handleClick = () => {
-    setToActive(url)
     if (title === 'Network Components' && nested) {
-      openDrawer()
       toggleNestedOptions(!nestedOptions)
+      return undefined
     }
-    if (!nested && !drawIsFixed) {
-      closeDrawer?.()
+
+    closeDrawer?.()
+
+    if (isExternalLink) {
+      window.open(url, '_blank')
+
+      return undefined
     }
-    if (!nested && isMobile) {
-      fixDrawerClose?.()
+
+    if (!isExternalLink) {
+      router.push(url, {})
     }
   }
-
-  React.useEffect(() => {
-    if (url) {
-      setIsExternal(url.includes('http'))
-    }
-    if (nested) {
-      setDynamicStyle({
-        background: palette.nym.networkExplorer.nav.selected.main,
-        borderRight: `3px solid ${palette.nym.highlight}`,
-      })
-    }
-    if (isChild) {
-      setDynamicStyle({
-        background: palette.nym.networkExplorer.nav.selected.nested,
-        fontWeight: 600,
-      })
-    }
-    if (!nested && !isChild) {
-      setDynamicStyle({
-        background: palette.nym.networkExplorer.nav.selected.main,
-        borderRight: `3px solid ${palette.nym.highlight}`,
-      })
-    }
-  }, [url])
+  const selectedStyle = {
+    background: palette.nym.networkExplorer.nav.selected.main,
+    borderRight: `3px solid ${palette.nym.highlight}`,
+  }
 
   React.useEffect(() => {
     if (!drawIsTempOpen && nestedOptions) {
@@ -149,24 +135,15 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
     }
   }, [drawIsTempOpen])
 
-  const linkProps = isExternal
-    ? {
-        component: 'a',
-        href: url,
-        target: '_blank',
-      }
-    : { component: 'div', to: url }
-
   return (
     <>
       <ListItem
         disablePadding
         disableGutters
-        {...linkProps}
         sx={{
           borderBottom: isChild ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
-          ...(isActive
-            ? dynamicStyle
+          ...(pathname === url
+            ? selectedStyle
             : {
                 background: palette.nym.networkExplorer.nav.background,
                 borderRight: 'none',
@@ -174,7 +151,7 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
         }}
       >
         <ListItemButton
-          onClick={handleClick}
+          onClick={() => handleClick()}
           sx={{
             pt: 2,
             pb: 2,
@@ -188,11 +165,6 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
             primary={title}
             sx={{
               color: palette.nym.networkExplorer.nav.text,
-            }}
-            primaryTypographyProps={{
-              style: {
-                fontWeight: isActive ? 600 : 400,
-              },
             }}
           />
           {nested && nestedOptions && <ExpandLess />}
@@ -208,11 +180,11 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
             openDrawer={openDrawer}
             drawIsTempOpen={drawIsTempOpen}
             closeDrawer={closeDrawer}
-            setToActive={setToActive}
             drawIsFixed={drawIsFixed}
             fixDrawerClose={fixDrawerClose}
             isMobile={isMobile}
             isChild
+            isExternalLink={each.isExternal}
           />
         ))}
     </>
@@ -229,17 +201,16 @@ ExpandableButton.defaultProps = {
 }
 
 export const Nav: FCWithChildren = ({ children }) => {
-  const { updateNavState, navState, environment } = useMainContext()
+  const { environment } = useMainContext()
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false)
   const [fixedOpen, setFixedOpen] = React.useState(false)
   // Set maintenance banner to false by default to don't display it
   const [openMaintenance, setOpenMaintenance] = React.useState(false)
   const theme = useTheme()
 
-  const explorerName =
-    `${
-      environment && environment.charAt(0).toUpperCase() + environment.slice(1)
-    } Explorer` || 'Mainnet Explorer'
+  const explorerName = environment
+    ? `${environment} Explorer`
+    : 'Mainnet Explorer'
 
   const switchNetworkText =
     environment === 'mainnet' ? 'Switch to Testnet' : 'Switch to Mainnet'
@@ -247,10 +218,6 @@ export const Nav: FCWithChildren = ({ children }) => {
     environment === 'mainnet'
       ? 'https://sandbox-explorer.nymtech.net'
       : 'https://explorer.nymtech.net'
-
-  const setToActive = (url: string) => {
-    updateNavState(url)
-  }
 
   const fixDrawerOpen = () => {
     setFixedOpen(true)
@@ -310,6 +277,14 @@ export const Nav: FCWithChildren = ({ children }) => {
                 fontWeight: 600,
               }}
             >
+              <MuiLink
+                href="/"
+                underline="none"
+                color="inherit"
+                textTransform="capitalize"
+              >
+                {explorerName}
+              </MuiLink>
               <Button
                 size="small"
                 variant="outlined"
@@ -356,7 +331,7 @@ export const Nav: FCWithChildren = ({ children }) => {
       </AppBar>
       <Drawer
         variant="permanent"
-        open={drawerIsOpen}
+        open={true}
         PaperProps={{
           style: {
             background: theme.palette.nym.networkExplorer.nav.background,
@@ -370,6 +345,7 @@ export const Nav: FCWithChildren = ({ children }) => {
             borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
             justifyContent: 'flex-start',
             paddingLeft: 0,
+            display: 'none',
           }}
         >
           <IconButton
@@ -385,11 +361,11 @@ export const Nav: FCWithChildren = ({ children }) => {
         </DrawerHeader>
 
         <List
-          sx={{ pt: 0, pb: 0 }}
+          sx={{ pb: 0 }}
           onMouseEnter={tempDrawerOpen}
           onMouseLeave={tempDrawerClose}
         >
-          {navState.map((props) => (
+          {originalNavOptions.map((props) => (
             <ExpandableButton
               key={props.url}
               closeDrawer={tempDrawerClose}
@@ -397,7 +373,6 @@ export const Nav: FCWithChildren = ({ children }) => {
               drawIsFixed={fixedOpen}
               fixDrawerClose={fixDrawerClose}
               openDrawer={tempDrawerOpen}
-              setToActive={setToActive}
               isMobile={false}
               {...props}
             />

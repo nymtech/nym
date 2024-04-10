@@ -1,12 +1,12 @@
 # NymVPN - Desktop (GUI)
 
 ```admonish info
-Our alpha testing round is done with participants at live workshop events. This guide will not work for everyone, as the NymVPN source code is not yet publicly accessible. The alpha testing is done on Nym testnet Sandbox environment, this configuration is limited and will not work in the future.
+Our alpha testing round is done with participants at live workshop events and the application in this stage may not work for everyone.
 
 **If you commit to test NymVPN alpha, please start with the [user research form]({{nym_vpn_form_url}}) where all the steps will be provided**. If you disagree with any of the conditions listed, please leave this page.
 ```
 
-This is the alpha version of NymVPN desktop application (GUI). A demo of how the client will look like for majority of day-to-day users.
+This is a desktop (GUI) version of NymVPN client. A demo of how the application will look like for majority of day-to-day users.
 
 Follow the simple [automated script](#automated-script-for-gui-installation) below to install and run NymVPN GUI. If the script didn't work for your distribution or you prefer to do a manual setup follow the steps in the guide for [Linux](gui-linux.md) or [MacOS](gui-mac.md) .
 
@@ -14,12 +14,12 @@ Visit NymVPN alpha latest [release page]({{nym_vpn_releases}}) to check sha sums
 
 ## Linux AppImage Automated Installation Method
 
-The latest releases contain `appimage.sh` script. This method makes the installation simple for Linux users who want to run NymVPN from AppImmage. Executing the command below will download the binary to `~/.local/bin` and verify the checksum.
+The latest releases contain `appimage.sh` script. This method makes the installation simple for Linux users who want to run NymVPN from AppImmage. Executing the command below will download the binary to `~/.local/bin` and verify the checksum:
 ```sh
 curl -fsSL https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-desktop-v<!-- cmdrun scripts/nym_vpn_desktop_version.sh -->/appimage.sh | bash
 ```
 
-Run with the command
+Run with the command:
 ```sh
 sudo -E ~/.local/bin/nym-vpn.appimage
 ```

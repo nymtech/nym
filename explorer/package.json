@@ -21,7 +21,7 @@
     "storybook:build": "build-storybook"
   },
   "dependencies": {
-    "@chain-registry/types": "^0.18.1",
+    "@chain-registry/types": "^0.18.0",
     "@cosmjs/cosmwasm-stargate": "^0.32.0",
     "@cosmjs/crypto": "^0.32.0",
     "@cosmjs/encoding": "^0.32.0",

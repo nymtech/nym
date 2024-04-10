@@ -24,7 +24,7 @@ const nymSandbox: Chain = {
   },
 }
 
-const nymSandboxAssets: AssetList = {
+const nymSandboxAssets = {
   chain_name: 'sandbox',
   assets: [
     {
@@ -50,7 +50,7 @@ const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => {
     const nyx = assets.find((asset) => asset.chain_name === 'nyx')
 
     return nyx ? [nymSandboxAssets, nyx] : [nymSandboxAssets]
-  }, [assets])
+  }, [assets]) as AssetList[]
 
   return (
     <ChainProvider

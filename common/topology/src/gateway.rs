@@ -205,10 +205,10 @@ impl<'a> TryFrom<&'a DescribedGateway> for Node {
             clients_ws_port: self_described.mixnet_websockets.ws_port,
             clients_wss_port: self_described.mixnet_websockets.wss_port,
             identity_key: identity::PublicKey::from_base58_string(
-                &self_described.host_information.keys.ed25519_identity,
+                &self_described.host_information.keys.ed25519,
             )?,
             sphinx_key: encryption::PublicKey::from_base58_string(
-                &self_described.host_information.keys.x25519_sphinx,
+                &self_described.host_information.keys.x25519,
             )?,
             version: self_described
                 .build_information

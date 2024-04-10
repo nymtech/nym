@@ -1,0 +1,6 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "@nymproject/eslint-config-react-typescript"
+  ]
+}

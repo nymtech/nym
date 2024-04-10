@@ -1,14 +1,17 @@
-import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
+import * as React from 'react'
+import { useTheme } from '@mui/material/styles'
 
 interface DiscordIconProps {
-  size?: number | string;
-  color?: string;
+  size?: number | string
+  color?: string
 }
 
-export const DiscordIcon: FCWithChildren<DiscordIconProps> = ({ size, color: colorProp }) => {
-  const theme = useTheme();
-  const color = colorProp || theme.palette.text.primary;
+export const DiscordIcon: FCWithChildren<DiscordIconProps> = ({
+  size,
+  color: colorProp,
+}) => {
+  const theme = useTheme()
+  const color = colorProp || theme.palette.text.primary
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <g clipPath="url(#clip0_1223_2296)">
@@ -31,10 +34,5 @@ export const DiscordIcon: FCWithChildren<DiscordIconProps> = ({ size, color: col
         </clipPath>
       </defs>
     </svg>
-  );
-};
-
-DiscordIcon.defaultProps = {
-  size: 24,
-  color: undefined,
-};
+  )
+}

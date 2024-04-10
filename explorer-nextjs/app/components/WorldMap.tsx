@@ -128,8 +128,3 @@ export const WorldMap: FCWithChildren<MapProps> = ({
     </>
   )
 }
-
-WorldMap.defaultProps = {
-  userLocation: undefined,
-  countryData: undefined,
-}

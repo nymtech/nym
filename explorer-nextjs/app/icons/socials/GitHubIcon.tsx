@@ -1,14 +1,17 @@
-import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
+import * as React from 'react'
+import { useTheme } from '@mui/material/styles'
 
 interface GitHubIconProps {
-  size?: number | string;
-  color?: string;
+  size?: number | string
+  color?: string
 }
 
-export const GitHubIcon: FCWithChildren<GitHubIconProps> = ({ size, color: colorProp }) => {
-  const theme = useTheme();
-  const color = colorProp || theme.palette.text.primary;
+export const GitHubIcon: FCWithChildren<GitHubIconProps> = ({
+  size,
+  color: colorProp,
+}) => {
+  const theme = useTheme()
+  const color = colorProp || theme.palette.text.primary
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <g clipPath="url(#clip0_1223_2302)">
@@ -25,10 +28,5 @@ export const GitHubIcon: FCWithChildren<GitHubIconProps> = ({ size, color: color
         </clipPath>
       </defs>
     </svg>
-  );
-};
-
-GitHubIcon.defaultProps = {
-  size: 24,
-  color: undefined,
-};
+  )
+}

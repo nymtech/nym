@@ -1,11 +1,17 @@
-import * as React from 'react';
+import * as React from 'react'
 
 interface DiscordIconProps {
-  size?: { width: number; height: number };
+  size?: { width: number; height: number }
 }
 
 export const NymVpnIcon: FCWithChildren<DiscordIconProps> = ({ size }) => (
-  <svg width={size?.width} height={size?.height} viewBox="0 0 170 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    width={size?.width}
+    height={size?.height}
+    viewBox="0 0 170 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <path
       d="M19.6118 0.128906H19.5405V0.187854V20.7961L10.7849 0.164277L10.773 0.128906H10.7255H5.75959H0.187819H0.128418V0.187854V23.8142V23.8732H0.187819H5.75959H5.81899V23.8142V3.17063L14.6103 23.8378L14.6222 23.8732H14.6697H19.6118H25.1717H25.2311V23.8142V0.187854V0.128906H25.1717H19.6118Z"
       fill="white"
@@ -49,8 +55,4 @@ export const NymVpnIcon: FCWithChildren<DiscordIconProps> = ({ size }) => (
       fill="#A8A6A6"
     />
   </svg>
-);
-
-NymVpnIcon.defaultProps = {
-  size: { width: 80, height: 12 },
-};
+)

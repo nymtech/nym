@@ -1,14 +1,17 @@
-import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
+import * as React from 'react'
+import { useTheme } from '@mui/material/styles'
 
 interface TelegramIconProps {
-  size?: number | string;
-  color?: string;
+  size?: number | string
+  color?: string
 }
 
-export const TelegramIcon: FCWithChildren<TelegramIconProps> = ({ size, color: colorProp }) => {
-  const theme = useTheme();
-  const color = colorProp || theme.palette.text.primary;
+export const TelegramIcon: FCWithChildren<TelegramIconProps> = ({
+  size,
+  color: colorProp,
+}) => {
+  const theme = useTheme()
+  const color = colorProp || theme.palette.text.primary
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <path
@@ -16,10 +19,5 @@ export const TelegramIcon: FCWithChildren<TelegramIconProps> = ({ size, color: c
         fill={color}
       />
     </svg>
-  );
-};
-
-TelegramIcon.defaultProps = {
-  size: 24,
-  color: undefined,
-};
+  )
+}

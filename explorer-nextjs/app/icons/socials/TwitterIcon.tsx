@@ -1,14 +1,17 @@
-import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
+import * as React from 'react'
+import { useTheme } from '@mui/material/styles'
 
 interface TwitterIconProps {
-  size?: number | string;
-  color?: string;
+  size?: number | string
+  color?: string
 }
 
-export const TwitterIcon: FCWithChildren<TwitterIconProps> = ({ size, color: colorProp }) => {
-  const theme = useTheme();
-  const color = colorProp || theme.palette.text.primary;
+export const TwitterIcon: FCWithChildren<TwitterIconProps> = ({
+  size,
+  color: colorProp,
+}) => {
+  const theme = useTheme()
+  const color = colorProp || theme.palette.text.primary
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <g clipPath="url(#clip0_1223_2294)">
@@ -23,10 +26,5 @@ export const TwitterIcon: FCWithChildren<TwitterIconProps> = ({ size, color: col
         </clipPath>
       </defs>
     </svg>
-  );
-};
-
-TwitterIcon.defaultProps = {
-  size: 24,
-  color: undefined,
-};
+  )
+}

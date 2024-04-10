@@ -1,15 +1,15 @@
-import * as React from 'react';
-import { Box, Card, CardContent, IconButton, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import EastIcon from '@mui/icons-material/East';
+import * as React from 'react'
+import { Box, Card, CardContent, IconButton, Typography } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
+import EastIcon from '@mui/icons-material/East'
 
 interface StatsCardProps {
-  icon: React.ReactNode;
-  title: string;
-  count?: string | number;
-  errorMsg?: Error | string;
-  onClick?: () => void;
-  color?: string;
+  icon: React.ReactNode
+  title: string
+  count?: string | number
+  errorMsg?: Error | string
+  onClick?: () => void
+  color?: string
 }
 export const StatsCard: FCWithChildren<StatsCardProps> = ({
   icon,
@@ -19,8 +19,8 @@ export const StatsCard: FCWithChildren<StatsCardProps> = ({
   errorMsg,
   color: colorProp,
 }) => {
-  const theme = useTheme();
-  const color = colorProp || theme.palette.text.primary;
+  const theme = useTheme()
+  const color = colorProp || theme.palette.text.primary
   return (
     <Card onClick={onClick} sx={{ height: '100%' }}>
       <CardContent
@@ -38,10 +38,21 @@ export const StatsCard: FCWithChildren<StatsCardProps> = ({
         <Box display="flex" alignItems="center" color={color}>
           <Box display="flex">
             {icon}
-            <Typography ml={3} mr={0.75} fontSize="inherit" fontWeight="inherit" data-testid={`${title}-amount`}>
+            <Typography
+              ml={3}
+              mr={0.75}
+              fontSize="inherit"
+              fontWeight="inherit"
+              data-testid={`${title}-amount`}
+            >
               {count === undefined || count === null ? '' : count}
             </Typography>
-            <Typography mr={1} fontSize="inherit" fontWeight="inherit" data-testid={title}>
+            <Typography
+              mr={1}
+              fontSize="inherit"
+              fontWeight="inherit"
+              data-testid={title}
+            >
               {title}
             </Typography>
           </Box>
@@ -51,17 +62,12 @@ export const StatsCard: FCWithChildren<StatsCardProps> = ({
         </Box>
         {errorMsg && (
           <Typography variant="body2" sx={{ color: 'danger', padding: 2 }}>
-            {typeof errorMsg === 'string' ? errorMsg : errorMsg.message || 'Oh no! An error occurred'}
+            {typeof errorMsg === 'string'
+              ? errorMsg
+              : errorMsg.message || 'Oh no! An error occurred'}
           </Typography>
         )}
       </CardContent>
     </Card>
-  );
-};
-
-StatsCard.defaultProps = {
-  onClick: undefined,
-  errorMsg: undefined,
-  color: undefined,
-  count: undefined,
-};
+  )
+}

@@ -137,7 +137,7 @@ Here is a list of the options and their descriptions. Some are essential, some a
 
 If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjustments to be done:
 
-1. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
+1. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries:
 ```sh
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```

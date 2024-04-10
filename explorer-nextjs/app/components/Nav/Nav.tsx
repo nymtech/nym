@@ -101,18 +101,14 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
   closeDrawer,
   fixDrawerClose,
 }) => {
-  const [nestedOptions, toggleNestedOptions] = React.useState(false)
   const { palette } = useTheme()
   const pathname = usePathname()
   const router = useRouter()
 
   const handleClick = () => {
-    if (title === 'Network Components' && nested) {
-      toggleNestedOptions(!nestedOptions)
+    if (title === 'Network Components') {
       return undefined
     }
-
-    closeDrawer?.()
 
     if (isExternalLink) {
       window.open(url, '_blank')
@@ -123,17 +119,15 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
     if (!isExternalLink) {
       router.push(url, {})
     }
+
+    if (closeDrawer) {
+      closeDrawer()
+    }
   }
   const selectedStyle = {
     background: palette.nym.networkExplorer.nav.selected.main,
     borderRight: `3px solid ${palette.nym.highlight}`,
   }
-
-  React.useEffect(() => {
-    if (!drawIsTempOpen && nestedOptions) {
-      toggleNestedOptions(false)
-    }
-  }, [drawIsTempOpen])
 
   return (
     <>
@@ -167,37 +161,25 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
               color: palette.nym.networkExplorer.nav.text,
             }}
           />
-          {nested && nestedOptions && <ExpandLess />}
-          {nested && !nestedOptions && <ExpandMore />}
         </ListItemButton>
       </ListItem>
-      {nestedOptions &&
-        nested?.map((each) => (
-          <ExpandableButton
-            url={each.url}
-            key={each.title}
-            title={each.title}
-            openDrawer={openDrawer}
-            drawIsTempOpen={drawIsTempOpen}
-            closeDrawer={closeDrawer}
-            drawIsFixed={drawIsFixed}
-            fixDrawerClose={fixDrawerClose}
-            isMobile={isMobile}
-            isChild
-            isExternalLink={each.isExternal}
-          />
-        ))}
+      {nested?.map((each) => (
+        <ExpandableButton
+          url={each.url}
+          key={each.title}
+          title={each.title}
+          openDrawer={openDrawer}
+          drawIsTempOpen={drawIsTempOpen}
+          closeDrawer={closeDrawer}
+          drawIsFixed={drawIsFixed}
+          fixDrawerClose={fixDrawerClose}
+          isMobile={isMobile}
+          isChild
+          isExternalLink={each.isExternal}
+        />
+      ))}
     </>
   )
-}
-
-ExpandableButton.defaultProps = {
-  Icon: null,
-  nested: undefined,
-  isChild: false,
-  isActive: false,
-  fixDrawerClose: undefined,
-  closeDrawer: undefined,
 }
 
 export const Nav: FCWithChildren = ({ children }) => {

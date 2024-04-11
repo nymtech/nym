@@ -39,7 +39,8 @@ Make sure your terminal is open in the same directory as your `nym-vpn-cli` bina
 
 1. Run it as root with `sudo` - the command will look like this with specified arguments:
 ```sh
-sudo ./nym-vpn-cli --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WIREGUARD_IP>
+# choose only one conditional --argument listed in {brackets}
+sudo ./nym-vpn-cli { --exit-router-address <EXIT_ROUTER_ADDRESS>|--exit-gateway-id <EXIT_GATEWAY_ID>|--exit-gateway-country <EXIT_GATEWAY_COUNTRY> }
 ```
 
 2. To choose different Gateways, visit [explorer.nymtech.net/network-components/gateways](https://explorer.nymtech.net/network-components/gateways) and copy-paste an identity key of your choice
@@ -57,7 +58,8 @@ Nym Exit Gateway functionality was implemented just recently and not all the Gat
 
 The basic syntax of `nym-vpn-cli` is:
 ```sh
-sudo ./nym-vpn-cli <--exit-router-address <EXIT_ROUTER_ADDRESS>|--exit-gateway-id <EXIT_GATEWAY_ID>|--exit-gateway-country <EXIT_GATEWAY_COUNTRY>>
+# choose only one conditional --argument listed in {brackets}
+sudo ./nym-vpn-cli { --exit-router-address <EXIT_ROUTER_ADDRESS>|--exit-gateway-id <EXIT_GATEWAY_ID>|--exit-gateway-country <EXIT_GATEWAY_COUNTRY> }
 ```
 
 To see all the possibilities run with `--help` flag:

@@ -18,6 +18,7 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     let config_path = args.config.config_path();
     let output = args.output;
     let bonding_info_path = args.bonding_information_output.clone();
+    let init_only = args.init_only;
 
     let config = if !config_path.exists() {
         debug!("no configuration file found at '{}'", config_path.display());
@@ -25,16 +26,11 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         if args.deny_init {
             return Err(NymNodeError::ForbiddenInitialisation { config_path });
         }
-        let init_only = args.init_only;
 
         let maybe_custom_mnemonic = args.take_mnemonic();
 
         let config = args.build_config()?;
         NymNode::initialise(&config, maybe_custom_mnemonic).await?;
-        if init_only {
-            debug!("returning due to the 'init-only' flag");
-            return Ok(());
-        }
 
         config
     } else {
@@ -71,6 +67,11 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
                 source,
             }
         })?;
+    }
+
+    if init_only {
+        debug!("returning due to the 'init-only' flag");
+        return Ok(());
     }
 
     nym_node.run().await

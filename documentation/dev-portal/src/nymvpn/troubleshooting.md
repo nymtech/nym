@@ -2,6 +2,14 @@
 
 Below are listed some points which may need to be addressed when testing NymVPN alpha. If you crashed into any errors which are not listed, please contact us at the testing workshop or in the NymVPN [Matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat).
 
+#### NymVPN attempts to connect to sandbox testnet
+
+If you testing the latest versions and you correctly expect the client to run over the mainnet, but it listens to `https://sandbox-nym-api1.nymtech.net`, it's probably because of your previous configuration.
+
+Check your `config.toml` either in the directory from which you run your client or in `~/.config/nym-vpn/` and remove `sandbox.env` from the config file and folder.
+
+If the problem persists (probably due to some locally cache) download [`mainnet.env`](https://github.com/nymtech/nym/blob/master/envs/mainnet.env) and save it to the same directory.
+
 #### Running GUI failed due to `TOML parse error`
 
 If you see this error when running NymVPN alpha desktop, it's because the older versions needed entry location in `config.toml` configuration file. From `v0.0.3` the entry location is selected directly by the user in the application. This error is due to an old `app-data.toml` config in your computer.

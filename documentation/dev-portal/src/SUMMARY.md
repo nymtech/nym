@@ -24,8 +24,6 @@
         - [Linux](nymvpn/gui-linux.md)
         - [MacOS](nymvpn/gui-mac.md)
     - [CLI](nymvpn/cli.md)
-        - [Linux](nymvpn/cli-linux.md)
-        - [MacOS](nymvpn/cli-mac.md)
     - [Troubleshooting](nymvpn/troubleshooting.md)
     - [NymVPN FAQ](nymvpn/faq.md)
 - [NymConnect X Monero](tutorials/monero.md)

@@ -82,6 +82,9 @@ pub enum CoconutError {
     )]
     TooLongFreePass { expiry_date: OffsetDateTime },
 
+    #[error("the provided free pass expiry is set in the past!")]
+    FreePassExpiryInThePast { expiry_date: OffsetDateTime },
+
     #[error("the received bandwidth voucher did not contain deposit value")]
     MissingBandwidthValue,
 

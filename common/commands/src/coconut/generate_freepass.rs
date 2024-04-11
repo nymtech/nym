@@ -148,6 +148,10 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         bail!("the provided free pass request has too long expiry (expiry is set to on {expiration_date})")
     }
 
+    if expiration_date < now {
+        bail!("the provided free pass expiry is set in the past!")
+    }
+
     // issuance start
     block_until_coconut_is_available(&client).await?;
 

@@ -28,12 +28,10 @@ type TableToolBarProps = {
 
 export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   searchTerm,
-  onChangeSearch,
-  onChangePageSize,
-  pageSize,
   childrenBefore,
   childrenAfter,
   withFilters,
+  onChangeSearch,
 }) => {
   const isMobile = useIsMobile()
   return (
@@ -61,29 +59,6 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
           }}
         >
           {childrenBefore}
-          <FormControl size="small">
-            <Select
-              value={pageSize}
-              onChange={onChangePageSize}
-              sx={{
-                width: isMobile ? '100%' : 200,
-                marginRight: isMobile ? 0 : 2,
-              }}
-            >
-              <MenuItem value={10} data-testid="ten">
-                10
-              </MenuItem>
-              <MenuItem value={30} data-testid="thirty">
-                30
-              </MenuItem>
-              <MenuItem value={50} data-testid="fifty">
-                50
-              </MenuItem>
-              <MenuItem value={100} data-testid="hundred">
-                100
-              </MenuItem>
-            </Select>
-          </FormControl>
         </Box>
         {!!onChangeSearch && (
           <TextField

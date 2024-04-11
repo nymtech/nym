@@ -1,43 +1,49 @@
-import * as React from 'react';
-import { makeStyles } from '@mui/styles';
-import { DataGrid, GridColDef, GridEventListener, useGridApiContext, useGridState } from '@mui/x-data-grid';
-import Pagination from '@mui/material/Pagination';
-import { LinearProgress } from '@mui/material';
-import { GridInitialStateCommunity } from '@mui/x-data-grid/models/gridStateCommunity';
+'use client'
+
+import * as React from 'react'
+import { makeStyles } from '@mui/styles'
+import {
+  DataGrid,
+  GridColDef,
+  GridEventListener,
+  useGridApiContext,
+} from '@mui/x-data-grid'
+import Pagination from '@mui/material/Pagination'
+import { LinearProgress } from '@mui/material'
+import { GridInitialStateCommunity } from '@mui/x-data-grid/models/gridStateCommunity'
 
 const useStyles = makeStyles({
   root: {
     display: 'flex',
   },
-});
+})
 
 const CustomPagination = () => {
-  const apiRef = useGridApiContext();
-  const [state] = useGridState(apiRef);
-
-  const classes = useStyles();
+  const apiRef = useGridApiContext()
+  const classes = useStyles()
+  console.log(apiRef.current.state)
 
   return (
     <Pagination
       className={classes.root}
       sx={{ mt: 2 }}
       color="primary"
-      count={state.pagination.pageCount}
-      page={state.pagination.page + 1}
+      count={apiRef.current.state.pagination.paginationModel.pageSize}
+      page={apiRef.current.state.pagination.paginationModel.page + 1}
       onChange={(_, value) => apiRef.current.setPage(value - 1)}
     />
-  );
-};
+  )
+}
 
 type DataGridProps = {
-  columns: GridColDef[];
-  pagination?: true | undefined;
-  pageSize?: string | undefined;
-  rows: any;
-  loading?: boolean;
-  initialState?: GridInitialStateCommunity;
-  onRowClick?: GridEventListener<'rowClick'> | undefined;
-};
+  columns: GridColDef[]
+  pagination?: true | undefined
+  pageSize?: string | undefined
+  rows: any
+  loading?: boolean
+  initialState?: GridInitialStateCommunity
+  onRowClick?: GridEventListener<'rowClick'> | undefined
+}
 export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
   rows,
   columns,
@@ -47,19 +53,17 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
   initialState,
   onRowClick,
 }) => {
-  if (loading) return <LinearProgress />;
+  if (loading) return <LinearProgress />
 
   return (
     <DataGrid
       onRowClick={onRowClick}
       pagination={pagination}
       rows={rows}
-      components={{
-        Pagination: CustomPagination,
+      slots={{
+        pagination: CustomPagination,
       }}
       columns={columns}
-      pageSize={Number(pageSize)}
-      disableSelectionOnClick
       autoHeight
       hideFooter={!pagination}
       initialState={initialState}
@@ -73,7 +77,8 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
         },
         '*::-webkit-scrollbar-track': {
           background: (t) => t.palette.nym.networkExplorer.scroll.backgroud,
-          outline: (t) => `1px solid ${t.palette.nym.networkExplorer.scroll.border}`,
+          outline: (t) =>
+            `1px solid ${t.palette.nym.networkExplorer.scroll.border}`,
           boxShadow: 'auto',
           borderRadius: 'auto',
         },
@@ -81,16 +86,11 @@ export const UniversalDataGrid: FCWithChildren<DataGridProps> = ({
           backgroundColor: (t) => t.palette.nym.networkExplorer.scroll.color,
           borderRadius: '20px',
           width: '.4em',
-          border: (t) => `3px solid ${t.palette.nym.networkExplorer.scroll.backgroud}`,
+          border: (t) =>
+            `3px solid ${t.palette.nym.networkExplorer.scroll.backgroud}`,
           shadow: 'auto',
         },
       }}
     />
-  );
-};
-
-UniversalDataGrid.defaultProps = {
-  loading: false,
-  pagination: undefined,
-  pageSize: '10',
-};
+  )
+}

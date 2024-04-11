@@ -1,16 +1,27 @@
-import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { useIsMobile } from '../../../hooks/useIsMobile';
-import { EconomicsProgress } from './EconomicsProgress';
+import React from 'react'
+import { Box, Typography } from '@mui/material'
+import { useIsMobile } from '@/app/hooks/useIsMobile'
+import { EconomicsProgress } from './EconomicsProgress'
 
-export const StakeSaturationProgressBar = ({ value, threshold }: { value: number; threshold: number }) => {
-  const isTablet = useIsMobile('lg');
-  const percentageColor = value > (threshold || 100) ? 'warning' : 'inherit';
-  const textColor = percentageColor === 'warning' ? 'warning.main' : 'nym.wallet.fee';
+export const StakeSaturationProgressBar = ({
+  value,
+  threshold,
+}: {
+  value: number
+  threshold: number
+}) => {
+  const isTablet = useIsMobile('lg')
+  const percentageColor = value > (threshold || 100) ? 'warning' : 'inherit'
+  const textColor =
+    percentageColor === 'warning' ? 'warning.main' : 'nym.wallet.fee'
 
   return (
     <Box
-      sx={{ display: 'flex', alignItems: 'center', flexDirection: isTablet ? 'column' : 'row' }}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        flexDirection: isTablet ? 'column' : 'row',
+      }}
       id="field"
       color={percentageColor}
     >
@@ -26,7 +37,11 @@ export const StakeSaturationProgressBar = ({ value, threshold }: { value: number
       >
         {value}%
       </Typography>
-      <EconomicsProgress value={value} threshold={threshold} color={percentageColor} />
+      <EconomicsProgress
+        value={value}
+        threshold={threshold}
+        color={percentageColor}
+      />
     </Box>
-  );
-};
+  )
+}

@@ -1,7 +1,7 @@
 /* eslint-disable camelcase */
 import { MixNodeResponse, MixNodeResponseItem, MixnodeStatus } from '../../typeDefs/explorer-api';
-import { toPercentInteger, toPercentIntegerString } from '../../utils';
-import { unymToNym } from '../../utils/currency';
+import { toPercentInteger, toPercentIntegerString } from '@/app/utils';
+import { unymToNym } from '@/app/utils/currency';
 
 export type MixnodeRowType = {
   mix_id: number;

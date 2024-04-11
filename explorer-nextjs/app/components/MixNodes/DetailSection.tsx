@@ -1,26 +1,36 @@
-import * as React from 'react';
-import { Box, Button, Grid, Typography, useTheme } from '@mui/material';
-import Identicon from 'react-identicons';
-import { useIsMobile } from '@src/hooks/useIsMobile';
-import { MixnodeRowType } from '.';
-import { getMixNodeStatusText, MixNodeStatus } from './Status';
-import { MixNodeDescriptionResponse } from '../../typeDefs/explorer-api';
+import * as React from 'react'
+import { Box, Button, Grid, Typography, useTheme } from '@mui/material'
+import Identicon from 'react-identicons'
+import { useIsMobile } from '@/app/hooks/useIsMobile'
+import { MixNodeDescriptionResponse } from '@/app/typeDefs/explorer-api'
+import { getMixNodeStatusText, MixNodeStatus } from './Status'
+import { MixnodeRowType } from '.'
 
 interface MixNodeDetailProps {
-  mixNodeRow: MixnodeRowType;
-  mixnodeDescription: MixNodeDescriptionResponse;
+  mixNodeRow: MixnodeRowType
+  mixnodeDescription: MixNodeDescriptionResponse
 }
 
-export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNodeRow, mixnodeDescription }) => {
-  const theme = useTheme();
-  const palette = [theme.palette.text.primary];
-  const isMobile = useIsMobile();
-  const statusText = React.useMemo(() => getMixNodeStatusText(mixNodeRow.status), [mixNodeRow.status]);
+export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({
+  mixNodeRow,
+  mixnodeDescription,
+}) => {
+  const theme = useTheme()
+  const palette = [theme.palette.text.primary]
+  const isMobile = useIsMobile()
+  const statusText = React.useMemo(
+    () => getMixNodeStatusText(mixNodeRow.status),
+    [mixNodeRow.status]
+  )
 
   return (
     <Grid container>
       <Grid item xs={12} md={6}>
-        <Box display="flex" flexDirection={isMobile ? 'column' : 'row'} width="100%">
+        <Box
+          display="flex"
+          flexDirection={isMobile ? 'column' : 'row'}
+          width="100%"
+        >
           <Box
             width={72}
             height={72}
@@ -35,11 +45,17 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
               placeItems: 'center',
             }}
           >
-            <Identicon size={43} string={mixNodeRow.identity_key} palette={palette} />
+            <Identicon
+              size={43}
+              string={mixNodeRow.identity_key}
+              palette={palette}
+            />
           </Box>
           <Box ml={isMobile ? 0 : 2} mt={isMobile ? 2 : 0}>
             <Typography fontSize={21}>{mixnodeDescription.name}</Typography>
-            <Typography>{(mixnodeDescription.description || '').slice(0, 1000)}</Typography>
+            <Typography>
+              {(mixnodeDescription.description || '').slice(0, 1000)}
+            </Typography>
             <Button
               component="a"
               variant="text"
@@ -74,7 +90,10 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
         mt={isMobile ? 3 : undefined}
       >
         <Box display="flex" flexDirection="column">
-          <Typography fontWeight="600" alignSelf={isMobile ? 'start' : 'self-end'}>
+          <Typography
+            fontWeight="600"
+            alignSelf={isMobile ? 'start' : 'self-end'}
+          >
             Node status:
           </Typography>
           <Box mt={2} alignSelf={isMobile ? 'start' : 'self-end'}>
@@ -91,5 +110,5 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
         </Box>
       </Grid>
     </Grid>
-  );
-};
+  )
+}

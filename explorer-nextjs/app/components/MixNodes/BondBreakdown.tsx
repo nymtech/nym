@@ -1,30 +1,31 @@
-import * as React from 'react';
-import { Alert, Box, CircularProgress, Typography } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
-import { ExpandMore } from '@mui/icons-material';
-import { currencyToString } from '../../utils/currency';
-import { useMixnodeContext } from '../../context/mixnode';
-import { useIsMobile } from '../../hooks/useIsMobile';
+import * as React from 'react'
+import { Alert, Box, CircularProgress, Typography } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableContainer from '@mui/material/TableContainer'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import Paper from '@mui/material/Paper'
+import { ExpandMore } from '@mui/icons-material'
+import { currencyToString } from '@/app/utils/currency'
+import { useMixnodeContext } from '@/app/context/mixnode'
+import { useIsMobile } from '@/app/hooks/useIsMobile'
 
 export const BondBreakdownTable: FCWithChildren = () => {
-  const { mixNode, delegations, uniqDelegations } = useMixnodeContext();
-  const [showDelegations, toggleShowDelegations] = React.useState<boolean>(false);
+  const { mixNode, delegations, uniqDelegations } = useMixnodeContext()
+  const [showDelegations, toggleShowDelegations] =
+    React.useState<boolean>(false)
 
   const [bonds, setBonds] = React.useState({
     delegations: '0',
     pledges: '0',
     bondsTotal: '0',
     hasLoaded: false,
-  });
-  const theme = useTheme();
-  const isMobile = useIsMobile();
+  })
+  const theme = useTheme()
+  const isMobile = useIsMobile()
 
   React.useEffect(() => {
     if (mixNode?.data) {
@@ -32,54 +33,54 @@ export const BondBreakdownTable: FCWithChildren = () => {
       const decimalisedDelegations = currencyToString({
         amount: mixNode.data.total_delegation.amount.toString(),
         denom: mixNode.data.total_delegation.denom,
-      });
+      })
 
       // pledges
       const decimalisedPledges = currencyToString({
         amount: mixNode.data.pledge_amount.amount.toString(),
         denom: mixNode.data.pledge_amount.denom,
-      });
+      })
 
       // bonds total (del + pledges)
-      const pledgesSum = Number(mixNode.data.pledge_amount.amount);
-      const delegationsSum = Number(mixNode.data.total_delegation.amount);
+      const pledgesSum = Number(mixNode.data.pledge_amount.amount)
+      const delegationsSum = Number(mixNode.data.total_delegation.amount)
       const bondsTotal = currencyToString({
         amount: (pledgesSum + delegationsSum).toString(),
-      });
+      })
 
       setBonds({
         delegations: decimalisedDelegations,
         pledges: decimalisedPledges,
         bondsTotal,
         hasLoaded: true,
-      });
+      })
     }
-  }, [mixNode]);
+  }, [mixNode])
 
   const expandDelegations = () => {
     if (delegations?.data && delegations.data.length > 0) {
-      toggleShowDelegations(!showDelegations);
+      toggleShowDelegations(!showDelegations)
     }
-  };
+  }
   const calcBondPercentage = (num: number) => {
     if (mixNode?.data) {
-      const rawDelegationAmount = Number(mixNode.data.total_delegation.amount);
-      const rawPledgeAmount = Number(mixNode.data.pledge_amount.amount);
-      const rawTotalBondsAmount = rawDelegationAmount + rawPledgeAmount;
-      return ((num * 100) / rawTotalBondsAmount).toFixed(1);
+      const rawDelegationAmount = Number(mixNode.data.total_delegation.amount)
+      const rawPledgeAmount = Number(mixNode.data.pledge_amount.amount)
+      const rawTotalBondsAmount = rawDelegationAmount + rawPledgeAmount
+      return ((num * 100) / rawTotalBondsAmount).toFixed(1)
     }
-    return 0;
-  };
+    return 0
+  }
 
   if (mixNode?.isLoading || delegations?.isLoading) {
-    return <CircularProgress />;
+    return <CircularProgress />
   }
 
   if (mixNode?.error) {
-    return <Alert severity="error">Mixnode not found</Alert>;
+    return <Alert severity="error">Mixnode not found</Alert>
   }
   if (delegations?.error) {
-    return <Alert severity="error">Unable to get delegations for mixnode</Alert>;
+    return <Alert severity="error">Unable to get delegations for mixnode</Alert>
   }
 
   return (
@@ -115,7 +116,9 @@ export const BondBreakdownTable: FCWithChildren = () => {
                 }}
               >
                 Delegation total {'\u00A0'}
-                {delegations?.data && delegations?.data?.length > 0 && <ExpandMore />}
+                {delegations?.data && delegations?.data?.length > 0 && (
+                  <ExpandMore />
+                )}
               </Box>
             </TableCell>
             <TableCell align="left" data-testid="delegation-total-amount">
@@ -193,8 +196,12 @@ export const BondBreakdownTable: FCWithChildren = () => {
                   <TableCell sx={isMobile ? { width: 190 } : null} align="left">
                     {owner}
                   </TableCell>
-                  <TableCell align="left">{currencyToString({ amount: amount.toString() })}</TableCell>
-                  <TableCell align="left">{calcBondPercentage(amount)}%</TableCell>
+                  <TableCell align="left">
+                    {currencyToString({ amount: amount.toString() })}
+                  </TableCell>
+                  <TableCell align="left">
+                    {calcBondPercentage(amount)}%
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -202,5 +209,5 @@ export const BondBreakdownTable: FCWithChildren = () => {
         </Box>
       )}
     </TableContainer>
-  );
-};
+  )
+}

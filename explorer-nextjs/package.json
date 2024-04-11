@@ -1,7 +1,6 @@
 {
   "name": "@nymproject/network-explorer",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,7 +13,10 @@
     "next": "14.1.4",
     "react": "^18",
     "react-dom": "^18",
-    "react-error-boundary": "^4.0.13"
+    "react-error-boundary": "^4.0.13",
+    "material-react-table": "^2.12.1",
+    "@mui/x-date-pickers": "7.1.1",
+    "@mui/x-data-grid": "7.1.1"
   },
   "devDependencies": {
     "@types/node": "^20",

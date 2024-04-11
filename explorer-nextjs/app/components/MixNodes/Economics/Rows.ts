@@ -1,8 +1,8 @@
-import { currencyToString, unymToNym } from '../../../utils/currency';
-import { useMixnodeContext } from '../../../context/mixnode';
-import { ApiState, MixNodeEconomicDynamicsStatsResponse } from '../../../typeDefs/explorer-api';
+import { currencyToString, unymToNym } from '@/app/utils/currency';
+import { useMixnodeContext } from '@/app/context/mixnode';
+import { ApiState, MixNodeEconomicDynamicsStatsResponse } from '@/app/typeDefs/explorer-api';
+import { toPercentIntegerString } from '@/app/utils';
 import { EconomicsInfoRowWithIndex } from './types';
-import { toPercentIntegerString } from '../../../utils';
 
 const selectionChance = (economicDynamicsStats: ApiState<MixNodeEconomicDynamicsStatsResponse> | undefined) =>
   economicDynamicsStats?.data?.active_set_inclusion_probability || '-';

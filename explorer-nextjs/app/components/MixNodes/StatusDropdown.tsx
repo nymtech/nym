@@ -3,34 +3,33 @@ import { MenuItem } from '@mui/material'
 import Select from '@mui/material/Select'
 import { SelectChangeEvent } from '@mui/material/Select/SelectInput'
 import { SxProps } from '@mui/system'
-import { MixNodeStatus } from './Status'
 import {
   MixnodeStatus,
-  MixnodeStatusWithAll,
-} from '../../typeDefs/explorer-api'
-import { useIsMobile } from '../../hooks/useIsMobile'
+  MixnodeStatusWithAllString,
+} from '@/app/typeDefs/explorer-api'
+import { useIsMobile } from '@/app/hooks/useIsMobile'
+import { MixNodeStatus } from './Status'
 
 // TODO: replace with i18n
 const ALL_NODES = 'All nodes'
 
 interface MixNodeStatusDropdownProps {
-  status?: MixnodeStatusWithAll
+  status?: MixnodeStatusWithAllString
   sx?: SxProps
-  onSelectionChanged?: (status?: MixnodeStatusWithAll) => void
+  onSelectionChanged?: (status?: MixnodeStatusWithAllString) => void
 }
 
 export const MixNodeStatusDropdown: FCWithChildren<
   MixNodeStatusDropdownProps
 > = ({ status, onSelectionChanged, sx }) => {
   const isMobile = useIsMobile()
-  const [statusValue, setStatusValue] = React.useState<MixnodeStatusWithAll>(
-    status || MixnodeStatusWithAll.all
-  )
+  const [statusValue, setStatusValue] =
+    React.useState<MixnodeStatusWithAllString>(status || 'all')
   const onChange = React.useCallback(
     (event: SelectChangeEvent) => {
-      setStatusValue(event.target.value as MixnodeStatusWithAll)
+      setStatusValue(event.target.value as MixnodeStatusWithAllString)
       if (onSelectionChanged) {
-        onSelectionChanged(event.target.value as MixnodeStatusWithAll)
+        onSelectionChanged(event.target.value as MixnodeStatusWithAllString)
       }
     },
     [onSelectionChanged]
@@ -44,9 +43,9 @@ export const MixNodeStatusDropdown: FCWithChildren<
       onChange={onChange}
       renderValue={(value) => {
         switch (value) {
-          case MixnodeStatusWithAll.active:
-          case MixnodeStatusWithAll.standby:
-          case MixnodeStatusWithAll.inactive:
+          case 'active':
+          case 'standby':
+          case 'inactive':
             return <MixNodeStatus status={value as unknown as MixnodeStatus} />
           default:
             return ALL_NODES
@@ -75,10 +74,7 @@ export const MixNodeStatusDropdown: FCWithChildren<
       >
         <MixNodeStatus status={MixnodeStatus.inactive} />
       </MenuItem>
-      <MenuItem
-        value={MixnodeStatusWithAll.all}
-        data-testid="mixnodeStatusSelectOption_allNodes"
-      >
+      <MenuItem value={'all'} data-testid="mixnodeStatusSelectOption_allNodes">
         {ALL_NODES}
       </MenuItem>
     </Select>

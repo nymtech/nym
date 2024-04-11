@@ -38,6 +38,7 @@ pub(crate) mod node_describe_cache;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;
+mod status;
 pub(crate) mod support;
 
 struct ShutdownHandles {

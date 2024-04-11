@@ -106,11 +106,11 @@ pub(crate) async fn handle_connection<R, S, St>(
             trace!("received shutdown signal while performing initial authentication");
             return;
         }
-        Some(None) => {
-            warn!("authentication has failed");
+        Some(Err(err)) => {
+            warn!("authentication has failed: {err}");
             return;
         }
-        Some(Some(auth_handle)) => auth_handle.listen_for_requests(shutdown).await,
+        Some(Ok(auth_handle)) => auth_handle.listen_for_requests(shutdown).await,
     }
 
     trace!("The handler is done!");
@@ -148,6 +148,8 @@ impl AvailableBandwidth {
             if expiration < OffsetDateTime::now_utc() {
                 return true;
             }
+        } else {
+            println!("no free pass expiration");
         }
         false
     }

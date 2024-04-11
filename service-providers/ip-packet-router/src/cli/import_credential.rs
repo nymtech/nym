@@ -10,5 +10,7 @@ use nym_ip_packet_router::error::IpPacketRouterError;
 pub(crate) async fn execute(
     args: CommonClientImportCredentialArgs,
 ) -> Result<(), IpPacketRouterError> {
-    import_credential::<CliIpPacketRouterClient, _>(args).await
+    import_credential::<CliIpPacketRouterClient, _>(args).await?;
+    println!("successfully imported credential!");
+    Ok(())
 }

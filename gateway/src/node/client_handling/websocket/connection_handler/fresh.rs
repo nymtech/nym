@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::error::RequestHandlingError;
 use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
@@ -78,11 +79,44 @@ pub(crate) enum InitialAuthenticationError {
 
     #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
     IncompatibleProtocol { client: Option<u8>, current: u8 },
+
+    #[error("failed to send authentication error response: {source}")]
+    ErrorResponseSendFailure {
+        #[source]
+        source: WsError,
+    },
+
+    #[error("failed to send authentication response: {source}")]
+    ResponseSendFailure {
+        #[source]
+        source: WsError,
+    },
+
+    #[error("possibly received a sphinx packet without prior authentication. Request is going to be ignored")]
+    BinaryRequestWithoutAuthentication,
+
+    #[error("received a connection close message")]
+    CloseMessage,
+
+    #[error("the connection has unexpectedly closed")]
+    ClosedConnection,
+
+    #[error("failed to obtain message from websocket stream: {source}")]
+    FailedToReadMessage {
+        #[source]
+        source: WsError,
+    },
+
+    #[error("could not establish client details")]
+    EmptyClientDetails,
+
+    #[error("failed to upgrade the client handler: {source}")]
+    HandlerUpgradeFailure { source: RequestHandlingError },
 }
 
 impl InitialAuthenticationError {
     /// Converts this Error into an appropriate websocket Message.
-    fn into_error_message(self) -> Message {
+    fn to_error_message(&self) -> Message {
         ServerResponse::new_error(self.to_string()).into()
     }
 }
@@ -665,7 +699,7 @@ where
     // TODO: somehow cleanup this method
     pub(crate) async fn perform_initial_authentication(
         mut self,
-    ) -> Option<AuthenticatedHandler<R, S, St>>
+    ) -> Result<AuthenticatedHandler<R, S, St>, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
@@ -674,40 +708,51 @@ where
         while let Some(msg) = self.read_websocket_message().await {
             let msg = match msg {
                 Ok(msg) => msg,
-                Err(err) => {
-                    debug!("failed to obtain message from websocket stream! stopping connection handler: {err}");
-                    break;
+                Err(source) => {
+                    debug!("failed to obtain message from websocket stream! stopping connection handler: {source}");
+                    return Err(InitialAuthenticationError::FailedToReadMessage { source });
                 }
             };
 
             if msg.is_close() {
-                break;
+                return Err(InitialAuthenticationError::CloseMessage);
             }
 
             // ONLY handle 'Authenticate' or 'Register' requests, ignore everything else
             match msg {
-                Message::Close(_) => break,
+                // we have explicitly checked for close message
+                Message::Close(_) => unreachable!(),
                 Message::Text(text_msg) => {
                     let (mix_sender, mix_receiver) = mpsc::unbounded();
-                    match self.handle_initial_authentication_request(text_msg).await {
+                    return match self.handle_initial_authentication_request(text_msg).await {
                         Err(err) => {
-                            if let Err(err) =
-                                self.send_websocket_message(err.into_error_message()).await
+                            debug!("authentication failure: {err}");
+
+                            // try to send error to the client
+                            if let Err(source) =
+                                self.send_websocket_message(err.to_error_message()).await
                             {
-                                debug!("Failed to send authentication error response - {err}");
-                                return None;
+                                debug!("Failed to send authentication error response: {source}");
+                                return Err(InitialAuthenticationError::ErrorResponseSendFailure {
+                                    source,
+                                });
                             }
+                            // return the underlying error
+                            Err(err)
                         }
                         Ok(auth_result) => {
-                            if let Err(err) = self
+                            // try to send auth response back to the client
+                            if let Err(source) = self
                                 .send_websocket_message(auth_result.server_response.into())
                                 .await
                             {
-                                debug!("Failed to send authentication response - {err}");
-                                return None;
+                                debug!("Failed to send authentication response: {source}");
+                                return Err(InitialAuthenticationError::ResponseSendFailure {
+                                    source,
+                                });
                             }
 
-                            return if let Some(client_details) = auth_result.client_details {
+                            if let Some(client_details) = auth_result.client_details {
                                 // Channel for handlers to ask other handlers if they are still active.
                                 let (is_active_request_sender, is_active_request_receiver) =
                                     mpsc::unbounded();
@@ -723,18 +768,22 @@ where
                                     is_active_request_receiver,
                                 )
                                 .await
-                                .ok()
+                                .map_err(|source| {
+                                    InitialAuthenticationError::HandlerUpgradeFailure { source }
+                                })
                             } else {
-                                None
-                            };
+                                // honestly, it's been so long I don't remember under what conditions its possible (if at all)
+                                // to have empty client details
+                                Err(InitialAuthenticationError::EmptyClientDetails)
+                            }
                         }
-                    }
+                    };
                 }
                 Message::Binary(_) => {
                     // perhaps logging level should be reduced here, let's leave it for now and see what happens
                     // if client is working correctly, this should have never happened
                     debug!("possibly received a sphinx packet without prior authentication. Request is going to be ignored");
-                    if let Err(err) = self
+                    if let Err(source) = self
                         .send_websocket_message(
                             ServerResponse::new_error(
                                 "binary request without prior authentication",
@@ -743,15 +792,18 @@ where
                         )
                         .await
                     {
-                        debug!("Failed to send error response during authentication: {err}",)
+                        return Err(InitialAuthenticationError::ErrorResponseSendFailure {
+                            source,
+                        });
                     }
-                    return None;
+                    return Err(InitialAuthenticationError::BinaryRequestWithoutAuthentication);
                 }
 
                 _ => continue,
             };
         }
-        None
+
+        Err(InitialAuthenticationError::ClosedConnection)
     }
 
     pub(crate) async fn start_handling(self, shutdown: nym_task::TaskClient)

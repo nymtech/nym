@@ -190,6 +190,22 @@ impl ClientControlRequest {
         }
     }
 
+    pub fn name(&self) -> String {
+        match self {
+            ClientControlRequest::Authenticate { .. } => "Authenticate".to_string(),
+            ClientControlRequest::RegisterHandshakeInitRequest { .. } => {
+                "RegisterHandshakeInitRequest".to_string()
+            }
+            ClientControlRequest::BandwidthCredential { .. } => "BandwidthCredential".to_string(),
+            ClientControlRequest::BandwidthCredentialV2 { .. } => {
+                "BandwidthCredentialV2".to_string()
+            }
+            ClientControlRequest::ClaimFreeTestnetBandwidth => {
+                "ClaimFreeTestnetBandwidth".to_string()
+            }
+        }
+    }
+
     pub fn new_enc_coconut_bandwidth_credential_v1(
         credential: &OldV1Credential,
         shared_key: &SharedKeys,
@@ -291,6 +307,15 @@ pub enum ServerResponse {
 }
 
 impl ServerResponse {
+    pub fn name(&self) -> String {
+        match self {
+            ServerResponse::Authenticate { .. } => "Authenticate".to_string(),
+            ServerResponse::Register { .. } => "Register".to_string(),
+            ServerResponse::Bandwidth { .. } => "Bandwidth".to_string(),
+            ServerResponse::Send { .. } => "Send".to_string(),
+            ServerResponse::Error { .. } => "Error".to_string(),
+        }
+    }
     pub fn new_error<S: Into<String>>(msg: S) -> Self {
         ServerResponse::Error {
             message: msg.into(),

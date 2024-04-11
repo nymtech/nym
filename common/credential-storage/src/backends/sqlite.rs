@@ -44,7 +44,7 @@ impl CoconutCredentialManager {
             r#"
                 SELECT * 
                 FROM coconut_credentials
-                WHERE coconut_credentials.credential_type == "FreeBandwidthPass"
+                WHERE coconut_credentials.credential_type == "FreeBandwidthPass" AND coconut_credentials.expired = false
                       AND NOT EXISTS (SELECT 1
                                       FROM   credential_usage
                                       WHERE  credential_usage.credential_id = coconut_credentials.id

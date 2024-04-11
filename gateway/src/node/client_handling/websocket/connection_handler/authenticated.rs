@@ -44,6 +44,11 @@ pub enum RequestHandlingError {
     #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
 
+    #[error(
+        "the database entry for bandwidth of the registered client {client_address} is missing!"
+    )]
+    MissingClientBandwidthEntry { client_address: String },
+
     #[error("Provided bandwidth IV is malformed - {0}")]
     MalformedIV(#[from] IVConversionError),
 
@@ -53,8 +58,8 @@ pub enum RequestHandlingError {
     #[error("Provided binary request was malformed - {0}")]
     InvalidTextRequest(<ClientControlRequest as TryFrom<String>>::Error),
 
-    #[error("The received request is not valid in the current context")]
-    IllegalRequest,
+    #[error("The received request is not valid in the current context: {additional_context}")]
+    IllegalRequest { additional_context: String },
 
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
@@ -92,8 +97,8 @@ pub enum RequestHandlingError {
     #[error("the provided credential did not contain a valid type attribute")]
     InvalidTypeAttribute,
 
-    #[error("insufficient bandwidth available to process the request")]
-    OutOfBandwidth,
+    #[error("insufficient bandwidth available to process the request. required: {required}B, available: {available}B")]
+    OutOfBandwidth { required: i64, available: i64 },
 
     #[error("the provided credential did not have a bandwidth attribute")]
     MissingBandwidthAttribute,
@@ -179,7 +184,9 @@ where
             .storage
             .get_available_bandwidth(client.address)
             .await?
-            .ok_or(RequestHandlingError::IllegalRequest)?;
+            .ok_or(RequestHandlingError::MissingClientBandwidthEntry {
+                client_address: client.address.as_base58_string(),
+            })?;
 
         Ok(AuthenticatedHandler {
             inner: fresh,
@@ -218,6 +225,19 @@ where
         // any increases to bandwidth should get flushed immediately
         // (we don't want to accidentally miss somebody claiming a gigabyte voucher)
         self.flush_bandwidth().await
+    }
+
+    async fn set_freepass_expiration(
+        &mut self,
+        expiration: OffsetDateTime,
+    ) -> Result<(), RequestHandlingError> {
+        self.client_bandwidth.bandwidth.freepass_expiration = Some(expiration);
+        self.inner
+            .storage
+            .set_freepass_expiration(self.client.address, expiration)
+            .await?;
+        self.client_bandwidth.update_flush_data();
+        Ok(())
     }
 
     /// Decreases the amount of available bandwidth of the connected client by the specified value.
@@ -302,7 +322,10 @@ where
         };
 
         // this will extract token amounts out of bandwidth vouchers and validate expiry of free passes
-        let bandwidth = Bandwidth::try_from_raw_value(bandwidth_attribute, credential.data.typ)?;
+        let (raw_bandwidth, freepass_expiration) =
+            Bandwidth::parse_raw_bandwidth(bandwidth_attribute, credential.data.typ)?;
+
+        let bandwidth = Bandwidth::new(raw_bandwidth)?;
 
         trace!("embedded bandwidth: {bandwidth:?}");
 
@@ -324,7 +347,7 @@ where
             }
         }
 
-        let was_freepass = match credential.data.typ {
+        match credential.data.typ {
             CredentialType::Voucher => {
                 trace!("the credential is a bandwidth voucher. attempting to release the funds");
                 let api_clients = self
@@ -339,15 +362,12 @@ where
                     .coconut_verifier
                     .release_bandwidth_voucher_funds(&api_clients, credential)
                     .await?;
-                false
             }
             CredentialType::FreePass => {
                 // no need to do anything special here, we already extracted the bandwidth amount and checked expiry
                 info!("received a free pass credential");
-
-                true
             }
-        };
+        }
 
         // technically this is not atomic, i.e. checking for the spending and then marking as spent,
         // but because we have the `UNIQUE` constraint on the database table
@@ -360,11 +380,20 @@ where
         trace!("storing serial number information");
         self.inner
             .storage
-            .insert_spent_credential(serial_number, was_freepass, self.client.address)
+            .insert_spent_credential(
+                serial_number,
+                freepass_expiration.is_some(),
+                self.client.address,
+            )
             .await?;
 
         trace!("increasing client bandwidth");
         self.increase_bandwidth(bandwidth).await?;
+        // set free pass expiration
+        if let Some(expiration) = freepass_expiration {
+            self.set_freepass_expiration(expiration).await?;
+        }
+
         let available_total = self.client_bandwidth.bandwidth.bytes;
 
         Ok(ServerResponse::Bandwidth { available_total })
@@ -447,7 +476,10 @@ where
         let available_bandwidth = self.client_bandwidth.bandwidth.bytes;
 
         if available_bandwidth < required_bandwidth {
-            return Err(RequestHandlingError::OutOfBandwidth);
+            return Err(RequestHandlingError::OutOfBandwidth {
+                required: required_bandwidth,
+                available: available_bandwidth,
+            });
         }
 
         self.consume_bandwidth(required_bandwidth).await?;
@@ -523,7 +555,13 @@ where
                     .handle_claim_testnet_bandwidth()
                     .await
                     .into_ws_message(),
-                _ => RequestHandlingError::IllegalRequest.into_error_message(),
+                other => RequestHandlingError::IllegalRequest {
+                    additional_context: format!(
+                        "received illegal message of type {} in an authenticated client",
+                        other.name()
+                    ),
+                }
+                .into_error_message(),
             },
         }
     }

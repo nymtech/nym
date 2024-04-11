@@ -181,11 +181,11 @@ async fn get_gateway_description(
     };
 
     let description = NymNodeDescription {
-        host_information: host_info.data,
+        host_information: host_info.data.into(),
         build_information: build_info,
         network_requester,
         ip_packet_router,
-        mixnet_websockets: websockets,
+        mixnet_websockets: websockets.into(),
     };
 
     Ok((gateway.identity_key, description))

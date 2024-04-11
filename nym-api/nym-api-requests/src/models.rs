@@ -9,11 +9,11 @@ use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
-use nym_node_requests::api::v1::gateway::models::WebSockets;
-use nym_node_requests::api::v1::node::models::{BinaryBuildInformationOwned, HostInformation};
+use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::net::IpAddr;
 use std::{fmt, time::Duration};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
@@ -354,6 +354,54 @@ pub struct CirculatingSupplyResponse {
     pub mixmining_reserve: Coin,
     pub vesting_tokens: Coin,
     pub circulating_supply: Coin,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct HostInformation {
+    pub ip_address: Vec<IpAddr>,
+    pub hostname: Option<String>,
+    pub keys: HostKeys,
+}
+
+impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInformation {
+    fn from(value: nym_node_requests::api::v1::node::models::HostInformation) -> Self {
+        HostInformation {
+            ip_address: value.ip_address,
+            hostname: value.hostname,
+            keys: value.keys.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct HostKeys {
+    pub ed25519: String,
+    pub x25519: String,
+}
+
+impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
+    fn from(value: nym_node_requests::api::v1::node::models::HostKeys) -> Self {
+        HostKeys {
+            ed25519: value.ed25519_identity,
+            x25519: value.x25519_sphinx,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct WebSockets {
+    pub ws_port: u16,
+
+    pub wss_port: Option<u16>,
+}
+
+impl From<nym_node_requests::api::v1::gateway::models::WebSockets> for WebSockets {
+    fn from(value: nym_node_requests::api::v1::gateway::models::WebSockets) -> Self {
+        WebSockets {
+            ws_port: value.ws_port,
+            wss_port: value.wss_port,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]

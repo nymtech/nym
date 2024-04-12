@@ -148,8 +148,6 @@ impl AvailableBandwidth {
             if expiration < OffsetDateTime::now_utc() {
                 return true;
             }
-        } else {
-            println!("no free pass expiration");
         }
         false
     }

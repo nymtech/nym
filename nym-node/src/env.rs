@@ -34,6 +34,7 @@ pub mod vars {
     // mixnet:
     pub const NYMNODE_MIXNET_BIND_ADDRESS_ARG: &str = "NYMNODE_MIXNET_BIND_ADDRESS";
     pub const NYMNODE_NYM_APIS_ARG: &str = "NYMNODE_NYM_APIS";
+    pub const NYMNODE_NYXD_URLS_ARG: &str = "NYMNODE_NYXD";
 
     // wireguard:
     pub const NYMNODE_WG_ENABLED_ARG: &str = "NYMNODE_WG_ENABLED";

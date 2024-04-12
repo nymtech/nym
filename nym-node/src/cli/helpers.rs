@@ -195,6 +195,14 @@ pub(crate) struct MixnetArgs {
         env = NYMNODE_NYM_APIS_ARG
     )]
     pub(crate) nym_api_urls: Option<Vec<Url>>,
+
+    /// Addresses to nyxd chain endpoint which the node will use for chain interactions.
+    #[clap(
+        long,
+        value_delimiter = ',',
+        env = NYMNODE_NYXD_URLS_ARG
+    )]
+    pub(crate) nyxd_urls: Option<Vec<Url>>,
 }
 
 impl MixnetArgs {
@@ -209,6 +217,9 @@ impl MixnetArgs {
         }
         if let Some(nym_api_urls) = self.nym_api_urls {
             section.nym_api_urls = nym_api_urls
+        }
+        if let Some(nyxd_urls) = self.nyxd_urls {
+            section.nyxd_urls = nyxd_urls
         }
         section
     }

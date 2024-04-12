@@ -8,5 +8,7 @@ use nym_client_core::cli_helpers::client_import_credential::{
 };
 
 pub(crate) async fn execute(args: CommonClientImportCredentialArgs) -> Result<(), ClientError> {
-    import_credential::<CliNativeClient, _>(args).await
+    import_credential::<CliNativeClient, _>(args).await?;
+    println!("successfully imported credential!");
+    Ok(())
 }

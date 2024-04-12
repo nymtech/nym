@@ -42,6 +42,9 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 
+const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_millis(5);
+const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 512 * 1024; // 512kB
+
 /// Derive default path to gateway's config directory.
 /// It should get resolved to `$HOME/.nym/gateways/<id>/config`
 pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
@@ -516,6 +519,13 @@ pub struct Debug {
     /// Number of messages from offline client that can be pulled at once from the storage.
     pub message_retrieval_limit: i64,
 
+    /// Defines maximum delay between client bandwidth information being flushed to the persistent storage.
+    #[serde(with = "humantime_serde")]
+    pub client_bandwidth_max_flushing_rate: Duration,
+
+    /// Defines a maximum change in client bandwidth before it gets flushed to the persistent storage.
+    pub client_bandwidth_max_delta_flushing_amount: i64,
+
     /// Specifies whether the mixnode should be using the legacy framing for the sphinx packets.
     // it's set to true by default. The reason for that decision is to preserve compatibility with the
     // existing nodes whilst everyone else is upgrading and getting the code for handling the new field.
@@ -533,6 +543,9 @@ impl Default for Debug {
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            client_bandwidth_max_flushing_rate: DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE,
+            client_bandwidth_max_delta_flushing_amount:
+                DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
             use_legacy_framed_packet_version: false,
         }
     }

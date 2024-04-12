@@ -16,6 +16,8 @@ thiserror = { workspace = true }
 url = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 tokio = { version = "1.24.1", features = ["macros"] }
+si-scale = "0.2.2"
+time.workspace = true
 
 # internal
 nym-bandwidth-controller = { path = "../../bandwidth-controller" }

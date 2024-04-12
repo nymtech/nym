@@ -10,5 +10,7 @@ use nym_client_core::cli_helpers::client_import_credential::{
 pub(crate) async fn execute(
     args: CommonClientImportCredentialArgs,
 ) -> Result<(), Socks5ClientError> {
-    import_credential::<CliSocks5Client, _>(args).await
+    import_credential::<CliSocks5Client, _>(args).await?;
+    println!("successfully imported credential!");
+    Ok(())
 }

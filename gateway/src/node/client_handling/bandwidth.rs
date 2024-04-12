@@ -42,18 +42,35 @@ pub struct Bandwidth {
 }
 
 impl Bandwidth {
-    pub const fn new(value: u64) -> Bandwidth {
+    pub const fn new_unchecked(value: u64) -> Bandwidth {
         Bandwidth { value }
     }
 
-    pub fn try_from_raw_value(value: &str, typ: CredentialType) -> Result<Self, BandwidthError> {
-        let bandwidth_value =
+    pub fn new(bandwidth_value: u64) -> Result<Bandwidth, BandwidthError> {
+        if bandwidth_value > i64::MAX as u64 {
+            // note that this would have represented more than 1 exabyte,
+            // which is like 125,000 worth of hard drives, so I don't think we have
+            // to worry about it for now...
+            warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
+            return Err(BandwidthError::UnsupportedBandwidthValue(bandwidth_value));
+        }
+
+        Ok(Bandwidth {
+            value: bandwidth_value,
+        })
+    }
+
+    pub(crate) fn parse_raw_bandwidth(
+        value: &str,
+        typ: CredentialType,
+    ) -> Result<(u64, Option<OffsetDateTime>), BandwidthError> {
+        let (bandwidth_value, freepass_expiration) =
             match typ {
                 CredentialType::Voucher => {
                     let token_value: u64 = value
                         .parse()
                         .map_err(|source| BandwidthError::VoucherValueParsingFailure { source })?;
-                    token_value * nym_network_defaults::BYTES_PER_UTOKEN
+                    (token_value * nym_network_defaults::BYTES_PER_UTOKEN, None)
                 }
                 CredentialType::FreePass => {
                     let expiry_timestamp: i64 = value
@@ -70,21 +87,10 @@ impl Bandwidth {
                     if expiry_date < now {
                         return Err(BandwidthError::ExpiredFreePass { expiry_date });
                     }
-                    nym_network_defaults::BYTES_PER_FREEPASS
+                    (nym_network_defaults::BYTES_PER_FREEPASS, Some(expiry_date))
                 }
             };
-
-        if bandwidth_value > i64::MAX as u64 {
-            // note that this would have represented more than 1 exabyte,
-            // which is like 125,000 worth of hard drives, so I don't think we have
-            // to worry about it for now...
-            warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
-            return Err(BandwidthError::UnsupportedBandwidthValue(bandwidth_value));
-        }
-
-        Ok(Bandwidth {
-            value: bandwidth_value,
-        })
+        Ok((bandwidth_value, freepass_expiration))
     }
 
     pub fn value(&self) -> u64 {

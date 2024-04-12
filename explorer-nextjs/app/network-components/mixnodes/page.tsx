@@ -51,10 +51,7 @@ export default function MixnodesPage() {
   >()
 
   const search = useSearchParams()
-
   const status = search.get('status') as MixnodeStatusWithAll
-
-  console.log('status', status)
 
   React.useEffect(() => {
     // when the status changes, get the mixnodes

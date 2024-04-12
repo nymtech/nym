@@ -16,7 +16,7 @@ const StyledLink = ({
   children,
   dataTestId,
   target,
-  color = 'inherit',
+  color,
   sx,
 }: StyledLinkProps) => (
   <Link

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import router from 'next/router'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   MaterialReactTable,
   useMaterialReactTable,
@@ -11,6 +11,8 @@ import { Grid, Card, Button, Box, Stack } from '@mui/material'
 import {
   CustomColumnHeading,
   DelegateIconButton,
+  DelegateModal,
+  DelegationModal,
   DelegationModalProps,
   MixNodeStatusDropdown,
   MixnodeRowType,
@@ -28,11 +30,16 @@ import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard.js'
 import { splice } from '@/app/utils'
 import { currencyToString } from '@/app/utils/currency'
 import { NYM_BIG_DIPPER } from '@/app/api/constants'
+import {
+  MixnodeStatusWithAll,
+  toMixnodeStatus,
+} from '@/app/typeDefs/explorer-api'
 
 export default function MixnodesPage() {
   const isMobile = useIsMobile()
   const { isWalletConnected } = useWalletContext()
   const { mixnodes, fetchMixnodes } = useMainContext()
+  const router = useRouter()
 
   const [itemSelectedForDelegation, setItemSelectedForDelegation] =
     React.useState<{
@@ -43,12 +50,24 @@ export default function MixnodesPage() {
     DelegationModalProps | undefined
   >()
 
-  console.log(mixnodeToGridRow(mixnodes?.data))
+  const search = useSearchParams()
+
+  const status = search.get('status') as MixnodeStatusWithAll
+
+  console.log('status', status)
 
   React.useEffect(() => {
     // when the status changes, get the mixnodes
-    fetchMixnodes()
-  }, [])
+    fetchMixnodes(toMixnodeStatus(status))
+  }, [status])
+
+  const handleMixnodeStatusChanged = (newStatus?: MixnodeStatusWithAll) => {
+    router.push(
+      newStatus && newStatus !== 'all'
+        ? `/network-components/mixnodes?status=${newStatus}`
+        : '/network-components/mixnodes'
+    )
+  }
 
   const handleOnDelegate = ({
     identityKey,
@@ -67,16 +86,22 @@ export default function MixnodesPage() {
     }
   }
 
+  const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
+    setItemSelectedForDelegation(undefined)
+    setConfirmationModalProps(delegationModalProps)
+  }
+
   const columns = useMemo<MRT_ColumnDef<MixnodeRowType>[]>(() => {
     return [
       {
         id: 'mixnode-data',
         header: 'Mixnode Data',
+
         columns: [
           {
             id: 'delegate',
-            header: 'Delegate',
-            size: isMobile ? 25 : 150,
+            accessorKey: 'delegate',
+            size: isMobile ? 50 : 150,
             grow: false,
             accessorFn: (row) => (
               <DelegateIconButton
@@ -89,6 +114,9 @@ export default function MixnodesPage() {
                 }
               />
             ),
+            enableSorting: false,
+            enableColumnActions: false,
+            Filter: () => null,
           },
           {
             id: 'identity_key',
@@ -170,116 +198,116 @@ export default function MixnodesPage() {
               </StyledLink>
             ),
           },
+          {
+            id: 'profit_percentage',
+            accessorKey: 'profit_percentage',
+            header: 'Profit Margin',
+            size: 145,
+            Header: () => (
+              <CustomColumnHeading
+                headingTitle="Profit Margin"
+                tooltipInfo="Percentage of the delegators rewards that the operator takes as fee before rewards are distributed to the delegators."
+              />
+            ),
+            Cell: ({ row }) => (
+              <StyledLink
+                to={`/network-components/mixnode/${row.original.mix_id}`}
+                color={useGetMixNodeStatusColor(row.original.status)}
+              >{`${row.original.profit_percentage}%`}</StyledLink>
+            ),
+          },
+          {
+            id: 'operating_cost',
+            accessorKey: 'operating_cost',
+            size: 220,
+            header: 'Operating Cost',
+            disableColumnMenu: true,
+            Header: () => (
+              <CustomColumnHeading
+                headingTitle="Operating Cost"
+                tooltipInfo="Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators."
+              />
+            ),
+            Cell: ({ row }) => (
+              <StyledLink
+                to={`/network-components/mixnode/${row.original.mix_id}`}
+                color={useGetMixNodeStatusColor(row.original.status)}
+              >{`${row.original.operating_cost} NYM`}</StyledLink>
+            ),
+          },
+          {
+            id: 'node_performance',
+            accessorKey: 'node_performance',
+            size: 200,
+            header: 'Routing Score',
+            Header: () => (
+              <CustomColumnHeading
+                headingTitle="Routing Score"
+                tooltipInfo="Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test."
+              />
+            ),
+            Cell: ({ row }) => (
+              <StyledLink
+                to={`/network-components/mixnode/${row.original.mix_id}`}
+                color={useGetMixNodeStatusColor(row.original.status)}
+              >{`${row.original.node_performance}%`}</StyledLink>
+            ),
+          },
+          {
+            id: 'owner',
+            accessorKey: 'owner',
+            size: 150,
+            header: 'Owner',
+            Header: () => <CustomColumnHeading headingTitle="Owner" />,
+            Cell: ({ row }) => (
+              <StyledLink
+                to={`${NYM_BIG_DIPPER}/account/${row.original.owner}`}
+                color={useGetMixNodeStatusColor(row.original.status)}
+                target="_blank"
+                data-testid="big-dipper-link"
+              >
+                {splice(7, 29, row.original.owner)}
+              </StyledLink>
+            ),
+          },
+          {
+            id: 'location',
+            accessorKey: 'location',
+            header: 'Location',
+            maxSize: 150,
+            Header: () => <CustomColumnHeading headingTitle="Location" />,
+            Cell: ({ row }) => (
+              <Tooltip text={row.original.location} id="mixnode-location-text">
+                <Box
+                  sx={{
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    cursor: 'pointer',
+                    color: useGetMixNodeStatusColor(row.original.status),
+                  }}
+                >
+                  {row.original.location}
+                </Box>
+              </Tooltip>
+            ),
+          },
+          {
+            id: 'host',
+            accessorKey: 'host',
+            header: 'Host',
+            size: 130,
+            Header: () => <CustomColumnHeading headingTitle="Host" />,
+            Cell: ({ row }) => (
+              <StyledLink
+                color={useGetMixNodeStatusColor(row.original.status)}
+                to={`/network-components/mixnode/${row.original.mix_id}`}
+              >
+                {row.original.host}
+              </StyledLink>
+            ),
+          },
         ],
-      },
-      {
-        id: 'profit_percentage',
-        accessorKey: 'profit_percentage',
-        header: 'Profit Margin',
-        size: 145,
-        Header: () => (
-          <CustomColumnHeading
-            headingTitle="Profit Margin"
-            tooltipInfo="Percentage of the delegators rewards that the operator takes as fee before rewards are distributed to the delegators."
-          />
-        ),
-        Cell: ({ row }) => (
-          <StyledLink
-            to={`/network-components/mixnode/${row.original.mix_id}`}
-            color={useGetMixNodeStatusColor(row.original.status)}
-          >{`${row.original.profit_percentage}%`}</StyledLink>
-        ),
-      },
-      {
-        id: 'operating_cost',
-        accessorKey: 'operating_cost',
-        size: 220,
-        header: 'Operating Cost',
-        disableColumnMenu: true,
-        Header: () => (
-          <CustomColumnHeading
-            headingTitle="Operating Cost"
-            tooltipInfo="Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators."
-          />
-        ),
-        Cell: ({ row }) => (
-          <StyledLink
-            to={`/network-components/mixnode/${row.original.mix_id}`}
-            color={useGetMixNodeStatusColor(row.original.status)}
-          >{`${row.original.operating_cost} NYM`}</StyledLink>
-        ),
-      },
-      {
-        id: 'node_performance',
-        accessorKey: 'node_performance',
-        size: 200,
-        header: 'Routing Score',
-        Header: () => (
-          <CustomColumnHeading
-            headingTitle="Routing Score"
-            tooltipInfo="Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test."
-          />
-        ),
-        Cell: ({ row }) => (
-          <StyledLink
-            to={`/network-components/mixnode/${row.original.mix_id}`}
-            color={useGetMixNodeStatusColor(row.original.status)}
-          >{`${row.original.node_performance}%`}</StyledLink>
-        ),
-      },
-      {
-        id: 'owner',
-        accessorKey: 'owner',
-        size: 150,
-        header: 'Owner',
-        Header: () => <CustomColumnHeading headingTitle="Owner" />,
-        Cell: ({ row }) => (
-          <StyledLink
-            to={`${NYM_BIG_DIPPER}/account/${row.original.owner}`}
-            color={useGetMixNodeStatusColor(row.original.status)}
-            target="_blank"
-            data-testid="big-dipper-link"
-          >
-            {splice(7, 29, row.original.owner)}
-          </StyledLink>
-        ),
-      },
-      {
-        id: 'location',
-        accessorKey: 'location',
-        header: 'Location',
-        maxSize: 150,
-        Header: () => <CustomColumnHeading headingTitle="Location" />,
-        Cell: ({ row }) => (
-          <Tooltip text={row.original.location} id="mixnode-location-text">
-            <Box
-              sx={{
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-                cursor: 'pointer',
-                color: useGetMixNodeStatusColor(row.original.status),
-              }}
-            >
-              {row.original.location}
-            </Box>
-          </Tooltip>
-        ),
-      },
-      {
-        id: 'host',
-        accessorKey: 'host',
-        header: 'Host',
-        size: 130,
-        Header: () => <CustomColumnHeading headingTitle="Host" />,
-        Cell: ({ row }) => (
-          <StyledLink
-            color={useGetMixNodeStatusColor(row.original.status)}
-            to={`/network-components/mixnode/${row.original.mix_id}`}
-          >
-            {row.original.host}
-          </StyledLink>
-        ),
       },
     ]
   }, [])
@@ -292,7 +320,13 @@ export default function MixnodesPage() {
     columns,
     data,
     enableFullScreenToggle: false,
+    state: {
+      isLoading: mixnodes?.isLoading,
+    },
     layoutMode: 'grid-no-grow',
+    initialState: {
+      columnPinning: { left: ['delegate'] },
+    },
   })
 
   return (
@@ -312,8 +346,8 @@ export default function MixnodesPage() {
               childrenBefore={
                 <MixNodeStatusDropdown
                   sx={{ mr: 2 }}
-                  status={'active'}
-                  onSelectionChanged={() => {}}
+                  status={status}
+                  onSelectionChanged={handleMixnodeStatusChanged}
                 />
               }
               childrenAfter={
@@ -328,16 +362,45 @@ export default function MixnodesPage() {
                   </Button>
                 )
               }
-              onChangeSearch={() => {}}
-              onChangePageSize={() => {}}
-              pageSize={''}
-              searchTerm={''}
-              withFilters
             />
             <MaterialReactTable table={table} />
           </Card>
         </Grid>
       </Grid>
+      {itemSelectedForDelegation && (
+        <DelegateModal
+          onClose={() => {
+            setItemSelectedForDelegation(undefined)
+          }}
+          header="Delegate"
+          buttonText="Delegate stake"
+          denom="nym"
+          onOk={(delegationModalProps: DelegationModalProps) =>
+            handleNewDelegation(delegationModalProps)
+          }
+          identityKey={itemSelectedForDelegation.identityKey}
+          mixId={itemSelectedForDelegation.mixId}
+        />
+      )}
+
+      {confirmationModalProps && (
+        <DelegationModal
+          {...confirmationModalProps}
+          open={Boolean(confirmationModalProps)}
+          onClose={async () => {
+            setConfirmationModalProps(undefined)
+            if (confirmationModalProps.status === 'success') {
+              router.push('/delegations')
+            }
+          }}
+          sx={{
+            width: {
+              xs: '90%',
+              sm: 600,
+            },
+          }}
+        />
+      )}
     </DelegationsProvider>
   )
 }

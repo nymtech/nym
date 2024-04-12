@@ -52,7 +52,7 @@ export const PageOverview: FCWithChildren = () => {
                 <Grid item xs={12} md={4}>
                   <StatsCard
                     onClick={() =>
-                      router.push('/network-components/mixnodes/active')
+                      router.push('/network-components/mixnodes?status=active')
                     }
                     title="Active nodes"
                     icon={<Icons.Mixnodes.Status.Active />}
@@ -66,7 +66,7 @@ export const PageOverview: FCWithChildren = () => {
                 <Grid item xs={12} md={4}>
                   <StatsCard
                     onClick={() =>
-                      router.push('/network-components/mixnodes/standby')
+                      router.push('/network-components/mixnodes?status=standby')
                     }
                     title="Standby nodes"
                     color={

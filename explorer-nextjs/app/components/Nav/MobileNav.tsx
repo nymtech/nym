@@ -18,7 +18,7 @@ import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner.j
 import { useIsMobile } from '@/app/hooks/useIsMobile'
 import { MobileDrawerClose } from '@/app/icons/MobileDrawerClose'
 import { Footer } from '../Footer'
-import { ExpandableButton } from './Nav'
+import { ExpandableButton } from './DesktopNav'
 import { ConnectKeplrWallet } from '../Wallet/ConnectKeplrWallet'
 import { NetworkTitle } from '../NetworkTitle'
 import { originalNavOptions } from '@/app/context/nav'

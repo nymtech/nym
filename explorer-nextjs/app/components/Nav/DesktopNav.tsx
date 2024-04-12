@@ -361,7 +361,10 @@ export const Nav: FCWithChildren = ({ children }) => {
           ))}
         </List>
       </Drawer>
-      <Box sx={{ width: '100%', py: 5, px: 6, mt: 7 }}>
+      <Box
+        style={{ width: `calc(100% - ${drawerWidth}px` }}
+        sx={{ py: 5, px: 6, mt: 7 }}
+      >
         {children}
         <Footer />
       </Box>

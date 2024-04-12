@@ -5,7 +5,7 @@ import { SelectChangeEvent } from '@mui/material/Select/SelectInput'
 import { SxProps } from '@mui/system'
 import {
   MixnodeStatus,
-  MixnodeStatusWithAllString,
+  MixnodeStatusWithAll,
 } from '@/app/typeDefs/explorer-api'
 import { useIsMobile } from '@/app/hooks/useIsMobile'
 import { MixNodeStatus } from './Status'
@@ -14,22 +14,23 @@ import { MixNodeStatus } from './Status'
 const ALL_NODES = 'All nodes'
 
 interface MixNodeStatusDropdownProps {
-  status?: MixnodeStatusWithAllString
+  status?: MixnodeStatusWithAll
   sx?: SxProps
-  onSelectionChanged?: (status?: MixnodeStatusWithAllString) => void
+  onSelectionChanged?: (status?: MixnodeStatusWithAll) => void
 }
 
 export const MixNodeStatusDropdown: FCWithChildren<
   MixNodeStatusDropdownProps
 > = ({ status, onSelectionChanged, sx }) => {
   const isMobile = useIsMobile()
-  const [statusValue, setStatusValue] =
-    React.useState<MixnodeStatusWithAllString>(status || 'all')
+  const [statusValue, setStatusValue] = React.useState<MixnodeStatusWithAll>(
+    status || MixnodeStatusWithAll.all
+  )
   const onChange = React.useCallback(
     (event: SelectChangeEvent) => {
-      setStatusValue(event.target.value as MixnodeStatusWithAllString)
+      setStatusValue(event.target.value as MixnodeStatusWithAll)
       if (onSelectionChanged) {
-        onSelectionChanged(event.target.value as MixnodeStatusWithAllString)
+        onSelectionChanged(event.target.value as MixnodeStatusWithAll)
       }
     },
     [onSelectionChanged]

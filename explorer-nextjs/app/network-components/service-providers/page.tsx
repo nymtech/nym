@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   Box,
   Button,
@@ -9,56 +9,18 @@ import {
   Grid,
   ListItem,
   Menu,
-  SelectChangeEvent,
   Typography,
 } from '@mui/material'
-import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { TableToolbar } from '@/app/components/TableToolbar'
 import { Title } from '@/app/components/Title'
-import { UniversalDataGrid } from '@/app/components/Universal-DataGrid'
 import { useMainContext } from '@/app/context/main'
 import { CustomColumnHeading } from '@/app/components/CustomColumnHeading'
-
-const columns: GridColDef[] = [
-  {
-    headerName: 'Client ID',
-    field: 'address',
-    disableColumnMenu: true,
-    flex: 3,
-  },
-  {
-    headerName: 'Type',
-    field: 'service_type',
-    disableColumnMenu: true,
-    flex: 1,
-  },
-  {
-    headerName: 'Routing score',
-    field: 'routing_score',
-    disableColumnMenu: true,
-    flex: 2,
-    sortingOrder: ['asc', 'desc'],
-    sortComparator: (a?: string, b?: string) => {
-      if (!a) return -1 // Place undefined values at the end
-      if (!b) return 1 // Place undefined values at the end
-
-      const aToNum = parseInt(a, 10)
-      const bToNum = parseInt(b, 10)
-
-      if (aToNum > bToNum) return 1
-
-      return -1 // Sort numbers in ascending order
-    },
-    renderCell: (params: GridRenderCellParams) =>
-      !params.value ? '-' : params.value,
-    renderHeader: () => (
-      <CustomColumnHeading
-        headingTitle="Routing score"
-        tooltipInfo="Routing score is only displayed for the service providers that had a successful ping within the last two hours"
-      />
-    ),
-  },
-]
+import {
+  MRT_ColumnDef,
+  MaterialReactTable,
+  useMaterialReactTable,
+} from 'material-react-table'
+import { DirectoryServiceProvider } from '@/app/typeDefs/explorer-api'
 
 const SupportedApps = () => {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
@@ -95,11 +57,62 @@ const SupportedApps = () => {
 
 const ServiceProviders = () => {
   const { serviceProviders } = useMainContext()
-  const [pageSize, setPageSize] = React.useState('10')
 
-  const handleOnPageSizeChange = (event: SelectChangeEvent<string>) => {
-    setPageSize(event.target.value)
-  }
+  const columns = useMemo<MRT_ColumnDef<DirectoryServiceProvider>[]>(() => {
+    return [
+      {
+        id: 'service-providers-data',
+        header: 'Service Providers Data',
+        columns: [
+          {
+            id: 'address',
+            accessorKey: 'address',
+            header: 'Client ID',
+            size: 450,
+          },
+          {
+            id: 'service_type-type',
+            accessorKey: 'service_type',
+            header: 'Type',
+            size: 100,
+          },
+          {
+            id: 'routing_score-score',
+            accessorKey: 'routing_score',
+            header: 'Routing score',
+            Header() {
+              return (
+                <CustomColumnHeading
+                  headingTitle="Routing score"
+                  tooltipInfo="Routing score is only displayed for the service providers that had a successful ping within the last two hours"
+                />
+              )
+            },
+            Cell({ row }) {
+              return row.original.routing_score || '-'
+            },
+          },
+        ],
+      },
+    ]
+  }, [])
+
+  const table = useMaterialReactTable({
+    columns,
+    data: serviceProviders?.data || [],
+    layoutMode: 'grid',
+    state: {
+      isLoading: serviceProviders?.isLoading,
+    },
+    initialState: {
+      sorting: [
+        {
+          id: 'routing_score',
+          desc: true,
+        },
+      ],
+    },
+  })
 
   return (
     <>
@@ -113,33 +126,10 @@ const ServiceProviders = () => {
               padding: 2,
             }}
           >
-            {serviceProviders?.data ? (
-              <>
-                <TableToolbar
-                  onChangePageSize={handleOnPageSizeChange}
-                  pageSize={pageSize}
-                  childrenBefore={<SupportedApps />}
-                />
-                <UniversalDataGrid
-                  pagination
-                  rows={serviceProviders.data}
-                  columns={columns}
-                  pageSize={pageSize}
-                  initialState={{
-                    sorting: {
-                      sortModel: [
-                        {
-                          field: 'routing_score',
-                          sort: 'desc',
-                        },
-                      ],
-                    },
-                  }}
-                />
-              </>
-            ) : (
-              <Typography>No service providers to display</Typography>
-            )}
+            <>
+              <TableToolbar childrenBefore={<SupportedApps />} />
+              <MaterialReactTable table={table} />
+            </>
           </Card>
         </Grid>
       </Grid>

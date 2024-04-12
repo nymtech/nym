@@ -3,7 +3,7 @@
 import React from 'react'
 import { useIsMobile } from '@/app/hooks'
 import { MobileNav } from './MobileNav'
-import { Nav } from './Nav'
+import { Nav } from './DesktopNav'
 
 const Navbar = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useIsMobile()

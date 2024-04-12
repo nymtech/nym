@@ -1,7 +1,9 @@
+'use client'
+
 import React, { useState } from 'react'
 import { Box, SxProps } from '@mui/material'
-import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField'
-import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField'
+import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField.js'
+import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField.js'
 import { CurrencyDenom, DecCoin } from '@nymproject/types'
 import { useWalletContext } from '@/app/context/wallet'
 import { urls } from '@/app/utils'
@@ -13,7 +15,7 @@ import { DelegationModalProps } from './DelegationModal'
 
 const MIN_AMOUNT_TO_DELEGATE = 10
 
-export const DelegateModal: FCWithChildren<{
+type Props = {
   mixId: number
   identityKey: string
   header?: string
@@ -27,7 +29,16 @@ export const DelegateModal: FCWithChildren<{
   backdropProps?: object
   onClose: () => void
   onOk?: (delegationModalProps: DelegationModalProps) => void
-}> = ({ mixId, identityKey, onClose, onOk, denom, sx }) => {
+}
+
+export const DelegateModal = ({
+  mixId,
+  identityKey,
+  onClose,
+  onOk,
+  denom,
+  sx,
+}: Props) => {
   const [amount, setAmount] = useState<DecCoin | undefined>({
     amount: '10',
     denom: 'nym',
@@ -154,6 +165,7 @@ export const DelegateModal: FCWithChildren<{
 
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 3 }}>
         <CurrencyFormField
+          showCoinMark={false}
           required
           fullWidth
           autoFocus

@@ -67,6 +67,10 @@ fn validate_freepass_public_attributes(res: &FreePassRequest) -> Result<()> {
         return Err(CoconutError::TooLongFreePass { expiry_date });
     }
 
+    if expiry_date < now {
+        return Err(CoconutError::FreePassExpiryInThePast { expiry_date });
+    }
+
     Ok(())
 }
 

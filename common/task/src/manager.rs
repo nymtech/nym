@@ -474,6 +474,10 @@ impl TaskClient {
         self.mode.set_should_not_signal_on_drop();
     }
 
+    pub fn disarm(&mut self) {
+        self.mark_as_success();
+    }
+
     pub fn send_we_stopped(&mut self, err: SentError) {
         if self.mode.is_dummy() {
             return;

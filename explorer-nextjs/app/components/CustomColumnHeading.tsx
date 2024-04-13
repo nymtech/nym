@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Box, Typography } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
-import { Tooltip } from '@nymproject/react/tooltip/Tooltip.js'
+import { Tooltip } from '@nymproject/react/tooltip/Tooltip'
 
 export const CustomColumnHeading: FCWithChildren<{
   headingTitle: string

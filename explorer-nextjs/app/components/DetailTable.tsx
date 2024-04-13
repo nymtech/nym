@@ -11,8 +11,8 @@ import {
   TableCellProps,
 } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
-import { Tooltip } from '@nymproject/react/tooltip/Tooltip.js'
-import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard.js'
+import { Tooltip } from '@nymproject/react/tooltip/Tooltip'
+import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard'
 import { Box } from '@mui/system'
 import { unymToNym } from '@/app/utils/currency'
 import { GatewayEnrichedRowType } from './Gateways/Gateways'

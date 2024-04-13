@@ -1,6 +1,6 @@
 import React from 'react'
 import { Typography, SxProps, Stack } from '@mui/material'
-import { Link } from '@nymproject/react/link/Link.js'
+import { Link } from '@nymproject/react/link/Link'
 import { LoadingModal } from './LoadingModal'
 import { ConfirmationModal } from './ConfirmationModal'
 import { ErrorModal } from './ErrorModal'

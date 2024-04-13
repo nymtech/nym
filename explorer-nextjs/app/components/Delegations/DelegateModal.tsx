@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react'
 import { Box, SxProps } from '@mui/material'
-import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField.js'
-import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField.js'
+import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField'
+import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField'
 import { CurrencyDenom, DecCoin } from '@nymproject/types'
 import { useWalletContext } from '@/app/context/wallet'
 import { urls } from '@/app/utils'

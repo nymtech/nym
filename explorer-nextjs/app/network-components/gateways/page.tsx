@@ -9,8 +9,8 @@ import {
   useMaterialReactTable,
 } from 'material-react-table'
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard.js'
-import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip.js'
+import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard'
+import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip'
 import { diff, gte, rcompare } from 'semver'
 import { useMainContext } from '@/app/context/main'
 import { TableToolbar } from '@/app/components/TableToolbar'

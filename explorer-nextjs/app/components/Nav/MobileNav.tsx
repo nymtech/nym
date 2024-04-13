@@ -14,7 +14,7 @@ import {
   Toolbar,
 } from '@mui/material'
 import { Menu } from '@mui/icons-material'
-import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner.js'
+import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner'
 import { useIsMobile } from '@/app/hooks/useIsMobile'
 import { MobileDrawerClose } from '@/app/icons/MobileDrawerClose'
 import { Footer } from '../Footer'

@@ -93,12 +93,12 @@ export default function MixnodesPage() {
       {
         id: 'mixnode-data',
         header: 'Mixnode Data',
-
         columns: [
           {
             id: 'delegate',
             accessorKey: 'delegate',
             size: isMobile ? 50 : 150,
+            header: '',
             grow: false,
             accessorFn: (row) => (
               <DelegateIconButton

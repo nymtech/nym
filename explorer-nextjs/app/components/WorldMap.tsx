@@ -1,5 +1,4 @@
 'use client'
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 
 import * as React from 'react'
 import { scaleLinear } from 'd3-scale'

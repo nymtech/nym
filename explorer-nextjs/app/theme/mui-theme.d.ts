@@ -1,4 +1,3 @@
-/* eslint-disable no-shadow,@typescript-eslint/no-unused-vars,@typescript-eslint/no-empty-interface,import/no-extraneous-dependencies */
 import { Theme, ThemeOptions, Palette, PaletteOptions } from '@mui/material/styles';
 import { NymTheme, NymPaletteWithExtensions, NymPaletteWithExtensionsOptions } from '@nymproject/mui-theme';
 
@@ -30,8 +29,8 @@ declare module '@mui/material/styles' {
    *
    * IMPORTANT: only add extensions to the interfaces above, do not modify the lines below
    */
-  interface Theme extends NymTheme {}
-  interface ThemeOptions extends Partial<NymTheme> {}
-  interface Palette extends NymPaletteWithExtensions {}
-  interface PaletteOptions extends NymPaletteWithExtensionsOptions {}
+  interface Theme extends NymTheme { }
+  interface ThemeOptions extends Partial<NymTheme> { }
+  interface Palette extends NymPaletteWithExtensions { }
+  interface PaletteOptions extends NymPaletteWithExtensionsOptions { }
 }

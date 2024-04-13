@@ -21,7 +21,7 @@ import {
   useMaterialReactTable,
 } from 'material-react-table'
 
-export const PageMixnodesMap: FCWithChildren = () => {
+const PageMixnodesMap = () => {
   const { countryData } = useMainContext()
 
   const data = useMemo(() => {

@@ -2,7 +2,7 @@ import * as React from 'react'
 import { FallbackProps } from 'react-error-boundary'
 import { Alert, AlertTitle, Container } from '@mui/material'
 import { NymThemeProvider } from '@nymproject/mui-theme'
-import { NymLogo } from '@nymproject/react/logo/NymLogo'
+import { NymLogo } from '@nymproject/react/logo/NymLogo.js'
 
 export const ErrorBoundaryContent: FCWithChildren<FallbackProps> = ({
   error,

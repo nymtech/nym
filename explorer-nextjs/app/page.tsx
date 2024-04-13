@@ -18,7 +18,7 @@ import { formatNumber } from '@/app/utils'
 import { useMainContext } from './context/main'
 import { useRouter } from 'next/navigation'
 
-export const PageOverview: FCWithChildren = () => {
+const PageOverview = () => {
   const theme = useTheme()
   const router = useRouter()
 

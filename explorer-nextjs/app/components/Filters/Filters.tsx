@@ -130,7 +130,7 @@ export const Filters = () => {
   }
 
   const onClearFilters = async () => {
-    await fetchMixnodes(toMixnodeStatus(status))
+    await fetchMixnodes(toMixnodeStatus(MixnodeStatusWithAll[status]))
     resetFilters()
   }
 

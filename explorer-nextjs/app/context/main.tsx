@@ -27,7 +27,6 @@ interface StateData {
   globalError?: string | undefined
   mixnodes?: ApiState<MixNodeResponse>
   mode: PaletteMode
-  navState: NavOptionType[]
   validators?: ApiState<ValidatorsResponse>
   environment?: Environment
   serviceProviders?: ApiState<DirectoryServiceProvider[]>
@@ -45,7 +44,6 @@ type State = StateData & StateApi
 
 export const MainContext = React.createContext<State>({
   mode: 'dark',
-  navState: originalNavOptions,
   toggleMode: () => undefined,
   filterMixnodes: () => null,
   fetchMixnodes: () => Promise.resolve(undefined),

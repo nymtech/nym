@@ -9,8 +9,8 @@ import {
   useMaterialReactTable,
 } from 'material-react-table'
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
-import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard'
-import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip'
+import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard.js'
+import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip.js'
 import { diff, gte, rcompare } from 'semver'
 import { useMainContext } from '@/app/context/main'
 import { TableToolbar } from '@/app/components/TableToolbar'
@@ -30,7 +30,7 @@ import {
   gatewayToGridRow,
 } from '@/app/components/Gateways/Gateways'
 
-export const PageGateways: FCWithChildren = () => {
+const PageGateways = () => {
   const { gateways } = useMainContext()
   const [versionFilter, setVersionFilter] =
     React.useState<VersionSelectOptions>(VersionSelectOptions.all)
@@ -298,7 +298,6 @@ export const PageGateways: FCWithChildren = () => {
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <Box
-          onClick={() => handleSearch(params.value as string)}
           sx={{ justifyContent: 'flex-start', cursor: 'pointer' }}
           data-testid="location-button"
         >

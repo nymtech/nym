@@ -11,7 +11,7 @@ import {
 } from '@mui/material'
 import { Box } from '@mui/system'
 import { useTheme } from '@mui/material/styles'
-import { Tooltip } from '@nymproject/react/tooltip/Tooltip'
+import { Tooltip } from '@nymproject/react/tooltip/Tooltip.js'
 import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types'
 import { UniversalTableProps } from '@/app/components/DetailTable'
 import { textColour } from '@/app/utils'

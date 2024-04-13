@@ -1,4 +1,4 @@
-import { GatewayResponse, GatewayBond, GatewayReportResponse } from '../typeDefs/explorer-api';
+import { GatewayResponse, GatewayBond, GatewayReportResponse } from '@/app/typeDefs/explorer-api';
 import { toPercentInteger } from '@/app/utils';
 
 export type GatewayRowType = {

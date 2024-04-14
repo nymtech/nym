@@ -6,13 +6,13 @@ import { MainContextProvider } from '@/app/context/main'
 
 const Providers = ({ children }: { children: React.ReactNode }) => {
   return (
-    <NetworkExplorerThemeProvider>
-      <MainContextProvider>
+    <MainContextProvider>
+      <NetworkExplorerThemeProvider>
         <CosmosKitProvider>
           <WalletProvider>{children}</WalletProvider>
         </CosmosKitProvider>
-      </MainContextProvider>
-    </NetworkExplorerThemeProvider>
+      </NetworkExplorerThemeProvider>
+    </MainContextProvider>
   )
 }
 

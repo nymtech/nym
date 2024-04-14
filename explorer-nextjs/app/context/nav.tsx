@@ -54,6 +54,6 @@ export const originalNavOptions: NavOptionType[] = [
   {
     url: '/delegations',
     title: 'Delegations',
-    Icon: <DelegateIcon />,
+    Icon: <DelegateIcon sx={{ color: 'white' }} />,
   },
 ]

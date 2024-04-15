@@ -257,6 +257,11 @@ impl Config {
         self
     }
 
+    pub fn with_client_keys_path(mut self, client_keys: PathBuf) -> Self {
+        self.wireguard.storage_paths.client_keys = client_keys;
+        self
+    }
+
     pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
         self.gateway.listening_address = listening_address;
 
@@ -376,7 +381,9 @@ impl Default for Wireguard {
             bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_PORT),
             announced_port: WG_PORT,
             private_network_prefix: 16,
-            storage_paths: WireguardPaths {},
+            storage_paths: WireguardPaths {
+                client_keys: PathBuf::from("/root/keys_pub.json"),
+            },
         }
     }
 }

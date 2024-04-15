@@ -517,7 +517,7 @@ pub struct Wireguard {
 }
 
 impl Wireguard {
-    pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
+    pub fn new_default<P: AsRef<Path>>(_data_dir: P) -> Self {
         Wireguard {
             enabled: false,
             bind_address: SocketAddr::new(
@@ -527,7 +527,9 @@ impl Wireguard {
             private_network_ip: DEFAULT_WIREGUARD_NETWORK_IP,
             announced_port: DEFAULT_WIREGUARD_PORT,
             private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
-            storage_paths: persistence::WireguardPaths::new(data_dir),
+            storage_paths: persistence::WireguardPaths {
+                client_keys: PathBuf::from("/root/keys_pub.json"),
+            },
         }
     }
 }

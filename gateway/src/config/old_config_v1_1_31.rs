@@ -131,7 +131,7 @@ impl From<ConfigV1_1_31> for Config {
                 announced_port: value.wireguard.announced_port,
                 private_network_prefix: Default::default(),
                 storage_paths: WireguardPaths {
-                    // no fields (yet)
+                    client_keys: Default::default(),
                 },
             },
             storage_paths: GatewayPaths {

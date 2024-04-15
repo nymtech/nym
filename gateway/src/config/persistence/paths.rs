@@ -173,11 +173,13 @@ impl KeysPaths {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WireguardPaths {
-    // pub keys:
+    pub client_keys: PathBuf,
 }
 
 impl WireguardPaths {
     pub fn new_empty() -> Self {
-        WireguardPaths {}
+        WireguardPaths {
+            client_keys: PathBuf::from("/root/keys_pub.json"),
+        }
     }
 }

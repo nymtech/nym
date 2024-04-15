@@ -230,7 +230,11 @@ impl<St> Gateway<St> {
         &self,
         shutdown: TaskClient,
     ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync>> {
-        nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
+        let file = std::fs::File::open(&self.config.wireguard.storage_paths.client_keys)?;
+        let reader = std::io::BufReader::new(file);
+        let peers = serde_json::from_reader(reader)?;
+        log::info!("Starting wireguard");
+        nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry), peers).await
     }
 
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]

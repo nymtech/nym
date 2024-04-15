@@ -12,11 +12,10 @@ pub async fn start_wireguard(
     _gateway_client_registry: std::sync::Arc<
         nym_wireguard_types::registration::GatewayClientRegistry,
     >,
+    peer_pairs: Vec<crate::setup::PeerPair>,
 ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    use crate::setup::{peer_allowed_ips, peer_static_public_key, PRIVATE_KEY};
-    use defguard_wireguard_rs::{
-        host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WGApi, WireguardInterfaceApi,
-    };
+    use crate::setup::{peer_static_pairs, PRIVATE_KEY};
+    use defguard_wireguard_rs::{InterfaceConfiguration, WGApi, WireguardInterfaceApi};
     use nym_network_defaults::{WG_PORT, WG_TUN_DEVICE_ADDRESS};
 
     let ifname = String::from("wg0");
@@ -30,13 +29,11 @@ pub async fn start_wireguard(
         peers: vec![],
     };
     wgapi.configure_interface(&interface_config)?;
-    let peer = peer_static_public_key();
-    let mut peer = Peer::new(Key::new(peer.to_bytes()));
-    let peer_ip = peer_allowed_ips();
-    let peer_ip_mask = IpAddrMask::new(peer_ip.network_address(), peer_ip.netmask());
-    peer.set_allowed_ips(vec![peer_ip_mask]);
-    wgapi.configure_peer(&peer)?;
-    wgapi.configure_peer_routing(&[peer.clone()])?;
+    let peers = peer_static_pairs(peer_pairs);
+    for peer in peers.iter() {
+        wgapi.configure_peer(peer)?;
+    }
+    wgapi.configure_peer_routing(&peers)?;
 
     tokio::spawn(async move { task_client.recv().await });
 

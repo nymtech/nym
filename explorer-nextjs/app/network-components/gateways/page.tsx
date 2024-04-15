@@ -106,7 +106,7 @@ const PageGateways = () => {
                     tooltip={`Copy identity key ${row.original.identity_key} to clipboard`}
                   />
                   <StyledLink
-                    to={`/network-components/gateway/${row.original.identity_key}`}
+                    to={`/network-components/gateways/${row.original.identity_key}`}
                     dataTestId="identity-link"
                     color="text.primary"
                   >
@@ -142,7 +142,7 @@ const PageGateways = () => {
             Cell: ({ row }) => {
               return (
                 <StyledLink
-                  to={`/network-components/gateway/${row.original.identity_key}`}
+                  to={`/network-components/gateways/${row.original.identity_key}`}
                   data-testid="node-performance"
                   color="text.primary"
                 >
@@ -159,7 +159,7 @@ const PageGateways = () => {
             Cell: ({ row }) => {
               return (
                 <StyledLink
-                  to={`/network-components/gateway/${row.original.identity_key}`}
+                  to={`/network-components/gateways/${row.original.identity_key}`}
                   data-testid="version"
                   color="text.primary"
                 >
@@ -205,7 +205,7 @@ const PageGateways = () => {
             Cell: ({ row }) => {
               return (
                 <StyledLink
-                  to={`/network-components/gateway/${row.original.identity_key}`}
+                  to={`/network-components/gateways/${row.original.identity_key}`}
                   data-testid="host"
                   color="text.primary"
                 >
@@ -261,7 +261,7 @@ const PageGateways = () => {
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <StyledLink
-          to={`/network-components/gateway/${params.row.identity_key}`}
+          to={`/network-components/gateways/${params.row.identity_key}`}
           data-testid="pledge-amount"
         >
           {`${params.value}%`}
@@ -278,7 +278,7 @@ const PageGateways = () => {
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <StyledLink
-          to={`/network-components/gateway/${params.row.identity_key}`}
+          to={`/network-components/gateways/${params.row.identity_key}`}
           data-testid="version"
         >
           {params.value}
@@ -324,7 +324,7 @@ const PageGateways = () => {
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <StyledLink
-          to={`/network-components/gateway/${params.row.identity_key}`}
+          to={`/network-components/gateways/${params.row.identity_key}`}
           data-testid="host"
         >
           {params.value}
@@ -359,7 +359,7 @@ const PageGateways = () => {
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <StyledLink
-          to={`/network-components/gateway/${params.row.identity_key}`}
+          to={`/network-components/gateways/${params.row.identity_key}`}
           data-testid="pledge-amount"
         >
           {`${unymToNym(params.value, 6)}`}

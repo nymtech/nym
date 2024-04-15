@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -129,32 +129,35 @@ const DelegationsPage = () => {
     return undefined
   }
 
-  const onUndelegate = async (mixId: number) => {
-    setConfirmationModalProps({ status: 'loading' })
+  const onUndelegate = useCallback(
+    async (mixId: number) => {
+      setConfirmationModalProps({ status: 'loading' })
 
-    try {
-      const tx = await handleUndelegate(mixId)
+      try {
+        const tx = await handleUndelegate(mixId)
 
-      if (tx) {
-        setConfirmationModalProps({
-          status: 'success',
-          message: 'Undelegation can take up to one hour to process',
-          transactions: [
-            {
-              url: `${urls('MAINNET').blockExplorer}/transaction/${
-                tx.transactionHash
-              }`,
-              hash: tx.transactionHash,
-            },
-          ],
-        })
+        if (tx) {
+          setConfirmationModalProps({
+            status: 'success',
+            message: 'Undelegation can take up to one hour to process',
+            transactions: [
+              {
+                url: `${urls('MAINNET').blockExplorer}/transaction/${
+                  tx.transactionHash
+                }`,
+                hash: tx.transactionHash,
+              },
+            ],
+          })
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          setConfirmationModalProps({ status: 'error', message: error.message })
+        }
       }
-    } catch (error) {
-      if (error instanceof Error) {
-        setConfirmationModalProps({ status: 'error', message: error.message })
-      }
-    }
-  }
+    },
+    [handleUndelegate]
+  )
 
   const columns = useMemo<
     MRT_ColumnDef<ReturnType<typeof mapToDelegationsRow>>[]
@@ -229,7 +232,7 @@ const DelegationsPage = () => {
         ],
       },
     ]
-  }, [])
+  }, [onUndelegate])
 
   const data = useMemo(() => {
     return (delegations || []).map(mapToDelegationsRow)

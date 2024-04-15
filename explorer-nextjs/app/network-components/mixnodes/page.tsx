@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useMemo } from 'react'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import React, { useCallback, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   MaterialReactTable,
   useMaterialReactTable,
@@ -66,22 +66,19 @@ export default function MixnodesPage() {
     )
   }
 
-  const handleOnDelegate = ({
-    identityKey,
-    mixId,
-  }: {
-    identityKey: string
-    mixId: number
-  }) => {
-    if (!isWalletConnected) {
-      setConfirmationModalProps({
-        status: 'info',
-        message: 'Please connect your wallet to delegate',
-      })
-    } else {
-      setItemSelectedForDelegation({ identityKey, mixId })
-    }
-  }
+  const handleOnDelegate = useCallback(
+    ({ identityKey, mixId }: { identityKey: string; mixId: number }) => {
+      if (!isWalletConnected) {
+        setConfirmationModalProps({
+          status: 'info',
+          message: 'Please connect your wallet to delegate',
+        })
+      } else {
+        setItemSelectedForDelegation({ identityKey, mixId })
+      }
+    },
+    [isWalletConnected]
+  )
 
   const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
     setItemSelectedForDelegation(undefined)
@@ -100,13 +97,13 @@ export default function MixnodesPage() {
             size: isMobile ? 50 : 150,
             header: '',
             grow: false,
-            accessorFn: (row) => (
+            Cell: ({ row }) => (
               <DelegateIconButton
                 size="small"
                 onDelegate={() =>
                   handleOnDelegate({
-                    identityKey: row.identity_key,
-                    mixId: row.mix_id,
+                    identityKey: row.original.identity_key,
+                    mixId: row.original.mix_id,
                   })
                 }
               />
@@ -307,7 +304,7 @@ export default function MixnodesPage() {
         ],
       },
     ]
-  }, [])
+  }, [handleOnDelegate, isMobile])
 
   const data = useMemo(() => {
     return mixnodeToGridRow(mixnodes?.data)

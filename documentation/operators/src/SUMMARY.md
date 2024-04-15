@@ -12,11 +12,11 @@
 
 # Operators Guides
 
-- [Mixnet Nodes Setup](nodes/setup-guides.md)
-    - [Preliminary Steps](preliminary-steps.md)
-    - [Mix Node](nodes/mix-node-setup.md)
-    - [Gateway](nodes/gateway-setup.md)
-    - [Network Requester](nodes/network-requester-setup.md)
+- [Preliminary Steps](nodes/preliminary-steps.md)
+- [Nym Node](nodes/nym-node.md) #add here a basic info from smoosh faq as intro
+  - [Setup](modes/setup.md)
+  - [Configuration](nodes/configuration.md)
+      - [WSS & Reversed Proxy](nodes/proxy-configuration.md)
 - [Nyx Validator Setup](nodes/validator-setup.md)
   - [Nym API Setup](nodes/nym-api.md)
 - [Maintenance](nodes/maintenance.md)
@@ -29,11 +29,7 @@
     - [ExploreNYM scripts](testing/explorenym-scripts.md)
 <!--    - [Run in a Docker](testing/docker-monitor.md) -->
 - [Troubleshooting](nodes/troubleshooting.md)
-<!--
-  - [Nym Nodes]()
-  - [Validators]
-  - [Binary]
--->
+
 
 # Token Economics
 
@@ -43,7 +39,8 @@
 
 # FAQ
 
-- [Mix Nodes](faq/mixnodes-faq.md)
+- [General Operators FAQ](faq/general-faq.md)
+- [Nym Nodes](faq/nym-nodes-faq.md)
 - [Project Smoosh](faq/smoosh-faq.md)
 
 # Legal Forum
@@ -55,6 +52,19 @@
         - [United States](legal/united-states.md)
     - [Landing Pages](legal/landing-pages.md)
 - [How to Add Info](legal/add-content.md)
+
+---
+# Archive
+
+- [Why archive?](archive/archive.md)
+- [Mixnet Nodes Setup](archive/nodes/setup-guides.md)
+    - [Preliminary Steps](archive/nodes/preliminary-steps.md)
+    - [Mix Node](archive/nodes/mix-node-setup.md)
+    - [Gateway](archive/nodes/gateway-setup.md)
+    - [Network Requester](archive/nodes/network-requester-setup.md)
+- [FAQ: Mix Nodes](archive/faq/mixnodes-faq.md)
+- [FAQ: Project Smoosh](archive/faq/smoosh-faq.md)
+
 
 ---
 # Misc.

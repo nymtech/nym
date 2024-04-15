@@ -130,7 +130,7 @@ export default function MixnodesPage() {
                     tooltip={`Copy identity key ${row.original.identity_key} to clipboard`}
                   />
                   <StyledLink
-                    to={`/network-components/mixnode/${row.original.mix_id}`}
+                    to={`/network-components/mixnodes/${row.original.mix_id}`}
                     color={useGetMixNodeStatusColor(row.original.status)}
                     dataTestId="identity-link"
                   >
@@ -146,7 +146,7 @@ export default function MixnodesPage() {
             accessorKey: 'bond',
             Cell: ({ row }) => (
               <StyledLink
-                to={`/network-components/mixnode/${row.original.mix_id}`}
+                to={`/network-components/mixnodes/${row.original.mix_id}`}
                 color={useGetMixNodeStatusColor(row.original.status)}
               >
                 {currencyToString({ amount: row.original.bond.toString() })}
@@ -168,7 +168,7 @@ export default function MixnodesPage() {
             },
             Cell: ({ row }) => (
               <StyledLink
-                to={`/network-components/mixnode/${row.original.mix_id}`}
+                to={`/network-components/mixnodes/${row.original.mix_id}`}
                 color={useGetMixNodeStatusColor(row.original.status)}
               >{`${row.original.stake_saturation} %`}</StyledLink>
             ),
@@ -186,7 +186,7 @@ export default function MixnodesPage() {
             ),
             Cell: ({ row }) => (
               <StyledLink
-                to={`/network-components/mixnode/${row.original.mix_id}`}
+                to={`/network-components/mixnodes/${row.original.mix_id}`}
                 color={useGetMixNodeStatusColor(row.original.status)}
               >
                 {currencyToString({
@@ -208,7 +208,7 @@ export default function MixnodesPage() {
             ),
             Cell: ({ row }) => (
               <StyledLink
-                to={`/network-components/mixnode/${row.original.mix_id}`}
+                to={`/network-components/mixnodes/${row.original.mix_id}`}
                 color={useGetMixNodeStatusColor(row.original.status)}
               >{`${row.original.profit_percentage}%`}</StyledLink>
             ),
@@ -227,7 +227,7 @@ export default function MixnodesPage() {
             ),
             Cell: ({ row }) => (
               <StyledLink
-                to={`/network-components/mixnode/${row.original.mix_id}`}
+                to={`/network-components/mixnodes/${row.original.mix_id}`}
                 color={useGetMixNodeStatusColor(row.original.status)}
               >{`${row.original.operating_cost} NYM`}</StyledLink>
             ),
@@ -245,7 +245,7 @@ export default function MixnodesPage() {
             ),
             Cell: ({ row }) => (
               <StyledLink
-                to={`/network-components/mixnode/${row.original.mix_id}`}
+                to={`/network-components/mixnodes/${row.original.mix_id}`}
                 color={useGetMixNodeStatusColor(row.original.status)}
               >{`${row.original.node_performance}%`}</StyledLink>
             ),
@@ -298,7 +298,7 @@ export default function MixnodesPage() {
             Cell: ({ row }) => (
               <StyledLink
                 color={useGetMixNodeStatusColor(row.original.status)}
-                to={`/network-components/mixnode/${row.original.mix_id}`}
+                to={`/network-components/mixnodes/${row.original.mix_id}`}
               >
                 {row.original.host}
               </StyledLink>

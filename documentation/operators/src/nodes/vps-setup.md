@@ -25,7 +25,7 @@ Before we conclude the testing with exact results, these are the rough specs:
 | Bandwidth    | 1Tb                       |
 | Port speed   | 1Gbps                     |
 
-### `nym-validator`
+### Nyx validator
 
 The specification mentioned below is for running a full node alongside the nym-api. It is recommended to run `nym-api` and a full Nyx node on the same machine for optimum performance.
 
@@ -58,7 +58,7 @@ Before node or validator setup, the VPS needs to be configured and tested, to ve
 
 ### Configure your Firewall
 
-For a `nym-node` or `nym-validator` to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using `ufw`.
+For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using `ufw`.
 
 1. Check `ufw`:
 ```sh

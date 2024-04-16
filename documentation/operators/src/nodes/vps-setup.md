@@ -162,7 +162,7 @@ alongside diagnostics for verifying system settings and network connectivity.
   - The process may prompt you if you want to save current IPv4 rules, choose yes.
 ![](../images/ip_table_prompt.png)
 
-If all the setup went smooth, your server is ready to connect `nym-node` with the rest of the Mixnet. There are a few good configuration suggestions, especially to be considered for Gateway functionality, like Web Secure Socket or Reversed Proxy setup. Visit [Proxy configuration](proxy-configuration) page to see the guides.
+If all the setup went smooth, your server is ready to connect `nym-node` with the rest of the Mixnet. There are a few more good suggestions for `nym-node` VPS configuration, especially to be considered for Gateway functionality, like Web Secure Socket or Reversed Proxy setup. Visit [Proxy configuration](proxy-configuration) page to see the guides.
 
 ## Ports reference tables
 

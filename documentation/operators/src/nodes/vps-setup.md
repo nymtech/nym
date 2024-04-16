@@ -126,7 +126,7 @@ curl -s -L -o gateway_network_check.sh https://gist.githubusercontent.com/tommyv
 2. Download `enable_network_diagnostics.sh`, make executable and run:
 
 ```sh
-curl -s -L -o https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/7adf0d06d83561598c908e29b4a715c11f6432bf/enable_networking_for_nym_nodes.sh && chmod u+x enable_networking_for_nym_nodes.sh && sudo ./enable_networking_for_nym_nodes.sh
+curl -s -L -o enable_networking_for_nym_nodes.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/7adf0d06d83561598c908e29b4a715c11f6432bf/enable_networking_for_nym_nodes.sh && chmod u+x enable_networking_for_nym_nodes.sh && sudo ./enable_networking_for_nym_nodes.sh
 ```
 ~~~admonish example collapsible=true title="An overview of enable_network_diagnostics.sh flow"
 ```sh

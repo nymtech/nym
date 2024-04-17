@@ -16,9 +16,10 @@
   - [Nym Wallet Preparation](nodes/wallet-preparation.md)
   - [VPS Setup](nodes/vps-setup.md)
 - [Nym Node](nodes/nym-node.md) #add here a basic info from smoosh faq as intro
-  - [Setup](modes/setup.md)
+  - [Setup & Run](nodes/setup.md)
   - [Configuration](nodes/configuration.md)
       - [WSS & Reversed Proxy](nodes/proxy-configuration.md)
+  - [Bonding](nodes/bonding.md)
 - [Nyx Validator Setup](nodes/validator-setup.md)
   - [Nym API Setup](nodes/nym-api.md)
 - [Maintenance](nodes/maintenance.md)

@@ -11,16 +11,11 @@ To setup any type of Nym Node, start with either building [Nym's platform](../bi
 ```admonish info
 **Migrating existing nodes to `nym-node` is simple. The steps are documented on the [next page](setup.md)**
 ```
-<!-- NEEDS BETTER LOGIC, WILL COME BACK TO THIS
-**Nym Node section** contains these setup guides:
 
-* Nym Node
-  * [Setup](setup.md)
-  * [Configuration](configuration.md)
-    * [WSS & Reversed Proxy](./network-requester-setup.md)
+## Steps for Nym Node Operators
 
+Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-node` need to:
 
-
-* [Nyx Validator](validator-setup.md)
-* [Nym API](nym-api.md)
--->
+**1. [Setup & Run](setup.md) the node**
+**2.** (Optional but reccomended) **[Configure](configuration.md) the node** (WSS, reversed proxy, automation)
+**3. [Bond](bonding.md) the node to the Nym API,** using Nym wallet

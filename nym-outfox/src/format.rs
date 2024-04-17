@@ -59,9 +59,7 @@ use chacha20poly1305::ChaCha20Poly1305;
 use chacha20poly1305::KeyInit;
 
 use chacha20poly1305::Tag;
-use curve25519_dalek::constants::ED25519_BASEPOINT_TABLE;
-use curve25519_dalek::montgomery::MontgomeryPoint;
-use curve25519_dalek::scalar::Scalar;
+use x25519_dalek::{PublicKey, SharedSecret, StaticSecret};
 
 use std::ops::Range;
 use std::u8;
@@ -222,10 +220,12 @@ impl MixStageParameters {
         user_secret_key: &[u8],
         node_pub_key: &[u8],
         destination: &[u8; 32],
-    ) -> Result<MontgomeryPoint, OutfoxError> {
+    ) -> Result<SharedSecret, OutfoxError> {
         let routing_data = destination;
-        let mix_public_key = MontgomeryPoint(node_pub_key.try_into()?);
-        let user_secret_key = Scalar::from_bytes_mod_order(user_secret_key.try_into()?);
+        let node_pub_key_bytes: [u8; 32] = node_pub_key.try_into()?;
+        let mix_public_key = PublicKey::from(node_pub_key_bytes);
+        let user_secret_key_bytes: [u8; 32] = user_secret_key.try_into()?;
+        let user_secret_key = StaticSecret::from(user_secret_key_bytes);
 
         if buffer.len() != self.incoming_packet_length() {
             return Err(OutfoxError::LenMismatch {
@@ -241,14 +241,14 @@ impl MixStageParameters {
             });
         }
 
-        let user_public_key = (&ED25519_BASEPOINT_TABLE * &user_secret_key).to_montgomery();
-        let shared_key = user_secret_key * mix_public_key;
+        let user_public_key = PublicKey::from(&user_secret_key);
+        let shared_key = user_secret_key.diffie_hellman(&mix_public_key);
 
         // Copy rounting data into buffer
         buffer[self.routing_data_range()].copy_from_slice(routing_data);
 
         // Perform the AEAD
-        let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..])?;
+        let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.to_bytes())?;
         let nonce = [0u8; 12];
 
         let tag = header_aead_key
@@ -259,10 +259,10 @@ impl MixStageParameters {
         buffer[self.tag_range()].copy_from_slice(&tag[..]);
 
         // Copy own public key into buffer
-        buffer[self.pub_element_range()].copy_from_slice(&user_public_key.0[..]);
+        buffer[self.pub_element_range()].copy_from_slice(&user_public_key.to_bytes());
 
         // Do a round of LION on the payload
-        lion_transform_encrypt(&mut buffer[self.payload_range()], &shared_key.0)?;
+        lion_transform_encrypt(&mut buffer[self.payload_range()], &shared_key.to_bytes())?;
 
         Ok(shared_key)
     }
@@ -274,7 +274,8 @@ impl MixStageParameters {
     ) -> Result<Vec<u8>, OutfoxError> {
         // Check the length of the incoming buffer is correct.
 
-        let mix_secret_key = Scalar::from_bytes_mod_order(mix_secret_key.try_into()?);
+        let mix_secret_key_bytes: [u8; 32] = mix_secret_key.try_into()?;
+        let mix_secret_key = StaticSecret::from(mix_secret_key_bytes);
 
         if buffer.len() != self.incoming_packet_length() {
             return Err(OutfoxError::LenMismatch {
@@ -284,11 +285,12 @@ impl MixStageParameters {
         }
 
         // Derive the shared key for this packet
-        let user_public_key = MontgomeryPoint(buffer[self.pub_element_range()].try_into()?);
-        let shared_key = mix_secret_key * user_public_key;
+        let user_public_key_bytes: [u8; 32] = buffer[self.pub_element_range()].try_into()?;
+        let user_public_key = PublicKey::from(user_public_key_bytes);
+        let shared_key = mix_secret_key.diffie_hellman(&user_public_key);
 
         // Compute the AEAD and check the Tag, if wrong return Err
-        let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.0[..])?;
+        let header_aead_key = ChaCha20Poly1305::new_from_slice(&shared_key.to_bytes())?;
         let nonce = [0; 12];
 
         let tag_bytes = buffer[self.tag_range()].to_vec();
@@ -305,7 +307,7 @@ impl MixStageParameters {
 
         let routing_data = buffer[self.routing_data_range()].to_vec();
         // Do a round of LION on the payload
-        lion_transform_decrypt(&mut buffer[self.payload_range()], &shared_key.0)?;
+        lion_transform_decrypt(&mut buffer[self.payload_range()], &shared_key.to_bytes())?;
 
         Ok(routing_data)
     }

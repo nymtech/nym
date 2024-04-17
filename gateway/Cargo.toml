@@ -50,7 +50,7 @@ tokio = { workspace = true, features = [
     "time",
 ] }
 tokio-stream = { version = "0.1.11", features = ["fs"] }
-tokio-tungstenite = { vworkspace = true }
+tokio-tungstenite = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true, features = ["serde"] }
 time = { workspace = true }

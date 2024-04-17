@@ -295,6 +295,6 @@ All validator-specific port configuration can be found in `$HOME/.nymd/config/co
 
 | Default port | Use                                  |
 |--------------|--------------------------------------|
-| 1317         | REST API server endpoint             |
-| 26656        | Listen for incoming peer connections |
-| 26660        | Listen for Prometheus connections    |
+| `1317`         | REST API server endpoint             |
+| `26656`        | Listen for incoming peer connections |
+| `26660`        | Listen for Prometheus connections    |

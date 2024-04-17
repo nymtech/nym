@@ -30,15 +30,24 @@ itertools = "0.10.5"
 log = { version = "0.4", features = ["serde"] }
 pretty_env_logger = "0.4.0"
 rand = "0.8"
-rand-07 = { package = "rand", version = "0.7.3" }
-reqwest = { version = "0.12.4", features = ["json", "socks"] }
+reqwest = { version = "0.11.22", features = ["json", "socks"] }
 rust-embed = { version = "6.4.2", features = ["include-exclude"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
 tap = "1.0.1"
 # 07.07.23: JS: I changed the version from ^1.2.2 to fix up indirect import of web-sys
-tauri = { version = "1.4.1", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
+tauri = { version = "1.4.1", features = [
+    "clipboard-write-text",
+    "macos-private-api",
+    "notification-all",
+    "shell-open",
+    "system-tray",
+    "updater",
+    "window-close",
+    "window-minimize",
+    "window-start-dragging",
+] }
 #tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 time = { version = "0.3.17", features = ["local-offset"] }

@@ -22,7 +22,7 @@ colored = "2"
 clap = { workspace = true, features = ["cargo", "env"] }
 humantime-serde = { workspace = true }
 ipnetwork = "0.16.0"
-rand = "0.7.3"
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true

@@ -242,7 +242,7 @@ impl SphinxPacketProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_sphinx_types::crypto::keygen;
+    use nym_sphinx_types::test_utils::fixtures::keygen;
 
     fn fixture() -> SphinxPacketProcessor {
         let local_keys = keygen();

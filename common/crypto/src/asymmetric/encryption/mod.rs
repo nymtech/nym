@@ -56,7 +56,7 @@ pub struct KeyPair {
 impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        let private_key = x25519_dalek::StaticSecret::new(rng);
+        let private_key = x25519_dalek::StaticSecret::random_from_rng(rng);
         let public_key = (&private_key).into();
 
         KeyPair {
@@ -203,7 +203,7 @@ impl<'a> From<&'a PrivateKey> for PublicKey {
 impl PrivateKey {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        let x25519_secret = x25519_dalek::StaticSecret::new(rng);
+        let x25519_secret = x25519_dalek::StaticSecret::random_from_rng(rng);
 
         PrivateKey(x25519_secret)
     }
@@ -322,9 +322,7 @@ impl<'a> From<&'a PrivateKey> for nym_sphinx_types::PrivateKey {
 #[cfg(feature = "sphinx")]
 impl From<nym_sphinx_types::PrivateKey> for PrivateKey {
     fn from(private_key: nym_sphinx_types::PrivateKey) -> Self {
-        let private_key_bytes = private_key.to_bytes();
-        assert_eq!(private_key_bytes.len(), PRIVATE_KEY_SIZE);
-        Self::from_bytes(&private_key_bytes).unwrap()
+        Self(private_key)
     }
 }
 
@@ -366,7 +364,7 @@ mod sphinx_key_conversion {
     #[test]
     fn works_for_backward_conversion() {
         for _ in 0..NUM_ITERATIONS {
-            let (sphinx_private, sphinx_public) = nym_sphinx_types::crypto::keygen();
+            let (sphinx_private, sphinx_public) = nym_sphinx_types::test_utils::fixtures::keygen();
 
             let private_bytes = sphinx_private.to_bytes();
             let public_bytes = sphinx_public.as_bytes();

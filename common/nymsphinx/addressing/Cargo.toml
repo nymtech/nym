@@ -14,5 +14,5 @@ serde = "1.0" # implementing serialization/deserialization for some types, like 
 thiserror = { workspace = true }
 
 [dev-dependencies]
-rand = "0.7"
+rand = "0.8.5"
 nym-crypto = { path = "../../crypto", features = ["rand"] }

@@ -32,7 +32,7 @@ cw-multi-test = { workspace = true }
 cw3-flex-multisig = { path = "../multisig/cw3-flex-multisig" }
 cw4-group = { path = "../multisig/cw4-group" }
 
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 
 [[test]]
 name = "coconut-test"

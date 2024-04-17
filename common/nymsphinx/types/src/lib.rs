@@ -21,7 +21,7 @@ pub use sphinx_packet::{
     payload::{Payload, PAYLOAD_OVERHEAD_SIZE},
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},
-    Error as SphinxError, ProcessedPacket,
+    test_utils, Error as SphinxError, ProcessedPacket,
 };
 #[cfg(feature = "sphinx")]
 use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};

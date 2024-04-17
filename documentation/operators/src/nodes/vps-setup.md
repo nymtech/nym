@@ -276,11 +276,12 @@ All node-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID
 
 #### Gateway functionality ports
 
-| Default port | Use                       |
-|--------------|---------------------------|
-| `1789`       | Listen for Mixnet traffic |
-| `9000`       | Listen for Client traffic |
-| `9001`       | WSS                       |
+| Default port  | Use                           |
+|---------------|-------------------------------|
+| `1789`        | Listen for Mixnet traffic     |
+| `9000`        | Listen for Client traffic     |
+| `9001`        | WSS                           |
+| 8080, 80, 443 | Reversed Proxy & Swagger page |
 
 #### Embedded Network Requester functionality ports
 

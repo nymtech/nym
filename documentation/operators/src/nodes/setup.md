@@ -9,7 +9,7 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](n
 ```
 
 ```admonish info
-**Migrating existing nodes to `nym-node` is simple. The steps are documented [below](#migrate).**
+**Migrating an existing node to a new `nym-node` is simple. The steps are documented [below](#migrate).**
 ```
 
 ```admonish note

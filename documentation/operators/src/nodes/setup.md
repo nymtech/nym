@@ -9,7 +9,7 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](n
 ```
 
 ```admonish info
-**Migrating existing nodes to `nym-node` is simple. The steps are documented below.**
+**Migrating existing nodes to `nym-node` is simple. The steps are documented [below](#migrate).**
 ```
 
 ```admonish note
@@ -24,7 +24,11 @@ To run a new node, you can simply execute the `nym-node` command without any fla
 
 The most crucial aspect of running the node is specifying the `--mode`, which can be one of three: `mixnode`, `entry-gateway`, and `exit-gateway`.
 
-To determine which mode your node is running, you can check the 8080/api/v1/roles endpoint. For example:
+Currently `nym-node` binary enables to run only one `--mode` at a time. In the future the operators will be able to specify multiple modes within one `nym-node`. Our goal is to have as many nodes each running all the available modes enabled and let the Nym API to position the node acoording the network needs in the beginning of each epoch.
+
+Every `exit-gateway` mode is basically an `entry-gateway` with NR (Network Requester) and IPR (IP Packet Router) enabled. This means that every `exit-gateway` is automatically seen as an `entry-gateway` but not the opposite.
+
+To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
 ```
 # for http
 http://<IP_ADDRESS>:8080/api/v1/roles

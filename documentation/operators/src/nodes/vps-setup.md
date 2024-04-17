@@ -97,6 +97,102 @@ sudo ufw status
 
 For more information about your node's port configuration, check the [port reference table](#ports-reference-table) below.
 
+## Setting the ulimit
+
+Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`.
+
+`ulimit` is 1024 by default on most systems. It needs to be set higher, because Nym Nodes make and receive a lot of connections with each others.
+
+If you see errors such as:
+
+```sh
+Failed to accept incoming connection - Os { code: 24, kind: Other, message: "Too many open files" }
+```
+
+This means that the operating system is preventing network connections from being made.
+
+### Set the `ulimit` via `systemd` service file
+
+> **Replace `<NODE>` variable with the name of your service, for example `nym-node`** as we migrated from `nym-mixnode`, `nym-gateway` and `nym-network-requester`.
+
+The ulimit setup is relevant for maintenance of Nym Node only.
+
+Query the `ulimit` of your `<NODE>` with:
+
+```sh
+# for nym-node
+grep -i "open files" /proc/$(ps -A -o pid,cmd|grep <NODE> | grep -v grep |head -n 1 | awk '{print $1}')/limits
+
+# for nyx validator
+grep -i "open files" /proc/$(ps -A -o pid,cmd|grep nymd | grep -v grep |head -n 1 | awk '{print $1}')/limits
+```
+
+You'll get back the hard and soft limits, which looks something like this:
+
+```sh
+Max open files            65536                65536                files
+```
+
+If your output is **the same as above**, your node will not encounter any `ulimit` related issues.
+
+However if either value is `1024`, you must raise the limit via the systemd service file. Add the line:
+
+```sh
+LimitNOFILE=65536
+```
+
+Reload the daemon:
+
+```sh
+systemctl daemon-reload
+```
+
+or execute this as root for system-wide setting of `ulimit`:
+
+```sh
+echo "DefaultLimitNOFILE=65535" >> /etc/systemd/system.conf
+```
+
+Reboot your server, and restart your node. When it comes back, use:
+```sh
+# for nym-node
+cat /proc/$(pidof <NODE>)/limits | grep "Max open files"
+
+# for validator
+cat /proc/$(pidof nym-validator)/limits | grep "Max open files"
+```
+Make sure the limit has changed to `65535`.
+
+### Set the ulimit on `non-systemd` based distributions
+
+In case you chose tmux option for Nym Node automation, see your `ulimit` list by running:
+
+```sh
+ulimit -a
+
+# watch for the output line -n
+-n: file descriptors          1024
+```
+
+You can change it either by running a command:
+
+```sh
+ulimit -u -n 4096
+```
+
+or editing `etc/security/conf` and add the following lines:
+
+```sh
+# Example hard limit for max opened files
+username        hard nofile 4096
+
+# Example soft limit for max opened files
+username        soft nofile 4096
+```
+
+Then reboot your server and restart your node.
+
+
 ## Connectivity Test and Configuration
 
 With embedded Network Requester and IP Packet Router, modules routing data for the Mixnet and NymVPN traffic, there are more connectivity requirements on `nym-node` VPS. While we're working on Rust implementation to have these settings as a part of the binary build, in the meantime we wrote two scripts [`nym_network_diagnostics.sh`](https://gist.github.com/tommyv1987/a5fb30f5966e9d7bfbce58d88a85c0c1) and [`enable_networking_for_nym_nodes.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) to support the operators to configure their servers.

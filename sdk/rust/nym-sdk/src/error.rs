@@ -67,6 +67,9 @@ pub enum Error {
     #[error("bandwidth controller error: {0}")]
     BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 
+    #[error("coconut error: {0}")]
+    CoconutApiError(#[from] nym_validator_client::coconut::CoconutApiError),
+
     #[error("invalid voucher blob")]
     InvalidVoucherBlob,
 

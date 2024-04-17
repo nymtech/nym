@@ -17,6 +17,10 @@ pub struct Config {
     /// Whether to attempt to use gateway with bandwidth credential requirement.
     pub enabled_credentials_mode: bool,
 
+    /// Whether to locally check credential before attempting to pass it to the
+    /// entry gateway
+    pub enabled_local_credentials_check: bool,
+
     /// Flags controlling all sorts of internal client behaviour.
     /// Changing these risk compromising network anonymity!
     pub debug_config: DebugConfig,

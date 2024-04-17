@@ -1,6 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::credential::verify_credential;
 use super::{connection_state::BuilderState, Config, StoragePaths};
 use crate::bandwidth::BandwidthAcquireClient;
 use crate::mixnet::socks5_client::Socks5MixnetClient;
@@ -28,11 +29,15 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
+use nym_credentials::IssuedBandwidthCredential;
 use nym_network_defaults::WG_TUN_DEVICE_IP_ADDRESS;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
+use nym_validator_client::coconut::{all_coconut_api_clients, CoconutApiError};
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
 use rand::rngs::OsRng;
 use std::net::IpAddr;
@@ -188,6 +193,18 @@ where
         self
     }
 
+    #[must_use]
+    pub fn enable_local_credentials_check(mut self) -> Self {
+        self.config.enabled_local_credentials_check = true;
+        self
+    }
+
+    #[must_use]
+    pub fn local_credentials_check(mut self, local_credentials_check: bool) -> Self {
+        self.config.enabled_local_credentials_check = local_credentials_check;
+        self
+    }
+
     /// Use a custom debugging configuration.
     #[must_use]
     pub fn debug_config(mut self, debug_config: DebugConfig) -> Self {
@@ -334,17 +351,18 @@ where
         storage: S,
     ) -> Result<DisconnectedMixnetClient<S>> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
-        let dkg_query_client = if config.enabled_credentials_mode {
-            let client_config =
-                nyxd::Config::try_from_nym_network_details(&config.network_details)?;
-            let client = QueryHttpRpcNyxdClient::connect(
-                client_config,
-                config.network_details.endpoints[0].nyxd_url.as_str(),
-            )?;
-            Some(client)
-        } else {
-            None
-        };
+        let dkg_query_client =
+            if config.enabled_credentials_mode || config.enabled_local_credentials_check {
+                let client_config =
+                    nyxd::Config::try_from_nym_network_details(&config.network_details)?;
+                let client = QueryHttpRpcNyxdClient::connect(
+                    client_config,
+                    config.network_details.endpoints[0].nyxd_url.as_str(),
+                )?;
+                Some(client)
+            } else {
+                None
+            };
 
         Ok(DisconnectedMixnetClient {
             config,
@@ -549,9 +567,89 @@ where
         )
     }
 
+    async fn fetch_valid_credential(
+        &self,
+        gateway_id: &str,
+    ) -> Result<(IssuedBandwidthCredential, i64)> {
+        debug!(
+            "Checking if there is an unspent credential for gateway: {}",
+            gateway_id
+        );
+
+        let stored_issued_credential = self
+            .storage
+            .credential_store()
+            .get_next_unspent_credential(gateway_id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        debug!("Found unspent credential: {}", stored_issued_credential.id);
+
+        let credential_id = stored_issued_credential.id;
+        let issued_credential =
+            IssuedBandwidthCredential::unpack_v1(&stored_issued_credential.credential_data)
+                .unwrap();
+
+        let valid_credential = match issued_credential.variant_data() {
+            BandwidthCredentialIssuedDataVariant::Voucher(_) => {
+                debug!("Credential {credential_id} is a voucher");
+                issued_credential
+            }
+            BandwidthCredentialIssuedDataVariant::FreePass(freepass_info) => {
+                debug!("Credential {credential_id} is a free pass");
+                if freepass_info.expired() {
+                    warn!(
+                    "the free pass (id: {credential_id}) has already expired! The expiration was set to {}",
+                    freepass_info.expiry_date()
+                );
+                    self.storage
+                        .credential_store()
+                        .mark_expired(credential_id)
+                        .await
+                        .unwrap();
+                    panic!("credential {credential_id} has already expired");
+                }
+                issued_credential
+            }
+        };
+        Ok((valid_credential, credential_id))
+    }
+
+    async fn get_coconut_api_clients(&self, epoch_id: u64) -> Result<CoconutClients> {
+        let nyxd_client = self.dkg_query_client.as_ref().unwrap();
+        match all_coconut_api_clients(nyxd_client, epoch_id).await {
+            Ok(clients) => Ok(CoconutClients::Clients(clients)),
+            Err(CoconutApiError::ContractQueryFailure { source }) => match source {
+                NyxdError::NoContractAddressAvailable(_) => Ok(CoconutClients::NoContractAvailable),
+                _ => panic!("failed to query contract"),
+            },
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    async fn check_credential(&self) -> Result<()> {
+        let (valid_credential, credential_id) =
+            self.fetch_valid_credential("gateway_id").await.unwrap();
+
+        let epoch_id = valid_credential.epoch_id();
+        let coconut_api_clients = match self.get_coconut_api_clients(epoch_id).await? {
+            CoconutClients::Clients(clients) => clients,
+            CoconutClients::NoContractAvailable => {
+                log::info!("No Coconut API clients on this network, we are ok");
+                return Ok(());
+            }
+        };
+
+        verify_credential(&valid_credential, credential_id, coconut_api_clients).await
+    }
+
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         self.setup_client_keys().await?;
         self.setup_gateway().await?;
+        if self.config.enabled_local_credentials_check {
+            self.check_credential().await?;
+        }
 
         let nyxd_endpoints = self.get_nyxd_endpoints();
         let nym_api_endpoints = self.get_api_endpoints();
@@ -754,6 +852,11 @@ where
             None,
         ))
     }
+}
+
+enum CoconutClients {
+    Clients(Vec<nym_validator_client::coconut::CoconutApiClient>),
+    NoContractAvailable,
 }
 
 pub enum IncludedSurbs {

@@ -33,6 +33,7 @@
 mod client;
 mod config;
 mod connection_state;
+mod credential;
 mod native_client;
 mod paths;
 mod socks5_client;

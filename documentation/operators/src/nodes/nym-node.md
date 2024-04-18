@@ -60,5 +60,4 @@ operation fetch_ipv6_address_nym_tun completed successfully.
        valid_lft forever preferred_lft forever`
 ```
 ~~~
-10. Run `./network_tunnel_manager.sh`
-11. Validate your IPv6 and IPv4 networking by running a joke via Mixnet: `./network_tunnel_manager.sh joke_through_the_mixnet`
+10. Validate your IPv6 and IPv4 networking by running a joke via Mixnet: `./network_tunnel_manager.sh joke_through_the_mixnet`

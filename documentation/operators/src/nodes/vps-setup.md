@@ -255,8 +255,16 @@ it includes functionality for both setup and tear-down of nymtun network configu
 alongside diagnostics for verifying system settings and network connectivity.
 ```
 ~~~
+
   - The process may prompt you if you want to save current IPv4 rules, choose yes.
 ![](../images/ip_table_prompt.png)
+
+  - You can also make a sanity check, by running this test as separated steps:
+```sh
+sudo ./enable_networking_for_nym_nodes.sh check_nymtun_iptables
+
+sudo ./enable_networking_for_nym_nodes.sh apply_all_iptable_rules_nymtun
+```
 
 If all the setup went smooth, your server is ready to connect `nym-node` with the rest of the Mixnet. There are a few more good suggestions for `nym-node` VPS configuration, especially to be considered for Gateway functionality, like Web Secure Socket or Reversed Proxy setup. Visit [Proxy configuration](proxy-configuration) page to see the guides.
 

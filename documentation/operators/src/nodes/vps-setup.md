@@ -10,6 +10,8 @@ A suboptimally configured VPS often results in a non-functional node. To follow 
 
 You will need to rent a VPS to run your node on. One key reason for this is that your node **must be able to send TCP data using both IPv4 and IPv6** (as other nodes you talk to may use either protocol).
 
+Tor community created a very helpful table called [*Good Bad ISPs*](https://community.torproject.org/relay/community-resources/good-bad-isps/), use that one as a guideline for your choice of ISP for your VPS.
+
 Currently we run [performance testing](../testing/performance.md) events to find out the best optimization. Sphinx packet decryption is CPU-bound, so more fast cores the better throughput.
 
 ### `nym-node`
@@ -195,6 +197,10 @@ Then reboot your server and restart your node.
 
 ## Connectivity Test and Configuration
 
+```admonish info
+**This chapter is relevant only for operators running `entry-gateway` and `exit-gateway` mode.**
+```
+
 With embedded Network Requester and IP Packet Router (modules routing data for the Mixnet and NymVPN traffic), there are more connectivity requirements on `nym-node` VPS setup. While we're working on Rust implementation to have these settings as a part of the binary build, in the meantime we wrote two scripts [`nym_network_diagnostics.sh`](https://gist.github.com/tommyv1987/a5fb30f5966e9d7bfbce58d88a85c0c1) and [`enable_networking_for_nym_nodes.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) to support the operators to configure their servers.
 
 1. Download `nym_network_diagnostics.sh`, make executable and run:
@@ -218,6 +224,8 @@ curl -s -L -o gateway_network_check.sh https://gist.githubusercontent.com/tommyv
 . check internet and mixnet connectivity (ipv6) via nymtun0: tests ipv6 connectivity through "nymtun0". if no globally routable ipv6 address is found, it advises on potential actions. if an address is found, it attempts to fetch a joke to confirm connectivity.
 ```
 ~~~
+
+  - To run the test next time, just enter `./gateway-network-check.sh`
 
 2. Check out the outcome. The important parts are:
   - Status `1` on the `IPv4` and `IPv6 forwarding status`
@@ -326,7 +334,7 @@ machine check complete
 ```
 ~~~
 
-2. Download `enable_network_diagnostics.sh`, make executable and run:
+3. Download `enable_network_diagnostics.sh`, make executable and run:
 
 ```sh
 curl -s -L -o enable_networking_for_nym_nodes.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/7adf0d06d83561598c908e29b4a715c11f6432bf/enable_networking_for_nym_nodes.sh && chmod u+x enable_networking_for_nym_nodes.sh && sudo ./enable_networking_for_nym_nodes.sh
@@ -372,6 +380,8 @@ sudo ./enable_networking_for_nym_nodes.sh check_nymtun_iptables
 
 sudo ./enable_networking_for_nym_nodes.sh apply_all_iptable_rules_nymtun
 ```
+
+4. After running `enable_network_diagnostics.sh`, re-run `./gateway-network-check.sh` and check the outcome. If there are still problems, please refer to [troubleshooting section](../troubleshooting/vps-setup.md#incorrect-gateway-network-check)
 
 If all the setup went smooth, your server is ready to connect `nym-node` with the rest of the Mixnet. There are a few more good suggestions for `nym-node` VPS configuration, especially to be considered for Gateway functionality, like Web Secure Socket or Reversed Proxy setup. Visit [Proxy configuration](proxy-configuration) page to see the guides.
 

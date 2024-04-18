@@ -102,7 +102,6 @@ WantedBy=multi-user.target
 
 3. Save the file
 
-
 ```admonish note
 Make sure your `ExecStart <FULL_PATH>` and `run` command are correct!
 

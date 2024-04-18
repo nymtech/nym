@@ -130,6 +130,7 @@ impl OutfoxPacket {
             // We know that we'll always get 4 nodes, so we can unwrap here
             let processing_node = nodes.last().unwrap();
             let destination_node = nodes.first().unwrap();
+            OsRng.fill_bytes(&mut secret_key);
             stage_params.encode_mix_layer(
                 &mut buffer[range],
                 &secret_key,

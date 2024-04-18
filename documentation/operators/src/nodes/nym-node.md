@@ -37,13 +37,13 @@ curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv19
 
 3. If you have a running `nym-node` service, stop it now `service nym-node stop`
 
-4. Run 
+4. Check Nymtun IP tables:
 ```sh
 sudo ./network_tunnel_manager.sh check_nymtun_iptables
 ```
  - if there's no process running it shouldn't get anything
 
-5. Run 
+5. Display IPv6: 
 ```sh
 sudo ./network_tunnel_manager.sh fetch_and_display_ipv6
 ```
@@ -64,12 +64,12 @@ sudo ./network_tunnel_manager.sh apply_iptables_rules
 
 7. (If you didn't have a `nym-node` service yet) Create `systemd` [automation and configuration file](configuration.md#systemd), reload, enable
 
-8. Start `nym-node` service
+8. Start `nym-node` service:
 ```sh
 sudo service start nym-node && journalctl -u nym-node -f -n 100
 ```
 
-9. After a minute of running properly, check:
+9. After a minute of running properly, check `nymtun0`:
 ```sh
 ip addr show nymtun0
 ```

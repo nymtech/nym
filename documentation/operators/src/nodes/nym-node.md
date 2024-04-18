@@ -22,7 +22,7 @@ Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-no
 
 ## Quick `nym-node --mode exit-gateway` Setup
 
-A fast deploy ten commands to get and setup your node, configure networking and connectivity and check that it all works fine by getting two free jokes through the mixnet.
+A fast ten commands deployment to get and setup your node, configure networking and connectivity and check that it all works fine by getting two free jokes through the mixnet.
 
 ```admonish caution
 If you are not well familiar with `nym-node` setup, automation, and `nymtun0` configuration, follow the [steps above](#steps-for-nym-node-operators) one by one. You can use this flow as a reference later on.

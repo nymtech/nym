@@ -129,6 +129,9 @@ pub enum NymRewarderError {
         source: CoconutError,
     },
 
+    #[error("the signature on issued credential with id {credential_id} is invalid")]
+    SignatureVerificationFailure { credential_id: i64 },
+
     #[error("could not verify the blinded credential")]
     BlindVerificationFailure,
 

@@ -15,21 +15,21 @@ use nym_coconut::{
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
+use nym_crypto::asymmetric::ed25519;
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::{IssuedCredential, IssuedCredentialBody, NymApiClientExt};
 use nym_validator_client::nyxd::Hash;
 use std::cmp::max;
 use std::collections::HashMap;
 use tokio::time::interval;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace};
 
 pub struct CredentialIssuanceMonitor {
     nyxd_client: NyxdClient,
     monitoring_results: MonitoringResults,
     config: config::IssuanceMonitor,
 
-    // map of validator address -> transaction hash -> issued credential
-    // (ideally we'd have hashed the AccountId directly, but it doesn't implement `Hash`)
+    // map of validator identity -> transaction hash -> issued credential
     seen_deposits: HashMap<String, HashMap<Hash, i64>>,
 }
 
@@ -49,26 +49,32 @@ impl CredentialIssuanceMonitor {
 
     fn validate_credential_signature(
         &mut self,
-        _issued_credential: &IssuedCredentialBody,
+        issued_credential: &IssuedCredentialBody,
+        identity_key: &ed25519::PublicKey,
     ) -> Result<(), NymRewarderError> {
-        warn!("unimplemented: public key sharing mechanism");
-        // let plaintext = issued_credential.credential.signable_plaintext();
-        // if !operator_public_key.verify(&plaintext) {
-        // ...
-        // }
-        Ok(())
+        let plaintext = issued_credential.credential.signable_plaintext();
+        if identity_key
+            .verify(plaintext, &issued_credential.signature)
+            .is_err()
+        {
+            Err(NymRewarderError::SignatureVerificationFailure {
+                credential_id: issued_credential.credential.id,
+            })
+        } else {
+            Ok(())
+        }
     }
 
     fn check_deposit_reuse(
         &mut self,
-        runner: &str,
+        issuer_identity: &str,
         credential_id: i64,
         deposit_tx: Hash,
     ) -> Result<bool, NymRewarderError> {
         // check if we've seen this tx hash before
         // TODO: we should persist them in the database in case we crash
-        if let Some(known_runner) = self.seen_deposits.get_mut(runner) {
-            if let Some(&used) = known_runner.get(&deposit_tx) {
+        if let Some(known_issuer) = self.seen_deposits.get_mut(issuer_identity) {
+            if let Some(&used) = known_issuer.get(&deposit_tx) {
                 return if used != credential_id {
                     Err(NymRewarderError::DuplicateDepositHash {
                         tx_hash: deposit_tx,
@@ -80,7 +86,7 @@ impl CredentialIssuanceMonitor {
                     Ok(true)
                 };
             } else {
-                known_runner.insert(deposit_tx, credential_id);
+                known_issuer.insert(deposit_tx, credential_id);
             }
         }
         Ok(false)
@@ -167,21 +173,21 @@ impl CredentialIssuanceMonitor {
         Ok(())
     }
 
-    // TODO: currently we can't obtain public key of the runner in order to verify the signature
     #[instrument(skip_all, fields(credential_id = credential_id, deposit = %issued_credential.credential.tx_hash))]
     async fn validate_issued_credential(
         &mut self,
-        runner: String,
+        issuer: &CredentialIssuer,
         credential_id: i64,
         issued_credential: IssuedCredentialBody,
-        vk: &VerificationKey,
     ) -> Result<(), NymRewarderError> {
-        self.validate_credential_signature(&issued_credential)?;
+        // check if the issuer has actually signed that issued credential information
+        self.validate_credential_signature(&issued_credential, &issuer.public_key)?;
+        let encoded_key = issuer.public_key.to_base58_string();
 
         let deposit_tx = issued_credential.credential.tx_hash;
 
         // make sure the issuer is not using the same deposit for multiple credentials
-        let already_checked = self.check_deposit_reuse(&runner, credential_id, deposit_tx)?;
+        let already_checked = self.check_deposit_reuse(&encoded_key, credential_id, deposit_tx)?;
         if already_checked {
             return Ok(());
         }
@@ -190,7 +196,7 @@ impl CredentialIssuanceMonitor {
         self.validate_deposit(&issued_credential).await?;
 
         // check if the partial credential correctly verifies
-        self.verify_credential(vk, issued_credential.credential)?;
+        self.verify_credential(&issuer.verification_key, issued_credential.credential)?;
 
         Ok(())
     }
@@ -260,17 +266,12 @@ impl CredentialIssuanceMonitor {
             trace!("checking credential {id}...");
             // TODO: insert the failure information, alongside the signature, to the evidence db
             if let Err(err) = self
-                .validate_issued_credential(
-                    issuer.operator_account.to_string(),
-                    id,
-                    credential,
-                    &issuer.verification_key,
-                )
+                .validate_issued_credential(&issuer, id, credential)
                 .await
             {
                 error!(
-                    "failed to verify credential {id} from {}!!: {err}",
-                    issuer.operator_account
+                    "failed to verify credential {id} from {} ({})!!: {err}",
+                    issuer.public_key, issuer.operator_account
                 );
                 return Err(err);
             }

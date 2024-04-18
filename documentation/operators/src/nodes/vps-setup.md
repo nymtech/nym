@@ -219,6 +219,113 @@ curl -s -L -o gateway_network_check.sh https://gist.githubusercontent.com/tommyv
 ```
 ~~~
 
+2. Check out the outcome. The important parts are:
+  - Status `1` on the `IPv4` and `IPv6 forwarding status`
+  - `IPv4` and `IPv6 firewall rules` showing `state RELATED, ESTABLISHED`
+  - Running `ping` on `IPv4` and `IPv6`
+  - `checking internet and mixnet connectivity (IPv4) via nymtun0...` working
+  - `checking internet and mixnet connectivity (IPv6) via nymtun0...` working
+  - Below is an example correct outcome of the test
+~~~admonish example collapsible=true title="A correct output of `enable_network_diagnostics.sh` flow"
+```sh
+---------------------------------------
+
+checking IPv4 forwarding status...
+1
+---------------------------------------
+
+checking IPv6 forwarding status...
+1
+---------------------------------------
+
+checking UFW firewall Status...
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), deny (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22,1789,1790,8000,9000,9001/tcp ALLOW IN    Anywhere
+9001/tcp                   ALLOW IN    Anywhere
+8080                       ALLOW IN    Anywhere
+443                        ALLOW IN    Anywhere
+22,1789,1790,8000,9000,9001/tcp (v6) ALLOW IN    Anywhere (v6)
+9001/tcp (v6)              ALLOW IN    Anywhere (v6)
+8080 (v6)                  ALLOW IN    Anywhere (v6)
+443 (v6)                   ALLOW IN    Anywhere (v6)
+
+---------------------------------------
+
+network Device: eth0
+---------------------------------------
+
+inspecting IPv4 firewall rules...
+Chain FORWARD (policy DROP 0 packets, 0 bytes)
+31880 2272K ufw-reject-forward  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+31880 2272K ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0
+    0     0 ACCEPT     all  --  eth0   nymtun0  0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
+---------------------------------------
+
+inspecting IPv6 firewall rules...
+Chain FORWARD (policy DROP 0 packets, 0 bytes)
+ 2162  636K ufw6-reject-forward  all      *      *       ::/0                 ::/0
+ 2162  636K ACCEPT     all      nymtun0 eth0    ::/0                 ::/0
+    0     0 ACCEPT     all      eth0   nymtun0  ::/0                 ::/0                 state RELATED,ESTABLISHED
+---------------------------------------
+
+examining IPv4 routing table...
+default via 169.254.0.1 dev eth0 proto static onlink
+10.0.0.0/16 dev nymtun0 proto kernel scope link src 10.0.0.1
+---------------------------------------
+
+examining IPv6 routing table...
+::1 dev lo proto kernel metric 256 pref medium
+2001:db8:a160::/112 dev nymtun0 proto kernel metric 256 pref medium
+2a02:4780:12:3853::/64 dev eth0 proto kernel metric 256 pref medium
+fe80::/64 dev eth0 proto kernel metric 256 pref medium
+fe80::/64 dev nymtun0 proto kernel metric 256 pref medium
+default via fe80::1 dev eth0 proto static metric 1024 onlink pref medium
+---------------------------------------
+
+checking IPv4 connectivity (example: google.com)...
+PING google.com(bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e)) 56 data bytes
+64 bytes from bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e): icmp_seq=1 ttl=57 time=2.92 ms
+64 bytes from bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e): icmp_seq=2 ttl=57 time=2.81 ms
+64 bytes from bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e): icmp_seq=3 ttl=57 time=2.72 ms
+64 bytes from bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e): icmp_seq=4 ttl=57 time=2.82 ms
+
+--- google.com ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3005ms
+rtt min/avg/max/mdev = 2.718/2.817/2.924/0.072 ms
+---------------------------------------
+
+checking IPv6 connectivity (example: google.com)...
+PING google.com(bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e)) 56 data bytes
+64 bytes from bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e): icmp_seq=1 ttl=57 time=2.69 ms
+64 bytes from bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e): icmp_seq=2 ttl=57 time=2.77 ms
+64 bytes from bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e): icmp_seq=3 ttl=57 time=2.71 ms
+64 bytes from bom05s12-in-x0e.1e100.net (2404:6800:4009:80a::200e): icmp_seq=4 ttl=57 time=2.71 ms
+
+--- google.com ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3004ms
+rtt min/avg/max/mdev = 2.691/2.720/2.769/0.029 ms
+---------------------------------------
+
+checking internet and mixnet connectivity (IPv4) via nymtun0...
+if a joke is returned there's connectivity through ipv4 and the nymtun, are you ready?
+"Geology rocks, but Geography is where it's at!"
+---------------------------------------
+
+checking Internet and mixnet connectivity (IPv6) via nymtun0...
+if a joke is returned, there's connectivity through IPv6 and the nymtun. are you ready?
+joke fetched successfully:
+"A man tried to sell me a coffin today. I told him that's the last thing I need."
+machine check complete
+
+```
+~~~
+
 2. Download `enable_network_diagnostics.sh`, make executable and run:
 
 ```sh

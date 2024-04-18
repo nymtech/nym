@@ -642,19 +642,16 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymNodeError> {
     };
 
     println!("{}", "** Attention **".color(orange).bold());
-    print!(
-        "{}",
-        "Please consider updating the 'version' field of your ".color(orange)
-    );
-    print!("{}", "existing".bold().color(orange));
-    println!(
-        "{}",
-        format!(
-            " node to '{}' in the settings section of the Nym Wallet",
-            bonding_version()
-        )
-        .color(orange)
-    );
+    print!("Please consider updating the '");
+    print!("{}", "version".color(orange));
+    print!("' field of your ");
+    print!("{}", "existing".bold().underline());
+    println!(" node to:");
+    println!();
+    println!("{}", bonding_version().bold().color(orange));
+    println!();
+    print!("in the settings section of the ");
+    println!("{}", "Nym Wallet".bold().color(orange));
     println!();
 
     Ok(())

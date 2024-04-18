@@ -18,7 +18,7 @@ Currently we run [performance testing](../testing/performance.md) events to find
 
 Before we conclude the testing with exact results, these are the rough specs:
 
-| **Hardware** | **Minimum Specification** |
+| **Hardware** | **Minimum Specification** w
 | :---         | ---:                      |
 | CPU Cores    | 4                         |
 | Memory       | 4 GB RAM                  |

@@ -16,13 +16,19 @@ pub(crate) fn sign_host_details(
     x25519_noise: &x25519::PublicKey,
     ed22519_identity: &ed25519::KeyPair,
 ) -> Result<api_requests::v1::node::models::SignedHostInformation, NymNodeError> {
+    let x25519_noise = if config.mixnet.debug.unsafe_disable_noise {
+        String::new()
+    } else {
+        x25519_noise.to_base58_string()
+    };
+
     let host_info = api_requests::v1::node::models::HostInformation {
         ip_address: config.host.public_ips.clone(),
         hostname: config.host.hostname.clone(),
         keys: api_requests::v1::node::models::HostKeys {
             ed25519_identity: ed22519_identity.public_key().to_base58_string(),
             x25519_sphinx: x22519_sphinx.to_base58_string(),
-            x25519_noise: x25519_noise.to_base58_string(),
+            x25519_noise,
         },
     };
 

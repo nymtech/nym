@@ -203,6 +203,14 @@ pub(crate) struct MixnetArgs {
         env = NYMNODE_NYXD_URLS_ARG
     )]
     pub(crate) nyxd_urls: Option<Vec<Url>>,
+
+    /// Specifies whether this node should **NOT** use noise protocol in the connections (currently not implemented)
+    #[clap(
+        hide = true,
+        long,
+        env = NYMNODE_UNSAFE_DISABLE_NOISE
+    )]
+    pub(crate) unsafe_disable_noise: bool,
 }
 
 impl MixnetArgs {
@@ -220,6 +228,9 @@ impl MixnetArgs {
         }
         if let Some(nyxd_urls) = self.nyxd_urls {
             section.nyxd_urls = nyxd_urls
+        }
+        if self.unsafe_disable_noise {
+            section.debug.unsafe_disable_noise = true
         }
         section
     }

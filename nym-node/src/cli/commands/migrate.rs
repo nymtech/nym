@@ -223,6 +223,7 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
                 packet_forwarding_maximum_backoff: cfg.debug.packet_forwarding_maximum_backoff,
                 initial_connection_timeout: cfg.debug.initial_connection_timeout,
                 maximum_connection_buffer_size: cfg.debug.maximum_connection_buffer_size,
+                ..Default::default()
             },
             ..Default::default()
         }))
@@ -385,6 +386,7 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                 packet_forwarding_maximum_backoff: cfg.debug.packet_forwarding_maximum_backoff,
                 initial_connection_timeout: cfg.debug.initial_connection_timeout,
                 maximum_connection_buffer_size: cfg.debug.maximum_connection_buffer_size,
+                ..Default::default()
             },
         }))
         .with_mixnode(args.mixnode.override_config_section(config::MixnodeConfig {

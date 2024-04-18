@@ -15,7 +15,7 @@
 - [Preliminary Steps](nodes/preliminary-steps.md)
   - [Nym Wallet Preparation](nodes/wallet-preparation.md)
   - [VPS Setup](nodes/vps-setup.md)
-- [Nym Node](nodes/nym-node.md) #add here a basic info from smoosh faq as intro
+- [Nym Node](nodes/nym-node.md)
   - [Setup & Run](nodes/setup.md)
   - [Configuration](nodes/configuration.md)
       - [WSS & Reversed Proxy](nodes/proxy-configuration.md)
@@ -31,8 +31,11 @@
   - [Prometheus & Grafana](testing/prometheus-grafana.md)
     - [ExploreNYM scripts](testing/explorenym-scripts.md)
 <!--    - [Run in a Docker](testing/docker-monitor.md) -->
-- [Troubleshooting](nodes/troubleshooting.md)
 
+# Troubleshooting
+
+- [Nym Node](troubleshooting/nym-node.md)
+-
 
 # Token Economics
 

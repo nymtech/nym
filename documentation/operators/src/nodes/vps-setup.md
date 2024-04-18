@@ -195,14 +195,14 @@ Then reboot your server and restart your node.
 
 ## Connectivity Test and Configuration
 
-With embedded Network Requester and IP Packet Router, modules routing data for the Mixnet and NymVPN traffic, there are more connectivity requirements on `nym-node` VPS. While we're working on Rust implementation to have these settings as a part of the binary build, in the meantime we wrote two scripts [`nym_network_diagnostics.sh`](https://gist.github.com/tommyv1987/a5fb30f5966e9d7bfbce58d88a85c0c1) and [`enable_networking_for_nym_nodes.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) to support the operators to configure their servers.
+With embedded Network Requester and IP Packet Router (modules routing data for the Mixnet and NymVPN traffic), there are more connectivity requirements on `nym-node` VPS setup. While we're working on Rust implementation to have these settings as a part of the binary build, in the meantime we wrote two scripts [`nym_network_diagnostics.sh`](https://gist.github.com/tommyv1987/a5fb30f5966e9d7bfbce58d88a85c0c1) and [`enable_networking_for_nym_nodes.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) to support the operators to configure their servers.
 
 1. Download `nym_network_diagnostics.sh`, make executable and run:
 
 ```sh
 curl -s -L -o gateway_network_check.sh https://gist.githubusercontent.com/tommyv1987/a5fb30f5966e9d7bfbce58d88a85c0c1/raw/27acbdbeecf9e04a0faee6a96e717aa7231935ef/nym_network_diagnostics.sh && chmod u+x gateway_network_check.sh  && ./gateway_network_check.sh
 ```
-~~~admonish example collapsible=true title="An overview of gateway_network_check.sh flow"
+~~~admonish example collapsible=true title="An overview of `gateway_network_check.sh` flow"
 ```sh
 . check ipv4 forwarding status: displays whether ipv4 packet forwarding is enabled on the system.
 . check ipv6 forwarding status: shows the status of ipv6 packet forwarding.
@@ -224,7 +224,7 @@ curl -s -L -o gateway_network_check.sh https://gist.githubusercontent.com/tommyv
 ```sh
 curl -s -L -o enable_networking_for_nym_nodes.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/7adf0d06d83561598c908e29b4a715c11f6432bf/enable_networking_for_nym_nodes.sh && chmod u+x enable_networking_for_nym_nodes.sh && sudo ./enable_networking_for_nym_nodes.sh
 ```
-~~~admonish example collapsible=true title="An overview of enable_network_diagnostics.sh flow"
+~~~admonish example collapsible=true title="An overview of `enable_network_diagnostics.sh` flow"
 ```sh
 overview:
 script usage guide & function invocation: offers a command-line interface for executing specific script functions based on user input, providing flexibility in network configuration and diagnostics.

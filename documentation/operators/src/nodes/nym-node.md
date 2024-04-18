@@ -17,5 +17,42 @@ To setup any type of Nym Node, start with either building [Nym's platform](../bi
 Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-node` need to:
 
 **1. [Setup & Run](setup.md) the node**
-**2.** (Optional but reccomended) **[Configure](configuration.md) the node** (WSS, reversed proxy, automation)
+**2. [Configure](configuration.md) the node** (and optionaly WSS, reversed proxy, automation)
 **3. [Bond](bonding.md) the node to the Nym API,** using Nym wallet
+
+## Quick `nym-node --mode exit-gateway` Setup
+```admonish caution
+If you are not well familiar with `nym-node` setup, automation, and `nymtun0` configuration, follow the [steps above](#steps-for-nym-node-operators) one by one. You can use this flow as a reference later on.
+```
+
+1. [Get](../binaries/pre-built-binaries.md) or [build](../binaries/building-nym.md) `nym-node` binary
+2. Get [network_tunnel_manager.sh](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) script and grant permissions
+```sh
+curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chnod +x network_tunnel_manager.sh
+```
+3. Run `./network_tunnel_manager.sh fetch_ipv6_address_nym_tun` - if there's no process running it shouldn't get anything
+4. Run `./network_tunnel_manager.sh fetch_and_display_ipv6` - if you have a global ipv6 address this is good
+~~~admonish example collapsible=true title="Correct `./network_tunnel_manager.sh fetch_and_display_ipv6` output:"
+```sh
+iptables-persistent is already installed.
+Using IPv6 address: 2001:db8:a160::1/112 #the address will be different for you
+operation fetch_ipv6_address_nym_tun completed successfully.
+```
+~~~
+5. Apply the rules: Run `./network_tunnel_manager.sh apply_iptables_rules`
+6. [Create](configuration.md#systemd) `systemd` automation and configuration file, reload, enable
+7. Run `service start nym-node && journalctl -u nym-gateway -f -n 100` - run it until it's started properly
+8. After a minute of running properly, check `ip addr show nymtun0`
+~~~admonish example collapsible=true title="Correct `ip addr show nymtun0` output:"
+```sh
+# your addresses will be different
+8: nymtun0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1420 qdisc fq_codel state UNKNOWN group default qlen 500
+    link/none
+    inet 10.0.0.1/16 scope global nymtun0
+       valid_lft forever preferred_lft forever
+    inet6 2001:db8:a160::1/112 scope global
+       valid_lft forever preferred_lft forever
+    inet6 fe80::ad08:d167:5700:8c7c/64 scope link stable-privacy
+       valid_lft forever preferred_lft forever`
+```
+~~~

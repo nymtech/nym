@@ -1,6 +1,6 @@
 # Manual Node Upgrade
 
-> The process here is similar for the Mix Node, Gateway and Network Requester binaries. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the binary name you want to upgrade (e.g.`nym-mixnode`). Any particularities for the given type of node are included.
+> Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 Upgrading your node is a two-step process:
 

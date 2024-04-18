@@ -45,7 +45,7 @@ operation fetch_ipv6_address_nym_tun completed successfully.
 ~~~
 5. Apply the rules: Run `./network_tunnel_manager.sh apply_iptables_rules` and check them again like in point 3.
 6. (If you didn't have a `nym-node` service yet) [Create](configuration.md#systemd) `systemd` automation and configuration file, reload, enable
-7. Run `service start nym-node && journalctl -u nym-gateway -f -n 100` - run it until it's started properly
+7. Run `service start nym-node && journalctl -u nym-node -f -n 100` - run it until it's started properly
 8. After a minute of running properly, check `ip addr show nymtun0`
 ~~~admonish example collapsible=true title="Correct `ip addr show nymtun0` output:"
 ```sh

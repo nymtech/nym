@@ -31,7 +31,7 @@ If you are not well familiar with `nym-node` setup, automation, and `nymtun0` co
 1. [Get](../binaries/pre-built-binaries.md) or [build](../binaries/building-nym.md) `nym-node` binary
 2. Get [network_tunnel_manager.sh](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) script and grant permissions
 ```sh
-curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chnod +x network_tunnel_manager.sh
+curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chmod +x network_tunnel_manager.sh
 ```
 3. If you have a running `nym-node` service, stop it now `service nym-node stop`
 4. Run `./network_tunnel_manager.sh check_nymtun_iptables` - if there's no process running it shouldn't get anything

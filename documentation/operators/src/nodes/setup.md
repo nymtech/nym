@@ -183,10 +183,10 @@ To migrate a `nym-mixnode` or a `nym-gateway` to `nym-node` is fairly simple, us
 #### Mode: `entry-gateway` and `exit-gateway`
 ```sh
 # move relevant infor from config.toml
-./nym-node migrate --config-file ~/.nym/gateways/<GATEWAY_ID>/config/config.toml entry-gateway # or exit-gateway
+./nym-node migrate --config-file ~/.nym/gateways/<GATEWAY_ID>/config/config.toml gateway
 
 # initialise with the new nym-node config
-./nym-node run --mode entry-gateway --id <NYM-NODE_ID> --deny-init # or change to exit-gateway
+./nym-node run --mode exit-gateway --id <NYM-NODE_ID> --deny-init # or change to entry-gateway
 ```
 
 ### Next steps

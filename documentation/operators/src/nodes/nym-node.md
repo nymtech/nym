@@ -25,17 +25,29 @@ Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-no
 A fast ten commands deployment to get and setup your node, configure networking and connectivity and check that it all works fine by getting two free jokes through the mixnet.
 
 ```admonish caution
-If you are not well familiar with `nym-node` setup, automation, and `nymtun0` configuration, follow the [steps above](#steps-for-nym-node-operators) one by one. You can use this flow as a reference later on.
+If you are not well familiar with `nym-node` setup, automation, and `nymtun0` configuration, follow the [steps above](#steps-for-nym-node-operators) page by page. You can use this flow as a reference later on.
 ```
 
-1. [Get](../binaries/pre-built-binaries.md) or [build](../binaries/building-nym.md) `nym-node` binary
+1. [Get](../binaries/pre-built-binaries.md) or [build](../binaries/building-nym.md) the latest `nym-node` binary
+
 2. Get [network_tunnel_manager.sh](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) script and grant permissions
 ```sh
 curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chmod +x network_tunnel_manager.sh
 ```
+
 3. If you have a running `nym-node` service, stop it now `service nym-node stop`
-4. Run `./network_tunnel_manager.sh check_nymtun_iptables` - if there's no process running it shouldn't get anything
-5. Run `./network_tunnel_manager.sh fetch_and_display_ipv6` - if you have a global ipv6 address this is good
+
+4. Run 
+```sh
+sudo ./network_tunnel_manager.sh check_nymtun_iptables
+```
+ - if there's no process running it shouldn't get anything
+
+5. Run 
+```sh
+sudo ./network_tunnel_manager.sh fetch_and_display_ipv6
+```
+ - if you have a `global ipv6` address this is good
 ~~~admonish example collapsible=true title="Correct `./network_tunnel_manager.sh fetch_and_display_ipv6` output:"
 ```sh
 iptables-persistent is already installed.
@@ -43,10 +55,25 @@ Using IPv6 address: 2001:db8:a160::1/112 #the address will be different for you
 operation fetch_ipv6_address_nym_tun completed successfully.
 ```
 ~~~
-6. Apply the rules: Run `./network_tunnel_manager.sh apply_iptables_rules` and check them again like in point 3.
+
+6. Apply the rules: 
+```sh
+sudo ./network_tunnel_manager.sh apply_iptables_rules
+``` 
+  - and check them again like in point 3.
+
 7. (If you didn't have a `nym-node` service yet) Create `systemd` [automation and configuration file](configuration.md#systemd), reload, enable
-8. Run `service start nym-node && journalctl -u nym-node -f -n 100` - run it until it's started properly
-9. After a minute of running properly, check `ip addr show nymtun0`
+
+8. Start `nym-node` service
+```sh
+sudo service start nym-node && journalctl -u nym-node -f -n 100
+```
+
+9. After a minute of running properly, check:
+```sh
+ip addr show nymtun0
+```
+
 ~~~admonish example collapsible=true title="Correct `ip addr show nymtun0` output:"
 ```sh
 # your addresses will be different
@@ -60,4 +87,8 @@ operation fetch_ipv6_address_nym_tun completed successfully.
        valid_lft forever preferred_lft forever`
 ```
 ~~~
-10. Validate your IPv6 and IPv4 networking by running a joke via Mixnet: `./network_tunnel_manager.sh joke_through_the_mixnet`
+
+10. Validate your IPv6 and IPv4 networking by running a joke via Mixnet: 
+```sh
+sudo ./network_tunnel_manager.sh joke_through_the_mixnet
+```

@@ -5,8 +5,12 @@ use crate::cli::helpers::{
     EntryGatewayArgs, ExitGatewayArgs, HostArgs, HttpArgs, MixnetArgs, MixnodeArgs, WireguardArgs,
 };
 use crate::node::description::save_node_description;
-use crate::node::helpers::{load_ed25519_identity_public_key, store_x25519_noise_keypair};
+use crate::node::helpers::{
+    bonding_version, load_ed25519_identity_public_key, store_x25519_noise_keypair,
+};
 use clap::ValueEnum;
+use colored::Color::TrueColor;
+use colored::Colorize;
 use nym_crypto::asymmetric::x25519;
 use nym_gateway::helpers::{load_ip_packet_router_config, load_network_requester_config};
 use nym_gateway::GatewayError;
@@ -627,7 +631,31 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymNodeError> {
     trace!("args: {args:#?}");
 
     match args.node_type {
-        NodeType::Mixnode => migrate_mixnode(args).await,
-        NodeType::Gateway => migrate_gateway(args).await,
+        NodeType::Mixnode => migrate_mixnode(args).await?,
+        NodeType::Gateway => migrate_gateway(args).await?,
     }
+
+    let orange = TrueColor {
+        r: 251,
+        g: 110,
+        b: 78,
+    };
+
+    println!("{}", "** Attention **".color(orange).bold());
+    print!(
+        "{}",
+        "Please consider updating the 'version' field of your ".color(orange)
+    );
+    print!("{}", "existing".bold().color(orange));
+    println!(
+        "{}",
+        format!(
+            " node to '{}' in the settings section of the Nym Wallet",
+            bonding_version()
+        )
+        .color(orange)
+    );
+    println!();
+
+    Ok(())
 }

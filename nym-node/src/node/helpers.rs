@@ -7,9 +7,23 @@ use nym_node::error::{KeyIOFailure, NymNodeError};
 use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_pemstore::KeyPairPath;
+use semver::{BuildMetadata, Version};
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
+
+#[allow(clippy::unwrap_used)]
+pub fn bonding_version() -> String {
+    // SAFETY:
+    // the value has been put there by cargo
+    let raw = env!("CARGO_PKG_VERSION");
+    let mut semver: Version = raw.parse().unwrap();
+
+    // if it's not empty, then we messed up our own versioning
+    assert!(semver.build.is_empty());
+    semver.build = BuildMetadata::new("nymnode").unwrap();
+    semver.to_string()
+}
 
 #[derive(Debug, Serialize)]
 pub(crate) struct DisplayDetails {

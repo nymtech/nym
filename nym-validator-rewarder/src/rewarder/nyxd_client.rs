@@ -3,11 +3,13 @@
 
 use crate::config::Config;
 use crate::error::NymRewarderError;
-use crate::rewarder::credential_issuance::types::CredentialIssuer;
+use crate::rewarder::credential_issuance::types::{addr_to_account_id, CredentialIssuer};
+use nym_coconut::{Base58, VerificationKey};
 use nym_coconut_bandwidth_contract_common::events::{
     COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO, DEPOSIT_VALUE,
 };
 use nym_coconut_dkg_common::types::Epoch;
+use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use nym_validator_client::nyxd::helpers::find_tx_attribute;
@@ -18,6 +20,7 @@ use nym_validator_client::nyxd::{
     AccountId, Coin, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
 };
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -92,14 +95,32 @@ impl NyxdClient {
         &self,
         dkg_epoch: u64,
     ) -> Result<Vec<CredentialIssuer>, NymRewarderError> {
-        self.inner
-            .read()
-            .await
-            .get_all_verification_key_shares(dkg_epoch)
-            .await?
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect()
+        let guard = self.inner.read().await;
+        let mut dealers_map = HashMap::new();
+        let dealers = guard.get_all_current_dealers().await?;
+        for dealer in dealers {
+            dealers_map.insert(dealer.address.to_string(), dealer);
+        }
+        let vk_shares = guard.get_all_verification_key_shares(dkg_epoch).await?;
+
+        let mut issuers = Vec::with_capacity(vk_shares.len());
+        for share in vk_shares {
+            if let Some(info) = dealers_map.remove(&share.owner.to_string()) {
+                issuers.push(CredentialIssuer {
+                    public_key: ed25519::PublicKey::from_base58_string(&info.ed25519_identity)?,
+                    operator_account: addr_to_account_id(share.owner),
+                    api_runner: share.announce_address,
+                    verification_key: VerificationKey::try_from_bs58(share.share).map_err(
+                        |source| NymRewarderError::MalformedPartialVerificationKey {
+                            runner: info.address.to_string(),
+                            source,
+                        },
+                    )?,
+                })
+            }
+        }
+
+        Ok(issuers)
     }
 
     pub(crate) async fn get_deposit_transaction_attributes(

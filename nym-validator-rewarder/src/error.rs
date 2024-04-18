@@ -3,6 +3,7 @@
 
 use crate::config::RewardingRatios;
 use nym_coconut::CoconutError;
+use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::tx::ErrorReport;
@@ -96,6 +97,12 @@ pub enum NymRewarderError {
         runner_account: AccountId,
         #[source]
         source: url::ParseError,
+    },
+
+    #[error("the provided ed25519 identity key is malformed: {source}")]
+    MalformedIdentityKey {
+        #[from]
+        source: ed25519::Ed25519RecoveryError,
     },
 
     #[error("failed to resolve nym-api query: {0}")]

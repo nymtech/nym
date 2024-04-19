@@ -28,7 +28,5 @@ Now you can use your binary, initialise and run your Nym Node. Follow the guide 
 
 **Node setup and usage guides:**
 
-* [Mix nodes](../nodes/mix-node-setup.md)
-* [Gateways](../nodes/gateway-setup.md)
-* [Network requesters](../nodes/network-requester-setup.md)
+* [Nym Nodes](../nodes/nym-node.md)
 * [Validators](../nodes/validator-setup.md)

@@ -35,8 +35,9 @@
 
 # Troubleshooting
 
+- [VPS Setup](troubleshooting/vps-setup.md)
 - [Nym Node](troubleshooting/nym-node.md)
--
+- [Validators](troubleshooting/validators.md)
 
 # Token Economics
 

@@ -52,7 +52,7 @@
 - [Nyx & Validators](faq/nyx-faq.md)
 - [Project Smoosh](faq/smoosh-faq.md)
 
-# Legal Forum
+# Community & Legal Forum
 
 - [Exit Gateway](legal/exit-gateway.md)
 - [Community Counsel](legal/community-counsel.md)

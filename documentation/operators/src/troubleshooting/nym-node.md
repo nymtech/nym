@@ -182,13 +182,13 @@ You can query Gateways by replacing `nym-mixnodes` with `nym-gateways` in the ab
 
 #### Check with Network API
 
-We currently have an API set up returning our metrics tests of the network. There are two endpoints to ping for information about your Mix Node, `report` and `history`. Find more information about this in the [Mixnodes metrics documentation](./maintenance.md#metrics--api-endpoints).
+We currently have an API set up returning our metrics tests of the network. There are two endpoints to ping for information about your Mix Node, `report` and `history`. Find more information about this in the [Mixnodes metrics documentation](../nodes/maintenance.md#metrics--api-endpoints).
 
 ### Why is my node not mixing any packets?
 
 If you are still unable to see your node on the dashboard, or your node is declaring it has not mixed any packets, there are several potential issues:
 
-- The firewall on your host machine is not configured properly. Checkout the [instructions](../vps-setup.md#configure-your-firewall).
+- The firewall on your host machine is not configured properly. Checkout the [instructions](../nodes/vps-setup.md#configure-your-firewall).
 - You provided incorrect information when bonding your node.
 - You are running your node from a VPS without IPv6 support.
 <!-- You did not use the `--announce-host` flag while running the Mix Node from your local machine behind NAT. -->
@@ -273,7 +273,7 @@ If you are running into issues with an error including the following:
 thread 'tokio-runtime-worker' panicked at 'Failed to create TCP listener: Os { code: 99, kind: AddrNotAvailable, message: "Cannot assign requested address" }'
 ```
 
-Then you need to `--announce-host <PUBLIC_IP>` and `--host <LOCAL_IP>` on startup. This issue is addressed [above](./troubleshooting.md#missing-`announce-host`-flag)
+Then you need to `--announce-host <PUBLIC_IP>` and `--host <LOCAL_IP>` on startup. This issue is addressed [above](#missing-`announce-host`-flag)
 
 ### Can I use a port other than 1789?
 

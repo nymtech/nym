@@ -1,22 +1,26 @@
 # Gateways
 
-> The Nym gateway was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+```admonish warning
+**This is an archived page for backwards compatibility. The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!**
+```
+
+> The Nym gateway was built in the [building nym](../../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 
 ```admonish info
-As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of ***Nym Exit Gateway*** node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateway](../legal/exit-gateway.md) pages. We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
+As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of ***Nym Exit Gateway*** node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateway](../../legal/exit-gateway.md) pages. We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
 ```
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway --version | grep "Build Version" | cut -b 21-26  -->
+<!-- cmdrun ../../../../../target/release/nym-gateway --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your Gateway.
+Make sure you do the preparation listed in the [preliminary steps page](preliminary-steps.md) before setting up your Gateway.
 
 
 ## Gateway setup
@@ -37,7 +41,7 @@ You can check that your binaries are properly compiled with:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway --help -->
+<!-- cmdrun ../../../../../target/release/nym-gateway --help -->
 ```
 ~~~
 
@@ -50,7 +54,7 @@ You can also check the various arguments required for individual commands with:
 
 ## Initialising your Gateway
 
-As Nym developers build towards [Exit Gateway](../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with inbuilt Network Requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
+As Nym developers build towards [Exit Gateway](../../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with inbuilt Network Requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
 
 ```admonish warning
 Before you start an Exit Gateway, read our [Operators Legal Forum](../legal/exit-gateway.md) page and [*Project Smoosh FAQ*](../faq/smoosh-faq.md).
@@ -74,7 +78,7 @@ If we follow the previous example with `<ID>` chosen `superexitgateway`, adding 
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" --with-network-requester --with-exit-policy true -->
+<!-- cmdrun ../../../../../target/release/nym-gateway init --id superexitgateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" --with-network-requester --with-exit-policy true -->
 ```
 ~~~
 
@@ -84,7 +88,7 @@ Additionally
 
 #### Add Network Requester to an existing Gateway
 
-If you already [upgraded](./manual-upgrade.md) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network Requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
+If you already [upgraded](../../nodes/manual-upgrade.md) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network Requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
 
 See the options:
 
@@ -94,7 +98,7 @@ See the options:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --help -->
+<!-- cmdrun ../../../../../target/release/nym-gateway setup-network-requester --help -->
 ```
 ~~~
 
@@ -114,7 +118,7 @@ Say we have a Gateway with `<ID>` as `new-gateway`, originally initialised and r
 ~~~admonish example collapsible=true title="Console output"
 ```
 <!-- cmdrun rm -rf $HOME/.nym/gateways/new-gateway -->
-<!-- cmdrun ../../../../target/release/nym-gateway init --id new-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" && ../../../../target/release/nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway -->
+<!-- cmdrun ../../../../../target/release/nym-gateway init --id new-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" && ../../../../../target/release/nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway -->
 ```
 ~~~
 
@@ -159,7 +163,7 @@ To check available configuration options use:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --help -->
+<!-- cmdrun ../../../../../target/release/nym-gateway init --help -->
 ```
 ~~~
 
@@ -171,7 +175,7 @@ The following command returns a Gateway on your current IP with the `<ID>` of `s
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id simple-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" -->
+<!-- cmdrun ../../../../../target/release/nym-gateway init --id simple-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" -->
 ```
 ~~~
 
@@ -189,7 +193,7 @@ The `run` command starts the Gateway:
 ## Bonding your Gateway
 
 ```admonish info
-Before you bond your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup [WSS on your Gateway](./maintenance.md#run-web-secure-socket-wss-on-gateway) and [automate](./maintenance.md#vps-setup-and-automation) your Gateway to simplify the operation overhead. We highly recommend to run any of these steps before bonding to prevent disruption of your Gateway's routing score later on.
+Before you bond your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup WSS and automate your Gateway to simplify the operation overhead. We highly recommend to run any of these steps before bonding to prevent disruption of your Gateway's routing score later on.
 ```
 
 ### Via the Desktop wallet (recommended)
@@ -239,7 +243,7 @@ It will look something like this (as `<YOUR_ID>` we used `supergateway`):
 
 * And paste it into the wallet nodal, press `Next` and confirm the transaction.
 
-![Paste Signature](../images/wallet-screenshots/wallet-gateway-sign.png)  
+![Paste Signature](../../images/wallet-screenshots/wallet-gateway-sign.png)  
 *This image is just an example, copy-paste your own base58-encoded signature.*
 
 * Your Gateway is now bonded.
@@ -252,5 +256,5 @@ If you want to bond your Gateway via the CLI, then check out the [relevant secti
 
 ## Maintenance
 
-For Gateway upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation, WSS setup and more, see the [maintenance page](./maintenance.md)
+For Gateway upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation, WSS setup and more, see the [maintenance page](../../nodes/maintenance.md)
 

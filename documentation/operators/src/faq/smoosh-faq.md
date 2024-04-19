@@ -5,7 +5,7 @@
 
 <br>
 
-This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](mixnodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page. 
+This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](nym-nodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page. 
 
 If any questions are not answered or it's not clear for you in which stage project Smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
 
@@ -28,8 +28,8 @@ Project Smoosh will have four steps, please follow the table below to track the 
 | :--- | :--- |
 | **1.** Combine the `nym-gateway` and `nym-network-requester` into one binary | ✅ done |
 | **2.** Create [Exit Gateway](../legal/exit-gateway.md): Take the `nym-gateway` binary including `nym-network-requester` combined in \#1 and switch from [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) | ✅ done |
-| **3.** Combine all the nodes in the Nym Mixnet into one binary, that is `nym-mixnode`, `nym-gateway` (entry and exit) and `nym-network-requester`. | 🛠️ in progress |
-| **4.** Adjust reward scheme to incentivise and reward Exit Gateways as a part of `nym-node` binary, implementing [zkNym credentials](https://youtu.be/nLmdsZ1BsQg?t=1717). | 🛠️ in progress |
+| **3.** Combine all the nodes in the Nym Mixnet into one binary, that is `nym-mixnode`, `nym-gateway` (entry and exit) and `nym-network-requester`. | ✅ done |
+| **4.** Adjust reward scheme to incentivise and reward Exit Gateways as a part of `nym-node` binary, implementing [zkNym credentials](https://youtu.be/nLmdsZ1BsQg?t=1717). | ✅ done |
 
 These steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.  
 Generally, the software will be the same, just instead of multiple binaries, there will be one Nym Node (`nym-node`) binary. Delegations will remain on as they are now, per our token economics (staking, saturation etc)
@@ -57,8 +57,8 @@ Follow the dynamic progress of exit policy implementation on Gateways below:
 | **Step** | **Status** |
 | :--- | :--- |
 | **1.** By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering is disabled and the [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their Gateways (or Network Requesters) and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the `config.toml` file. | ✅ done |
-| **2.** The exit policy is part of the Gateway setup by default. To disable this exit policy, operators must use `--disable-exit-policy` flag. | 🛠️ in progress |
-| **3.** The exit policy is the only option. The `allowed.list` is completely removed. | 🛠️ in progress |
+| **2.** The exit policy is part of the Gateway setup by default. To disable this exit policy, operators must use `--disable-exit-policy` flag. | ✅ done |
+| **3.** The exit policy is the only option. The `allowed.list` is completely removed. | ✅ done |
 
 Keep in mind the table above only relates to changes happening on Gateways. For the Project Smoosh progress refer to the [table above](./smoosh-faq.md#what-are-the-changes). Whether Exit Gateway functionality will be optional or mandatory part of every active Nym Node depends on the chosen [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators).
 

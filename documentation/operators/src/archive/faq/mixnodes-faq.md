@@ -1,5 +1,9 @@
 # Frequently Asked Questions
 
+```admonish warning
+**This is an archived page for backwards compatibility. The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!**
+```
+
 ## Nym Mixnet
 
 To see different stats about Nym Mixnet live, we recommend you to visit [status.notrustverify.ch](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1) built by [No Trust Verify](https://notrustverify.ch/) crew, one of the squads within Nym core community.
@@ -57,7 +61,7 @@ Because of the way the smart contract works we keep it one-node one-address at t
 
 ### Which nodes are the most needed to be setup to strengthen Nym infrastructure and which ones bring rewards?
 
-Ath this point the most crutial component needed are [Exit Gateways](../legal/exit-gateway.md).
+Ath this point the most crutial component needed are [Exit Gateways](../../legal/exit-gateway.md).
 
 ### Are Mix Nodes whitelisted?
 

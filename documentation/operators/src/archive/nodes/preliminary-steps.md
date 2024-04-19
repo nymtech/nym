@@ -1,6 +1,10 @@
 # Preliminary Steps
 
-> The Nym `mixnode`, `gateway` and `network-requester` binaries were built in the [building nym](./binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+```admonish warning
+**This is an archived page for backwards compatibility. The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!**
+```
+
+> The Nym `mixnode`, `gateway` and `network-requester` binaries were built in the [building nym](../../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 There are a couple of steps that need completing before starting to set up your mix node, gateway or a network requester:
 

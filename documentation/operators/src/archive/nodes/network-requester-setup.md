@@ -1,6 +1,10 @@
-# Network Requesters
+# Network Requester
 
-> Nym Network Requester was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+```admonish warning
+**This is an archived page for backwards compatibility. The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!**
+```
+
+> Nym Network Requester was built in the [building nym](../../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 ```admonish info
 As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym Exit Gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
@@ -15,7 +19,7 @@ As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `n
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your Network Requester.
+Make sure you do the preparation listed in the [preliminary steps page](preliminary-steps.md) before setting up your Network Requester.
 
 ## Network Requester Whitelist
 
@@ -220,5 +224,5 @@ This command should return the following:
 
 ## Maintenance
 
-For Network Requester upgrade (including an upgrade from `<v1.1.9` to `>= v1.1.10`), firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md).
+For Network Requester upgrade (including an upgrade from `<v1.1.9` to `>= v1.1.10`), firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](../../nodes/maintenance.md).
 

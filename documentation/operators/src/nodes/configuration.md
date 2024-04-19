@@ -315,7 +315,7 @@ Make sure that you get the validation of IPv4 and IPv6 connectivity. If there ar
 
 ## Next Steps
 
-There are a few more good suggestions for `nym-node` VPS configuration, especially to be considered for `exit-gateway` functionality, like Web Secure Socket or Reversed Proxy setup. Visit [Proxy configuration](proxy-configuration) page to see the guides.
+There are a few more good suggestions for `nym-node` VPS configuration, especially to be considered for `exit-gateway` functionality, like Web Secure Socket or Reversed Proxy setup. Visit [Proxy configuration](proxy-configuration.md) page to see the guides.
 
 After proceed to [bonding](bonding.md).
 

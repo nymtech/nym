@@ -10,7 +10,7 @@ You are asked to `sign` a transaction and bpnd your node to Nyx blockchain so th
 
 **Before you bond your `nym-node` make sure you went through all the previous steps**
 
-1. [Build](../binaries/building-nym.md) or [download](../binaries/pre-build-binaries.md) `nym-node` binary
+1. [Build](../binaries/building-nym.md) or [download](../binaries/pre-built-binaries.md) `nym-node` binary
 2. [Configure VPS](vps-setup.md) correctly
 3. [Prepare Nym wallet](wallet-preparation.md)
 4. [Setup & Run](setup.md) the node

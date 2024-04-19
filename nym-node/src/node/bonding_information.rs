@@ -1,10 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::helpers::{load_ed25519_identity_public_key, load_x25519_sphinx_public_key};
+use crate::node::helpers::{
+    bonding_version, load_ed25519_identity_public_key, load_x25519_sphinx_public_key,
+};
 use nym_node::config::{Config, NodeMode};
 use nym_node::error::NymNodeError;
-use semver::{BuildMetadata, Version};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -60,25 +61,11 @@ impl MixnodeBondingInformation {
         x25519_sphinx_key: String,
     ) -> MixnodeBondingInformation {
         MixnodeBondingInformation {
-            version: Self::get_version(),
+            version: bonding_version(),
             host: "YOU NEED TO FILL THIS FIELD MANUALLY".to_string(),
             identity_key: ed25519_identity_key,
             sphinx_key: x25519_sphinx_key,
         }
-    }
-
-    #[allow(clippy::unwrap_used)]
-    fn get_version() -> String {
-        // SAFETY:
-        // 1. the value has been put into the environment during build.rs, so it must exist,
-        // 2. and the obtained version has already been parsed into semver in build.rs, so it must be a valid semver
-        let raw = include_str!(concat!(env!("OUT_DIR"), "/mixnode_version"));
-        let mut semver: Version = raw.parse().unwrap();
-
-        // if it's not empty, then we messed up our own versioning
-        assert!(semver.build.is_empty());
-        semver.build = BuildMetadata::new("nymnode").unwrap();
-        semver.to_string()
     }
 }
 
@@ -108,26 +95,12 @@ impl GatewayBondingInformation {
         x25519_sphinx_key: String,
     ) -> GatewayBondingInformation {
         GatewayBondingInformation {
-            version: Self::get_version(),
+            version: bonding_version(),
             host: "YOU NEED TO FILL THIS FIELD MANUALLY".to_string(),
             location: "YOU NEED TO FILL THIS FIELD MANUALLY".to_string(),
             identity_key: ed25519_identity_key,
             sphinx_key: x25519_sphinx_key,
         }
-    }
-
-    #[allow(clippy::unwrap_used)]
-    fn get_version() -> String {
-        // SAFETY:
-        // 1. the value has been put into the file during build.rs, so it must exist,
-        // 2. and the obtained version has already been parsed into semver in build.rs, so it must be a valid semver
-        let raw = include_str!(concat!(env!("OUT_DIR"), "/gateway_version"));
-        let mut semver: Version = raw.parse().unwrap();
-
-        // if it's not empty, then we messed up our own versioning
-        assert!(semver.build.is_empty());
-        semver.build = BuildMetadata::new("nymnode").unwrap();
-        semver.to_string()
     }
 }
 

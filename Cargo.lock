@@ -6174,6 +6174,7 @@ dependencies = [
  "cargo_metadata",
  "celes",
  "clap 4.4.7",
+ "colored",
  "cupid",
  "humantime-serde",
  "ipnetwork 0.16.0",

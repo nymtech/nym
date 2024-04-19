@@ -182,9 +182,19 @@ curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv19
 
 ~~~admonish example collapsible=true title=" `network_tunnel_manager.sh` usage"
 ```sh
-<!-- cmdrun curl -s -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh -->
-<!-- cmdrun chmod +x network_tunnel_manager.sh -->
-<!-- cmdrun ./network_tunnel_manager.sh -->
+usage: ./network_tunnel_manager.sh [command]
+commands:
+  fetch_ipv6_address_nym_tun    - Fetches the IPv6 address assigned to the 'nymtun0'.
+  fetch_and_display_ipv6        - Displays the IPv6 address on the default network device.
+  apply_iptables_rules          - Applies necessary IPv4 and IPv6 iptables rules.
+  remove_iptables_rules         - Removes applied IPv4 and IPv6 iptables rules.
+  check_ipv6_ipv4_forwarding    - Checks if IPv4 and IPv6 forwarding are enabled.
+  check_nymtun_iptables         - Check nymtun0 device.
+  perform_ipv4_ipv6_pings       - Perform IPv4 and IPv6 pings to google.
+  check_ip6_ipv4_routing        - Check IPv6 and IPv4 routing.
+  joke_through_the_mixnet       - Run a joke through the mixnet via IPv4 and IPv6.
+please provide one of the above commands.
+
 ```
 ~~~
 

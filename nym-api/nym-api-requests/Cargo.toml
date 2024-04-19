@@ -15,12 +15,14 @@ schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 ts-rs = { workspace = true, optional = true }
 tendermint = { workspace = true }
+time = { workspace = true, features = ["serde", "parsing", "formatting"] }
+
 
 # for serde on secp256k1 signatures
 ecdsa = { version = "0.16", features = ["serde"] }
 
 nym-credentials-interface = { path = "../../common/credentials-interface" }
-nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"]}
+nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"] }
 
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false }

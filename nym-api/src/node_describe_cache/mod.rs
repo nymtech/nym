@@ -16,6 +16,7 @@ use nym_mixnet_contract_common::Gateway;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use std::collections::HashMap;
 use thiserror::Error;
+use time::OffsetDateTime;
 
 // type alias for ease of use
 pub type DescribedNodes = HashMap<IdentityKey, NymNodeDescription>;
@@ -182,6 +183,7 @@ async fn get_gateway_description(
 
     let description = NymNodeDescription {
         host_information: host_info.data.into(),
+        last_polled: OffsetDateTime::now_utc().into(),
         build_information: build_info,
         network_requester,
         ip_packet_router,
@@ -211,7 +213,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
         }
 
         // TODO: somehow bypass the 'higher-ranked lifetime error' and remove that redundant clone
-        let websockets = stream::iter(
+        let node_description = stream::iter(
             gateways
                 // .deref()
                 // .clone()
@@ -232,7 +234,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
         .collect::<HashMap<_, _>>()
         .await;
 
-        Ok(websockets)
+        Ok(node_description)
     }
 }
 

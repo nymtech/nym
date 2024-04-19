@@ -37,13 +37,8 @@ pub fn dealer_fixture(mut rng: &mut ChaCha20Rng, id: NodeIndex) -> DealerDetails
     // we might possibly need that private key later on
     let keypair = DkgKeyPair::new(dkg::params(), &mut rng);
 
-    // lol, instantiate rng with an rng due to incompatibility, but even though it looks dodgy AF,
-    // it's 100% deterministic
-    let mut secondary_seed = [0u8; 32];
-    rng.fill_bytes(&mut secondary_seed);
-
     let addr = pseudorandom_account(rng);
-    let identity_keypair = identity::KeyPair::new(&mut test_rng(secondary_seed));
+    let identity_keypair = identity::KeyPair::new(&mut rng);
     let bte_public_key_with_proof = bs58::encode(&keypair.public_key().to_bytes()).into_string();
 
     let port = 8080 + id;

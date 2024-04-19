@@ -22,7 +22,9 @@ Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-no
 
 ## Quick `nym-node --mode exit-gateway` Setup
 
-A fast ten commands deployment to get and setup your node, configure networking and connectivity and check that it all works fine by getting two free jokes through the mixnet.
+During our ongoing testing events [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+
+Below is a fast - ten commands - deployment to get and setup your node, configure networking and connectivity and verify that it all works as it should by getting two free jokes through the mixnet.
 
 ```admonish caution
 If you are not well familiar with `nym-node` setup, automation, and `nymtun0` configuration, follow the [steps above](#steps-for-nym-node-operators) page by page. You can use this flow as a reference later on.
@@ -35,7 +37,7 @@ If you are not well familiar with `nym-node` setup, automation, and `nymtun0` co
 curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chmod +x network_tunnel_manager.sh
 ```
 
-3. If you have a running `nym-node` or `nym-gateway (alone or service), stop the process
+3. If you have a running `nym-node` or `nym-gateway` (alone or service), stop the process
   - In case your node was a `nym-gateway`, [**migrate to `nym-node`**](setup.md#migrate) now!
 
 4. Check Nymtun IP tables:
@@ -44,7 +46,7 @@ sudo ./network_tunnel_manager.sh check_nymtun_iptables
 ```
  - if there's no process running it shouldn't get anything
 
-5. Display IPv6: 
+5. Display IPv6:
 ```sh
 sudo ./network_tunnel_manager.sh fetch_and_display_ipv6
 ```
@@ -57,10 +59,10 @@ operation fetch_ipv6_address_nym_tun completed successfully.
 ```
 ~~~
 
-6. Apply the rules: 
+6. Apply the rules:
 ```sh
 sudo ./network_tunnel_manager.sh apply_iptables_rules
-``` 
+```
   - and check them again like in point 3.
 
 7. (If you didn't have a `nym-node` service yet) Create `systemd` [automation and configuration file](configuration.md#systemd), reload, enable
@@ -89,7 +91,7 @@ ip addr show nymtun0
 ```
 ~~~
 
-10. Validate your IPv6 and IPv4 networking by running a joke via Mixnet: 
+10. Validate your IPv6 and IPv4 networking by running a joke via Mixnet:
 ```sh
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 ```

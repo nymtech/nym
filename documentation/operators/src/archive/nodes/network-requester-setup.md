@@ -14,7 +14,7 @@ As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `n
 
 ## Current version
 ```
-<!-- cmdrun ../../../../target/release/nym-network-requester --version | grep "Build Version" | cut -b 21-26  -->
+<!-- cmdrun ../../../../../target/release/nym-network-requester --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
 ## Preliminary steps
@@ -133,7 +133,7 @@ The `./nym-network-requester --help ` command can be used to show a list of avai
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-network-requester --help -->
+<!-- cmdrun ../../../../../target/release/nym-network-requester --help -->
 ```
 ~~~
 
@@ -157,7 +157,7 @@ In the following we used `example`.
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun timeout 20s ../../../../target/release/nym-network-requester init --id example -->
+<!-- cmdrun timeout 20s ../../../../../target/release/nym-network-requester init --id example -->
 ```
 ~~~
 

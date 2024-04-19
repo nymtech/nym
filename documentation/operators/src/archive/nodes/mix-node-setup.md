@@ -10,7 +10,7 @@
 
 ## Current version
 ```
-<!-- cmdrun ../../../../target/release/nym-mixnode --version | grep "Build Version" | cut -b 21-26  -->
+<!-- cmdrun ../../../../../target/release/nym-mixnode --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
 The `nym-mix node` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
@@ -41,7 +41,7 @@ Which should return a list of all available commands.
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-mixnode --help -->
+<!-- cmdrun ../../../../../target/release/nym-mixnode --help -->
 ```
 ~~~
 
@@ -63,7 +63,7 @@ To check available configuration options for initializing your node use:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --help -->
+<!-- cmdrun ../../../../../target/release/nym-mixnode init --help -->
 ```
 ~~~
 
@@ -76,7 +76,7 @@ If `<YOUR_ID>` was `my-node`, the output will look like this:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --id my-node --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../../target/release/nym-mixnode init --id my-node --host $(curl -4 https://ifconfig.me) -->
 ```
 ~~~
 
@@ -193,8 +193,8 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
+<!-- cmdrun ../../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
 ```
 ~~~
 
@@ -228,8 +228,8 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
+<!-- cmdrun ../../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
 ```
 ~~~
 

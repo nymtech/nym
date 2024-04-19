@@ -243,7 +243,7 @@ impl CredentialIssuanceMonitor {
         info!("checking the issuer's credentials...");
         debug!("checking the issuer's credentials...");
 
-        let api_client = api_client(&issuer)?;
+        let api_client = api_client(issuer)?;
 
         let epoch_credentials = api_client.epoch_credentials(epoch_id).await?;
         let whitelisted = self.config.whitelist.contains(&issuer.operator_account);
@@ -276,13 +276,13 @@ impl CredentialIssuanceMonitor {
 
         for (id, credential) in credentials.credentials {
             trace!("checking credential {id}...");
-            if let Err(err) = self.validate_issued_credential(&issuer, &credential).await {
+            if let Err(err) = self.validate_issued_credential(issuer, &credential).await {
                 error!(
                     "failed to validate credential {id} from {} ({})!!: {err}",
                     issuer.public_key, issuer.operator_account
                 );
                 self.storage
-                    .insert_issuance_foul_play_evidence(&issuer, &credential, err.to_string())
+                    .insert_issuance_foul_play_evidence(issuer, &credential, err.to_string())
                     .await?;
                 return Err(err);
             }

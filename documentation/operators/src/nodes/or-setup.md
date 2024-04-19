@@ -1,1 +1,0 @@
-# Nyx Validator Setup

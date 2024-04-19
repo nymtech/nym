@@ -35,7 +35,8 @@ If you are not well familiar with `nym-node` setup, automation, and `nymtun0` co
 curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chmod +x network_tunnel_manager.sh
 ```
 
-3. If you have a running `nym-node` service, stop it now `service nym-node stop`
+3. If you have a running `nym-node` or `nym-gateway (alone or service), stop the process
+  - In case your node was a `nym-gateway`, [**migrate to `nym-node`**](setup.md#migrate) now!
 
 4. Check Nymtun IP tables:
 ```sh
@@ -92,3 +93,5 @@ ip addr show nymtun0
 ```sh
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 ```
+
+Make sure that you get the validation of IPv4 and IPv6 connectivity, in case of problems, check [troubleshooting page](../troubleshooting/vps-setup.md#incorrect-gateway-network-check). After proceed to [bonding](bonding.md).

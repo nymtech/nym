@@ -85,7 +85,7 @@ sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
 # in case of planning to setup a WSS (for Gateway functionality)
 sudo ufw allow 9001/tcp
 
-# inn case of reverse proxy for the swagger page (for Gateway optionality)
+# in case of reverse proxy for the swagger page (for Gateway optionality)
 sudo ufw allow 8080,80,443
 
 # for validator

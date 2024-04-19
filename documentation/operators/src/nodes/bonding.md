@@ -14,7 +14,7 @@ You are asked to `sign` a transaction and bpnd your node to Nyx blockchain so th
 2. [Configure VPS](vps-setup.md) correctly
 3. [Prepare Nym wallet](wallet-preparation.md)
 4. [Setup & Run](setup.md) the node
-5. (Optional but reccomended) [Configure](configuration.md) the node (WSS, reversed proxy, automation)
+5. [Configure](configuration.md) the node (Optionally setup automation, WSS, reversed proxy)
 
 ```admonish warning
 Do not bond your node to the API if the previous steps weren't finished. Bad connectivity, closed ports, or other poor setup will result in your node getting blacklisted.
@@ -63,5 +63,6 @@ It will look something like this:
 If everything worked, you'll see your node running on the either the [Sandbox testnet network explorer](https://sandbox-explorer.nymtech.net) or the [mainnet network explorer](https://explorer.nymtech.net), depending on which network you're running.
 
 
-### Bond via the CLI (power users)
+## Bond via the CLI (power users)
+
 If you want to bond your Mix Node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.

@@ -16,15 +16,17 @@ To setup any type of Nym Node, start with either building [Nym's platform](../bi
 
 Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-node` need to:
 
-#### 1. [Setup & Run](setup.md) the node
-#### 2. [Configure](configuration.md) the node (and optionaly WSS, reversed proxy, automation)
-#### 3. [Bond](bonding.md) the node to the Nym API, using Nym wallet
+1. **[Setup & Run](setup.md) the node**
+
+2. **[Configure](configuration.md) the node** (and optionally WSS, reversed proxy, automation)
+
+3. **[Bond](bonding.md) the node to the Nym API, using Nym wallet**
 
 ## Quick `nym-node --mode exit-gateway` Setup
 
 During our ongoing testing events [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
-Below is a fast - ten commands - deployment to get and setup your node, configure networking and connectivity and verify that it all works as it should by getting two free jokes through the mixnet.
+Below is a fast - ten commands - deployment to get and setup your node, configure networking and connectivity and verify that it all works as it should by getting two free jokes through the Mixnet.
 
 ```admonish caution
 If you are not well familiar with `nym-node` setup, automation, and `nymtun0` configuration, follow the [steps above](#steps-for-nym-node-operators) page by page. You can use this flow as a reference later on.

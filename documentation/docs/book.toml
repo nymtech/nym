@@ -25,7 +25,7 @@ turn-off = true
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
-assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
+assets_version = "3.0.2" # do not edit: managed by `mdbook-admonish install`
 
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
@@ -66,7 +66,7 @@ preferred-dark-theme = "coal"
 curly-quotes = true
 copy-fonts = true
 no-section-label = false
-additional-css = ["./nym_themes/custom.css", "./nym_themes/mdbook-admonish.css", "./nym_themes/pagetoc.css"]
+additional-css = ["./nym_themes/custom.css", "./nym_themes/mdbook-admonish.css", "./nym_themes/pagetoc.css", "./mdbook-admonish.css"]
 additional-js  = ["./nym_themes/pagetoc.js"]
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"

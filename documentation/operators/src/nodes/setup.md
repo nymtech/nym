@@ -5,7 +5,7 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](n
 ## Current version
 
 ```
-<!-- cmdrun ../../../../target/release/nym-node --version | grep "Build Version" | cut -b 21-26  -->
+<!-- cmdrun ../../../../target/release/nym-node --version -->
 ```
 
 ```admonish info

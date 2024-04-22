@@ -37,6 +37,6 @@ Ath this point the most crutial component needed are [Exit Gateways](../legal/ex
 
 ### Are Nym Nodes whitelisted?
 
-Nope, anyone can run a nyx Node. Purely reliant on the node's reputation (self stake + delegations) & routing score.
+Nope, anyone can run a Nym Node. whether your node is chosen to mix is purely reliant on the node's performance and reputation (self stake + delegations).
 
 

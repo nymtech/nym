@@ -15,6 +15,3 @@ If you don't already have one, please create a Nym address using the wallet, and
 
 Make sure to download a wallet and create an account as outlined above. Then head to our [Operators Element channel](https://matrix.to/#/#operators:nymtech.chat) and request testnet tokens.
 
-<!--FAUCET CURRENTLY NOT WORKING
-Make sure to download a wallet and create an account as outlined above. Then head to our [token faucet](https://faucet.nymtech.net/) and get some tokens to use to bond it.
--->

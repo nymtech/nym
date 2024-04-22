@@ -30,11 +30,13 @@ jobs:
       - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
-      - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
+      - name: Switch to develop
         run: git checkout develop
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: cd documentation && ./build_all_to_dist.sh
-      - name: Build all projects in documentation/ & move to ~/dist/docs/ on current branch
+      - name: Switch to current branch
         run: git checkout operators/nym-node
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
 

@@ -17,7 +17,7 @@ Yes, there are several places, some are built by Nym core community:
 
 ### Which VPS providers would you recommend?
 
-Consider in which jurisdiction you reside and where do you want to run a Mix Node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to choose smaller and decentralised VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Linode, Ghandi, Flokinet and Exoscale. Do your own research and share with the community.
+Consider in which jurisdiction you reside and where do you want to run a Mix Node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to choose smaller and decentralised VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Linode, Gandi, Flokinet and Exoscale. Do your own research and share with the community.
 
 ### Why is a node setup on a self-hosted machine so tricky?
 

@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.2.12"
+version = "1.2.13"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""

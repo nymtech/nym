@@ -5113,6 +5113,7 @@ dependencies = [
  "schemars",
  "serde",
  "tendermint",
+ "time",
  "ts-rs",
 ]
 

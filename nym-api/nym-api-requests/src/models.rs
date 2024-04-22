@@ -10,11 +10,15 @@ use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
 use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
+use schemars::gen::SchemaGenerator;
+use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::net::IpAddr;
+use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
+use time::OffsetDateTime;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct RequestError {
@@ -404,8 +408,71 @@ impl From<nym_node_requests::api::v1::gateway::models::WebSockets> for WebSocket
     }
 }
 
+const fn unix_epoch() -> OffsetDateTime {
+    OffsetDateTime::UNIX_EPOCH
+}
+
+// for all intents and purposes it's just OffsetDateTime, but we need JsonSchema...
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct OffsetDateTimeJsonSchemaWrapper(#[serde(default = "unix_epoch")] pub OffsetDateTime);
+
+impl Default for OffsetDateTimeJsonSchemaWrapper {
+    fn default() -> Self {
+        OffsetDateTimeJsonSchemaWrapper(unix_epoch())
+    }
+}
+
+impl From<OffsetDateTimeJsonSchemaWrapper> for OffsetDateTime {
+    fn from(value: OffsetDateTimeJsonSchemaWrapper) -> Self {
+        value.0
+    }
+}
+
+impl From<OffsetDateTime> for OffsetDateTimeJsonSchemaWrapper {
+    fn from(value: OffsetDateTime) -> Self {
+        OffsetDateTimeJsonSchemaWrapper(value)
+    }
+}
+
+impl Deref for OffsetDateTimeJsonSchemaWrapper {
+    type Target = OffsetDateTime;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for OffsetDateTimeJsonSchemaWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+// implementation taken from: https://github.com/GREsau/schemars/pull/207
+impl JsonSchema for OffsetDateTimeJsonSchemaWrapper {
+    fn is_referenceable() -> bool {
+        false
+    }
+
+    fn schema_name() -> String {
+        "DateTime".into()
+    }
+
+    fn json_schema(_: &mut SchemaGenerator) -> Schema {
+        SchemaObject {
+            instance_type: Some(InstanceType::String.into()),
+            format: Some("date-time".into()),
+            ..Default::default()
+        }
+        .into()
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NymNodeDescription {
+    #[serde(default)]
+    pub last_polled: OffsetDateTimeJsonSchemaWrapper,
+
     pub host_information: HostInformation,
 
     // TODO: do we really care about ALL build info or just the version?

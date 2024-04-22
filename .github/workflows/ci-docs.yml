@@ -35,7 +35,13 @@ jobs:
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
       - name: Build all projects in documentation/ & move to ~/dist/docs/
+        # This is a dirty hack which shall be fixed and removed
+        run: git checkout develop
         run: cd documentation && ./build_all_to_dist.sh
+        run: git checkout operators/nym-node
+        ###
+        run: cd documentation && ./build_all_to_dist.sh
+        
         continue-on-error: false
 
       - name: Deploy branch to CI www

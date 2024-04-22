@@ -30,15 +30,25 @@ jobs:
       - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
-      - name: Switch to develop
+# This is the original flow
+#      - name: Build all projects in documentation/ & move to ~/dist/docs/
+#        run: cd documentation && ./build_all_to_dist.sh
+#        continue-on-error: false
+# This is a dirty cheat replacement which builds on develop and then on current branch
+
+      - name: Save CURRENT_BRANCH
+        run: CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+      - name: Git pull & switch to develop
         run: git pull && git checkout develop
       - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: cd documentation && ./build_all_to_dist.sh
+        continue-on-error: false
       - name: Switch to current branch
-        run: git checkout operators/nym-node
+        run: git checkout $echo "$CURRENT_BRANCH"
       - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
+# End of replacemet
 
       - name: Post process
         run: cd documentation && ./post_process.sh

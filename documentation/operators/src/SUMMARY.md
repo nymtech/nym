@@ -50,7 +50,6 @@
 - [General Operators FAQ](faq/general-faq.md)
 - [Nym Nodes](faq/nym-nodes-faq.md)
 - [Nyx & Validators](faq/nyx-faq.md)
-- [Project Smoosh](faq/smoosh-faq.md)
 
 # Community & Legal Forum
 

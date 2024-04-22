@@ -40,15 +40,15 @@ jobs:
 #        continue-on-error: false
 # This is a dirty cheat replacement which builds on develop and then on current branch
 
-      - name: Save CURRENT_BRANCH
-        run: CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+      - name: Save current branch to ~/current_branch
+        run: git rev-parse --abbrev-ref HEAD > ~/current_branch
       - name: Git pull & switch to develop
         run: git pull && git checkout develop
       - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
       - name: Switch to current branch
-        run: git checkout $echo "$CURRENT_BRANCH"
+        run: git checkout $echo "$(cat ~/current_branch)"
       - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false

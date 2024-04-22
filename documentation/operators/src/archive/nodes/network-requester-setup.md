@@ -218,7 +218,4 @@ This command should return the following:
 { "status": "ok" }
 ```
 
-## Maintenance
-
-For Network Requester upgrade (including an upgrade from `<v1.1.9` to `>= v1.1.10`), firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](../../nodes/maintenance.md).
 

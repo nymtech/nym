@@ -31,7 +31,7 @@ jobs:
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
       - name: Switch to develop
-        run: git checkout develop
+        run: git pull && git checkout develop
       - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: cd documentation && ./build_all_to_dist.sh
       - name: Switch to current branch

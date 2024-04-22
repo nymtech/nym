@@ -50,7 +50,7 @@ jobs:
       - name: Switch to current branch
         run: git checkout $echo "$(cat ~/current_branch)"
       - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
-        run: cd documentation && ./build_all_to_dist.sh
+        run: cd documentation && ./build_all_to_dist.sh && rm ~/current_branch
         continue-on-error: false
 # End of replacemet
 

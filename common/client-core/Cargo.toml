@@ -82,6 +82,7 @@ features = ["rustls-tls-webpki-roots"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.tungstenite]
 workspace = true
+default-features = false
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 workspace = true

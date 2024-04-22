@@ -30,12 +30,11 @@ jobs:
       - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
-      - name: Build all projects in documentation/ & move to ~/dist/docs/
-        ### This is a dirty hack which shall be fixed and removed
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: git checkout develop
         run: cd documentation && ./build_all_to_dist.sh
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ on current branch
         run: git checkout operators/nym-node
-        ###
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
 

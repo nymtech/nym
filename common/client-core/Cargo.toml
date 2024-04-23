@@ -78,6 +78,7 @@ features = ["rustls-tls-webpki-roots"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tungstenite]
 workspace = true
+default-features = true
 features = ["rustls-tls-webpki-roots"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.tungstenite]

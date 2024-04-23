@@ -9,7 +9,7 @@ set -o pipefail
 # pinning minor version allows for updates but no breaking changes
 MINOR_VERSION=0.4
 # if a new plugin is added to the books it needs to be added here also
-declare -a plugins=("admonish", "linkcheck" "last-changed" "theme" "variables" "cmdrun")
+declare -a plugins=("admonish" "linkcheck" "last-changed" "theme" "variables" "cmdrun")
 
 # install mdbook + plugins
 install_mdbook_deps() {

@@ -2,7 +2,7 @@
 
 > To configure your node for a testing event, visit [node setup page](node-setup.md).
 
-Nym Mixnet has been running on mainnet for quite some time. There is still work to be done in order for the network to meet its full potential - mass adoption of privacy through fully distributed Mixnet.
+Nym Mixnet has been running on mainnet for quite some time. There is still work to be done in order for the network to meet its full potential - mass adoption of privacy through fully distributed Mixnet. 
 
 Nym asks its decentralised community of operators to join a series of performance testing events in order to **increase the overall quality of the Mixnet**. The main takeaways of such event are:
 
@@ -15,10 +15,12 @@ Nym asks its decentralised community of operators to join a series of performanc
 5. Increase quality of Nym Nodes
 6. Show each operator a way to monitor their nodes in a distributed fashion
 
+Visit [Fast and Furious web page]({{performance_testing_webpage}}) and [Nym Harbour Master](https://harbourmaster.nymtech.net/) Gateways monitoring page to read more about the performance testing and the results of it.
+
 ## Performance Testing Work Flow
 
 * Nym runs a paralel network environment [validator.performance.nymte.ch]({{performance_validator}}) with a chain ID `perf`
-* Operators of Nym Nodes (currently `nym-mixnode` and `nym-gateway`) join by following easy steps on [performance testing web page]({{performance_testing_webpage}}), including simplified node authentication signature (while keep running their nodes on the mainnet)
+* Operators of Nym Nodes join by following easy steps on [performance testing web page]({{performance_testing_webpage}}), including simplified node authentication signature (while keep running their nodes on the mainnet)
 * Once signed in, operators will be asked to swap their binary for the modified version with metrics endpoint to be able to connect their own [monitoring system](templates.md)
 * Core node data will be fed to a unique mixnet contract for the `perf` side chain
 * Nym starts a new API and start packet transition in high load through these nodes in both settings

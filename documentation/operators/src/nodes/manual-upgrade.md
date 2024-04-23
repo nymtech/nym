@@ -1,78 +1,52 @@
 # Manual Node Upgrade
 
-> The process here is similar for the Mix Node, Gateway and Network Requester binaries. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the binary name you want to upgrade (e.g.`nym-mixnode`). Any particularities for the given type of node are included.
+> Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-Upgrading your node is a two-step process:
+**Upgrading your node is a straight forward two-step process:**
 
-1. Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
-2. Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
+#### 1. Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
+#### 2. Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net).
 
 ## Step 1: Upgrading your binary
-Follow these steps to upgrade your Node binary and update its config file:
-* Pause your node process.
+
+Follow these steps to upgrade your node binary and update its config file:
+1. Pause your node process.
     - if you see the terminal window with your node, press `ctrl + c`
-    - if you run it as `systemd` service, run: `systemctl stop <NODE>.service`
-* Replace the existing `<NODE>` binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
-* Re-run `init` with the same values as you used initially for your `<NODE>` ([Mix Node](./mix-node-setup.md#initialising-your-mix-node), [Gateway](./gateway-setup.md#initialising-your-gateway)) . **This will just update the config file, it will not overwrite existing keys**.
-* Restart your node process with the new binary:
-    - if your node is *not automated*, just `run` your `<NODE>` with `./<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway).
+    - if you run it as `systemd` service, run: `service <NODE> stop`
+2. Replace the existing `<NODE>` binary with the newest binary (which you can either [compile yourself](../binaries/building-nym.md) or [download](../binaries/pre-built-binaries.md).
+3. [Re-run with the same values](setup.md#initialise--run) as you used initially for your `<NODE>`. **This will just update the config file, it will not overwrite existing keys**.
+    - if your node is *not automated*, just `run` your `<NODE>` with `./<NODE> run --id <ID>`.
     - if you *automated* your node with systemd (recommended) run:
 ```sh
 systemctl daemon-reload # to pickup the new unit file
-systemctl start <NODE>.service
-journalctl -f -u <NODE>.service # to monitor log of you node
+
+service <NODE> start && journalctl -f -u <NODE>.service # to monitor log of you node
 ```
 
-If these steps are too difficult and you prefer to automate the process, try to setup your flow with [Nymvisor](nymvisor-upgrade.md).
-
-> In case of a Network Requester this is all, the following step is only for Mix Nodes and Gateways.
+If you prefer to automate the process, try to setup your flow with [Nymvisor](nymvisor-upgrade.md).
 
 ## Step 2: Updating your node information in the smart contract
+
 Follow these steps to update the information about your `<NODE>` which is publicly available from the [`nym-api`](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [Mixnet explorer](https://explorer.nymtech.net).
 
 You can either do this graphically via the Desktop Wallet, or the CLI.
 
 ### Updating node information via the Desktop Wallet (recommended)
-* Navigate to the `Bonding` page and click the `Node Settings` link in the top right corner:
+
+1. Navigate to the `Bonding` page and click the `Node Settings` link in the top right corner:
 
 ![Bonding page](../images/wallet-screenshots/bonding.png)
 
-* Update the fields in the `Node Settings` page (usually the field `Version` is the only one to change) and click `Submit changes to the blockchain`.
+2. Update the fields in the `Node Settings` page (usually the field `Version` is the only one to change) and click `Submit changes to the blockchain`.
 
 ![Node Settings Page](../images/wallet-screenshots/node_settings.png)
 
 ### Updating node information via the CLI
+
 If you want to bond your `<NODE>` via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#upgrade-a-mix-node) docs.
 
-
-## Upgrading Network Requester to >= v1.1.10 from <v1.1.9
-
-In the previous version of the network-requester, users were required to run a nym-client along side it to function. As of `v1.1.10`, the network-requester now has a nym client embedded into the binary, so it can run standalone.
-
-If you are running an existing Network Requester registered with nym-connect, upgrading requires you move your old keys over to the new Network Requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
-
-Initiate the new Network Requester:
-
-```sh
-nym-network-requester init --id <YOUR_ID>
-```
-
-Copy the old keys from your client to the network-requester configuration that was created above:
-
-```sh
-cp -vr ~/.nym/clients/myoldclient/data/* ~/.nym/service-providers/network-requester/<YOUR_ID>/data
-```
-
-Edit the configuration to match what you used on your client. Specifically, edit the configuration file at:
-
-```sh
-~/.nym/service-providers/network-requester/<YOUR_ID>/config/config.toml
-```
-
-Ensure that the fields `gateway_id`, `gateway_owner`, `gateway_listener` in the new config match those in the old client config at:
-
-```sh
-~/.nym/clients/myoldclient/config/config.toml
+```admonish info
+If you run a Gateway, visit [Nym Harbour Master](https://harbourmaster.nymtech.net/) to get all the probe info about your node directly from API.
 ```
 
 ## Upgrading your validator

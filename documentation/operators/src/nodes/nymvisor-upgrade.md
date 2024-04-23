@@ -11,9 +11,7 @@ In essence, it tries to mirror the behaviour of [Cosmovisor](https://github.com/
 
 You can use Nymvisor to automate the upgrades of the following binaries:
 * `nym-api`
-* `nym-mixnode`
-* `nym-gateway`
-* `nym-network-requester`
+* `nym-node`
 * `nym-client`
 * `nym-socks5-client`
 
@@ -27,9 +25,9 @@ Nymvisor is an early and experimental software. Users should use it at their own
 ```
 
 ## Preliminary steps
-You need to have at least one Mixnet node / client / Nym API instance already set up on the **same VPS** that you wish to run Nymvisor on.
+You need to have at least one Nym Node / client / Nym API instance already set up on the **same VPS** that you wish to run Nymvisor on.
 
-> Using Nymvisor presumes your VPS is running an operating system that is compatible with the pre-compiled binaries avaliable on the [Github releases page](https://github.com/nymtech/nym/releases). If you're not, then until we're packaging for a greater variety of operating systems, you're stuck with [manually upgrading your node](manual-upgrade.md).
+> Using Nymvisor presumes your VPS is running an operating system that is compatible with the pre-compiled binaries availiable on the [Github releases page](https://github.com/nymtech/nym/releases). If you're not, then until we're packaging for a greater variety of operating systems, you're stuck with [manually upgrading your node](manual-upgrade.md).
 
 ## Setup and Usage
 ### Viewing command help
@@ -54,7 +52,7 @@ You can also check the various arguments required for individual commands with:
 ```
 
 ### Initialising your Nymvisor Instance
-> This example will use the Mix Node binary as an example - however replacing `nym-mixnode` with any other supported binary will work the same.
+> This example will use the Nym Node binary as an example - however replacing `nym-node` with any other supported binary will work the same.
 
 Initialise your Nymvisor instance with the following command. You must initialise Nymvisor with the binary you wish to add upgrades for:
 
@@ -62,11 +60,11 @@ Initialise your Nymvisor instance with the following command. You must initialis
 ./nymvisor init --daemon-home ~/.nym/<NODE_TYPE>/<NODE_ID> <PATH_TO_NODE_BINARY>
 ```
 
-Where the value of `--daemon-home` might be `~/.nym/mixnodes/my-node` and `<PATH_TO_NODE_BINARY>` might be `/home/my_user/nym/target/release/nym-mixnode`, or wherever your node binary is located.
+Where the value of `--daemon-home` might be `~/.nym/nym-nodes/default-nym-node` and `<PATH_TO_NODE_BINARY>` might be `/home/my_user/nym/target/release/nym-node`, or wherever your node binary is located.
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nymvisor init --daemon-home ~/.nym/mixnodes/my-node ../../../../target/release/nym-mixnode | tail -20 -->
+<!-- cmdrun ../../../../target/release/nymvisor init --daemon-home ~/.nym/nym-nodes/default-nym-node ../../../../target/release/nym-node | tail -20 -->
 ```
 ~~~
 
@@ -75,7 +73,7 @@ By default this will create config files at `~/.nym/nymvisors/instances/<NODE_TY
 ### Running your Nymvisor Instance
 Nymvisor acts as a wrapper around the specified node process - it has to do this in order to be able to pause and restart this process. As such, you need to run your node _via_ Nymvisor!
 
-The interface to the `nymvisor run <ARGS>` command is quite simple. Any argument passed after the `run` command will be passed directly to the underlying daemon, for example: `nymvisor run run --id my-mixnode` will run the `$DAEMON_NAME run --id my-mixnode` command (where `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-mixnode`, etc.)).
+The interface to the `nymvisor run <ARGS>` command is quite simple. Any argument passed after the `run` command will be passed directly to the underlying daemon, for example: `nymvisor run run --id default-nym-node` will run the `$DAEMON_NAME run --id default-nym-node` command (where `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-node`, etc.)).
 
 `run` Nymvisor and start your node via the following command. Make sure to stop any existing node before running this command.
 
@@ -85,11 +83,11 @@ The interface to the `nymvisor run <ARGS>` command is quite simple. Any argument
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nymvisor run run --id my-node -->
+<!-- cmdrun ../../../../target/release/nymvisor run run --id default-nym-node -->
 ```
 ~~~
 
-Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](./nymvisor-upgrade.md#commands-in-depth) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-mixnode/upgrade-info.json) (replace `nym-mixnode` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information there:
+Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](./nymvisor-upgrade.md#commands-in-depth) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-node/upgrade-info.json) (replace `nym-node` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information there:
 * pause your node process
 * grab the new binary (`version`)
 * verify it against the provided `checksum`
@@ -118,9 +116,9 @@ Similarly to `init`, `add-upgrade` requires a positional argument specifying a v
 ## Config
 The output format of `nymvisor config` can be further configured with `--output` argument. By default a human-readable text representation is used:
 ```
-id:                                nym-mixnode-default
-daemon name:                       nym-mixnode
-daemon home:                       /home/nym/.nym/mixnodes/my-mixnode
+id:                                nym-node-default
+daemon name:                       nym-node
+daemon home:                       /home/nym/.nym/nym-nodes/default-nym-node
 upstream base upgrade url:         https://nymtech.net/.wellknown/
 disable nymvisor logs:             false
 CUSTOM upgrade data directory      ""
@@ -143,7 +141,7 @@ nymvisor config --output=json
 ```
 outputs:
 ```
-{"nymvisor":{"id":"nym-mixnode-default","upstream_base_upgrade_url":"https://nymtech.net/.wellknown/","upstream_polling_rate":"1h","disable_logs":false,"upgrade_data_directory":null},"daemon":{"name":"nym-mixnode","home":"/home/nym/.nym/mixnodes/my-mixnode","absolute_upstream_upgrade_url":null,"allow_binaries_download":true,"enforce_download_checksum":true,"restart_after_upgrade":true,"restart_on_failure":false,"failure_restart_delay":"10s","max_startup_failures":10,"startup_period_duration":"2m","shutdown_grace_period":"10s","backup_data_directory":null,"unsafe_skip_backup":false}}
+{"nymvisor":{"id":"nym-node-default","upstream_base_upgrade_url":"https://nymtech.net/.wellknown/","upstream_polling_rate":"1h","disable_logs":false,"upgrade_data_directory":null},"daemon":{"name":"nym-node","home":"/home/nym/.nym/nym-nodes/default-nym-nodee","absolute_upstream_upgrade_url":null,"allow_binaries_download":true,"enforce_download_checksum":true,"restart_after_upgrade":true,"restart_on_failure":false,"failure_restart_delay":"10s","max_startup_failures":10,"startup_period_duration":"2m","shutdown_grace_period":"10s","backup_data_directory":null,"unsafe_skip_backup":false}}
 ```
 
 ## CLI Overview
@@ -179,8 +177,8 @@ For any of its commands as described in [CLI Overview section](./nymvisor-upgrad
 - `NYMVISOR_UPSTREAM_POLLING_RATE` (defaults to 1h) is polling rate the upstream url for upgrade information.
 - `NYMVISOR_DISABLE_LOGS` (defaults to `false`). If set to `true`, this will disable Nymvisor logs (but not the underlying process) completely.
 - `NYMVISOR_UPGRADE_DATA_DIRECTORY` is the custom directory for upgrade data - binaries and upgrade plans. If not set, the global Nymvisors' data directory will be used instead.
-- `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-mixnode`, etc.).
-- `DAEMON_HOME` is the location where the `nymvisor/` directory is kept that contains the auxiliary files associated with the underlying daemon instance, such as any backups or current version information, e.g. `$HOME/.nym/nym-api/my-nym-api`, `$HOME/.nym/mixnodes/my-mixnode`, etc.
+- `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-node`, etc.).
+- `DAEMON_HOME` is the location where the `nymvisor/` directory is kept that contains the auxiliary files associated with the underlying daemon instance, such as any backups or current version information, e.g. `$HOME/.nym/nym-api/my-nym-api`, `$HOME/.nym/nym-nodes/default-nym-node`, etc.
 - `DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL` is the absolute (i.e. the full url) upstream source for upgrade plans for this daemon. The url has to point to an endpoint containing a valid `UpgradeInfo` json file. If set it takes precedence over `NYMVISOR_UPSTREAM_BASE_UPGRADE_URL`.
 - `DAEMON_ALLOW_BINARIES_DOWNLOAD` (defaults to `true`), if set to `true`, it will enable auto-downloading of new binaries (as declared by urls in corresponding `upgrade-info.json` files). For security reasons one might wish to disable it and instead manually provide binaries by either placing them in the appropriate directory or by invoking `add-upgrade` command.
 - `DAEMON_ENFORCE_DOWNLOAD_CHECKSUM` (defaults to `true`), if set to `true` Nymvisor will require that a checksum is provided in the upgrade plan for the upgrade binary to be downloaded. If disabled, Nymvisor will not require a checksum to be provided, but still check the checksum if one is provided.
@@ -226,7 +224,7 @@ A sample full structure looks as follows:
 │       │   │       └── upgrade-info.json
 │       │   ├── upgrade-history.json
 │       │   └── upgrade-plan.json
-│       ├── nym-mixnode
+│       ├── nym-node
 │       │   └── ...
 │       └── $DAEMON_NAME
 │           └── ...
@@ -264,7 +262,7 @@ This section outlines what happens under the hood with the following commands:
 - saves the Nymvisor instance's config file to `$NYMVISOR_CONFIG_PATH` and creates the full directory structure for the file
 - outputs (to `stdout`) the full configuration used
 
-> `nymvisor init` is specifically for initializing Nymvisor, and should **not** be confused with a daemon's `init` command - such as `nym-mixnode init` (e.g. `cosmovisor run init`).
+> `nymvisor init` is specifically for initializing Nymvisor, and should **not** be confused with a daemon's `init` command - such as `nym-node init` (e.g. `cosmovisor run init`).
 
 ### Run
 `nymvisor run` is a lightweight wrapper around the underlying daemon. It uses only a single thread and spawns three simple tasks:

@@ -9,7 +9,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install Dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler git
       - name: Install rsync
         run: sudo apt-get install rsync
       - uses: rlespinasse/github-slug-action@v3.x
@@ -30,9 +30,25 @@ jobs:
       - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
-      - name: Build all projects in documentation/ & move to ~/dist/docs/
+# This is the original flow
+#      - name: Build all projects in documentation/ & move to ~/dist/docs/
+#        run: cd documentation && ./build_all_to_dist.sh
+#        continue-on-error: false
+# This is a dirty hack replacement which builds on develop and then on current branch
+
+      - name: Save current branch to ~/current_branch
+        run: git rev-parse --abbrev-ref HEAD > ~/current_branch
+      - name: Git pull & switch to develop
+        run: git pull && git checkout develop
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
+      - name: Switch to current branch
+        run: git checkout $echo "$(cat ~/current_branch)"
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ on current branch
+        run: cd documentation && ./build_all_to_dist.sh && rm ~/current_branch
+        continue-on-error: false
+# End of replacemet
 
       - name: Post process
         run: cd documentation && ./post_process.sh

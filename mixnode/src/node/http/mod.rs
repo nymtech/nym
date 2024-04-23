@@ -105,7 +105,7 @@ impl<'a> HttpApiBuilder<'a> {
 
         let router = nym_node_http_api::NymNodeRouter::new(config, None, None);
         let server = router
-            .with_merged(legacy::routes(self.legacy_mixnode, self.legacy_descriptor))
+            // .with_merged(legacy::routes(self.legacy_mixnode, self.legacy_descriptor))
             .build_server(&bind_address)?
             .with_task_client(task_client);
         tokio::spawn(async move { server.run().await });

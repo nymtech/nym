@@ -38,13 +38,12 @@ jobs:
 #      - name: Build all projects in documentation/ & move to ~/dist/docs/
 #        run: cd documentation && ./build_all_to_dist.sh
 #        continue-on-error: false
-# This is a dirty hack replacement which builds on develop and then on current branch
-
+# This is a workaround replacement which builds on master and then on current branch
       - name: Save current branch to ~/current_branch
         run: git rev-parse --abbrev-ref HEAD > ~/current_branch
-      - name: Git pull & switch to develop
-        run: git pull && git checkout develop
-      - name: Build all projects in documentation/ & move to ~/dist/docs/ on develop
+      - name: Git pull & switch to master
+        run: git pull && git checkout master
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ from master
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
       - name: Switch to current branch

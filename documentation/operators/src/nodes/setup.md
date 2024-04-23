@@ -7,7 +7,7 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](n
 ```
 0.1.0
 ```
-<!--  #WHEN IT WORKS AUTOMATE WITH cmdrun ../../../../target/release/nym-node --version -->
+<!--  #WHEN IT WORKS AUTOMATE WITH cmd#run ../../../../target/release/nym-node --version -->
 
 ```admonish info
 **Migrating an existing node to a new `nym-node` is simple. The steps are documented [below](#migrate).**
@@ -83,7 +83,7 @@ Options:
           Print version
 ```
 ~~~
-<!--#WHEN IT WORKS AUTOMATE WITH cmdrun ../../../../target/release/nym-node --help -->
+<!--#WHEN IT WORKS AUTOMATE WITH cm#drun ../../../../target/release/nym-node --help -->
 
 
 To list all available flags for each command, run `./nym-node <COMMAND> --help` for example `./nym-node run --help`:
@@ -165,7 +165,7 @@ Options:
           Print help
 ```
 ~~~
-<!--#WHEN IT WORKS AUTOMATE WITH cmdrun ../../../../target/release/nym-node run --help  -->
+<!--#WHEN IT WORKS AUTOMATE WITH cmd#run ../../../../target/release/nym-node run --help  -->
 
 The Wireguard flags currently have limited functionality, with `--wireguard-enabled` being the most relevant, enabling or disabling wireguard functionality.
 

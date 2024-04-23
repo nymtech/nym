@@ -1,6 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+#![allow(unused)]
+
 use crate::node::http::legacy::description::description;
 use crate::node::http::legacy::hardware::hardware;
 use crate::node::http::legacy::state::MixnodeAppState;

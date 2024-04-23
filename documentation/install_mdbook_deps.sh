@@ -9,16 +9,16 @@ set -o pipefail
 # pinning minor version allows for updates but no breaking changes
 MINOR_VERSION=0.4
 # if a new plugin is added to the books it needs to be added here also
-declare -a plugins=("admonish" "linkcheck" "last-changed" "theme" "variables" "cmdrun")
+declare -a plugins=("admonish", "linkcheck" "last-changed" "theme" "variables" "cmdrun")
 
 # install mdbook + plugins
 install_mdbook_deps() {
-	printf "\ninstalling mdbook..." 
-	# installing mdbook with only specific features for speed 
+	printf "\ninstalling mdbook..."
+	# installing mdbook with only specific features for speed
 #  cargo install mdbook --no-default-features --features search --vers "^$MINOR_VERSION"
 	cargo install mdbook --vers "^$MINOR_VERSION"
 
-	printf "\ninstalling plugins..." 
+	printf "\ninstalling plugins..."
 	for i in "${plugins[@]}"
 	do
 		cargo install mdbook-$i
@@ -41,13 +41,13 @@ install_mdbook_deps() {
 # uninstall mdbook + plugins
 uninstall_mdbook_deps() {
 	# mdbook
-	printf "\nuninstalling existing mdbook installation...\n" 
-	cargo uninstall mdbook 
-	# check it worked 
+	printf "\nuninstalling existing mdbook installation...\n"
+	cargo uninstall mdbook
+	# check it worked
 	if [ $? -ne 0 ]; then
 		printf "\nsomething went wrong, exiting"
 		exit 1
-	else 
+	else
 		printf "\nmdbook deleted\n"
 	fi
 
@@ -57,10 +57,10 @@ uninstall_mdbook_deps() {
 	do
 		cargo uninstall mdbook-$i
 		# check it worked
-		if [ $? -ne 0 ]; then 
+		if [ $? -ne 0 ]; then
 			printf "\nsomething went wrong, exiting"
 			exit 1
-		else 
+		else
 		printf "\nmdbook-$i deleted\n"
 	fi
 	done
@@ -71,10 +71,10 @@ main() {
 		printf "mdbook already installed (located at: $(which mdbook))"
 		uninstall_mdbook_deps;
 		install_mdbook_deps;
-	else 
+	else
 		printf "mdbook not installed"
 		install_mdbook_deps;
 	fi
 }
 
-main; 
+main;

@@ -9,9 +9,8 @@
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
-```
-<!-- cmdrun ../../../../../target/release/nym-mixnode --version | grep "Build Version" | cut -b 21-26  -->
-```
+
+The last version before migration to [`nym-node`](../../nodes/nym-node.md) was `1.1.35`.
 
 The `nym-mix node` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
 
@@ -39,12 +38,6 @@ You can check that your binaries are properly compiled with:
 
 Which should return a list of all available commands.
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-mixnode --help -->
-```
-~~~
-
 You can also check the various arguments required for individual commands with:
 
 ```
@@ -61,24 +54,11 @@ To check available configuration options for initializing your node use:
 ./nym-mixnode init --help
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-mixnode init --help -->
-```
-~~~
-
 Initialise your Mix Node with the following command, replacing the value of `--id` with the moniker you wish to give your Mix Node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl -4 https://ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
 ./nym-mixnode init --id <YOUR_ID> --host $(curl -4 https://ifconfig.me) 
 ```
-If `<YOUR_ID>` was `my-node`, the output will look like this:
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-mixnode init --id my-node --host $(curl -4 https://ifconfig.me) -->
-```
-~~~
 
 > The `init` command will refuse to destroy existing Mix Node keys.
 
@@ -141,15 +121,6 @@ You can bond your Mix Node via the Desktop wallet.
 ./nym-mixnode sign --id <YOUR_ID> --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>
 ```
 
-It will look something like this:
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-mixnode init --id my-node --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../../target/release/nym-mixnode sign --id my-node --contract-msg 22Z9wt4PyiBCbMiErxj5bBa4VCCFsjNawZ1KnLyMeV9pMUQGyksRVANbXHjWndMUaXNRnAuEVJW6UCxpRJwZe788hDt4sicsrv7iAXRajEq19cWPVybbUqgeo76wbXbCbRdg1FvVKgYZGZZp8D72p5zWhKSBRD44qgCrqzfV1SkiFEhsvcLUvZATdLRocAUL75KmWivyRiQjCE1XYEWyRH9yvRYn4TymWwrKVDtEB63zhHjATN4QEi2E5qSrSbBcmmqatXsKakbgSbQoLsYygcHx7tkwbQ2HDYzeiKP1t16Rhcjn6Ftc2FuXUNnTcibk2LQ1hiqu3FAq31bHUbzn2wiaPfm4RgqTwGM4eqnjBofwR3251wQSxbYwKUYwGsrkweRcoPuEaovApR9R19oJ7GVG5BrKmFwZWX3XFVuECe8vt1x9MY7DbQ3xhAapsHhThUmzN6JPPU4qbQ3PdMt3YVWy6oRhap97ma2dPMBaidebfgLJizpRU3Yu7mtb6E8vgi5Xnehrgtd35gitoJqJUY5sB1p6TDPd6vk3MVU1zqusrke7Lvrud4xKfCLqp672Bj9eGb2wPwow643CpHuMkhigfSWsv9jDq13d75EGTEiprC2UmWTzCJWHrDH7ka68DZJ5XXAW67DBewu7KUm1jrJkNs55vS83SWwm5RjzQLVhscdtCH1Bamec6uZoFBNVzjs21o7ax2WHDghJpGMxFi6dmdMCZpqn618t4 -->
-```
-~~~
-
 * Copy the resulting signature:
 
 ```sh
@@ -191,13 +162,6 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 ./nym-mixnode sign --id <YOUR_ID> --text <TEXT>
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
-```
-~~~
-
 Using `nym-cli`:
 
 > `--mnemonic` is the mnemonic of the member wanting to be the head of family.
@@ -225,13 +189,6 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 ```
 ./nym-mixnode sign --id <YOUR_ID> --text <TEXT>
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
-```
-~~~
 
 Using `nym-cli`:
 

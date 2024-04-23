@@ -14,9 +14,8 @@ As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `n
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
-```
-<!-- cmdrun ../../../../../target/release/nym-gateway --version | grep "Build Version" | cut -b 21-26  -->
-```
+
+The last version before migration to [`nym-node`](../../nodes/nym-node.md) was `1.1.33`.
 
 ## Preliminary steps
 
@@ -38,12 +37,6 @@ You can check that your binaries are properly compiled with:
 ```
 ./nym-gateway --help
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-gateway --help -->
-```
-~~~
 
 You can also check the various arguments required for individual commands with:
 
@@ -74,13 +67,6 @@ An operator can initialise the Exit Gateway functionality by adding Network Requ
 ./nym-gateway init --id <ID> --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" --with-network-requester --with-exit-policy true
 ```
 
-If we follow the previous example with `<ID>` chosen `superexitgateway`, adding the `--with-network-requester` and `--with-exit-policy` flags, the outcome will be:
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-gateway init --id superexitgateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" --with-network-requester --with-exit-policy true -->
-```
-~~~
 
 You can see that the printed information besides *identity* and *sphinx keys* also includes a long string called *address*. This is the address to be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own Exit Gateway.  
 
@@ -96,11 +82,6 @@ See the options:
 ./nym-gateway setup-network-requester --help
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-gateway setup-network-requester --help -->
-```
-~~~
 
 To setup Exit Gateway functionality with our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) add a flag `--with-exit-policy true`. 
 
@@ -115,12 +96,6 @@ Say we have a Gateway with `<ID>` as `new-gateway`, originally initialised and r
 ./nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun rm -rf $HOME/.nym/gateways/new-gateway -->
-<!-- cmdrun ../../../../../target/release/nym-gateway init --id new-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" && ../../../../../target/release/nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway -->
-```
-~~~
 
 In case there are any unexpected problems, you can also change it manually by editing the Gateway config file stored in `/home/user/.nym/gateways/<ID>/config/config.toml` where the line under `[network_requester]` needs to be edited from `false` to `true`.
 
@@ -161,23 +136,11 @@ To check available configuration options use:
  ./nym-gateway init --help
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-gateway init --help -->
-```
-~~~
-
 The following command returns a Gateway on your current IP with the `<ID>` of `simple-gateway`:
 
 ```
 ./nym-gateway init --id simple-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)"
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-gateway init --id simple-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" -->
-```
-~~~
 
 The `$(curl -4 https://ifconfig.me)` command above returns your IP automatically using an external service. Alternatively, you can enter your IP manually if you wish. If you do this, remember to enter your IP **without** any port information.
 

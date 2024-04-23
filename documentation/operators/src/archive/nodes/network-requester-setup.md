@@ -9,9 +9,8 @@
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
-```
-<!-- cmdrun ../../../../../target/release/nym-network-requester --version | grep "Build Version" | cut -b 21-26  -->
-```
+
+The last version before migration to [`nym-node`](../../nodes/nym-node.md) was `1.1.33`.
 
 ## Preliminary steps
 
@@ -127,12 +126,6 @@ cd target/release
 
 The `./nym-network-requester --help ` command can be used to show a list of available parameters.
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-network-requester --help -->
-```
-~~~
-
 You can check the required parameters for available commands by running:
 
 ```
@@ -148,15 +141,6 @@ The Network Requester needs to be initialized before it can be run. This is requ
 ```
  ./nym-network-requester init --id <YOUR_ID>
 ```
-
-In the following we used `example`.
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun timeout 20s ../../../../../target/release/nym-network-requester init --id example -->
-```
-~~~
-
 
 Now that we have initialized our network-requester, we can start it with the following command:
 

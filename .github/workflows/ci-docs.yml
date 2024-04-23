@@ -37,7 +37,6 @@ jobs:
 # This is the original flow
       - name: Build all projects in documentation/ & move to ~/dist/docs/
         run: cd documentation && ./build_all_to_dist.sh
-        continue-on-error: false
 # This is a workaround replacement which builds on master and then on current branch
 #      - name: Save current branch to ~/current_branch
 #        run: git rev-parse --abbrev-ref HEAD > ~/current_branch

@@ -5,7 +5,6 @@ import { PageGateways } from '../pages/Gateways';
 import { PageGatewayDetail } from '../pages/GatewayDetail';
 import { PageMixnodeDetail } from '../pages/MixnodeDetail';
 import { PageMixnodes } from '../pages/Mixnodes';
-import { ServiceProviders } from '../pages/ServiceProviders';
 
 const ValidatorRoute: FCWithChildren = () => {
   const navigate = useNavigate();
@@ -22,6 +21,5 @@ export const NetworkComponentsRoutes: FCWithChildren = () => (
     <Route path="gateways" element={<PageGateways />} />
     <Route path="gateway/:id" element={<PageGatewayDetail />} />
     <Route path="validators" element={<ValidatorRoute />} />
-    <Route path="service-providers" element={<ServiceProviders />} />
   </ReactRouterRoutes>
 );

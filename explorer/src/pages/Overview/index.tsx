@@ -3,7 +3,6 @@ import { Box, Grid, Link, Typography } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
-import { PeopleAlt } from '@mui/icons-material';
 import { WorldMap } from '../../components/WorldMap';
 import { useMainContext } from '../../context/main';
 import { formatNumber } from '../../utils';
@@ -69,17 +68,6 @@ export const PageOverview: FCWithChildren = () => {
                   count={gateways?.data?.length || ''}
                   errorMsg={gateways?.error}
                   icon={<GatewaysSVG />}
-                />
-              </Grid>
-            )}
-            {serviceProviders && (
-              <Grid item xs={12} md={4}>
-                <StatsCard
-                  onClick={() => navigate('/network-components/service-providers')}
-                  title="Service providers"
-                  icon={<PeopleAlt />}
-                  count={serviceProviders.data?.length}
-                  errorMsg={summaryOverview?.error}
                 />
               </Grid>
             )}

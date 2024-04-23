@@ -15,7 +15,7 @@
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](preliminary-steps.md) before setting up your Network Requester.
+Make sure you do the preparation listed in the [preliminary steps page](initial-steps.md) before setting up your Network Requester.
 
 ## Network Requester Whitelist
 

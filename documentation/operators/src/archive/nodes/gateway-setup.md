@@ -20,7 +20,7 @@ As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `n
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](preliminary-steps.md) before setting up your Gateway.
+Make sure you do the preparation listed in the [preliminary steps page](initial-steps.md) before setting up your Gateway.
 
 
 ## Gateway setup

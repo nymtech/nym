@@ -35,7 +35,7 @@ If you want to dive deeper into Nym's architecture, clients, nodes, and SDK exam
 
 * [FAQ](faq/nym-nodes-faq.md)
 * [Maintenance](nodes/maintenance.md)
-* [Troubleshooting](troubleshooting/nym-node.md)
+* [Troubleshooting](troubleshooting/nodes.md)
 
 **Community Legal Forum**
 

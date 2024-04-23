@@ -98,4 +98,4 @@ ip addr show nymtun0
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 ```
 
-Make sure that you get the validation of IPv4 and IPv6 connectivity, in case of problems, check [troubleshooting page](../troubleshooting/vps-setup.md#incorrect-gateway-network-check). After proceed to [bonding](bonding.md).
+Make sure that you get the validation of IPv4 and IPv6 connectivity, in case of problems, check [troubleshooting page](../troubleshooting/vps-isp.md#incorrect-gateway-network-check). After proceed to [bonding](bonding.md).

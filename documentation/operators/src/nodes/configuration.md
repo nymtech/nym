@@ -293,7 +293,7 @@ ip addr show nymtun0
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 ```
 
-Make sure that you get the validation of IPv4 and IPv6 connectivity. If there are still any problems, please refer to [troubleshooting section](../troubleshooting/vps-setup.md#incorrect-gateway-network-check)
+Make sure that you get the validation of IPv4 and IPv6 connectivity. If there are still any problems, please refer to [troubleshooting section](../troubleshooting/vps-isp.md#incorrect-gateway-network-check)
 
 ## Next Steps
 

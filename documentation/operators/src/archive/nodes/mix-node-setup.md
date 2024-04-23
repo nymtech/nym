@@ -17,7 +17,7 @@ The `nym-mix node` binary is currently one point version ahead of the rest of th
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](preliminary-steps.md) before setting up your Mix Node.
+Make sure you do the preparation listed in the [preliminary steps page](initial-steps.md) before setting up your Mix Node.
 
 ## Mix node setup
 

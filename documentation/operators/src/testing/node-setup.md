@@ -68,5 +68,5 @@ sudo ufw allow 9000, 9001
 
 ## Troubleshooting
 
-If you come to any errors during the setup visit [troubleshooting page](../troubleshooting/nym-node.md#gateways-mode). In case your issue isn't documented ask in our Element [Node Operators channel](https://matrix.to/#/#operators:nymtech.chat) or raise an [issue](https://github.com/nymtech/nym/issues) on Github.
+If you come to any errors during the setup visit [troubleshooting page](../troubleshooting/nodes.md#gateways-mode). In case your issue isn't documented ask in our Element [Node Operators channel](https://matrix.to/#/#operators:nymtech.chat) or raise an [issue](https://github.com/nymtech/nym/issues) on Github.
 

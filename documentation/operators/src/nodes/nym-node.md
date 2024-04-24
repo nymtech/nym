@@ -1,7 +1,7 @@
 # Nym Node
 
 ```admonish note
-If you are a `nym-mixnode` or `nym-gateway` operator and you are not familiar with the binary changes called *Project Smoosh*, you can read the archived [Smoosh FAQ](../archive/smoosh-faq.md) page.
+If you are a `nym-mixnode` or `nym-gateway` operator and you are not familiar with the binary changes called *Project Smoosh*, you can read the archived [Smoosh FAQ](../archive/faq/smoosh-faq.md) page.
 ```
 
 NYM NODE is a tool for running a node within the Nym network. Nym Nodes containing functionality such as `mixnode`, `entry-gateway` and `exit-gateway` are fundamental components of Nym Mixnet architecture. Nym Nodes are ran by decentralised node operators.
@@ -65,13 +65,13 @@ operation fetch_ipv6_address_nym_tun completed successfully.
 ```sh
 sudo ./network_tunnel_manager.sh apply_iptables_rules
 ```
-  - and check them again like in point 3.
+  - and check them again like in point 4.
 
 7. (If you didn't have a `nym-node` service yet) Create `systemd` [automation and configuration file](configuration.md#systemd), reload, enable
 
 8. Start `nym-node` service:
 ```sh
-sudo service start nym-node && journalctl -u nym-node -f -n 100
+sudo service nym-node start && journalctl -u nym-node -f -n 100
 ```
 
 9. After a minute of running properly, check `nymtun0`:
@@ -98,4 +98,4 @@ ip addr show nymtun0
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 ```
 
-Make sure that you get the validation of IPv4 and IPv6 connectivity, in case of problems, check [troubleshooting page](../troubleshooting/vps-setup.md#incorrect-gateway-network-check). After proceed to [bonding](bonding.md).
+Make sure that you get the validation of IPv4 and IPv6 connectivity, in case of problems, check [troubleshooting page](../troubleshooting/vps-isp.md#incorrect-gateway-network-check). After proceed to [bonding](bonding.md).

@@ -35,8 +35,8 @@
 
 # Troubleshooting
 
-- [VPS Setup](troubleshooting/vps-setup.md)
-- [Nym Node](troubleshooting/nym-node.md)
+- [VPS Setup](troubleshooting/vps-isp.md)
+- [Nym Node](troubleshooting/nodes.md)
 - [Validators](troubleshooting/validators.md)
 
 # Token Economics
@@ -66,7 +66,7 @@
 
 - [Why archive?](archive/archive.md)
 - [Mixnet Nodes Setup](archive/nodes/setup-guides.md)
-    - [Preliminary Steps](archive/nodes/preliminary-steps.md)
+    - [Preliminary Steps](archive/nodes/initial-steps.md)
     - [Mix Node](archive/nodes/mix-node-setup.md)
     - [Gateway](archive/nodes/gateway-setup.md)
     - [Network Requester](archive/nodes/network-requester-setup.md)

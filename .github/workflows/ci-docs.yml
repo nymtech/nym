@@ -34,9 +34,6 @@ jobs:
       - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
-# This is the original flow
-      - name: Build all projects in documentation/ & move to ~/dist/docs/
-        run: cd documentation && ./build_all_to_dist.sh
 
 # This is the original flow
 #      - name: Build all projects in documentation/ & move to ~/dist/docs/

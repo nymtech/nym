@@ -25,7 +25,7 @@ Do not bond your node to the API if the previous steps weren't finished. Bad con
 You can bond your `nym-node` via the Desktop wallet.
 
 1. Open your wallet, and head to the `Bond` page, then select the node type `Mixnode` and input your node details. Press `Next`.
-  - To find out your `nym-node` details, run `./nym-node bonding-information`
+  - To find out your `nym-node` details, run `./nym-node bonding-information --id <ID>`
   - To get a correct host address, run `echo "$(curl -4 https://ifconfig.me)"`
 
 

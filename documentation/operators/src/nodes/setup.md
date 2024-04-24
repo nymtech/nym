@@ -60,6 +60,11 @@ Run `./nym-node --help` to see all available commands:
 
 ~~~admonish example collapsible=true title="`./nym-node --help` output:"
 ```
+<!-- cmdrun ../../../../target/release/nym-node --help -->
+```
+~~~
+<!-- IN CASE CMD-RUN DOESN'T WORK HAR PASTE THIS:
+
 Usage: nym-node [OPTIONS] <COMMAND>
 
 Commands:
@@ -80,15 +85,17 @@ Options:
           Print help
   -V, --version
           Print version
-```
-~~~
-<!--#WHEN IT WORKS AUTOMATE WITH cm#drun ../../../../target/release/nym-node --help -->
-
+-->
 
 To list all available flags for each command, run `./nym-node <COMMAND> --help` for example `./nym-node run --help`:
 
 ~~~admonish example collapsible=true title="`./nym-node run --help` output:"
 ```
+<!-- cmdrun ../../../../target/release/nym-node run --help  -->
+```
+~~~
+<!-- IN CASE CMD-RUN DOESN'T WORK HAR PASTE THIS:
+
 Start this nym-node
 
 Usage: nym-node run [OPTIONS]
@@ -162,9 +169,7 @@ Options:
           Specifies whether this exit node should run in 'open-proxy' mode and thus would attempt to resolve **ANY** request it receives [env: NYMNODE_OPEN_PROXY=] [possible values: true, false]
   -h, --help
           Print help
-```
-~~~
-<!--#WHEN IT WORKS AUTOMATE WITH cmd#run ../../../../target/release/nym-node run --help  -->
+-->
 
 The Wireguard flags currently have limited functionality, with `--wireguard-enabled` being the most relevant, enabling or disabling wireguard functionality.
 

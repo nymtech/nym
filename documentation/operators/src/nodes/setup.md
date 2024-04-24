@@ -5,7 +5,7 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](n
 ## Current version
 
 ```
-../../../../target/release/nym-node --version
+<!-- cmdrun ../../../../target/release/nym-node --version -->
 ```
 
 ```admonish info
@@ -63,7 +63,9 @@ Run `./nym-node --help` to see all available commands:
 <!-- cmdrun ../../../../target/release/nym-node --help -->
 ```
 ~~~
-<!-- IN CASE CMD-RUN DOESN'T WORK HAR PASTE THIS:
+
+<!--
+IN CASE CMD-RUN DOESN'T WORK HAR PASTE THIS:
 
 Usage: nym-node [OPTIONS] <COMMAND>
 
@@ -94,6 +96,7 @@ To list all available flags for each command, run `./nym-node <COMMAND> --help` 
 <!-- cmdrun ../../../../target/release/nym-node run --help  -->
 ```
 ~~~
+
 <!-- IN CASE CMD-RUN DOESN'T WORK HAR PASTE THIS:
 
 Start this nym-node

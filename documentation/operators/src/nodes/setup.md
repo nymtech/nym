@@ -5,9 +5,8 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](n
 ## Current version
 
 ```
-0.1.0
+../../../../target/release/nym-node --version
 ```
-<!--  #WHEN IT WORKS AUTOMATE WITH cmd#run ../../../../target/release/nym-node --version -->
 
 ```admonish info
 **Migrating an existing node to a new `nym-node` is simple. The steps are documented [below](#migrate).**

@@ -26,7 +26,7 @@ else
       echo "cleaning old book"
       rm -rf ./book/
       # build book
-      mdbook build
+      mdbook build && sleep 10
       # check for destination, if ! then mkdir & check again else echo thumbs up
       if [ ! -d ../../dist/docs/$i ]; then
         echo "dest doesn't exist: creating dir"

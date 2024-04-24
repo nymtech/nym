@@ -268,6 +268,8 @@ Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). For
 
 To migrate a `nym-mixnode` or a `nym-gateway` to `nym-node` is fairly simple, use the `migrate` command with `--config-file` flag pointing to the original `config.toml` file, with a conditional argument defining which type of node this configuration belongs to. Examples are below.
 
+Make sure to use `--deny-init` flag to prevent initialisation of a new node.
+
 #### Mode: `mixnode`
 ```sh
 # move relevant infor from config.toml

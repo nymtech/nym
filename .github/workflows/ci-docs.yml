@@ -35,21 +35,22 @@ jobs:
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
 # This is the original flow
-      - name: Build all projects in documentation/ & move to ~/dist/docs/
-        run: cd documentation && ./build_all_to_dist.sh
-# This is a workaround replacement which builds on master and then on current branch
-#      - name: Save current branch to ~/current_branch
-#        run: git rev-parse --abbrev-ref HEAD > ~/current_branch
-#      - name: Git pull & switch to master
-#        run: git pull && git checkout master
-#      - name: Build all projects in documentation/ & move to ~/dist/docs/ from master
+#      - name: Build all projects in documentation/ & move to ~/dist/docs/
 #        run: cd documentation && ./build_all_to_dist.sh
-#        continue-on-error: false
-#      - name: Switch to current branch
-#        run: git checkout $echo "$(cat ~/current_branch)"
-#      - name: Build all projects in documentation/ & move to ~/dist/docs/ on current branch
-#        run: cd documentation && ./build_all_to_dist.sh && rm ~/current_branch
-#        continue-on-error: false
+
+# This is a workaround replacement which builds on the last working commit b332a6b55668f60988e36961f3f62a794ba82ddb and then on current branch
+      - name: Save current branch to ~/current_branch
+        run: git rev-parse --abbrev-ref HEAD > ~/current_branch
+      - name: Git pull & switch to b332a6b55668f60988e36961f3f62a794ba82ddb
+        run: git pull && git checkout b332a6b55668f60988e36961f3f62a794ba82ddb
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ from b332a6b55668f60988e36961f3f62a794ba82ddb
+        run: cd documentation && ./build_all_to_dist.sh
+
+      - name: Switch to current branch
+        run: git checkout $echo "$(cat ~/current_branch)"
+      - name: Build all projects in documentation/ & move to ~/dist/docs/ on current branch
+        run: cd documentation && ./build_all_to_dist.sh && rm ~/current_branch
+
 # End of replacemet
 
       - name: Deploy branch to CI www

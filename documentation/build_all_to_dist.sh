@@ -5,7 +5,7 @@
 # from there by subsequent workflow tasks.
 
 # array of project dirs
-declare -a projects=("operators" "dev-portal")
+declare -a projects=("operators" "dev-portal" "docs")
 
 # check you're calling from the right place
 if [ $(pwd | awk -F/ '{print $NF}') != "documentation" ]
@@ -15,9 +15,9 @@ else
    for i in "${projects[@]}"
    do
       echo $i && 
-      cd "./$i" && RUST_LOG=info mdbook build --dest-dir ../../dist/$i/ && cd ../
+      cd "./$i" && RUST_LOG=info mdbook build --dest-dir ../../dist/docs/$i/ && cd ../
    done
    # rename for server paths
-#   rm -rf ../dist/developers
-#   mv ../dist/dev-portal ../dist/developers
+   rm -rf ../dist/developers
+   mv ../dist/docs/dev-portal ../dist/docs/developers
 fi

@@ -5,7 +5,7 @@
 # from there by subsequent workflow tasks.
 
 # array of project dirs
-declare -a projects=("dev-portal")
+declare -a projects=("operators" "dev-portal")
 
 # check you're calling from the right place
 if [ $(pwd | awk -F/ '{print $NF}') != "documentation" ]

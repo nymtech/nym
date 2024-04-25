@@ -6,7 +6,7 @@ use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
-use futures_util::{stream, StreamExt};
+use futures::{stream, StreamExt};
 use nym_api_requests::models::{
     IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
 };
@@ -16,6 +16,7 @@ use nym_mixnet_contract_common::Gateway;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use std::collections::HashMap;
 use thiserror::Error;
+use time::OffsetDateTime;
 
 // type alias for ease of use
 pub type DescribedNodes = HashMap<IdentityKey, NymNodeDescription>;
@@ -181,11 +182,12 @@ async fn get_gateway_description(
     };
 
     let description = NymNodeDescription {
-        host_information: host_info.data,
+        host_information: host_info.data.into(),
+        last_polled: OffsetDateTime::now_utc().into(),
         build_information: build_info,
         network_requester,
         ip_packet_router,
-        mixnet_websockets: websockets,
+        mixnet_websockets: websockets.into(),
     };
 
     Ok((gateway.identity_key, description))
@@ -211,7 +213,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
         }
 
         // TODO: somehow bypass the 'higher-ranked lifetime error' and remove that redundant clone
-        let websockets = stream::iter(
+        let node_description = stream::iter(
             gateways
                 // .deref()
                 // .clone()
@@ -224,7 +226,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
             match res {
                 Ok((identity, description)) => Some((identity, description)),
                 Err(err) => {
-                    debug!("{err}");
+                    debug!("failed to obtain gateway self-described data: {err}");
                     None
                 }
             }
@@ -232,7 +234,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
         .collect::<HashMap<_, _>>()
         .await;
 
-        Ok(websockets)
+        Ok(node_description)
     }
 }
 

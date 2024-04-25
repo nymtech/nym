@@ -4,8 +4,10 @@
 use crate::Cli;
 use clap::CommandFactory;
 use clap::Subcommand;
+use log::warn;
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use std::error::Error;
+use std::io::IsTerminal;
+use std::time::Duration;
 
 pub(crate) mod build_info;
 pub(crate) mod helpers;
@@ -26,7 +28,7 @@ pub(crate) enum Commands {
     NodeDetails(node_details::NodeDetails),
 
     /// Starts the gateway
-    Run(run::Run),
+    Run(Box<run::Run>),
 
     /// Add network requester support to this gateway
     // essentially an option to include NR without having to setup fresh gateway
@@ -50,13 +52,20 @@ pub(crate) enum Commands {
     GenerateFigSpec,
 }
 
-pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
     let bin_name = "nym-gateway";
+
+    warn!("standalone gateways have been deprecated - please consider migrating it to a `nym-node` via `nym-node migrate gateway` command");
+    if std::io::stdout().is_terminal() {
+        // if user is running it in terminal session,
+        // introduce the delay, so they'd notice the message
+        tokio::time::sleep(Duration::from_secs(1)).await
+    }
 
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::NodeDetails(m) => node_details::execute(m).await?,
-        Commands::Run(m) => run::execute(m).await?,
+        Commands::Run(m) => run::execute(*m).await?,
         Commands::SetupNetworkRequester(m) => setup_network_requester::execute(m).await?,
         Commands::SetupIpPacketRouter(m) => setup_ip_packet_router::execute(m).await?,
         Commands::Sign(m) => sign::execute(m)?,
@@ -70,7 +79,6 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
 
     #[test]
     fn verify_cli() {

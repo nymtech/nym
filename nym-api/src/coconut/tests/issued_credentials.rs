@@ -1,13 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::tests::{voucher_request_fixture, TestFixture};
+use crate::coconut::tests::{voucher_fixture, TestFixture};
 use cosmwasm_std::coin;
 use nym_api_requests::coconut::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse, Pagination,
 };
 use nym_api_requests::coconut::CredentialsRequestBody;
-use nym_coconut::Base58;
 use nym_validator_client::nym_api::routes::{API_VERSION, BANDWIDTH, COCONUT_ROUTES};
 use rocket::http::Status;
 use std::collections::BTreeMap;
@@ -102,12 +101,20 @@ async fn issued_credential() {
     let hash1 = "6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E".to_string();
     let hash2 = "9F4DF28B36189B4410BC23D97FD757FC74B919122E80534CC2CA6F3D646F6518".to_string();
 
-    let (voucher1, req1) = voucher_request_fixture(coin(1234, "unym"), Some(hash1.clone()));
-    let (voucher2, req2) = voucher_request_fixture(coin(1234, "unym"), Some(hash2.clone()));
+    let voucher1 = voucher_fixture(coin(1234, "unym"), Some(hash1.clone()));
+    let voucher2 = voucher_fixture(coin(1234, "unym"), Some(hash2.clone()));
+
+    let signing_data1 = voucher1.prepare_for_signing();
+    let voucher_data1 = voucher1.get_variant_data().voucher_data().unwrap();
+    let request1 = voucher_data1.create_blind_sign_request_body(&signing_data1);
+
+    let signing_data2 = voucher2.prepare_for_signing();
+    let voucher_data2 = voucher2.get_variant_data().voucher_data().unwrap();
+    let request2 = voucher_data2.create_blind_sign_request_body(&signing_data2);
 
     let test_fixture = TestFixture::new().await;
-    test_fixture.add_deposit_tx(&voucher1);
-    test_fixture.add_deposit_tx(&voucher2);
+    test_fixture.add_deposit_tx(voucher_data1);
+    test_fixture.add_deposit_tx(voucher_data2);
 
     // random credential that was never issued
     let response = test_fixture.rocket.get(route(42)).dispatch().await;
@@ -116,10 +123,10 @@ async fn issued_credential() {
         serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
     assert!(parsed_response.credential.is_none());
 
-    let cred1 = test_fixture.issue_credential(req1).await;
+    let cred1 = test_fixture.issue_credential(request1.clone()).await;
 
     test_fixture.set_epoch(3);
-    let cred2 = test_fixture.issue_credential(req2).await;
+    let cred2 = test_fixture.issue_credential(request2.clone()).await;
 
     let response = test_fixture.rocket.get(route(1)).dispatch().await;
     assert_eq!(response.status(), Status::Ok);
@@ -136,49 +143,37 @@ async fn issued_credential() {
     // TODO: currently we have no signature checks
     assert_eq!(1, issued1.credential.id);
     assert_eq!(1, issued1.credential.epoch_id);
-    assert_eq!(voucher1.tx_hash(), issued1.credential.tx_hash);
+    assert_eq!(voucher_data1.tx_hash(), issued1.credential.tx_hash);
     assert_eq!(
         cred1.to_bytes(),
         issued1.credential.blinded_partial_credential.to_bytes()
     );
-    let cms: Vec<_> = voucher1
-        .blind_sign_request()
-        .get_private_attributes_pedersen_commitments()
-        .iter()
-        .map(|c| c.to_bs58())
-        .collect();
     assert_eq!(
-        cms,
+        request1.encode_commitments(),
         issued1
             .credential
             .bs58_encoded_private_attributes_commitments
     );
     assert_eq!(
-        voucher1.get_public_attributes_plain(),
+        voucher1.get_plain_public_attributes(),
         issued1.credential.public_attributes
     );
 
     assert_eq!(2, issued2.credential.id);
     assert_eq!(3, issued2.credential.epoch_id);
-    assert_eq!(voucher2.tx_hash(), issued2.credential.tx_hash);
+    assert_eq!(voucher_data2.tx_hash(), issued2.credential.tx_hash);
     assert_eq!(
         cred2.to_bytes(),
         issued2.credential.blinded_partial_credential.to_bytes()
     );
-    let cms: Vec<_> = voucher2
-        .blind_sign_request()
-        .get_private_attributes_pedersen_commitments()
-        .iter()
-        .map(|c| c.to_bs58())
-        .collect();
     assert_eq!(
-        cms,
+        request2.encode_commitments(),
         issued2
             .credential
             .bs58_encoded_private_attributes_commitments
     );
     assert_eq!(
-        voucher2.get_public_attributes_plain(),
+        voucher2.get_plain_public_attributes(),
         issued2.credential.public_attributes
     );
 }
@@ -214,7 +209,7 @@ async fn issued_credentials() {
     let parsed_response: IssuedCredentialsResponse =
         serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
     assert_eq!(parsed_response.credentials[&5], issued5);
-    assert!(parsed_response.credentials.get(&13).is_none());
+    assert!(!parsed_response.credentials.contains_key(&13));
 
     let response = test_fixture
         .rocket

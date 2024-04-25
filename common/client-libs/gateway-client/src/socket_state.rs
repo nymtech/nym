@@ -10,17 +10,23 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::ServerResponse;
 use nym_task::TaskClient;
+use si_scale::helpers::bibytes2;
+use std::os::raw::c_int as RawFd;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
+use time::OffsetDateTime;
 use tungstenite::Message;
 
+#[cfg(unix)]
+use std::os::fd::AsRawFd;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen_futures;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 
@@ -37,13 +43,43 @@ type WsConn = JSWebsocket;
 
 type SplitStreamReceiver = oneshot::Receiver<Result<SplitStream<WsConn>, GatewayClientError>>;
 
+pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
+    #[cfg(unix)]
+    match _conn.get_ref() {
+        MaybeTlsStream::Plain(stream) => Some(stream.as_raw_fd()),
+        &_ => None,
+    }
+    #[cfg(not(unix))]
+    None
+}
+
+// disgusting? absolutely, but does the trick for now
+static LAST_LOGGED_BANDWIDTH_TS: AtomicI64 = AtomicI64::new(0);
+
+fn maybe_log_bandwidth(remaining: i64) {
+    // SAFETY: this value is always populated with valid timestamps
+    let last =
+        OffsetDateTime::from_unix_timestamp(LAST_LOGGED_BANDWIDTH_TS.load(Ordering::Relaxed))
+            .unwrap();
+    let now = OffsetDateTime::now_utc();
+    if last + Duration::from_secs(10) < now {
+        log::info!("remaining bandwidth: {}", bibytes2(remaining as f64));
+        LAST_LOGGED_BANDWIDTH_TS.store(now.unix_timestamp(), Ordering::Relaxed)
+    }
+}
+
+#[derive(Debug)]
 pub(crate) struct PartiallyDelegated {
     sink_half: SplitSink<WsConn, Message>,
     delegated_stream: (SplitStreamReceiver, oneshot::Sender<()>),
+    ws_fd: Option<RawFd>,
 }
 
 impl PartiallyDelegated {
-    fn recover_received_plaintexts(ws_msgs: Vec<Message>, shared_key: &SharedKeys) -> Vec<Vec<u8>> {
+    fn recover_received_plaintexts(
+        ws_msgs: Vec<Message>,
+        shared_key: &SharedKeys,
+    ) -> Result<Vec<Vec<u8>>, GatewayClientError> {
         let mut plaintexts = Vec::with_capacity(ws_msgs.len());
         for ws_msg in ws_msgs {
             match ws_msg {
@@ -61,15 +97,32 @@ impl PartiallyDelegated {
                 // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
                 Message::Text(text) => {
                     trace!(
-                    "received a text message - probably a response to some previous query! - {}",
-                    text
+                    "received a text message - probably a response to some previous query! - {text}",
                 );
+                    match ServerResponse::try_from(text)
+                        .map_err(|_| GatewayClientError::MalformedResponse)?
+                    {
+                        ServerResponse::Send {
+                            remaining_bandwidth,
+                        } => maybe_log_bandwidth(remaining_bandwidth),
+                        ServerResponse::Error { message } => {
+                            error!("gateway failure: {message}");
+                            return Err(GatewayClientError::GatewayError(message));
+                        }
+                        other => {
+                            warn!(
+                                "received illegal message of type {} in an authenticated client",
+                                other.name()
+                            )
+                        }
+                    }
+
                     continue;
                 }
                 _ => continue,
             }
         }
-        plaintexts
+        Ok(plaintexts)
     }
 
     fn route_socket_messages(
@@ -77,13 +130,13 @@ impl PartiallyDelegated {
         packet_router: &PacketRouter,
         shared_key: &SharedKeys,
     ) -> Result<(), GatewayClientError> {
-        let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key);
+        let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key)?;
         packet_router.route_received(plaintexts)
     }
 
     pub(crate) fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
-        packet_router: PacketRouter,
+        mut packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
         mut shutdown: TaskClient,
     ) -> Self {
@@ -91,6 +144,8 @@ impl PartiallyDelegated {
         // read control request responses.
         let (notify_sender, notify_receiver) = oneshot::channel();
         let (stream_sender, stream_receiver) = oneshot::channel();
+
+        let ws_fd = ws_fd(&conn);
 
         let (sink, mut stream) = conn.split();
 
@@ -115,7 +170,8 @@ impl PartiallyDelegated {
                         };
 
                         if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref()) {
-                            log::warn!("Route socket messages failed: {err}");
+                            log::error!("Route socket messages failed: {err}");
+                            break Err(err)
                         }
                     }
                 };
@@ -124,6 +180,7 @@ impl PartiallyDelegated {
             if match ret_err {
                 Err(err) => stream_sender.send(Err(err)),
                 Ok(_) => {
+                    packet_router.mark_as_success();
                     shutdown.mark_as_success();
                     stream_sender.send(Ok(stream))
                 }
@@ -141,9 +198,14 @@ impl PartiallyDelegated {
         tokio::spawn(mixnet_receiver_future);
 
         PartiallyDelegated {
+            ws_fd,
             sink_half: sink,
             delegated_stream: (stream_receiver, notify_sender),
         }
+    }
+
+    pub(crate) fn ws_fd(&self) -> Option<RawFd> {
+        self.ws_fd
     }
 
     // if we want to send a message and don't care about response, we can don't need to reunite the split,
@@ -201,6 +263,7 @@ impl PartiallyDelegated {
 // we can either have the stream itself or an option to re-obtain it
 // by notifying the future owning it to finish the execution and awaiting the result
 // which should be almost immediate (or an invalid state which should never, ever happen)
+#[derive(Debug)]
 pub(crate) enum SocketState {
     Available(Box<WsConn>),
     PartiallyDelegated(PartiallyDelegated),

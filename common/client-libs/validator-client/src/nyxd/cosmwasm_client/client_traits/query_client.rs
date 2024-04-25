@@ -32,7 +32,7 @@ use cosmrs::{AccountId, Coin as CosmosCoin, Tx};
 use log::trace;
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+
 use std::time::Duration;
 use tendermint_rpc::{
     endpoint::{block::Response as BlockResponse, broadcast, tx::Response as TxResponse},

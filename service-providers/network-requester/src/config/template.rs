@@ -51,10 +51,6 @@ keys.private_encryption_key_file = '{{ storage_paths.keys.private_encryption_key
 # Path to file containing public encryption key.
 keys.public_encryption_key_file = '{{ storage_paths.keys.public_encryption_key_file }}'
 
-# A gateway specific, optional, base58 stringified shared key used for
-# communication with particular gateway.
-keys.gateway_shared_key_file = '{{ storage_paths.keys.gateway_shared_key_file }}'
-
 # Path to file containing key used for encrypting and decrypting the content of an
 # acknowledgement so that nobody besides the client knows which packet it refers to.
 keys.ack_key_file = '{{ storage_paths.keys.ack_key_file }}'
@@ -62,12 +58,12 @@ keys.ack_key_file = '{{ storage_paths.keys.ack_key_file }}'
 # Path to the database containing bandwidth credentials
 credentials_database = '{{ storage_paths.credentials_database }}'
 
-# Path to the file containing information about gateway used by this client,
-# i.e. details such as its public key, owner address or the network information.
-gateway_details = '{{ storage_paths.gateway_details }}'
-
 # Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
 reply_surb_database = '{{ storage_paths.reply_surb_database }}'
+
+# Path to the file containing information about gateways used by this client,
+# i.e. details such as their public keys, owner addresses or the network information.
+gateway_registrations = '{{ storage_paths.gateway_registrations }}'
 
 # Location of the file containing our allow.list
 allowed_list_location = '{{ storage_paths.allowed_list_location }}'
@@ -94,11 +90,6 @@ statistics_recipient = '{{ network_requester.statistics_recipient }}'
 # Disable Poisson sending rate
 # This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
 disable_poisson_rate = {{ network_requester.disable_poisson_rate }}
-
-# Specifies whether this network requester should be using the deprecated allow-list,
-# as opposed to the new ExitPolicy.
-# Note: this field will be removed in a near future.
-use_deprecated_allow_list = {{ network_requester.use_deprecated_allow_list }}
 
 # Specifies the url for an upstream source of the exit policy used by this node.
 upstream_exit_policy_url = '{{ network_requester.upstream_exit_policy_url }}'

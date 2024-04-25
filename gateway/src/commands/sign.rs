@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::helpers::{
-    ensure_config_version_compatibility, ensure_correct_bech32_prefix, OverrideConfig,
+    ensure_correct_bech32_prefix, try_load_current_config, try_override_config, OverrideConfig,
 };
-use crate::error::GatewayError;
-use crate::node::helpers::load_identity_keys;
-use crate::support::config::build_config;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
+use nym_gateway::error::GatewayError;
+use nym_gateway::helpers::load_identity_keys;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
 
@@ -120,8 +119,8 @@ fn print_signed_contract_msg(
 }
 
 pub fn execute(args: Sign) -> anyhow::Result<()> {
-    let config = build_config(args.id.clone(), OverrideConfig::default())?;
-    ensure_config_version_compatibility(&config)?;
+    let mut config = try_load_current_config(&args.id)?;
+    config = try_override_config(config, OverrideConfig::default())?;
 
     let output = args.output;
     let signed_target = SignedTarget::try_from(args)?;

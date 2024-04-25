@@ -6,28 +6,18 @@
 
 use clap::{crate_name, crate_version, Parser};
 use colored::Colorize;
-use lazy_static::lazy_static;
 use log::error;
 use nym_bin_common::bin_info;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
-use nym_bin_common::output_format::OutputFormat;
 use nym_network_defaults::setup_env;
-use std::error::Error;
+use std::io::IsTerminal;
+use std::sync::OnceLock;
 
 mod commands;
-mod config;
-pub(crate) mod error;
-mod http;
-mod node;
-pub(crate) mod support;
 
-lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
-}
-
-// Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
-    &PRETTY_BUILD_INFORMATION
+    static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
+    PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
 #[derive(Parser)]
@@ -46,7 +36,7 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> anyhow::Result<()> {
     setup_logging();
 
     let args = Cli::parse();
@@ -57,11 +47,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }
 
     commands::execute(args).await.map_err(|err| {
-        if atty::is(atty::Stream::Stdout) {
+        if std::io::stdout().is_terminal() {
             let error_message = format!("{err}").red();
             error!("{error_message}");
             error!("Exiting...");
         }
+
         err
     })
 }

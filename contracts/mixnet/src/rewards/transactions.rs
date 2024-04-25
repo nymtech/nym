@@ -404,8 +404,6 @@ pub mod tests {
 
         #[cfg(test)]
         mod epoch_state_is_correctly_updated {
-            use mixnet_contract_common::EpochState;
-
             use super::*;
 
             #[test]
@@ -1950,7 +1948,7 @@ pub mod tests {
 
     #[cfg(test)]
     mod updating_active_set {
-        use mixnet_contract_common::{EpochState, EpochStatus};
+        use mixnet_contract_common::EpochStatus;
 
         use crate::support::tests::test_helpers::TestSetup;
 
@@ -2157,7 +2155,7 @@ pub mod tests {
     mod updating_rewarding_params {
         use cosmwasm_std::Decimal;
 
-        use mixnet_contract_common::{EpochState, EpochStatus};
+        use mixnet_contract_common::EpochStatus;
 
         use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
 

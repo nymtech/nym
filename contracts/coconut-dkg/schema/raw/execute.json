@@ -91,15 +91,11 @@
         "commit_dealings_chunk": {
           "type": "object",
           "required": [
-            "chunk",
-            "resharing"
+            "chunk"
           ],
           "properties": {
             "chunk": {
               "$ref": "#/definitions/PartialContractDealing"
-            },
-            "resharing": {
-              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -160,10 +156,10 @@
     {
       "type": "object",
       "required": [
-        "surpassed_threshold"
+        "advance_epoch_state"
       ],
       "properties": {
-        "surpassed_threshold": {
+        "advance_epoch_state": {
           "type": "object",
           "additionalProperties": false
         }
@@ -173,10 +169,23 @@
     {
       "type": "object",
       "required": [
-        "advance_epoch_state"
+        "trigger_reset"
       ],
       "properties": {
-        "advance_epoch_state": {
+        "trigger_reset": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "trigger_resharing"
+      ],
+      "properties": {
+        "trigger_resharing": {
           "type": "object",
           "additionalProperties": false
         }

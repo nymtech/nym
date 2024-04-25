@@ -4,4 +4,9 @@
 pub mod coconut;
 pub mod error;
 
+pub use coconut::bandwidth::{
+    CredentialSigningData, CredentialSpendingData, IssuanceBandwidthCredential,
+    IssuedBandwidthCredential,
+};
 pub use coconut::utils::{obtain_aggregate_signature, obtain_aggregate_verification_key};
+pub use error::Error;

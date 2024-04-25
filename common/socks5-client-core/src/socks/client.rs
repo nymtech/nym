@@ -28,7 +28,7 @@ use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
-use tokio::{self, net::TcpStream};
+use tokio::net::TcpStream;
 
 #[pin_project(project = StateProject)]
 enum StreamState {

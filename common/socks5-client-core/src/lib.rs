@@ -11,7 +11,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_client_core::client::base_client::non_wasm_helpers::default_query_dkg_client_from_config;
-use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
+use nym_client_core::client::base_client::storage::GatewaysDetailsStore;
 use nym_client_core::client::base_client::storage::MixnetClientStorage;
 use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, ClientState,
@@ -23,6 +23,7 @@ use nym_client_core::init::types::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
+use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
 
 use anyhow::anyhow;
@@ -70,14 +71,14 @@ where
     S::ReplyStore: Send + Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
     <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
-    <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
+    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
     pub fn new(config: Config, storage: S, custom_mixnet: Option<PathBuf>) -> Self {
         NymClient {
             config,
             storage,
-            setup_method: GatewaySetup::MustLoad,
+            setup_method: GatewaySetup::MustLoad { gateway_id: None },
             custom_mixnet,
         }
     }
@@ -123,7 +124,7 @@ where
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = NymSocksServer::new(
-            socks5_config.bind_adddress,
+            socks5_config.bind_address,
             authenticator,
             socks5_config.get_provider_mix_address(),
             self_address,
@@ -177,7 +178,9 @@ where
             ))?;
 
         // Listen to status messages from task, that we forward back to the caller
-        shutdown.start_status_listener(sender).await;
+        shutdown
+            .start_status_listener(sender, TaskStatus::Ready)
+            .await;
 
         let res = tokio::select! {
             biased;

@@ -125,7 +125,8 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // update the state with the dealing information
         self.state
             .dealing_exchange_state_mut(epoch_id)?
-            .generated_dealings = dealings.clone();
+            .generated_dealings
+            .clone_from(&dealings);
 
         Ok(dealings)
     }
@@ -209,9 +210,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
                     .remove(chunk_index)
                     .expect("chunking specification has changed mid-exchange!");
                 debug!("[dealing {dealing_index}]: resubmitting chunk index {chunk_index}");
-                self.dkg_client
-                    .submit_dealing_chunk(chunk, resharing)
-                    .await?;
+                self.dkg_client.submit_dealing_chunk(chunk).await?;
             }
         }
         Ok(())
@@ -243,26 +242,28 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             let human_index = chunk_index + 1;
             debug!("[dealing {dealing_index}]: submitting chunk index {chunk_index} ({human_index}/{total_chunks})");
 
-            self.dkg_client
-                .submit_dealing_chunk(chunk, resharing)
-                .await?;
+            self.dkg_client.submit_dealing_chunk(chunk).await?;
         }
 
         Ok(())
     }
 
     /// Check whether this dealer can participate in the resharing
-    /// by looking into the contract and ensuring it's in the list of initial dealers for this epoch
-    async fn can_reshare(&self) -> Result<bool, DealingGenerationError> {
-        let Some(initial_data) = self.dkg_client.get_initial_dealers().await? else {
-            return Ok(false);
-        };
+    /// by looking into the contract and ensuring it's been a dealer in the previous epoch
+    async fn can_reshare(&self, epoch_id: EpochId) -> Result<bool, DealingGenerationError> {
+        // SAFETY:
+        // it's impossible for the contract to trigger resharing for the 0th epoch
+        // otherwise some serious invariants have been broken
+        #[allow(clippy::expect_used)]
+        let previous_epoch_id = epoch_id
+            .checked_sub(1)
+            .expect("resharing epoch invariant has been broken");
 
         let address = self.dkg_client.get_address().await;
-        Ok(initial_data
-            .initial_dealers
-            .iter()
-            .any(|d| d.as_str() == address.as_ref()))
+        Ok(self
+            .dkg_client
+            .dealer_in_epoch(previous_epoch_id, address.to_string())
+            .await?)
     }
 
     /// Deal with the dealing generation case where the system requests resharing
@@ -274,7 +275,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         old_keypair: KeyPairWithEpoch,
     ) -> Result<(), DealingGenerationError> {
         // make sure we're allowed to participate in resharing
-        if !self.can_reshare().await? {
+        if !self.can_reshare(epoch_id).await? {
             // we have to wait for other dealers to give us the dealings (hopefully)
             warn!("we we have an existing coconut keypair, but we're not allowed to participate in resharing");
             return Ok(());
@@ -286,7 +287,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // it could be outdated and we can't use it for resharing
         let previous = epoch_id.saturating_sub(1);
         if old_keypair.issued_for_epoch != previous {
-            warn!("our existing coconut keypair has been generated for an distant epoch ({} vs expected {previous} for resharing)", old_keypair.issued_for_epoch);
+            warn!("our existing coconut keypair has been generated for a distant epoch ({} vs expected {previous} for resharing)", old_keypair.issued_for_epoch);
             // don't participate in resharing
             return Ok(());
         }
@@ -427,7 +428,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             // sure, the if statements could be collapsed, but i prefer to explicitly repeat the block for readability
             if resharing {
                 debug!("resharing + no prior key -> nothing to do");
-                if self.can_reshare().await? {
+                if self.can_reshare(epoch_id).await? {
                     warn!("this dealer was expected to participate in resharing but it doesn't have any prior keys to use");
                 }
             } else {
@@ -475,7 +476,7 @@ pub(crate) mod tests {
     };
     use crate::coconut::tests::helpers::unchecked_decode_bte_key;
     use nym_coconut::{ttp_keygen, Parameters};
-    use nym_coconut_dkg_common::types::InitialReplacementData;
+    use nym_coconut_dkg_common::types::DealerRegistrationDetails;
     use nym_dkg::bte::PublicKeyWithProof;
 
     #[tokio::test]
@@ -616,7 +617,7 @@ pub(crate) mod tests {
         let dealers = dealers_fixtures(&mut rng, 4);
         let self_dealer = dealers[0].clone();
 
-        let epoch = 0;
+        let epoch = 1;
 
         let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
         let coconut_keypair = KeyPair::new();
@@ -673,18 +674,13 @@ pub(crate) mod tests {
         let dealers = dealers_fixtures(&mut rng, 4);
         let self_dealer = dealers[0].clone();
 
-        let epoch = 0;
+        let epoch = 1;
 
         let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
         let coconut_keypair = KeyPair::new();
         coconut_keypair
-            .set(KeyPairWithEpoch::new(keys.pop().unwrap(), epoch))
+            .set(KeyPairWithEpoch::new(keys.pop().unwrap(), epoch - 1))
             .await;
-
-        let initial_dealers = InitialReplacementData {
-            initial_dealers: vec![self_dealer.address.clone()],
-            initial_height: 100,
-        };
 
         let mut controller = TestingDkgControllerBuilder::default()
             .with_threshold(3)
@@ -692,9 +688,27 @@ pub(crate) mod tests {
             .with_as_dealer(self_dealer.clone())
             .with_keypair(coconut_keypair)
             .with_initial_epoch_id(epoch)
-            .with_initial_dealers(initial_dealers)
             .build()
             .await;
+
+        let chain = controller.chain_state.clone();
+
+        // TODO: put that functionality in the builder
+        chain
+            .lock()
+            .unwrap()
+            .dkg_contract
+            .dealers
+            .entry(epoch - 1)
+            .or_default()
+            .insert(
+                self_dealer.address.to_string(),
+                DealerRegistrationDetails {
+                    bte_public_key_with_proof: self_dealer.bte_public_key_with_proof.clone(),
+                    ed25519_identity: self_dealer.ed25519_identity.clone(),
+                    announce_address: self_dealer.announce_address.clone(),
+                },
+            );
 
         let key_size = controller.dkg_client.get_contract_state().await?.key_size;
 

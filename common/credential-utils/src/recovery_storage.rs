@@ -3,10 +3,12 @@
 
 use crate::errors::Result;
 use log::error;
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
 use std::fs::{create_dir_all, read_dir, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
+
+pub const DUMPED_VOUCHER_EXTENSION: &str = "credentialrecovery";
 
 pub struct RecoveryStorage {
     recovery_dir: PathBuf,
@@ -18,14 +20,16 @@ impl RecoveryStorage {
         Ok(Self { recovery_dir })
     }
 
-    pub fn unconsumed_vouchers(&self) -> Result<Vec<BandwidthVoucher>> {
+    pub fn unconsumed_vouchers(&self) -> Result<Vec<IssuanceBandwidthCredential>> {
         let entries = read_dir(&self.recovery_dir)?;
 
         let mut paths = vec![];
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() {
-                paths.push(path)
+            if let Some(extension) = path.extension() {
+                if extension == DUMPED_VOUCHER_EXTENSION {
+                    paths.push(path)
+                }
             }
         }
 
@@ -34,7 +38,7 @@ impl RecoveryStorage {
             if let Ok(mut file) = File::open(&path) {
                 let mut buff = Vec::new();
                 if file.read_to_end(&mut buff).is_ok() {
-                    match BandwidthVoucher::try_from_bytes(&buff) {
+                    match IssuanceBandwidthCredential::try_from_recovered_bytes(&buff) {
                         Ok(voucher) => vouchers.push(voucher),
                         Err(err) => {
                             error!("failed to parse the voucher at {}: {err}", path.display())
@@ -47,11 +51,17 @@ impl RecoveryStorage {
         Ok(vouchers)
     }
 
-    pub fn insert_voucher(&self, voucher: &BandwidthVoucher) -> Result<PathBuf> {
-        let file_name = voucher.tx_hash().to_string();
+    pub fn voucher_filename(voucher: &IssuanceBandwidthCredential) -> String {
+        let prefix = voucher.typ().to_string();
+        let suffix = voucher.blinded_serial_number_bs58();
+        format!("{prefix}-{suffix}.{DUMPED_VOUCHER_EXTENSION}")
+    }
+
+    pub fn insert_voucher(&self, voucher: &IssuanceBandwidthCredential) -> Result<PathBuf> {
+        let file_name = Self::voucher_filename(voucher);
         let file_path = self.recovery_dir.join(file_name);
         let mut file = File::create(&file_path)?;
-        let buff = voucher.to_bytes();
+        let buff = voucher.to_recovery_bytes();
         file.write_all(&buff)?;
 
         Ok(file_path)

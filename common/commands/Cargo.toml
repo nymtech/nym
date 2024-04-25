@@ -9,14 +9,15 @@ license.workspace = true
 anyhow = { workspace = true }
 base64 = "0.13.0"
 bip39 = { workspace = true }
-bs58 = "0.4"
+bs58 = { workspace = true }
 comfy-table = "6.0.0"
 cfg-if = "1.0.0"
 clap = { workspace = true, features = ["derive"] }
 csv = "1.3.0"
 cw-utils = { workspace = true }
+futures = { workspace = true }
 handlebars = "3.0.1"
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 inquire = "0.6.2"
 k256 = { workspace = true, features = ["ecdsa", "sha256"] }
 log = { workspace = true }
@@ -25,9 +26,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["parsing", "formatting"] }
+tokio = { workspace = true, features = ["sync"]}
 toml = "0.5.6"
 url = { workspace = true }
 tap = "1"
+zeroize = { workspace = true }
 
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
@@ -49,8 +52,10 @@ nym-sphinx = { path = "../../common/nymsphinx" }
 nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
 nym-credentials = { path = "../../common/credentials" }
+nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-credential-utils = { path = "../../common/credential-utils" }
+nym-id = { path = "../nym-id" }
 
 nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
 nym-types = { path = "../../common/types" }

@@ -5,8 +5,8 @@ use crate::client::config::old_config_v1_1_20_2::{
     ClientPathsV1_1_20_2, ConfigV1_1_20_2, SocketTypeV1_1_20_2, SocketV1_1_20_2,
 };
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
+use nym_client_core::config::disk_persistence::old_v1_1_33::ClientKeysPathsV1_1_33;
 use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
 use nym_client_core::config::old_config_v1_1_20_2::{
     ClientV1_1_20_2, ConfigV1_1_20_2 as BaseConfigV1_1_20_2,
@@ -60,7 +60,7 @@ impl From<ConfigV1_1_20> for ConfigV1_1_20_2 {
             socket: value.socket.into(),
             storage_paths: ClientPathsV1_1_20_2 {
                 common_paths: CommonClientPathsV1_1_20_2 {
-                    keys: ClientKeysPaths {
+                    keys: ClientKeysPathsV1_1_33 {
                         private_identity_key_file: value.base.client.private_identity_key_file,
                         public_identity_key_file: value.base.client.public_identity_key_file,
                         private_encryption_key_file: value.base.client.private_encryption_key_file,

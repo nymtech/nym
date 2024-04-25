@@ -16,7 +16,7 @@ use nym_sphinx::params::{PacketSize, PacketType};
 use nym_topology::{gateway, mix};
 use rand_07::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
-use std::convert::TryInto;
+
 use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 use std::time::Duration;

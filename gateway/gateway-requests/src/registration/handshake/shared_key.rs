@@ -30,7 +30,7 @@ pub struct SharedKeys {
     mac_key: MacKey,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Copy, Error)]
 pub enum SharedKeyConversionError {
     #[error("the string representation of the shared keys was malformed - {0}")]
     DecodeError(#[from] bs58::decode::Error),

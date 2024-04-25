@@ -327,9 +327,6 @@ impl NRServiceProviderBuilder {
         });
 
         let request_filter = RequestFilter::new(&self.config).await?;
-        request_filter
-            .start_update_tasks(&self.config.network_requester_debug, &shutdown)
-            .await;
 
         let mut service_provider = NRServiceProvider {
             config: self.config,
@@ -447,7 +444,7 @@ impl NRServiceProvider {
         controller_sender: ControllerSender,
         mix_input_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown: TaskClient,
+        mut shutdown: TaskClient,
     ) {
         let mut conn = match socks5::tcp::Connection::new(
             connection_id,
@@ -459,6 +456,7 @@ impl NRServiceProvider {
             Ok(conn) => conn,
             Err(err) => {
                 log::error!("error while connecting to {remote_addr}: {err}",);
+                shutdown.disarm();
 
                 // inform the remote that the connection is closed before it even was established
                 let mixnet_message = MixnetMessage::new_network_data_response(
@@ -605,20 +603,14 @@ impl NRServiceProvider {
                 QueryResponse::Description("Description (placeholder)".to_string()),
             ),
             QueryRequest::ExitPolicy => {
-                let response = match self.request_filter.current_exit_policy_filter() {
-                    Some(exit_policy_filter) => QueryResponse::ExitPolicy {
-                        enabled: true,
-                        upstream: exit_policy_filter
-                            .upstream()
-                            .map(|u| u.to_string())
-                            .unwrap_or_default(),
-                        policy: Some(exit_policy_filter.policy().clone()),
-                    },
-                    None => QueryResponse::ExitPolicy {
-                        enabled: false,
-                        upstream: "".to_string(),
-                        policy: None,
-                    },
+                let exit_policy_filter = self.request_filter.current_exit_policy_filter();
+                let response = QueryResponse::ExitPolicy {
+                    enabled: true,
+                    upstream: exit_policy_filter
+                        .upstream()
+                        .map(|u| u.to_string())
+                        .unwrap_or_default(),
+                    policy: Some(exit_policy_filter.policy().clone()),
                 };
 
                 Socks5Response::new_query(protocol_version, response)

@@ -26,6 +26,7 @@ module.exports = mergeWithRules({
       crypto: false,
       net: false,
       zlib: false,
+      buffer: require.resolve('buffer'),
     },
   },
 });

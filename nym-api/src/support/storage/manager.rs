@@ -7,7 +7,6 @@ use crate::support::storage::models::{
     ActiveGateway, ActiveMixnode, NodeStatus, RewardingReport, TestingRoute,
 };
 use nym_mixnet_contract_common::{EpochId, IdentityKey, MixId};
-use std::convert::TryFrom;
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {

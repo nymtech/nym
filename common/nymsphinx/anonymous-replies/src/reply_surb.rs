@@ -12,7 +12,7 @@ use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::convert::TryFrom;
+
 use std::fmt::{self, Formatter};
 use std::time;
 use thiserror::Error;

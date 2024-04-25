@@ -3,6 +3,7 @@
 
 use crate::node_status_api::models::NymApiStorageError;
 use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
+use nym_credentials::coconut::bandwidth::{CredentialType, UnknownCredentialType};
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
@@ -10,11 +11,15 @@ use nym_crypto::asymmetric::{
 use nym_dkg::error::DkgError;
 use nym_validator_client::coconut::CoconutApiError;
 use nym_validator_client::nyxd::error::{NyxdError, TendermintError};
+use nym_validator_client::nyxd::AccountId;
 use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
 use rocket::{response, Request, Response};
 use std::io::Cursor;
+use std::num::ParseIntError;
 use thiserror::Error;
+use time::error::ComponentRange;
+use time::OffsetDateTime;
 
 pub type Result<T> = std::result::Result<T, CoconutError>;
 
@@ -22,6 +27,77 @@ pub type Result<T> = std::result::Result<T, CoconutError>;
 pub enum CoconutError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
+
+    #[error("the address of the bandwidth contract hasn't been set")]
+    MissingBandwidthContractAddress,
+
+    #[error("the current bandwidth contract does not have any admin address set")]
+    MissingBandwidthContractAdmin,
+
+    #[error("failed to derive the admin account from the provided public key: {formatted_source}")]
+    AdminAccountDerivationFailure { formatted_source: String },
+
+    #[error("the requester of the free pass ({requester}) is not authorised. the only allowed account is {authorised_admin}.")]
+    UnauthorisedFreePassAccount {
+        requester: AccountId,
+        authorised_admin: AccountId,
+    },
+
+    #[error("failed to verify signature on the provided free pass request")]
+    FreePassSignatureVerificationFailure,
+
+    #[error("the provided signing nonce is invalid. the current value is: {current:?}. got {received:?} instead")]
+    InvalidNonce {
+        current: [u8; 16],
+        received: [u8; 16],
+    },
+
+    #[error("only secp256k1 keys are supported for free pass issuance")]
+    UnsupportedNonSecp256k1Key,
+
+    #[error("received credential request for an unknown type: {0}")]
+    UnknownCredentialType(#[from] UnknownCredentialType),
+
+    #[error("the provided free pass request had an unexpected number of public attributes. got {got} but expected {expected}")]
+    InvalidFreePassAttributes { got: usize, expected: usize },
+
+    #[error("the provided free pass request had an invalid type attribute (got: '{got}')")]
+    InvalidFreePassTypeAttribute { got: CredentialType },
+
+    #[error("failed to parse the free pass expiry date: {source}")]
+    ExpiryDateParsingFailure {
+        #[source]
+        source: ParseIntError,
+    },
+
+    #[error("failed to parse expiry timestamp into proper datetime: {source}")]
+    InvalidExpiryDate {
+        unix_timestamp: i64,
+        #[source]
+        source: ComponentRange,
+    },
+
+    #[error(
+        "the provided free pass request has too long expiry (expiry is set to on {expiry_date})"
+    )]
+    TooLongFreePass { expiry_date: OffsetDateTime },
+
+    #[error("the provided free pass expiry is set in the past!")]
+    FreePassExpiryInThePast { expiry_date: OffsetDateTime },
+
+    #[error("the received bandwidth voucher did not contain deposit value")]
+    MissingBandwidthValue,
+
+    #[error(
+        "the received bandwidth credential is not a bandwidth voucher. the encoded type is: {typ}"
+    )]
+    NotABandwidthVoucher { typ: CredentialType },
+
+    #[error("failed to parse the bandwidth voucher value: {source}")]
+    VoucherValueParsingFailure {
+        #[source]
+        source: ParseIntError,
+    },
 
     #[error("coconut api query failure: {0}")]
     CoconutApiError(#[from] CoconutApiError),
@@ -86,9 +162,6 @@ pub enum CoconutError {
 
     #[error("public attributes in request differ from the ones in deposit: Expected {0}, got {1}")]
     DifferentPublicAttributes(String, String),
-
-    #[error("error in coconut interface: {0}")]
-    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("storage error: {0}")]
     StorageError(#[from] NymApiStorageError),

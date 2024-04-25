@@ -2,4 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod reply_controller;
-pub mod reply_storage;
+
+// re-export it under the old name to preserve import paths
+pub use nym_client_core_surb_storage as reply_storage;

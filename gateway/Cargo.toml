@@ -4,35 +4,32 @@
 [package]
 name = "nym-gateway"
 license = "GPL-3.0"
-version = "1.1.33"
+version = "1.1.35"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
 ]
 description = "Implementation of the Nym Mixnet Gateway"
 edition = "2021"
-rust-version = "1.56"
+rust-version = "1.70"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-atty = "0.2"
 bip39 = { workspace = true }
-bs58 = "0.4.0"
+bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = { workspace = true }
 dirs = "4.0"
 dotenvy = { workspace = true }
 futures = { workspace = true }
-humantime-serde = "1.0.1"
+humantime-serde = { workspace = true }
 ipnetwork = "0.16"
-lazy_static = "1.4.0"
 log = { workspace = true }
 once_cell = "1.7.2"
-pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -41,6 +38,7 @@ sqlx = { workspace = true, features = [
     "sqlite",
     "macros",
     "migrate",
+    "time"
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = { workspace = true }
@@ -52,25 +50,26 @@ tokio = { workspace = true, features = [
     "time",
 ] }
 tokio-stream = { version = "0.1.11", features = ["fs"] }
-tokio-tungstenite = { version = "0.20.1" }
+tokio-tungstenite = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true, features = ["serde"] }
+time = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
-nym-node = { path = "../nym-node" }
 
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
-nym-coconut-interface = { path = "../common/coconut-interface" }
 nym-config = { path = "../common/config" }
 nym-credentials = { path = "../common/credentials" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-crypto = { path = "../common/crypto" }
 nym-gateway-requests = { path = "gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-network-requester = { path = "../service-providers/network-requester" }
+nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-statistics-common = { path = "../common/statistics" }
@@ -80,15 +79,13 @@ nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 nym-wireguard = { path = "../common/wireguard", optional = true }
+nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
+
 defguard_wireguard_rs = { git = "https://github.com/neacsu/wireguard-rs.git", rev = "c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed", optional = true }
 
-[dev-dependencies]
-tower = "0.4.13"
-rand = "0.8.5"
-hyper = "0.14.27"
 
 [build-dependencies]
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",

@@ -84,7 +84,7 @@ pub enum ScraperError {
     EmptyBlockData { query: String },
 
     #[error("reached maximum number of allowed errors for subscription events")]
-    MaximumSubscriptionFailures,
+    MaximumWebSocketFailures,
 
     #[error("failed to begin storage tx: {source}")]
     StorageTxBeginFailure {

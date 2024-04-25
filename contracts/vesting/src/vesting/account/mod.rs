@@ -162,6 +162,7 @@ pub(crate) trait StorableVestingAccountExt: VestingAccount {
         storage: &mut dyn Storage,
     ) -> Result<(), VestingContractError>;
 
+    #[allow(dead_code)]
     fn total_delegations_for_mix(
         &self,
         mix_id: MixId,
@@ -182,6 +183,7 @@ pub(crate) trait StorableVestingAccountExt: VestingAccount {
         Ok(amount)
     }
 
+    #[allow(dead_code)]
     fn total_delegations_at_timestamp(
         &self,
         storage: &dyn Storage,

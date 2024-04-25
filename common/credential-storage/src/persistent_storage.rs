@@ -5,7 +5,7 @@ use crate::backends::sqlite::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::storage::Storage;
 
-use crate::models::CoconutCredential;
+use crate::models::{StorableIssuedCredential, StoredIssuedCredential};
 use async_trait::async_trait;
 use log::{debug, error};
 use sqlx::ConnectOptions;
@@ -58,43 +58,55 @@ impl PersistentStorage {
 impl Storage for PersistentStorage {
     type StorageError = StorageError;
 
-    async fn insert_coconut_credential(
+    async fn insert_issued_credential<'a>(
         &self,
-        voucher_value: String,
-        voucher_info: String,
-        serial_number: String,
-        binding_number: String,
-        signature: String,
-        epoch_id: String,
-    ) -> Result<(), StorageError> {
+        bandwidth_credential: StorableIssuedCredential<'a>,
+    ) -> Result<(), Self::StorageError> {
         self.coconut_credential_manager
-            .insert_coconut_credential(
-                voucher_value,
-                voucher_info,
-                serial_number,
-                binding_number,
-                signature,
-                epoch_id,
+            .insert_issued_credential(
+                bandwidth_credential.credential_type,
+                bandwidth_credential.serialization_revision,
+                bandwidth_credential.credential_data,
+                bandwidth_credential.epoch_id,
             )
             .await?;
 
         Ok(())
     }
 
-    async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError> {
-        let credential = self
+    async fn get_next_unspent_credential(
+        &self,
+        gateway_id: &str,
+    ) -> Result<Option<StoredIssuedCredential>, Self::StorageError> {
+        // first try to get a free pass if available, otherwise fallback to bandwidth voucher
+        let maybe_freepass = self
             .coconut_credential_manager
-            .get_next_coconut_credential()
-            .await?
-            .ok_or(StorageError::NoCredential)?;
+            .get_next_unspect_freepass(gateway_id)
+            .await?;
+        if maybe_freepass.is_some() {
+            return Ok(maybe_freepass);
+        }
 
-        Ok(credential)
+        Ok(self
+            .coconut_credential_manager
+            .get_next_unspect_bandwidth_voucher()
+            .await?)
     }
 
-    async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError> {
+    async fn consume_coconut_credential(
+        &self,
+        id: i64,
+        gateway_id: &str,
+    ) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .consume_coconut_credential(id)
+            .consume_coconut_credential(id, gateway_id)
             .await?;
+
+        Ok(())
+    }
+
+    async fn mark_expired(&self, id: i64) -> Result<(), Self::StorageError> {
+        self.coconut_credential_manager.mark_expired(id).await?;
 
         Ok(())
     }

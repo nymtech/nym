@@ -1,10 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::cli_helpers::client_init::ClientConfig;
+use nym_client_core::cli_helpers::CliClientConfig;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
@@ -21,13 +20,19 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
+pub use crate::config::persistence::NetworkRequesterPaths;
 pub use nym_client_core::config::Config as BaseClientConfig;
 
-pub mod old_config_v1_1_13;
-pub mod old_config_v1_1_20;
-pub mod old_config_v1_1_20_2;
+pub mod helpers;
+pub mod old;
 mod persistence;
 mod template;
+
+// aliases for backwards compatibility
+pub use old::v1 as old_config_v1_1_13;
+pub use old::v2 as old_config_v1_1_20;
+pub use old::v3 as old_config_v1_1_20_2;
+pub use old::v4 as old_config_v1_1_33;
 
 const DEFAULT_NETWORK_REQUESTERS_DIR: &str = "network-requester";
 
@@ -84,7 +89,7 @@ impl NymConfigTemplate for Config {
     }
 }
 
-impl ClientConfig for Config {
+impl CliClientConfig for Config {
     fn common_paths(&self) -> &CommonClientPaths {
         &self.storage_paths.common_paths
     }
@@ -133,6 +138,7 @@ impl Config {
         default_config_filepath(&self.base.client.id)
     }
 
+    #[allow(dead_code)]
     pub fn save_to_default_location(&self) -> io::Result<()> {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)
@@ -160,12 +166,6 @@ impl Config {
     #[must_use]
     pub fn with_open_proxy(mut self, open_proxy: bool) -> Self {
         self.network_requester.open_proxy = open_proxy;
-        self
-    }
-
-    #[must_use]
-    pub fn with_old_allow_list(mut self, use_old_allow_list: bool) -> Self {
-        self.network_requester.use_deprecated_allow_list = use_old_allow_list;
         self
     }
 
@@ -245,11 +245,6 @@ pub struct NetworkRequester {
     /// This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
     pub disable_poisson_rate: bool,
 
-    /// Specifies whether this network requester should be using the deprecated allow-list,
-    /// as opposed to the new ExitPolicy.
-    /// Note: this field will be removed in a near future.
-    pub use_deprecated_allow_list: bool,
-
     /// Specifies the url for an upstream source of the exit policy used by this node.
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub upstream_exit_policy_url: Option<Url>,
@@ -262,7 +257,6 @@ impl Default for NetworkRequester {
             enabled_statistics: false,
             statistics_recipient: None,
             disable_poisson_rate: true,
-            use_deprecated_allow_list: true,
             upstream_exit_policy_url: Some(
                 mainnet::EXIT_POLICY_URL
                     .parse()

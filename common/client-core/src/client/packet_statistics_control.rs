@@ -3,7 +3,31 @@ use std::{
     time::{Duration, Instant},
 };
 
+use nym_metrics::{inc, inc_by};
 use si_scale::helpers::bibytes2;
+
+// Metrics server
+use futures::future::{FusedFuture, OptionFuture};
+use futures::FutureExt;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use http_body_util::Full;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use hyper::body::Bytes;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use hyper::server::conn::http1;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use hyper::service::service_fn;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use hyper::{Request, Response};
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use hyper_util::rt::TokioIo;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::convert::Infallible;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+#[cfg(feature = "metrics-server")]
+use std::net::SocketAddr;
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use tokio::net::TcpListener;
 
 use crate::spawn_future;
 
@@ -53,42 +77,60 @@ impl PacketStatistics {
             PacketStatisticsEvent::RealPacketSent(packet_size) => {
                 self.real_packets_sent += 1;
                 self.real_packets_sent_size += packet_size;
+                inc!("real_packets_sent");
+                inc_by!("real_packets_sent_size", packet_size);
             }
             PacketStatisticsEvent::CoverPacketSent(packet_size) => {
                 self.cover_packets_sent += 1;
                 self.cover_packets_sent_size += packet_size;
+                inc!("cover_packets_sent");
+                inc_by!("cover_packets_sent_size", packet_size);
             }
             PacketStatisticsEvent::RealPacketReceived(packet_size) => {
                 self.real_packets_received += 1;
                 self.real_packets_received_size += packet_size;
+                inc!("real_packets_received");
+                inc_by!("real_packets_received_size", packet_size);
             }
             PacketStatisticsEvent::CoverPacketReceived(packet_size) => {
                 self.cover_packets_received += 1;
                 self.cover_packets_received_size += packet_size;
+                inc!("cover_packets_received");
+                inc_by!("cover_packets_received_size", packet_size);
             }
             PacketStatisticsEvent::AckReceived(packet_size) => {
                 self.total_acks_received += 1;
                 self.total_acks_received_size += packet_size;
+                inc!("total_acks_received");
+                inc_by!("total_acks_received_size", packet_size);
             }
             PacketStatisticsEvent::RealAckReceived(packet_size) => {
                 self.real_acks_received += 1;
                 self.real_acks_received_size += packet_size;
+                inc!("real_acks_received");
+                inc_by!("real_acks_received_size", packet_size);
             }
             PacketStatisticsEvent::CoverAckReceived(packet_size) => {
                 self.cover_acks_received += 1;
                 self.cover_acks_received_size += packet_size;
+                inc!("cover_acks_received");
+                inc_by!("cover_acks_received_size", packet_size);
             }
             PacketStatisticsEvent::RealPacketQueued => {
                 self.real_packets_queued += 1;
+                inc!("real_packets_queued");
             }
             PacketStatisticsEvent::RetransmissionQueued => {
                 self.retransmissions_queued += 1;
+                inc!("retransmissions_queued");
             }
             PacketStatisticsEvent::ReplySurbRequestQueued => {
                 self.reply_surbs_queued += 1;
+                inc!("reply_surbs_queued");
             }
             PacketStatisticsEvent::AdditionalReplySurbRequestQueued => {
                 self.additional_reply_surbs_queued += 1;
+                inc!("additional_reply_surbs_queued");
             }
         }
     }
@@ -465,7 +507,44 @@ impl PacketStatisticsControl {
         let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
         let mut snapshot_interval = tokio::time::interval(snapshot_interval);
 
+        cfg_if::cfg_if! {
+            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
+                log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
+                let listener: Option<WasmEmpty> = None;
+            } else if #[cfg(feature = "metrics-server")] {
+                let mut metrics_port = 18000;
+                let listener: Option<TcpListener>;
+                loop {
+                    let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
+                    match TcpListener::bind(addr).await {
+                        Ok(l) => {
+                            log::info!("###############################");
+                            log::info!("Metrics endpoint is at: {:?}", l.local_addr());
+                            log::info!("###############################");
+                            listener = Some(l);
+                            break;
+                        },
+                        Err(err) => {
+                            log::warn!("Failed to bind metrics server: {:?}", err);
+                            metrics_port += 1;
+                        }
+                    };
+                }
+            } else {
+                log::info!("Metrics server is disabled!");
+                let listener: Option<TcpListener> = None;
+            }
+        }
+
         loop {
+            // it seems at some point tokio changed its select precondition evaluation,
+            // and it's no longer checked before the future is evaluated.
+            let accept_future: OptionFuture<_> = listener
+                .as_ref()
+                .map(|l| l.accept())
+                .map(FutureExt::fuse)
+                .into();
+
             tokio::select! {
                 stats_event = self.stats_rx.recv() => match stats_event {
                     Some(stats_event) => {
@@ -477,6 +556,28 @@ impl PacketStatisticsControl {
                         break;
                     }
                 },
+                // conditional will disable the branch if we're in wasm32-unknown-unknown
+                // use `_` to calm down clippy when running for wasm
+                _result = accept_future, if !accept_future.is_terminated() => {
+                    cfg_if::cfg_if! {
+                        if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
+                            if let Some(Ok((stream, _))) = _result {
+                                let io = TokioIo::new(stream);
+
+                                tokio::task::spawn(async move {
+                                    if let Err(err) = http1::Builder::new()
+                                        .serve_connection(io, service_fn(serve_metrics))
+                                        .await
+                                    {
+                                        log::warn!("Error serving connection: {:?}", err);
+                                    }
+                                });
+                            } else {
+                                log::warn!("Error accepting connection");
+                            }
+                        }
+                    }
+                }
                 _ = snapshot_interval.tick() => {
                     self.update_history();
                     self.update_rates();
@@ -500,4 +601,21 @@ impl PacketStatisticsControl {
             self.run_with_shutdown(task_client).await;
         })
     }
+}
+
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+async fn serve_metrics(
+    _: Request<hyper::body::Incoming>,
+) -> Result<Response<Full<Bytes>>, Infallible> {
+    use nym_metrics::metrics;
+
+    Ok(Response::new(Full::new(Bytes::from(metrics!()))))
+}
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+struct WasmEmpty;
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+impl WasmEmpty {
+    async fn accept(&self) {}
 }

@@ -37,8 +37,8 @@ cosmwasm-derive = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
 
-bs58 = "0.4.0"
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+bs58 = { workspace = true }
+serde = { workspace = true, default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
 time = { version = "0.3", features = ["macros"] }
 semver = { workspace = true, default-features = false }

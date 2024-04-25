@@ -1,13 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::commands::helpers::{
-    initialise_local_network_requester, try_load_current_config, OverrideNetworkRequesterConfig,
-};
-use crate::node::helpers::load_public_key;
+use crate::commands::helpers::{initialise_local_network_requester, try_load_current_config};
 use clap::Args;
+use log::warn;
 use nym_bin_common::output_format::OutputFormat;
+use nym_gateway::helpers::{load_public_key, OverrideNetworkRequesterConfig};
+use std::io::IsTerminal;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Args, Clone)]
 pub struct CmdArgs {
@@ -59,12 +60,6 @@ pub struct CmdArgs {
     )]
     medium_toggle: bool,
 
-    /// Specifies whether this network requester will run using the default ExitPolicy
-    /// as opposed to the allow list.
-    /// Note: this setting will become the default in the future releases.
-    #[clap(long)]
-    with_exit_policy: Option<bool>,
-
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -76,7 +71,6 @@ impl<'a> From<&'a CmdArgs> for OverrideNetworkRequesterConfig {
             no_cover: value.no_cover,
             medium_toggle: value.medium_toggle,
             open_proxy: value.open_proxy,
-            enable_exit_policy: value.with_exit_policy,
             enable_statistics: value.enable_statistics,
             statistics_recipient: value.statistics_recipient.clone(),
         }
@@ -84,6 +78,13 @@ impl<'a> From<&'a CmdArgs> for OverrideNetworkRequesterConfig {
 }
 
 pub async fn execute(args: CmdArgs) -> anyhow::Result<()> {
+    warn!("standalone gateways have been deprecated - please consider migrating it to a `nym-node` via `nym-node migrate gateway` command");
+    if std::io::stdout().is_terminal() {
+        // if user is running it in terminal session,
+        // introduce the delay, so they'd notice the message
+        tokio::time::sleep(Duration::from_secs(1)).await
+    }
+
     let mut config = try_load_current_config(&args.id)?;
     let opts = (&args).into();
 

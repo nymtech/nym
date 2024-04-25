@@ -9,12 +9,16 @@ use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
-use nym_node_requests::api::v1::gateway::models::WebSockets;
-use nym_node_requests::api::v1::node::models::{BinaryBuildInformationOwned, HostInformation};
+use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
+use schemars::gen::SchemaGenerator;
+use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::net::IpAddr;
+use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
+use time::OffsetDateTime;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct RequestError {
@@ -357,7 +361,118 @@ pub struct CirculatingSupplyResponse {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct HostInformation {
+    pub ip_address: Vec<IpAddr>,
+    pub hostname: Option<String>,
+    pub keys: HostKeys,
+}
+
+impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInformation {
+    fn from(value: nym_node_requests::api::v1::node::models::HostInformation) -> Self {
+        HostInformation {
+            ip_address: value.ip_address,
+            hostname: value.hostname,
+            keys: value.keys.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct HostKeys {
+    pub ed25519: String,
+    pub x25519: String,
+}
+
+impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
+    fn from(value: nym_node_requests::api::v1::node::models::HostKeys) -> Self {
+        HostKeys {
+            ed25519: value.ed25519_identity,
+            x25519: value.x25519_sphinx,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct WebSockets {
+    pub ws_port: u16,
+
+    pub wss_port: Option<u16>,
+}
+
+impl From<nym_node_requests::api::v1::gateway::models::WebSockets> for WebSockets {
+    fn from(value: nym_node_requests::api::v1::gateway::models::WebSockets) -> Self {
+        WebSockets {
+            ws_port: value.ws_port,
+            wss_port: value.wss_port,
+        }
+    }
+}
+
+const fn unix_epoch() -> OffsetDateTime {
+    OffsetDateTime::UNIX_EPOCH
+}
+
+// for all intents and purposes it's just OffsetDateTime, but we need JsonSchema...
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct OffsetDateTimeJsonSchemaWrapper(#[serde(default = "unix_epoch")] pub OffsetDateTime);
+
+impl Default for OffsetDateTimeJsonSchemaWrapper {
+    fn default() -> Self {
+        OffsetDateTimeJsonSchemaWrapper(unix_epoch())
+    }
+}
+
+impl From<OffsetDateTimeJsonSchemaWrapper> for OffsetDateTime {
+    fn from(value: OffsetDateTimeJsonSchemaWrapper) -> Self {
+        value.0
+    }
+}
+
+impl From<OffsetDateTime> for OffsetDateTimeJsonSchemaWrapper {
+    fn from(value: OffsetDateTime) -> Self {
+        OffsetDateTimeJsonSchemaWrapper(value)
+    }
+}
+
+impl Deref for OffsetDateTimeJsonSchemaWrapper {
+    type Target = OffsetDateTime;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for OffsetDateTimeJsonSchemaWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+// implementation taken from: https://github.com/GREsau/schemars/pull/207
+impl JsonSchema for OffsetDateTimeJsonSchemaWrapper {
+    fn is_referenceable() -> bool {
+        false
+    }
+
+    fn schema_name() -> String {
+        "DateTime".into()
+    }
+
+    fn json_schema(_: &mut SchemaGenerator) -> Schema {
+        SchemaObject {
+            instance_type: Some(InstanceType::String.into()),
+            format: Some("date-time".into()),
+            ..Default::default()
+        }
+        .into()
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NymNodeDescription {
+    #[serde(default)]
+    pub last_polled: OffsetDateTimeJsonSchemaWrapper,
+
     pub host_information: HostInformation,
 
     // TODO: do we really care about ALL build info or just the version?
@@ -401,4 +516,42 @@ pub struct NetworkRequesterDetails {
 pub struct IpPacketRouterDetails {
     /// address of the embedded ip packet router
     pub address: String,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ApiHealthResponse {
+    pub status: ApiStatus,
+    pub uptime: u64,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum ApiStatus {
+    Up,
+}
+
+impl ApiHealthResponse {
+    pub fn new_healthy(uptime: Duration) -> Self {
+        ApiHealthResponse {
+            status: ApiStatus::Up,
+            uptime: uptime.as_secs(),
+        }
+    }
+}
+
+impl ApiStatus {
+    pub fn is_up(&self) -> bool {
+        matches!(self, ApiStatus::Up)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct SignerInformationResponse {
+    pub cosmos_address: String,
+
+    pub identity: String,
+
+    pub announce_address: String,
+
+    pub verification_key: Option<String>,
 }

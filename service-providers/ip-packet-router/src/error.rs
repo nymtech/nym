@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::PolicyError;
+use nym_id::NymIdError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum IpPacketRouterError {
@@ -10,6 +11,10 @@ pub enum IpPacketRouterError {
 
     #[error("client-core error: {0}")]
     ClientCoreError(#[from] ClientCoreError),
+
+    #[cfg(target_os = "linux")]
+    #[error("tun device error: {0}")]
+    TunDeviceError(#[from] nym_tun::tun_device::TunDeviceError),
 
     #[error("failed to load configuration file: {0}")]
     FailedToLoadConfig(String),
@@ -77,6 +82,12 @@ pub enum IpPacketRouterError {
 
     #[error("failed to update client activity")]
     FailedToUpdateClientActivity,
+
+    #[error(transparent)]
+    ConfigUpgradeFailure(#[from] nym_client_core::config::ConfigUpgradeFailure),
+
+    #[error(transparent)]
+    NymIdError(#[from] NymIdError),
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

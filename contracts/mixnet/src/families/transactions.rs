@@ -236,8 +236,7 @@ fn _try_head_kick_member(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::families::queries::{get_family_by_head, get_family_by_label};
-    use crate::families::storage::is_family_member;
+    use crate::families::queries::get_family_by_head;
     use crate::mixnet_contract_settings::storage::minimum_mixnode_pledge;
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
@@ -378,7 +377,6 @@ mod test {
     #[cfg(test)]
     mod creating_family {
         use super::*;
-        use crate::support::tests::test_helpers::TestSetup;
 
         #[test]
         fn fails_for_illegal_proxy() {
@@ -412,7 +410,6 @@ mod test {
     #[cfg(test)]
     mod joining_family {
         use super::*;
-        use crate::support::tests::test_helpers::TestSetup;
 
         #[test]
         fn fails_for_illegal_proxy() {
@@ -458,7 +455,6 @@ mod test {
     #[cfg(test)]
     mod leaving_family {
         use super::*;
-        use crate::support::tests::test_helpers::TestSetup;
 
         #[test]
         fn fails_for_illegal_proxy() {
@@ -512,7 +508,6 @@ mod test {
     #[cfg(test)]
     mod kicking_family_member {
         use super::*;
-        use crate::support::tests::test_helpers::TestSetup;
 
         #[test]
         fn fails_for_illegal_proxy() {

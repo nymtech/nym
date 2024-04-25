@@ -20,16 +20,16 @@ echo "Using $localnetdir for the localnet"
 
 # initialise mixnet
 echo "initialising mixnode1..."
-cargo run --release --bin nym-mixnode -- init --id "mix1-$suffix" --host 127.0.0.1 --mix-port 10001 --verloc-port 20001 --http-api-port 30001 --output=json >>"$localnetdir/mix1.json"
+cargo run --release --bin nym-node -- run --id "mix1-$suffix" --init-only --mixnet-bind-address=127.0.0.1:10001 --verloc-bind-address 127.0.0.1:20001 --http-bind-address 127.0.0.1:30001 --http-access-token=lala --output=json --bonding-information-output "$localnetdir/mix1.json"
 
 echo "initialising mixnode2..."
-cargo run --release --bin nym-mixnode -- init --id "mix2-$suffix" --host 127.0.0.1 --mix-port 10002 --verloc-port 20002 --http-api-port 30002 --output=json >>"$localnetdir/mix2.json"
+cargo run --release --bin nym-node -- run --id "mix2-$suffix" --init-only --mixnet-bind-address=127.0.0.1:10002 --verloc-bind-address 127.0.0.1:20002 --http-bind-address 127.0.0.1:30002 --http-access-token=lala --output=json --bonding-information-output "$localnetdir/mix2.json"
 
 echo "initialising mixnode3..."
-cargo run --release --bin nym-mixnode -- init --id "mix3-$suffix" --host 127.0.0.1 --mix-port 10003 --verloc-port 20003 --http-api-port 30003 --output=json >>"$localnetdir/mix3.json"
+cargo run --release --bin nym-node -- run --id "mix3-$suffix" --init-only --mixnet-bind-address=127.0.0.1:10003 --verloc-bind-address 127.0.0.1:20003 --http-bind-address 127.0.0.1:30003 --http-access-token=lala --output=json --bonding-information-output "$localnetdir/mix3.json"
 
 echo "initialising gateway..."
-cargo run --release --bin nym-gateway -- init --id "gateway-$suffix" --host 127.0.0.1 --mix-port 10004 --clients-port 9000 --output=json >>"$localnetdir/gateway.json"
+cargo run --release --bin nym-node -- run --id "gateway-$suffix" --init-only --mode entry --mixnet-bind-address=127.0.0.1:10004 --entry-bind-address 127.0.0.1:9000 --verloc-bind-address 127.0.0.1:20004 --http-bind-address 127.0.0.1:30004 --http-access-token=lala --output=json --bonding-information-output "$localnetdir/gateway.json"
 
 # build the topology
 echo "combining json files..."
@@ -42,10 +42,10 @@ echo "the full network file is located at $networkfile"
 echo "starting the mixnet..."
 tmux start-server
 
-tmux new-session -d -s localnet -n Mixnet -d "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix1-$suffix \""
-tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix2-$suffix \""
-tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-mixnode -- run --id mix3-$suffix \""
-tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-gateway -- run --id gateway-$suffix --local \""
+tmux new-session -d -s localnet -n Mixnet -d "/usr/bin/env sh -c \" cargo run --release --bin nym-node -- run --id mix1-$suffix \""
+tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-node -- run --id mix2-$suffix \""
+tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-node -- run --id mix3-$suffix \""
+tmux split-window -t localnet:0 "/usr/bin/env sh -c \" cargo run --release --bin nym-node -- run --id gateway-$suffix \""
 
 while ! nc -z localhost 9000; do
   echo "waiting for nym-gateway to launch on port 9000..."
@@ -73,4 +73,4 @@ tmux send-keys -t localnet:1 "time curl -x socks5h://127.0.0.1:1080 https://test
 tmux select-layout -t localnet:0 tiled
 tmux select-layout -t localnet:1 tiled
 
-tmux attach -tlocalnet
+tmux attach -t localnet

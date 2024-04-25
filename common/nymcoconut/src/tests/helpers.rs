@@ -12,7 +12,7 @@ pub fn theta_from_keys_and_attributes(
     coconut_keypairs: &Vec<KeyPair>,
     indices: &[scheme::SignerIndex],
     public_attributes: &[&PublicAttribute],
-) -> Result<Theta, CoconutError> {
+) -> Result<VerifyCredentialRequest, CoconutError> {
     let serial_number = params.random_scalar();
     let binding_number = params.random_scalar();
     let private_attributes = vec![&serial_number, &binding_number];
@@ -122,7 +122,6 @@ pub use random_scalars_refs;
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::{KeyPair, Parameters, SecretKey};
     use bls12_381::Scalar;
     use nym_dkg::{bte::decrypt_share, combine_shares, Dealing, NodeIndex};
     use rand_chacha::rand_core::SeedableRng;

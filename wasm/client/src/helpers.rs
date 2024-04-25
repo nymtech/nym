@@ -9,7 +9,7 @@ use wasm_client_core::client::base_client::{ClientInput, ClientState};
 use wasm_client_core::client::inbound_messages::InputMessage;
 use wasm_client_core::error::WasmCoreError;
 use wasm_client_core::topology::SerializableNymTopology;
-use wasm_client_core::{MixLayer, NymTopology};
+use wasm_client_core::NymTopology;
 use wasm_utils::error::simple_js_error;
 use wasm_utils::{check_promise_result, console_log};
 
@@ -82,9 +82,6 @@ pub(crate) trait WasmTopologyExt {
 
     /// Returns the current network topology.
     fn current_topology(&self) -> Promise;
-
-    /// Checks whether the provided node exists in the known network topology and if so, returns its layer.
-    fn check_for_mixnode_existence(&self, mixnode_identity: String) -> Promise;
 }
 
 #[cfg(feature = "node-tester")]
@@ -121,21 +118,6 @@ impl WasmTopologyExt for Arc<ClientState> {
                 ))
                 .expect("SerializableNymTopology failed serialization")),
                 None => Err(WasmCoreError::UnavailableNetworkTopology.into()),
-            }
-        })
-    }
-
-    /// Checks whether the target mixnode exists in the known network topology and returns its layer.
-    fn check_for_mixnode_existence(&self, mixnode_identity: String) -> Promise {
-        let this = Arc::clone(self);
-        future_to_promise(async move {
-            let Some(current_topology) = this.topology_accessor.current_topology().await else {
-                return Err(WasmCoreError::UnavailableNetworkTopology.into());
-            };
-
-            match current_topology.find_mix_by_identity(&mixnode_identity) {
-                None => Err(WasmCoreError::NonExistentMixnode { mixnode_identity }.into()),
-                Some(node) => Ok(JsValue::from(MixLayer::from(node.layer))),
             }
         })
     }

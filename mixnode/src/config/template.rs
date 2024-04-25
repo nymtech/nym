@@ -57,6 +57,8 @@ bind_address = '{{ http.bind_address }}'
 # Path to assets directory of custom landing page of this node
 landing_page_assets_path = '{{ http.landing_page_assets_path }}'
 
+metrics_key = '{{ http.metrics_key }}'
+
 [storage_paths] 
 
 # Path to file containing private identity key.

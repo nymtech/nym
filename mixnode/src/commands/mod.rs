@@ -1,20 +1,21 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::default_config_filepath;
-use crate::error::MixnodeError;
-use crate::{config::Config, Cli};
+use crate::Cli;
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
-use log::{error, info, warn};
+use log::{error, warn};
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_bin_common::version_checker;
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
+use nym_mixnode::config::{default_config_filepath, Config};
+use nym_mixnode::error::MixnodeError;
+use std::io::IsTerminal;
 use std::net::IpAddr;
 use std::process;
+use std::time::Duration;
 
 mod build_info;
 mod describe;
@@ -52,6 +53,7 @@ pub(crate) enum Commands {
 }
 
 // Configuration that can be overridden.
+#[allow(dead_code)]
 struct OverrideConfig {
     id: String,
     host: Option<IpAddr>,
@@ -59,10 +61,18 @@ struct OverrideConfig {
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
     nym_apis: Option<Vec<url::Url>>,
+    metrics_key: Option<String>,
 }
 
 pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
     let bin_name = "nym-mixnode";
+
+    warn!("standalone mixnodes have been deprecated - please consider migrating it to a `nym-node` via `nym-node migrate mixnode` command");
+    if std::io::stdout().is_terminal() {
+        // if user is running it in terminal session,
+        // introduce the delay, so they'd notice the message
+        tokio::time::sleep(Duration::from_secs(1)).await
+    }
 
     match args.command {
         Commands::Describe(m) => describe::execute(m)?,
@@ -83,6 +93,7 @@ fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_optional(Config::with_mix_port, args.mix_port)
         .with_optional(Config::with_verloc_port, args.verloc_port)
         .with_optional(Config::with_http_api_port, args.http_api_port)
+        .with_optional(Config::with_metrics_key, args.metrics_key)
         .with_optional_custom_env(
             Config::with_custom_nym_apis,
             args.nym_apis,
@@ -113,25 +124,6 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
     }
 }
 
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-pub(crate) fn version_check(cfg: &Config) -> bool {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = &cfg.mixnode.version;
-    if binary_version == config_version {
-        true
-    } else {
-        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-        if version_checker::is_minor_version_compatible(binary_version, config_version) {
-            info!("but they are still semver compatible. However, consider running the `upgrade` command");
-            true
-        } else {
-            error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-            false
-        }
-    }
-}
-
 fn try_load_current_config(id: &str) -> Result<Config, MixnodeError> {
     upgrade_helpers::try_upgrade_config(id)?;
 
@@ -150,7 +142,6 @@ fn try_load_current_config(id: &str) -> Result<Config, MixnodeError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::CommandFactory;
 
     #[test]
     fn verify_cli() {

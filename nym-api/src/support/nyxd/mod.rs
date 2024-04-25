@@ -14,17 +14,15 @@ use nym_coconut_dkg_common::dealing::{
     PartialContractDealing,
 };
 use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use nym_coconut_dkg_common::types::{
-    ChunkIndex, DealingIndex, InitialReplacementData, PartialContractDealingData, State,
-};
+use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, PartialContractDealingData, State};
 use nym_coconut_dkg_common::{
     dealer::{DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
-use nym_ephemera_common::msg::QueryMsg as EphemeraQueryMsg;
-use nym_ephemera_common::types::JsonPeerInfo;
+
+use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
@@ -38,11 +36,10 @@ use nym_validator_client::nyxd::contract_traits::{NameServiceQueryClient, PagedD
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{
     contract_traits::{
-        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, EphemeraQueryClient,
-        EphemeraSigningClient, GroupQueryClient, MixnetQueryClient, MixnetSigningClient,
-        MultisigQueryClient, MultisigSigningClient, NymContractsProvider, PagedEphemeraQueryClient,
-        PagedMixnetQueryClient, PagedMultisigQueryClient, PagedVestingQueryClient,
-        SpDirectoryQueryClient,
+        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
+        MixnetQueryClient, MixnetSigningClient, MultisigQueryClient, MultisigSigningClient,
+        NymContractsProvider, PagedMixnetQueryClient, PagedMultisigQueryClient,
+        PagedVestingQueryClient, SpDirectoryQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
     CosmWasmClient, Fee,
@@ -358,6 +355,20 @@ impl crate::coconut::client::Client for Client {
         )
     }
 
+    async fn bandwidth_contract_admin(&self) -> crate::coconut::error::Result<Option<AccountId>> {
+        let guard = self.inner.read().await;
+
+        let bandwidth_contract = query_guard!(
+            guard,
+            coconut_bandwidth_contract_address()
+                .ok_or(CoconutError::MissingBandwidthContractAddress)
+        )?;
+
+        let contract = query_guard!(guard, get_contract(bandwidth_contract)).await?;
+
+        Ok(contract.contract_info.admin)
+    }
+
     async fn get_tx(&self, tx_hash: Hash) -> crate::coconut::error::Result<nyxd::TxResponse> {
         nyxd_query!(self, get_tx(tx_hash).await).map_err(|source| {
             CoconutError::TxRetrievalFailure {
@@ -414,17 +425,26 @@ impl crate::coconut::client::Client for Client {
         Ok(nyxd_query!(self, get_current_epoch_threshold().await?))
     }
 
-    async fn get_initial_dealers(
-        &self,
-    ) -> crate::coconut::error::Result<Option<InitialReplacementData>> {
-        Ok(nyxd_query!(self, get_initial_dealers().await?))
-    }
-
     async fn get_self_registered_dealer_details(
         &self,
     ) -> crate::coconut::error::Result<DealerDetailsResponse> {
         let self_address = &self.address().await;
         Ok(nyxd_query!(self, get_dealer_details(self_address).await?))
+    }
+
+    async fn get_registered_dealer_details(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> crate::coconut::error::Result<RegisteredDealerDetails> {
+        let dealer = dealer
+            .as_str()
+            .parse()
+            .map_err(|_| NyxdError::MalformedAccountAddress(dealer))?;
+        Ok(nyxd_query!(
+            self,
+            get_registered_dealer_details(&dealer, Some(epoch_id)).await?
+        ))
     }
 
     async fn get_dealer_dealings_status(
@@ -516,6 +536,10 @@ impl crate::coconut::client::Client for Client {
         Ok(())
     }
 
+    async fn can_advance_epoch_state(&self) -> crate::coconut::error::Result<bool> {
+        Ok(nyxd_query!(self, can_advance_state().await?.can_advance()))
+    }
+
     async fn advance_epoch_state(&self) -> crate::coconut::error::Result<()> {
         nyxd_signing!(self, advance_dkg_epoch_state(None).await?);
         Ok(())
@@ -549,11 +573,10 @@ impl crate::coconut::client::Client for Client {
     async fn submit_dealing_chunk(
         &self,
         chunk: PartialContractDealing,
-        resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(nyxd_signing!(
             self,
-            submit_dealing_chunk(chunk, resharing, None).await?
+            submit_dealing_chunk(chunk, None).await?
         ))
     }
 
@@ -570,42 +593,12 @@ impl crate::coconut::client::Client for Client {
 }
 
 #[async_trait]
-impl crate::ephemera::client::Client for Client {
-    async fn get_ephemera_peers(&self) -> crate::ephemera::error::Result<Vec<JsonPeerInfo>> {
-        Ok(nyxd_query!(self, get_all_ephemera_peers().await?))
-    }
-
-    async fn register_ephemera_peer(
-        &self,
-        peer_info: JsonPeerInfo,
-    ) -> crate::ephemera::error::Result<ExecuteResult> {
-        Ok(nyxd_signing!(
-            self,
-            register_as_peer(peer_info, None).await?
-        ))
-    }
-}
-
-#[async_trait]
 impl DkgQueryClient for Client {
     async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> std::result::Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
         nyxd_query!(self, query_dkg_contract(query).await)
-    }
-}
-
-#[async_trait]
-impl EphemeraQueryClient for Client {
-    async fn query_ephemera_contract<T>(
-        &self,
-        query: EphemeraQueryMsg,
-    ) -> std::result::Result<T, NyxdError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        nyxd_query!(self, query_ephemera_contract(query).await)
     }
 }
 

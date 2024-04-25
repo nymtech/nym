@@ -1,17 +1,45 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use bls12_381::G2Projective;
-use group::Curve;
-use std::convert::TryFrom;
-use std::convert::TryInto;
 
 use crate::error::{CoconutError, Result};
 use crate::traits::{Base58, Bytable};
 use crate::utils::try_deserialize_g2_projective;
+use bls12_381::{G2Affine, G2Projective};
+use group::Curve;
 
-pub struct BlindedSerialNumber {
-    pub(crate) inner: G2Projective,
+use std::fmt::{Debug, Formatter};
+use std::ops::Deref;
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub struct BlindedSerialNumber(G2Projective);
+
+// use custom Debug implementation to show base58 encoding (rather than raw curve elements)
+impl Debug for BlindedSerialNumber {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("BlindedSerialNumber")
+            .field(&self.to_bs58())
+            .finish()
+    }
+}
+
+impl From<G2Projective> for BlindedSerialNumber {
+    fn from(value: G2Projective) -> Self {
+        BlindedSerialNumber(value)
+    }
+}
+
+impl From<G2Affine> for BlindedSerialNumber {
+    fn from(value: G2Affine) -> Self {
+        BlindedSerialNumber(value.into())
+    }
+}
+
+impl Deref for BlindedSerialNumber {
+    type Target = G2Projective;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl TryFrom<&[u8]> for BlindedSerialNumber {
@@ -34,13 +62,13 @@ impl TryFrom<&[u8]> for BlindedSerialNumber {
             ),
         )?;
 
-        Ok(BlindedSerialNumber { inner })
+        Ok(BlindedSerialNumber(inner))
     }
 }
 
 impl Bytable for BlindedSerialNumber {
     fn to_byte_vec(&self) -> Vec<u8> {
-        self.inner.to_affine().to_compressed().to_vec()
+        self.0.to_affine().to_compressed().to_vec()
     }
 
     fn try_from_byte_slice(slice: &[u8]) -> Result<Self> {

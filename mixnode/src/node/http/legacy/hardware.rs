@@ -3,7 +3,7 @@
 
 use axum::extract::Query;
 use cupid::TopologyType;
-use nym_node::http::api::{FormattedResponse, OutputParams};
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use serde::Serialize;
 use sysinfo::{System, SystemExt};
 

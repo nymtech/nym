@@ -62,12 +62,9 @@ pub mod tests {
     use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::storage::rewarding_denom;
-    use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
-    use cosmwasm_std::{Addr, Coin, Response, Uint128};
-    use mixnet_contract_common::error::MixnetContractError;
-    use mixnet_contract_common::ContractStateParams;
+    use cosmwasm_std::{Addr, Coin, Uint128};
 
     #[test]
     fn update_contract_rewarding_validtor_address() {

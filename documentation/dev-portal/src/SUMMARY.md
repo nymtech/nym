@@ -1,3 +1,4 @@
+#
 # Summary
 
 - [Introduction](introduction.md)
@@ -23,9 +24,6 @@
         - [Linux](nymvpn/gui-linux.md)
         - [MacOS](nymvpn/gui-mac.md)
     - [CLI](nymvpn/cli.md)
-        - [Linux](nymvpn/cli-linux.md)
-        - [MacOS](nymvpn/cli-mac.md)
-    - [Testing](nymvpn/testing.md)
     - [Troubleshooting](nymvpn/troubleshooting.md)
     - [NymVPN FAQ](nymvpn/faq.md)
 - [NymConnect X Monero](tutorials/monero.md)

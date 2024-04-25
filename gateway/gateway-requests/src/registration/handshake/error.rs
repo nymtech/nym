@@ -4,7 +4,7 @@
 use nym_crypto::asymmetric::identity;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum HandshakeError {
     #[error(
         "received key material of invalid length - {0}. Expected: {}",
@@ -25,4 +25,7 @@ pub enum HandshakeError {
     MalformedRequest,
     #[error("sent request was malformed")]
     HandshakeFailure,
+
+    #[error("timed out waiting for a handshake message")]
+    Timeout,
 }

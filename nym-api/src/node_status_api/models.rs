@@ -21,7 +21,7 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+
 use thiserror::Error;
 use time::OffsetDateTime;
 

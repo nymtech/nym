@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::helpers::try_load_current_config;
-use crate::node::helpers::node_details;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
+use nym_gateway::helpers::node_details;
 
 #[derive(Args, Clone)]
 pub struct NodeDetails {
@@ -18,7 +18,7 @@ pub struct NodeDetails {
 
 pub async fn execute(args: NodeDetails) -> anyhow::Result<()> {
     let config = try_load_current_config(&args.id)?;
-    args.output.to_stdout(&node_details(&config)?);
+    args.output.to_stdout(&node_details(&config).await?);
 
     Ok(())
 }

@@ -1,7 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::paths::MixNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
@@ -11,10 +10,10 @@ use nym_config::defaults::{
 };
 use nym_config::helpers::inaddr_any;
 use nym_config::{
-    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
+    serde_helpers::de_maybe_stringified, NymConfigTemplate, DEFAULT_CONFIG_DIR,
+    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_node::config;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -23,10 +22,12 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
-pub(crate) mod old_config_v1_1_21;
-pub(crate) mod old_config_v1_1_32;
+pub mod old_config_v1_1_21;
+pub mod old_config_v1_1_32;
 pub mod persistence;
 mod template;
+
+pub use crate::config::persistence::paths::MixNodePaths;
 
 const DEFAULT_MIXNODES_DIR: &str = "mixnodes";
 
@@ -73,13 +74,14 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-fn default_mixnode_http_config() -> config::Http {
-    config::Http {
+fn default_mixnode_http_config() -> Http {
+    Http {
         bind_address: SocketAddr::new(
             IpAddr::V4(Ipv4Addr::UNSPECIFIED),
             DEFAULT_HTTP_API_LISTENING_PORT,
         ),
         landing_page_assets_path: None,
+        metrics_key: None,
     }
 }
 
@@ -90,10 +92,10 @@ pub struct Config {
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
-    pub host: config::Host,
+    pub host: Host,
 
     #[serde(default = "default_mixnode_http_config")]
-    pub http: config::Http,
+    pub http: Http,
 
     pub mixnode: MixNode,
 
@@ -121,7 +123,7 @@ impl Config {
 
         Config {
             save_path: None,
-            host: config::Host {
+            host: Host {
                 // this is a very bad default!
                 public_ips: vec![default_mixnode.listening_address],
                 hostname: None,
@@ -135,6 +137,27 @@ impl Config {
         }
     }
 
+    pub fn externally_loaded(
+        host: impl Into<Host>,
+        http: impl Into<Http>,
+        mixnode: impl Into<MixNode>,
+        storage_paths: impl Into<MixNodePaths>,
+        verloc: impl Into<Verloc>,
+        logging: impl Into<LoggingSettings>,
+        debug: impl Into<Debug>,
+    ) -> Self {
+        Config {
+            save_path: None,
+            host: host.into(),
+            http: http.into(),
+            mixnode: mixnode.into(),
+            storage_paths: storage_paths.into(),
+            verloc: verloc.into(),
+            logging: logging.into(),
+            debug: debug.into(),
+        }
+    }
+
     // simple wrapper that reads config file and assigns path location
     fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path = path.as_ref();
@@ -144,9 +167,6 @@ impl Config {
         Ok(loaded)
     }
 
-    // currently this is dead code, but once we allow loading configs from custom paths
-    // well, we will have to be using it
-    #[allow(dead_code)]
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         Self::read_from_path(path)
     }
@@ -208,6 +228,53 @@ impl Config {
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
         self.mixnode.nym_api_urls.clone()
     }
+
+    pub fn with_metrics_key(mut self, metrics_key: String) -> Self {
+        self.http.metrics_key = Some(metrics_key);
+        self
+    }
+
+    pub fn metrics_key(&self) -> Option<&String> {
+        self.http.metrics_key.as_ref()
+    }
+}
+
+// TODO: this is very much a WIP. we need proper ssl certificate support here
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Host {
+    /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
+    pub public_ips: Vec<IpAddr>,
+
+    /// Optional hostname of this node, for example nymtech.net.
+    // TODO: this is temporary. to be replaced by pulling the data directly from the certs.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub hostname: Option<String>,
+}
+
+impl Host {
+    pub fn validate(&self) -> bool {
+        if self.public_ips.is_empty() {
+            return false;
+        }
+
+        true
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Http {
+    /// Socket address this node will use for binding its http API.
+    /// default: `0.0.0.0:8000`
+    pub bind_address: SocketAddr,
+
+    /// Path to assets directory of custom landing page of this node.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub landing_page_assets_path: Option<PathBuf>,
+
+    #[serde(default)]
+    pub metrics_key: Option<String>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

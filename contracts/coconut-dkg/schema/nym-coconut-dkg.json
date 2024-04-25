@@ -180,15 +180,11 @@
           "commit_dealings_chunk": {
             "type": "object",
             "required": [
-              "chunk",
-              "resharing"
+              "chunk"
             ],
             "properties": {
               "chunk": {
                 "$ref": "#/definitions/PartialContractDealing"
-              },
-              "resharing": {
-                "type": "boolean"
               }
             },
             "additionalProperties": false
@@ -249,10 +245,10 @@
       {
         "type": "object",
         "required": [
-          "surpassed_threshold"
+          "advance_epoch_state"
         ],
         "properties": {
-          "surpassed_threshold": {
+          "advance_epoch_state": {
             "type": "object",
             "additionalProperties": false
           }
@@ -262,10 +258,23 @@
       {
         "type": "object",
         "required": [
-          "advance_epoch_state"
+          "trigger_reset"
         ],
         "properties": {
-          "advance_epoch_state": {
+          "trigger_reset": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "trigger_resharing"
+        ],
+        "properties": {
+          "trigger_resharing": {
             "type": "object",
             "additionalProperties": false
           }
@@ -368,11 +377,40 @@
       {
         "type": "object",
         "required": [
-          "get_initial_dealers"
+          "can_advance_state"
         ],
         "properties": {
-          "get_initial_dealers": {
+          "can_advance_state": {
             "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "get_registered_dealer"
+        ],
+        "properties": {
+          "get_registered_dealer": {
+            "type": "object",
+            "required": [
+              "dealer_address"
+            ],
+            "properties": {
+              "dealer_address": {
+                "type": "string"
+              },
+              "epoch_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
             "additionalProperties": false
           }
         },
@@ -431,10 +469,10 @@
       {
         "type": "object",
         "required": [
-          "get_past_dealers"
+          "get_dealer_indices"
         ],
         "properties": {
-          "get_past_dealers": {
+          "get_dealer_indices": {
             "type": "object",
             "properties": {
               "limit": {
@@ -716,6 +754,215 @@
   },
   "sudo": null,
   "responses": {
+    "can_advance_state": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StateAdvanceResponse",
+      "type": "object",
+      "required": [
+        "current_state",
+        "is_complete",
+        "progress",
+        "reached_deadline"
+      ],
+      "properties": {
+        "current_state": {
+          "$ref": "#/definitions/EpochState"
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "is_complete": {
+          "type": "boolean"
+        },
+        "progress": {
+          "$ref": "#/definitions/StateProgress"
+        },
+        "reached_deadline": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "EpochState": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "waiting_initialisation",
+                "in_progress"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "public_key_submission"
+              ],
+              "properties": {
+                "public_key_submission": {
+                  "type": "object",
+                  "required": [
+                    "resharing"
+                  ],
+                  "properties": {
+                    "resharing": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "dealing_exchange"
+              ],
+              "properties": {
+                "dealing_exchange": {
+                  "type": "object",
+                  "required": [
+                    "resharing"
+                  ],
+                  "properties": {
+                    "resharing": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "verification_key_submission"
+              ],
+              "properties": {
+                "verification_key_submission": {
+                  "type": "object",
+                  "required": [
+                    "resharing"
+                  ],
+                  "properties": {
+                    "resharing": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "verification_key_validation"
+              ],
+              "properties": {
+                "verification_key_validation": {
+                  "type": "object",
+                  "required": [
+                    "resharing"
+                  ],
+                  "properties": {
+                    "resharing": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "verification_key_finalization"
+              ],
+              "properties": {
+                "verification_key_finalization": {
+                  "type": "object",
+                  "required": [
+                    "resharing"
+                  ],
+                  "properties": {
+                    "resharing": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "StateProgress": {
+          "type": "object",
+          "required": [
+            "registered_dealers",
+            "registered_resharing_dealers",
+            "submitted_dealings",
+            "submitted_key_shares",
+            "verified_keys"
+          ],
+          "properties": {
+            "registered_dealers": {
+              "description": "Counts the number of dealers that have registered in this epoch.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "registered_resharing_dealers": {
+              "description": "Counts the number of resharing dealers that have registered in this epoch. This field is only populated during a resharing exchange. It is always <= registered_dealers.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "submitted_dealings": {
+              "description": "Counts the number of fully received dealings (i.e. full chunks) from all the allowed dealers.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "submitted_key_shares": {
+              "description": "Counts the number of submitted verification key shared from the dealers.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "verified_keys": {
+              "description": "Counts the number of verified key shares.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
     "get_c_w2_contract_version": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ContractVersion",
@@ -813,15 +1060,11 @@
       "required": [
         "epoch_id",
         "state",
+        "state_progress",
         "time_configuration"
       ],
       "properties": {
-        "epoch_id": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        },
-        "finish_timestamp": {
+        "deadline": {
           "anyOf": [
             {
               "$ref": "#/definitions/Timestamp"
@@ -831,8 +1074,16 @@
             }
           ]
         },
+        "epoch_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
         "state": {
           "$ref": "#/definitions/EpochState"
+        },
+        "state_progress": {
+          "$ref": "#/definitions/StateProgress"
         },
         "time_configuration": {
           "$ref": "#/definitions/TimeConfiguration"
@@ -955,6 +1206,49 @@
               "additionalProperties": false
             }
           ]
+        },
+        "StateProgress": {
+          "type": "object",
+          "required": [
+            "registered_dealers",
+            "registered_resharing_dealers",
+            "submitted_dealings",
+            "submitted_key_shares",
+            "verified_keys"
+          ],
+          "properties": {
+            "registered_dealers": {
+              "description": "Counts the number of dealers that have registered in this epoch.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "registered_resharing_dealers": {
+              "description": "Counts the number of resharing dealers that have registered in this epoch. This field is only populated during a resharing exchange. It is always <= registered_dealers.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "submitted_dealings": {
+              "description": "Counts the number of fully received dealings (i.e. full chunks) from all the allowed dealers.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "submitted_key_shares": {
+              "description": "Counts the number of submitted verification key shared from the dealers.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "verified_keys": {
+              "description": "Counts the number of verified key shares.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
         },
         "TimeConfiguration": {
           "type": "object",
@@ -1154,12 +1448,106 @@
           "additionalProperties": false
         },
         "DealerType": {
-          "type": "string",
-          "enum": [
-            "current",
-            "past",
-            "unknown"
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "unknown"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "current"
+              ],
+              "properties": {
+                "current": {
+                  "type": "object",
+                  "required": [
+                    "assigned_index"
+                  ],
+                  "properties": {
+                    "assigned_index": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "past"
+              ],
+              "properties": {
+                "past": {
+                  "type": "object",
+                  "required": [
+                    "assigned_index"
+                  ],
+                  "properties": {
+                    "assigned_index": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
           ]
+        }
+      }
+    },
+    "get_dealer_indices": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PagedDealerIndexResponse",
+      "type": "object",
+      "required": [
+        "indices"
+      ],
+      "properties": {
+        "indices": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/definitions/Addr"
+              },
+              {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            ],
+            "maxItems": 2,
+            "minItems": 2
+          }
+        },
+        "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
         }
       }
     },
@@ -1455,70 +1843,15 @@
         }
       }
     },
-    "get_initial_dealers": {
+    "get_registered_dealer": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Nullable_InitialReplacementData",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/InitialReplacementData"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "definitions": {
-        "Addr": {
-          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-          "type": "string"
-        },
-        "InitialReplacementData": {
-          "type": "object",
-          "required": [
-            "initial_dealers",
-            "initial_height"
-          ],
-          "properties": {
-            "initial_dealers": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Addr"
-              }
-            },
-            "initial_height": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        }
-      }
-    },
-    "get_past_dealers": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "PagedDealerResponse",
+      "title": "RegisteredDealerDetails",
       "type": "object",
-      "required": [
-        "dealers",
-        "per_page"
-      ],
       "properties": {
-        "dealers": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/DealerDetails"
-          }
-        },
-        "per_page": {
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0.0
-        },
-        "start_next_after": {
-          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+        "details": {
           "anyOf": [
             {
-              "$ref": "#/definitions/Addr"
+              "$ref": "#/definitions/DealerRegistrationDetails"
             },
             {
               "type": "null"
@@ -1528,30 +1861,16 @@
       },
       "additionalProperties": false,
       "definitions": {
-        "Addr": {
-          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-          "type": "string"
-        },
-        "DealerDetails": {
+        "DealerRegistrationDetails": {
           "type": "object",
           "required": [
-            "address",
             "announce_address",
-            "assigned_index",
             "bte_public_key_with_proof",
             "ed25519_identity"
           ],
           "properties": {
-            "address": {
-              "$ref": "#/definitions/Addr"
-            },
             "announce_address": {
               "type": "string"
-            },
-            "assigned_index": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0.0
             },
             "bte_public_key_with_proof": {
               "type": "string"

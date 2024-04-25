@@ -5,21 +5,19 @@
 **Nym proudly presents NymVPN alpha** - a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet (for a full network privacy) or the faster 2-hop decentralised VPN (with some extra features).
 
 
-**You are invited to take part in the alpha testing** of this new application. The following pages provide a how-to guide, explaining steps to install and run NymVPN [CLI](cli.md) and [GUI](gui.md) on the Sandbox testnet environment as well as provide some scripts for [qualitative testing](testing.md).
+**You are invited to take part in the alpha testing** of this new application. The following pages provide a how-to guide, explaining steps to install and run NymVPN [CLI](cli.md) and [GUI](gui.md).
 
 **Here is how**
 
 1. Go to the NymVPN [testers form]({{nym_vpn_form_url}})
-2. Please consent to the GDPR so we can use the results
+2. Fill and submit the [form!]({{nym_vpn_form_url}})
 3. To test the GUI, [go here](gui.md)
 4. To test the CLI, [go here](cli.md)
-5. Run [qualitative testing script](testing.md)
-6. Fill and submit the [form!]({{nym_vpn_form_url}})
-7. Join the [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat) if you have any questions, comments or blockers
+5. Join the [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat) if you have any questions, comments or blockers
 
 ***NymVPN alpha testing will last from 15th of January - 15th of February.***
 
-*NOTE: NymVPN alpha is experimental software for [testing purposes](testing.md) only.*
+*NOTE: NymVPN alpha is experimental software for testing purposes only.*
 
 
 ## NymVPN Overview
@@ -45,10 +43,9 @@ The client can optionally do the first hop (local client to Entry Gateway) using
 ## NymVPN Resources & Guides
 
 * [NymVPN webpage](https://nymvpn.com)
-* [Alpha release page]({{nym_vpn_latest_binary_url}})
+* [Alpha release page]({{nym_vpn_releases}})
 * [NymVPN application (GUI) guide](gui.md)
 * [NymVPN Command Line Interface (CLI) guide](cli.md)
-* [Testing scripts](testing.md)
 * [Troubleshooting](troubleshooting.md)
 * [NymVPN FAQ](faq.md)
 * [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat)

@@ -2,16 +2,12 @@
 
 [//]: # (> The nym-api binary was built in the [building nym]&#40;../binaries/building-nym.md&#41; section. If you haven't yet built Nym and want to run the code, go there first. You can build just the API with `cargo build --release --bin nym-api`.)
 
-> The `nym-api` binary will be released in the immediate future - we're releasing this document beforehand so that validators have information as soon as possible and get an idea of what to expect. This doc will be expanded over time as we release the API binary itself as well as start enabling functionality.
->
-> You can build the API with `cargo build --release --bin nym-api`.
-
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## What is the Nym API?
 The Nym API is a binary that will be operated by the Nyx validator set. This binary can be run in several different modes, and has two main bits of functionality:
 * network monitoring (calculating the routing score of Mixnet nodes)
-* generation and validation of [zk-Nyms](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a), our implementation of the Coconut Selective Disclosure Credential Scheme.
+* generation and validation of [zk-nyms](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a), our implementation of the Coconut Selective Disclosure Credential Scheme.
 
 This is important for both the proper decentralisation of the network uptime calculation and, more pressingly, enabling the NymVPN to utilise privacy preserving payments.
 
@@ -81,18 +77,18 @@ pruning-interval = "100"
 The example value of `100` for `pruning-interval` can be customised as per your requirement.
 
 
-### (Coming Soon) Credential Generation
-Validators that take part in the DKG ceremony will become part of the 'quorum' generating and verifying zk-Nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221).
+### Credential Generation
+Validators that take part in the DKG ceremony will become part of the 'quorum' generating and verifying zk-nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221).
 
-The DKG ceremony will be used to create a subset of existing validators - referred to as the quorum. As outlined above, they will be the ones taking part in the generation and verification of zk-Nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a Validator dropping or going offline.
+The DKG ceremony will be used to create a subset of existing validators who run `nym-api` alongside a Nyx full-node. As outlined above, they will be the ones taking part in the generation and verification of zk-nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a validator dropping or going offline.
 
 We will be releasing more detailed step-by-step documentation for involved validators nearer to the ceremony itself, but at a high level it will involve:
 * the deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the `group` contract are the only ones that will be able to take part in the ceremony.
 * the deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.
 * Validators will update their `nym-api` configs with the address of the deployed contracts. They will also stop running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode`.
-* From the perspective of operators, this is all they have to do. Under the hood, each `nym-api` instance will then take part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived. More information on this will be released closer to the time of the ceremony.
+* From the perspective of operators, this is all they have to do. Under the hood, each `nym-api` instance will then take part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived.
 
-**We will be communicating individually with members of the existing Validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**.
+**We will be communicating individually with members of the existing validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**.
 
 ## Current version
 ```
@@ -121,7 +117,7 @@ You can also check the various arguments required for individual commands with:
 ./nym-api <COMMAND> --help
 ```
 
-### Initialising your Nym API Instance
+### Initialising your Nym API Instance in caching mode
 Initialise your API instance with:
 
 ```
@@ -130,17 +126,70 @@ Initialise your API instance with:
 
 You can optionally pass a local identifier for this instance with the `--id` flag. Otherwise the ID of your instance defaults to `default`.
 
+### Enabling credential signing on your Nym API instance
+
+To engage in the Distributed Key Generation (DKG) ceremony, it's essential to transition your `nym-api` instance from its default caching mode to the active credential signing mode. This section guides you through the process of enabling credential signing
+
+#### Generate a new wallet
+
+Begin by generating a new wallet address specifically for your instance to use in credential signing mode. Utilize the `nyxd` command-line tool with the following command:
+
+```
+nyxd keys add signer
+```
+
+~~~admonish warning title="Backup your keys!"
+It's critical to securely back up the mnemonic phrase generated during this process. This mnemonic is your key to recovering the wallet in the future, so store it in a secure, offline location.
+~~~
+
+#### Fund the address
+
+Next, deposit NYM tokens into the newly created wallet address to ensure it can cover transaction fees incurred during the credential signing process. `nym-api` will not operate if the wallet's balance falls below 10 NYM tokens, displaying an error message upon startup.
+
+We recommand beginning with an initial deposit of 100 NYM tokens and monitoring the balance regularly, topping it up as necessary to maintain operational readiness.
+
+#### Update API configuration
+
+With your new wallet ready and funded, proceed to update your `nym-api` configuration to enable credential signing:
+
+Update your `config.toml` located in `<HOME_DIR>/.nym/nym-api/foo/config/config.toml` as below:
+
+Enable the coconut signer:
+
+```
+[coconut_signer]
+# Specifies whether coconut signing protocol is enabled in this process.
+enabled = true  # This was previously false
+```
+
+Set your announce address if it is empty. This is the URL you previously configured for your `nym-api` instance
+
+```
+# This is the address you previously configured for the nym-api
+# Not to be confused with the Cosmos REST API URL
+announce_address = 'https://nym-api.your.tld/'
+```
+
+Finally, input the mnemonic phrase generated during the wallet creation step into the mnemonic field
+
+```
+mnemonic = '<YOUR_MNEMONIC_HERE>'
+```
+
+After completing these steps, your `nym-api` instance is configured to participate in credential signing and the DKG ceremony.
+
+
 ### Running your Nym API Instance
 The API binary currently defaults to running in caching mode. You can run your API with:
 
 ```
-./nym-api run
+./nym-api run --id <YOUR_ID>
 ```
 
 By default the API will be trying to query your full node running locally on `localhost:26657`. If your node is hosted elsewhere, you can specify the RPC location by using the `--nyxd-validator ` flag on `run`:
 
 ```
-./nym-api run --nyxd-validator https://rpc-nym.yourcorp.tld:443
+./nym-api run --id <YOUR_ID> --nyxd-validator https://rpc-nym.yourcorp.tld:443
 ```
 
 > You can also change the value of `local_validator` in the config file found by default in `$HOME/.nym/nym-api/<ID>/config/config.toml`.
@@ -229,6 +278,8 @@ Starting nym api...
 
 ## Automation
 You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md) for an example `service` file.
+
+You can also use `nymvisor` to automatically update the `nym-api` node. The steps to install Nymvisor can be found [here](nymvisor-upgrade.md).
 
 ## Exposing web endpoint using HTTPS
 It is recommended to expose the webserver over HTTPS by using a webserver like Nginx. An example configuration for configuring Nginx is listed [on the maintenance page](maintenance.md#nym-api-configuration). If you're using a custom solution, ensure to allow requests from anywhere by setting a permissive CORS policy.

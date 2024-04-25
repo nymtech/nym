@@ -46,6 +46,8 @@ enum TaskError {
 pub enum TaskStatus {
     #[error("Ready")]
     Ready,
+    #[error("Ready and connected to gateway: {0}")]
+    ReadyWithGateway(String),
 }
 
 /// Listens to status and error messages from tasks, as well as notifying them to gracefully
@@ -161,10 +163,14 @@ impl TaskManager {
         self.notify_tx.send(())
     }
 
-    pub async fn start_status_listener(&mut self, mut sender: StatusSender) {
+    pub async fn start_status_listener(
+        &mut self,
+        mut sender: StatusSender,
+        start_status: TaskStatus,
+    ) {
         // Announce that we are operational. This means that in the application where this is used,
         // everything is up and running and ready to go.
-        if let Err(msg) = sender.send(Box::new(TaskStatus::Ready)).await {
+        if let Err(msg) = sender.send(Box::new(start_status)).await {
             log::error!("Error sending status message: {}", msg);
         };
 
@@ -342,7 +348,7 @@ impl TaskClient {
             "unnamed-TaskClient".to_string()
         };
 
-        log!(target: target, level, "{msg}")
+        log!(target: target, level, "{}", format!("[{target}] {msg}"))
     }
 
     #[must_use]
@@ -466,6 +472,10 @@ impl TaskClient {
     // without signal failure.
     pub fn mark_as_success(&mut self) {
         self.mode.set_should_not_signal_on_drop();
+    }
+
+    pub fn disarm(&mut self) {
+        self.mark_as_success();
     }
 
     pub fn send_we_stopped(&mut self, err: SentError) {

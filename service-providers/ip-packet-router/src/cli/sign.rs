@@ -1,10 +1,10 @@
 use crate::cli::{try_load_current_config, version_check};
-use crate::error::IpPacketRouterError;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::error::ClientCoreError;
 use nym_crypto::asymmetric::identity;
+use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_types::helpers::ConsoleSigningOutput;
 
 #[derive(Args, Clone)]
@@ -52,7 +52,7 @@ fn print_signed_contract_msg(
 }
 
 pub(crate) async fn execute(args: &Sign) -> Result<(), IpPacketRouterError> {
-    let config = try_load_current_config(&args.id)?;
+    let config = try_load_current_config(&args.id).await?;
 
     if !version_check(&config) {
         log::error!("Failed the local version check");

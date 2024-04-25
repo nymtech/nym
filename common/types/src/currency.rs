@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::convert::TryFrom;
+
 use std::fmt::{Display, Formatter};
 use strum::{Display, EnumString, EnumVariantNames};
 
@@ -396,8 +396,6 @@ impl TryFrom<DecCoin> for Coin {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::convert::TryFrom;
-    use std::string::ToString;
 
     #[test]
     fn dec_value_scale_down() {

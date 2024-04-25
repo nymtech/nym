@@ -10,11 +10,11 @@ license.workspace = true
 [dependencies]
 bytes = "1.0"
 futures = { workspace = true }
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 log = { workspace = true }
 rand = "0.8"
-serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.24.1", features = [
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = [
     "time",
     "macros",
     "rt",
@@ -23,10 +23,8 @@ tokio = { version = "1.24.1", features = [
 ] }
 tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true }
+time.workspace = true
 thiserror = { workspace = true }
-
-## tracing
-tracing = { version = "0.1.37", optional = true }
 
 nym-crypto = { path = "../crypto" }
 nym-network-defaults = { path = "../network-defaults" }
@@ -39,9 +37,5 @@ nym-sphinx-types = { path = "../nymsphinx/types" }
 nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }
 nym-bin-common = { path = "../bin-common" }
-
-cfg-if = "1.0.0"
-cpu-cycles = { path = "../../cpu-cycles", optional = true }
-
-[features]
-cpucycles = ["cpu-cycles", "tracing"]
+nym-metrics = { path = "../nym-metrics" }
+nym-node-http-api = { path = "../../nym-node/nym-node-http-api" } 

@@ -1,14 +1,19 @@
-// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::{Error, Result};
-use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
+use nym_client_core::client::base_client::storage::OnDiskGatewaysDetails;
 use nym_client_core::client::base_client::{non_wasm_helpers, storage};
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::replies::reply_storage::fs_backend;
 use nym_client_core::config;
-use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_client_core::config::disk_persistence::{
+    ClientKeysPaths, DEFAULT_ACK_KEY_FILENAME, DEFAULT_CREDENTIALS_DB_FILENAME,
+    DEFAULT_GATEWAYS_DETAILS_DB_FILENAME, DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME,
+    DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME, DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME,
+    DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME, DEFAULT_REPLY_SURB_DB_FILENAME,
+};
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 use std::path::{Path, PathBuf};
 
@@ -31,17 +36,14 @@ pub struct StoragePaths {
     /// Key for handling acks
     pub ack_key: PathBuf,
 
-    /// Key setup after authenticating with a gateway
-    pub gateway_shared_key: PathBuf,
-
     /// The database containing credentials
     pub credential_database_path: PathBuf,
 
     /// The database storing reply surbs in-between sessions
     pub reply_surb_database_path: PathBuf,
 
-    /// Details of the used gateway
-    pub gateway_details_path: PathBuf,
+    /// Details of the used gateways
+    pub gateway_registrations: PathBuf,
 }
 
 impl StoragePaths {
@@ -58,15 +60,14 @@ impl StoragePaths {
         }
 
         Ok(Self {
-            private_identity: dir.join("private_identity.pem"),
-            public_identity: dir.join("public_identity.pem"),
-            private_encryption: dir.join("private_encryption.pem"),
-            public_encryption: dir.join("public_encryption.pem"),
-            ack_key: dir.join("ack_key.pem"),
-            gateway_shared_key: dir.join("gateway_shared.pem"),
-            credential_database_path: dir.join("db.sqlite"),
-            reply_surb_database_path: dir.join("persistent_reply_store.sqlite"),
-            gateway_details_path: dir.join("gateway_details.json"),
+            private_identity: dir.join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME),
+            public_identity: dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME),
+            private_encryption: dir.join(DEFAULT_PRIVATE_ENCRYPTION_KEY_FILENAME),
+            public_encryption: dir.join(DEFAULT_PUBLIC_ENCRYPTION_KEY_FILENAME),
+            ack_key: dir.join(DEFAULT_ACK_KEY_FILENAME),
+            credential_database_path: dir.join(DEFAULT_CREDENTIALS_DB_FILENAME),
+            reply_surb_database_path: dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
+            gateway_registrations: dir.join(DEFAULT_GATEWAYS_DETAILS_DB_FILENAME),
         })
     }
 
@@ -78,7 +79,7 @@ impl StoragePaths {
             self.on_disk_key_storage_spec(),
             self.default_persistent_fs_reply_backend().await?,
             self.persistent_credential_storage().await?,
-            self.on_disk_gateway_details_storage(),
+            self.on_disk_gateway_details_storage().await?,
         ))
     }
 
@@ -92,7 +93,7 @@ impl StoragePaths {
             self.persistent_fs_reply_backend(&config.reply_surbs)
                 .await?,
             self.persistent_credential_storage().await?,
-            self.on_disk_gateway_details_storage(),
+            self.on_disk_gateway_details_storage().await?,
         ))
     }
 
@@ -129,8 +130,8 @@ impl StoragePaths {
         OnDiskKeys::new(self.client_keys_paths())
     }
 
-    pub fn on_disk_gateway_details_storage(&self) -> OnDiskGatewayDetails {
-        OnDiskGatewayDetails::new(&self.gateway_details_path)
+    pub async fn on_disk_gateway_details_storage(&self) -> Result<OnDiskGatewaysDetails, Error> {
+        Ok(non_wasm_helpers::setup_fs_gateways_storage(&self.gateway_registrations).await?)
     }
 
     fn client_keys_paths(&self) -> ClientKeysPaths {
@@ -139,7 +140,6 @@ impl StoragePaths {
             public_identity_key_file: self.public_identity.clone(),
             private_encryption_key_file: self.private_encryption.clone(),
             public_encryption_key_file: self.public_encryption.clone(),
-            gateway_shared_key_file: self.gateway_shared_key.clone(),
             ack_key_file: self.ack_key.clone(),
         }
     }
@@ -153,10 +153,9 @@ impl From<StoragePaths> for CommonClientPaths {
                 public_identity_key_file: value.public_identity,
                 private_encryption_key_file: value.private_encryption,
                 public_encryption_key_file: value.public_encryption,
-                gateway_shared_key_file: value.gateway_shared_key,
                 ack_key_file: value.ack_key,
             },
-            gateway_details: value.gateway_details_path,
+            gateway_registrations: value.gateway_registrations,
             credentials_database: value.credential_database_path,
             reply_surb_database: value.reply_surb_database_path,
         }
@@ -171,10 +170,9 @@ impl From<CommonClientPaths> for StoragePaths {
             private_encryption: value.keys.private_encryption_key_file,
             public_encryption: value.keys.public_encryption_key_file,
             ack_key: value.keys.ack_key_file,
-            gateway_shared_key: value.keys.gateway_shared_key_file,
             credential_database_path: value.credentials_database,
             reply_surb_database_path: value.reply_surb_database,
-            gateway_details_path: value.gateway_details,
+            gateway_registrations: value.gateway_registrations,
         }
     }
 }

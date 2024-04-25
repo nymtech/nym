@@ -8,6 +8,7 @@ pub trait AddDefaultSubmenus {
 }
 
 impl AddDefaultSubmenus for Menu {
+    #[allow(dead_code)]
     fn add_default_app_submenus(self) -> Self {
         if ::std::env::var("NYM_WALLET_ENABLE_LOG").is_ok() {
             let submenu = Submenu::new(

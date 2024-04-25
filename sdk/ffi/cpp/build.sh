@@ -44,7 +44,7 @@ else
     build_artifacts_and_link;
     ./main;
   else
-      echo "unknown optional argument - the only available optional argument is 'clean'"
+      printf "unknown optional argument - the only available optional argument is 'clean'"
       exit 1
   fi
 fi

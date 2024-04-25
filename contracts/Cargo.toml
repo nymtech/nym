@@ -4,7 +4,6 @@ members = [
     "coconut-bandwidth",
     "coconut-dkg",
     "coconut-test",
-    "ephemera",
     "mixnet",
     "mixnet-vesting-integration-tests",
     "multisig/cw3-flex-multisig",
@@ -34,20 +33,22 @@ incremental = false
 overflow-checks = true
 
 [workspace.dependencies]
-cosmwasm-crypto = "=1.3.0"
-cosmwasm-derive = "=1.3.0"
-cosmwasm-schema = "=1.3.0"
-cosmwasm-std = "=1.3.0"
-cosmwasm-storage = "=1.3.0"
+bs58 = "0.4.0"
+cosmwasm-crypto = "=1.4.3"
+cosmwasm-derive = "=1.4.3"
+cosmwasm-schema = "=1.4.3"
+cosmwasm-std = "=1.4.3"
+cosmwasm-storage = "=1.4.3"
 cw-controllers = "=1.1.0"
 cw-multi-test = "=0.16.4"
-cw-storage-plus = "=1.1.0"
+cw-storage-plus = "=1.2.0"
 cw-utils = "=1.0.1"
-cw2 = "=1.1.0"
-cw3 = "=1.1.0"
-cw3-fixed-multisig = "=1.1.0"
-cw4 = "=1.1.0"
-cw20 = "=1.1.0"
+cw2 = "=1.1.2"
+cw3 = "=1.1.2"
+cw3-fixed-multisig = "=1.1.2"
+cw4 = "=1.1.2"
+cw20 = "=1.1.2"
 semver = "1.0.21"
+serde = "1.0.196"
 
 thiserror = "1.0.48"

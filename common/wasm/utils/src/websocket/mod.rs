@@ -6,6 +6,7 @@ use futures::{Sink, Stream};
 use gloo_net::websocket::futures::WebSocket;
 use gloo_net::websocket::{Message, WebSocketError};
 use gloo_utils::errors::JsError;
+use std::fmt::{self, Formatter};
 use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -74,6 +75,12 @@ impl Stream for JSWebsocket {
         Pin::new(&mut self.inner).poll_next(cx).map(|maybe_item| {
             maybe_item.map(|item| item.map(into_tungstenite_message).map_err(map_ws_error))
         })
+    }
+}
+
+impl fmt::Debug for JSWebsocket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "JSWebSocket")
     }
 }
 

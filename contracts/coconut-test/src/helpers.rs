@@ -1,10 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{entry_point, Addr, Coin, DepsMut, Empty, Env, Response};
+use cosmwasm_std::{Addr, Coin, Empty};
 use cw_multi_test::{App, AppBuilder, Contract, ContractWrapper};
-use nym_multisig_contract_common::error::ContractError;
-use nym_multisig_contract_common::state::CONFIG;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -19,14 +17,6 @@ pub const RANDOM_ADDRESS: &str = "random address";
 pub struct MigrateMsg {
     pub coconut_bandwidth_address: String,
     pub coconut_dkg_address: String,
-}
-
-#[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    let mut cfg = CONFIG.load(deps.storage)?;
-    cfg.coconut_bandwidth_addr = deps.api.addr_validate(&msg.coconut_bandwidth_address)?;
-    CONFIG.save(deps.storage, &cfg)?;
-    Ok(Default::default())
 }
 
 pub fn mock_app(init_funds: &[Coin]) -> App {
@@ -65,7 +55,7 @@ pub fn contract_multisig() -> Box<dyn Contract<Empty>> {
         cw3_flex_multisig::contract::instantiate,
         cw3_flex_multisig::contract::query,
     )
-    .with_migrate(migrate);
+    .with_migrate(cw3_flex_multisig::contract::migrate);
     Box::new(contract)
 }
 

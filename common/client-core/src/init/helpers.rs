@@ -1,7 +1,6 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
@@ -9,6 +8,7 @@ use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 use nym_topology::{filter::VersionFilterable, gateway, mix};
+use nym_validator_client::client::IdentityKeyRef;
 use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
 use tungstenite::Message;
@@ -17,16 +17,13 @@ use url::Url;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-#[cfg(not(target_arch = "wasm32"))]
-type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
-use nym_validator_client::client::IdentityKeyRef;
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time::sleep;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
@@ -34,6 +31,9 @@ use wasm_utils::websocket::JSWebsocket;
 use wasmtimer::std::Instant;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
+
+#[cfg(not(target_arch = "wasm32"))]
+type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 #[cfg(target_arch = "wasm32")]
 type WsConn = JSWebsocket;
@@ -278,16 +278,17 @@ pub(super) fn get_specified_gateway(
 }
 
 pub(super) async fn register_with_gateway(
-    gateway: &GatewayEndpointConfig,
+    gateway_id: identity::PublicKey,
+    gateway_listener: Url,
     our_identity: Arc<identity::KeyPair>,
 ) -> Result<RegistrationResult, ClientCoreError> {
     let mut gateway_client =
-        GatewayClient::new_init(gateway.to_owned().try_into()?, our_identity.clone());
+        GatewayClient::new_init(gateway_listener, gateway_id, our_identity.clone());
 
     gateway_client.establish_connection().await.map_err(|err| {
         log::warn!("Failed to establish connection with gateway!");
         ClientCoreError::GatewayClientError {
-            gateway_id: gateway.gateway_id.clone(),
+            gateway_id: gateway_id.to_base58_string(),
             source: err,
         }
     })?;
@@ -295,12 +296,9 @@ pub(super) async fn register_with_gateway(
         .perform_initial_authentication()
         .await
         .map_err(|err| {
-            log::warn!(
-                "Failed to register with the gateway {}!",
-                gateway.gateway_id
-            );
+            log::warn!("Failed to register with the gateway {gateway_id}: {err}");
             ClientCoreError::GatewayClientError {
-                gateway_id: gateway.gateway_id.clone(),
+                gateway_id: gateway_id.to_base58_string(),
                 source: err,
             }
         })?;

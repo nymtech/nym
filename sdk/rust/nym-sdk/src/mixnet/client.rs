@@ -10,29 +10,32 @@ use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::warn;
-use nym_client_core::client::base_client::storage::gateway_details::{
-    GatewayDetailsStore, PersistedGatewayDetails,
+use log::{debug, warn};
+use nym_client_core::client::base_client::storage::helpers::{
+    get_active_gateway_identity, get_all_registered_identities, has_gateway_details,
+    set_active_gateway,
 };
 use nym_client_core::client::base_client::storage::{
-    Ephemeral, MixnetClientStorage, OnDiskPersistent,
+    Ephemeral, GatewaysDetailsStore, MixnetClientStorage, OnDiskPersistent,
 };
 use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
-use nym_client_core::config::DebugConfig;
-use nym_client_core::init::helpers::current_gateways;
-use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
-use nym_client_core::{
-    client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
-    config::GatewayEndpointConfig,
+use nym_client_core::client::{
+    base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
 };
-use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, WG_TUN_DEVICE_ADDRESS};
+use nym_client_core::config::DebugConfig;
+use nym_client_core::error::ClientCoreError;
+use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::setup_gateway;
+use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_network_defaults::WG_TUN_DEVICE_IP_ADDRESS;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
 use rand::rngs::OsRng;
+use std::net::IpAddr;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
@@ -44,7 +47,6 @@ const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     config: Config,
     storage_paths: Option<StoragePaths>,
-    gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
 
     wireguard_mode: bool,
@@ -81,7 +83,6 @@ impl MixnetClientBuilder<OnDiskPersistent> {
         Ok(MixnetClientBuilder {
             config: Default::default(),
             storage_paths: None,
-            gateway_config: None,
             socks5_config: None,
             wireguard_mode: false,
             wait_for_gateway: false,
@@ -101,10 +102,11 @@ impl<S> MixnetClientBuilder<S>
 where
     S: MixnetClientStorage + 'static,
     S::ReplyStore: Send + Sync,
+    S::GatewaysDetailsStore: Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
     <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-    <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Send + Sync,
+    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
     /// Creates a client builder with the provided client storage implementation.
     #[must_use]
@@ -112,7 +114,6 @@ where
         MixnetClientBuilder {
             config: Default::default(),
             storage_paths: None,
-            gateway_config: None,
             socks5_config: None,
             wireguard_mode: false,
             wait_for_gateway: false,
@@ -131,7 +132,6 @@ where
         MixnetClientBuilder {
             config: self.config,
             storage_paths: self.storage_paths,
-            gateway_config: self.gateway_config,
             socks5_config: self.socks5_config,
             wireguard_mode: self.wireguard_mode,
             wait_for_gateway: self.wait_for_gateway,
@@ -178,6 +178,13 @@ where
     #[must_use]
     pub fn enable_credentials_mode(mut self) -> Self {
         self.config.enabled_credentials_mode = true;
+        self
+    }
+
+    /// Enable paid coconut bandwidth credentials mode.
+    #[must_use]
+    pub fn credentials_mode(mut self, credentials_mode: bool) -> Self {
+        self.config.enabled_credentials_mode = credentials_mode;
         self
     }
 
@@ -245,13 +252,15 @@ where
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
-        let client = DisconnectedMixnetClient::new(self.config, self.socks5_config, self.storage)?
-            .custom_gateway_transceiver(self.custom_gateway_transceiver)
-            .custom_topology_provider(self.custom_topology_provider)
-            .custom_shutdown(self.custom_shutdown)
-            .wireguard_mode(self.wireguard_mode)
-            .wait_for_gateway(self.wait_for_gateway)
-            .force_tls(self.force_tls);
+        let mut client =
+            DisconnectedMixnetClient::new(self.config, self.socks5_config, self.storage)?;
+
+        client.custom_gateway_transceiver = self.custom_gateway_transceiver;
+        client.custom_topology_provider = self.custom_topology_provider;
+        client.custom_shutdown = self.custom_shutdown;
+        client.wireguard_mode = self.wireguard_mode;
+        client.wait_for_gateway = self.wait_for_gateway;
+        client.force_tls = self.force_tls;
 
         Ok(client)
     }
@@ -306,10 +315,11 @@ impl<S> DisconnectedMixnetClient<S>
 where
     S: MixnetClientStorage + 'static,
     S::ReplyStore: Send + Sync,
+    S::GatewaysDetailsStore: Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
     <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
-    <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Send + Sync,
+    <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Send + Sync,
 {
     /// Create a new mixnet client in a disconnected state. The default configuration,
     /// creates a new mainnet client with ephemeral keys stored in RAM, which will be discarded at
@@ -351,48 +361,6 @@ where
         })
     }
 
-    #[must_use]
-    pub fn custom_shutdown(mut self, shutdown: Option<TaskClient>) -> Self {
-        self.custom_shutdown = shutdown;
-        self
-    }
-
-    #[must_use]
-    pub fn custom_topology_provider(
-        mut self,
-        provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-    ) -> Self {
-        self.custom_topology_provider = provider;
-        self
-    }
-
-    #[must_use]
-    pub fn custom_gateway_transceiver(
-        mut self,
-        gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-    ) -> Self {
-        self.custom_gateway_transceiver = gateway_transceiver;
-        self
-    }
-
-    #[must_use]
-    pub fn wireguard_mode(mut self, wireguard_mode: bool) -> Self {
-        self.wireguard_mode = wireguard_mode;
-        self
-    }
-
-    #[must_use]
-    pub fn wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
-        self.wait_for_gateway = wait_for_gateway;
-        self
-    }
-
-    #[must_use]
-    pub fn force_tls(mut self, must_use_tls: bool) -> Self {
-        self.force_tls = must_use_tls;
-        self
-    }
-
     fn get_api_endpoints(&self) -> Vec<Url> {
         self.config
             .network_details
@@ -413,79 +381,151 @@ where
             .collect()
     }
 
-    /// Client keys are generated at client creation if none were found. The gateway shared
-    /// key, however, is created during the gateway registration handshake so it might not
-    /// necessarily be available.
-    /// Furthermore, it has to be coupled with particular gateway's config.
-    async fn has_valid_gateway_info(&self) -> bool {
-        let keys = match self.storage.key_store().load_keys().await {
-            Ok(keys) => keys,
-            Err(err) => {
-                warn!("failed to load stored keys: {err}");
-                return false;
-            }
-        };
+    fn wireguard_tun_address(&self) -> Option<IpAddr> {
+        // currently use a hardcoded value here, but perhaps we should change that later
+        if self.wireguard_mode {
+            Some(WG_TUN_DEVICE_IP_ADDRESS)
+        } else {
+            None
+        }
+    }
 
-        let gateway_details = match self
-            .storage
-            .gateway_details_store()
-            .load_gateway_details()
-            .await
-        {
-            Ok(details) => details,
-            Err(err) => {
-                warn!("failed to load stored gateway details: {err}");
-                return false;
-            }
-        };
+    async fn setup_client_keys(&self) -> Result<()> {
+        let mut rng = OsRng;
+        let key_store = self.storage.key_store();
 
-        if let Err(err) = gateway_details.validate(keys.gateway_shared_key().as_deref()) {
-            warn!("stored key verification failure: {err}");
-            return false;
+        if key_store.load_keys().await.is_err() {
+            debug!("Generating new client keys");
+            nym_client_core::init::generate_new_client_keys(&mut rng, key_store).await?;
         }
 
-        true
+        Ok(())
+    }
+
+    async fn print_all_registered_gateway_identities(&self) {
+        match get_all_registered_identities(self.storage.gateway_details_store()).await {
+            Err(err) => {
+                warn!("failed to query for all registered gateways: {err}")
+            }
+            Ok(all_ids) => {
+                if !all_ids.is_empty() {
+                    debug!("this client is already registered with the following gateways:");
+                    for id in all_ids {
+                        debug!("{id}")
+                    }
+                }
+            }
+        }
+    }
+
+    async fn print_selected_gateway(&self) {
+        match self.storage.gateway_details_store().active_gateway().await {
+            Err(err) => {
+                warn!("failed to query for the current active gateway: {err}")
+            }
+            Ok(active) => {
+                if let Some(active) = active.registration {
+                    let id = active.details.gateway_id();
+                    debug!("currently selected gateway: {0}", id);
+                }
+            }
+        }
+    }
+
+    async fn set_active_gateway_if_previously_registered(
+        &self,
+        user_chosen_gateway: &str,
+    ) -> Result<bool> {
+        let storage = self.storage.gateway_details_store();
+        // Stricly speaking, `set_active_gateway` does this check internally as well, but since the
+        // error is boxed away and we're using a generic storage, it's not so easy to match on it.
+        // This function is at least less likely to fail on something unrelated to the existence of
+        // the gateway in the set of registered gateways
+        if has_gateway_details(storage, user_chosen_gateway).await? {
+            set_active_gateway(storage, user_chosen_gateway).await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    async fn new_gateway_setup(&self) -> Result<GatewaySetup, ClientCoreError> {
+        let nym_api_endpoints = self.get_api_endpoints();
+
+        let selection_spec = GatewaySelectionSpecification::new(
+            self.config.user_chosen_gateway.clone(),
+            None,
+            self.force_tls,
+        );
+
+        let mut rng = OsRng;
+        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints).await?;
+
+        Ok(GatewaySetup::New {
+            specification: selection_spec,
+            available_gateways,
+            wg_tun_address: self.wireguard_tun_address(),
+        })
     }
 
     /// Register with a gateway. If a gateway is provided in the config then that will try to be
-    /// used. If none is specified, a gateway at random will be picked.
+    /// used. If none is specified, a gateway at random will be picked. The used gateway is saved
+    /// as the active gateway.
     ///
     /// # Errors
     ///
     /// This function will return an error if you try to re-register when in an already registered
     /// state.
-    pub async fn register_and_authenticate_gateway(&mut self) -> Result<()> {
+    pub async fn setup_gateway(&mut self) -> Result<()> {
         if !matches!(self.state, BuilderState::New) {
             return Err(Error::ReregisteringGatewayNotSupported);
         }
 
-        log::debug!("Registering with gateway");
+        self.print_all_registered_gateway_identities().await;
+        self.print_selected_gateway().await;
 
-        let api_endpoints = self.get_api_endpoints();
-
-        let gateway_setup = if self.has_valid_gateway_info().await {
-            GatewaySetup::MustLoad
-        } else {
-            let selection_spec = GatewaySelectionSpecification::new(
-                self.config.user_chosen_gateway.clone(),
-                None,
-                self.force_tls,
-            );
-
-            let mut rng = OsRng;
-
-            GatewaySetup::New {
-                specification: selection_spec,
-                available_gateways: current_gateways(&mut rng, &api_endpoints).await?,
-                overwrite_data: !self.config.key_mode.is_keep(),
+        // Try to set active gateway to the same as the user chosen one, if it's in the set of
+        // gateways that is already registered.
+        if let Some(ref user_chosen_gateway) = self.config.user_chosen_gateway {
+            if self
+                .set_active_gateway_if_previously_registered(user_chosen_gateway)
+                .await?
+            {
+                debug!("user chosen gateway is already registered, set as active");
             }
+        }
+
+        let active_gateway =
+            get_active_gateway_identity(self.storage.gateway_details_store()).await?;
+
+        // Determine the gateway setup based on the currently active gateway and the user-chosen
+        // gateway.
+        let gateway_setup = match (self.config.user_chosen_gateway.as_ref(), active_gateway) {
+            // When a user-chosen gateway exists and matches the active one.
+            (Some(user_chosen_gateway), Some(active_gateway))
+                if &active_gateway.to_base58_string() == user_chosen_gateway =>
+            {
+                GatewaySetup::MustLoad { gateway_id: None }
+            }
+            // When a user-chosen gateway exists but there's no active gateway, or it doesn't match the active one.
+            (Some(_), _) => self.new_gateway_setup().await?,
+            // When no user-chosen gateway exists but there's an active gateway.
+            (None, Some(_)) => GatewaySetup::MustLoad { gateway_id: None },
+            // When there's no user-chosen gateway and no active gateway.
+            (None, None) => self.new_gateway_setup().await?,
         };
 
         // this will perform necessary key and details load and optional store
-        let _init_result = nym_client_core::init::setup_gateway(
+        let init_results = setup_gateway(
             gateway_setup,
             self.storage.key_store(),
             self.storage.gateway_details_store(),
+        )
+        .await?;
+
+        set_active_gateway(
+            self.storage.gateway_details_store(),
+            &init_results.gateway_id().to_base58_string(),
         )
         .await?;
 
@@ -510,13 +550,8 @@ where
     }
 
     async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
-        // if we don't care about our keys, explicitly register
-        if !self.config.key_mode.is_keep() {
-            self.register_and_authenticate_gateway().await?;
-        }
-
-        // otherwise, the whole key setup and gateway selection dance will be done for us
-        // when we start the base client
+        self.setup_client_keys().await?;
+        self.setup_gateway().await?;
 
         let nyxd_endpoints = self.get_nyxd_endpoints();
         let nym_api_endpoints = self.get_api_endpoints();
@@ -526,59 +561,56 @@ where
             .config
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
-        let known_gateway = self.has_valid_gateway_info().await;
-
-        let mut base_builder: BaseClientBuilder<_, _> = if !known_gateway {
-            let selection_spec = GatewaySelectionSpecification::new(
-                self.config.user_chosen_gateway,
-                None,
-                self.force_tls,
-            );
-
-            let mut rng = OsRng;
-            let mut available_gateways = current_gateways(&mut rng, &nym_api_endpoints).await?;
-            if self.wireguard_mode {
-                available_gateways
-                    .iter_mut()
-                    .for_each(|node| node.host = WG_TUN_DEVICE_ADDRESS.parse().unwrap());
-            }
-            let setup = GatewaySetup::New {
-                specification: selection_spec,
-                available_gateways,
-                overwrite_data: !self.config.key_mode.is_keep(),
-            };
-
+        let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
-                .with_gateway_setup(setup)
-        } else if self.wireguard_mode {
-            if let Ok(PersistedGatewayDetails::Default(mut config)) = self
-                .storage
-                .gateway_details_store()
-                .load_gateway_details()
-                .await
-            {
-                config.details.gateway_listener = format!(
-                    "ws://{}:{}",
-                    WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
-                );
-                if let Err(e) = self
-                    .storage
-                    .gateway_details_store()
-                    .store_gateway_details(&PersistedGatewayDetails::Default(config))
-                    .await
-                {
-                    warn!("Could not switch to using wireguard mode - {:?}", e);
-                }
-            } else {
-                warn!("Storage type not supported with wireguard mode");
-            }
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway)
-        } else {
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway)
-        };
+                .with_wireguard_connection(self.wireguard_mode);
+
+        // let mut base_builder: BaseClientBuilder<_, _> = if !known_gateway {
+        //     // we need to setup a new gateway
+        //     let setup = self.new_gateway_setup().await;
+        //
+        //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+        //         .with_wait_for_gateway(self.wait_for_gateway)
+        //         .with_gateway_setup(setup)
+        // // } else if self.wireguard_mode {
+        // //     // load current active gateway in wireguard mode
+        // //     details_store.set_wireguard_mode(true).await?;
+        // //
+        // //     if let Ok(PersistedGatewayDetails::Default(mut config)) = self
+        // //         .storage
+        // //         .gateway_details_store()
+        // //         .load_gateway_details()
+        // //         .await
+        // //     {
+        // //         config.details.gateway_listener = format!(
+        // //             "ws://{}:{}",
+        // //             WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
+        // //         );
+        // //         if let Err(e) = self
+        // //             .storage
+        // //             .gateway_details_store()
+        // //             .store_gateway_details(&PersistedGatewayDetails::Default(config))
+        // //             .await
+        // //         {
+        // //             warn!("Could not switch to using wireguard mode - {:?}", e);
+        // //         }
+        // //     } else {
+        // //         warn!("Storage type not supported with wireguard mode");
+        // //     }
+        // //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+        // //         .with_wait_for_gateway(self.wait_for_gateway)
+        // } else {
+        //     // load current active gateway in non-wireguard mode
+        //
+        //     // make sure our current storage mode matches the desired wg mode
+        //     details_store
+        //         .set_wireguard_mode(self.wireguard_mode)
+        //         .await?;
+        //
+        //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+        //         .with_wait_for_gateway(self.wait_for_gateway)
+        // };
 
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);
@@ -650,7 +682,9 @@ where
 
         // TODO: more graceful handling here, surely both variants should work... I think?
         if let TaskHandle::Internal(task_manager) = &mut started_client.task_handle {
-            task_manager.start_status_listener(socks5_status_tx).await;
+            task_manager
+                .start_status_listener(socks5_status_tx, TaskStatus::Ready)
+                .await;
             match socks5_status_rx
                 .next()
                 .await
@@ -660,6 +694,9 @@ where
             {
                 TaskStatus::Ready => {
                     log::debug!("Socks5 connected");
+                }
+                TaskStatus::ReadyWithGateway(gateway) => {
+                    log::debug!("Socks5 connected to {gateway}");
                 }
             }
         } else {

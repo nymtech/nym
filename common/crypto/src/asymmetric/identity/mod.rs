@@ -10,6 +10,9 @@ use std::str::FromStr;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
+#[cfg(feature = "serde")]
+pub mod serde_helpers;
+
 #[cfg(feature = "sphinx")]
 use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 
@@ -357,5 +360,20 @@ impl<'d> Deserialize<'d> for Signature {
     {
         let bytes = <SerdeByteBuf>::deserialize(deserializer)?;
         Signature::from_bytes(bytes.as_ref()).map_err(SerdeError::custom)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
+
+    fn assert_zeroize<T: Zeroize>() {}
+
+    #[test]
+    fn private_key_is_zeroized() {
+        assert_zeroize::<PrivateKey>();
+        assert_zeroize_on_drop::<PrivateKey>();
     }
 }

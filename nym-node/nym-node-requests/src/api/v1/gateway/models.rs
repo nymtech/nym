@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Gateway {
+    #[serde(default)]
+    pub enforces_zk_nyms: bool,
+
     pub client_interfaces: ClientInterfaces,
 }
 

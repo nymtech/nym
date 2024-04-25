@@ -3,7 +3,7 @@
 use crate::error::BackendError;
 use crate::network::Network;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use nym_validator_client::nyxd::CosmosCoin;
@@ -161,7 +161,7 @@ mod test {
     use super::*;
     use crate::error::BackendError;
     use serde_json::json;
-    use std::convert::TryFrom;
+
     use std::str::FromStr;
 
     #[test]

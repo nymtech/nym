@@ -490,7 +490,7 @@ mod tests {
     #[cfg(test)]
     mod delegating {
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, to_binary, CosmosMsg, Decimal, WasmMsg};
+        use cosmwasm_std::{coin, to_binary, CosmosMsg, WasmMsg};
 
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
@@ -1983,11 +1983,8 @@ mod tests {
 
     #[cfg(test)]
     mod changing_mix_cost_params {
-        use cosmwasm_std::coin;
-
-        use mixnet_contract_common::Percent;
-
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use cosmwasm_std::coin;
 
         use super::*;
 

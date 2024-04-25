@@ -7,7 +7,6 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::packet_version::PacketVersion;
 use nym_sphinx_params::PacketType;
 use nym_sphinx_types::NymPacket;
-use std::convert::TryFrom;
 
 #[derive(Debug)]
 pub struct FramedNymPacket {

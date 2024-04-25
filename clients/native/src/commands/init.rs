@@ -4,7 +4,7 @@
 use crate::client::config::{
     default_config_directory, default_config_filepath, default_data_directory,
 };
-use crate::commands::try_upgrade_config;
+use crate::commands::CliNativeClient;
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
@@ -21,17 +21,8 @@ use std::fs;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
-struct NativeClientInit;
-
-impl InitialisableClient for NativeClientInit {
-    const NAME: &'static str = "native";
-    type Error = ClientError;
+impl InitialisableClient for CliNativeClient {
     type InitArgs = Init;
-    type Config = Config;
-
-    fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
-        try_upgrade_config(id)
-    }
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error> {
         fs::create_dir_all(default_data_directory(id))?;
@@ -124,7 +115,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
     eprintln!("Initialising client...");
 
     let output = args.output;
-    let res = initialise_client::<NativeClientInit>(args).await?;
+    let res = initialise_client::<CliNativeClient>(args).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

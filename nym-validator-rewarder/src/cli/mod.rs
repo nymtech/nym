@@ -4,7 +4,6 @@
 use crate::config::Config;
 use crate::error::NymRewarderError;
 use clap::{Parser, Subcommand};
-use humantime_serde::re::humantime;
 use nym_bin_common::bin_info;
 use nym_validator_client::nyxd::Coin;
 use std::path::PathBuf;

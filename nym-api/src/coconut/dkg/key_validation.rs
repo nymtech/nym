@@ -3,7 +3,7 @@
 
 use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::error::CoconutError;
-use crate::coconut::state::bandwidth_voucher_params;
+use crate::coconut::state::bandwidth_credential_params;
 use cosmwasm_std::Addr;
 use cw3::Vote;
 use nym_coconut::{check_vk_pairing, Base58, VerificationKey};
@@ -119,7 +119,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             });
         };
 
-        if !check_vk_pairing(bandwidth_voucher_params(), &self_derived, &recovered_key) {
+        if !check_vk_pairing(bandwidth_credential_params(), &self_derived, &recovered_key) {
             return reject(ShareRejectionReason::InconsistentKeys {
                 epoch_id,
                 owner,
@@ -234,7 +234,10 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         }
 
         let votes = self.generate_votes(epoch_id).await?;
-        self.state.key_validation_state_mut(epoch_id)?.votes = votes.clone();
+        self.state
+            .key_validation_state_mut(epoch_id)?
+            .votes
+            .clone_from(&votes);
 
         // send the votes
         for (proposal, vote) in votes {

@@ -57,11 +57,59 @@
       "additionalProperties": false
     },
     "DealerType": {
-      "type": "string",
-      "enum": [
-        "current",
-        "past",
-        "unknown"
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "unknown"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "current"
+          ],
+          "properties": {
+            "current": {
+              "type": "object",
+              "required": [
+                "assigned_index"
+              ],
+              "properties": {
+                "assigned_index": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "past"
+          ],
+          "properties": {
+            "past": {
+              "type": "object",
+              "required": [
+                "assigned_index"
+              ],
+              "properties": {
+                "assigned_index": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
       ]
     }
   }

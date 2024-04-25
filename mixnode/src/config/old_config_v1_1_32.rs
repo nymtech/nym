@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config;
 use crate::config::persistence::paths::MixNodePaths;
 use crate::config::{Config, Debug, MixNode, Verloc};
 use nym_bin_common::logging::LoggingSettings;
@@ -81,7 +82,7 @@ impl From<ConfigV1_1_32> for Config {
             // /\ ADDED
 
             // \/ ADDED
-            host: nym_node::config::Host {
+            host: config::Host {
                 // this is a very bad default!
                 public_ips: vec![value.mixnode.listening_address],
                 hostname: None,
@@ -89,12 +90,13 @@ impl From<ConfigV1_1_32> for Config {
             // /\ ADDED
 
             // \/ ADDED
-            http: nym_node::config::Http {
+            http: config::Http {
                 bind_address: SocketAddr::new(
                     value.mixnode.listening_address,
                     value.mixnode.http_api_port,
                 ),
                 landing_page_assets_path: None,
+                metrics_key: None,
             },
             // /\ ADDED
             mixnode: MixNode {

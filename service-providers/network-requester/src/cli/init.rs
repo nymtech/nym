@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::try_upgrade_config;
+use crate::cli::CliNetworkRequesterClient;
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::{
     cli::{override_config, OverrideConfig},
@@ -18,17 +18,8 @@ use std::fmt::Display;
 use std::fs;
 use std::path::PathBuf;
 
-struct NetworkRequesterInit;
-
-impl InitialisableClient for NetworkRequesterInit {
-    const NAME: &'static str = "network requester";
-    type Error = NetworkRequesterError;
+impl InitialisableClient for CliNetworkRequesterClient {
     type InitArgs = Init;
-    type Config = Config;
-
-    fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
-        try_upgrade_config(id)
-    }
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error> {
         fs::create_dir_all(default_data_directory(id))?;
@@ -66,12 +57,6 @@ pub(crate) struct Init {
     #[clap(long)]
     statistics_recipient: Option<String>,
 
-    /// Specifies whether this network requester will run using the default ExitPolicy
-    /// as opposed to the allow list.
-    /// Note: this setting will become the default in the future releases.
-    #[clap(long)]
-    with_exit_policy: Option<bool>,
-
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -85,7 +70,6 @@ impl From<Init> for OverrideConfig {
             medium_toggle: false,
             nyxd_urls: init_config.common_args.nyxd_urls,
             enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
-            enable_exit_policy: init_config.with_exit_policy,
             open_proxy: init_config.open_proxy,
             enable_statistics: init_config.enable_statistics,
             statistics_recipient: init_config.statistics_recipient,
@@ -130,7 +114,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), NetworkRequesterError> {
     eprintln!("Initialising client...");
 
     let output = args.output;
-    let res = initialise_client::<NetworkRequesterInit>(args).await?;
+    let res = initialise_client::<CliNetworkRequesterClient>(args).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

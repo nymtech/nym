@@ -14,7 +14,6 @@ use nym_config_common::defaults::setup_env;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
 use rand::rngs::OsRng;
 use safer_ffi::char_p::char_p_boxed;
-use std::marker::Send;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -276,7 +275,7 @@ where
                 must_use_tls: false,
             },
             available_gateways: current_gateways(&mut rng, &nym_apis).await?,
-            overwrite_data: false,
+            wg_tun_address: None,
         });
 
     eprintln!("starting the socks5 client");

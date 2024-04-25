@@ -1,3 +1,4 @@
+#
 # Summary
 
 - [Introduction](introduction.md)
@@ -20,9 +21,25 @@
   - [Nym API Setup](nodes/nym-api.md)
 - [Maintenance](nodes/maintenance.md)
   - [Manual Node Upgrade](nodes/manual-upgrade.md)
-
-[//]: # (  - [Automatic Node Upgrade: Nymvisor Setup and Usage]&#40;nodes/nymvisor-upgrade.md&#41;)
+  - [Automatic Node Upgrade: Nymvisor Setup and Usage](nodes/nymvisor-upgrade.md)
+- [Performance Testing](testing/performance.md)
+  - [Node Setup](testing/node-setup.md)
+- [Metrics Monitoring](testing/templates.md)
+  - [Prometheus & Grafana](testing/prometheus-grafana.md)
+    - [ExploreNYM scripts](testing/explorenym-scripts.md)
+<!--    - [Run in a Docker](testing/docker-monitor.md) -->
 - [Troubleshooting](nodes/troubleshooting.md)
+<!--
+  - [Nym Nodes]()
+  - [Validators]
+  - [Binary]
+-->
+
+# Token Economics
+
+<!-- - [Fair Mixnet](tokenomics/fair-mixnet.md) -->
+<!--    - [Mixnet: Nym Node Rewards](tokenomics/mixnet-rewards.md) -->
+- [Nyx: Validator Rewards](tokenomics/validator-rewards.md)
 
 # FAQ
 

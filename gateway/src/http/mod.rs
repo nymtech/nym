@@ -1,22 +1,22 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
 use crate::error::GatewayError;
-use crate::node::helpers::load_public_key;
+use crate::helpers::load_public_key;
 use ipnetwork::IpNetwork;
-use log::warn;
+use log::{debug, warn};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_requester::RequestFilter;
-use nym_node::error::NymNodeError;
-use nym_node::http::api::api_requests;
-use nym_node::http::api::api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy;
-use nym_node::http::api::api_requests::SignedHostInformation;
-use nym_node::http::router::WireguardAppState;
-use nym_node::wireguard::types::GatewayClientRegistry;
+use nym_node_http_api::api::api_requests;
+use nym_node_http_api::api::api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy;
+use nym_node_http_api::api::api_requests::SignedHostInformation;
+use nym_node_http_api::router::WireguardAppState;
+use nym_node_http_api::NymNodeHttpError;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
+use nym_wireguard_types::registration::GatewayClientRegistry;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
@@ -33,6 +33,7 @@ fn load_gateway_details(
     };
 
     Ok(api_requests::v1::gateway::models::Gateway {
+        enforces_zk_nyms: config.gateway.only_coconut_credentials,
         client_interfaces: api_requests::v1::gateway::models::ClientInterfaces {
             wireguard,
             mixnet_websockets: Some(api_requests::v1::gateway::models::WebSockets {
@@ -52,13 +53,14 @@ fn load_host_details(
         ip_address: config.host.public_ips.clone(),
         hostname: config.host.hostname.clone(),
         keys: api_requests::v1::node::models::HostKeys {
-            ed25519: identity_keypair.public_key().to_base58_string(),
-            x25519: sphinx_key.to_base58_string(),
+            ed25519_identity: identity_keypair.public_key().to_base58_string(),
+            x25519_sphinx: sphinx_key.to_base58_string(),
+            x25519_noise: "".to_string(),
         },
     };
 
     let signed_info = SignedHostInformation::new(host_info, identity_keypair.private_key())
-        .map_err(NymNodeError::from)?;
+        .map_err(NymNodeHttpError::from)?;
     Ok(signed_info)
 }
 
@@ -199,13 +201,11 @@ impl<'a> HttpApiBuilder<'a> {
         // once we start refreshing it, we'll have to change it, but at that point
         // the allow list will be probably be completely removed and thus the pointer management
         // will be much easier
-        let Some(exit_policy) = request_filter.current_exit_policy_filter() else {
-            warn!("this node does not use an exit policy. no changes will be made");
-            return self;
-        };
+
+        let upstream = request_filter.current_exit_policy_filter().upstream();
 
         // if there's no upstream (i.e. open proxy), we couldn't have possibly updated it : )
-        let last_updated = if exit_policy.upstream().is_some() {
+        let last_updated = if upstream.is_some() {
             #[allow(clippy::expect_used)]
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -217,12 +217,9 @@ impl<'a> HttpApiBuilder<'a> {
 
         self.exit_policy = Some(UsedExitPolicy {
             enabled: true,
-            upstream_source: exit_policy
-                .upstream()
-                .map(|u| u.to_string())
-                .unwrap_or_default(),
+            upstream_source: upstream.map(|u| u.to_string()).unwrap_or_default(),
             last_updated,
-            policy: Some(exit_policy.policy().clone()),
+            policy: Some(request_filter.current_exit_policy_filter().policy().clone()),
         });
 
         self
@@ -247,13 +244,15 @@ impl<'a> HttpApiBuilder<'a> {
     }
 
     pub(crate) fn start(self, task_client: TaskClient) -> Result<(), GatewayError> {
+        debug!("starting http API");
+
         // is it suboptimal to load all the keys, etc for the second time after they've already been
         // retrieved during startup of the rest of the components?
         // yes, a bit.
         // but in the grand scheme of things performance penalty is negligible since it's only happening on startup
         // and makes the code a bit nicer to manage. on top of it, all of it will refactored anyway at some point
         // (famous last words, eh? - 22.09.23)
-        let mut config = nym_node::http::Config::new(
+        let mut config = nym_node_http_api::Config::new(
             bin_info_owned!(),
             load_host_details(
                 self.gateway_config,
@@ -296,7 +295,7 @@ impl<'a> HttpApiBuilder<'a> {
             .ok()
         });
 
-        let router = nym_node::http::NymNodeRouter::new(config, wg_state);
+        let router = nym_node_http_api::NymNodeRouter::new(config, None, wg_state);
 
         let server = router
             .build_server(&self.gateway_config.http.bind_address)?

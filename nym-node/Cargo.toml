@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "0.1.0"
+version = "1.1.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -14,51 +14,49 @@ license = "GPL-3.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { workspace = true }
-bytes = "1.5.0"
+anyhow.workspace = true
+bip39 = { workspace = true, features = ["zeroize"] }
+bs58.workspace = true
+celes = "2.4.0" # country codes
 colored = "2"
-ipnetwork = "0.16"
+clap = { workspace = true, features = ["cargo", "env"] }
+humantime-serde = { workspace = true }
+ipnetwork = "0.16.0"
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
-serde_yaml = "0.9.25"
-serde_json = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 tokio = { workspace = true, features = ["macros", "sync"] }
+toml = "0.8.12"
+url = { workspace = true, features = ["serde"] }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
 
-# Wireguard:
-fastrand = "2"
+# temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
+semver = "1.0.22"
 
-# HTTP API:
-axum = { workspace = true }
-# useful for `#[axum_macros::debug_handler]`
-#axum-macros = "0.3.8"
-mime = "0.3.17"
-hyper = { workspace = true }
-tower = { version = "0.4.13" }
-tower-http = { version = "0.4.4", features = ["fs"] }
+# system info:
+cupid = "0.6.1"
+sysinfo = "0.30.7"
 
-# `actix_extras`? what the hell?
-# hear me out first!
-# we can't use `axum_extras` because of freaking ephemera that depends on `actix_extras`.
-# however, it seems that pulling in `actix_extras` pulls in just enough shared features to improve `IntoParams` for our Query attributes
-utoipa = { workspace = true, features = ["actix_extras"] } # can't use `"axum_extras"` feature because ephemera uses `"actix_extras"` -.-'
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-
-# if we ever wanted redoc/rapidoc bridges:
-#utoipa-redoc = { version = "0.1.0", features = ["axum"] }
-#utoipa-rapidoc = { version = "0.1.0", features = ["axum"] }
-
+nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing", "output_format"] }
+nym-client-core-config-types = { path = "../common/client-core/config-types" }
 nym-config = { path = "../common/config" }
-nym-crypto = { path = "../common/crypto", features = ["asymmetric" ]}
-nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"]}
+nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
+nym-node-http-api = { path = "nym-node-http-api" }
+nym-pemstore = { path = "../common/pemstore" }
+nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
+nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
 nym-task = { path = "../common/task" }
-nym-wireguard = { path = "../common/wireguard" }
-nym-wireguard-types = { path = "../common/wireguard-types", features = ["verify"] }
+nym-types = { path = "../common/types" }
+nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
-[dev-dependencies]
-dashmap = { workspace = true }
-rand = "0.7.3"
-nym-crypto = { path = "../common/crypto", features = ["rand"]}
-hmac = "0.12.1"
-x25519-dalek = { version = "2.0.0" }
+# nodes:
+nym-mixnode = { path = "../mixnode" }
+nym-gateway = { path = "../gateway" }
+nym-network-requester = { path = "../service-providers/network-requester" }
+nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
+
+[build-dependencies]
+# temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
+cargo_metadata = "0.18.1"

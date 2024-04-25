@@ -1,6 +1,6 @@
-import * as React from 'react';
-import { Box, TextField, MenuItem, FormControl } from '@mui/material';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
+import React from 'react';
+import { Box, TextField, MenuItem, FormControl, IconButton, Select, SelectChangeEvent } from '@mui/material';
+import { Close } from '@mui/icons-material';
 import { Filters } from './Filters/Filters';
 import { useIsMobile } from '../hooks/useIsMobile';
 
@@ -72,11 +72,19 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
             size="small"
             value={searchTerm}
             data-testid="search-box"
-            placeholder="search"
+            placeholder="Search"
+            InputProps={{
+              endAdornment: searchTerm?.length ? (
+                <IconButton size="small" onClick={() => onChangeSearch('')}>
+                  <Close fontSize="small" />
+                </IconButton>
+              ) : undefined,
+            }}
             onChange={(event) => onChangeSearch(event.target.value)}
           />
         )}
       </Box>
+
       <Box
         sx={{
           display: 'flex',

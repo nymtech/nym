@@ -16,10 +16,12 @@ thiserror = { workspace = true }
 url = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 tokio = { version = "1.24.1", features = ["macros"] }
+si-scale = "0.2.2"
+time.workspace = true
 
 # internal
 nym-bandwidth-controller = { path = "../../bandwidth-controller" }
-nym-coconut-interface = { path = "../../coconut-interface" }
+nym-credentials = { path = "../../credentials" }
 nym-credential-storage = { path = "../../credential-storage" }
 nym-crypto = { path = "../../crypto" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
@@ -49,6 +51,7 @@ workspace = true
 # the choice of this particular tls feature was arbitrary;
 # if you reckon a different one would be more appropriate, feel free to change it
 # features = ["native-tls"]
+features = ["rustls-tls-native-roots"]
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]

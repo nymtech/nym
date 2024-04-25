@@ -135,7 +135,7 @@ pub(super) async fn annotate_nodes_with_details(
             compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
 
         let family = mix_to_family
-            .get(&mixnode.bond_information.identity().to_string())
+            .get(mixnode.bond_information.identity())
             .cloned();
 
         annotated.push(MixNodeBondAnnotated {

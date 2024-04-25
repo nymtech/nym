@@ -9,7 +9,7 @@ use crate::text::ServerResponseText;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
 use nym_sphinx::receiver::ReconstructedMessage;
-use std::convert::TryInto;
+
 use std::mem::size_of;
 
 #[repr(u8)]

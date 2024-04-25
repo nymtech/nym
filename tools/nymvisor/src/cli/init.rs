@@ -133,7 +133,7 @@ pub(crate) struct Args {
 impl Args {
     pub(crate) fn override_config(&self, config: &mut Config) {
         if let Some(nymvisor_id) = &self.id {
-            config.nymvisor.id = nymvisor_id.clone();
+            config.nymvisor.id.clone_from(nymvisor_id);
         }
         if let Some(upstream) = &self.upstream_base_upgrade_url {
             config.nymvisor.debug.upstream_base_upgrade_url = upstream.clone()
@@ -149,7 +149,7 @@ impl Args {
                 Some(nymvisor_upgrade_data_directory.clone());
         }
         if let Some(daemon_home) = &self.daemon_home {
-            config.daemon.home = daemon_home.clone();
+            config.daemon.home.clone_from(daemon_home);
         }
         if let Some(upstream) = &self.daemon_absolute_upstream_upgrade_url {
             config.daemon.debug.absolute_upstream_upgrade_url = Some(upstream.clone())

@@ -39,7 +39,7 @@ pub async fn handle_task_status(
     window: &tauri::Window,
 ) {
     match task_status {
-        TaskStatus::Ready => {
+        TaskStatus::Ready | TaskStatus::ReadyWithGateway(_) => {
             {
                 let mut state_w = state.write().await;
                 state_w.mark_connected(window);

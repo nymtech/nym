@@ -7,13 +7,16 @@ use nym_coconut_bandwidth_contract_common::events::{
     COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY,
     DEPOSIT_INFO, DEPOSIT_VALUE,
 };
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
+use nym_credentials::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
+use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::helpers::find_tx_attribute;
 use nym_validator_client::nyxd::TxResponse;
 
 pub async fn validate_deposit_tx(request: &BlindSignRequestBody, tx: TxResponse) -> Result<()> {
-    if request.public_attributes_plain.len() != BandwidthVoucher::PUBLIC_ATTRIBUTES as usize {
+    if request.public_attributes_plain.len()
+        != IssuanceBandwidthCredential::PUBLIC_ATTRIBUTES as usize
+    {
         return Err(CoconutError::InconsistentPublicAttributes);
     }
 
@@ -58,8 +61,10 @@ pub async fn validate_deposit_tx(request: &BlindSignRequestBody, tx: TxResponse)
 
     // verify signature
     let x25519 = identity::PublicKey::from_base58_string(x25519_raw)?;
-    let plaintext =
-        BandwidthVoucher::signable_plaintext(&request.inner_sign_request, request.tx_hash);
+    let plaintext = BandwidthVoucherIssuanceData::request_plaintext(
+        &request.inner_sign_request,
+        request.tx_hash,
+    );
     x25519.verify(plaintext, &request.signature)?;
 
     Ok(())
@@ -68,17 +73,19 @@ pub async fn validate_deposit_tx(request: &BlindSignRequestBody, tx: TxResponse)
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::coconut::tests::{tx_entry_fixture, voucher_request_fixture};
+    use crate::coconut::tests::{tx_entry_fixture, voucher_fixture};
     use cosmwasm_std::coin;
-    use nym_api_requests::coconut::BlindSignRequestBody;
     use nym_coconut::BlindSignRequest;
     use nym_coconut_bandwidth_contract_common::events::DEPOSITED_FUNDS_EVENT_TYPE;
-    use nym_config::defaults::VOUCHER_INFO;
+    use nym_credentials::coconut::bandwidth::CredentialType;
     use nym_validator_client::nyxd::{Event, EventAttribute};
 
     #[tokio::test]
     async fn validate_deposit_tx_test() {
-        let (voucher, correct_request) = voucher_request_fixture(coin(1234, "unym"), None);
+        let voucher = voucher_fixture(coin(1234, "unym"), None);
+        let signing_data = voucher.prepare_for_signing();
+        let voucher_data = voucher.get_variant_data().voucher_data().unwrap();
+        let correct_request = voucher_data.create_blind_sign_request_body(&signing_data);
 
         let mut tx_entry = tx_entry_fixture(correct_request.tx_hash);
         let good_deposit_attribute = EventAttribute {
@@ -166,7 +173,7 @@ mod test {
             err.to_string(),
             CoconutError::InconsistentDepositInfo {
                 on_chain: "bandwidth deposit info".to_string(),
-                request: VOUCHER_INFO.to_string(),
+                request: CredentialType::Voucher.to_string(),
             }
             .to_string(),
         );
@@ -307,7 +314,7 @@ mod test {
                 .parse()
                 .unwrap(),
             "3vUCc6MCN5AC2LNgDYjRB1QeErZSN1S8f6K14JHjpUcKWXbjGYFExA8DbwQQBki9gyUqrpBF94Drttb4eMcGQXkp".parse().unwrap(),
-            voucher.get_public_attributes_plain(),
+            voucher.get_plain_public_attributes(),
         );
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
             good_deposit_attribute.clone(),

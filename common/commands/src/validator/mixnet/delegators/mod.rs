@@ -6,6 +6,7 @@ use clap::{Args, Subcommand};
 pub mod rewards;
 
 pub mod delegate_to_mixnode;
+pub mod delegate_to_multiple_mixnodes;
 pub mod query_for_delegations;
 pub mod undelegate_from_mixnode;
 pub mod vesting_delegate_to_mixnode;
@@ -26,6 +27,8 @@ pub enum MixnetDelegatorsCommands {
     Rewards(rewards::MixnetDelegatorsReward),
     /// Delegate to a mixnode
     Delegate(delegate_to_mixnode::Args),
+    /// Perform bulk delegations from an input file
+    DelegateMulti(delegate_to_multiple_mixnodes::Args),
     /// Undelegate from a mixnode
     Undelegate(undelegate_from_mixnode::Args),
     /// Delegate to a mixnode with locked tokens

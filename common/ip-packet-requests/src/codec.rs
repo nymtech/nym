@@ -34,6 +34,13 @@ impl MultiIpPacketCodec {
         }
     }
 
+    pub fn bundle_one_packet(packet: Bytes) -> Bytes {
+        let mut bundled_packets = BytesMut::new();
+        bundled_packets.extend_from_slice(&(packet.len() as u16).to_be_bytes());
+        bundled_packets.extend_from_slice(&packet);
+        bundled_packets.freeze()
+    }
+
     // Append a packet to the buffer and return the buffer if it's full
     pub fn append_packet(&mut self, packet: Bytes) -> Option<Bytes> {
         let mut bundled_packets = BytesMut::new();
@@ -47,7 +54,7 @@ impl MultiIpPacketCodec {
     }
 
     // Flush the current buffer and return it.
-    fn flush_current_buffer(&mut self) -> Bytes {
+    pub fn flush_current_buffer(&mut self) -> Bytes {
         let mut output_buffer = BytesMut::new();
         std::mem::swap(&mut output_buffer, &mut self.buffer);
         output_buffer.freeze()

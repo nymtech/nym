@@ -123,7 +123,7 @@ impl Connection {
     // creates a new substream instance with the given ID.
     fn new_substream(&mut self, id: SubstreamId) -> Result<Substream, Error> {
         // check we don't already have a substream with this ID
-        if self.substream_inbound_txs.get(&id).is_some() {
+        if self.substream_inbound_txs.contains_key(&id) {
             return Err(Error::SubstreamIdExists(id));
         }
 

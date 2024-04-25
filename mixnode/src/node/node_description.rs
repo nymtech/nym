@@ -3,15 +3,23 @@
 
 use serde::Deserialize;
 use serde::Serialize;
+use std::fs::create_dir_all;
 use std::path::Path;
 use std::{fs, io};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct NodeDescription {
-    pub(crate) name: String,
-    pub(crate) description: String,
-    pub(crate) link: String,
-    pub(crate) location: String,
+    #[serde(default)]
+    pub name: String,
+
+    #[serde(default)]
+    pub description: String,
+
+    #[serde(default)]
+    pub link: String,
+
+    #[serde(default)]
+    pub location: String,
 }
 
 impl Default for NodeDescription {
@@ -26,7 +34,7 @@ impl Default for NodeDescription {
 }
 
 impl NodeDescription {
-    pub(crate) fn load_from_file<P: AsRef<Path>>(path: P) -> io::Result<NodeDescription> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> io::Result<NodeDescription> {
         // let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
         //     .iter()
         //     .collect();
@@ -36,15 +44,14 @@ impl NodeDescription {
         toml::from_str(&toml).map_err(|toml_err| io::Error::new(io::ErrorKind::Other, toml_err))
     }
 
-    pub(crate) fn save_to_file<P: AsRef<Path>>(
-        description: &NodeDescription,
-        path: P,
-    ) -> io::Result<()> {
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         // let description_file_path: PathBuf = [config_path.to_str().unwrap(), DESCRIPTION_FILE]
         //     .iter()
         //     .collect();
-        let description_toml =
-            toml::to_string(description).expect("could not encode description to toml");
+        let description_toml = toml::to_string(self).expect("could not encode description to toml");
+        if let Some(parent) = path.as_ref().parent() {
+            create_dir_all(parent)?;
+        }
         fs::write(path, description_toml)?;
         Ok(())
     }

@@ -4,6 +4,20 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.3-eclipse] (2024-04-22)
+
+- Initial release of the first iteration of the Nym Node
+- Improvements to gateway functionality
+- IPR development
+- Removal of allow list in favour of implementing an exit policy
+- Explorer delegation: enables direct delegation to nodes via the Nym Explorer
+
+
+## [2024.2-fast-and-furious] (2024-03-25)
+
+- Internal testing pre-release 
+
+
 ## [2024.1-marabou] (2024-02-15)
 
 **New Features:**

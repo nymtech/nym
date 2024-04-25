@@ -640,10 +640,7 @@ mod tests {
     use std::path::PathBuf;
     use std::str::FromStr;
 
-    use crate::wallet_storage::{
-        self,
-        account_data::{MnemonicAccount, WalletAccount},
-    };
+    use crate::wallet_storage::account_data::{MnemonicAccount, WalletAccount};
 
     use super::*;
 

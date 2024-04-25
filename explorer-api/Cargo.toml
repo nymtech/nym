@@ -1,6 +1,6 @@
 [package]
 name = "explorer-api"
-version = "1.1.33"
+version = "1.1.34"
 edition = "2021"
 license.workspace = true
 
@@ -10,10 +10,9 @@ license.workspace = true
 chrono = { version = "0.4.31", features = ["serde"] }
 clap = { workspace = true, features = ["cargo", "derive"] }
 dotenvy = { workspace = true }
-humantime-serde = "1.0"
+humantime-serde = { workspace = true }
 isocountry = "0.3.2"
 itertools = "0.10.3"
-lazy_static = "1.4.0"
 log = { workspace = true }
 maxminddb = "0.23.0"
 okapi = { version = "0.7.0", features = ["impl_json_schema"] }

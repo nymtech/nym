@@ -10,31 +10,26 @@ use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::coconut::helpers::issued_credential_plaintext;
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_coconut::Parameters;
+use nym_coconut::{BlindedSignature, VerificationKey};
 use nym_coconut_dkg_common::types::EpochId;
-use nym_coconut_interface::{BlindedSignature, VerificationKey};
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::identity;
-use nym_validator_client::nyxd::{Hash, TxResponse};
-use std::sync::{Arc, OnceLock};
+use nym_validator_client::nyxd::{AccountId, Hash, TxResponse};
+use rand::rngs::OsRng;
+use rand::RngCore;
+use std::sync::Arc;
+use tokio::sync::{OnceCell, RwLock};
 
-// keep it as a global static due to relatively high cost of computing the curve points;
-// plus we expect all clients to use the same set of parameters
-//
-// future note: once we allow for credentials with variable number of attributes, just create Parameters(max_allowed_attributes)
-// and take as many hs elements as required (since they will match for all variants)
-pub(crate) fn bandwidth_voucher_params() -> &'static Parameters {
-    static BANDWIDTH_CREDENTIAL_PARAMS: OnceLock<Parameters> = OnceLock::new();
-    BANDWIDTH_CREDENTIAL_PARAMS.get_or_init(BandwidthVoucher::default_parameters)
-}
+pub use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
 
 pub struct State {
     pub(crate) client: Arc<dyn LocalClient + Send + Sync>,
+    pub(crate) bandwidth_contract_admin: OnceCell<Option<AccountId>>,
     pub(crate) mix_denom: String,
     pub(crate) coconut_keypair: KeyPair,
     pub(crate) identity_keypair: identity::KeyPair,
     pub(crate) comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     pub(crate) storage: NymApiStorage,
+    pub(crate) freepass_nonce: Arc<RwLock<[u8; 16]>>,
 }
 
 impl State {
@@ -53,13 +48,18 @@ impl State {
         let client = Arc::new(client);
         let comm_channel = Arc::new(comm_channel);
 
+        let mut nonce = [0u8; 16];
+        OsRng.fill_bytes(&mut nonce);
+
         Self {
             client,
+            bandwidth_contract_admin: OnceCell::new(),
             mix_denom,
             coconut_keypair: key_pair,
             identity_keypair,
             comm_channel,
             storage,
+            freepass_nonce: Arc::new(RwLock::new(nonce)),
         }
     }
 
@@ -75,6 +75,12 @@ impl State {
 
     pub async fn get_transaction(&self, tx_hash: Hash) -> Result<TxResponse> {
         self.client.get_tx(tx_hash).await
+    }
+
+    pub async fn get_bandwidth_contract_admin(&self) -> Result<&Option<AccountId>> {
+        self.bandwidth_contract_admin
+            .get_or_try_init(|| async { self.client.bandwidth_contract_admin().await })
+            .await
     }
 
     pub async fn validate_request(

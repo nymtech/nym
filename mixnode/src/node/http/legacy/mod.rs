@@ -1,9 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+#![allow(unused)]
+
 use crate::node::http::legacy::description::description;
 use crate::node::http::legacy::hardware::hardware;
 use crate::node::http::legacy::state::MixnodeAppState;
+use crate::node::http::legacy::stats::metrics;
 use crate::node::http::legacy::stats::stats;
 use crate::node::http::legacy::verloc::verloc;
 use crate::node::node_description::NodeDescription;
@@ -29,6 +32,7 @@ pub(crate) mod api_routes {
     pub(crate) const VERLOC: &str = "/verloc";
     pub(crate) const DESCRIPTION: &str = "/description";
     pub(crate) const STATS: &str = "/stats";
+    pub(crate) const METRICS: &str = "/metrics";
     pub(crate) const HARDWARE: &str = "/hardware";
 }
 
@@ -44,6 +48,7 @@ pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
         )
         .route(api_routes::STATS, get(stats))
         .route(api_routes::HARDWARE, get(hardware))
+        .route(api_routes::METRICS, get(metrics))
         .fallback(not_found)
         .with_state(state)
 }

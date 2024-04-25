@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::measure;
 use crate::packet_processor::error::MixProcessingError;
 use log::*;
+use nym_metrics::nanos;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_forwarding::packet::MixPacket;
@@ -13,10 +13,8 @@ use nym_sphinx_types::{
     Delay as SphinxDelay, DestinationAddressBytes, NodeAddressBytes, NymPacket, NymProcessedPacket,
     PrivateKey, ProcessedPacket,
 };
-use std::convert::TryFrom;
+
 use std::sync::Arc;
-#[cfg(feature = "cpucycles")]
-use tracing::instrument;
 
 type ForwardAck = MixPacket;
 
@@ -51,15 +49,11 @@ impl SphinxPacketProcessor {
     }
 
     /// Performs a fresh sphinx unwrapping using no cache.
-    #[cfg_attr(
-        feature = "cpucycles",
-        instrument(skip(self, packet), fields(cpucycles))
-    )]
     fn perform_initial_packet_processing(
         &self,
         packet: NymPacket,
     ) -> Result<NymProcessedPacket, MixProcessingError> {
-        measure!({
+        nanos!("perform_initial_packet_processing", {
             packet.process(&self.sphinx_key).map_err(|err| {
                 debug!("Failed to unwrap NymPacket packet: {err}");
                 MixProcessingError::NymPacketProcessingError(err)
@@ -68,17 +62,12 @@ impl SphinxPacketProcessor {
     }
 
     /// Takes the received framed packet and tries to unwrap it from the sphinx encryption.
-    #[cfg_attr(
-        feature = "cpucycles",
-        instrument(skip(self, received), fields(cpucycles))
-    )]
     fn perform_initial_unwrapping(
         &self,
         received: FramedNymPacket,
     ) -> Result<NymProcessedPacket, MixProcessingError> {
-        measure!({
+        nanos!("perform_initial_unwrapping", {
             let packet = received.into_inner();
-
             self.perform_initial_packet_processing(packet)
         })
     }
@@ -223,16 +212,12 @@ impl SphinxPacketProcessor {
         }
     }
 
-    #[cfg_attr(
-        feature = "cpucycles",
-        instrument(skip(self, received), fields(cpucycles))
-    )]
     pub fn process_received(
         &self,
         received: FramedNymPacket,
     ) -> Result<MixProcessingResult, MixProcessingError> {
         // explicit packet size will help to correctly parse final hop
-        measure!({
+        nanos!("process_received", {
             let packet_size = received.packet_size();
             let packet_type = received.packet_type();
 

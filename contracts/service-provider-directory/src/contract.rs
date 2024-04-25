@@ -125,7 +125,7 @@ mod tests {
         testing::{mock_dependencies, mock_env, mock_info},
         Addr, Coin,
     };
-    use nym_service_provider_directory_common::{msg::ExecuteMsg, Service, ServiceId};
+    use nym_service_provider_directory_common::{Service, ServiceId};
 
     const DENOM: &str = "unym";
 

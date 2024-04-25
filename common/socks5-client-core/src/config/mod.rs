@@ -12,6 +12,7 @@ use std::str::FromStr;
 
 pub mod old_config_v1_1_20_2;
 pub mod old_config_v1_1_30;
+pub mod old_config_v1_1_33;
 
 pub use nym_service_providers_common::interface::ProviderInterfaceVersion;
 pub use nym_socks5_requests::Socks5ProtocolVersion;
@@ -47,13 +48,13 @@ impl Config {
 
     #[must_use]
     pub fn with_port(mut self, port: u16) -> Self {
-        self.socks5.bind_adddress = SocketAddr::new(self.socks5.bind_adddress.ip(), port);
+        self.socks5.bind_address = SocketAddr::new(self.socks5.bind_address.ip(), port);
         self
     }
 
     #[must_use]
     pub fn with_ip(mut self, ip: IpAddr) -> Self {
-        self.socks5.bind_adddress = SocketAddr::new(ip, self.socks5.bind_adddress.port());
+        self.socks5.bind_address = SocketAddr::new(ip, self.socks5.bind_address.port());
         self
     }
 
@@ -112,7 +113,7 @@ impl Config {
 pub struct Socks5 {
     /// The address on which the client will be listening for incoming requests
     /// (default: 127.0.0.1:1080)
-    pub bind_adddress: SocketAddr,
+    pub bind_address: SocketAddr,
 
     /// The mix address of the provider to which all requests are going to be sent.
     pub provider_mix_address: String,
@@ -141,7 +142,7 @@ pub struct Socks5 {
 impl Socks5 {
     pub fn new<S: Into<String>>(provider_mix_address: S) -> Self {
         Socks5 {
-            bind_adddress: SocketAddr::new(
+            bind_address: SocketAddr::new(
                 IpAddr::V4(Ipv4Addr::LOCALHOST),
                 DEFAULT_SOCKS5_LISTENING_PORT,
             ),

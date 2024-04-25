@@ -1,43 +1,34 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::disk_persistence::CommonClientPaths;
+use crate::cli_helpers::traits::{CliClient, CliClientConfig};
 use crate::error::ClientCoreError;
 use crate::{
     client::{
-        base_client::storage::gateway_details::OnDiskGatewayDetails,
+        base_client::{
+            non_wasm_helpers::setup_fs_gateways_storage, storage::helpers::set_active_gateway,
+        },
         key_manager::persistence::OnDiskKeys,
     },
-    init::types::{GatewayDetails, GatewaySelectionSpecification, GatewaySetup, InitResults},
+    init::types::{GatewaySelectionSpecification, GatewaySetup, InitResults},
 };
 use log::info;
+use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::identity;
 use nym_topology::NymTopology;
-use std::path::{Path, PathBuf};
+use rand::rngs::OsRng;
+use std::path::PathBuf;
 
-pub trait InitialisableClient {
-    const NAME: &'static str;
-    type Error: From<ClientCoreError>;
+// we can suppress this warning (as suggested by linter itself) since we're only using it in our own code
+#[allow(async_fn_in_trait)]
+pub trait InitialisableClient: CliClient {
     type InitArgs: AsRef<CommonClientInitArgs>;
-    type Config: ClientConfig;
-
-    fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error>;
 
     fn initialise_storage_paths(id: &str) -> Result<(), Self::Error>;
 
     fn default_config_path(id: &str) -> PathBuf;
 
     fn construct_config(init_args: &Self::InitArgs) -> Self::Config;
-}
-
-pub trait ClientConfig {
-    fn common_paths(&self) -> &CommonClientPaths;
-
-    fn core_config(&self) -> &crate::config::Config;
-
-    fn default_store_location(&self) -> PathBuf;
-
-    fn save_to<P: AsRef<Path>>(&self, path: P) -> std::io::Result<()>;
 }
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
@@ -51,15 +42,14 @@ pub struct CommonClientInitArgs {
     #[cfg_attr(feature = "cli", clap(long))]
     pub gateway: Option<identity::PublicKey>,
 
+    /// Specifies whether the client will attempt to enforce tls connection to the desired gateway.
+    #[cfg_attr(feature = "cli", clap(long))]
+    pub force_tls_gateway: bool,
+
     /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
     /// uniformly.
     #[cfg_attr(feature = "cli", clap(long, conflicts_with = "gateway"))]
     pub latency_based_selection: bool,
-
-    /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
-    /// potentially causing loss of access.
-    #[cfg_attr(feature = "cli", clap(long))]
-    pub force_register_gateway: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
     #[cfg_attr(
@@ -109,7 +99,7 @@ pub async fn initialise_client<C>(
 ) -> Result<InitResultsWithConfig<C::Config>, C::Error>
 where
     C: InitialisableClient,
-    <C as InitialisableClient>::Config: std::fmt::Debug,
+    <C as CliClient>::Config: std::fmt::Debug,
     <C as InitialisableClient>::InitArgs: std::fmt::Debug,
 {
     info!("initialising {} client", C::NAME);
@@ -117,28 +107,15 @@ where
     let common_args = init_args.as_ref();
     let id = &common_args.id;
 
-    let already_init = if C::default_config_path(id).exists() {
-        // in case we're using old config, try to upgrade it
-        // (if we're using the current version, it's a no-op)
-        C::try_upgrade_outdated_config(id)?;
+    if C::default_config_path(id).exists() {
         eprintln!("{} client \"{id}\" was already initialised before", C::NAME);
-        true
-    } else {
-        C::initialise_storage_paths(id)?;
-        false
-    };
-
-    // Usually you only register with the gateway on the first init, however you can force
-    // re-registering if wanted.
-    let user_wants_force_register = common_args.force_register_gateway;
-    if user_wants_force_register {
-        eprintln!("Instructed to force registering gateway. This might overwrite keys!");
+        return Err(ClientCoreError::AlreadyInitialised {
+            client_id: id.to_string(),
+        }
+        .into());
     }
 
-    // If the client was already initialized, don't generate new keys and don't re-register with
-    // the gateway (because this would create a new shared key).
-    // Unless the user really wants to.
-    let register_gateway = !already_init || user_wants_force_register;
+    C::initialise_storage_paths(id)?;
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = common_args.gateway;
@@ -147,7 +124,7 @@ where
     let selection_spec = GatewaySelectionSpecification::new(
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(common_args.latency_based_selection),
-        false,
+        common_args.force_tls_gateway,
     );
     log::debug!("Gateway selection specification: {selection_spec:?}");
 
@@ -168,11 +145,14 @@ where
             .join(",")
     );
 
+    let key_store = OnDiskKeys::new(paths.keys.clone());
+    let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+
+    let mut rng = OsRng;
+    crate::init::generate_new_client_keys(&mut rng, &key_store).await?;
+
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let key_store = OnDiskKeys::new(paths.keys.clone());
-    let details_store = OnDiskGatewayDetails::new(&paths.gateway_details);
-
     let available_gateways = if let Some(custom_mixnet) = common_args.custom_mixnet.as_ref() {
         let hardcoded_topology = NymTopology::new_from_file(custom_mixnet).map_err(|source| {
             ClientCoreError::CustomTopologyLoadFailure {
@@ -189,14 +169,13 @@ where
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
-        overwrite_data: register_gateway,
+        wg_tun_address: None,
     };
 
     let init_details =
         crate::init::setup_gateway(gateway_setup, &key_store, &details_store).await?;
 
     // TODO: ask the service provider we specified for its interface version and set it in the config
-
     let config_save_location = config.default_store_location();
     if let Err(err) = config.save_to(&config_save_location) {
         return Err(ClientCoreError::ConfigSaveFailure {
@@ -213,12 +192,20 @@ where
         config_save_location.display()
     );
 
-    let address = init_details.client_address()?;
+    let address = init_details.client_address();
 
-    let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
+    let GatewayDetails::Remote(gateway_details) = init_details.gateway_registration.details else {
         return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
     };
-    let init_results = InitResults::new(config.core_config(), address, &gateway_details);
+
+    let init_results = InitResults::new(
+        config.core_config(),
+        address,
+        &gateway_details,
+        init_details.gateway_registration.registration_timestamp,
+    );
+
+    set_active_gateway(&details_store, &init_results.gateway_id).await?;
 
     Ok(InitResultsWithConfig {
         config,

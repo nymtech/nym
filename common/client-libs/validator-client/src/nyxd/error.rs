@@ -140,9 +140,6 @@ pub enum NyxdError {
     #[error("Cosmwasm std error: {0}")]
     CosmwasmStdError(#[from] cosmwasm_std::StdError),
 
-    #[error("Coconut interface error: {0}")]
-    CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
-
     #[error("Account had an unexpected bech32 prefix. Expected: {expected}, got: {got}")]
     UnexpectedBech32Prefix { got: String, expected: String },
 }

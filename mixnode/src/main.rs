@@ -3,31 +3,17 @@
 
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
-use lazy_static::lazy_static;
-use log::info;
 use nym_bin_common::bin_info;
+use std::sync::OnceLock;
 
 #[allow(unused_imports)]
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
-#[cfg(feature = "cpucycles")]
-use nym_bin_common::setup_tracing;
-#[cfg(feature = "cpucycles")]
-use nym_mixnode_common::measure;
-#[cfg(feature = "cpucycles")]
-use tracing::instrument;
 
 mod commands;
-mod config;
-pub(crate) mod error;
-mod node;
 
-lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
-}
-
-// Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
-    &PRETTY_BUILD_INFORMATION
+    static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
+    PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
 #[derive(Parser)]
@@ -45,12 +31,6 @@ struct Cli {
     command: commands::Commands,
 }
 
-#[cfg(feature = "cpucycles")]
-#[instrument(fields(cpucycles))]
-fn test_function() {
-    measure!({})
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
@@ -60,22 +40,9 @@ async fn main() -> anyhow::Result<()> {
         maybe_print_banner(crate_name!(), crate_version!());
     }
 
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "cpucycles")] {
-            setup_tracing!("mixnode");
-            info!("CPU cycles measurement is ON")
-        } else {
-            setup_logging();
-            info!("CPU cycles measurement is OFF")
-        }
-    }
+    setup_logging();
 
     commands::execute(args).await?;
-
-    cfg_if::cfg_if! {
-    if #[cfg(feature = "cpucycles")] {
-        opentelemetry::global::shutdown_tracer_provider();
-    }}
 
     Ok(())
 }

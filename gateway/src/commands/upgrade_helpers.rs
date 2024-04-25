@@ -1,13 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::old_config_v1_1_20::ConfigV1_1_20;
-use crate::config::old_config_v1_1_28::ConfigV1_1_28;
-use crate::config::old_config_v1_1_29::ConfigV1_1_29;
-use crate::config::old_config_v1_1_31::ConfigV1_1_31;
-use crate::config::{default_config_filepath, Config};
-use crate::error::GatewayError;
 use log::info;
+use nym_gateway::config::old_config_v1_1_20::ConfigV1_1_20;
+use nym_gateway::config::old_config_v1_1_28::ConfigV1_1_28;
+use nym_gateway::config::old_config_v1_1_29::ConfigV1_1_29;
+use nym_gateway::config::old_config_v1_1_31::ConfigV1_1_31;
+use nym_gateway::config::{default_config_filepath, Config};
+use nym_gateway::error::GatewayError;
 
 fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, GatewayError> {
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;

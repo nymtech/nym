@@ -25,14 +25,14 @@ nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
-http-api-client = { path = "../../../common/http-api-client"}
+nym-http-api-client = { path = "../../../common/http-api-client"}
 thiserror = { workspace = true }
 log = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["sync", "time"] }
 futures = { workspace = true }
 
-nym-coconut-interface = { path = "../../coconut-interface" }
+nym-coconut = { path = "../../nymcoconut" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 

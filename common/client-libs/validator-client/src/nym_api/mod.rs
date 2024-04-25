@@ -4,7 +4,6 @@
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
-use http_api_client::{ApiClient, NO_PARAMS};
 pub use nym_api_requests::{
     coconut::{
         models::{
@@ -23,6 +22,7 @@ pub use nym_api_requests::{
     },
 };
 pub use nym_coconut_dkg_common::types::EpochId;
+use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_name_service_common::response::NamesListResponse;
@@ -31,7 +31,9 @@ use nym_service_provider_directory_common::response::ServicesListResponse;
 pub mod error;
 pub mod routes;
 
-pub use http_api_client::Client;
+use nym_api_requests::coconut::models::FreePassNonceResponse;
+use nym_api_requests::coconut::FreePassRequest;
+pub use nym_http_api_client::Client;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -369,6 +371,36 @@ pub trait NymApiClientExt: ApiClient {
                 routes::AVG_UPTIME,
             ],
             NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_FREE_PASS_NONCE,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn free_pass(
+        &self,
+        request: &FreePassRequest,
+    ) -> Result<BlindedSignatureResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_FREE_PASS,
+            ],
+            NO_PARAMS,
+            request,
         )
         .await
     }

@@ -5,7 +5,6 @@ use crate::error::MixFetchError;
 use crate::mix_fetch_client;
 use js_sys::Promise;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::error::{simple_rejected_promise, PromisableResult};
 

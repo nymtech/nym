@@ -159,12 +159,9 @@ mod tests {
     };
     use rstest::rstest;
 
-    use crate::{
-        test_helpers::{
-            fixture::{name_fixture, name_fixture_full},
-            transactions::instantiate_test_contract,
-        },
-        NameServiceError,
+    use crate::test_helpers::{
+        fixture::{name_fixture, name_fixture_full},
+        transactions::instantiate_test_contract,
     };
 
     use super::*;

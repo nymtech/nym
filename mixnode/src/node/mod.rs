@@ -4,30 +4,29 @@
 use crate::config::Config;
 use crate::error::MixnodeError;
 use crate::node::helpers::{load_identity_keys, load_sphinx_keys};
-use crate::node::http::legacy::verloc::VerlocState;
 use crate::node::http::HttpApiBuilder;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
-use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
-use nym_bin_common::version_checker::parse_version;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
-use nym_task::{TaskClient, TaskManager};
+use nym_mixnode_common::verloc;
+use nym_mixnode_common::verloc::VerlocMeasurer;
+use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
+use nym_task::{TaskClient, TaskHandle};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 
-pub(crate) mod helpers;
+pub mod helpers;
 mod http;
 mod listener;
-pub(crate) mod node_description;
+pub mod node_description;
 mod node_statistics;
 mod packet_delayforwarder;
 
@@ -37,16 +36,59 @@ pub struct MixNode {
     descriptor: NodeDescription,
     identity_keypair: Arc<identity::KeyPair>,
     sphinx_keypair: Arc<encryption::KeyPair>,
+
+    run_http_server: bool,
+    task_client: Option<TaskClient>,
+    mixing_stats: Option<SharedMixingStats>,
+    verloc_stats: Option<SharedVerlocStats>,
 }
 
 impl MixNode {
     pub fn new(config: Config) -> Result<Self, MixnodeError> {
         Ok(MixNode {
+            run_http_server: true,
             descriptor: Self::load_node_description(&config),
             identity_keypair: Arc::new(load_identity_keys(&config)?),
             sphinx_keypair: Arc::new(load_sphinx_keys(&config)?),
             config,
+            task_client: None,
+            mixing_stats: None,
+            verloc_stats: None,
         })
+    }
+
+    pub fn new_loaded(
+        config: Config,
+        descriptor: NodeDescription,
+        identity_keypair: Arc<identity::KeyPair>,
+        sphinx_keypair: Arc<encryption::KeyPair>,
+    ) -> Self {
+        MixNode {
+            run_http_server: true,
+            task_client: None,
+            config,
+            descriptor,
+            identity_keypair,
+            sphinx_keypair,
+            mixing_stats: None,
+            verloc_stats: None,
+        }
+    }
+
+    pub fn disable_http_server(&mut self) {
+        self.run_http_server = false
+    }
+
+    pub fn set_task_client(&mut self, task_client: TaskClient) {
+        self.task_client = Some(task_client)
+    }
+
+    pub fn set_mixing_stats(&mut self, mixing_stats: SharedMixingStats) {
+        self.mixing_stats = Some(mixing_stats);
+    }
+
+    pub fn set_verloc_stats(&mut self, verloc_stats: SharedVerlocStats) {
+        self.verloc_stats = Some(verloc_stats)
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
@@ -54,7 +96,7 @@ impl MixNode {
     }
 
     /// Prints relevant node details to the console
-    pub(crate) fn print_node_details(&self, output: OutputFormat) {
+    pub fn print_node_details(&self, output: OutputFormat) {
         let node_details = nym_types::mixnode::MixnodeNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
@@ -70,31 +112,35 @@ impl MixNode {
 
     fn start_http_api(
         &self,
-        atomic_verloc_result: AtomicVerlocResult,
-        node_stats_pointer: SharedNodeStats,
+        atomic_verloc_result: SharedVerlocStats,
+        node_stats_pointer: SharedMixingStats,
+        metrics_key: Option<&String>,
         task_client: TaskClient,
     ) -> Result<(), MixnodeError> {
         HttpApiBuilder::new(&self.config, &self.identity_keypair, &self.sphinx_keypair)
-            .with_verloc(VerlocState::new(atomic_verloc_result))
+            .with_verloc(atomic_verloc_result)
             .with_mixing_stats(node_stats_pointer)
+            .with_metrics_key(metrics_key)
             .with_descriptor(self.descriptor.clone())
             .start(task_client)
     }
 
     fn start_node_stats_controller(
-        &self,
+        &mut self,
         shutdown: TaskClient,
-    ) -> (SharedNodeStats, node_statistics::UpdateSender) {
+    ) -> (SharedMixingStats, node_statistics::UpdateSender) {
         info!("Starting node stats controller...");
+        let mixing_stats = self.mixing_stats.take().unwrap_or_default();
+
         let controller = node_statistics::Controller::new(
             self.config.debug.node_stats_logging_delay,
             self.config.debug.node_stats_updating_delay,
+            mixing_stats.clone(),
             shutdown,
         );
-        let node_stats_pointer = controller.get_node_stats_data_pointer();
         let update_sender = controller.start();
 
-        (node_stats_pointer, update_sender)
+        (mixing_stats, update_sender)
     }
 
     fn start_socket_listener(
@@ -145,22 +191,10 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_verloc_measurements(&self, shutdown: TaskClient) -> AtomicVerlocResult {
+    fn start_verloc_measurements(&mut self, shutdown: TaskClient) -> SharedVerlocStats {
         info!("Starting the round-trip-time measurer...");
 
-        // this is a sanity check to make sure we didn't mess up with the minimum version at some point
-        // and whether the user has run update if they're using old config
-        // if this code exists in the node, it MUST BE compatible
-        let config_version = parse_version(&self.config.mixnode.version)
-            .expect("malformed version in the config file");
-        let minimum_version = parse_version(verloc::MINIMUM_NODE_VERSION).unwrap();
-        if config_version < minimum_version {
-            error!("You seem to have not updated your mixnode configuration file - please run `upgrade` before attempting again");
-            process::exit(1)
-        }
-
         // use the same binding address with the HARDCODED port for time being (I don't like that approach personally)
-
         let listening_address = SocketAddr::new(
             self.config.mixnode.listening_address,
             self.config.mixnode.verloc_port,
@@ -178,11 +212,13 @@ impl MixNode {
             .nym_api_urls(self.config.get_nym_api_endpoints())
             .build();
 
+        let verloc_state = self.verloc_stats.take().unwrap_or_default();
         let mut verloc_measurer =
             VerlocMeasurer::new(config, Arc::clone(&self.identity_keypair), shutdown);
-        let atomic_verloc_results = verloc_measurer.get_verloc_results_pointer();
+        verloc_measurer.set_shared_state(verloc_state.clone());
+
         tokio::spawn(async move { verloc_measurer.run().await });
-        atomic_verloc_results
+        verloc_state
     }
 
     fn random_api_client(&self) -> nym_validator_client::NymApiClient {
@@ -215,8 +251,8 @@ impl MixNode {
         })
     }
 
-    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
-        let _res = shutdown.catch_interrupt().await;
+    async fn wait_for_interrupt(&self, shutdown: TaskHandle) {
+        let _res = shutdown.wait_for_shutdown().await;
         log::info!("Stopping nym mixnode");
     }
 
@@ -227,33 +263,42 @@ impl MixNode {
             warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
         }
 
-        let shutdown = TaskManager::default();
+        // Shutdown notifier for signalling tasks to stop
+        let shutdown = self
+            .task_client
+            .take()
+            .map(Into::<TaskHandle>::into)
+            .unwrap_or_default()
+            .name_if_unnamed("mixnode");
 
-        let (node_stats_pointer, node_stats_update_sender) = self
-            .start_node_stats_controller(shutdown.subscribe().named("node_statistics::Controller"));
+        let (node_stats_pointer, node_stats_update_sender) =
+            self.start_node_stats_controller(shutdown.fork("node_statistics::Controller"));
         let delay_forwarding_channel = self.start_packet_delay_forwarder(
             node_stats_update_sender.clone(),
-            shutdown.subscribe().named("DelayForwarder"),
+            shutdown.fork("DelayForwarder"),
         );
         self.start_socket_listener(
             node_stats_update_sender,
             delay_forwarding_channel,
-            shutdown.subscribe().named("Listener"),
+            shutdown.fork("Listener"),
         );
-        let atomic_verloc_results =
-            self.start_verloc_measurements(shutdown.subscribe().named("VerlocMeasurer"));
+        let atomic_verloc_results = self.start_verloc_measurements(shutdown.fork("VerlocMeasurer"));
 
         // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
         // with that of the rest of the tasks.
         // Currently it's runtime is forcefully terminated once the mixnode exits.
-        self.start_http_api(
-            atomic_verloc_results,
-            node_stats_pointer,
-            shutdown.subscribe().named("http-api"),
-        )?;
+        if self.run_http_server {
+            self.start_http_api(
+                atomic_verloc_results,
+                node_stats_pointer,
+                self.config.metrics_key(),
+                shutdown.fork("http-api"),
+            )?;
+        }
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
         self.wait_for_interrupt(shutdown).await;
+
         Ok(())
     }
 }

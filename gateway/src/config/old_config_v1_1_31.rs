@@ -1,11 +1,12 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::paths::GatewayPaths;
+use crate::config::persistence::paths::{GatewayPaths, WireguardPaths};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
+use nym_network_defaults::WG_PORT;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -14,7 +15,7 @@ use std::time::Duration;
 use url::Url;
 
 use super::persistence::paths::KeysPaths;
-use super::{Config, Debug, Gateway, NetworkRequester};
+use super::{Config, Debug, Gateway, Host, Http, NetworkRequester, Wireguard};
 
 const DEFAULT_GATEWAYS_DIR: &str = "gateways";
 
@@ -76,10 +77,10 @@ pub struct ConfigV1_1_31 {
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
-    pub host: nym_node::config::Host,
+    pub host: Host,
 
     #[serde(default)]
-    pub http: nym_node::config::Http,
+    pub http: Http,
 
     pub gateway: GatewayV1_1_31,
 
@@ -124,12 +125,12 @@ impl From<ConfigV1_1_31> for Config {
                 nyxd_urls: value.gateway.nyxd_urls,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
             },
-            wireguard: nym_node::config::Wireguard {
+            wireguard: Wireguard {
                 enabled: value.wireguard.enabled,
                 bind_address: value.wireguard.bind_address,
                 announced_port: value.wireguard.announced_port,
                 private_network_prefix: Default::default(),
-                storage_paths: nym_node::config::persistence::WireguardPaths {
+                storage_paths: WireguardPaths {
                     // no fields (yet)
                 },
             },
@@ -164,6 +165,7 @@ impl From<ConfigV1_1_31> for Config {
                 stored_messages_filename_length: value.debug.stored_messages_filename_length,
                 message_retrieval_limit: value.debug.message_retrieval_limit,
                 use_legacy_framed_packet_version: value.debug.use_legacy_framed_packet_version,
+                ..Default::default()
             },
         }
     }
@@ -241,11 +243,8 @@ impl Default for WireguardV1_1_31 {
     fn default() -> Self {
         Self {
             enabled: false,
-            bind_address: SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-                nym_node::config::DEFAULT_WIREGUARD_PORT,
-            ),
-            announced_port: nym_node::config::DEFAULT_WIREGUARD_PORT,
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_PORT),
+            announced_port: WG_PORT,
             storage_paths: WireguardPathsV1_1_31 {},
         }
     }

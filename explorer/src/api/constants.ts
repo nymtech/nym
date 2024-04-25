@@ -1,7 +1,7 @@
 // master APIs
 export const API_BASE_URL = process.env.EXPLORER_API_URL;
 export const NYM_API_BASE_URL = process.env.NYM_API_URL;
-export const VALIDATOR_BASE_URL = process.env.VALIDATOR_URL;
+export const VALIDATOR_BASE_URL = process.env.VALIDATOR_URL || 'https://rpc.nymtech.net';
 export const BIG_DIPPER = process.env.BIG_DIPPER_URL;
 
 // specific API routes
@@ -24,3 +24,8 @@ export const MIXNODE_API_ERROR = "We're having trouble finding that record, plea
 export const NYM_WEBSITE = 'https://nymtech.net';
 
 export const NYM_BIG_DIPPER = 'https://mixnet.explorers.guru';
+
+export const NYM_MIXNET_CONTRACT =
+  process.env.NYM_MIXNET_CONTRACT || 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr';
+export const COSMOS_KIT_USE_CHAIN = process.env.COSMOS_KIT_USE_CHAIN || 'sandbox';
+export const WALLET_CONNECT_PROJECT_ID = process.env.WALLET_CONNECT_PROJECT_ID || '';

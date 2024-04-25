@@ -1,5 +1,7 @@
 use nym_client_core::error::ClientCoreError;
 
+use nym_id::NymIdError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientError {
     #[error("I/O error: {0}")]
@@ -18,6 +20,12 @@ pub enum Socks5ClientError {
     #[error("Fail to bind address")]
     FailToBindAddress,
 
-    #[error("client-core error: {0}")]
+    #[error(transparent)]
     ClientCoreError(#[from] ClientCoreError),
+
+    #[error(transparent)]
+    ConfigUpgradeFailure(#[from] nym_client_core::config::ConfigUpgradeFailure),
+
+    #[error(transparent)]
+    NymIdError(#[from] NymIdError),
 }

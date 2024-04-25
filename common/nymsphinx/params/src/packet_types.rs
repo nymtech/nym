@@ -6,7 +6,7 @@
 
 use crate::PacketSize;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+
 use std::fmt;
 use thiserror::Error;
 

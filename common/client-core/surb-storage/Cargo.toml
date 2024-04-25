@@ -1,0 +1,31 @@
+[package]
+name = "nym-client-core-surb-storage"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait.workspace = true
+dashmap.workspace = true
+log.workspace = true
+thiserror.workspace = true
+time.workspace = true
+
+nym-crypto = { path = "../../crypto", optional = true, default-features = false }
+nym-sphinx = { path = "../../nymsphinx" }
+nym-task = { path = "../../task" }
+
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
+workspace = true
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
+optional = true
+
+[build-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+
+[features]
+fs-surb-storage = ["sqlx", "nym-crypto", "nym-crypto/hashing"]

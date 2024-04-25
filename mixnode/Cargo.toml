@@ -4,7 +4,7 @@
 [package]
 name = "nym-mixnode"
 license = "GPL-3.0"
-version = "1.1.35"
+version = "1.1.37"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -12,47 +12,43 @@ authors = [
 ]
 description = "Implementation of a Loopix-based Mixnode"
 edition = "2021"
-rust-version = "1.58.1"
+rust-version = "1.70"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 axum = { workspace = true }
 anyhow = { workspace = true }
-bs58 = "0.4.0"
+bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 colored = "2.0"
 cupid = "0.6.1"
 dirs = "4.0"
 futures = { workspace = true }
-humantime-serde = "1.0"
-lazy_static = "1.4.0"
+humantime-serde = { workspace = true }
+lazy_static = "1.4"
 log = { workspace = true }
 rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sysinfo = "0.27.7"
+time.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { workspace = true, features = ["codec"] }
 toml = "0.5.8"
 url = { workspace = true, features = ["serde"] }
-cfg-if = "1.0.0"
 thiserror = { workspace = true }
 
-## tracing
-tracing = { workspace = true, optional = true }
-opentelemetry = { version = "0.19.0", optional = true }
-
-
 # internal
-nym-node = { path = "../nym-node" }
-
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
+nym-http-api-common = { path = "../common/http-api-common" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }
+nym-metrics = { path = "../common/nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
+nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
 nym-pemstore = { path = "../common/pemstore", version = "0.3.0" }
@@ -61,7 +57,6 @@ nym-types = { path = "../common/types" }
 nym-topology = { path = "../common/topology" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
-cpu-cycles = { path = "../cpu-cycles", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = [
@@ -73,14 +68,6 @@ tokio = { workspace = true, features = [
 
 nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
-
-[features]
-cpucycles = [
-    "nym-mixnode-common/cpucycles",
-    "tracing",
-    "opentelemetry",
-    "nym-bin-common/tracing",
-]
 
 [package.metadata.deb]
 name = "nym-mixnode"

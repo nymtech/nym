@@ -1,50 +1,30 @@
 import * as React from 'react';
-import { Link } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
-import MuiLink from '@mui/material/Link';
-import {
-  AppBar,
-  Box,
-  Button,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  Toolbar,
-  Typography,
-} from '@mui/material';
+import { AppBar, Box, Drawer, IconButton, List, ListItem, ListItemButton, ListItemIcon, Toolbar } from '@mui/material';
 import { Menu } from '@mui/icons-material';
-import { NymLogo } from '@nymproject/react/logo/NymLogo';
 import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner';
+import { useIsMobile } from '@src/hooks/useIsMobile';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { Footer } from './Footer';
-import { NYM_WEBSITE } from '../api/constants';
 import { ExpandableButton } from './Nav';
-import { DarkLightSwitchMobile } from './Switch';
+import { ConnectKeplrWallet } from './Wallet/ConnectKeplrWallet';
+import NetworkTitle from './NetworkTitle';
 
 export const MobileNav: FCWithChildren = ({ children }) => {
   const theme = useTheme();
-  const { navState, updateNavState, environment } = useMainContext();
+  const { navState, updateNavState } = useMainContext();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   // Set maintenance banner to false by default to don't display it
   const [openMaintenance, setOpenMaintenance] = React.useState(false);
-
-  const explorerName =
-    `${environment && environment.charAt(0).toUpperCase() + environment.slice(1)} Explorer` || 'Mainnet Explorer';
-
-  const switchNetworkText = environment === 'mainnet' ? 'Switch to Testnet' : 'Switch to Mainnet';
-  const switchNetworkLink =
-    environment === 'mainnet' ? 'https://sandbox-explorer.nymtech.net' : 'https://explorer.nymtech.net';
+  const isSmallMobile = useIsMobile(400);
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
   };
 
-  const handleClick = (id: number) => {
-    updateNavState(id);
+  const handleClick = (url: string) => {
+    updateNavState(url);
     toggleDrawer();
   };
 
@@ -62,7 +42,6 @@ export const MobileNav: FCWithChildren = ({ children }) => {
       >
         <MaintenanceBanner open={openMaintenance} onClick={() => setOpenMaintenance(false)} />
         <Toolbar
-          disableGutters
           sx={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -75,43 +54,14 @@ export const MobileNav: FCWithChildren = ({ children }) => {
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              width: 'auto',
             }}
           >
-            <IconButton component="a" href={NYM_WEBSITE} target="_blank">
-              <NymLogo height="24px" width="24px" />
+            <IconButton onClick={toggleDrawer}>
+              <Menu sx={{ color: 'primary.contrastText' }} />
             </IconButton>
-            <Typography
-              variant="h6"
-              noWrap
-              sx={{
-                color: theme.palette.nym.networkExplorer.nav.text,
-                fontSize: '18px',
-                fontWeight: 600,
-              }}
-            >
-              <MuiLink component={Link} to="/overview" underline="none" color="inherit" fontSize={14} fontWeight={700}>
-                {explorerName}
-              </MuiLink>
-              <Button
-                size="small"
-                variant="outlined"
-                color="inherit"
-                href={switchNetworkLink}
-                sx={{ textTransform: 'none', width: 114, fontSize: '12px', fontWeight: 600, ml: 1 }}
-              >
-                {switchNetworkText}
-              </Button>
-            </Typography>
+            {!isSmallMobile && <NetworkTitle />}
           </Box>
-
-          <Box sx={{ mr: 1 }}>
-            <DarkLightSwitchMobile />
-            <Button onClick={toggleDrawer}>
-              <Menu sx={{ color: theme.palette.primary.contrastText }} />
-            </Button>
-          </Box>
+          <ConnectKeplrWallet />
         </Toolbar>
       </AppBar>
       <Drawer
@@ -153,7 +103,6 @@ export const MobileNav: FCWithChildren = ({ children }) => {
             {navState.map((props) => (
               <ExpandableButton
                 key={props.url}
-                id={props.id}
                 title={props.title}
                 openDrawer={openDrawer}
                 url={props.url}

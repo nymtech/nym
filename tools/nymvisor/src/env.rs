@@ -68,7 +68,7 @@ pub(crate) struct Env {
 impl Env {
     pub(crate) fn override_config(&self, config: &mut Config) {
         if let Some(nymvisor_id) = &self.nymvisor_id {
-            config.nymvisor.id = nymvisor_id.clone();
+            config.nymvisor.id.clone_from(nymvisor_id);
         }
         if let Some(upstream) = &self.nymvisor_upstream_base_upgrade_url {
             config.nymvisor.debug.upstream_base_upgrade_url = upstream.clone()
@@ -84,10 +84,10 @@ impl Env {
                 Some(nymvisor_upgrade_data_directory.clone());
         }
         if let Some(daemon_name) = &self.daemon_name {
-            config.daemon.name = daemon_name.clone();
+            config.daemon.name.clone_from(daemon_name);
         }
         if let Some(daemon_home) = &self.daemon_home {
-            config.daemon.home = daemon_home.clone();
+            config.daemon.home.clone_from(daemon_home);
         }
         if let Some(upstream) = &self.daemon_absolute_upstream_upgrade_url {
             config.daemon.debug.absolute_upstream_upgrade_url = Some(upstream.clone())

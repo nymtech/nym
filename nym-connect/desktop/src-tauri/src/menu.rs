@@ -9,6 +9,7 @@ pub const SHOW_LOG_WINDOW: &str = "show_log_window";
 pub const CLEAR_STORAGE: &str = "clear_storage";
 
 pub trait AddDefaultSubmenus {
+    #[allow(dead_code)]
     fn add_default_app_submenus(self) -> Self;
 }
 

@@ -149,7 +149,7 @@ impl VestingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<(), VestingContractError> {
         delete_account(self.owner_address(), storage)?;
-        self.owner_address = to_address.to_owned();
+        to_address.clone_into(&mut self.owner_address);
         save_account(self, storage)?;
         Ok(())
     }

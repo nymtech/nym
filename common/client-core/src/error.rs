@@ -39,6 +39,9 @@ pub enum ClientCoreError {
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,
 
+    #[error("there are no more new gateways on the network - it seems this client has already registered with all nodes it could have")]
+    NoNewGatewaysAvailable,
+
     #[error("list of nym apis is empty")]
     ListOfNymApisIsEmpty,
 
@@ -55,8 +58,8 @@ pub enum ClientCoreError {
         source: Box<dyn Error + Send + Sync>,
     },
 
-    #[error("experienced a failure with our gateway details storage: {source}")]
-    GatewayDetailsStoreError {
+    #[error("experienced a failure with our gateways details storage: {source}")]
+    GatewaysDetailsStoreError {
         source: Box<dyn Error + Send + Sync>,
     },
 
@@ -94,13 +97,21 @@ pub enum ClientCoreError {
     #[error("unexpected exit")]
     UnexpectedExit,
 
+    #[error("this operation would have resulted in the gateway {gateway_id:?} key being overwritten without permission")]
+    ForbiddenGatewayKeyOverwrite { gateway_id: String },
+
     #[error(
         "this operation would have resulted in clients keys being overwritten without permission"
     )]
     ForbiddenKeyOverwrite,
 
-    #[error("gateway details are unavailable")]
+    #[error("the client doesn't have any gateway set as active")]
+    NoActiveGatewaySet,
+
+    #[error("gateway details for gateway {gateway_id:?} are unavailable")]
     UnavailableGatewayDetails {
+        gateway_id: String,
+        #[source]
         source: Box<dyn Error + Send + Sync>,
     },
 
@@ -113,8 +124,14 @@ pub enum ClientCoreError {
     #[error("the provided gateway details (for gateway {gateway_id}) do not correspond to the shared keys")]
     MismatchedGatewayDetails { gateway_id: String },
 
+    #[error("unable to upgrade config file from `{current_version}`")]
+    ConfigFileUpgradeFailure { current_version: String },
+
     #[error("unable to upgrade config file to `{new_version}`")]
     UnableToUpgradeConfigFile { new_version: String },
+
+    #[error("failed to upgrade config file: {message}")]
+    UpgradeFailure { message: String },
 
     #[error("the provided gateway details don't much the stored data")]
     MismatchedStoredGatewayDetails,
@@ -153,6 +170,42 @@ pub enum ClientCoreError {
         #[source]
         source: std::io::Error,
     },
+
+    #[error("the provided gateway identity {gateway_id} is malformed: {source}")]
+    MalformedGatewayIdentity {
+        gateway_id: String,
+
+        #[source]
+        source: Ed25519RecoveryError,
+    },
+
+    #[error("the account owner of gateway {gateway_id} ({raw_owner}) is malformed: {err}")]
+    MalformedGatewayOwnerAccountAddress {
+        gateway_id: String,
+
+        raw_owner: String,
+
+        // just use the string formatting as opposed to underlying type to avoid having to import cosmrs
+        err: String,
+    },
+
+    #[error(
+        "the listening address of gateway {gateway_id} ({raw_listener}) is malformed: {source}"
+    )]
+    MalformedListener {
+        gateway_id: String,
+
+        raw_listener: String,
+
+        #[source]
+        source: url::ParseError,
+    },
+
+    #[error("this client (id: '{client_id}') has already been initialised before. If you want to add additional gateway, use `add-gateway` command")]
+    AlreadyInitialised { client_id: String },
+
+    #[error("this client has already registered with gateway {gateway_id}")]
+    AlreadyRegistered { gateway_id: String },
 }
 
 /// Set of messages that the client can send to listeners via the task manager

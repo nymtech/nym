@@ -1,30 +1,31 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::paths::GatewayPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_config::helpers::inaddr_any;
+use nym_config::serde_helpers::{de_maybe_port, de_maybe_stringified};
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_network_defaults::mainnet;
-use nym_node::config;
-use serde::{Deserialize, Deserializer, Serialize};
+use nym_network_defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT};
+use serde::{Deserialize, Serialize};
 use std::io;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-pub(crate) mod old_config_v1_1_20;
-pub(crate) mod old_config_v1_1_28;
-pub(crate) mod old_config_v1_1_29;
-pub(crate) mod old_config_v1_1_31;
+pub use crate::config::persistence::paths::{GatewayPaths, WireguardPaths};
+
+pub mod old_config_v1_1_20;
+pub mod old_config_v1_1_28;
+pub mod old_config_v1_1_29;
+pub mod old_config_v1_1_31;
 pub mod persistence;
 mod template;
 
@@ -41,17 +42,8 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 
-fn de_maybe_port<'de, D>(deserializer: D) -> Result<Option<u16>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let port = u16::deserialize(deserializer)?;
-    if port == 0 {
-        Ok(None)
-    } else {
-        Ok(Some(port))
-    }
-}
+const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_millis(5);
+const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 512 * 1024; // 512kB
 
 /// Derive default path to gateway's config directory.
 /// It should get resolved to `$HOME/.nym/gateways/<id>/config`
@@ -86,16 +78,16 @@ pub struct Config {
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
-    pub host: config::Host,
+    pub host: Host,
 
     #[serde(default)]
-    pub http: config::Http,
+    pub http: Http,
 
     pub gateway: Gateway,
 
-    #[serde(default)]
     // currently not really used for anything useful
-    pub wireguard: config::Wireguard,
+    #[serde(default)]
+    pub wireguard: Wireguard,
 
     pub storage_paths: GatewayPaths,
 
@@ -122,7 +114,7 @@ impl Config {
         let default_gateway = Gateway::new_default(id.as_ref());
         Config {
             save_path: None,
-            host: config::Host {
+            host: Host {
                 // this is a very bad default!
                 public_ips: vec![default_gateway.listening_address],
                 hostname: None,
@@ -138,6 +130,32 @@ impl Config {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn externally_loaded(
+        host: impl Into<Host>,
+        http: impl Into<Http>,
+        gateway: impl Into<Gateway>,
+        wireguard: impl Into<Wireguard>,
+        storage_paths: impl Into<GatewayPaths>,
+        network_requester: impl Into<NetworkRequester>,
+        ip_packet_router: impl Into<IpPacketRouter>,
+        logging: impl Into<LoggingSettings>,
+        debug: impl Into<Debug>,
+    ) -> Self {
+        Config {
+            save_path: None,
+            host: host.into(),
+            http: http.into(),
+            gateway: gateway.into(),
+            wireguard: wireguard.into(),
+            storage_paths: storage_paths.into(),
+            network_requester: network_requester.into(),
+            ip_packet_router: ip_packet_router.into(),
+            logging: logging.into(),
+            debug: debug.into(),
+        }
+    }
+
     // simple wrapper that reads config file and assigns path location
     fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path = path.as_ref();
@@ -147,9 +165,6 @@ impl Config {
         Ok(loaded)
     }
 
-    // currently this is dead code, but once we allow loading configs from custom paths
-    // well, we will have to be using it
-    #[allow(dead_code)]
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         Self::read_from_path(path)
     }
@@ -285,6 +300,87 @@ impl Config {
     }
 }
 
+// TODO: this is very much a WIP. we need proper ssl certificate support here
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Host {
+    /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
+    pub public_ips: Vec<IpAddr>,
+
+    /// Optional hostname of this node, for example nymtech.net.
+    // TODO: this is temporary. to be replaced by pulling the data directly from the certs.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub hostname: Option<String>,
+}
+
+impl Host {
+    pub fn validate(&self) -> bool {
+        if self.public_ips.is_empty() {
+            return false;
+        }
+
+        true
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Http {
+    /// Socket address this node will use for binding its http API.
+    /// default: `0.0.0.0:8000`
+    pub bind_address: SocketAddr,
+
+    /// Path to assets directory of custom landing page of this node.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub landing_page_assets_path: Option<PathBuf>,
+}
+
+impl Default for Http {
+    fn default() -> Self {
+        Http {
+            bind_address: SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+                DEFAULT_NYM_NODE_HTTP_PORT,
+            ),
+            landing_page_assets_path: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Wireguard {
+    /// Specifies whether the wireguard service is enabled on this node.
+    pub enabled: bool,
+
+    /// Socket address this node will use for binding its wireguard interface.
+    /// default: `0.0.0.0:51822`
+    pub bind_address: SocketAddr,
+
+    /// Port announced to external clients wishing to connect to the wireguard interface.
+    /// Useful in the instances where the node is behind a proxy.
+    pub announced_port: u16,
+
+    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard.
+    /// The maximum value for IPv4 is 32 and for IPv6 is 128
+    pub private_network_prefix: u8,
+
+    /// Paths for wireguard keys, client registries, etc.
+    pub storage_paths: WireguardPaths,
+}
+
+impl Default for Wireguard {
+    fn default() -> Self {
+        Wireguard {
+            enabled: false,
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_PORT),
+            announced_port: WG_PORT,
+            private_network_prefix: 16,
+            storage_paths: WireguardPaths {},
+        }
+    }
+}
+
 // we only really care about the mnemonic being zeroized
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Zeroize, ZeroizeOnDrop)]
 pub struct Gateway {
@@ -413,13 +509,22 @@ pub struct Debug {
 
     /// Delay between each subsequent presence data being sent.
     #[serde(with = "humantime_serde")]
+    // DEAD FIELD
     pub presence_sending_delay: Duration,
 
     /// Length of filenames for new client messages.
+    // DEAD FIELD
     pub stored_messages_filename_length: u16,
 
     /// Number of messages from offline client that can be pulled at once from the storage.
     pub message_retrieval_limit: i64,
+
+    /// Defines maximum delay between client bandwidth information being flushed to the persistent storage.
+    #[serde(with = "humantime_serde")]
+    pub client_bandwidth_max_flushing_rate: Duration,
+
+    /// Defines a maximum change in client bandwidth before it gets flushed to the persistent storage.
+    pub client_bandwidth_max_delta_flushing_amount: i64,
 
     /// Specifies whether the mixnode should be using the legacy framing for the sphinx packets.
     // it's set to true by default. The reason for that decision is to preserve compatibility with the
@@ -438,6 +543,9 @@ impl Default for Debug {
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            client_bandwidth_max_flushing_rate: DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE,
+            client_bandwidth_max_delta_flushing_amount:
+                DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
             use_legacy_framed_packet_version: false,
         }
     }

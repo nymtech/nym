@@ -4,6 +4,7 @@
 use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 use std::{
     env::{var, VarError},
@@ -79,7 +80,13 @@ impl NymNetworkDetails {
     pub fn new_from_env() -> Self {
         fn get_optional_env<K: AsRef<OsStr>>(env: K) -> Option<String> {
             match var(env) {
-                Ok(var) => Some(var),
+                Ok(var) => {
+                    if var.is_empty() {
+                        None
+                    } else {
+                        Some(var)
+                    }
+                }
                 Err(VarError::NotPresent) => None,
                 err => panic!("Unable to set: {:?}", err),
             }
@@ -113,28 +120,15 @@ impl NymNetworkDetails {
                 Some(var(var_names::NYM_API).expect("nym api not set")),
                 get_optional_env(var_names::NYXD_WEBSOCKET),
             ))
-            .with_mixnet_contract(Some(
-                var(var_names::MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set"),
+            .with_mixnet_contract(get_optional_env(var_names::MIXNET_CONTRACT_ADDRESS))
+            .with_vesting_contract(get_optional_env(var_names::VESTING_CONTRACT_ADDRESS))
+            .with_coconut_bandwidth_contract(get_optional_env(
+                var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
             ))
-            .with_vesting_contract(Some(
-                var(var_names::VESTING_CONTRACT_ADDRESS).expect("vesting contract not set"),
-            ))
-            .with_coconut_bandwidth_contract(Some(
-                var(var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
-                    .expect("coconut bandwidth contract not set"),
-            ))
-            .with_group_contract(Some(
-                var(var_names::GROUP_CONTRACT_ADDRESS).expect("group contract not set"),
-            ))
-            .with_multisig_contract(Some(
-                var(var_names::MULTISIG_CONTRACT_ADDRESS).expect("multisig contract not set"),
-            ))
-            .with_coconut_dkg_contract(Some(
-                var(var_names::COCONUT_DKG_CONTRACT_ADDRESS).expect("coconut dkg contract not set"),
-            ))
-            .with_ephemera_contract(Some(
-                var(var_names::EPHEMERA_CONTRACT_ADDRESS).expect("ephemera contract not set"),
-            ))
+            .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
+            .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
+            .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
+            .with_ephemera_contract(get_optional_env(var_names::EPHEMERA_CONTRACT_ADDRESS))
             .with_service_provider_directory_contract(get_optional_env(
                 var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ))
@@ -186,6 +180,12 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
+    pub fn with_chain_details(mut self, chain_details: ChainDetails) -> Self {
+        self.chain_details = chain_details;
+        self
+    }
+
+    #[must_use]
     pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
         self.chain_details.bech32_account_prefix = prefix.into();
         self
@@ -224,6 +224,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
         self.endpoints = vec![endpoint];
+        self
+    }
+
+    #[must_use]
+    pub fn with_contracts(mut self, contracts: NymContracts) -> Self {
+        self.contracts = contracts;
         self
     }
 
@@ -457,6 +463,9 @@ pub const ETH_ERC20_APPROVE_FUNCTION_NAME: &str = "approve";
 /// How much bandwidth (in bytes) one token can buy
 pub const BYTES_PER_UTOKEN: u64 = 1024;
 
+/// How much bandwidth (in bytes) one freepass provides
+pub const BYTES_PER_FREEPASS: u64 = 1024 * 1024 * 1024; // 1GB
+
 /// Threshold for claiming more bandwidth: 1 MB
 pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
 /// How many ERC20 tokens should be burned to buy bandwidth
@@ -465,10 +474,6 @@ pub const TOKENS_TO_BURN: u64 = 1;
 pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
 /// Default bandwidth (in bytes) that we try to buy
 pub const BANDWIDTH_VALUE: u64 = UTOKENS_TO_BURN * BYTES_PER_UTOKEN;
-
-pub const VOUCHER_INFO: &str = "BandwidthVoucher";
-
-pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
 
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";
@@ -517,4 +522,5 @@ pub const WG_PORT: u16 = 51822;
 // The interface used to route traffic
 pub const WG_TUN_BASE_NAME: &str = "nymwg";
 pub const WG_TUN_DEVICE_ADDRESS: &str = "10.1.0.1";
+pub const WG_TUN_DEVICE_IP_ADDRESS: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 1, 0, 1));
 pub const WG_TUN_DEVICE_NETMASK: &str = "255.255.255.0";

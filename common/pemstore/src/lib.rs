@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::traits::{PemStorableKey, PemStorableKeyPair};
-use pem::{self, Pem};
+use pem::Pem;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};

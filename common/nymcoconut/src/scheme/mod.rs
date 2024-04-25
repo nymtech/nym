@@ -3,9 +3,6 @@
 
 // TODO: implement https://crates.io/crates/signature traits?
 
-use std::convert::TryFrom;
-use std::convert::TryInto;
-
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 
@@ -246,6 +243,15 @@ impl BlindedSignature {
 pub struct SignatureShare {
     signature: Signature,
     index: SignerIndex,
+}
+
+impl From<(Signature, SignerIndex)> for SignatureShare {
+    fn from(value: (Signature, SignerIndex)) -> Self {
+        SignatureShare {
+            signature: value.0,
+            index: value.1,
+        }
+    }
 }
 
 impl SignatureShare {

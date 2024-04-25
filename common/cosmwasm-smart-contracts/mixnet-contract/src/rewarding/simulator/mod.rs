@@ -226,13 +226,8 @@ mod tests {
     #[cfg(test)]
     mod single_node_case {
         use super::*;
-        use crate::helpers::compare_decimals;
-        use crate::reward_params::IntervalRewardParams;
         use crate::rewarding::helpers::truncate_reward_amount;
-        use crate::Percent;
         use cosmwasm_std::coin;
-        use cosmwasm_std::testing::mock_env;
-        use std::time::Duration;
 
         // explicitly marking this as part of #[allow(clippy::unwrap_used)] until
         // https://github.com/rust-lang/rust-clippy/pull/9686
@@ -599,9 +594,8 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::inconsistent_digit_grouping)]
     fn multiple_nodes_against_known_values() {
-        #![allow(clippy::inconsistent_digit_grouping)]
-
         // TODO: this test can be further improved by checking values after EVERY interval
         // rather than just checking the final results
 

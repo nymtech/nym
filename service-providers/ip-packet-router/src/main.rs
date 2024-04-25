@@ -1,29 +1,9 @@
 #[cfg(target_os = "linux")]
 mod cli;
-#[cfg(target_os = "linux")]
-mod config;
-#[cfg(target_os = "linux")]
-mod connected_client_handler;
-#[cfg(target_os = "linux")]
-mod constants;
-#[cfg(target_os = "linux")]
-mod error;
-#[cfg(target_os = "linux")]
-mod ip_packet_router;
-#[cfg(target_os = "linux")]
-mod mixnet_client;
-#[cfg(target_os = "linux")]
-mod mixnet_listener;
-#[cfg(target_os = "linux")]
-mod request_filter;
-#[cfg(target_os = "linux")]
-mod tun_listener;
-#[cfg(target_os = "linux")]
-mod util;
 
 #[cfg(target_os = "linux")]
 #[tokio::main]
-async fn main() -> Result<(), error::IpPacketRouterError> {
+async fn main() -> anyhow::Result<()> {
     use clap::Parser;
 
     let args = cli::Cli::parse();
@@ -34,7 +14,8 @@ async fn main() -> Result<(), error::IpPacketRouterError> {
         nym_bin_common::logging::maybe_print_banner(clap::crate_name!(), clap::crate_version!());
     }
 
-    cli::execute(args).await
+    cli::execute(args).await?;
+    Ok(())
 }
 
 #[cfg(not(target_os = "linux"))]

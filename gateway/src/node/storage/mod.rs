@@ -4,14 +4,16 @@
 use crate::node::storage::bandwidth::BandwidthManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
-use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
+use crate::node::storage::models::{PersistedBandwidth, PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
 use log::{debug, error};
+use nym_credentials_interface::{Base58, BlindedSerialNumber};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
+use time::OffsetDateTime;
 
 mod bandwidth;
 pub(crate) mod error;
@@ -20,7 +22,7 @@ mod models;
 mod shared_keys;
 
 #[async_trait]
-pub(crate) trait Storage: Send + Sync {
+pub trait Storage: Send + Sync {
     /// Inserts provided derived shared keys into the database.
     /// If keys previously existed for the provided client, they are overwritten with the new data.
     ///
@@ -101,6 +103,28 @@ pub(crate) trait Storage: Send + Sync {
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError>;
 
+    /// Set the freepass expiration date of the particular client to the provided date.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    /// * `freepass_expiration`: the expiration date of the associated free pass.
+    async fn set_freepass_expiration(
+        &self,
+        client_address: DestinationAddressBytes,
+        freepass_expiration: OffsetDateTime,
+    ) -> Result<(), StorageError>;
+
+    /// Reset all the bandwidth associated with the freepass and reset its expiration date
+    ///
+    /// # Arguments
+    ///
+    /// * `client_address`: address of the client
+    async fn reset_freepass_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError>;
+
     /// Tries to retrieve available bandwidth for the particular client.
     ///
     /// # Arguments
@@ -109,36 +133,47 @@ pub(crate) trait Storage: Send + Sync {
     async fn get_available_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
-    ) -> Result<Option<i64>, StorageError>;
+    ) -> Result<Option<PersistedBandwidth>, StorageError>;
 
-    /// Increases available bandwidth of the particular client by the specified amount.
+    /// Sets available bandwidth of the particular client to the provided amount;
     ///
     /// # Arguments
     ///
     /// * `client_address`: address of the client
-    /// * `amount`: amount of available bandwidth to be added to the client.
-    async fn increase_bandwidth(
+    /// * `amount`: the updated client bandwidth amount.
+    async fn set_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
         amount: i64,
     ) -> Result<(), StorageError>;
 
-    /// Decreases available bandwidth of the particular client by the specified amount.
+    /// Mark received credential as spent and insert it into the storage.
     ///
     /// # Arguments
     ///
-    /// * `client_address`: address of the client
-    /// * `amount`: amount of available bandwidth to be removed from the client.
-    async fn consume_bandwidth(
+    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential
+    /// * `client_address`: address of the client that spent the credential
+    async fn insert_spent_credential(
         &self,
+        blinded_serial_number: BlindedSerialNumber,
+        was_freepass: bool,
         client_address: DestinationAddressBytes,
-        amount: i64,
     ) -> Result<(), StorageError>;
+
+    /// Check if the credential with the provided blinded serial number if already present in the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential
+    async fn contains_credential(
+        &self,
+        blinded_serial_number: &BlindedSerialNumber,
+    ) -> Result<bool, StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
-pub(crate) struct PersistentStorage {
+pub struct PersistentStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
@@ -271,45 +306,80 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
+    async fn set_freepass_expiration(
+        &self,
+        client_address: DestinationAddressBytes,
+        freepass_expiration: OffsetDateTime,
+    ) -> Result<(), StorageError> {
+        self.bandwidth_manager
+            .set_freepass_expiration(&client_address.as_base58_string(), freepass_expiration)
+            .await?;
+        Ok(())
+    }
+
+    async fn reset_freepass_bandwidth(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        self.bandwidth_manager
+            .reset_freepass_bandwidth(&client_address.as_base58_string())
+            .await?;
+        Ok(())
+    }
+
     async fn get_available_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
-    ) -> Result<Option<i64>, StorageError> {
-        let res = self
+    ) -> Result<Option<PersistedBandwidth>, StorageError> {
+        Ok(self
             .bandwidth_manager
             .get_available_bandwidth(&client_address.as_base58_string())
-            .await
-            .map(|bandwidth_option| bandwidth_option.map(|bandwidth| bandwidth.available))?;
-        Ok(res)
+            .await?)
     }
 
-    async fn increase_bandwidth(
+    async fn set_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
         amount: i64,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .increase_available_bandwidth(&client_address.as_base58_string(), amount)
+            .set_available_bandwidth(&client_address.as_base58_string(), amount)
             .await?;
         Ok(())
     }
 
-    async fn consume_bandwidth(
+    async fn insert_spent_credential(
         &self,
+        blinded_serial_number: BlindedSerialNumber,
+        was_freepass: bool,
         client_address: DestinationAddressBytes,
-        amount: i64,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .decrease_available_bandwidth(&client_address.as_base58_string(), amount)
+            .insert_spent_credential(
+                &blinded_serial_number.to_bs58(),
+                was_freepass,
+                &client_address.as_base58_string(),
+            )
             .await?;
         Ok(())
+    }
+
+    async fn contains_credential(
+        &self,
+        blinded_serial_number: &BlindedSerialNumber,
+    ) -> Result<bool, StorageError> {
+        let cred = self
+            .bandwidth_manager
+            .retrieve_spent_credential(&blinded_serial_number.to_bs58())
+            .await?;
+
+        Ok(cred.is_some())
     }
 }
 
 /// In-memory implementation of `Storage`. The intention is primarily in testing environments.
-#[cfg(test)]
 #[derive(Clone)]
-pub(crate) struct InMemStorage;
+pub struct InMemStorage;
 
 //#[cfg(test)]
 //impl InMemStorage {
@@ -371,14 +441,29 @@ impl Storage for InMemStorage {
         todo!()
     }
 
+    async fn set_freepass_expiration(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _freepass_expiration: OffsetDateTime,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn reset_freepass_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
     async fn get_available_bandwidth(
         &self,
         _client_address: DestinationAddressBytes,
-    ) -> Result<Option<i64>, StorageError> {
+    ) -> Result<Option<PersistedBandwidth>, StorageError> {
         todo!()
     }
 
-    async fn increase_bandwidth(
+    async fn set_bandwidth(
         &self,
         _client_address: DestinationAddressBytes,
         _amount: i64,
@@ -386,11 +471,19 @@ impl Storage for InMemStorage {
         todo!()
     }
 
-    async fn consume_bandwidth(
+    async fn insert_spent_credential(
         &self,
+        _blinded_serial_number: BlindedSerialNumber,
+        _was_freepass: bool,
         _client_address: DestinationAddressBytes,
-        _amount: i64,
     ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn contains_credential(
+        &self,
+        _blinded_serial_number: &BlindedSerialNumber,
+    ) -> Result<bool, StorageError> {
         todo!()
     }
 }

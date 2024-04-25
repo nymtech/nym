@@ -23,23 +23,22 @@ export const Footer: FCWithChildren = () => {
         pb: 3,
       }}
     >
-      {isMobile && (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'row',
-            width: 'auto',
-            justifyContent: 'center',
-            alignItems: 'center',
-            mb: 2,
-          }}
-        >
-          <MuiLink component={Link} to="http://nymvpn.com" target="_blank" underline="none" marginRight={1}>
-            <NymVpnIcon />
-          </MuiLink>
-          <Socials isFooter />
-        </Box>
-      )}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'row',
+          width: 'auto',
+          justifyContent: 'center',
+          alignItems: 'center',
+          mb: 2,
+        }}
+      >
+        <MuiLink component={Link} to="http://nymvpn.com" target="_blank" underline="none" marginRight={1}>
+          <NymVpnIcon />
+        </MuiLink>
+        <Socials isFooter />
+      </Box>
+
       <Typography
         sx={{
           fontSize: 12,

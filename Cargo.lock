@@ -2547,7 +2547,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
-version = "1.1.33"
+version = "1.1.34"
 dependencies = [
  "chrono",
  "clap 4.4.7",
@@ -3507,7 +3507,7 @@ dependencies = [
  "futures-util",
  "http 0.2.9",
  "hyper 0.14.27",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "tokio",
  "tokio-rustls 0.24.1",
 ]
@@ -5024,7 +5024,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.35"
+version = "1.1.37"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5186,7 +5186,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.34"
+version = "1.1.35"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -5267,7 +5267,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.33"
+version = "1.1.34"
 dependencies = [
  "bs58 0.5.0",
  "clap 4.4.7",
@@ -5684,7 +5684,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.33"
+version = "1.1.35"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5979,7 +5979,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.35"
+version = "1.1.37"
 dependencies = [
  "anyhow",
  "axum",
@@ -6098,7 +6098,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.33"
+version = "1.1.34"
 dependencies = [
  "addr",
  "anyhow",
@@ -6150,7 +6150,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.33"
+version = "1.1.34"
 dependencies = [
  "dirs 4.0.0",
  "log",
@@ -6438,7 +6438,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.33"
+version = "1.1.34"
 dependencies = [
  "bs58 0.5.0",
  "clap 4.4.7",
@@ -8318,7 +8318,7 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "pin-project-lite 0.2.13",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "rustls-native-certs",
  "rustls-pemfile",
  "serde",
@@ -8702,9 +8702,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.21.10"
+version = "0.21.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9d5a6813c0759e4609cd494e8e725babae6a2ca7b62a5536a13daaec6fcb7ba"
+checksum = "7fecbfb7b1444f477b345853b1fce097a2c6fb637b2bfb87e6bc5db0f043fae4"
 dependencies = [
  "log",
  "ring 0.17.4",
@@ -10101,7 +10101,7 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
 dependencies = [
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "tokio",
 ]
 
@@ -10162,7 +10162,7 @@ checksum = "212d5dcb2a1ce06d81107c3d0ffa3121fe974b73f068c8282cb1c32328113b6c"
 dependencies = [
  "futures-util",
  "log",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "rustls-native-certs",
  "tokio",
  "tokio-rustls 0.24.1",
@@ -10596,7 +10596,7 @@ dependencies = [
  "httparse",
  "log",
  "rand 0.8.5",
- "rustls 0.21.10",
+ "rustls 0.21.11",
  "sha1",
  "thiserror",
  "url",

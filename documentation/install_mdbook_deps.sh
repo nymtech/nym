@@ -7,7 +7,7 @@ set -o pipefail
 # simple script to automate cleaning an existing mdbook install then installing it fresh for each deploy.
 
 # pinning minor version allows for updates but no breaking changes
-MINOR_VERSION=0.4
+MINOR_VERSION=0.4.36
 # if a new plugin is added to the books it needs to be added here also
 declare -a plugins=("admonish" "linkcheck" "last-changed" "theme" "variables" "cmdrun")
 

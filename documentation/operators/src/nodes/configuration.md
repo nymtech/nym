@@ -76,12 +76,12 @@ tmux attach-session
 
 To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nym-node.service` and follow the [next steps](#following-steps-for-nym-nodes-running-as-systemd-service).
 
-1. Open text editor
+1. Open the service file in a text editor
 ```sh
 nano /etc/systemd/system/nym-node.service
 ```
 
-2. Paste this file
+2. Paste this config file
 ```ini
 [Unit]
 Description=Nym Node
@@ -162,7 +162,7 @@ This lets your operating system know it's ok to reload the service configuration
 ## Connectivity Test and Configuration
 
 ```admonish info
-**This chapter is relevant only for operators running `entry-gateway` and `exit-gateway` mode.**
+**This chapter is relevant only for operators running an `exit-gateway` mode.** If this is not your case, please proceed to [bonding](bonding.md).
 ```
 
 During our ongoing testing events [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router (IPR) and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) on embedded Network Requester (NR) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
@@ -180,7 +180,7 @@ The script should be used in a context where `nym-node --mode exit-gateway` is r
 curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chmod +x network_tunnel_manager.sh && ./network_tunnel_manager.sh
 ```
 
-Here is a quick command explanation, for more details on the `network_tunnel_manager.sh` script, refer to the [overview](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) under the code block. 
+Here is a quick command explanation, for more details on the `network_tunnel_manager.sh` script, refer to the [overview](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) under the code block.
 
 ~~~admonish example collapsible=true title="A summarized usage of `network_tunnel_manager.sh`"
 ```sh
@@ -204,7 +204,7 @@ alongside diagnostics for verifying system settings and network connectivity.
 ~~~
 
   - To run the script next time, just enter `./network_tunnel_manager.`
-  
+
 2. Make sure your `nym-node --mode exit-gateway` service is up running
 
 3. Check Nymtun IP tables:
@@ -221,36 +221,37 @@ network Device: eth0
 
 inspecting IPv4 firewall rules...
 Chain FORWARD (policy DROP 0 packets, 0 bytes)
-    0     0 ufw-reject-forward  all  --  *      *       0.0.0.0/0            0.0.0.0/0           
-    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0           
+    0     0 ufw-reject-forward  all  --  *      *       0.0.0.0/0            0.0.0.0/0
+    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0
     0     0 ACCEPT     all  --  eth0   nymtun0  0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
-    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0           
+    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0
     0     0 ACCEPT     all  --  eth0   nymtun0  0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
-    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0           
+    0     0 ACCEPT     all  --  nymtun0 eth0    0.0.0.0/0            0.0.0.0/0
     0     0 ACCEPT     all  --  eth0   nymtun0  0.0.0.0/0            0.0.0.0/0            state RELATED,ESTABLISHED
 ---------------------------------------
 
 inspecting IPv6 firewall rules...
 Chain FORWARD (policy DROP 0 packets, 0 bytes)
-    0     0 ufw6-reject-forward  all      *      *       ::/0                 ::/0                
+    0     0 ufw6-reject-forward  all      *      *       ::/0                 ::/0
     0     0 ACCEPT     all      eth0   nymtun0  ::/0                 ::/0                 state RELATED,ESTABLISHED
-    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0                
+    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0
     0     0 ACCEPT     all      eth0   nymtun0  ::/0                 ::/0                 state RELATED,ESTABLISHED
-    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0                
+    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0
     0     0 ACCEPT     all      eth0   nymtun0  ::/0                 ::/0                 state RELATED,ESTABLISHED
-    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0                
+    0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0
 operation check_nymtun_iptables completed successfully.
 ```
 ~~~
 
- - if there's no process running it wouldn't return anything
+ - If there's no process running it wouldn't return anything.
+ - In case you see `nymtun0` but not active, this is probably because you are setting up a new (never bonded) node and not upgrading an exisitng one. In that case you need to [bond](bonding.md) your node now.
 
 4. Display IPv6:
 ```sh
 sudo ./network_tunnel_manager.sh fetch_and_display_ipv6
 ```
  - if you have a `global ipv6` address this is good
- 
+
 ~~~admonish example collapsible=true title="Correct `./network_tunnel_manager.sh fetch_and_display_ipv6` output:"
 ```sh
 iptables-persistent is already installed.
@@ -270,7 +271,9 @@ sudo ./network_tunnel_manager.sh apply_iptables_rules
 
    - and check them again like in point 3
 
-6. Check `nymtun0` interface:
+6. At this point your node needs to be [bonded](bonding.md) to the API for `nymtun0` to interact with the network. After bonding please follow up with the remaining streps below to ensure that your Exit Gateway is routing properly.
+
+7. Check `nymtun0` interface:
 ```sh
 ip addr show nymtun0
 ```
@@ -288,18 +291,13 @@ ip addr show nymtun0
 ```
 ~~~
 
-10. Validate your IPv6 and IPv4 networking by running a joke via Mixnet:
+8. Validate your IPv6 and IPv4 networking by running a joke via Mixnet:
 ```sh
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 ```
 
-Make sure that you get the validation of IPv4 and IPv6 connectivity. If there are still any problems, please refer to [troubleshooting section](../troubleshooting/vps-isp.md#incorrect-gateway-network-check)
+Make sure that you get the validation of IPv4 and IPv6 connectivity. If there are still any problems, please refer to [troubleshooting section](../troubleshooting/vps-isp.md#incorrect-gateway-network-check).
 
 ## Next Steps
 
 There are a few more good suggestions for `nym-node` VPS configuration, especially to be considered for `exit-gateway` functionality, like Web Secure Socket or Reversed Proxy setup. Visit [Proxy configuration](proxy-configuration.md) page to see the guides.
-
-After proceed to [bonding](bonding.md).
-
-
-

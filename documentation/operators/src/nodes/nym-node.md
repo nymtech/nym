@@ -24,9 +24,9 @@ Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-no
 
 ## Quick `nym-node --mode exit-gateway` Setup
 
-During our ongoing testing events [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+During the testing events series [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) as default features,  only a fragment of Exit Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
-Below is a fast - ten commands - deployment to get and setup your node, configure networking and connectivity and verify that it all works as it should by getting two free jokes through the Mixnet.
+Below is a fast - ten commands - deployment for seasoned operators to migrate and setup the node, configure networking and connectivity and verify that it all works as it should by getting two free jokes through the Mixnet.
 
 ```admonish caution
 If you are not well familiar with `nym-node` setup, automation, and `nymtun0` configuration, follow the [steps above](#steps-for-nym-node-operators) page by page. You can use this flow as a reference later on.
@@ -52,7 +52,7 @@ sudo ./network_tunnel_manager.sh check_nymtun_iptables
 ```sh
 sudo ./network_tunnel_manager.sh fetch_and_display_ipv6
 ```
- - if you have a `global ipv6` address this is good
+ - If you have a `global ipv6` address this is good, if not the next step should fix it
 ~~~admonish example collapsible=true title="Correct `./network_tunnel_manager.sh fetch_and_display_ipv6` output:"
 ```sh
 iptables-persistent is already installed.
@@ -67,12 +67,13 @@ sudo ./network_tunnel_manager.sh apply_iptables_rules
 ```
   - and check them again like in point 4.
 
-7. (If you didn't have a `nym-node` service yet) Create `systemd` [automation and configuration file](configuration.md#systemd), reload, enable
+7. (If you didn't have a `nym-node` service yet) Create `systemd` [automation and configuration file](configuration.md#systemd), reload and enable the service
 
 8. Start `nym-node` service:
 ```sh
 sudo service nym-node start && journalctl -u nym-node -f -n 100
 ```
+  - If you don't run this as an upgrade but started a fresh new node, you need to [bond](bonding.md) the gateway now. After that finish the verification steps below.
 
 9. After a minute of running properly, check `nymtun0`:
 ```sh

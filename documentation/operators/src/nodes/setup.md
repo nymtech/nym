@@ -194,11 +194,19 @@ Some of the most useful flags and their explanation:
 
 ## Commands & Examples
 
-**`nym-node` introduces a default human readible ID (local only) `default-nym-node`, which is used if there is not an explicit custom `--id <ID>` specified. All configuration is stored in `~/.nym/nym-nodes/default-nym-node/config/config.toml` or `~/.nym/nym-nodes/<ID>/config/config.toml` erespectively.**
+**`nym-node` introduces a default human readible ID (local only) `default-nym-node`, which is used if there is not an explicit custom `--id <ID>` specified. All configuration is stored in `~/.nym/nym-nodes/default-nym-node/config/config.toml` or `~/.nym/nym-nodes/<ID>/config/config.toml` respectively.**
 
 ### Initialise & Run
 
 When we use `run` command the node will do `init` as well, unless we specify with a flag `--deny-init`. Below are some examples of initialising and running `nym-node` with different modes (`--mode`) like `mixnode`, `entry-gateway`, `exit-gateway`.
+
+Please keep in mind that currently you can run only one functionality (`--mode`) per a `nym-node` instance. We are yet to finalise implement the multi-functionality solution under one node bonded to one Nyx account. Every `exit-gateway` can function as `entry-gateway` by default, not vice versa.
+
+```admonish success title=""
+**We recommend operators to setup an [automation](configuration.md#systemd) flow for their nodes!**
+
+In such case, you can `run` a node to initalise it or try if everything works, but then stop the proces and paste your entire `run` command syntax (below) to the `ExecStart` line of your `/etc/systemd/system/nym-node.service` and start the node as a [service](configuration.md#following-steps-for-nym-nodes-running-as-systemd-service).
+```
 
 ```admonish note
 To prevent over-flooding of our documentation we cannot provide with every single command syntax as there is a large combination of possibilities. Please use a common sense and the explanation in `--help` option.
@@ -214,7 +222,7 @@ As part of the transition, `allowed.list` on Exit Gateway embedded Network Reque
 ./nym-node  run  --mode exit-gateway
 
 # with other options
-./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --wireguard-enabled true
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --wireguard-enabled true
 ```
 
 Initialise only with a custom `--id` and `--init-only` command :

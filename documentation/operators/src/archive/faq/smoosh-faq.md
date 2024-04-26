@@ -1,15 +1,15 @@
 # Project Smoosh - FAQ
 
 ```admonish warning
-**This is an archived page for backwards compatibility. We have switched to [`nym-node` binary](../../nodes/nym-node.md), please [migrate](../../nodes/setup.md#migrate) your nodes. The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!**
+**This is an archived page for backwards compatibility. We have switched to [`nym-node` binary](../../nodes/nym-node.md), please [migrate](../../nodes/setup.md#migrate) your nodes. The content of this page is not updated since April 26th 2024. Eventually this page will be terminated!**
 ```
 
-> We aim on purpose to make minimal changes to reward scheme and software. We're just 'smooshing' together stuff we already debugged and know works.  
-> -- Harry Halpin,  Nym CEO  
+> We aim on purpose to make minimal changes to reward scheme and software. We're just 'smooshing' together stuff we already debugged and know works.
+> -- Harry Halpin,  Nym CEO
 
 <br>
 
-This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](mixnodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page. 
+This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](mixnodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page.
 
 If any questions are not answered or it's not clear for you in which stage project Smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
 
@@ -18,14 +18,15 @@ If any questions are not answered or it's not clear for you in which stage proje
 
 Project Smoosh will have four steps, please follow the table below to track the dynamic progress:
 
-| **Step** | **Status** |
-| :--- | :--- |
-| **1.** Combine the `nym-gateway` and `nym-network-requester` into one binary | ✅ done |
-| **2.** Create [Exit Gateway](../../legal/exit-gateway.md): Take the `nym-gateway` binary including `nym-network-requester` combined in \#1 and switch from [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) | ✅ done |
-| **3.** Combine all the nodes in the Nym Mixnet into one binary, that is `nym-mixnode`, `nym-gateway` (entry and exit) and `nym-network-requester`. | ✅ done |
-| **4.** Adjust reward scheme to incentivise and reward Exit Gateways as a part of `nym-node` binary, implementing [zkNym credentials](https://youtu.be/nLmdsZ1BsQg?t=1717). | ✅ done |
+| **Step**                                                                                                                                                                                                                                                                                                                                         | **Status**     |
+| :---                                                                                                                                                                                                                                                                                                                                             | :---           |
+| **1.** Combine the `nym-gateway` and `nym-network-requester` into one binary                                                                                                                                                                                                                                                                     | ✅ done        |
+| **2.** Create [Exit Gateway](../../legal/exit-gateway.md): Take the `nym-gateway` binary including `nym-network-requester` combined in \#1 and switch from [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) | ✅ done        |
+| **3.** Combine all the nodes in the Nym Mixnet into one binary, that is `nym-mixnode`, `nym-gateway` (entry and exit) and `nym-network-requester`.                                                                                                                                                                                               | ✅ done        |
+| **4.** Adjust reward scheme to incentivise and reward Exit Gateways as a part of `nym-node` binary, implementing [zkNym credentials](https://youtu.be/nLmdsZ1BsQg?t=1717).                                                                                                                                                                       | 🛠️ in progress |
+| **5.** Implement multiple node functionalities into one `nym-node` connected to one Nyx account.                                                                                                                                                                                                                                                 | 🛠️ in progress |
 
-These steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.  
+These steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.
 Generally, the software will be the same, just instead of multiple binaries, there will be one Nym Node (`nym-node`) binary. Delegations will remain on as they are now, per our token economics (staking, saturation etc)
 
 ### What does it mean for Nym nodes operators?
@@ -38,7 +39,7 @@ We are exploring two potential methods for implementing binary functionality in 
 
 ### Where can I read more about the Exit Gateway setup?
 
-We created an [entire page](../../legal/exit-gateway.md) about the technical and legal questions around Exit Gateway. 
+We created an [entire page](../../legal/exit-gateway.md) about the technical and legal questions around Exit Gateway.
 
 ### What is the change from allow list to deny list?
 
@@ -80,9 +81,9 @@ This depends on [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operato
 
 As each operator can choose what roles their nodes provide, the nodes which work as open Gateways will have higher rewards because they are the most important to keep up and stable. Besides that the operators of Gateways may be exposed to more complication and possible legal risks.
 
-The nodes which are initialized to run as Mix Nodes and Gateways will be chosen to be on top of the active set before the ones working only as a Mix Node. 
+The nodes which are initialized to run as Mix Nodes and Gateways will be chosen to be on top of the active set before the ones working only as a Mix Node.
 
-I case we go with \#2, all nodes active in the epoch will be rewarded proportionally according their work. 
+I case we go with \#2, all nodes active in the epoch will be rewarded proportionally according their work.
 
 In either way, Nym will share all the specifics beforehand.
 
@@ -102,7 +103,6 @@ From an operator standpoint, it shall just be a standard Nym upgrade, a new opti
 
 ### Are there any legal concerns for the operators?
 
-So far the general line is that running a Gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For Mix Nodes, it's very safe as they have "no idea" what packets they are mixing.  
+So far the general line is that running a Gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For Mix Nodes, it's very safe as they have "no idea" what packets they are mixing.
 
-There are several legal questions and analysis to be made for different jurisdictions. To be able to share resources and findings between the operators themselves we created a [Community Legal Forum](../../legal/exit-gateway.md). 
-
+There are several legal questions and analysis to be made for different jurisdictions. To be able to share resources and findings between the operators themselves we created a [Community Legal Forum](../../legal/exit-gateway.md).

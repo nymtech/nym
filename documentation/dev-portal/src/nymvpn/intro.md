@@ -30,4 +30,4 @@ client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► 
 
 Users can switch to 2-hop only mode, which is a faster but less private option. In this mode traffic is only sent between the two Gateways, and is not passed between Mix Nodes.
 
-The client can optionally do the first hop (local client to Entry Gateway) using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
+The client can optionally use two wireguard tunnels with the entry and exit gateway, the Exit Gateway one being tunnelled itself through the entry gateway tunnel. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.

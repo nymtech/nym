@@ -1,16 +1,18 @@
 # NymVPN CLI Guide
 
 ```admonish info
-NymVPN is an experimental software and it's for testing purposes only. Anyone can submit to the private alpha round on [nymvpn.com](https://nymvpn.com/en).
+NymVPN is an experimental software and it's for testing purposes only. Anyone can submit a registration to the private alpha round on [nymvpn.com](https://nymvpn.com/en).
 ```
 
-## Release Notes
+## Overview
 
 The core binaries consist of:
 
-- `nym-vpn-cli`: Basic commandline client for running the vpn. This runs in the foreground.
-- `nym-vpnd`: Daemon implementation of the vpn client that can run in the background and interacted with using `nym-vpnc`.
-- `nym-vpnc`: The commandline client used to interact with `nym-vpnd`.
+- **`nym-vpn-cli`**: Basic commandline client for running the vpn. This runs in the foreground.
+
+- **`nym-vpnd`**: Daemon implementation of the vpn client that can run in the background and interacted with using `nym-vpnc`.
+
+- **`nym-vpnc`**: The commandline client used to interact with `nym-vpnd`.
 
 
 ## Installation

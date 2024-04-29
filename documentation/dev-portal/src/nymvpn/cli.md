@@ -1,8 +1,17 @@
-# NymVPN alpha CLI Guide
+# NymVPN CLI Guide
 
 ```admonish info
-NymVPN is an experimental software and it's for testing purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
+NymVPN is an experimental software and it's for testing purposes only. Anyone can submit to the private alpha round on [nymvpn.com](https://nymvpn.com/en).
 ```
+
+## Release Notes
+
+The core binaries consist of:
+
+- `nym-vpn-cli`: Basic commandline client for running the vpn. This runs in the foreground.
+- `nym-vpnd`: Daemon implementation of the vpn client that can run in the background and interacted with using `nym-vpnc`.
+- `nym-vpnc`: The commandline client used to interact with `nym-vpnd`.
+
 
 ## Installation
 
@@ -15,46 +24,92 @@ NymVPN is an experimental software and it's for testing purposes only. All users
 echo "<SHA_STRING>" | shasum -a 256 -c
 
 # choose a correct one according to your binary, this is just an example
-# echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_<!-- cmdrun scripts/nym_vpn_cli_version.sh -->_ubuntu-22.04_amd64.tar.gz" | shasum -a 256 -c
+# echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli_<!-- cmdrun ../../../scripts/cmdrun/nym_vpn_cli_version.sh -->_ubuntu-22.04_amd64.tar.gz" | shasum -a 256 -c
 ```
 
 3. Extract files:
 ```sh
 tar -xvf <BINARY>.tar.gz
 # for example
-# tar -xvf nym-vpn-cli_<!-- cmdrun scripts/nym_vpn_cli_version.sh -->_ubuntu-22.04_x86_64.tar.gz
+# tar -xvf nym-vpn-cli_<!-- cmdrun ../../../scripts/cmdrun/nym_vpn_cli_version.sh -->_ubuntu-22.04_x86_64.tar.gz
 ```
 
-4. Make executable:
+## Running
+
+If you are running Debian/Ubuntu/PopOS or any other distributio supporting debian packages and systemd, see the [relevant section below](#debian-package-for-debianubuntupopos).
+
+### Daemon
+
+Start the daemon with
+
 ```sh
-# make sure you are in the right sub-directory
-chmod u+x nym-vpn-cli
+sudo -E ./nym-vpnd
 ```
 
-## Run NymVPN
+Then run
 
-**For NymVPN to work, all other VPNs must be switched off!** At this alpha stage of NymVPN, the network connection (wifi) must be reconnected after or in between the testing rounds.
-
-Make sure your terminal is open in the same directory as your `nym-vpn-cli` binary.
-
-1. Run it as root with `sudo` - the command will look like this with specified arguments:
 ```sh
-# choose only one conditional --argument listed in {brackets}
-sudo ./nym-vpn-cli { --exit-router-address <EXIT_ROUTER_ADDRESS>|--exit-gateway-id <EXIT_GATEWAY_ID>|--exit-gateway-country <EXIT_GATEWAY_COUNTRY> }
+./nym-vpnc status
+./nym-vpnc connect
+./nym-vpnc disconnect
 ```
 
-2. To choose different Gateways, visit [explorer.nymtech.net/network-components/gateways](https://explorer.nymtech.net/network-components/gateways) and copy-paste an identity key of your choice
+### CLI
+
+An alternative to the daemon is to run the `nym-vpn-cli` commandline client that runs in the foreground.
+```sh
+./nym-vpn-cli run
+```
+
+## Credentials
+
+NymVPN uses [zkNym bandwidth credentials](https://nymtech.net/docs/bandwidth-credentials.html). Those can be imported as a file or base58 encoded string.
+
+
+```sh
+sudo -E ./nym-vpn-cli import-credential --credential-path </PATH/TO/freepass.nym>
+sudo -E ./nym-vpn-cli import-credential --credential-data "<STRING>"
+```
+
+## Debian package for Debian/Ubuntu/PopOS
+
+For linux platforms using deb packages and systemd, there are also debian packages.
+
+```sh
+sudo apt install ./nym-vpnd_<!-- cmdrun ../../../scripts/cmdrun/nym_vpn_cli_version.sh -->-1_amd64.deb ./nym-vpnc_<!-- cmdrun ../../../scripts/cmdrun/nym_vpn_cli_version.sh -->-1_amd64.deb
+
+# In case of error please substitute the correct version
+```
+
+Installing the `nym-vpnd` deb package starts a `nym-vpnd.service`. Check that the daemon is running with
+```sh
+systemctl status nym-vpnd.service
+```
+and check its logs with
+```sh
+sudo journalctl -u nym-vpnd.service -f
+```
+To stop the background service
+```sh
+systemctl stop nym-vpnd.service
+```
+It will start again on startup, so disable with
+```sh
+systemctl disable nym-vpnd.service
+```
+
+Interact with it with `nym-vpnc`
+```sh
+nym-vpnc status
+nym-vpnc connect
+nym-vpnc disconnect
+```
+
+## Commands & Options
 
 ```admonish note
-Nym Exit Gateway functionality was implemented just recently and not all the Gateways are upgraded and ready to handle the VPN connections. If you want to make sure you are connecting to a Gateway with an embedded Network Requester, IP Packet Router and applied Nym exit policy, visit [this page](https://nymtech.net/events/fast-and-furious), scroll down to the list and search Gateways with all the functionalities enabled.
+Nym Exit Gateway functionality was implemented just recently and not all the Gateways are upgraded and ready to handle the VPN connections. If you want to make sure you are connecting to a Gateway with an embedded Network Requester, IP Packet Router and applied Nym exit policy, visit [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/) and search Gateways with all the functionalities enabled.
 ```
-
-3. See all possibilities in [command explanation](#cli-commands-and-options) section below
-
-4. In case of errors, see [troubleshooting section](troubleshooting.md)
-
-
-### CLI Commands and Options
 
 The basic syntax of `nym-vpn-cli` is:
 ```sh
@@ -68,49 +123,18 @@ To see all the possibilities run with `--help` flag:
 ```
 ~~~admonish example collapsible=true title="Console output"
 ```sh
-Usage: nym-vpn-cli [OPTIONS] <--exit-router-address <EXIT_ROUTER_ADDRESS>|--exit-gateway-id <EXIT_GATEWAY_ID>|--exit-gateway-country <EXIT_GATEWAY_COUNTRY>>
+Usage: nym-vpn-cli [OPTIONS] <COMMAND>
+
+Commands:
+  run                Run the client
+  import-credential  Import credential
+  help               Print this message or the help of the given subcommand(s)
 
 Options:
-  -c, --config-env-file <CONFIG_ENV_FILE>
-          Path pointing to an env file describing the network
-      --mixnet-client-path <MIXNET_CLIENT_PATH>
-          Path to the data directory of a previously initialised mixnet client, where the keys reside
-      --entry-gateway-id <ENTRY_GATEWAY_ID>
-          Mixnet public ID of the entry gateway
-      --entry-gateway-country <ENTRY_GATEWAY_COUNTRY>
-          Auto-select entry gateway by country ISO
-      --entry-gateway-low-latency
-          Auto-select entry gateway by latency
-      --exit-router-address <EXIT_ROUTER_ADDRESS>
-          Mixnet recipient address
-      --exit-gateway-id <EXIT_GATEWAY_ID>
-
-      --exit-gateway-country <EXIT_GATEWAY_COUNTRY>
-          Mixnet recipient address
-      --enable-wireguard
-          Enable the wireguard traffic between the client and the entry gateway
-      --private-key <PRIVATE_KEY>
-          Associated private key
-      --wg-ip <WG_IP>
-          The IP address of the wireguard interface used for the first hop to the entry gateway
-      --nym-ipv4 <NYM_IPV4>
-          The IPv4 address of the nym TUN device that wraps IP packets in sphinx packets
-      --nym-ipv6 <NYM_IPV6>
-          The IPv6 address of the nym TUN device that wraps IP packets in sphinx packets
-      --nym-mtu <NYM_MTU>
-          The MTU of the nym TUN device that wraps IP packets in sphinx packets
-      --disable-routing
-          Disable routing all traffic through the nym TUN device. When the flag is set, the nym TUN device will be created, but to route traffic through it you will need to do it manually, e.g. ping -Itun0
-      --enable-two-hop
-          Enable two-hop mixnet traffic. This means that traffic jumps directly from entry gateway to exit gateway
-      --enable-poisson-rate
-          Enable Poisson process rate limiting of outbound traffic
-      --disable-background-cover-traffic
-          Disable constant rate background loop cover traffic
-  -h, --help
-          Print help
-  -V, --version
-          Print version
+  -c, --config-env-file <CONFIG_ENV_FILE>  Path pointing to an env file describing the network
+      --data-path <DATA_PATH>              Path to the data directory of the mixnet client
+  -h, --help                               Print help
+  -V, --version                            Print version
 ```
 ~~~
 
@@ -143,9 +167,9 @@ If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjust
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```
 
-1. Check available Gateways at [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways)
+2. Check available Gateways at [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways)
 
-2. Run with a flag `-c`
+3. Run with a flag `-c`
 ```sh
 sudo ./nym-vpn-cli -c <PATH_TO>/sandbox.env <--exit-router-address <EXIT_ROUTER_ADDRESS>|--exit-gateway-id <EXIT_GATEWAY_ID>|--exit-gateway-country <EXIT_GATEWAY_COUNTRY>>
 ```

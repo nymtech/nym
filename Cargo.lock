@@ -6999,7 +6999,7 @@ dependencies = [
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "eyre",
  "futures",
- "nym-bin-common",
+ "serde",
  "sha2 0.10.8",
  "sqlx",
  "tendermint",

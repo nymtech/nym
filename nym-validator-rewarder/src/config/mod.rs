@@ -10,6 +10,7 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_validator_client::nyxd::{AccountId, Coin};
+use nyxd_scraper::PruningOptions;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::io;
@@ -100,7 +101,10 @@ impl Config {
             rewarding: Rewarding::default(),
             block_signing: Default::default(),
             issuance_monitor: IssuanceMonitor::default(),
-            nyxd_scraper: NyxdScraper { websocket_url },
+            nyxd_scraper: NyxdScraper {
+                websocket_url,
+                pruning: Default::default(),
+            },
             base: Base {
                 upstream_nyxd: nyxd_url,
                 mnemonic,
@@ -117,8 +121,9 @@ impl Config {
         }
     }
 
-    pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
-        self.rewarding.ratios.ensure_is_valid()?;
+    pub fn validate(&self) -> Result<(), NymRewarderError> {
+        self.rewarding.ratios.validate()?;
+        self.nyxd_scraper.validate()?;
         Ok(())
     }
 
@@ -140,7 +145,7 @@ impl Config {
                 source,
             }
         })?;
-        loaded.ensure_is_valid()?;
+        loaded.validate()?;
         loaded.save_path = Some(path.to_path_buf());
         debug!("loaded config file from {}", path.display());
         Ok(loaded)
@@ -223,7 +228,7 @@ impl Default for RewardingRatios {
 }
 
 impl RewardingRatios {
-    pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
+    pub fn validate(&self) -> Result<(), NymRewarderError> {
         if self.block_signing + self.credential_verification + self.credential_issuance != 1.0 {
             return Err(NymRewarderError::InvalidRewardingRatios { ratios: *self });
         }
@@ -235,7 +240,19 @@ impl RewardingRatios {
 pub struct NyxdScraper {
     /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
+
+    /// Defines the pruning options, if applicable, to be used by the underlying scraper.
+    // if the value is missing, use `nothing` pruning as this was the past behaviour
+    #[serde(default = "PruningOptions::nothing")]
+    pub pruning: PruningOptions,
     // TODO: debug with everything that's currently hardcoded in the scraper
+}
+
+impl NyxdScraper {
+    pub fn validate(&self) -> Result<(), NymRewarderError> {
+        self.pruning.validate()?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -110,7 +110,7 @@ fn try_load_current_config(custom_path: &Option<PathBuf>) -> Result<Config, NymR
     );
 
     if let Ok(cfg) = Config::read_from_toml_file(&config_path) {
-        cfg.ensure_is_valid()?;
+        cfg.validate()?;
         return Ok(cfg);
     }
 
@@ -122,7 +122,7 @@ fn try_load_current_config(custom_path: &Option<PathBuf>) -> Result<Config, NymR
         );
         err
     })?;
-    config.ensure_is_valid()?;
+    config.validate()?;
     Ok(config)
 }
 

@@ -21,6 +21,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 mod helpers;
+pub(crate) mod pruning;
 pub(crate) mod types;
 
 const MISSING_BLOCKS_CHECK_INTERVAL: Duration = Duration::from_secs(30);

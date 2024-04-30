@@ -74,4 +74,14 @@ whitelist = [
 [nyxd_scraper]
 # Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
 websocket_url = '{{ nyxd_scraper.websocket_url }}'
+
+# default: the last 362880 states are kept, pruning at 10 block intervals
+# nothing: all historic states will be saved, nothing will be deleted (i.e. archiving)
+# everything: 2 latest states will be kept; pruning at 10 block intervals.
+# custom: allow pruning options to be manually specified through 'pruning.keep_recent' and 'pruning.interval'
+pruning.strategy = '{{ nyxd_scraper.pruning.strategy }}'
+
+# These are applied if and only if the pruning strategy is custom.
+pruning.keep_recent = {{ nyxd_scraper.pruning.keep_recent }}
+pruning.interval = {{ nyxd_scraper.pruning.interval }}
 "#;

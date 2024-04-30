@@ -31,7 +31,7 @@ humantime = "2.1.0"
 humantime-serde.workspace = true
 
 # internal
-nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
 nym-config = { path = "../common/config" }
 nym-coconut = { path = "../common/nymcoconut" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric"] }
@@ -39,8 +39,8 @@ nym-credentials = { path = "../common/credentials" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg"}
-nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract"}
+nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nyxd-scraper = { path = "../common/nyxd-scraper" }
 
 [build-dependencies]

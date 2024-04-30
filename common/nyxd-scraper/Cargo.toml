@@ -16,6 +16,7 @@ const_format = "0.2.32"
 cosmrs.workspace = true
 eyre = "0.6.9"
 futures.workspace = true
+humantime = "2.1.0"
 sha2 = "0.10.8"
 serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }

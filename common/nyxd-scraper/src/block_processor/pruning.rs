@@ -4,13 +4,14 @@
 use crate::error::ScraperError;
 use serde::{Deserialize, Serialize};
 
-pub const DEFAULT_PRUNING_KEEP_RECENT: usize = 362880;
+pub const DEFAULT_PRUNING_KEEP_RECENT: u32 = 362880;
 pub const DEFAULT_PRUNING_INTERVAL: u32 = 10;
-pub const EVERYTHING_PRUNING_KEEP_RECENT: usize = 2;
+pub const EVERYTHING_PRUNING_KEEP_RECENT: u32 = 2;
 pub const EVERYTHING_PRUNING_INTERVAL: u32 = 10;
 
 /// We follow cosmos-sdk pruning strategies for convenience’s sake.
 #[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PruningStrategy {
     /// 'Default' strategy defines a pruning strategy where the last 362880 heights are
     /// kept where to-be pruned heights are pruned at every 10th height.
@@ -35,12 +36,20 @@ impl PruningStrategy {
     pub fn is_custom(&self) -> bool {
         matches!(self, PruningStrategy::Custom)
     }
+
+    pub fn is_nothing(&self) -> bool {
+        matches!(self, PruningStrategy::Nothing)
+    }
+
+    pub fn is_everything(&self) -> bool {
+        matches!(self, PruningStrategy::Everything)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct PruningOptions {
     /// keep_recent defines how many recent heights to keep on disk.
-    pub keep_recent: usize,
+    pub keep_recent: u32,
 
     /// interval defines the frequency of removing the pruned heights from the disk.
     pub interval: u32,
@@ -82,25 +91,25 @@ impl PruningOptions {
             strategy: PruningStrategy::Nothing,
         }
     }
-}
 
-/*
-func (po PruningOptions) Validate() error {
-    if po.Strategy == PruningNothing {
-        return nil
+    pub fn strategy_interval(&self) -> u32 {
+        match self.strategy {
+            PruningStrategy::Default => DEFAULT_PRUNING_INTERVAL,
+            PruningStrategy::Everything => EVERYTHING_PRUNING_INTERVAL,
+            PruningStrategy::Nothing => 0,
+            PruningStrategy::Custom => self.interval,
+        }
     }
-    if po.Interval == 0 {
-        return ErrPruningIntervalZero
+
+    pub fn strategy_keep_recent(&self) -> u32 {
+        match self.strategy {
+            PruningStrategy::Default => DEFAULT_PRUNING_KEEP_RECENT,
+            PruningStrategy::Everything => EVERYTHING_PRUNING_KEEP_RECENT,
+            PruningStrategy::Nothing => 0,
+            PruningStrategy::Custom => self.keep_recent,
+        }
     }
-    if po.Interval < pruneEverythingInterval {
-        return ErrPruningIntervalTooSmall
-    }
-    if po.KeepRecent < pruneEverythingKeepRecent {
-        return ErrPruningKeepRecentTooSmall
-    }
-    return nil
 }
- */
 
 impl Default for PruningOptions {
     fn default() -> Self {
@@ -111,68 +120,3 @@ impl Default for PruningOptions {
         }
     }
 }
-
-/*
-
-
-## Strategies
-
-The strategies are configured in `app.toml`, with the format `pruning = "<strategy>"` where the options are:
-
-* `default`: only the last 362,880 states(approximately 3.5 weeks worth of state) are kept; pruning at 10 block intervals
-* `nothing`: all historic states will be saved, nothing will be deleted (i.e. archiving node)
-* `everything`: 2 latest states will be kept; pruning at 10 block intervals.
-* `custom`: allow pruning options to be manually specified through 'pruning-keep-recent', and 'pruning-interval'
-
-If no strategy is given to the BaseApp, `nothing` is selected. However, we perform validation on the CLI layer to require these to be always set in the config file.
-
-## Custom Pruning
-
-These are applied if and only if the pruning strategy is custom:
-
-* `pruning-keep-recent`: N means to keep all of the last N states
-* `pruning-interval`: N means to delete old states from disk every Nth block.
-
- */
-
-/*
-
-const (
-    pruneEverythingKeepRecent = 2
-    pruneEverythingInterval   = 10
-)
-
-var (
-    ErrPruningIntervalZero       = errors.New("'pruning-interval' must not be 0. If you want to disable pruning, select pruning = \"nothing\"")
-    ErrPruningIntervalTooSmall   = fmt.Errorf("'pruning-interval' must not be less than %d. For the most aggressive pruning, select pruning = \"everything\"", pruneEverythingInterval)
-    ErrPruningKeepRecentTooSmall = fmt.Errorf("'pruning-keep-recent' must not be less than %d. For the most aggressive pruning, select pruning = \"everything\"", pruneEverythingKeepRecent)
-)
-
-func NewPruningOptions(pruningStrategy PruningStrategy) PruningOptions {
-    switch pruningStrategy {
-    case PruningDefault:
-        return PruningOptions{
-            KeepRecent: 362880,
-            Interval:   10,
-            Strategy:   PruningDefault,
-        }
-    case PruningEverything:
-        return PruningOptions{
-            KeepRecent: pruneEverythingKeepRecent,
-            Interval:   pruneEverythingInterval,
-            Strategy:   PruningEverything,
-        }
-    case PruningNothing:
-        return PruningOptions{
-            KeepRecent: 0,
-            Interval:   0,
-            Strategy:   PruningNothing,
-        }
-    default:
-        return PruningOptions{
-            Strategy: PruningCustom,
-        }
-    }
-}
-
-*/

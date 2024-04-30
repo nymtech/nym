@@ -8,6 +8,7 @@ use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
 use crate::storage::{persist_block, ScraperStorage};
+use crate::PruningOptions;
 use futures::StreamExt;
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::ops::{Add, Range};
@@ -18,7 +19,7 @@ use tokio::sync::Notify;
 use tokio::time::{interval_at, Instant};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 mod helpers;
 pub(crate) mod pruning;
@@ -41,9 +42,11 @@ impl PendingSync {
 }
 
 pub struct BlockProcessor {
+    pruning_options: PruningOptions,
     cancel: CancellationToken,
     synced: Arc<Notify>,
     last_processed_height: u32,
+    last_pruned_height: u32,
     last_processed_at: Instant,
     pending_sync: PendingSync,
     queued_blocks: BTreeMap<u32, BlockToProcess>,
@@ -63,6 +66,7 @@ pub struct BlockProcessor {
 
 impl BlockProcessor {
     pub async fn new(
+        pruning_options: PruningOptions,
         cancel: CancellationToken,
         synced: Arc<Notify>,
         incoming: UnboundedReceiver<BlockToProcess>,
@@ -71,11 +75,17 @@ impl BlockProcessor {
         rpc_client: RpcClient,
     ) -> Result<Self, ScraperError> {
         let last_processed = storage.get_last_processed_height().await?;
+        let last_processed_height = last_processed.try_into().unwrap_or_default();
+
+        let last_pruned = storage.get_pruned_height().await?;
+        let last_pruned_height = last_pruned.try_into().unwrap_or_default();
 
         Ok(BlockProcessor {
+            pruning_options,
             cancel,
             synced,
-            last_processed_height: last_processed.try_into().unwrap_or_default(),
+            last_processed_height,
+            last_pruned_height,
             last_processed_at: Instant::now(),
             pending_sync: Default::default(),
             queued_blocks: Default::default(),
@@ -132,12 +142,17 @@ impl BlockProcessor {
             }
         }
 
+        let commit_start = Instant::now();
         tx.commit()
             .await
             .map_err(|source| ScraperError::StorageTxCommitFailure { source })?;
+        crate::storage::log_db_operation_time("committing processing tx", commit_start);
 
         self.last_processed_height = full_info.block.header.height.value() as u32;
         self.last_processed_at = Instant::now();
+        if let Err(err) = self.maybe_prune_storage().await {
+            error!("failed to prune the storage: {err}");
+        }
 
         Ok(())
     }
@@ -211,6 +226,56 @@ impl BlockProcessor {
         Ok(())
     }
 
+    #[instrument(skip(self))]
+    async fn prune_storage(&mut self) -> Result<(), ScraperError> {
+        let keep_recent = self.pruning_options.strategy_keep_recent();
+        let last_to_keep = self.last_processed_height - keep_recent;
+
+        info!(
+            keep_recent,
+            oldest_to_keep = last_to_keep,
+            "pruning the storage"
+        );
+
+        let lowest: u32 = self
+            .storage
+            .lowest_block_height()
+            .await?
+            .unwrap_or_default()
+            .try_into()
+            .unwrap_or_default();
+
+        let to_prune = last_to_keep - lowest;
+        match to_prune {
+            v if v > 1000 => warn!("approximately {v} blocks worth of data will be pruned"),
+            v if v > 100 => info!("approximately {v} blocks worth of data will be pruned"),
+            v => debug!("approximately {v} blocks worth of data will be pruned"),
+        }
+
+        self.storage
+            .prune_storage(last_to_keep, self.last_processed_height)
+            .await?;
+
+        self.last_pruned_height = self.last_processed_height;
+        Ok(())
+    }
+
+    async fn maybe_prune_storage(&mut self) -> Result<(), ScraperError> {
+        debug!("checking for storage pruning");
+
+        if self.pruning_options.strategy.is_nothing() {
+            trace!("the current pruning strategy is 'nothing'");
+            return Ok(());
+        }
+
+        let interval = self.pruning_options.strategy_interval();
+        if self.last_pruned_height + interval <= self.last_processed_height {
+            self.prune_storage().await?;
+        }
+
+        Ok(())
+    }
+
     async fn next_incoming(&mut self, block: BlockToProcess) {
         let height = block.height;
 
@@ -279,6 +344,8 @@ impl BlockProcessor {
     // but we need it to help the compiler figure out the future is `Send`
     async fn startup_resync(&mut self) -> Result<(), ScraperError> {
         assert!(self.pending_sync.is_empty());
+
+        self.maybe_prune_storage().await?;
 
         let latest_block = self.rpc_client.current_block_height().await? as u32;
         if latest_block > self.last_processed_height && self.last_processed_height != 0 {

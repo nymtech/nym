@@ -133,7 +133,7 @@ pub enum ScraperError {
     TooSmallPruningInterval { interval: u32 },
 
     #[error("pruning.keep_recent must not be smaller than {}. got: {keep_recent}. for most aggressive pruning, select pruning.strategy = \"everything\"", EVERYTHING_PRUNING_KEEP_RECENT)]
-    TooSmallKeepRecent { keep_recent: usize },
+    TooSmallKeepRecent { keep_recent: u32 },
 }
 
 impl<T> From<SendError<T>> for ScraperError {

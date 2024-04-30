@@ -35,6 +35,9 @@ const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const DEFAULT_MONITOR_MIN_VALIDATE: usize = 10;
 const DEFAULT_MONITOR_SAMPLING_RATE: f64 = 0.10;
 
+// 'worst' case scenario
+pub const TYPICAL_BLOCK_TIME: f32 = 5.;
+
 /// Get default path to rewarder's config directory.
 /// It should get resolved to `$HOME/.nym/validators-rewarder/config`
 pub fn default_config_directory() -> PathBuf {
@@ -118,12 +121,13 @@ impl Config {
             websocket_url: self.nyxd_scraper.websocket_url.clone(),
             rpc_url: self.base.upstream_nyxd.clone(),
             database_path: self.storage_paths.nyxd_scraper.clone(),
+            pruning_options: self.nyxd_scraper.pruning,
         }
     }
 
     pub fn validate(&self) -> Result<(), NymRewarderError> {
         self.rewarding.ratios.validate()?;
-        self.nyxd_scraper.validate()?;
+        self.nyxd_scraper.validate(self.rewarding.epoch_duration)?;
         Ok(())
     }
 
@@ -249,8 +253,31 @@ pub struct NyxdScraper {
 }
 
 impl NyxdScraper {
-    pub fn validate(&self) -> Result<(), NymRewarderError> {
+    pub fn validate(&self, epoch_duration: Duration) -> Result<(), NymRewarderError> {
+        // basic, sanity check, of pruning
         self.pruning.validate()?;
+
+        if self.pruning.strategy.is_nothing() {
+            return Ok(());
+        }
+
+        // rewarder-specific validation:
+        if self.pruning.strategy.is_everything() {
+            return Err(NymRewarderError::EverythingPruningStrategy);
+        }
+
+        if self.pruning.strategy.is_custom() {
+            let min_to_keep =
+                (epoch_duration.as_secs_f32() / TYPICAL_BLOCK_TIME * 1.5).ceil() as u32;
+
+            if self.pruning.strategy_keep_recent() < min_to_keep {
+                return Err(NymRewarderError::TooSmallKeepRecent {
+                    min_to_keep,
+                    keep_recent: self.pruning.strategy_keep_recent(),
+                });
+            }
+        }
+
         Ok(())
     }
 }

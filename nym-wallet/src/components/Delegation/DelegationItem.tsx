@@ -45,13 +45,22 @@ export const DelegationItem = ({
           {nodeIsUnbonded ? (
             '-'
           ) : (
-            <Link
-              target="_blank"
-              href={`${explorerUrl}/network-components/mixnode/${item.mix_id}`}
-              text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
-              color="text.primary"
-              noIcon
-            />
+            <>
+              {item.errors && (
+                <Tooltip title={<pre>{item.errors}</pre>}>
+                  <Typography mr={1} component="span">
+                    ⚠️
+                  </Typography>
+                </Tooltip>
+              )}
+              <Link
+                target="_blank"
+                href={`${explorerUrl}/network-components/mixnode/${item.mix_id}`}
+                text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                color="text.primary"
+                noIcon
+              />
+            </>
           )}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
@@ -70,7 +79,7 @@ export const DelegationItem = ({
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>{getStakeSaturation(item)}</TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          {format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
+          {item.delegated_on_iso_datetime && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
           <Typography style={{ textTransform: 'uppercase', fontSize: 'inherit' }}>

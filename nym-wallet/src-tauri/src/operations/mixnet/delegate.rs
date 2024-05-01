@@ -154,8 +154,6 @@ pub async fn get_all_mix_delegations(
 ) -> Result<Vec<DelegationWithEverything>, BackendError> {
     log::info!(">>> Get all mixnode delegations");
 
-    let mut error_strings: Vec<String> = vec![];
-
     let guard = state.read().await;
     let client = guard.current_client()?;
     let reg = guard.registered_coins()?;
@@ -174,7 +172,6 @@ pub async fn get_all_mix_delegations(
         .get_all_delegator_delegations(&address)
         .await
         .tap_err(|err| {
-            error_strings.push(format!("{}", err));
             log::error!("  <<< Failed to get delegations. Error: {}", err);
         })?;
     log::info!("  <<< {} delegations", delegations.len());
@@ -183,7 +180,6 @@ pub async fn get_all_mix_delegations(
         get_pending_delegation_events(state.clone())
             .await
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
                 log::error!("  <<< Failed to get pending delegations. Error: {}", err);
             })?;
 
@@ -195,6 +191,8 @@ pub async fn get_all_mix_delegations(
     let mut with_everything: Vec<DelegationWithEverything> = Vec::with_capacity(delegations.len());
 
     for delegation in delegations {
+        let mut error_strings: Vec<String> = vec![];
+
         let d = Delegation::from_mixnet_contract(delegation.clone(), reg).tap_err(|err| {
             log::error!(
                 "  <<< Failed to get delegation for mix id {} from contract. Error: {}",
@@ -370,8 +368,8 @@ pub async fn get_all_mix_delegations(
                 let str_err = format!("Failed to get block timestamp for height = {} for delegation to mix_id = {}. Error: {}", d.height, d.mix_id, err);
                 log::error!("  <<< {}", str_err);
                 error_strings.push(str_err);
-            })?;
-        let delegated_on_iso_datetime = timestamp.to_rfc3339();
+            }).ok();
+        let delegated_on_iso_datetime = timestamp.map(|ts| ts.to_rfc3339());
         log::trace!(
             "  <<< timestamp = {:?}, delegated_on_iso_datetime = {:?}",
             timestamp,
@@ -391,6 +389,9 @@ pub async fn get_all_mix_delegations(
             mixnode_is_unbonding
         );
 
+        error_strings.push("Oh no!".to_string());
+        error_strings.push("Oh no, Again!".to_string());
+
         with_everything.push(DelegationWithEverything {
             owner: d.owner,
             mix_id: d.mix_id,
@@ -409,13 +410,14 @@ pub async fn get_all_mix_delegations(
             unclaimed_rewards: accumulated_rewards,
             pending_events,
             mixnode_is_unbonding,
+            errors: if error_strings.is_empty() {
+                None
+            } else {
+                Some(error_strings.join("\n"))
+            },
         })
     }
     log::trace!("<<< {:?}", with_everything);
-
-    if !error_strings.is_empty() {
-        return Err(BackendError::DelegationsListError(error_strings.join("\n")));
-    }
 
     Ok(with_everything)
 }

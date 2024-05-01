@@ -11,7 +11,7 @@ export interface DelegationWithEverything {
   accumulated_by_delegates: DecCoin | null;
   accumulated_by_operator: DecCoin | null;
   block_height: bigint;
-  delegated_on_iso_datetime: string;
+  delegated_on_iso_datetime: string | null;
   cost_params: MixNodeCostParams | null;
   avg_uptime_percent: number | null;
   stake_saturation: string | null;
@@ -19,4 +19,5 @@ export interface DelegationWithEverything {
   unclaimed_rewards: DecCoin | null;
   pending_events: Array<DelegationEvent>;
   mixnode_is_unbonding: boolean | null;
+  errors: string | null;
 }

@@ -50,7 +50,7 @@ pub struct DelegationWithEverything {
     pub accumulated_by_delegates: Option<DecCoin>,
     pub accumulated_by_operator: Option<DecCoin>,
     pub block_height: u64,
-    pub delegated_on_iso_datetime: String,
+    pub delegated_on_iso_datetime: Option<String>,
     pub cost_params: Option<MixNodeCostParams>,
     pub avg_uptime_percent: Option<u8>,
 
@@ -59,6 +59,8 @@ pub struct DelegationWithEverything {
 
     pub uses_vesting_contract_tokens: bool,
     pub unclaimed_rewards: Option<DecCoin>,
+
+    pub errors: Option<String>,
 
     // DEPRECATED, IF POSSIBLE TRY TO DISCONTINUE USE OF IT!
     pub pending_events: Vec<DelegationEvent>,

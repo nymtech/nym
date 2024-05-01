@@ -389,9 +389,6 @@ pub async fn get_all_mix_delegations(
             mixnode_is_unbonding
         );
 
-        error_strings.push("Oh no!".to_string());
-        error_strings.push("Oh no, Again!".to_string());
-
         with_everything.push(DelegationWithEverything {
             owner: d.owner,
             mix_id: d.mix_id,

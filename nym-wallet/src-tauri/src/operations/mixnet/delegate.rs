@@ -175,7 +175,7 @@ pub async fn get_all_mix_delegations(
         .await
         .tap_err(|err| {
             error_strings.push(format!("{}", err));
-            log::error!("  <<< {}", err);
+            log::error!("  <<< Failed to get delegations. Error: {}", err);
         })?;
     log::info!("  <<< {} delegations", delegations.len());
 
@@ -184,7 +184,7 @@ pub async fn get_all_mix_delegations(
             .await
             .tap_err(|err| {
                 error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                log::error!("  <<< Failed to get pending delegations. Error: {}", err);
             })?;
 
     log::info!(
@@ -195,8 +195,12 @@ pub async fn get_all_mix_delegations(
     let mut with_everything: Vec<DelegationWithEverything> = Vec::with_capacity(delegations.len());
 
     for delegation in delegations {
-        let d = Delegation::from_mixnet_contract(delegation, reg).tap_err(|err| {
-            log::error!("  <<< {}", err);
+        let d = Delegation::from_mixnet_contract(delegation.clone(), reg).tap_err(|err| {
+            log::error!(
+                "  <<< Failed to get delegation for mix id {} from contract. Error: {}",
+                delegation.mix_id,
+                err
+            );
         })?;
 
         let uses_vesting_contract_tokens = d
@@ -216,8 +220,12 @@ pub async fn get_all_mix_delegations(
             .get_mixnode_details(d.mix_id)
             .await
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                let str_err = format!(
+                    "Failed to get mixnode details for mix_id = {}. Error: {}",
+                    d.mix_id, err
+                );
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err);
             })?
             .mixnode_details;
 
@@ -228,8 +236,12 @@ pub async fn get_all_mix_delegations(
             })
             .transpose()
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                let str_err = format!(
+                    "Failed to get operator rewards as a display coin for mix_id = {}. Error: {}",
+                    d.mix_id, err
+                );
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err);
             })
             .unwrap_or_default();
 
@@ -240,8 +252,12 @@ pub async fn get_all_mix_delegations(
             })
             .transpose()
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                let str_err = format!(
+                    "Failed to get delegator rewards as a display coin for mix_id = {}. Error: {}",
+                    d.mix_id, err
+                );
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err);
             })
             .unwrap_or_default();
 
@@ -255,8 +271,12 @@ pub async fn get_all_mix_delegations(
             })
             .transpose()
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                let str_err = format!(
+                    "Failed to mixnode cost params for mix_id = {}. Error: {}",
+                    d.mix_id, err
+                );
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err);
             })
             .unwrap_or_default();
 
@@ -266,8 +286,12 @@ pub async fn get_all_mix_delegations(
             .get_pending_delegator_reward(&address, d.mix_id, d.proxy.clone())
             .await
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                let str_err = format!(
+                    "Failed to get accumulated rewards for mix_id = {}. Error: {}",
+                    d.mix_id, err
+                );
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err);
             })
             .unwrap_or_default();
 
@@ -276,8 +300,9 @@ pub async fn get_all_mix_delegations(
                 let amount = guard
                     .attempt_convert_to_display_dec_coin(reward.clone().into())
                     .tap_err(|err| {
-                        error_strings.push(format!("{}", err));
-                        log::error!("  <<< {}", err);
+                        let str_err = format!("Failed to get convert reward to a display coin for mix_id = {}. Error: {}", d.mix_id, err);
+                        log::error!("  <<< {}", str_err);
+                        error_strings.push(str_err);
                     })
                     .ok();
                 log::trace!(
@@ -299,8 +324,12 @@ pub async fn get_all_mix_delegations(
             .get_mixnode_stake_saturation(d.mix_id)
             .await
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                let str_err = format!(
+                    "Failed to get stake saturation for mix_id = {}. Error: {}",
+                    d.mix_id, err
+                );
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err);
             })
             .unwrap_or(StakeSaturationResponse {
                 mix_id: d.mix_id,
@@ -318,8 +347,12 @@ pub async fn get_all_mix_delegations(
             .get_mixnode_avg_uptime(d.mix_id)
             .await
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                let str_err = format!(
+                    "Failed to get average uptime percentage for mix_id = {}. Error: {}",
+                    d.mix_id, err
+                );
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err);
             })
             .ok()
             .map(|r| r.avg_uptime);
@@ -334,8 +367,9 @@ pub async fn get_all_mix_delegations(
             .get_block_timestamp(Some(d.height as u32))
             .await
             .tap_err(|err| {
-                error_strings.push(format!("{}", err));
-                log::error!("  <<< {}", err);
+                let str_err = format!("Failed to get block timestamp for height = {} for delegation to mix_id = {}. Error: {}", d.height, d.mix_id, err);
+                log::error!("  <<< {}", str_err);
+                error_strings.push(str_err);
             })?;
         let delegated_on_iso_datetime = timestamp.to_rfc3339();
         log::trace!(

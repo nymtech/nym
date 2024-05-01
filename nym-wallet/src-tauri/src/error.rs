@@ -155,6 +155,9 @@ pub enum BackendError {
 
     #[error("This command ({name}) has been removed. Please try to use {alternative} instead.")]
     RemovedCommand { name: String, alternative: String },
+
+    #[error("Unable to get list of delegations, errors: {0}")]
+    DelegationsListError(String),
 }
 
 impl Serialize for BackendError {

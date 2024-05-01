@@ -1,8 +1,8 @@
 import React from 'react';
-import { Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
-import { LockOutlined } from '@mui/icons-material';
+import { LockOutlined, WarningAmberOutlined } from '@mui/icons-material';
 import { isDelegation } from 'src/context/delegations';
 import { toPercentIntegerString } from 'src/utils';
 import { format } from 'date-fns';
@@ -45,12 +45,10 @@ export const DelegationItem = ({
           {nodeIsUnbonded ? (
             '-'
           ) : (
-            <>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
               {item.errors && (
-                <Tooltip title={<pre>{item.errors}</pre>}>
-                  <Typography mr={1} component="span">
-                    ⚠️
-                  </Typography>
+                <Tooltip title={<pre style={{ whiteSpace: 'pre-wrap' }}>{item.errors}</pre>}>
+                  <WarningAmberOutlined color="warning" sx={{ mr: 1 }} />
                 </Tooltip>
               )}
               <Link
@@ -60,7 +58,7 @@ export const DelegationItem = ({
                 color="text.primary"
                 noIcon
               />
-            </>
+            </Box>
           )}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>

@@ -98,25 +98,30 @@ pub(crate) struct NodeDescription {
     pub(crate) location: String,
 }
 
-#[derive(Serialize, Clone, Deserialize, JsonSchema)]
+#[derive(Serialize, Clone, Deserialize, JsonSchema, Debug)]
 pub(crate) struct NodeStats {
     #[serde(
         serialize_with = "humantime_serde::serialize",
         deserialize_with = "humantime_serde::deserialize"
     )]
     update_time: SystemTime,
-
     #[serde(
         serialize_with = "humantime_serde::serialize",
         deserialize_with = "humantime_serde::deserialize"
     )]
     previous_update_time: SystemTime,
 
+    #[serde(alias = "received_since_startup", default)]
     packets_received_since_startup: u64,
+    #[serde(alias = "sent_since_startup", default)]
     packets_sent_since_startup: u64,
+    #[serde(alias = "dropped_since_startup", default)]
     packets_explicitly_dropped_since_startup: u64,
+    #[serde(alias = "received_since_last_update", default)]
     packets_received_since_last_update: u64,
+    #[serde(alias = "sent_since_last_update", default)]
     packets_sent_since_last_update: u64,
+    #[serde(alias = "dropped_since_last_update", default)]
     packets_explicitly_dropped_since_last_update: u64,
 }
 

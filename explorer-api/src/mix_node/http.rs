@@ -34,7 +34,7 @@ async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescripti
     let first_try = reqwest::get(format!("http://{host}:{port}/description")).await;
 
     match first_try {
-        //fallback for new endpoint for nym-nodes
+        // new endpoint for nym-nodes
         Ok(response) => response.json::<NodeDescription>().await,
         Err(_) => {
             let second_try = reqwest::get(format!("http://{host}:{port}/api/v1/description")).await;
@@ -44,19 +44,25 @@ async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescripti
 }
 
 async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestError> {
-    let first_try = reqwest::get(format!("http://{host}:{port}/stats")).await;
+    // old endpoint for nym-mixnodes
+    let primary_url = format!("http://{host}:{port}/stats");
+    // new endpoint for nym-nodes
+    let secondary_url = format!("http://{host}:{port}/api/v1/metrics/mixing");
 
-    match first_try {
-        Ok(response) => response.json::<NodeStats>().await,
-        Err(_) => {
-            //fallback for new endpoint for nym-nodes
-            let second_try =
-                reqwest::get(format!("http://{host}:{port}/api/v1/metrics/mixing")).await;
-            second_try?.json::<NodeStats>().await
+    let primary_response = reqwest::get(&primary_url).await;
+    if let Ok(response) = primary_response {
+        if let Ok(stats) = response.json::<NodeStats>().await {
+            return Ok(stats);
         }
     }
-}
 
+    let secondary_response = reqwest::get(&secondary_url).await;
+    if let Ok(response) = secondary_response {
+        return response.json::<NodeStats>().await;
+    }
+
+    Err("failed to fetch stats from both endpoints")
+}
 #[openapi(tag = "mix_nodes")]
 #[get("/<mix_id>")]
 pub(crate) async fn get_by_id(

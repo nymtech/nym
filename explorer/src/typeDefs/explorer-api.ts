@@ -169,10 +169,14 @@ export interface GatewayReportResponse {
 export type GatewayHistoryResponse = StatsResponse;
 
 export interface MixNodeDescriptionResponse {
-  name: string;
-  description: string;
-  link: string;
-  location: string;
+  name?: string;
+  description?: string;
+  link?: string;
+  location?: string;
+  moniker?: string;
+  website?: string;
+  security_contact?: string;
+  details?: string;
 }
 
 export type MixNodeStatsResponse = StatsResponse;

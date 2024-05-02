@@ -92,10 +92,60 @@ impl ThreadsafeMixNodeCache {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub(crate) struct NodeDescription {
-    pub(crate) name: String,
-    pub(crate) description: String,
-    pub(crate) link: String,
-    pub(crate) location: String,
+    pub(crate) name: Option<String>,
+    pub(crate) description: Option<String>,
+    pub(crate) link: Option<String>,
+    pub(crate) location: Option<String>,
+    pub(crate) moniker: Option<String>,
+    pub(crate) website: Option<String>,
+    pub(crate) security_contact: Option<String>,
+    pub(crate) details: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct OldModelDescription {
+    name: String,
+    description: String,
+    link: String,
+    location: String,
+}
+
+#[derive(Deserialize)]
+struct NewModelDescription {
+    moniker: String,
+    website: String,
+    security_contact: String,
+    details: String,
+}
+
+impl From<OldModelDescription> for NodeDescription {
+    fn from(old: OldModelDescription) -> Self {
+        NodeDescription {
+            name: Some(old.name),
+            description: Some(old.description),
+            link: Some(old.link),
+            location: Some(old.location),
+            moniker: None,
+            website: None,
+            security_contact: None,
+            details: None,
+        }
+    }
+}
+
+impl From<NewModelDescription> for NodeDescription {
+    fn from(new: NewModelDescription) -> Self {
+        NodeDescription {
+            name: None,
+            description: Some(new.details),
+            link: Some(new.website),
+            location: None,
+            moniker: Some(new.moniker),
+            website: None,
+            security_contact: Some(new.security_contact),
+            details: None,
+        }
+    }
 }
 
 #[derive(Serialize, Clone, Deserialize, JsonSchema, Debug)]

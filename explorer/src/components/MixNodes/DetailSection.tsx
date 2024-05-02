@@ -11,11 +11,14 @@ interface MixNodeDetailProps {
   mixnodeDescription: MixNodeDescriptionResponse;
 }
 
-export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNodeRow, mixnodeDescription }) => {
+export const MixNodeDetailSection: React.FC<MixNodeDetailProps> = ({ mixNodeRow, mixnodeDescription }) => {
   const theme = useTheme();
-  const palette = [theme.palette.text.primary];
   const isMobile = useIsMobile();
   const statusText = React.useMemo(() => getMixNodeStatusText(mixNodeRow.status), [mixNodeRow.status]);
+
+  const title = mixnodeDescription.name || mixnodeDescription.moniker || "Unknown Node";
+  const description = mixnodeDescription.description || mixnodeDescription.details || "No description available.";
+  const link = mixnodeDescription.link || mixnodeDescription.website || '#';
 
   return (
     <Grid container>
@@ -35,11 +38,11 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
               placeItems: 'center',
             }}
           >
-            <Identicon size={43} string={mixNodeRow.identity_key} palette={palette} />
+            <Identicon size={43} string={mixNodeRow.identity_key} />
           </Box>
           <Box ml={isMobile ? 0 : 2} mt={isMobile ? 2 : 0}>
-            <Typography fontSize={21}>{mixnodeDescription.name}</Typography>
-            <Typography>{(mixnodeDescription.description || '').slice(0, 1000)}</Typography>
+            <Typography fontSize={21}>{title}</Typography>
+            <Typography>{description.slice(0, 1000)}</Typography>
             <Button
               component="a"
               variant="text"
@@ -49,7 +52,7 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
                 fontWeight: 600,
                 padding: 0,
               }}
-              href={mixnodeDescription.link}
+              href={link}
               target="_blank"
             >
               <Typography
@@ -59,7 +62,7 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
                 overflow="hidden"
                 maxWidth="250px"
               >
-                {mixnodeDescription.link}
+                Visit Node
               </Typography>
             </Button>
           </Box>

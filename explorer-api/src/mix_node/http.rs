@@ -41,10 +41,10 @@ async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescripti
     if let Ok(description) = first_response
         .error_for_status()
         .context("Nym-mixnodes /stats url returned error status")?
-        .json::<NodeDescription>()
+        .json::<OldModelDescription>()
         .await
     {
-        return Ok(description);
+        return Ok(description.into());
     }
 
     let second_url = format!("http://{host}:{port}/api/v1/description");
@@ -53,14 +53,15 @@ async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescripti
         second_url
     ))?;
 
-    second_response
+    let description = second_response
         .error_for_status()
         .context("Nym-node /api/v1/description url returned error status")?
-        .json::<NodeDescription>()
+        .json::<NewModelDescription>()
         .await
-        .context("Failed to parse JSON from nym-node /api/v1/description url")
-}
+        .context("Failed to parse JSON from nym-node /api/v1/description url")?;
 
+    Ok(description.into())
+}
 pub async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats> {
     let primary_url = format!("http://{host}:{port}/stats");
     let secondary_url = format!("http://{host}:{port}/api/v1/metrics/mixing");

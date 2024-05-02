@@ -276,6 +276,8 @@ less ~/.nym/nym-nodes/default-nym-node/config/config.toml
 
 4. Reload your [systemd service daemon](#systemd) and restart the service or simply restart the node if you don't use automation
 
+5. If everything works fine, you can consider removing your old config directory.
+
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 

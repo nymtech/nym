@@ -205,33 +205,30 @@ This lets your operating system know it's ok to reload the service configuration
 
 ## Moving a node
 
-In case of a need to move a node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
-
-The following examples transfers a Mix Node (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
-
-* Pause your node process.
+In case of a need to move a Nym Node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
 
 Assuming both machines are remote VPS.
 
-* Make sure your `~/.ssh/<YOUR_KEY>.pub` is in both of the machines `~/.ssh/authorized_keys` file
+* Make sure your `~/.ssh/<YOUR_KEY>.pub` is in both of the servers `~/.ssh/authorized_keys` file
 * Create a `nym-nodes` folder in the target VPS. SSH in from your terminal and run:
 
 ```sh
 # in case none of the nym configs was created previously
 mkdir ~/.nym
 
-#in case no nym Mix Node was initialized previously
+#in case no nym Nym Node was initialized previously
 mkdir ~/.nym/nym-nodes
 ```
-* Move the node data (keys) and config file to the new machine by opening your **local terminal** (as that one's ssh key is authorized in both of the machines) and running:
+* Move the node data (keys) and config file to the new machine by opening your **local terminal** (as that one's ssh key is authorized in both of the VPS) and running:
 ```sh
 scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/nym-nodes/
 ```
-* Re-initialise (`run` command) the node to generate a config with the new listening address.
+
+**On new/target machine**
+
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP.
+* Setup the [systemd](#systemd) automation, reload the daemon and run the service, or just simply run the node if you don't use automation
 * Change the node smart contract info via the wallet interface. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks.
-* Re-run the node from the new location.
-
-
 
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.

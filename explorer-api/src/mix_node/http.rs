@@ -11,7 +11,7 @@ use crate::mix_node::models::{
 use crate::state::ExplorerApiStateContext;
 use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
 use nym_mixnet_contract_common::{Delegation, MixId};
-use reqwest::Error as ReqwestError;
+use reqwest::{Error as ReqwestError, Response, StatusCode};
 use rocket::response::status::NotFound;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
@@ -61,8 +61,14 @@ async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestE
         return response.json::<NodeStats>().await;
     }
 
-    Err("failed to fetch stats from both endpoints")
+    Err(reqwest::Error::from(
+        reqwest::Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .body("Failed to fetch stats from both endpoints".into())
+            .unwrap()
+    ))
 }
+
 #[openapi(tag = "mix_nodes")]
 #[get("/<mix_id>")]
 pub(crate) async fn get_by_id(

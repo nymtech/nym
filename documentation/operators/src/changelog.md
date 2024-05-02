@@ -7,7 +7,7 @@ This page displays a full list of all the changes during our release cycle from 
 - Release [Changelog.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md)
 - [`nym-node`](nodes/nym-node.md) initial release
 - New tool for monitoring Gateways performance [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net)
-- New versioning `1.1.0+nymnode` can be seen as a misnomer, used internally to monitor migration testing, not necessary for operational use. We plan to correct this in a future release to ensure that mixnodes feature correctly in the main API
+- New versioning `1.1.0+nymnode` mainly for internal migration testing, not essential for operational use. We aim to correct this in a future release to ensure mixnodes feature correctly in the main API
 - New [VPS specs & configuration](nodes/vps-setup.md) page
 - New [configuration page](nodes/configuration.md) with [connectivity setup guide](nodes/configuration.md#connectivity-test-and-configuration) - a new requirement for `exit-gateway`
 - API endpoints redirection: Nym-mixnode and nym-gateway endpoints will eventually be deprecated; due to this, their endpoints will be redirected to new routes once the `nym-node` has been migrated and is running

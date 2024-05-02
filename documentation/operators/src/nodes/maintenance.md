@@ -232,9 +232,9 @@ scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER
 
 ## Rename node local ID
 
-Local node ID (not the identity key) is a name chosen by operators which defines where the configuration data and files will be stored, where the ID determines the path to `~/.nym/nym-nodes/<ID>/`. This ID is never shared on the network.
+Local node ID (not the identity key) is a name chosen by operators which defines where the nodes configuration data will be stored, where the ID determines the path to `~/.nym/nym-nodes/<ID>/`. This ID is never shared on the network.
 
-Since the migration to [`nym-node`](nym-node.md), the use of ID as a flag `--ID <ID>` is not mandatory anymore when starting a new node. Nodes without an ID specified will be asigned an ID `default-nym-node`. The management of nodes is simplified and it makes an easier flow for automation scripts like ansible for oprators managing multiple nodes on multiple servers as everything is stored at `~/.nym/nym-nodes/default-nym-node`.
+Since the migration to [`nym-node`](nym-node.md), the use of ID as a flag `--ID <ID>` is no longer required when starting a new node. Nodes without an ID specified will be asigned an ID `default-nym-node`. The management of nodes is simplified and it makes it especially easier for operators managing multiple nodes through ansible and other automation scripts, as everything is stored at `~/.nym/nym-nodes/default-nym-node`.
 
 If you already operate a `nym-node` and wish to change the local ID to `default-nym-node` or anything else, follow the steps below to do so.
 
@@ -253,14 +253,15 @@ cp -r  ~/.nym/nym-nodes/<SOURCE_ID> ~/.nym/nym-nodes/default-nym-node/
 # check occurences of the <SOURCE_ID>
 grep -r  "<SOURCE_ID" ~/.nym/nym-nodes/default-nym-node/*
 ```
-```admonish bug
+```admonish bug title="Caution!"
 If your node `<SOURCE_ID>` is too generic (like `gateway` etc) and it occurs elsewhere than just a custom value, **do not use `sed` command but rewrite the values manually using a text editor!**
 ```
+
 ```sh
 # rename it by using sed command
 sed -i -e "s/<SOURCE_ID>/default-nym-node/g" ~/.nym/nym-nodes/default-nym-node/config/config.toml
 
-# or manually by opening config.toml and rewritingeach occurence of your <SOURCE_ID>
+# or manually by opening config.toml and rewriting each occurence of <SOURCE_ID>
 nano ~/.nym/nym-nodes/default-nym-node/config/config.toml
 ```
 
@@ -276,7 +277,7 @@ less ~/.nym/nym-nodes/default-nym-node/config/config.toml
 
 4. Reload your [systemd service daemon](#systemd) and restart the service or simply restart the node if you don't use automation
 
-5. If everything works fine, you can consider removing your old config directory.
+5. If you double-checked that everything works fine, you can consider removing your old config directory
 
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.

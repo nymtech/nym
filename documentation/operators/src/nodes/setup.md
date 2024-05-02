@@ -281,6 +281,8 @@ Run the node with custom `--id` without initialising:
 Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). For backward compatibility we created an [archive section](../archive/setup-guides.md) with all the guides for individual binaries. However, the binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command.
 ```
 
+Operators who are about to migrate their nodes need to configure their [VPS](vps-setup.md) and setup `nym-node` which can be downloaded as a [pre-built binary](../binaries/pre-built-binaries.md) or compiled from [source](../binaries/building-nym.md).
+
 To migrate a `nym-mixnode` or a `nym-gateway` to `nym-node` is fairly simple, use the `migrate` command with `--config-file` flag pointing to the original `config.toml` file, with a conditional argument defining which type of node this configuration belongs to. Examples are below.
 
 Make sure to use `--deny-init` flag to prevent initialisation of a new node.

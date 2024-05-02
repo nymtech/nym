@@ -203,7 +203,7 @@ alongside diagnostics for verifying system settings and network connectivity.
 ```
 ~~~
 
-  - To run the script next time, just enter `./network_tunnel_manager.`
+  - To run the script next time, just enter `./network_tunnel_manager <ARG>`
 
 2. Make sure your `nym-node --mode exit-gateway` service is up running
 

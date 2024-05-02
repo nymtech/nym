@@ -31,17 +31,30 @@ pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, 
 }
 
 async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescription, ReqwestError> {
-    reqwest::get(format!("http://{host}:{port}/description"))
-        .await?
-        .json::<NodeDescription>()
-        .await
+    let first_try = reqwest::get(format!("http://{host}:{port}/description")).await;
+
+    match first_try {
+        //fallback for new endpoint for nym-nodes
+        Ok(response) => response.json::<NodeDescription>().await,
+        Err(_) => {
+            let second_try = reqwest::get(format!("http://{host}:{port}/api/v1/description")).await;
+            second_try?.json::<NodeDescription>().await
+        }
+    }
 }
 
 async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestError> {
-    reqwest::get(format!("http://{host}:{port}/stats"))
-        .await?
-        .json::<NodeStats>()
-        .await
+    let first_try = reqwest::get(format!("http://{host}:{port}/stats")).await;
+
+    match first_try {
+        Ok(response) => response.json::<NodeStats>().await,
+        Err(_) => {
+            //fallback for new endpoint for nym-nodes
+            let second_try =
+                reqwest::get(format!("http://{host}:{port}/api/v1/metrics/mixing")).await;
+            second_try?.json::<NodeStats>().await
+        }
+    }
 }
 
 #[openapi(tag = "mix_nodes")]

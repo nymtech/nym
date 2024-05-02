@@ -7,6 +7,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.82"
 chrono = { version = "0.4.31", features = ["serde"] }
 clap = { workspace = true, features = ["cargo", "derive"] }
 dotenvy = { workspace = true }

@@ -9,6 +9,7 @@ use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
+use anyhow::{anyhow, Result};
 use log::debug;
 use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
 use nym_mixnet_contract_common::{Delegation, MixId};
@@ -44,7 +45,7 @@ async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescripti
     }
 }
 
-async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestError> {
+async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, anyhow::Error> {
     // old endpoint for nym-mixnodes
     let primary_url = format!("http://{host}:{port}/stats");
     // new endpoint for nym-nodes
@@ -63,7 +64,7 @@ async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestE
     }
 
     debug!("Failed to fetch stats from both endpoints: {primary_url} and {secondary_url}");
-    Err(reqwest::Error::status(StatusCode::INTERNAL_SERVER_ERROR))
+    Err(anyhow!("Failed to fetch stats from both endpoints"))
 }
 
 #[openapi(tag = "mix_nodes")]

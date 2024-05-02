@@ -65,7 +65,7 @@ async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestE
         reqwest::Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .body("Failed to fetch stats from both endpoints".into())
-            .unwrap()
+            .unwrap(),
     ))
 }
 

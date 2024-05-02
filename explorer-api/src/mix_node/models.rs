@@ -103,19 +103,19 @@ pub(crate) struct NodeDescription {
 }
 
 #[derive(Deserialize)]
-struct OldModelDescription {
-    name: String,
-    description: String,
-    link: String,
-    location: String,
+pub struct OldModelDescription {
+    pub name: String,
+    pub description: String,
+    pub link: String,
+    pub location: String,
 }
 
 #[derive(Deserialize)]
-struct NewModelDescription {
-    moniker: String,
-    website: String,
-    security_contact: String,
-    details: String,
+pub struct NewModelDescription {
+    pub moniker: String,
+    pub website: String,
+    pub security_contact: String,
+    pub details: String,
 }
 
 impl From<OldModelDescription> for NodeDescription {

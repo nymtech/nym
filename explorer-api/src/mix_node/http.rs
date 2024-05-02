@@ -9,9 +9,11 @@ use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
+use crate::mix_node::models::{NewModelDescription, OldModelDescription};
 use anyhow::{Context, Result};
 
 use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
+
 use nym_mixnet_contract_common::{Delegation, MixId};
 use rocket::response::status::NotFound;
 use rocket::serde::json::Json;

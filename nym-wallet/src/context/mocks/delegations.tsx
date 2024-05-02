@@ -71,6 +71,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
   const [error, setError] = useState<string>();
   const [delegations, setDelegations] = useState<undefined | DelegationWithEverything[]>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
+  const [delegationItemErrors, setDelegationItemErrors] = useState<{ nodeId: string; errors: string }>();
 
   const triggerStateUpdate = () => setTrigger(new Date());
 
@@ -232,6 +233,8 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
 
   const memoizedValue = useMemo(
     () => ({
+      delegationItemErrors,
+      setDelegationItemErrors,
       isLoading,
       error,
       delegations,

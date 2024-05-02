@@ -3,7 +3,7 @@ import { Box, Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from 
 import { Link } from '@nymproject/react/link/Link';
 import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
 import { LockOutlined, WarningAmberOutlined } from '@mui/icons-material';
-import { isDelegation } from 'src/context/delegations';
+import { isDelegation, useDelegationContext } from 'src/context/delegations';
 import { toPercentIntegerString } from 'src/utils';
 import { format } from 'date-fns';
 import { Undelegate } from 'src/svg-icons';
@@ -29,6 +29,8 @@ export const DelegationItem = ({
   nodeIsUnbonded: boolean;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
 }) => {
+  const { setDelegationItemErrors } = useDelegationContext();
+
   const operatingCost = isDelegation(item) && item.cost_params?.interval_operating_cost;
 
   const tooltipText = () => {
@@ -47,8 +49,14 @@ export const DelegationItem = ({
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               {item.errors && (
-                <Tooltip title={<pre style={{ whiteSpace: 'pre-wrap' }}>{item.errors}</pre>}>
-                  <WarningAmberOutlined color="warning" sx={{ mr: 1 }} />
+                <Tooltip title="Open to view a list of errors that occurred">
+                  <IconButton
+                    sx={{ mr: 1 }}
+                    size="small"
+                    onClick={() => setDelegationItemErrors({ nodeId: item.node_identity, errors: item.errors! })}
+                  >
+                    <WarningAmberOutlined color="warning" fontSize="small" />
+                  </IconButton>
                 </Tooltip>
               )}
               <Link

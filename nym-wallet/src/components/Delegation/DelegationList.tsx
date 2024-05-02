@@ -8,7 +8,8 @@ import { DelegationListItemActions } from './DelegationActions';
 import { DelegationItem } from './DelegationItem';
 import { PendingDelegationItem } from './PendingDelegationItem';
 import { LoadingModal } from '../Modals/LoadingModal';
-import { isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
+import { isDelegation, isPendingDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
+import { ErrorModal } from '../Modals/ErrorModal';
 
 export type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
@@ -94,6 +95,8 @@ export const DelegationList: FCWithChildren<{
   const [order, setOrder] = React.useState<Order>('asc');
   const [orderBy, setOrderBy] = React.useState<SortingKeys>('delegated_on_iso_datetime');
 
+  const { delegationItemErrors, setDelegationItemErrors } = useDelegationContext();
+
   const handleRequestSort = (_: React.MouseEvent<unknown>, property: any) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -105,6 +108,12 @@ export const DelegationList: FCWithChildren<{
   return (
     <TableContainer>
       {isLoading && <LoadingModal text="Please wait. Refreshing..." />}
+      <ErrorModal
+        open={Boolean(delegationItemErrors)}
+        title={`Delegation errors for Node ID ${delegationItemErrors?.nodeId || 'unknown'}`}
+        message={delegationItemErrors?.errors || 'opps'}
+        onClose={() => setDelegationItemErrors(undefined)}
+      />
       <Table sx={{ width: '100%' }}>
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>

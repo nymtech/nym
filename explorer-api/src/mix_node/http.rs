@@ -38,18 +38,19 @@ async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescripti
         first_url
     ))?;
 
-    if let Ok(description) = first_response
+    match first_response
         .error_for_status()
-        .context("Nym-mixnodes /stats url returned error status")?
+        .context("Nym-mixnodes /description url returned error status")?
         .json::<OldModelDescription>()
         .await
     {
-        return Ok(description.into());
+        Ok(description) => return Ok(description.into()),
+        Err(e) => log::warn!("Failed to parse old model description: {}", e),
     }
 
     let second_url = format!("http://{host}:{port}/api/v1/description");
     let second_response = reqwest::get(&second_url).await.context(format!(
-        "Failed to fetch description from /api/v1/description nym-node url: {}",
+        "Failed to fetch description from nym-node /api/v1/description url: {}",
         second_url
     ))?;
 
@@ -62,6 +63,7 @@ async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescripti
 
     Ok(description.into())
 }
+
 pub async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats> {
     let primary_url = format!("http://{host}:{port}/stats");
     let secondary_url = format!("http://{host}:{port}/api/v1/metrics/mixing");
@@ -69,12 +71,14 @@ pub async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats> {
     let primary_response = reqwest::get(&primary_url)
         .await
         .context("Failed to fetch from primary nym-mixnode /stats url")?;
-    if let Ok(stats) = primary_response
+    let primary_stats = primary_response
         .error_for_status()
         .context("Nym-mixnode url returned error status")?
         .json::<NodeStats>()
         .await
-    {
+        .context("Failed to parse JSON from primary nym-mixnode /stats url");
+
+    if let Ok(stats) = primary_stats {
         return Ok(stats);
     }
 

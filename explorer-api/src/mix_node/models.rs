@@ -111,17 +111,17 @@ pub(crate) struct NodeStats {
     )]
     previous_update_time: SystemTime,
 
-    #[serde(alias = "received_since_startup", default)]
+    #[serde(alias = "received_since_startup")]
     packets_received_since_startup: u64,
-    #[serde(alias = "sent_since_startup", default)]
+    #[serde(alias = "sent_since_startup")]
     packets_sent_since_startup: u64,
-    #[serde(alias = "dropped_since_startup", default)]
+    #[serde(alias = "dropped_since_startup")]
     packets_explicitly_dropped_since_startup: u64,
-    #[serde(alias = "received_since_last_update", default)]
+    #[serde(alias = "received_since_last_update")]
     packets_received_since_last_update: u64,
-    #[serde(alias = "sent_since_last_update", default)]
+    #[serde(alias = "sent_since_last_update")]
     packets_sent_since_last_update: u64,
-    #[serde(alias = "dropped_since_last_update", default)]
+    #[serde(alias = "dropped_since_last_update")]
     packets_explicitly_dropped_since_last_update: u64,
 }
 

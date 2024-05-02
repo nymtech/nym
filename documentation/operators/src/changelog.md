@@ -1,11 +1,11 @@
 # Changelog
 
-This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted in a way that the most recent changes are at the top.
+This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
 ## `v2024.3-eclipse`
 
 - Release [Changelog.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md)
-- The [`nym-node`](nodes/nym-node.md) initial release
+- [`nym-node`](nodes/nym-node.md) initial release
 - New tool for monitoring Gateways performance [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net)
 - New versioning `1.1.0+nymnode` can be seen as a misnomer, used internally to monitor migration testing, not necessary for operational use. We plan to correct this in a future release to ensure that mixnodes feature correctly in the main API
 - New [VPS specs & configuration](nodes/vps-setup.md) page

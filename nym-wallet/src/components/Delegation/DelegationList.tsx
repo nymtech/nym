@@ -111,7 +111,7 @@ export const DelegationList: FCWithChildren<{
       <ErrorModal
         open={Boolean(delegationItemErrors)}
         title={`Delegation errors for Node ID ${delegationItemErrors?.nodeId || 'unknown'}`}
-        message={delegationItemErrors?.errors || 'opps'}
+        message={delegationItemErrors?.errors || 'oops'}
         onClose={() => setDelegationItemErrors(undefined)}
       />
       <Table sx={{ width: '100%' }}>

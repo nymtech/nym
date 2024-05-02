@@ -9,11 +9,10 @@ use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
-use anyhow::{anyhow, Result};
-use log::debug;
+use anyhow::{Context, Result};
+
 use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
 use nym_mixnet_contract_common::{Delegation, MixId};
-use reqwest::{Error as ReqwestError, StatusCode};
 use rocket::response::status::NotFound;
 use rocket::serde::json::Json;
 use rocket::{Route, State};
@@ -32,39 +31,62 @@ pub fn mix_node_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, 
     ]
 }
 
-async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescription, ReqwestError> {
-    let first_try = reqwest::get(format!("http://{host}:{port}/description")).await;
+async fn get_mix_node_description(host: &str, port: u16) -> Result<NodeDescription> {
+    let first_url = format!("http://{host}:{port}/description");
+    let first_response = reqwest::get(&first_url).await.context(format!(
+        "Failed to fetch description from nym-mixnode /description url: {}",
+        first_url
+    ))?;
 
-    match first_try {
-        // new endpoint for nym-nodes
-        Ok(response) => response.json::<NodeDescription>().await,
-        Err(_) => {
-            let second_try = reqwest::get(format!("http://{host}:{port}/api/v1/description")).await;
-            second_try?.json::<NodeDescription>().await
-        }
+    if let Ok(description) = first_response
+        .error_for_status()
+        .context("Nym-mixnodes /stats url returned error status")?
+        .json::<NodeDescription>()
+        .await
+    {
+        return Ok(description);
     }
+
+    let second_url = format!("http://{host}:{port}/api/v1/description");
+    let second_response = reqwest::get(&second_url).await.context(format!(
+        "Failed to fetch description from /api/v1/description nym-node url: {}",
+        second_url
+    ))?;
+
+    second_response
+        .error_for_status()
+        .context("Nym-node /api/v1/description url returned error status")?
+        .json::<NodeDescription>()
+        .await
+        .context("Failed to parse JSON from nym-node /api/v1/description url")
 }
 
-async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, anyhow::Error> {
-    // old endpoint for nym-mixnodes
+pub async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats> {
     let primary_url = format!("http://{host}:{port}/stats");
-    // new endpoint for nym-nodes
     let secondary_url = format!("http://{host}:{port}/api/v1/metrics/mixing");
 
-    let primary_response = reqwest::get(&primary_url).await;
-    if let Ok(response) = primary_response {
-        if let Ok(stats) = response.json::<NodeStats>().await {
-            return Ok(stats);
-        }
+    let primary_response = reqwest::get(&primary_url)
+        .await
+        .context("Failed to fetch from primary nym-mixnode /stats url")?;
+    if let Ok(stats) = primary_response
+        .error_for_status()
+        .context("Nym-mixnode url returned error status")?
+        .json::<NodeStats>()
+        .await
+    {
+        return Ok(stats);
     }
 
-    let secondary_response = reqwest::get(&secondary_url).await;
-    if let Ok(response) = secondary_response {
-        return response.json::<NodeStats>().await;
-    }
-
-    debug!("Failed to fetch stats from both endpoints: {primary_url} and {secondary_url}");
-    Err(anyhow!("Failed to fetch stats from both endpoints"))
+    let secondary_response = reqwest::get(&secondary_url)
+        .await
+        .context("Failed to fetch from nym-node /api/v1/metrics/mixing url")?;
+    let stats = secondary_response
+        .error_for_status()
+        .context("Nym-node /api/v1/metrics/mixing returned error status")?
+        .json::<NodeStats>()
+        .await
+        .context("Failed to parse JSON from nym-node /api/v1/metrics/mixing")?;
+    Ok(stats)
 }
 
 #[openapi(tag = "mix_nodes")]

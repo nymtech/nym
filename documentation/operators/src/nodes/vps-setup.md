@@ -58,6 +58,22 @@ To install a full node from scratch, refer to the [validator setup guide](valida
 
 Before node or validator setup, the VPS needs to be configured and tested, to verify your connectivity and make sure that your provider wasn't dishonest with the offered services.
 
+### Install Dependencies
+
+SSH to your server as `root` or become one running `sudo -i` or `su`. If you prefer to administrate your VPS from a user environment, supply the commands with prefix `sudo`.
+
+Start with setting up the essential tools on your server.
+```sh
+# get your system up to date
+apt update -y && apt --fix-broken install
+
+# install dependencies
+apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git
+
+# double check ufw is installed correctly
+apt install ufw --fix-missing
+```
+
 ### Configure your Firewall
 
 For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using `ufw`.
@@ -68,33 +84,33 @@ For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on 
 ufw version
 
 # if it is not installed, install with
-sudo apt install ufw -y
+apt install ufw -y
 
 # enable ufw
-sudo ufw enable
+ufw enable
 
 # check the status of the firewall
-sudo ufw status
+ufw status
 ```
 
 2. Open all needed ports to have your firewall working correctly:
 ```sh
 # for nym-node
-sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
+ufw allow 1789,1790,8000,9000,9001,22/tcp
 
 # in case of planning to setup a WSS (for Gateway functionality)
-sudo ufw allow 9001/tcp
+ufw allow 9001/tcp
 
 # in case of reverse proxy for the swagger page (for Gateway optionality)
-sudo ufw allow 8080,80,443
+ufw allow 8080,80,443
 
 # for validator
-sudo ufw allow 1317,26656,26660,22,80,443/tcp
+ufw allow 1317,26656,26660,22,80,443/tcp
 ```
 
 3. Check the status of the firewall:
 ```sh
-sudo ufw status
+ufw status
 ```
 
 For more information about your node's port configuration, check the [port reference table](#ports-reference-table) below.

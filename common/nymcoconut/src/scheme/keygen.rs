@@ -151,10 +151,6 @@ impl Base58 for SecretKey {}
 // TODO: perhaps change points to affine representation
 // to make verification slightly more efficient?
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[cfg_attr(
-    feature = "key-zeroize",
-    derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop)
-)]
 pub struct VerificationKey {
     // TODO add gen2 as per the paper or imply it from the fact library is using bls381?
     pub(crate) alpha: G2Projective,
@@ -411,18 +407,35 @@ impl Bytable for VerificationKey {
 
 impl Base58 for VerificationKey {}
 
+#[derive(Debug, Clone)]
+pub struct VerificationKeyShare {
+    pub key: VerificationKey,
+    pub index: SignerIndex,
+}
+
+impl From<(VerificationKey, SignerIndex)> for VerificationKeyShare {
+    fn from(value: (VerificationKey, SignerIndex)) -> Self {
+        VerificationKeyShare {
+            key: value.0,
+            index: value.1,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq, Eq, Clone))]
-#[cfg_attr(
-    feature = "key-zeroize",
-    derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop)
-)]
 pub struct KeyPair {
     secret_key: SecretKey,
     verification_key: VerificationKey,
 
     /// Optional index value specifying polynomial point used during threshold key generation.
     pub index: Option<SignerIndex>,
+}
+
+impl From<KeyPair> for (SecretKey, VerificationKey) {
+    fn from(value: KeyPair) -> Self {
+        (value.secret_key, value.verification_key)
+    }
 }
 
 impl PemStorableKeyPair for KeyPair {
@@ -459,6 +472,13 @@ impl KeyPair {
 
     pub fn verification_key(&self) -> &VerificationKey {
         &self.verification_key
+    }
+
+    pub fn to_verification_key_share(&self) -> Option<VerificationKeyShare> {
+        self.index.map(|index| VerificationKeyShare {
+            key: self.verification_key.clone(),
+            index,
+        })
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

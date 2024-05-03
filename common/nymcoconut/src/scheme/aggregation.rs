@@ -12,7 +12,7 @@ use crate::error::{CoconutError, Result};
 use crate::scheme::verification::check_bilinear_pairing;
 use crate::scheme::{PartialSignature, Signature, SignatureShare, SignerIndex, VerificationKey};
 use crate::utils::perform_lagrangian_interpolation_at_origin;
-use crate::{Attribute, Parameters};
+use crate::{Attribute, Parameters, VerificationKeyShare};
 
 pub(crate) trait Aggregatable: Sized {
     fn aggregate(aggregatable: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self>;
@@ -80,7 +80,23 @@ pub fn aggregate_verification_keys(
     Aggregatable::aggregate(keys, indices)
 }
 
+pub fn aggregate_key_shares(shares: &[VerificationKeyShare]) -> Result<VerificationKey> {
+    let (keys, indices): (Vec<_>, Vec<_>) = shares
+        .iter()
+        .map(|share| (share.key.clone(), share.index))
+        .unzip();
+
+    aggregate_verification_keys(&keys, Some(&indices))
+}
+
 pub fn aggregate_signatures(
+    signatures: &[PartialSignature],
+    indices: Option<&[SignerIndex]>,
+) -> Result<Signature> {
+    Aggregatable::aggregate(signatures, indices)
+}
+
+pub fn aggregate_signatures_and_verify(
     params: &Parameters,
     verification_key: &VerificationKey,
     attributes: &[&Attribute],
@@ -88,11 +104,7 @@ pub fn aggregate_signatures(
     indices: Option<&[SignerIndex]>,
 ) -> Result<Signature> {
     // aggregate the signature
-
-    let signature = match Aggregatable::aggregate(signatures, indices) {
-        Ok(res) => res,
-        Err(err) => return Err(err),
-    };
+    let signature = aggregate_signatures(signatures, indices)?;
 
     // Verify the signature
     let alpha = verification_key.alpha;
@@ -116,7 +128,16 @@ pub fn aggregate_signatures(
     Ok(signature)
 }
 
-pub fn aggregate_signature_shares(
+pub fn aggregate_signature_shares(shares: &[SignatureShare]) -> Result<Signature> {
+    let (signatures, indices): (Vec<_>, Vec<_>) = shares
+        .iter()
+        .map(|share| (*share.signature(), share.index()))
+        .unzip();
+
+    aggregate_signatures(&signatures, Some(&indices))
+}
+
+pub fn aggregate_signature_shares_and_verify(
     params: &Parameters,
     verification_key: &VerificationKey,
     attributes: &[&Attribute],
@@ -127,7 +148,7 @@ pub fn aggregate_signature_shares(
         .map(|share| (*share.signature(), share.index()))
         .unzip();
 
-    aggregate_signatures(
+    aggregate_signatures_and_verify(
         params,
         verification_key,
         attributes,
@@ -232,7 +253,7 @@ mod tests {
 
         // aggregating (any) threshold works
         let aggr_vk_1 = aggregate_verification_keys(&vks[..3], Some(&[1, 2, 3])).unwrap();
-        let aggr_sig1 = aggregate_signatures(
+        let aggr_sig1 = aggregate_signatures_and_verify(
             &params,
             &aggr_vk_1,
             &attributes,
@@ -242,7 +263,7 @@ mod tests {
         .unwrap();
 
         let aggr_vk_2 = aggregate_verification_keys(&vks[2..], Some(&[3, 4, 5])).unwrap();
-        let aggr_sig2 = aggregate_signatures(
+        let aggr_sig2 = aggregate_signatures_and_verify(
             &params,
             &aggr_vk_1,
             &attributes,
@@ -258,7 +279,7 @@ mod tests {
 
         // aggregating threshold+1 works
         let aggr_vk_more = aggregate_verification_keys(&vks[1..], Some(&[2, 3, 4, 5])).unwrap();
-        let aggr_more = aggregate_signatures(
+        let aggr_more = aggregate_signatures_and_verify(
             &params,
             &aggr_vk_more,
             &attributes,
@@ -270,7 +291,7 @@ mod tests {
 
         // aggregating all
         let aggr_vk_all = aggregate_verification_keys(&vks, Some(&[1, 2, 3, 4, 5])).unwrap();
-        let aggr_all = aggregate_signatures(
+        let aggr_all = aggregate_signatures_and_verify(
             &params,
             &aggr_vk_all,
             &attributes,
@@ -282,7 +303,7 @@ mod tests {
 
         // not taking enough points (threshold was 3) should fail
         let aggr_vk_not_enough = aggregate_verification_keys(&vks[..2], Some(&[1, 2])).unwrap();
-        let aggr_not_enough = aggregate_signatures(
+        let aggr_not_enough = aggregate_signatures_and_verify(
             &params,
             &aggr_vk_not_enough,
             &attributes,
@@ -294,7 +315,7 @@ mod tests {
 
         // taking wrong index should fail
         let aggr_vk_bad = aggregate_verification_keys(&vks[2..], Some(&[1, 2, 3])).unwrap();
-        assert!(aggregate_signatures(
+        assert!(aggregate_signatures_and_verify(
             &params,
             &aggr_vk_bad,
             &attributes,
@@ -330,9 +351,14 @@ mod tests {
             .unzip();
 
         let aggr_vk_all = aggregate_verification_keys(&vks, None).unwrap();
-        assert!(
-            aggregate_signatures(&params, &aggr_vk_all, &attributes, &signatures, None).is_err()
-        );
+        assert!(aggregate_signatures_and_verify(
+            &params,
+            &aggr_vk_all,
+            &attributes,
+            &signatures,
+            None
+        )
+        .is_err());
     }
 
     #[test]
@@ -352,11 +378,15 @@ mod tests {
             .unzip();
         let aggr_vk_all = aggregate_verification_keys(&vks, None).unwrap();
 
-        assert!(
-            aggregate_signatures(&params, &aggr_vk_all, &attributes, &signatures, Some(&[]))
-                .is_err()
-        );
-        assert!(aggregate_signatures(
+        assert!(aggregate_signatures_and_verify(
+            &params,
+            &aggr_vk_all,
+            &attributes,
+            &signatures,
+            Some(&[])
+        )
+        .is_err());
+        assert!(aggregate_signatures_and_verify(
             &params,
             &aggr_vk_all,
             &attributes,
@@ -383,7 +413,7 @@ mod tests {
             .unzip();
         let aggr_vk_all = aggregate_verification_keys(&vks, None).unwrap();
 
-        assert!(aggregate_signatures(
+        assert!(aggregate_signatures_and_verify(
             &params,
             &aggr_vk_all,
             &attributes,

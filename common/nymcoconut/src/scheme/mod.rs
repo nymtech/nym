@@ -70,6 +70,11 @@ impl Signature {
         &self.1
     }
 
+    pub fn randomise_simple(&self, params: &Parameters) -> Signature {
+        let r = params.random_scalar();
+        Signature(self.0 * r, self.1 * r)
+    }
+
     pub fn randomise(&self, params: &Parameters) -> (Signature, Scalar) {
         let r = params.random_scalar();
         let r_prime = params.random_scalar();
@@ -191,7 +196,7 @@ impl BlindedSignature {
         &self,
         partial_verification_key: &VerificationKey,
         pedersen_commitments_openings: &[Scalar],
-    ) -> Result<Signature> {
+    ) -> Signature {
         // parse the signature
         let h = &self.0;
         let c = &self.1;
@@ -204,7 +209,7 @@ impl BlindedSignature {
 
         let unblinded_c = c - blinding_removers;
 
-        Ok(Signature(*h, unblinded_c))
+        Signature(*h, unblinded_c)
     }
 
     pub fn unblind_and_verify(
@@ -216,7 +221,7 @@ impl BlindedSignature {
         commitment_hash: &G1Projective,
         pedersen_commitments_openings: &[Scalar],
     ) -> Result<Signature> {
-        let unblinded = self.unblind(partial_verification_key, pedersen_commitments_openings)?;
+        let unblinded = self.unblind(partial_verification_key, pedersen_commitments_openings);
         unblinded.verify(
             params,
             partial_verification_key,
@@ -240,6 +245,7 @@ impl BlindedSignature {
 }
 
 // perhaps this should take signature by reference? we'll see how it goes
+#[derive(Clone, Copy)]
 pub struct SignatureShare {
     signature: Signature,
     index: SignerIndex,
@@ -276,7 +282,9 @@ impl SignatureShare {
 mod tests {
     use super::*;
     use crate::hash_to_scalar;
-    use crate::scheme::aggregation::{aggregate_signatures, aggregate_verification_keys};
+    use crate::scheme::aggregation::{
+        aggregate_signatures_and_verify, aggregate_verification_keys,
+    };
     use crate::scheme::issuance::{blind_sign, compute_hash, prepare_blind_sign, sign};
     use crate::scheme::keygen::{keygen, ttp_keygen};
     use crate::scheme::verification::{prove_bandwidth_credential, verify, verify_credential};
@@ -568,9 +576,14 @@ mod tests {
         attributes.extend_from_slice(&public_attributes);
 
         let aggr_vk = aggregate_verification_keys(&vks[..2], Some(&[1, 2])).unwrap();
-        let aggr_sig =
-            aggregate_signatures(&params, &aggr_vk, &attributes, &sigs[..2], Some(&[1, 2]))
-                .unwrap();
+        let aggr_sig = aggregate_signatures_and_verify(
+            &params,
+            &aggr_vk,
+            &attributes,
+            &sigs[..2],
+            Some(&[1, 2]),
+        )
+        .unwrap();
 
         let theta = prove_bandwidth_credential(
             &params,
@@ -590,9 +603,14 @@ mod tests {
 
         // taking different subset of keys and credentials
         let aggr_vk = aggregate_verification_keys(&vks[1..], Some(&[2, 3])).unwrap();
-        let aggr_sig =
-            aggregate_signatures(&params, &aggr_vk, &attributes, &sigs[1..], Some(&[2, 3]))
-                .unwrap();
+        let aggr_sig = aggregate_signatures_and_verify(
+            &params,
+            &aggr_vk,
+            &attributes,
+            &sigs[1..],
+            Some(&[2, 3]),
+        )
+        .unwrap();
 
         let theta = prove_bandwidth_credential(
             &params,

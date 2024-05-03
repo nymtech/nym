@@ -13,9 +13,8 @@ use crate::scheme::setup::Parameters;
 use crate::scheme::BlindedSignature;
 use crate::scheme::SecretKey;
 use crate::Attribute;
-/// Creates a Coconut Signature under a given secret key on a set of public attributes only.
-#[cfg(test)]
 use crate::Signature;
+
 // TODO: possibly completely remove those two functions.
 // They only exist to have a simpler and smaller code snippets to test
 // basic functionalities.
@@ -426,9 +425,9 @@ pub fn verify_partial_blind_signature(
         .into()
 }
 
-#[cfg(test)]
+/// Creates a Coconut Signature under a given secret key on a set of public attributes only.
 pub fn sign(
-    params: &mut Parameters,
+    params: &Parameters,
     secret_key: &SecretKey,
     public_attributes: &[&Attribute],
 ) -> Result<Signature> {

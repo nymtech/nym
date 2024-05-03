@@ -21,7 +21,7 @@ macro_rules! wasm_error {
 
         impl From<$struct> for js_sys::Promise {
             fn from(value: $struct) -> Self {
-                Promise::reject(&value.into())
+                js_sys::Promise::reject(&value.into())
             }
         }
     };

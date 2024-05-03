@@ -25,7 +25,7 @@ use wasm_bindgen::prelude::*;
 pub fn main() {
     wasm_utils::console_log!("[rust main]: rust module loaded");
     wasm_utils::console_log!(
-        "wasm client version used: {:#?}",
-        nym_bin_common::bin_info!()
+        "wasm client version used: {}",
+        nym_bin_common::bin_info_owned!()
     );
 }

@@ -17,7 +17,8 @@ fn pretty_build_info_static() -> &'static str {
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
+#[clap(author = "Nymtech", version, about, long_version = pretty_build_in#[derive(Parser)]
+#[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]fo_static())]
 struct Cli {
     /// Path pointing to an env file that configures the mixnode.
     #[clap(short, long)]

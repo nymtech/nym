@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use axum::extract::connect_info::IntoMakeServiceWithConnectInfo;
+use axum::extract::ConnectInfo;
+use axum::middleware::AddExtension;
+use axum::serve::Serve;
 use axum::Router;
-use hyper::server::conn::AddrIncoming;
-use hyper::Server;
 use nym_task::TaskClient;
 use std::net::SocketAddr;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 pub mod error;
 pub mod middleware;
@@ -17,15 +18,18 @@ pub mod state;
 pub use error::NymNodeHttpError;
 pub use router::{api, landing_page, Config, NymNodeRouter};
 
+// I guess this wasn't really meant to be extracted into separate type haha
+type InnerService = IntoMakeServiceWithConnectInfo<Router, SocketAddr>;
+type ConnectInfoExt = AddExtension<Router, ConnectInfo<SocketAddr>>;
+pub type ServeService = Serve<InnerService, ConnectInfoExt>;
+
 pub struct NymNodeHTTPServer {
     task_client: Option<TaskClient>,
-    inner: Server<AddrIncoming, IntoMakeServiceWithConnectInfo<Router, SocketAddr>>,
+    inner: ServeService,
 }
 
 impl NymNodeHTTPServer {
-    pub(crate) fn new(
-        inner: Server<AddrIncoming, IntoMakeServiceWithConnectInfo<Router, SocketAddr>>,
-    ) -> Self {
+    pub(crate) fn new(inner: ServeService) -> Self {
         NymNodeHTTPServer {
             task_client: None,
             inner,
@@ -38,9 +42,7 @@ impl NymNodeHTTPServer {
         self
     }
 
-    async fn run_server_forever(
-        server: Server<AddrIncoming, IntoMakeServiceWithConnectInfo<Router, SocketAddr>>,
-    ) {
+    async fn run_server_forever(server: ServeService) {
         if let Err(err) = server.await {
             error!("the HTTP server has terminated with the error: {err}");
         } else {
@@ -49,7 +51,6 @@ impl NymNodeHTTPServer {
     }
 
     pub async fn run(self) {
-        info!("Started NymNodeHTTPServer on {}", self.inner.local_addr());
         if let Some(mut task_client) = self.task_client {
             tokio::select! {
                 _ = task_client.recv_with_delay() => {

@@ -158,6 +158,9 @@ impl PartiallyDelegated {
                     _ = shutdown.recv() => {
                         log::trace!("GatewayClient listener: Received shutdown");
                         log::debug!("GatewayClient listener: Exiting");
+                        // The packet router a task client, and as such we need to make
+                        // sure it's dropped to not stall the shutdown process.
+                        drop(packet_router);
                         return;
                     }
                     _ = &mut notify_receiver => {

@@ -62,7 +62,7 @@ impl MixTrafficController {
 
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
         debug_assert!(!mix_packets.is_empty());
-        info!("MixTrafficController: Sending {} sphinx packets to the gateway", mix_packets.len());
+        info!("JON: MixTrafficController: Sending {} sphinx packets to the gateway", mix_packets.len());
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();
@@ -73,7 +73,7 @@ impl MixTrafficController {
                 .await
         };
 
-        match result {
+        let r = match result {
             Err(err) => {
                 error!("Failed to send sphinx packet(s) to the gateway: {err}");
                 self.consecutive_gateway_failure_count += 1;
@@ -87,7 +87,9 @@ impl MixTrafficController {
                 trace!("We *might* have managed to forward sphinx packet(s) to the gateway!");
                 self.consecutive_gateway_failure_count = 0;
             }
-        }
+        };
+        info!("JON: MixTrafficController: done sending sphinx packets to the gateway");
+        r
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
@@ -99,23 +101,27 @@ impl MixTrafficController {
 
             loop {
                 tokio::select! {
+                    biased;
+                    // _ = shutdown.recv_with_delay() => {
+                    _ = &mut shutdown0 => {
+                        log::trace!("MixTrafficController: Received shutdown");
+                        break;
+                    }
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
-                            let r = tokio::time::timeout(tokio::time::Duration::from_secs(4), self.on_messages(mix_packets)).await;
-                            if r.is_err() {
-                                error!("MixTrafficController: Failed to send mix packets to the gateway");
-                            }
+                            log::info!("JON: MixTrafficController: mix_rx recv");
+                            self.on_messages(mix_packets).await;
+                            // let r = tokio::time::timeout(tokio::time::Duration::from_secs(4), self.on_messages(mix_packets)).await;
+                            // if r.is_err() {
+                            //     error!("MixTrafficController: Failed to send mix packets to the gateway");
+                            // }
+                            log::info!("JON: MixTrafficController: done with mix_rx recv");
                         },
                         None => {
                             log::trace!("MixTrafficController: Stopping since channel closed");
                             break;
                         }
                     },
-                    // _ = shutdown.recv_with_delay() => {
-                    _ = &mut shutdown0 => {
-                        log::trace!("MixTrafficController: Received shutdown");
-                        break;
-                    }
                 }
             }
             // shutdown.recv_timeout().await;

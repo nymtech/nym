@@ -217,16 +217,31 @@ impl PartiallyDelegated {
         &mut self,
         msg: Message,
     ) -> Result<(), GatewayClientError> {
-        Ok(self.sink_half.send(msg).await?)
+        log::info!("JON: PartiallyDelegated::send_without_response - sending a message");
+        // let r = self.sink_half.send(msg).await;
+        // Ok(r?)
+        let r = tokio::time::timeout(Duration::from_secs(3), self.sink_half.send(msg)).await;
+        let rr = match r {
+            Ok(rr) => rr,
+            Err(_) => {
+                log::error!("JON: PartiallyDelegated::send_without_response - timeout sending a message");
+                Ok(())
+            }
+        };
+        log::info!("JON: PartiallyDelegated::send_without_response - sent a message: {rr:?}");
+        Ok(rr?)
     }
 
     pub(crate) async fn batch_send_without_response(
         &mut self,
         messages: Vec<Message>,
     ) -> Result<(), GatewayClientError> {
+        log::info!("JON: PartiallyDelegated::batch_send_without_response - sending {} messages", messages.len());
         let stream_messages: Vec<_> = messages.into_iter().map(Ok).collect();
         let mut send_stream = futures::stream::iter(stream_messages);
-        Ok(self.sink_half.send_all(&mut send_stream).await?)
+        let r = Ok(self.sink_half.send_all(&mut send_stream).await?);
+        log::info!("JON: PartiallyDelegated::batch_send_without_response - sent messages");
+        r
     }
 
     pub(crate) async fn merge(self) -> Result<WsConn, GatewayClientError> {

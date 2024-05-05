@@ -93,6 +93,7 @@ pub enum GatewayClientError {
 
 impl GatewayClientError {
     pub fn is_closed_connection(&self) -> bool {
+        log::info!("GatewayClientError::is_closed_connection");
         match self {
             GatewayClientError::NetworkError(ws_err) => match ws_err {
                 WsError::AlreadyClosed | WsError::ConnectionClosed => true,

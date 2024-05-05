@@ -358,6 +358,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         messages: Vec<Message>,
     ) -> Result<(), GatewayClientError> {
+        log::info!("GatewayClient: Sending a batch of messages to the gateway");
         match self.connection {
             SocketState::Available(ref mut conn) => {
                 let stream_messages: Vec<_> = messages.into_iter().map(Ok).collect();
@@ -658,6 +659,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
+        info!("GatewayClient: Sending {} sphinx packets to the gateway", packets.len());
         debug!("Sending {} mix packets", packets.len());
 
         if !self.authenticated {
@@ -688,6 +690,7 @@ impl<C, St> GatewayClient<C, St> {
             .batch_send_websocket_messages_without_response(messages)
             .await
         {
+            log::error!("GatewayClient: Failed to send sphinx packets to the gateway: {err}");
             if err.is_closed_connection() && self.should_reconnect_on_failure {
                 self.attempt_reconnection().await
             } else {
@@ -702,6 +705,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         msg: Message,
     ) -> Result<(), GatewayClientError> {
+        log::info!("GatewayClient: Sending a message to the gateway");
         if let Err(err) = self.send_websocket_message_without_response(msg).await {
             if err.is_closed_connection() && self.should_reconnect_on_failure {
                 debug!("Going to attempt a reconnection");
@@ -731,6 +735,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<(), GatewayClientError> {
+        log::info!("GatewayClient: Sending a sphinx packet to the gateway");
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }

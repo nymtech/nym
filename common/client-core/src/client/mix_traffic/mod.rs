@@ -62,6 +62,7 @@ impl MixTrafficController {
 
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
         debug_assert!(!mix_packets.is_empty());
+        info!("MixTrafficController: Sending {} sphinx packets to the gateway", mix_packets.len());
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();
@@ -93,24 +94,31 @@ impl MixTrafficController {
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
+            let mut shutdown0 = shutdown.recv_with_delay();
+            tokio::pin!(shutdown0);
+
             loop {
                 tokio::select! {
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
-                            self.on_messages(mix_packets).await;
+                            let r = tokio::time::timeout(tokio::time::Duration::from_secs(4), self.on_messages(mix_packets)).await;
+                            if r.is_err() {
+                                error!("MixTrafficController: Failed to send mix packets to the gateway");
+                            }
                         },
                         None => {
                             log::trace!("MixTrafficController: Stopping since channel closed");
                             break;
                         }
                     },
-                    _ = shutdown.recv_with_delay() => {
+                    // _ = shutdown.recv_with_delay() => {
+                    _ = &mut shutdown0 => {
                         log::trace!("MixTrafficController: Received shutdown");
                         break;
                     }
                 }
             }
-            shutdown.recv_timeout().await;
+            // shutdown.recv_timeout().await;
             log::debug!("MixTrafficController: Exiting");
         })
     }

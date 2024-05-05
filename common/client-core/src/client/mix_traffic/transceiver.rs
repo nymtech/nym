@@ -40,6 +40,7 @@ pub trait GatewaySender {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), ErasedGatewayError> {
+        log::info!("GatewaySender::batch_send_mix_packets - sending {} packets", packets.len());
         // allow for optimisation when sending multiple packets
         for packet in packets {
             self.send_mix_packet(packet).await?;
@@ -78,6 +79,7 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
 impl<G: GatewaySender + ?Sized + Send> GatewaySender for Box<G> {
     #[inline]
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
+        log::info!("Box<GatewaySender>::send_mix_packet - sending a packet");
         (**self).send_mix_packet(packet).await
     }
 
@@ -130,6 +132,7 @@ where
     St: Send,
 {
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
+        log::info!("RemoteGateway::send_mix_packet - sending a packet");
         self.gateway_client
             .send_mix_packet(packet)
             .await
@@ -140,6 +143,7 @@ where
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), ErasedGatewayError> {
+        log::info!("RemoteGateway::batch_send_mix_packets - sending {} packets", packets.len());
         self.gateway_client
             .batch_send_mix_packets(packets)
             .await
@@ -203,6 +207,7 @@ mod nonwasm_sealed {
     #[async_trait]
     impl GatewaySender for LocalGateway {
         async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
+            log::info!("LocalGateway::send_mix_packet - sending a packet");
             self.packet_forwarder
                 .unbounded_send(packet)
                 .map_err(|err| err.into_send_error())
@@ -261,6 +266,7 @@ impl GatewayReceiver for MockGateway {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl GatewaySender for MockGateway {
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
+        log::info!("MockGateway::send_mix_packet - sending a packet");
         self.sent.push(packet);
         Ok(())
     }

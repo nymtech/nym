@@ -74,6 +74,9 @@ pub enum GatewayClientError {
     #[error("Timed out")]
     Timeout,
 
+    #[error("timeout sending ws message to the gateway")]
+    TimeoutOnSendingWs,
+
     #[error("Failed to send mixnet message")]
     MixnetMsgSenderFailedToSend,
 

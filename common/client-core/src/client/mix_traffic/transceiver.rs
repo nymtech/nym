@@ -19,6 +19,12 @@ use futures::channel::{mpsc, oneshot};
 #[error(transparent)]
 pub struct ErasedGatewayError(Box<dyn std::error::Error + Send + Sync>);
 
+impl ErasedGatewayError {
+    pub fn downcast<T: std::error::Error + 'static>(&self) -> Option<&T> {
+        self.0.downcast_ref::<T>()
+    }
+}
+
 fn erase_err<E: std::error::Error + Send + Sync + 'static>(err: E) -> ErasedGatewayError {
     ErasedGatewayError(Box::new(err))
 }

@@ -85,18 +85,21 @@ impl MixTrafficController {
                 error!("Failed to send sphinx packet(s) to the gateway: {err}");
                 self.consecutive_gateway_failure_count += 1;
                 if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
-                    // todo: in the future this should initiate a 'graceful' shutdown or try
-                    // to reconnect?
-                    panic!("failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead. Can't do anything about it yet :(")
+                    Err(ClientCoreError::GatewayMaxRetriesExceeded)
+                } else {
+                    Err(ClientCoreError::GatewayClientSendError {
+                        gateway_client_error: err.to_string(),
+                    })
                 }
             }
             Ok(_) => {
                 trace!("We *might* have managed to forward sphinx packet(s) to the gateway!");
                 self.consecutive_gateway_failure_count = 0;
+                Ok(())
             }
         };
         info!("JON: MixTrafficController: done sending sphinx packets to the gateway");
-        Ok(r)
+        r
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
@@ -120,10 +123,6 @@ impl MixTrafficController {
                             if let Err(err) = self.on_messages(mix_packets).await {
                                 log::error!("MixTrafficController: failed to send mix packets to the gateway: {err}");
                             }
-                            // let r = tokio::time::timeout(tokio::time::Duration::from_secs(4), self.on_messages(mix_packets)).await;
-                            // if r.is_err() {
-                            //     error!("MixTrafficController: Failed to send mix packets to the gateway");
-                            // }
                             log::info!("JON: MixTrafficController: done with mix_rx recv");
                         },
                         None => {

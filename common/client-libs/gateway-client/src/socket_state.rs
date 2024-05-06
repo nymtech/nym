@@ -222,14 +222,14 @@ impl PartiallyDelegated {
         // Ok(r?)
         let r = tokio::time::timeout(Duration::from_secs(3), self.sink_half.send(msg)).await;
         let rr = match r {
-            Ok(rr) => rr,
+            Ok(rr) => Ok(rr?),
             Err(_) => {
                 log::error!("JON: PartiallyDelegated::send_without_response - timeout sending a message");
-                Ok(())
+                Err(GatewayClientError::TimeoutOnSendingWs)
             }
         };
         log::info!("JON: PartiallyDelegated::send_without_response - sent a message: {rr:?}");
-        Ok(rr?)
+        rr
     }
 
     pub(crate) async fn batch_send_without_response(

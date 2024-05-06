@@ -10,7 +10,7 @@ To monitor the connectivity of your Exit Gateway, use results of probe testing d
 
 Nym operators community is working on a Nym version of tors [good bad ISP table](https://community.torproject.org/relay/community-resources/good-bad-isps/). There is no one solution fits all when it comes to connectivity setup. The operation of `nym-node` will vary depending on your ISP and chosen system/distribution.  While few machines will work out of the box, most will work after uisng our connectivity configuration guide, some need more adjustments.
 
-If you followed all the steps listed in [Connectivity Test and Configuration](../nodes/vps-setup.md#connectivity-test-and-configuration) chapter of VPS Setup and you still have a problem with a correct connectivity try these steps.
+Begin with the steps listed in [*Connectivity Test and Configuration*](../nodes/vps-setup.md#connectivity-test-and-configuration) chapter of VPS Setup page. If you still have a problem with the IPv6 connectivity try:
 
 1. Tor community created a helpful [table of ISPs](https://community.torproject.org/relay/community-resources/good-bad-isps/). Make sure your one is listed there as a *"good ISP"*. If not, consider migrating!
 2. Checkout your VPS dashboard and make sure your IPv6-public enabled.

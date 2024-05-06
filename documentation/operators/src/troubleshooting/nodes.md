@@ -191,13 +191,43 @@ If you are still unable to see your node on the dashboard, or your node is decla
 - The firewall on your host machine is not configured properly. Checkout the [instructions](../nodes/vps-setup.md#configure-your-firewall).
 - You provided incorrect information when bonding your node.
 - You are running your node from a VPS without IPv6 support.
-<!-- You did not use the `--announce-host` flag while running the Mix Node from your local machine behind NAT. -->
 - You did not configure your router firewall while running the node from your local machine behind NAT, or you are lacking IPv6 support
 - Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](../nodes/configuration.md#automating-your-node-with-tmux-and-systemd).
 
 ```admonish caution
 Your Nym Node **must speak both IPv4 and IPv6** in order to cooperate with other nodes and route traffic. This is a common reason behind many errors we are seeing among node operators, so check with your provider that your VPS is able to do this!
 ```
+
+#### Check IPv6 Connectivity
+
+IPv6 routing is not only a case for Exit Gateways. Imagine that you run a `mixnode` without IPv6 enabled and packets are going through the Mixnet through such route:
+```ascii
+user -> [entry-gateway] -> [mixnode layer 1] -> [your mixnode] -> [IPv6 mixnode layer3] -> [exit-gateway]
+```
+In this case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down.
+
+You can always check IPv6 address and connectivity by using some of these methods:
+
+```sh
+# locally listed IPv6 addresses
+ip -6 addr
+
+# globally reachable IPv6 addresses
+ip -6 addr show scope global
+
+# with DNS
+dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com
+dig -t aaaa +short myip.opendns.com @resolver1.opendns.com
+
+# https check
+curl -6 https://ifconfig.co
+curl -6 https://ipv6.icanhazip.com
+
+# using telnet
+telnet -6 ipv6.telnetmyip.com
+```
+If your connection doesn't work make sure to follow [VPS IPv6 setup](../nodes/configuration.md#connectivity-test-and-configuration). If there is more troubleshooting needed, check out [VPS IPv6 troubleshooting](vps-isp.md#ipv6-troubleshooting) page.
+
 
 #### Incorrect bonding information
 

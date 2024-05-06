@@ -13,7 +13,7 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](n
 ```
 
 ```admonish note
-If you are a `nym-mixnode` or `nym-gateway` operator and you are not familiar wwith the binary changes called *Project Smoosh*, you can read the archived [Smoosh FAQ](../archive/smoosh-faq.md) page.
+If you are a `nym-mixnode` or `nym-gateway` operator and you are not familiar with the binary changes called *Project Smoosh*, you can read the archived [Smoosh FAQ](../archive/faq/smoosh-faq.md) page.
 ```
 
 ## Summary
@@ -278,7 +278,7 @@ Run the node with custom `--id` without initialising:
 ### Migrate
 
 ```admonish caution
-Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). For backward compatibility we created an [archive section](../archive/setup-guides.md) with all the guides for individual binaries. However, the binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command.
+Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). For backward compatibility we created an [archive section](../archive/nodes/setup-guides.md) with all the guides for individual binaries. However, the binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command.
 ```
 
 Operators who are about to migrate their nodes need to configure their [VPS](vps-setup.md) and setup `nym-node` which can be downloaded as a [pre-built binary](../binaries/pre-built-binaries.md) or compiled from [source](../binaries/building-nym.md).

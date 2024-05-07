@@ -426,13 +426,13 @@ mod tests {
 
     #[test]
     fn verification_on_two_public_attributes() {
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         random_scalars_refs!(attributes, params, 2);
 
         let keypair1 = keygen(&params);
         let keypair2 = keygen(&params);
-        let sig1 = sign(&mut params, keypair1.secret_key(), &attributes).unwrap();
-        let sig2 = sign(&mut params, keypair2.secret_key(), &attributes).unwrap();
+        let sig1 = sign(&params, keypair1.secret_key(), &attributes).unwrap();
+        let sig2 = sign(&params, keypair2.secret_key(), &attributes).unwrap();
 
         assert!(verify(
             &params,

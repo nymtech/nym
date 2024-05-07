@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn signature_aggregation_works_for_any_subset_of_signatures() {
-        let mut params = Parameters::new(2).unwrap();
+        let params = Parameters::new(2).unwrap();
         random_scalars_refs!(attributes, params, 2);
 
         let keypairs = ttp_keygen(&params, 3, 5).unwrap();
@@ -248,7 +248,7 @@ mod tests {
 
         let sigs = sks
             .iter()
-            .map(|sk| sign(&mut params, sk, &attributes).unwrap())
+            .map(|sk| sign(&params, sk, &attributes).unwrap())
             .collect::<Vec<_>>();
 
         // aggregating (any) threshold works

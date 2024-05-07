@@ -169,6 +169,34 @@ impl State {
             .aggregated_verification_key(epoch_id)
             .await
     }
+
+    pub async fn store_credential(
+        &self,
+        credential: &CredentialSpendingData,
+        gateway_addr: &AccountId,
+        proposal_id: u64,
+    ) -> Result<()> {
+        self.storage
+            .insert_credential(
+                credential,
+                credential.serial_number_b58(),
+                gateway_addr,
+                proposal_id,
+            )
+            .await
+            .map_err(|err| err.into())
+    }
+
+    pub async fn get_credential_by_sn(
+        &self,
+        serial_number_bs58: String,
+    ) -> Result<Option<CredentialSpendingData>> {
+        self.storage
+            .get_credential(serial_number_bs58)
+            .await
+            .map_err(|err| err.into())
+    }
+
     pub async fn get_coin_indices_signatures(&self) -> Result<Vec<CoinIndexSignature>> {
         let current_epoch = self.client.get_current_epoch().await?;
         match self

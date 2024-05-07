@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::storage::models::{EpochCredentials, IssuedCredential};
+use crate::coconut::storage::models::{EpochCredentials, IssuedCredential, SpentCredential};
 use crate::support::storage::manager::StorageManager;
 use nym_coconut_dkg_common::types::EpochId;
 use thiserror::Error;
@@ -93,6 +93,25 @@ pub trait CoconutStorageManagerExt {
         start_after: i64,
         limit: u32,
     ) -> Result<Vec<IssuedCredential>, sqlx::Error>;
+
+    /// Creates new credential entry for a given gateway addr.
+    ///
+    /// # Arguments
+    ///
+    /// * `credential`: base58 repr of a credential.
+    /// * `gateway_addr`: cosmos address of the gateway
+    async fn insert_credential(
+        &self,
+        credential: String,
+        serial_number: String,
+        gateway_addr: String,
+        proposal_id: String,
+    ) -> Result<(), sqlx::Error>;
+
+    async fn get_credential(
+        &self,
+        serial_number: String,
+    ) -> Result<Option<SpentCredential>, sqlx::Error>;
 
     async fn increment_issued_freepasses(&self) -> Result<(), sqlx::Error>;
 }
@@ -352,6 +371,44 @@ impl CoconutStorageManagerExt for StorageManager {
         )
             .fetch_all(&self.connection_pool)
             .await
+    }
+
+    /// Creates new credential entry for a given gateway addr.
+    ///
+    /// # Arguments
+    ///
+    /// * `credential`: base58 repr of a credential.
+    /// * `gateway_addr`: cosmos address of the gateway
+    async fn insert_credential(
+        &self,
+        credential: String,
+        serial_number: String,
+        gateway_addr: String,
+        proposal_id: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "INSERT INTO spent_credentials(credential, serial_number, gateway_address, proposal_id) VALUES (?, ?, ?, ?)",
+            credential,
+            serial_number,
+            gateway_addr,
+            proposal_id,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn get_credential(
+        &self,
+        serial_number: String,
+    ) -> Result<Option<SpentCredential>, sqlx::Error> {
+        sqlx::query_as!(
+            SpentCredential,
+            "SELECT credential from spent_credentials where serial_number = ?",
+            serial_number,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     async fn increment_issued_freepasses(&self) -> Result<(), sqlx::Error> {

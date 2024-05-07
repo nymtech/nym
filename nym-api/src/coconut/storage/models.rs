@@ -33,6 +33,10 @@ impl From<EpochCredentials> for EpochCredentialsResponse {
     }
 }
 
+pub struct SpentCredential {
+    pub credential: String,
+}
+
 #[derive(FromRow)]
 pub struct IssuedCredential {
     pub id: i64,

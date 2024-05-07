@@ -6,12 +6,12 @@ use crate::coconut::storage::models::{join_attributes, EpochCredentials, IssuedC
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::coconut::models::Pagination;
-use nym_coconut::{Base58, BlindedSignature};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::utils::BlindedSignature;
 use nym_compact_ecash::Base58;
+use nym_credentials::CredentialSpendingData;
 use nym_crypto::asymmetric::identity;
-use nym_validator_client::nyxd::Hash;
+use nym_validator_client::nyxd::{AccountId, Hash};
 
 pub(crate) mod manager;
 pub(crate) mod models;
@@ -66,6 +66,19 @@ pub trait CoconutStorageExt {
         &self,
         pagination: Pagination<i64>,
     ) -> Result<Vec<IssuedCredential>, NymApiStorageError>;
+
+    async fn insert_credential(
+        &self,
+        credential: &CredentialSpendingData,
+        serial_number_bs58: String,
+        gateway_addr: &AccountId,
+        proposal_id: u64,
+    ) -> Result<(), NymApiStorageError>;
+
+    async fn get_credential(
+        &self,
+        serial_number_bs58: String,
+    ) -> Result<Option<CredentialSpendingData>, NymApiStorageError>;
 
     async fn increment_issued_freepasses(&self) -> Result<(), NymApiStorageError>;
 }
@@ -167,6 +180,40 @@ impl CoconutStorageExt for NymApiStorage {
             .manager
             .get_issued_credentials_paged(start_after, limit)
             .await?)
+    }
+
+    async fn insert_credential(
+        &self,
+        credential: &CredentialSpendingData,
+        serial_number_bs58: String,
+        gateway_addr: &AccountId,
+        proposal_id: u64,
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .insert_credential(
+                credential.to_bs58(),
+                serial_number_bs58,
+                gateway_addr.to_string(),
+                proposal_id.to_string(),
+            )
+            .await
+            .map_err(|err| err.into())
+    }
+
+    async fn get_credential(
+        &self,
+        serial_number_bs58: String,
+    ) -> Result<Option<CredentialSpendingData>, NymApiStorageError> {
+        let credential = self.manager.get_credential(serial_number_bs58).await?;
+        credential
+            .map(|cred| {
+                CredentialSpendingData::try_from_bs58(cred.credential).map_err(|_| {
+                    NymApiStorageError::DatabaseInconsistency {
+                        reason: "impossible to deserialize credential".to_string(),
+                    }
+                })
+            })
+            .transpose()
     }
 
     async fn increment_issued_freepasses(&self) -> Result<(), NymApiStorageError> {

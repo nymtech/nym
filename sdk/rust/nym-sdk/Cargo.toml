@@ -29,6 +29,7 @@ bytecodec = { workspace = true }
 httpcodec = { workspace = true }
 bytes = { workspace = true }
 http = { workspace = true }
+zeroize = { workspace = true }
 
 futures = { workspace = true }
 log = { workspace = true }

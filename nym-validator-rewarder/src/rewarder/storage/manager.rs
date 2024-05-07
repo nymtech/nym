@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::rewarder::epoch::Epoch;
+use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {
@@ -186,7 +187,7 @@ impl StorageManager {
         &self,
         operator_identity_bs58: String,
         credential_id: i64,
-        deposit_tx: String,
+        deposit_id: DepositId,
         signed_plaintext: Vec<u8>,
         signature_bs58: String,
     ) -> Result<(), sqlx::Error> {
@@ -195,14 +196,14 @@ impl StorageManager {
                 INSERT INTO validated_deposit (
                     operator_identity_bs58,
                     credential_id,
-                    deposit_tx,
+                    deposit_id,
                     signed_plaintext,
                     signature_bs58
                 ) VALUES (?, ?, ?, ?, ?)
             "#,
             operator_identity_bs58,
             credential_id,
-            deposit_tx,
+            deposit_id,
             signed_plaintext,
             signature_bs58
         )
@@ -214,16 +215,16 @@ impl StorageManager {
     pub(crate) async fn get_deposit_credential_id(
         &self,
         operator_identity_bs58: String,
-        deposit_tx: String,
+        deposit_id: DepositId,
     ) -> Result<Option<i64>, sqlx::Error> {
         Ok(sqlx::query!(
             r#"
                 SELECT credential_id
                 FROM validated_deposit
-                WHERE operator_identity_bs58 = ? AND deposit_tx = ?
+                WHERE operator_identity_bs58 = ? AND deposit_id = ?
             "#,
             operator_identity_bs58,
-            deposit_tx
+            deposit_id
         )
         .fetch_optional(&self.connection_pool)
         .await?
@@ -235,7 +236,7 @@ impl StorageManager {
         operator_identity_bs58: String,
         credential_id: i64,
         original_credential_id: i64,
-        deposit_tx: String,
+        deposit_id: DepositId,
         signed_plaintext: Vec<u8>,
         signature_bs58: String,
     ) -> Result<(), sqlx::Error> {
@@ -245,7 +246,7 @@ impl StorageManager {
                     operator_identity_bs58,
                     credential_id,
                     original_credential_id,
-                    deposit_tx,
+                    deposit_id,
                     signed_plaintext,
                     signature_bs58
                 ) VALUES (?, ?, ?, ?, ?, ?)
@@ -253,7 +254,7 @@ impl StorageManager {
             operator_identity_bs58,
             credential_id,
             original_credential_id,
-            deposit_tx,
+            deposit_id,
             signed_plaintext,
             signature_bs58
         )

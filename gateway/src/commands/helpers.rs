@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::commands::upgrade_helpers;
 use log::{error, info};
 use nym_config::{save_formatted_config_to_file, OptionalSet};
 use nym_crypto::asymmetric::identity;
@@ -17,6 +18,7 @@ use nym_gateway::helpers::{
 use nym_network_defaults::mainnet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API};
+use tracing::{error, info};
 
 use nym_network_requester::{
     generate_new_client_keys, set_active_gateway, setup_fs_gateways_storage, setup_gateway,

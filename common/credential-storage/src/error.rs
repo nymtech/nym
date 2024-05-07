@@ -9,6 +9,9 @@ pub enum StorageError {
     #[error("Database experienced an internal error - {0}")]
     InternalDatabaseError(#[from] sqlx::Error),
 
+    #[error("experienced internal storage error due to database inconsistency: {reason}")]
+    DatabaseInconsistency { reason: String },
+
     #[cfg(not(target_arch = "wasm32"))]
     #[error("Failed to perform database migration - {0}")]
     MigrationError(#[from] sqlx::migrate::MigrateError),
@@ -19,6 +22,17 @@ pub enum StorageError {
     #[error("No unused credential in database. You need to buy at least one")]
     NoCredential,
 
+    #[error("No signatures for epoch {epoch_id} in the database")]
+    NoSignatures { epoch_id: i64 },
+
     #[error("Database unique constraint violation. Is the credential already imported?")]
     ConstraintUnique,
+}
+
+impl StorageError {
+    pub fn database_inconsistency<S: Into<String>>(reason: S) -> StorageError {
+        StorageError::DatabaseInconsistency {
+            reason: reason.into(),
+        }
+    }
 }

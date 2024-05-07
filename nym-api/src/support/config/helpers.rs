@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::dkg::controller::keys::init_bte_keypair;
+use crate::ecash::dkg::controller::keys::init_bte_keypair;
 use crate::support::config;
 use crate::support::config::{
     default_config_directory, default_data_directory, upgrade_helpers, Config,

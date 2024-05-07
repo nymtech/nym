@@ -1,0 +1,64 @@
+# Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nym-compact-ecash"
+version = "0.1.0"
+authors = ["Ania Piotrowska <ania@nymtech.net>"]
+edition = "2021"
+license = { workspace = true }
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bls12_381 = { workspace = true, features = ["alloc", "pairings", "experimental", "zeroize", "experimental_serde"] }
+bincode.workspace = true
+cfg-if.workspace = true
+itertools = "0.12.1"
+digest = "0.9"
+rand = { workspace = true }
+thiserror = { workspace = true }
+sha2 = "0.9"
+bs58 = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+rayon = { version = "1.5.0", optional = true }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
+ff = { workspace = true }
+group = { workspace = true }
+
+nym-pemstore = { path = "../pemstore" }
+
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["html_reports"] }
+
+
+[[bench]]
+name = "benchmarks_group_operations"
+path = "benches/benchmarks_group_operations.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_expiration_date_signatures"
+path = "benches/benchmarks_expiration_date_signatures.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_coin_indices_signatures"
+path = "benches/benchmarks_coin_indices_signatures.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_ecash_e2e"
+path = "benches/benchmarks_ecash_e2e.rs"
+harness = false
+
+[features]
+# for 1000 coin indices it goes from ~50ms to ~400ms, but we only have to issue them once per epoch
+# so it's not really worth it
+par_signing = ["rayon"]
+
+# for this one there's an argument for it since the verification of 1000 indices can take over 6s,
+# but given it's not done very frequently, it shouldn't be too much of a problem
+# furthermore, we can't and shouldn't dedicate the entire nym-api CPU just for verification,
+# but this feature might potentially be desirable for clients.
+par_verify = ["rayon"]

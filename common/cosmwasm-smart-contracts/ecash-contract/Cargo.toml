@@ -1,0 +1,21 @@
+[package]
+name = "nym-ecash-contract-common"
+version = "0.1.0"
+edition = "2021"
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bs58.workspace = true
+cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw2 = { workspace = true, optional = true }
+nym-multisig-contract-common = { path = "../multisig-contract" }
+thiserror.workspace = true
+cw-utils = { workspace = true }
+cw-controllers = { workspace = true }
+
+
+[features]
+schema = ["cw2"]

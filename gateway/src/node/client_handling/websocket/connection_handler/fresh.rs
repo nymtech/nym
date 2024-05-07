@@ -6,7 +6,6 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
-use log::*;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
@@ -21,10 +20,12 @@ use nym_gateway_requests::{
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
+use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+use tracing::*;
 
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::AvailableBandwidth;
@@ -123,11 +124,11 @@ impl InitialAuthenticationError {
 
 pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
-    pub(crate) shared_state: CommonHandlerState,
+    pub(crate) shared_state: CommonHandlerState<St>,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
-    pub(crate) storage: St,
+    pub(crate) peer_address: SocketAddr,
 
     // currently unused (but populated)
     pub(crate) negotiated_protocol: Option<u8>,
@@ -136,7 +137,7 @@ pub(crate) struct FreshHandler<R, S, St> {
 impl<R, S, St> FreshHandler<R, S, St>
 where
     R: Rng + CryptoRng,
-    St: Storage,
+    St: Storage + Clone + 'static,
 {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
@@ -147,16 +148,16 @@ where
         rng: R,
         conn: S,
         outbound_mix_sender: MixForwardingSender,
-        storage: St,
         active_clients_store: ActiveClientsStore,
-        shared_state: CommonHandlerState,
+        shared_state: CommonHandlerState<St>,
+        peer_address: SocketAddr,
     ) -> Self {
         FreshHandler {
             rng,
             active_clients_store,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
-            storage,
+            peer_address,
             negotiated_protocol: None,
             shared_state,
         }
@@ -311,6 +312,7 @@ where
         loop {
             // retrieve some messages
             let (messages, new_start_next_after) = self
+                .shared_state
                 .storage
                 .retrieve_messages(client_address, start_next_after)
                 .await?;
@@ -326,7 +328,7 @@ where
                 return Err(InitialAuthenticationError::ConnectionError(err));
             } else {
                 // if it was successful - remove them from the store
-                self.storage.remove_messages(ids).await?;
+                self.shared_state.storage.remove_messages(ids).await?;
             }
 
             // no more messages to grab
@@ -356,7 +358,11 @@ where
         encrypted_address: EncryptedAddressBytes,
         iv: IV,
     ) -> Result<Option<SharedKeys>, InitialAuthenticationError> {
-        let shared_keys = self.storage.get_shared_keys(client_address).await?;
+        let shared_keys = self
+            .shared_state
+            .storage
+            .get_shared_keys(client_address)
+            .await?;
 
         if let Some(shared_keys) = shared_keys {
             // this should never fail as we only ever construct persisted shared keys ourselves when inserting
@@ -543,39 +549,42 @@ where
                 .await?;
         }
 
-        let shared_keys = self
+        let Some(shared_keys) = self
             .authenticate_client(address, encrypted_address, iv)
-            .await?;
-        let status = shared_keys.is_some();
+            .await?
+        else {
+            // it feels weird to be returning an 'Ok' here, but I didn't want to change the existing behaviour
+            return Ok(InitialAuthResult::new_failed(Some(negotiated_protocol)));
+        };
 
-        let available_bandwidth: AvailableBandwidth =
-            self.storage.get_available_bandwidth(address).await?.into();
+        let client_id = self.shared_state.storage.get_client_id(address).await?;
 
-        let bandwidth_remaining = if available_bandwidth.freepass_expired() {
-            self.expire_freepass(address).await?;
+        let available_bandwidth: AvailableBandwidth = self
+            .shared_state
+            .storage
+            .get_available_bandwidth(client_id)
+            .await?
+            .into();
+
+        let bandwidth_remaining = if available_bandwidth.expired() {
+            self.expire_bandwidth(client_id).await?;
             0
         } else {
             available_bandwidth.bytes
         };
 
-        let client_details =
-            shared_keys.map(|shared_keys| ClientDetails::new(address, shared_keys));
-
         Ok(InitialAuthResult::new(
-            client_details,
+            Some(ClientDetails::new(client_id, address, shared_keys)),
             ServerResponse::Authenticate {
                 protocol_version: Some(negotiated_protocol),
-                status,
+                status: true,
                 bandwidth_remaining,
             },
         ))
     }
 
-    pub(crate) async fn expire_freepass(
-        &self,
-        client: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        self.storage.reset_freepass_bandwidth(client).await
+    pub(crate) async fn expire_bandwidth(&self, client_id: i64) -> Result<(), StorageError> {
+        self.shared_state.storage.reset_bandwidth(client_id).await
     }
 
     /// Attempts to finalize registration of the client by storing the derived shared keys in the
@@ -588,34 +597,41 @@ where
     /// * `client`: details (i.e. address and shared keys) of the registered client
     async fn register_client(
         &mut self,
-        client: &ClientDetails,
-    ) -> Result<bool, InitialAuthenticationError>
+        client_address: DestinationAddressBytes,
+        client_shared_keys: &SharedKeys,
+    ) -> Result<i64, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
         debug!(
             "Processing register client request for: {}",
-            client.address.as_base58_string()
+            client_address.as_base58_string()
         );
 
-        self.storage
-            .insert_shared_keys(client.address, &client.shared_keys)
+        let client_id = self
+            .shared_state
+            .storage
+            .insert_shared_keys(client_address, client_shared_keys)
             .await?;
 
         // see if we have bandwidth entry for the client already, if not, create one with zero value
         if self
+            .shared_state
             .storage
-            .get_available_bandwidth(client.address)
+            .get_available_bandwidth(client_id)
             .await?
             .is_none()
         {
-            self.storage.create_bandwidth_entry(client.address).await?;
+            self.shared_state
+                .storage
+                .create_bandwidth_entry(client_id)
+                .await?;
         }
 
-        self.push_stored_messages_to_client(client.address, &client.shared_keys)
+        self.push_stored_messages_to_client(client_address, client_shared_keys)
             .await?;
 
-        Ok(true)
+        Ok(client_id)
     }
 
     /// Tries to handle the received register request by checking attempting to complete registration
@@ -644,15 +660,15 @@ where
         }
 
         let shared_keys = self.perform_registration_handshake(init_data).await?;
-        let client_details = ClientDetails::new(remote_address, shared_keys);
+        let client_id = self.register_client(remote_address, &shared_keys).await?;
 
-        let status = self.register_client(&client_details).await?;
+        let client_details = ClientDetails::new(client_id, remote_address, shared_keys);
 
         Ok(InitialAuthResult::new(
             Some(client_details),
             ServerResponse::Register {
                 protocol_version: Some(negotiated_protocol),
-                status,
+                status: true,
             },
         ))
     }

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::storage::models::{PersistedBandwidth, SpentCredential};
+use crate::node::storage::models::PersistedBandwidth;
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -20,42 +20,32 @@ impl BandwidthManager {
     }
 
     /// Creates a new bandwidth entry for the particular client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address_bs58`: base58-encoded address of the client.
-    pub(crate) async fn insert_new_client(
-        &self,
-        client_address_bs58: &str,
-    ) -> Result<(), sqlx::Error> {
+    pub(crate) async fn insert_new_client(&self, client_id: i64) -> Result<(), sqlx::Error> {
+        // FIXME: hack; we need to change api slightly
         sqlx::query!(
-            "INSERT INTO available_bandwidth(client_address_bs58, available) VALUES (?, 0)",
-            client_address_bs58
+            "INSERT INTO available_bandwidth(client_id, available, expiration) VALUES (?, 0, ?)",
+            client_id,
+            OffsetDateTime::UNIX_EPOCH,
         )
         .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
 
-    /// Set the freepass expiration date of the particular client to the provided date.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address_bs58`: base58-encoded address of the client.
-    /// * `freepass_expiration`: the expiration date of the associated free pass.
-    pub(crate) async fn set_freepass_expiration(
+    /// Set the expiration date of the particular client to the provided date.
+    pub(crate) async fn set_expiration(
         &self,
-        client_address_bs58: &str,
-        freepass_expiration: OffsetDateTime,
+        client_id: i64,
+        expiration: OffsetDateTime,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE available_bandwidth
-                SET freepass_expiration = ?
-                WHERE client_address_bs58 = ?
+                SET expiration = ?
+                WHERE client_id = ?
             "#,
-            freepass_expiration,
-            client_address_bs58
+            expiration,
+            client_id
         )
         .execute(&self.connection_pool)
         .await?;
@@ -63,21 +53,15 @@ impl BandwidthManager {
     }
 
     /// Reset all the bandwidth associated with the freepass and reset its expiration date
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address_bs58`: base58-encoded address of the client.
-    pub(crate) async fn reset_freepass_bandwidth(
-        &self,
-        client_address_bs58: &str,
-    ) -> Result<(), sqlx::Error> {
+    pub(crate) async fn reset_bandwidth(&self, client_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE available_bandwidth
-                SET available = 0, freepass_expiration = NULL
-                WHERE client_address_bs58 = ?
+                SET available = 0, expiration = ?
+                WHERE client_id = ?
             "#,
-            client_address_bs58
+            OffsetDateTime::UNIX_EPOCH,
+            client_id
         )
         .execute(&self.connection_pool)
         .await?;
@@ -85,92 +69,92 @@ impl BandwidthManager {
     }
 
     /// Tries to retrieve available bandwidth for the particular client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address_bs58`: base58-encoded address of the client.
     pub(crate) async fn get_available_bandwidth(
         &self,
-        client_address_bs58: &str,
+        client_id: i64,
     ) -> Result<Option<PersistedBandwidth>, sqlx::Error> {
-        sqlx::query_as("SELECT * FROM available_bandwidth WHERE client_address_bs58 = ?")
-            .bind(client_address_bs58)
+        sqlx::query_as("SELECT * FROM available_bandwidth WHERE client_id = ?")
+            .bind(client_id)
             .fetch_optional(&self.connection_pool)
             .await
     }
 
-    /// Sets available bandwidth of the particular client to the provided amount;
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    /// * `amount`: the updated client bandwidth amount.
-    pub(crate) async fn set_available_bandwidth(
+    pub(crate) async fn increase_bandwidth(
         &self,
-        client_address_bs58: &str,
+        client_id: i64,
+        amount: i64,
+    ) -> Result<i64, sqlx::Error> {
+        let mut tx = self.connection_pool.begin().await?;
+        sqlx::query!(
+            r#"
+                UPDATE available_bandwidth
+                SET available = available + ?
+                WHERE client_id = ?
+            "#,
+            amount,
+            client_id
+        )
+        .execute(&mut tx)
+        .await?;
+
+        let remaining = sqlx::query!(
+            "SELECT available FROM available_bandwidth WHERE client_id = ?",
+            client_id
+        )
+        .fetch_one(&mut tx)
+        .await?
+        .available;
+
+        tx.commit().await?;
+        Ok(remaining)
+    }
+
+    pub(crate) async fn revoke_ticket_bandwidth(
+        &self,
+        ticket_id: i64,
         amount: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE available_bandwidth
-                SET available = ?
-                WHERE client_address_bs58 = ?
+                SET available = available - ?
+                WHERE client_id = (SELECT client_id FROM received_ticket WHERE id = ?)
             "#,
             amount,
-            client_address_bs58
+            ticket_id,
         )
         .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
 
-    /// Mark received credential as spent and insert it into the storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `blinded_serial_number_bs58`: the unique blinded serial number embedded in the credential
-    /// * `was_freepass`: indicates whether the spent credential was a freepass
-    /// * `client_address_bs58`: address of the client that spent the credential
-    pub(crate) async fn insert_spent_credential(
+    pub(crate) async fn decrease_bandwidth(
         &self,
-        blinded_serial_number_bs58: &str,
-        was_freepass: bool,
-        client_address_bs58: &str,
-    ) -> Result<(), sqlx::Error> {
+        client_id: i64,
+        amount: i64,
+    ) -> Result<i64, sqlx::Error> {
+        let mut tx = self.connection_pool.begin().await?;
         sqlx::query!(
             r#"
-                INSERT INTO spent_credential
-                (blinded_serial_number_bs58, was_freepass, client_address_bs58)
-                VALUES (?, ?, ?)
+                UPDATE available_bandwidth
+                SET available = available - ?
+                WHERE client_id = ?
             "#,
-            blinded_serial_number_bs58,
-            was_freepass,
-            client_address_bs58
+            amount,
+            client_id
         )
-        .execute(&self.connection_pool)
+        .execute(&mut tx)
         .await?;
-        Ok(())
-    }
 
-    /// Retrieve the spent credential with the provided blinded serial number from the storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `blinded_serial_number_bs58`: the unique blinded serial number embedded in the credential
-    pub(crate) async fn retrieve_spent_credential(
-        &self,
-        blinded_serial_number_bs58: &str,
-    ) -> Result<Option<SpentCredential>, sqlx::Error> {
-        sqlx::query_as!(
-            SpentCredential,
-            r#"
-                SELECT * FROM spent_credential
-                WHERE blinded_serial_number_bs58 = ?
-                LIMIT 1
-            "#,
-            blinded_serial_number_bs58,
+        let remaining = sqlx::query!(
+            "SELECT available FROM available_bandwidth WHERE client_id = ?",
+            client_id
         )
-        .fetch_optional(&self.connection_pool)
-        .await
+        .fetch_one(&mut tx)
+        .await?
+        .available;
+
+        tx.commit().await?;
+        Ok(remaining)
     }
 }

@@ -2,16 +2,33 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nym_api::error::NymAPIError;
-use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
+use crate::nym_api::routes::{ecash, CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
+use nym_api_requests::ecash::models::{
+    AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
+    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
+    VerifyEcashTicketBody,
+};
+use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
+use nym_http_api_client::{ApiClient, NO_PARAMS};
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use time::format_description::BorrowedFormatItem;
+use time::Date;
+
+pub mod error;
+pub mod routes;
+
+use nym_api_requests::ecash::VerificationKeyResponse;
 pub use nym_api_requests::{
-    coconut::{
+    ecash::{
         models::{
             EpochCredentialsResponse, IssuedCredential, IssuedCredentialBody,
-            IssuedCredentialResponse, IssuedCredentialsResponse,
+            IssuedCredentialResponse, IssuedCredentialsResponse, SpentCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
-        VerifyCredentialBody, VerifyCredentialResponse,
+        PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
+        VerifyEcashCredentialBody,
     },
     models::{
         ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -22,17 +39,11 @@ pub use nym_api_requests::{
     },
 };
 pub use nym_coconut_dkg_common::types::EpochId;
-use nym_http_api_client::{ApiClient, NO_PARAMS};
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-
-pub mod error;
-pub mod routes;
-
-use nym_api_requests::coconut::models::FreePassNonceResponse;
-use nym_api_requests::coconut::FreePassRequest;
-use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
 pub use nym_http_api_client::Client;
+
+pub fn rfc_3339_date() -> Vec<BorrowedFormatItem<'static>> {
+    time::format_description::parse("[year]-[month]-[day]").unwrap()
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -420,36 +431,6 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_FREE_PASS_NONCE,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    async fn free_pass(
-        &self,
-        request: &FreePassRequest,
-    ) -> Result<BlindedSignatureResponse, NymAPIError> {
-        self.post_json(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_FREE_PASS,
-            ],
-            NO_PARAMS,
-            request,
-        )
-        .await
-    }
-
     async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
@@ -457,9 +438,8 @@ pub trait NymApiClientExt: ApiClient {
         self.post_json(
             &[
                 routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_BLIND_SIGN,
+                routes::ECASH_ROUTES,
+                routes::ECASH_BLIND_SIGN,
             ],
             NO_PARAMS,
             request_body,
@@ -467,19 +447,151 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn verify_bandwidth_credential(
+    async fn verify_ecash_ticket(
         &self,
-        request_body: &VerifyCredentialBody,
-    ) -> Result<VerifyCredentialResponse, NymAPIError> {
+        request_body: &VerifyEcashTicketBody,
+    ) -> Result<EcashTicketVerificationResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+                routes::ECASH_ROUTES,
+                routes::VERIFY_ECASH_TICKET,
             ],
             NO_PARAMS,
             request_body,
+        )
+        .await
+    }
+
+    async fn batch_redeem_ecash_tickets(
+        &self,
+        request_body: &BatchRedeemTicketsBody,
+    ) -> Result<EcashBatchTicketRedemptionResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::BATCH_REDEEM_ECASH_TICKETS,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    async fn double_spending_filter_v1(&self) -> Result<SpentCredentialsResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::DOUBLE_SPENDING_FILTER_V1,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn partial_expiration_date_signatures(
+        &self,
+        expiration_date: Option<Date>,
+    ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
+        let params = match expiration_date {
+            None => Vec::new(),
+            Some(exp) => vec![(
+                ecash::EXPIRATION_DATE_PARAM,
+                exp.format(&rfc_3339_date()).unwrap(),
+            )],
+        };
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::PARTIAL_EXPIRATION_DATE_SIGNATURES,
+            ],
+            &params,
+        )
+        .await
+    }
+
+    async fn partial_coin_indices_signatures(
+        &self,
+        epoch_id: Option<EpochId>,
+    ) -> Result<PartialCoinIndicesSignatureResponse, NymAPIError> {
+        let params = match epoch_id {
+            None => Vec::new(),
+            Some(epoch_id) => vec![(ecash::EPOCH_ID_PARAM, epoch_id.to_string())],
+        };
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::PARTIAL_COIN_INDICES_SIGNATURES,
+            ],
+            &params,
+        )
+        .await
+    }
+
+    async fn global_expiration_date_signatures(
+        &self,
+        expiration_date: Option<Date>,
+    ) -> Result<AggregatedExpirationDateSignatureResponse, NymAPIError> {
+        let params = match expiration_date {
+            None => Vec::new(),
+            Some(exp) => vec![(
+                ecash::EXPIRATION_DATE_PARAM,
+                exp.format(&rfc_3339_date()).unwrap(),
+            )],
+        };
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::GLOBAL_EXPIRATION_DATE_SIGNATURES,
+            ],
+            &params,
+        )
+        .await
+    }
+
+    async fn global_coin_indices_signatures(
+        &self,
+        epoch_id: Option<EpochId>,
+    ) -> Result<AggregatedCoinIndicesSignatureResponse, NymAPIError> {
+        let params = match epoch_id {
+            None => Vec::new(),
+            Some(epoch_id) => vec![(ecash::EPOCH_ID_PARAM, epoch_id.to_string())],
+        };
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::GLOBAL_COIN_INDICES_SIGNATURES,
+            ],
+            &params,
+        )
+        .await
+    }
+
+    async fn master_verification_key(
+        &self,
+        epoch_id: Option<EpochId>,
+    ) -> Result<VerificationKeyResponse, NymAPIError> {
+        let params = match epoch_id {
+            None => Vec::new(),
+            Some(epoch_id) => vec![(ecash::EPOCH_ID_PARAM, epoch_id.to_string())],
+        };
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::ECASH_ROUTES,
+                routes::ecash::MASTER_VERIFICATION_KEY,
+            ],
+            &params,
         )
         .await
     }
@@ -491,9 +603,8 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_EPOCH_CREDENTIALS,
+                routes::ECASH_ROUTES,
+                routes::ECASH_EPOCH_CREDENTIALS,
                 &dkg_epoch.to_string(),
             ],
             NO_PARAMS,
@@ -508,9 +619,8 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_ISSUED_CREDENTIAL,
+                routes::ECASH_ROUTES,
+                routes::ECASH_ISSUED_CREDENTIAL,
                 &credential_id.to_string(),
             ],
             NO_PARAMS,
@@ -525,9 +635,8 @@ pub trait NymApiClientExt: ApiClient {
         self.post_json(
             &[
                 routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_ISSUED_CREDENTIALS,
+                routes::ECASH_ROUTES,
+                routes::ECASH_ISSUED_CREDENTIALS,
             ],
             NO_PARAMS,
             &CredentialsRequestBody {

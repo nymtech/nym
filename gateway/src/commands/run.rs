@@ -4,13 +4,13 @@
 use crate::commands::helpers::{try_load_current_config, try_override_config, OverrideConfig};
 use anyhow::bail;
 use clap::Args;
-use log::warn;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
 use nym_gateway::helpers::{OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig};
 use nym_gateway::GatewayError;
 use std::net::IpAddr;
 use std::path::PathBuf;
+use tracing::warn;
 
 #[derive(Args, Clone)]
 pub struct Run {

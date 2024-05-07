@@ -133,7 +133,7 @@ clippy: sdk-wasm-lint
 # Build contracts ready for deploy
 # -----------------------------------------------------------------------------
 
-CONTRACTS=vesting_contract mixnet_contract
+CONTRACTS=vesting_contract mixnet_contract nym_ecash
 CONTRACTS_WASM=$(addsuffix .wasm, $(CONTRACTS))
 CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
 

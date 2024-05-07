@@ -5,20 +5,23 @@ use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
 use crate::node::storage::Storage;
-use log::*;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::process;
 use tokio::task::JoinHandle;
+use tracing::*;
 
-pub(crate) struct Listener {
+pub(crate) struct Listener<S> {
     address: SocketAddr,
-    shared_state: CommonHandlerState,
+    shared_state: CommonHandlerState<S>,
 }
 
-impl Listener {
-    pub(crate) fn new(address: SocketAddr, shared_state: CommonHandlerState) -> Self {
+impl<S> Listener<S>
+where
+    S: Storage + Send + Sync + Clone + 'static,
+{
+    pub(crate) fn new(address: SocketAddr, shared_state: CommonHandlerState<S>) -> Self {
         Listener {
             address,
             shared_state,
@@ -27,15 +30,12 @@ impl Listener {
 
     // TODO: change the signature to pub(crate) async fn run(&self, handler: Handler)
 
-    pub(crate) async fn run<St>(
+    pub(crate) async fn run(
         &mut self,
         outbound_mix_sender: MixForwardingSender,
-        storage: St,
         active_clients_store: ActiveClientsStore,
         mut shutdown: nym_task::TaskClient,
-    ) where
-        St: Storage + Clone + 'static,
-    {
+    ) {
         info!("Starting websocket listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
@@ -61,9 +61,9 @@ impl Listener {
                                 OsRng,
                                 socket,
                                 outbound_mix_sender.clone(),
-                                storage.clone(),
                                 active_clients_store.clone(),
                                 self.shared_state.clone(),
+                                remote_addr,
                             );
                             let shutdown = shutdown.clone().named(format!("ClientConnectionHandler_{remote_addr}"));
                             tokio::spawn(async move { handle.start_handling(shutdown).await });
@@ -76,18 +76,14 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start<St>(
+    pub(crate) fn start(
         mut self,
         outbound_mix_sender: MixForwardingSender,
-        storage: St,
         active_clients_store: ActiveClientsStore,
         shutdown: nym_task::TaskClient,
-    ) -> JoinHandle<()>
-    where
-        St: Storage + Clone + 'static,
-    {
+    ) -> JoinHandle<()> {
         tokio::spawn(async move {
-            self.run(outbound_mix_sender, storage, active_clients_store, shutdown)
+            self.run(outbound_mix_sender, active_clients_store, shutdown)
                 .await
         })
     }

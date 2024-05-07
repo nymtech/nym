@@ -14,14 +14,14 @@ license.workspace = true
 bs58 = { workspace = true }
 futures = { workspace = true }
 generic-array = { workspace = true, features = ["serde"] }
-log = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tracing = { workspace = true, features = ["log"] }
 zeroize = { workspace = true }
 
-nym-crypto = { path = "../../common/crypto"  }
+nym-crypto = { path = "../../common/crypto" }
 nym-pemstore = { path = "../../common/pemstore" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 
@@ -39,5 +39,8 @@ features = ["tokio"]
 [dependencies.tungstenite]
 workspace = true
 default-features = false
+
+[dev-dependencies]
+nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" } # we need specific imports in tests
 
 

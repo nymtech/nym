@@ -187,11 +187,11 @@ impl FreePassRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct VerificationKeyResponse {
-    pub key: VerificationKey,
+    pub key: VerificationKeyAuth,
 }
 
 impl VerificationKeyResponse {
-    pub fn new(key: VerificationKey) -> VerificationKeyResponse {
+    pub fn new(key: VerificationKeyAuth) -> VerificationKeyResponse {
         VerificationKeyResponse { key }
     }
 }

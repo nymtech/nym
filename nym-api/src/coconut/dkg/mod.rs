@@ -24,7 +24,7 @@ mod tests {
         derive_keypairs, exchange_dealings, finalize, init_chain, initialise_controller,
         initialise_dkg, submit_public_keys, validate_keys,
     };
-    use nym_coconut::aggregate_verification_keys;
+    use nym_compact_ecash::aggregate_verification_keys;
 
     #[tokio::test]
     #[ignore] // expensive test

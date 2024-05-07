@@ -98,7 +98,6 @@ pub(crate) async fn setup_rocket(
         let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
         rocket.attach(coconut::stage(
             nyxd_client.clone(),
-            mix_denom,
             identity_keypair,
             coconut_keypair,
             comm_channel,

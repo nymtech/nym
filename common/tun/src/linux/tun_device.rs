@@ -159,7 +159,7 @@ impl TunDevice {
                 "add",
                 &format!("{}/{}", ipv6, netmaskv6),
                 "dev",
-                &tun.name(),
+                (tun.name()),
             ])
             .output()?;
         Ok(tun)

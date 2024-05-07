@@ -19,7 +19,6 @@ pub trait Storage: Send + Sync {
     /// that is also not marked as expired
     async fn get_next_unspent_credential(
         &self,
-        gateway_id: &str,
     ) -> Result<Option<StoredIssuedCredential>, Self::StorageError>;
 
     /// Marks as consumed in the database the specified credential.
@@ -27,10 +26,23 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `id`: Id of the credential to be consumed.
-    /// * `gateway_id`: id of the gateway that received the credential.
-    async fn consume_coconut_credential(
+    async fn consume_coconut_credential(&self, id: i64) -> Result<(), Self::StorageError>;
+
+    /// Update in the database the specified credential.
+    ///
+    /// # Arguments
+    ///
+    /// * `bandwidth_credential` : New credential
+    /// * `id`: Id of the credential to be updated.
+    /// * `consumed`: if the credential is consumed or not
+    ///
+    async fn update_issued_credential<'a>(
         &self,
+        bandwidth_credential: StorableIssuedCredential<'a>,
         id: i64,
+        consumed: bool,
+    ) -> Result<(), Self::StorageError>;
+
     /// Inserts provided coin_indices_signatures into the database.
     ///
     /// # Arguments

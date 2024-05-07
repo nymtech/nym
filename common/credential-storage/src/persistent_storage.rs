@@ -77,12 +77,11 @@ impl Storage for PersistentStorage {
 
     async fn get_next_unspent_credential(
         &self,
-        gateway_id: &str,
     ) -> Result<Option<StoredIssuedCredential>, Self::StorageError> {
         // first try to get a free pass if available, otherwise fallback to bandwidth voucher
         let maybe_freepass = self
             .coconut_credential_manager
-            .get_next_unspect_freepass(gateway_id)
+            .get_next_unspent_freepass()
             .await?;
         if maybe_freepass.is_some() {
             return Ok(maybe_freepass);
@@ -90,17 +89,26 @@ impl Storage for PersistentStorage {
 
         Ok(self
             .coconut_credential_manager
-            .get_next_unspect_bandwidth_voucher()
+            .get_next_unspent_ticketbook()
             .await?)
     }
 
-    async fn consume_coconut_credential(
-        &self,
-        id: i64,
-        gateway_id: &str,
-    ) -> Result<(), StorageError> {
+    async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .consume_coconut_credential(id, gateway_id)
+            .consume_coconut_credential(id)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn update_issued_credential<'a>(
+        &self,
+        bandwidth_credential: StorableIssuedCredential<'a>,
+        id: i64,
+        consumed: bool,
+    ) -> Result<(), Self::StorageError> {
+        self.coconut_credential_manager
+            .update_issued_credential(bandwidth_credential.credential_data, id, consumed)
             .await?;
 
         Ok(())

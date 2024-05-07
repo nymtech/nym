@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::CoinIndicesSignature;
+use crate::models::StoredIssuedCredential;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -14,7 +15,6 @@ pub struct CoconutCredentialManager {
 #[derive(Default)]
 struct CoconutCredentialManagerInner {
     credentials: Vec<StoredIssuedCredential>,
-    credential_usage: Vec<CredentialUsage>,
     _next_id: i64,
 }
 
@@ -51,56 +51,33 @@ impl CoconutCredentialManager {
             credential_type,
             epoch_id,
             expired: false,
+            consumed: false,
         })
     }
 
-    async fn bandwidth_voucher_spent(&self, id: i64) -> bool {
-        self.inner
-            .read()
-            .await
-            .credential_usage
-            .iter()
-            .any(|c| c.credential_id == id)
-    }
-
-    async fn freepass_spent(&self, id: i64, gateway_id: &str) -> bool {
-        self.inner
-            .read()
-            .await
-            .credential_usage
-            .iter()
-            .any(|c| c.credential_id == id && c.gateway_id_bs58 == gateway_id)
-    }
-
     /// Tries to retrieve one of the stored, unused credentials.
-    pub async fn get_next_unspect_bandwidth_voucher(&self) -> Option<StoredIssuedCredential> {
+    pub async fn get_next_unspent_ticketbook(&self) -> Option<StoredIssuedCredential> {
         let guard = self.inner.read().await;
         for credential in guard
             .credentials
             .iter()
-            .filter(|c| c.credential_type == "BandwidthVoucher")
+            .filter(|c| c.credential_type == "TicketBook")
         {
-            if !self.bandwidth_voucher_spent(credential.id).await {
+            if !credential.consumed && !credential.expired {
                 return Some(credential.clone());
             }
         }
         None
     }
 
-    pub async fn get_next_unspect_freepass(
-        &self,
-        gateway_id: &str,
-    ) -> Option<StoredIssuedCredential> {
+    pub async fn get_next_unspent_freepass(&self) -> Option<StoredIssuedCredential> {
         let guard = self.inner.read().await;
         for credential in guard
             .credentials
             .iter()
             .filter(|c| c.credential_type == "FreeBandwidthPass")
         {
-            if credential.expired {
-                continue;
-            }
-            if !self.freepass_spent(credential.id, gateway_id).await {
+            if !credential.consumed && !credential.expired {
                 return Some(credential.clone());
             }
         }
@@ -112,8 +89,21 @@ impl CoconutCredentialManager {
     /// # Arguments
     ///
     /// * `id`: Database id.
-    pub async fn consume_coconut_credential(&self, id: i64, gateway_id: &str) {
+    pub async fn consume_coconut_credential(&self, id: i64) {
         let mut guard = self.inner.write().await;
+        if let Some(cred) = guard.credentials.get_mut(id as usize) {
+            cred.consumed = true;
+        }
+    }
+
+    pub async fn update_issued_credential(&self, credential_data: &[u8], id: i64, consumed: bool) {
+        let mut guard = self.inner.write().await;
+        if let Some(cred) = guard.credentials.get_mut(id as usize) {
+            cred.credential_data = credential_data.to_vec();
+            cred.consumed = consumed;
+        }
+    }
+
     /// Inserts provided coin_indices_signatures into the database.
     ///
     /// # Arguments

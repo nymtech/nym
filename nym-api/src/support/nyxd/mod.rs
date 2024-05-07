@@ -23,6 +23,7 @@ use nym_coconut_dkg_common::{
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
 
 use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
+use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
@@ -404,6 +405,15 @@ impl crate::coconut::client::Client for Client {
         Ok(nyxd_query!(
             self,
             get_spent_credential(blinded_serial_number).await?
+        ))
+    }
+    async fn get_blacklisted_account(
+        &self,
+        public_key: String,
+    ) -> crate::coconut::error::Result<BlacklistedAccountResponse> {
+        Ok(nyxd_query!(
+            self,
+            get_blacklisted_account(public_key).await?
         ))
     }
 

@@ -54,7 +54,7 @@ const GatewaySignatureForm = ({
   }, [gateway, amount]);
 
   if (error) {
-    return <ErrorModal open message={error} onClose={() => { }} />;
+    return <ErrorModal open message={error} onClose={() => {}} />;
   }
 
   return (

@@ -1,0 +1,56 @@
+[package]
+name = "nym-compact-ecash"
+version = "0.1.0"
+authors = ["Ania Piotrowska <ania@nymtech.net>"]
+edition = "2021"
+license = { workspace = true }
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.38"
+bls12_381 = { workspace = true , features = ["alloc", "pairings", "experimental", "zeroize"]}
+itertools = "0.12.1"
+digest = "0.9"
+rand = { workspace = true }
+thiserror = { workspace = true }
+sha2 = "0.9"
+bs58 = { workspace = true }
+serde = { workspace = true }
+getset = "0.1.1"
+rayon = "1.5.0"
+zeroize = { workspace = true , features = ["zeroize_derive"]}
+
+nym-pemstore = { path = "../pemstore" }
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["html_reports"] }
+
+[dependencies.ff]
+version = "0.13"
+default-features = false
+
+[dependencies.group]
+version = "0.13"
+default-features = false
+
+
+[[bench]]
+name = "benchmarks_group_operations"
+path = "benches/benchmarks_group_operations.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_expiration_date_signatures"
+path = "benches/benchmarks_expiration_date_signatures.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_coin_indices_signatures"
+path = "benches/benchmarks_coin_indices_signatures.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_ecash_e2e"
+path = "benches/benchmarks_ecash_e2e.rs"
+harness = false

@@ -161,14 +161,44 @@ This lets your operating system know it's ok to reload the service configuration
 
 ## Connectivity Test and Configuration
 
-```admonish info
-**This chapter is relevant only for operators running an `exit-gateway` mode.** If this is not your case, please proceed to [bonding](bonding.md).
-```
-
 During our ongoing testing events [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router (IPR) and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) on embedded Network Requester (NR) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
+IPv6 routing is not only a case for Exit Gateways. Imagine that you run a `mixnode` without IPv6 enabled and packets are going through the Mixnet through such route:
+```ascii
+user -> [entry-gateway] -> [mixnode layer 1] -> [your mixnode] -> [IPv6 mixnode layer3] -> [exit-gateway]
+```
+In this case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down.
+
+### Quick IPv6 Check
+
+You can always check IPv6 address and connectivity by using some of these methods:
+
+```sh
+# locally listed IPv6 addresses
+ip -6 addr
+
+# globally reachable IPv6 addresses
+ip -6 addr show scope global
+
+# with DNS
+dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com
+dig -t aaaa +short myip.opendns.com @resolver1.opendns.com
+
+# https check
+curl -6 https://ifconfig.co
+curl -6 https://ipv6.icanhazip.com
+
+# using telnet
+telnet -6 ipv6.telnetmyip.com
+```
+
+### IPv6 Configuration
 
 While we're working on Rust implementation to have these settings as a part of the binary build, we wrote a script to solve these connectivity requirements in the meantime we wrote a script [`network_tunnel_manager.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) to support the operators to configure their servers and address all the connectivity requirements.
+
+Networking configuration across different ISPs and various operation systems does not have a generic solution. If the provided configuration setup doesn't solve your problem check out [IPv6 troubleshooting](../troubleshooting/vps-isp.md#ipv6-troubleshooting) page. Be aware that you may have to do more research and customised adjustments.
+
+#### Mode: `exit-gateway`
 
 The `nymtun0` interface is dynamically managed by the `exit-gateway` service. When the service is stopped, `nymtun0` disappears, and when started, `nymtun0` is recreated.
 
@@ -265,11 +295,11 @@ operation fetch_ipv6_address_nym_tun completed successfully.
 sudo ./network_tunnel_manager.sh apply_iptables_rules
 ```
 
-  - The process may prompt you if you want to save current IPv4 rules, choose yes.
+  - The process may prompt you if you want to save current IPv4 and IPv6 rules, choose yes.
 
 ![](../images/ip_table_prompt.png)
 
-   - and check them again like in point 3
+   - check IPv6 again like in point 3
 
 6. At this point your node needs to be [bonded](bonding.md) to the API for `nymtun0` to interact with the network. After bonding please follow up with the remaining streps below to ensure that your Exit Gateway is routing properly.
 
@@ -294,6 +324,71 @@ ip addr show nymtun0
 8. Validate your IPv6 and IPv4 networking by running a joke via Mixnet:
 ```sh
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
+```
+
+Make sure that you get the validation of IPv4 and IPv6 connectivity. If there are still any problems, please refer to [troubleshooting section](../troubleshooting/vps-isp.md#incorrect-gateway-network-check).
+
+#### Mode: `mixnode`
+
+1. Download `network_tunnel_manager.sh`, make executable and run:
+
+```sh
+curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chmod +x network_tunnel_manager.sh && ./network_tunnel_manager.sh
+```
+
+Here is a quick command explanation, for more details on the `network_tunnel_manager.sh` script, refer to the [overview](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) under the code block. Mind that for `mixnode` VPS setup we will use only a few of the commands.
+
+~~~admonish example collapsible=true title="A summarized usage of `network_tunnel_manager.sh`"
+```sh
+summary:
+This is a comprehensive script for configuring network packet forwarding and iptables rules,
+aimed at ensuring smooth operation of a tunnel interface.
+It includes functionality for both setup and tear-down of nymtun network configurations,
+alongside diagnostics for verifying system settings and network connectivity.
+
+* fetch_ipv6_address_nym_tun - Fetches the IPv6 address assigned to the 'nymtun0'.
+* fetch_and_display_ipv6 - Displays the IPv6 address on the default network device.
+* apply_iptables_rules - Applies necessary IPv4 and IPv6 iptables rules.
+* remove_iptables_rules - Removes applied IPv4 and IPv6 iptables rules.
+* check_ipv6_ipv4_forwarding - Checks if IPv4 and IPv6 forwarding are enabled.
+* check_nymtun_iptables - Check nymtun0 device
+* perform_ipv4_ipv6_pings - Perform ipv4 and ipv6 pings to google
+* check_ip6_ipv4_routing - Check ipv6 and ipv4 routing
+* joke_through_the_mixnet - Run a joke through the mixnet via ipv4 and ipv6
+
+```
+~~~
+
+  - To run the script next time, just enter `./network_tunnel_manager <ARG>`
+
+2. Display IPv6:
+```sh
+sudo ./network_tunnel_manager.sh fetch_and_display_ipv6
+```
+ - if you have a `global ipv6` address this is good
+
+~~~admonish example collapsible=true title="Correct `./network_tunnel_manager.sh fetch_and_display_ipv6` output:"
+```sh
+iptables-persistent is already installed.
+Using IPv6 address: 2001:db8:a160::1/112 #the address will be different for you
+operation fetch_ipv6_address_nym_tun completed successfully.
+```
+~~~
+
+3. Apply the rules:
+```sh
+sudo ./network_tunnel_manager.sh apply_iptables_rules
+```
+
+  - The process may prompt you if you want to save current IPv4 and IPv6 rules, choose yes.
+
+![](../images/ip_table_prompt.png)
+
+   - check IPv6 again like in point 2
+
+4. Check connectivity
+```sh
+telnet -6 ipv6.telnetmyip.com
 ```
 
 Make sure that you get the validation of IPv4 and IPv6 connectivity. If there are still any problems, please refer to [troubleshooting section](../troubleshooting/vps-isp.md#incorrect-gateway-network-check).

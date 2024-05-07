@@ -1,8 +1,16 @@
 # Troubleshooting VPS Setup
 
-## Incorrect Gateway Network Check
+```admonish info
+To monitor the connectivity of your Exit Gateway, use results of probe testing displayed in [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net).
+```
 
-If you followed all the steps listed in [Connectivity Test and Configuration](../nodes/vps-setup.md#connectivity-test-and-configuration) chapter of VPS Setup and you still have a problem with a correct connectivity for  page in
+## IPv6 troubleshooting
+
+### Incorrect Gateway Network Check
+
+Nym operators community is working on a Nym version of tors [good bad ISP table](https://community.torproject.org/relay/community-resources/good-bad-isps/). There is no one solution fits all when it comes to connectivity setup. The operation of `nym-node` will vary depending on your ISP and chosen system/distribution.  While few machines will work out of the box, most will work after uisng our connectivity configuration guide, some need more adjustments.
+
+Begin with the steps listed in [*Connectivity Test and Configuration*](../nodes/vps-setup.md#connectivity-test-and-configuration) chapter of VPS Setup page. If you still have a problem with the IPv6 connectivity try:
 
 1. Tor community created a helpful [table of ISPs](https://community.torproject.org/relay/community-resources/good-bad-isps/). Make sure your one is listed there as a *"good ISP"*. If not, consider migrating!
 2. Checkout your VPS dashboard and make sure your IPv6-public enabled.
@@ -10,8 +18,15 @@ If you followed all the steps listed in [Connectivity Test and Configuration](..
 
 ![](../images/ipv6_64.png)
 
+4. Search or ask your ISP for additional documentation related to IPv6 routing and ask them to provide you with `IPv6 IP address` and `IPv6 IP gateway address`
+- For example Digital Ocean setup isn't the most straight forward, but it's [well documented](https://docs.digitalocean.com/products/networking/ipv6/how-to/enable/#on-existing-droplets) and it works.
 
-## Virtual IPs and hosting via Google & AWS
+5. Search for guides regarding your particular system and distribution. For Debian based distributions using systemd, some generic guides such as [this one](https://cloudzy.com/blog/configure-ipv6-on-ubuntu/) work as well.
+
+
+## Other VPS troubleshooting
+
+### Virtual IPs and hosting via Google & AWS
 
 For true internet decentralization we encourage operators to use diverse VPS providers instead of the largest companies offering such services. If for some reasons you have already running AWS or Google and want to setup a `<NODE>` there, please read the following.
 

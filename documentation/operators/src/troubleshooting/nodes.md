@@ -194,17 +194,11 @@ If you are still unable to see your node on the dashboard, or your node is decla
 - You did not configure your router firewall while running the node from your local machine behind NAT, or you are lacking IPv6 support
 - Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](../nodes/configuration.md#automating-your-node-with-tmux-and-systemd).
 
-```admonish caution
+```admonish caution title=""
 Your Nym Node **must speak both IPv4 and IPv6** in order to cooperate with other nodes and route traffic. This is a common reason behind many errors we are seeing among node operators, so check with your provider that your VPS is able to do this!
 ```
 
 #### Check IPv6 Connectivity
-
-IPv6 routing is not only a case for Exit Gateways. Imagine that you run a `mixnode` without IPv6 enabled and packets are going through the Mixnet through such route:
-```ascii
-user -> [entry-gateway] -> [mixnode layer 1] -> [your mixnode] -> [IPv6 mixnode layer3] -> [exit-gateway]
-```
-In this case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down.
 
 You can always check IPv6 address and connectivity by using some of these methods:
 
@@ -240,33 +234,6 @@ Check that you have provided the correct information when bonding your Nym Node 
 On certain cloud providers such as AWS and Google Cloud, you need to do some additional configuration of your firewall and use `--host` with your **local ip** and `--announce-host` with the **public ip** of your Mix Node host.
 
 If the difference between the two is unclear, contact the help desk of your VPS provider.
-
-#### No IPv6 connectivity
-
-Make sure that your VPS has IPv6 connectivity available with whatever provider you are using.
-
-To get all ip addresses of your host, try following commands:
-
-```
-hostname -i
-```
-
-Will return your **local ip** address.
-
-```
-hostname -I
-```
-
-Will return all of the ip addresses of your host. This output should look something like this:
-
-```
-bob@nym:~$ hostname -I
-88.36.11.23 172.18.0.1 2a01:28:ca:102::1:641
-```
-
-- The first **ipv4** is the public ip you need to use for the `--announce-host` flag.
-- The second **ipv4** is the local ip you need to use for the `--host` flag.
-- The 3rd output should confirm if your machine has ipv6 available.
 
 ### Running on a local machine behind NAT with no fixed IP address
 
@@ -304,7 +271,7 @@ thread 'tokio-runtime-worker' panicked at 'Failed to create TCP listener: Os { c
 ```
 
 Then you need to `--announce-host <PUBLIC_IP>` and `--host <LOCAL_IP>` on startup. This issue is addressed [above](#missing-`announce-host`-flag)
-
+<!-- NEEDS TO BE REWORKED AND ADD WARNING TO NOT CHANGE OTHER PORTS FOR API
 ### Can I use a port other than 1789?
 
 Yes! Here is what you will need to do:
@@ -331,7 +298,7 @@ nano ~/.nym/nym-nodes/alice-node/config/config.toml
 You will need to edit two parts of the file. `announce_address` and `listening_address` in the `config.toml` file. Simply replace `:1789` (the default port) with `:1337` (your new port) after your IP address.
 
 Finally, restart your node. You should see if the Mix Node is using the port you have changed in the config.toml file right after you run the node.
-
+-->
 ### What is `verloc` and do I have to configure my Nym Node to implement it?
 
 `verloc` is short for _verifiable location_. Mix Nodes and Gateways now measure speed-of-light distances to each other, in an attempt to verify how far apart they are. In later releases, this will allow us to algorithmically verify node locations in a non-fake-able and trustworthy manner.

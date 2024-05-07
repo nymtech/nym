@@ -163,13 +163,17 @@ This lets your operating system know it's ok to reload the service configuration
 
 During our ongoing testing events [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router (IPR) and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) on embedded Network Requester (NR) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
-IPv6 routing is not only a case for Exit Gateways. Imagine that you run a `mixnode` without IPv6 enabled and packets are going through the Mixnet through such route:
+IPv6 routing is not only a case for gateways. Imagine a rare occassion when you run a `mixnode` without IPv6 enabled and a client will sent IPv6 packets through the Mixnet through such route:
 ```ascii
-user -> [entry-gateway] -> [mixnode layer 1] -> [your mixnode] -> [IPv6 mixnode layer3] -> [exit-gateway]
+[client] -> [entry-gateway] -> [mixnode layer 1] -> [your mixnode] -> [IPv6 mixnode layer3] -> [exit-gateway]
 ```
-In this case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down.
+In this (unusual) case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down. For that reason it's befetial to have IPv6 enabled when running a `mixnode` functionality.
 
 ### Quick IPv6 Check
+
+```admonish caution
+Make sure to keep your IPv4 address enabled while setting up IPv6, as the majority of routing goes through that one!
+```
 
 You can always check IPv6 address and connectivity by using some of these methods:
 
@@ -329,6 +333,10 @@ sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 Make sure that you get the validation of IPv4 and IPv6 connectivity. If there are still any problems, please refer to [troubleshooting section](../troubleshooting/vps-isp.md#incorrect-gateway-network-check).
 
 #### Mode: `mixnode`
+
+```admonish caution title=""
+Most of the time the packets sent through the Mixnet are IPv4 based. The IPv6 packets are still pretty rare and therefore it's not mandatory from operational point of view. If you preparing to run a `nym-node` with all modes enabled once this option is implemented, then the IPv6 setup on your VPS is required.
+```
 
 1. Download `network_tunnel_manager.sh`, make executable and run:
 

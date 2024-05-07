@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials_interface::BlindedSignature;
+use nym_compact_ecash::utils::BlindedSignature;
 use tendermint::hash::Hash;
 
 // recomputes plaintext on the credential nym-api has used for signing
@@ -12,7 +12,7 @@ pub fn issued_credential_plaintext(
     tx_hash: Hash,
     blinded_partial_credential: &BlindedSignature,
     bs58_encoded_private_attributes_commitments: &[String],
-    public_attributes: &[String],
+    expiration_date: i64,
 ) -> Vec<u8> {
     epoch_id
         .to_be_bytes()
@@ -24,10 +24,6 @@ pub fn issued_credential_plaintext(
                 .iter()
                 .flat_map(|attr| attr.as_bytes().iter().copied()),
         )
-        .chain(
-            public_attributes
-                .iter()
-                .flat_map(|attr| attr.as_bytes().iter().copied()),
-        )
+        .chain(expiration_date.to_be_bytes())
         .collect()
 }

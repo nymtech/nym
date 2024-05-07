@@ -6,7 +6,13 @@ use crate::coconut::error::CoconutError;
 use crate::coconut::state::bandwidth_credential_params;
 use nym_api_requests::coconut::models::FreePassRequest;
 use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_compact_ecash::scheme::expiration_date_signatures::{
+    sign_expiration_date, ExpirationDateSignature,
+};
+use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
 use nym_compact_ecash::setup::{sign_coin_indices, CoinIndexSignature, Parameters};
+use nym_compact_ecash::utils::BlindedSignature;
+use nym_compact_ecash::{PublicKeyUser, VerificationKeyAuth, WithdrawalRequest};
 use nym_validator_client::nyxd::error::NyxdError::AbciError;
 use tokio::sync::RwLock;
 
@@ -25,18 +31,22 @@ pub(crate) fn accepted_vote_err(ret: Result<(), CoconutError>) -> Result<(), Coc
 }
 
 pub(crate) trait CredentialRequest {
-    fn blind_sign_request(&self) -> &BlindSignRequest;
-
-    fn public_attributes(&self) -> Vec<Attribute>;
+    fn withdrawal_request(&self) -> &WithdrawalRequest;
+    fn expiration_date(&self) -> u64;
+    fn ecash_pubkey(&self) -> PublicKeyUser;
 }
 
 impl CredentialRequest for BlindSignRequestBody {
-    fn blind_sign_request(&self) -> &BlindSignRequest {
+    fn withdrawal_request(&self) -> &WithdrawalRequest {
         &self.inner_sign_request
     }
 
-    fn public_attributes(&self) -> Vec<Attribute> {
-        self.public_attributes_hashed()
+    fn expiration_date(&self) -> u64 {
+        self.expiration_date
+    }
+
+    fn ecash_pubkey(&self) -> PublicKeyUser {
+        self.ecash_pubkey.clone()
     }
 }
 
@@ -52,8 +62,17 @@ impl CredentialRequest for FreePassRequest {
 
 pub(crate) fn blind_sign<C: CredentialRequest>(
     request: &C,
-    signing_key: &SecretKey,
+    signing_key: &SecretKeyAuth,
 ) -> Result<BlindedSignature, CoconutError> {
+    Ok(nym_compact_ecash::scheme::withdrawal::issue(
+        bandwidth_credential_params().grp(),
+        signing_key.clone(),
+        request.ecash_pubkey().clone(),
+        request.withdrawal_request(),
+        request.expiration_date(),
+    )?)
+}
+
 pub(crate) struct CoinIndexSignatureCache {
     pub(crate) epoch_id: AtomicU64,
     pub(crate) signatures: RwLock<Option<Vec<CoinIndexSignature>>>,

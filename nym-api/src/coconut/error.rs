@@ -133,6 +133,12 @@ pub enum CoconutError {
     #[error("coconut internal error: {0}")]
     CoconutInternalError(#[from] nym_coconut::CoconutError),
 
+    #[error("Compact ecash internal error - {0}")]
+    CompactEcashInternalError(#[from] nym_compact_ecash::error::CompactEcashError),
+
+    #[error("Account linked to this public key has been blacklisted")]
+    BlacklistedAccount,
+
     #[error("could not find a deposit event in the transaction provided")]
     DepositEventNotFound,
 

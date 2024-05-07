@@ -209,7 +209,7 @@ impl ClientControlRequest {
             ClientControlRequest::BandwidthCredentialV2 { .. } => {
                 "BandwidthCredentialV2".to_string()
             }
-            ClientControlRequest::EcashCredential { .. } => "EcashCredential".to_string(), 
+            ClientControlRequest::EcashCredential { .. } => "EcashCredential".to_string(),
             ClientControlRequest::ClaimFreeTestnetBandwidth => {
                 "ClaimFreeTestnetBandwidth".to_string()
             }

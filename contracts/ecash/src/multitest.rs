@@ -1,16 +1,31 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::Coin;
-use sylvia::multitest::App;
+use cosmwasm_std::{Addr, Coin};
+use sylvia::{cw_multi_test::App as MtApp, multitest::App};
 
 use crate::{contract::multitest_utils::CodeId, errors::ContractError};
 
 #[test]
 fn invalid_deposit() {
-    let app = App::default();
     let owner = "owner";
     let denom = "unym";
+
+    let mtapp = MtApp::new(|router, _, storage| {
+        router
+            .bank
+            .init_balance(
+                storage,
+                &Addr::unchecked(owner),
+                vec![
+                    Coin::new(10000000, denom),
+                    Coin::new(10000000, "some_denom"),
+                ],
+            )
+            .unwrap()
+    });
+    let app = App::new(mtapp);
+
     let code_id = CodeId::store_code(&app);
 
     let contract = code_id

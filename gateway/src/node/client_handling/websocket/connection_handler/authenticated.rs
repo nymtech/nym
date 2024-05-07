@@ -1,11 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::bandwidth::BandwidthError;
+use crate::node::client_handling::bandwidth::{Bandwidth, BandwidthError};
 use crate::node::client_handling::websocket::connection_handler::ClientBandwidth;
 use crate::node::{
     client_handling::{
-        bandwidth::Bandwidth,
         websocket::{
             connection_handler::{ClientDetails, FreshHandler},
             message_receiver::{
@@ -21,9 +20,10 @@ use futures::{
     FutureExt, StreamExt,
 };
 use log::*;
-use nym_credentials::coconut::bandwidth::{bandwidth_credential_params, CredentialType};
-use nym_credentials_interface::{Base58, CoconutError};
-use nym_gateway_requests::models::CredentialSpendingRequest;
+use nym_credentials::coconut::bandwidth::CredentialType;
+use nym_credentials::coconut::utils::today_timestamp;
+use nym_credentials_interface::{to_coconut, CoconutBase58, CoconutError, CoconutParameters};
+use nym_gateway_requests::models::OldCredentialSpendingRequest;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     types::{BinaryRequest, ServerResponse},
@@ -82,6 +82,9 @@ pub enum RequestHandlingError {
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
 
+    #[error("Compact ecash error - {0}")]
+    CompactEcashError(#[from] nym_credentials_interface::CompactEcashError),
+
     #[error("coconut failure: {0}")]
     CoconutError(#[from] CoconutError),
 
@@ -90,6 +93,9 @@ pub enum RequestHandlingError {
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] nym_credentials::error::Error),
+
+    #[error("Internal error")]
+    InternalError,
 
     #[error("failed to recover bandwidth value: {0}")]
     BandwidthRecoveryFailure(#[from] BandwidthError),
@@ -274,24 +280,35 @@ where
 
     async fn handle_bandwidth_request(
         &mut self,
-        credential: CredentialSpendingRequest,
+        credential: OldCredentialSpendingRequest,
     ) -> Result<ServerResponse, RequestHandlingError> {
         // check if the credential hasn't been spent before
-        let serial_number = credential.data.blinded_serial_number();
-        trace!("processing credential {}", serial_number.to_bs58());
+        let blinded_serial_number_bs58 = credential.data.blinded_serial_number().to_bs58();
+        trace!("processing credential {}", blinded_serial_number_bs58);
 
         // if we already have had received a free pass (that's not expired, don't accept any additional bandwidth)
-        if self.client_bandwidth.bandwidth.freepass_expired() {
+        if self.client_bandwidth.bandwidth.expired() {
             // the free pass we used before has expired -> reset our state and handle the request as normal
-            self.expire_freepass().await?;
-        } else if let Some(expiration) = self.client_bandwidth.bandwidth.freepass_expiration {
+            self.expire_bandwidth().await?;
+        } else {
             // the free pass is still valid -> return error
             return match credential.data.typ {
                 CredentialType::Voucher => {
-                    Err(RequestHandlingError::BandwidthVoucherForFreePassAccount { expiration })
+                    Err(RequestHandlingError::BandwidthVoucherForFreePassAccount {
+                        expiration: self.client_bandwidth.bandwidth.expiration,
+                    })
                 }
-                CredentialType::FreePass => {
-                    Err(RequestHandlingError::PreexistingFreePass { expiration })
+                CredentialType::FreePass => Err(RequestHandlingError::PreexistingFreePass {
+                    expiration: self.client_bandwidth.bandwidth.expiration,
+                }),
+                CredentialType::TicketBook => {
+                    error!(
+                        "Ecash payment within an old spending request - that should never happen"
+                    );
+                    Err(RequestHandlingError::IllegalRequest {
+                        additional_context: "Ecash payment within an old spending request"
+                            .to_string(),
+                    })
                 }
             };
         }
@@ -299,7 +316,7 @@ where
         let already_spent = self
             .inner
             .storage
-            .contains_credential(&serial_number)
+            .contains_credential(blinded_serial_number_bs58.clone())
             .await?;
         if already_spent {
             trace!("the credential has already been spent before");
@@ -334,12 +351,18 @@ where
             let aggregated_verification_key = self
                 .inner
                 .shared_state
-                .coconut_verifier
+                .ecash_verifier
                 .verification_key(credential.data.epoch_id)
                 .await?;
 
-            let params = bandwidth_credential_params();
-            if !credential.data.verify(params, &aggregated_verification_key) {
+            //4 is legacy from old coconut credential
+            // safety: the unwrap is fine here as 4 is non-zero
+            #[allow(clippy::unwrap_used)]
+            let params = CoconutParameters::new(4).unwrap();
+            if !credential
+                .data
+                .verify(&params, &to_coconut(&aggregated_verification_key)?)
+            {
                 trace!("the credential did not verify correctly");
                 return Err(RequestHandlingError::InvalidBandwidthCredential(
                     String::from("local credential verification has failed"),
@@ -349,25 +372,19 @@ where
 
         match credential.data.typ {
             CredentialType::Voucher => {
-                trace!("the credential is a bandwidth voucher. attempting to release the funds");
-                let api_clients = self
-                    .inner
-                    .shared_state
-                    .coconut_verifier
-                    .api_clients(credential.data.epoch_id)
-                    .await?;
-
-                self.inner
-                    .shared_state
-                    .coconut_verifier
-                    .release_bandwidth_voucher_funds(&api_clients, credential)
-                    .await?;
+                warn!("the credential is a bandwidth voucher. No global double spend check");
             }
             CredentialType::FreePass => {
                 // no need to do anything special here, we already extracted the bandwidth amount and checked expiry
                 info!("received a free pass credential");
             }
-        }
+            CredentialType::TicketBook => {
+                error!("Ecash payment within an old spending request - that should never happen");
+                return Err(RequestHandlingError::IllegalRequest {
+                    additional_context: "Ecash payment within an old spending request".to_string(),
+                });
+            }
+        };
 
         // technically this is not atomic, i.e. checking for the spending and then marking as spent,
         // but because we have the `UNIQUE` constraint on the database table
@@ -381,18 +398,15 @@ where
         self.inner
             .storage
             .insert_spent_credential(
-                serial_number,
+                blinded_serial_number_bs58,
                 freepass_expiration.is_some(),
                 self.client.address,
             )
             .await?;
 
         trace!("increasing client bandwidth");
-        self.increase_bandwidth(bandwidth).await?;
-        // set free pass expiration
-        if let Some(expiration) = freepass_expiration {
-            self.set_freepass_expiration(expiration).await?;
-        }
+        self.increase_bandwidth(bandwidth, today_timestamp())
+            .await?;
 
         let available_total = self.client_bandwidth.bandwidth.bytes;
 
@@ -414,6 +428,156 @@ where
         )?;
 
         self.handle_bandwidth_request(credential.try_into()?).await
+    }
+
+    /// Tries to handle the received bandwidth request by checking correctness of the received data
+    /// and if successful, increases client's bandwidth by an appropriate amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `enc_credential`: raw encrypted credential to verify.
+    /// * `iv`: fresh iv used for the credential.
+    async fn handle_ecash_bandwidth(
+        &mut self,
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        debug!("handling ecash bandwidth request");
+
+        let iv = IV::try_from_bytes(&iv)?;
+        let credential = ClientControlRequest::try_from_enc_ecash_credential(
+            enc_credential,
+            &self.client.shared_keys,
+            iv,
+        )?;
+        let spend_date = today_timestamp();
+
+        // check if the credential hasn't been spent before
+        let serial_number_bs58 = credential.data.serial_number_b58();
+        trace!("processing credential {}", serial_number_bs58);
+
+        let already_spent_storage = self
+            .inner
+            .storage
+            .contains_credential(serial_number_bs58.clone())
+            .await?;
+
+        let already_spent_api = self
+            .inner
+            .shared_state
+            .ecash_verifier
+            .check_double_spend(&serial_number_bs58)
+            .await;
+
+        if already_spent_storage || already_spent_api {
+            trace!("the credential has already been spent before");
+            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
+        }
+
+        // check if the spending date is correct
+        if spend_date != credential.data.spend_date {
+            trace!("The provided spend date is incorrect");
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                "Invalid spending date".to_string(),
+            ));
+        }
+
+        trace!(
+            "attempting to obtain aggregate verification key for epoch {}",
+            credential.data.epoch_id
+        );
+        {
+            let aggregated_verification_key = self
+                .inner
+                .shared_state
+                .ecash_verifier
+                .verification_key(credential.data.epoch_id)
+                .await?;
+
+            self.inner
+                .shared_state
+                .ecash_verifier
+                .check_payment(&credential.data, &aggregated_verification_key)
+                .await?;
+        }
+        let was_freepass = match credential.data.typ {
+            CredentialType::TicketBook => {
+                trace!("the credential is a bandwidth voucher");
+                let api_clients = self
+                    .inner
+                    .shared_state
+                    .ecash_verifier
+                    .api_clients(credential.data.epoch_id)
+                    .await?;
+
+                if self.inner.shared_state.offline_credential_verification {
+                    self.inner
+                        .shared_state
+                        .ecash_verifier
+                        .post_credential(&api_clients, credential.clone())
+                        .await?;
+
+                    self.inner
+                        .storage
+                        .insert_credential(credential.clone())
+                        .await?;
+                } else {
+                    self.inner
+                        .shared_state
+                        .ecash_verifier
+                        .spend_online_credential(&api_clients, &credential)
+                        .await?;
+                }
+                false
+            }
+            CredentialType::FreePass => {
+                info!("received a free pass credential");
+                // we're still sending it to the api to add it to the distributed bloom filter
+                // we don't store it cause it doesn't give reward
+                let api_clients = self
+                    .inner
+                    .shared_state
+                    .ecash_verifier
+                    .api_clients(credential.data.epoch_id)
+                    .await?;
+
+                if self.inner.shared_state.offline_credential_verification {
+                    self.inner
+                        .shared_state
+                        .ecash_verifier
+                        .post_credential(&api_clients, credential.clone())
+                        .await?;
+                } else {
+                    self.inner
+                        .shared_state
+                        .ecash_verifier
+                        .spend_online_credential(&api_clients, &credential)
+                        .await?;
+                }
+                true
+            }
+            CredentialType::Voucher => {
+                error!("Old coconut payment within an ecash spending request - that should never happen");
+                return Err(RequestHandlingError::IllegalRequest {
+                    additional_context: "Coconut payment within an ecash spending request"
+                        .to_string(),
+                });
+            }
+        };
+
+        trace!("storing serial number information");
+        self.inner
+            .storage
+            .insert_spent_credential(serial_number_bs58, was_freepass, self.client.address)
+            .await?;
+
+        let bandwidth = Bandwidth::get_for_type(credential.data.typ);
+
+        self.increase_bandwidth(bandwidth, spend_date).await?;
+
+        let available_total = self.client_bandwidth.bandwidth.bytes;
+
+        Ok(ServerResponse::Bandwidth { available_total })
     }
 
     /// Tries to handle the received bandwidth request by checking correctness of the received data
@@ -543,6 +707,10 @@ where
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
+                ClientControlRequest::EcashCredential { enc_credential, iv } => self
+                    .handle_ecash_bandwidth(enc_credential, iv)
+                    .await
+                    .into_ws_message(),
                 ClientControlRequest::BandwidthCredential { enc_credential, iv } => self
                     .handle_bandwidth_v1(enc_credential, iv)
                     .await

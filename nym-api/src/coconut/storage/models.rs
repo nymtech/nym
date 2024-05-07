@@ -7,7 +7,7 @@ use nym_api_requests::coconut::models::{
     IssuedCredentialBody as ApiIssuedCredentialInner,
 };
 use nym_api_requests::coconut::BlindedSignatureResponse;
-use nym_coconut::{Base58, BlindedSignature};
+use nym_compact_ecash::{utils::BlindedSignature, Base58};
 use sqlx::FromRow;
 use std::fmt::Display;
 
@@ -48,8 +48,7 @@ pub struct IssuedCredential {
     // i.e. "'attr1','attr2',..."
     pub joined_private_commitments: String,
 
-    // i.e. "'attr1','attr2',..."
-    pub joined_public_attributes: String,
+    pub expiration_date: i64,
 }
 
 impl TryFrom<IssuedCredential> for ApiIssuedCredentialInner {
@@ -70,7 +69,7 @@ impl TryFrom<IssuedCredential> for ApiIssuedCredentialInner {
                 bs58_encoded_private_attributes_commitments: split_attributes(
                     &value.joined_private_commitments,
                 ),
-                public_attributes: split_attributes(&value.joined_public_attributes),
+                expiration_date: value.expiration_date,
             },
             signature: value.bs58_signature.parse()?,
         })

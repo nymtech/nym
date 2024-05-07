@@ -45,6 +45,7 @@ pub(crate) struct OverrideConfig {
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
     pub(crate) nyxd_urls: Option<Vec<url::Url>>,
     pub(crate) only_coconut_credentials: Option<bool>,
+    pub(crate) offline_credential_verification: Option<bool>,
     pub(crate) with_network_requester: Option<bool>,
     pub(crate) with_ip_packet_router: Option<bool>,
 }
@@ -80,6 +81,10 @@ impl OverrideConfig {
             .with_optional(
                 Config::with_only_coconut_credentials,
                 self.only_coconut_credentials,
+            )
+            .with_optional(
+                Config::with_offline_credential_verification,
+                self.offline_credential_verification,
             )
             .with_optional(
                 Config::with_enabled_network_requester,

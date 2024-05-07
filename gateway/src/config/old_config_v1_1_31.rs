@@ -115,6 +115,9 @@ impl From<ConfigV1_1_31> for Config {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,
+                // \/ ADDED
+                offline_credential_verification: false,
+                // /\ ADDED
                 listening_address: value.gateway.listening_address,
                 mix_port: value.gateway.mix_port,
                 clients_port: value.gateway.clients_port,

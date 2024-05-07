@@ -7,7 +7,7 @@ use anyhow::bail;
 use clap::Parser;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_utils::utils;
-use nym_validator_client::nyxd::Coin;
+use nym_crypto::asymmetric::identity;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -16,20 +16,12 @@ pub struct Args {
     #[clap(long)]
     pub(crate) client_config: PathBuf,
 
-    /// The amount of utokens the credential will hold.
-    #[clap(long, default_value = "0")]
-    pub(crate) amount: u64,
-
     /// Path to a directory used to store recovery files for unconsumed deposits
     #[clap(long)]
     pub(crate) recovery_dir: PathBuf,
 }
 
 pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
-    if args.amount == 0 {
-        bail!("did not specify credential amount")
-    }
-
     let loaded = CommonConfigsWrapper::try_load(args.client_config)?;
 
     if let Ok(id) = loaded.try_get_id() {
@@ -40,16 +32,24 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         bail!("the loaded config does not have a credentials store information")
     };
 
+    let Ok(private_id_key) = loaded.try_get_private_id_key() else {
+        bail!("the loaded config does not have a public id key information")
+    };
+
     println!(
         "using credentials store at '{}'",
         credentials_store.display()
     );
 
-    let denom = &client.current_chain_details().mix_denom.base;
-    let coin = Coin::new(args.amount as u128, denom);
-
     let persistent_storage = initialise_persistent_storage(credentials_store).await;
-    utils::issue_credential(&client, coin, &persistent_storage, args.recovery_dir).await?;
+    let private_id_key: identity::PrivateKey = nym_pemstore::load_key(private_id_key)?;
+    utils::issue_credential(
+        &client,
+        &private_id_key.to_bytes(),
+        &persistent_storage,
+        args.recovery_dir,
+    )
+    .await?;
 
     Ok(())
 }

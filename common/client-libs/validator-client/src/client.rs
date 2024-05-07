@@ -10,8 +10,7 @@ use crate::{
 };
 use nym_api_requests::coconut::models::FreePassNonceResponse;
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -349,6 +348,27 @@ impl NymApiClient {
             .nym_api
             .verify_bandwidth_credential(request_body)
             .await?)
+    }
+    pub async fn expiration_date_signatures(
+        &self,
+    ) -> Result<PartialExpirationDateSignatureResponse, ValidatorClientError> {
+        Ok(self.nym_api.expiration_date_signatures().await?)
+    }
+
+    pub async fn expiration_date_signatures_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<PartialExpirationDateSignatureResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .expiration_date_signatures_timestamp(&timestamp.to_string())
+            .await?)
+    }
+
+    pub async fn coin_indices_signatures(
+        &self,
+    ) -> Result<PartialCoinIndicesSignatureResponse, ValidatorClientError> {
+        Ok(self.nym_api.coin_indices_signatures().await?)
     }
 
     pub async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, ValidatorClientError> {

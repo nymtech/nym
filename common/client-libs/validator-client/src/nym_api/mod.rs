@@ -11,7 +11,7 @@ pub use nym_api_requests::{
             IssuedCredentialResponse, IssuedCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
-        VerifyCredentialBody, VerifyCredentialResponse,
+        PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
     },
     models::{
         ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -435,6 +435,52 @@ pub trait NymApiClientExt: ApiClient {
             ],
             NO_PARAMS,
             request_body,
+        )
+        .await
+    }
+    async fn expiration_date_signatures(
+        &self,
+    ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::EXPIRATION_DATE_SIGNATURES,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn expiration_date_signatures_timestamp(
+        &self,
+        timestamp: &str,
+    ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::EXPIRATION_DATE_SIGNATURES,
+                timestamp,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn coin_indices_signatures(
+        &self,
+    ) -> Result<PartialCoinIndicesSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COIN_INDICES_SIGNATURES,
+            ],
+            NO_PARAMS,
         )
         .await
     }

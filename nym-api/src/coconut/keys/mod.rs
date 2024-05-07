@@ -1,8 +1,8 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_coconut::VerificationKey;
 use nym_coconut_dkg_common::types::EpochId;
+use nym_compact_ecash::VerificationKeyAuth;
 use nym_dkg::Scalar;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -19,12 +19,12 @@ pub struct KeyPair {
 
 #[derive(Debug)]
 pub struct KeyPairWithEpoch {
-    pub(crate) keys: nym_coconut::KeyPair,
+    pub(crate) keys: nym_compact_ecash::KeyPairAuth,
     pub(crate) issued_for_epoch: EpochId,
 }
 
 impl KeyPairWithEpoch {
-    pub(crate) fn new(keys: nym_coconut::KeyPair, issued_for_epoch: EpochId) -> Self {
+    pub(crate) fn new(keys: nym_compact_ecash::KeyPairAuth, issued_for_epoch: EpochId) -> Self {
         KeyPairWithEpoch {
             keys,
             issued_for_epoch,
@@ -64,11 +64,11 @@ impl KeyPair {
         }
     }
 
-    pub async fn verification_key(&self) -> Option<RwLockReadGuard<'_, VerificationKey>> {
-        RwLockReadGuard::try_map(self.get().await?, |maybe_keypair| {
-            maybe_keypair.as_ref().map(|k| k.keys.verification_key())
-        })
-        .ok()
+    pub async fn verification_key(&self) -> Option<VerificationKeyAuth> {
+        self.get()
+            .await?
+            .as_ref()
+            .map(|k| k.keys.verification_key())
     }
 
     pub async fn read_keys(&self) -> RwLockReadGuard<'_, Option<KeyPairWithEpoch>> {

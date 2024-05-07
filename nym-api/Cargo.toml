@@ -78,6 +78,8 @@ zeroize = { workspace = true }
 nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
 nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
 #nym-ephemera-common = { path = "../common/cosmwasm-smart-contracts/ephemera" }
 nym-config = { path = "../common/config" }
 cosmwasm-std = { workspace = true }

@@ -6,9 +6,9 @@ use crate::coconut::error::CoconutError;
 use crate::coconut::state::bandwidth_credential_params;
 use cosmwasm_std::Addr;
 use cw3::Vote;
-use nym_coconut::{check_vk_pairing, Base58, VerificationKey};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
+use nym_compact_ecash::{utils::check_vk_pairing, Base58, VerificationKeyAuth};
 use rand::{CryptoRng, RngCore};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -45,7 +45,7 @@ pub enum ShareRejectionReason {
         epoch_id: EpochId,
         owner: Addr,
         #[source]
-        source: nym_coconut::CoconutError,
+        source: nym_compact_ecash::error::CompactEcashError,
     },
 
     #[error("did not derive partial keys for {owner} at index {receiver_index} for epoch {epoch_id} during the dealings exchange")]
@@ -95,7 +95,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         };
 
         // attempt to recover the underlying key from its bs58 representation
-        let recovered_key = match VerificationKey::try_from_bs58(share.share) {
+        let recovered_key = match VerificationKeyAuth::try_from_bs58(share.share) {
             Ok(key) => key,
             Err(source) => {
                 return reject(ShareRejectionReason::MalformedKeyEncoding {
@@ -119,7 +119,11 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             });
         };
 
-        if !check_vk_pairing(bandwidth_credential_params(), &self_derived, &recovered_key) {
+        if !check_vk_pairing(
+            bandwidth_credential_params().grp(),
+            &self_derived,
+            &recovered_key,
+        ) {
             return reject(ShareRejectionReason::InconsistentKeys {
                 epoch_id,
                 owner,

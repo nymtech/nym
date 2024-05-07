@@ -3,17 +3,17 @@
 
 use crate::coconut::keys::KeyPairWithEpoch;
 use crate::coconut::state::bandwidth_credential_params;
-use nym_coconut::{CoconutError, KeyPair, SecretKey};
 use nym_coconut_dkg_common::types::EpochId;
+use nym_compact_ecash::{error::CompactEcashError, scheme::keygen::SecretKeyAuth, KeyPairAuth};
 use nym_pemstore::traits::PemStorableKey;
 use std::mem;
 
 impl PemStorableKey for KeyPairWithEpoch {
     // that's not the best error for this, but it felt like an overkill to define a dedicated struct just for this purpose
-    type Error = CoconutError;
+    type Error = CompactEcashError;
 
     fn pem_type() -> &'static str {
-        "COCONUT KEY WITH EPOCH"
+        "COCONUT KEY WITH EPOCH" // avoid the invalidation of already present key
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -24,7 +24,7 @@ impl PemStorableKey for KeyPairWithEpoch {
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() <= mem::size_of::<EpochId>() {
-            return Err(CoconutError::Deserialization(
+            return Err(CompactEcashError::Deserialization(
                 "insufficient number of bytes to decode secret key with epoch id".into(),
             ));
         }
@@ -32,11 +32,11 @@ impl PemStorableKey for KeyPairWithEpoch {
             bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
         ]);
 
-        let sk = SecretKey::from_bytes(&bytes[mem::size_of::<EpochId>()..])?;
-        let vk = sk.verification_key(bandwidth_credential_params());
+        let sk = SecretKeyAuth::from_bytes(&bytes[mem::size_of::<EpochId>()..])?;
+        let vk = sk.verification_key(bandwidth_credential_params().grp());
 
         Ok(KeyPairWithEpoch {
-            keys: KeyPair::from_keys(sk, vk),
+            keys: KeyPairAuth::from_keys(sk, vk),
             issued_for_epoch: epoch_id,
         })
     }

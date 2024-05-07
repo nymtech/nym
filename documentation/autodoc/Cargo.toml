@@ -11,4 +11,3 @@ license.workspace = true
 [dependencies]
 env_logger = "0.11.3"
 log.workspace = true
-nym-client = { path = "../../clients/native" }

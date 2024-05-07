@@ -60,6 +60,20 @@ impl Bandwidth {
         })
     }
 
+    pub fn get_for_type(typ: CredentialType) -> Self {
+        match typ {
+            CredentialType::TicketBook => Bandwidth {
+                value: nym_network_defaults::TICKET_BANDWIDTH_VALUE,
+            },
+            CredentialType::FreePass => Bandwidth {
+                value: nym_network_defaults::BYTES_PER_FREEPASS,
+            },
+            CredentialType::Voucher => {
+                unimplemented!()
+            }
+        }
+    }
+
     pub(crate) fn parse_raw_bandwidth(
         value: &str,
         typ: CredentialType,
@@ -88,6 +102,9 @@ impl Bandwidth {
                         return Err(BandwidthError::ExpiredFreePass { expiry_date });
                     }
                     (nym_network_defaults::BYTES_PER_FREEPASS, Some(expiry_date))
+                }
+                CredentialType::TicketBook => {
+                    unimplemented!()
                 }
             };
         Ok((bandwidth_value, freepass_expiration))

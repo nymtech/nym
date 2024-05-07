@@ -21,6 +21,7 @@ async-trait = { workspace = true }
 bip39 = { workspace = true }
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
+chrono = "0.4.19"
 colored = "2.0"
 dashmap = { workspace = true }
 dirs = "4.0"
@@ -55,6 +56,7 @@ tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true, features = ["serde"] }
 time = { workspace = true }
 zeroize = { workspace = true }
+bloomfilter = "1.0.13"
 
 # internal
 

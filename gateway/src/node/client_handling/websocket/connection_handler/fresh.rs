@@ -551,8 +551,8 @@ where
         let available_bandwidth: AvailableBandwidth =
             self.storage.get_available_bandwidth(address).await?.into();
 
-        let bandwidth_remaining = if available_bandwidth.freepass_expired() {
-            self.expire_freepass(address).await?;
+        let bandwidth_remaining = if available_bandwidth.expired() {
+            self.expire_bandwidth(address).await?;
             0
         } else {
             available_bandwidth.bytes
@@ -571,11 +571,11 @@ where
         ))
     }
 
-    pub(crate) async fn expire_freepass(
+    pub(crate) async fn expire_bandwidth(
         &self,
         client: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
-        self.storage.reset_freepass_bandwidth(client).await
+        self.storage.reset_bandwidth(client).await
     }
 
     /// Attempts to finalize registration of the client by storing the derived shared keys in the

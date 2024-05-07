@@ -116,19 +116,19 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `client_address`: address of the client
-    /// * `freepass_expiration`: the expiration date of the associated free pass.
-    async fn set_freepass_expiration(
+    /// * `expiration`: the expiration date of the associated free pass.
+    async fn set_expiration(
         &self,
         client_address: DestinationAddressBytes,
-        freepass_expiration: OffsetDateTime,
+        expiration: OffsetDateTime,
     ) -> Result<(), StorageError>;
 
-    /// Reset all the bandwidth associated with the freepass and reset its expiration date
+    /// Reset all the bandwidth
     ///
     /// # Arguments
     ///
     /// * `client_address`: address of the client
-    async fn reset_freepass_bandwidth(
+    async fn reset_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError>;
@@ -348,23 +348,23 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn set_freepass_expiration(
+    async fn set_expiration(
         &self,
         client_address: DestinationAddressBytes,
-        freepass_expiration: OffsetDateTime,
+        expiration: OffsetDateTime,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .set_freepass_expiration(&client_address.as_base58_string(), freepass_expiration)
+            .set_expiration(&client_address.as_base58_string(), expiration)
             .await?;
         Ok(())
     }
 
-    async fn reset_freepass_bandwidth(
+    async fn reset_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .reset_freepass_bandwidth(&client_address.as_base58_string())
+            .reset_bandwidth(&client_address.as_base58_string())
             .await?;
         Ok(())
     }
@@ -566,15 +566,15 @@ impl Storage for InMemStorage {
         todo!()
     }
 
-    async fn set_freepass_expiration(
+    async fn set_expiration(
         &self,
         _client_address: DestinationAddressBytes,
-        _freepass_expiration: OffsetDateTime,
+        _expiration: OffsetDateTime,
     ) -> Result<(), StorageError> {
         todo!()
     }
 
-    async fn reset_freepass_bandwidth(
+    async fn reset_bandwidth(
         &self,
         _client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {

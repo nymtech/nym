@@ -211,10 +211,10 @@ where
             .disconnect(self.client.address)
     }
 
-    async fn expire_freepass(&mut self) -> Result<(), RequestHandlingError> {
+    async fn expire_bandwidth(&mut self) -> Result<(), RequestHandlingError> {
         self.client_bandwidth.bandwidth = Default::default();
         self.client_bandwidth.update_flush_data();
-        Ok(self.inner.expire_freepass(self.client.address).await?)
+        Ok(self.inner.expire_bandwidth(self.client.address).await?)
     }
 
     /// Increases the amount of available bandwidth of the connected client by the specified value.
@@ -222,28 +222,24 @@ where
     /// # Arguments
     ///
     /// * `amount`: amount to increase the available bandwidth by.
+    /// * `timestamp` : the expiration date of that bandwidth
     async fn increase_bandwidth(
         &mut self,
         bandwidth: Bandwidth,
+        timestamp: u64,
     ) -> Result<(), RequestHandlingError> {
+        let expiration = OffsetDateTime::from_unix_timestamp(
+            timestamp
+                .try_into()
+                .map_err(|_| RequestHandlingError::InternalError)?,
+        )
+        .map_err(|_| RequestHandlingError::InternalError)?;
         self.client_bandwidth.bandwidth.bytes += bandwidth.value() as i64;
+        self.client_bandwidth.bandwidth.expiration = expiration;
 
         // any increases to bandwidth should get flushed immediately
         // (we don't want to accidentally miss somebody claiming a gigabyte voucher)
         self.flush_bandwidth().await
-    }
-
-    async fn set_freepass_expiration(
-        &mut self,
-        expiration: OffsetDateTime,
-    ) -> Result<(), RequestHandlingError> {
-        self.client_bandwidth.bandwidth.freepass_expiration = Some(expiration);
-        self.inner
-            .storage
-            .set_freepass_expiration(self.client.address, expiration)
-            .await?;
-        self.client_bandwidth.update_flush_data();
-        Ok(())
     }
 
     /// Decreases the amount of available bandwidth of the connected client by the specified value.
@@ -613,7 +609,7 @@ where
             return Err(RequestHandlingError::OnlyCoconutCredentials);
         }
 
-        self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE)
+        self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE, today_timestamp())
             .await?;
         let available_total = self.client_bandwidth.bandwidth.bytes;
 
@@ -626,6 +622,13 @@ where
             .storage
             .set_bandwidth(self.client.address, self.client_bandwidth.bandwidth.bytes)
             .await?;
+        self.inner
+            .storage
+            .set_expiration(
+                self.client.address,
+                self.client_bandwidth.bandwidth.expiration,
+            )
+            .await?;
         self.client_bandwidth.update_flush_data();
         Ok(())
     }
@@ -634,8 +637,8 @@ where
         &mut self,
         required_bandwidth: i64,
     ) -> Result<i64, RequestHandlingError> {
-        if self.client_bandwidth.bandwidth.freepass_expired() {
-            self.expire_freepass().await?;
+        if self.client_bandwidth.bandwidth.expired() {
+            self.expire_bandwidth().await?;
         }
         let available_bandwidth = self.client_bandwidth.bandwidth.bytes;
 

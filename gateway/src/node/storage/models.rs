@@ -22,14 +22,14 @@ pub struct PersistedBandwidth {
     #[allow(dead_code)]
     pub(crate) client_address_bs58: String,
     pub(crate) available: i64,
-    pub(crate) freepass_expiration: Option<OffsetDateTime>,
+    pub(crate) expiration: Option<OffsetDateTime>,
 }
 
 impl From<PersistedBandwidth> for AvailableBandwidth {
     fn from(value: PersistedBandwidth) -> Self {
         AvailableBandwidth {
             bytes: value.available,
-            freepass_expiration: value.freepass_expiration,
+            expiration: value.expiration.unwrap_or(OffsetDateTime::UNIX_EPOCH),
         }
     }
 }

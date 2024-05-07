@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::tests::{voucher_fixture, TestFixture};
-use cosmwasm_std::coin;
 use nym_api_requests::coconut::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse, Pagination,
 };
@@ -101,8 +100,8 @@ async fn issued_credential() {
     let hash1 = "6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E".to_string();
     let hash2 = "9F4DF28B36189B4410BC23D97FD757FC74B919122E80534CC2CA6F3D646F6518".to_string();
 
-    let voucher1 = voucher_fixture(coin(1234, "unym"), Some(hash1.clone()));
-    let voucher2 = voucher_fixture(coin(1234, "unym"), Some(hash2.clone()));
+    let voucher1 = voucher_fixture(Some(hash1.clone()));
+    let voucher2 = voucher_fixture(Some(hash2.clone()));
 
     let signing_data1 = voucher1.prepare_for_signing();
     let voucher_data1 = voucher1.get_variant_data().voucher_data().unwrap();
@@ -148,6 +147,7 @@ async fn issued_credential() {
         cred1.to_bytes(),
         issued1.credential.blinded_partial_credential.to_bytes()
     );
+
     assert_eq!(
         request1.encode_commitments(),
         issued1
@@ -155,8 +155,8 @@ async fn issued_credential() {
             .bs58_encoded_private_attributes_commitments
     );
     assert_eq!(
-        voucher1.get_plain_public_attributes(),
-        issued1.credential.public_attributes
+        voucher1.expiration_date(),
+        issued1.credential.expiration_date as u64
     );
 
     assert_eq!(2, issued2.credential.id);
@@ -166,6 +166,7 @@ async fn issued_credential() {
         cred2.to_bytes(),
         issued2.credential.blinded_partial_credential.to_bytes()
     );
+
     assert_eq!(
         request2.encode_commitments(),
         issued2
@@ -173,8 +174,8 @@ async fn issued_credential() {
             .bs58_encoded_private_attributes_commitments
     );
     assert_eq!(
-        voucher2.get_plain_public_attributes(),
-        issued2.credential.public_attributes
+        voucher2.expiration_date(),
+        issued2.credential.expiration_date as u64
     );
 }
 

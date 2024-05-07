@@ -51,12 +51,16 @@ impl CredentialRequest for BlindSignRequestBody {
 }
 
 impl CredentialRequest for FreePassRequest {
-    fn blind_sign_request(&self) -> &BlindSignRequest {
+    fn withdrawal_request(&self) -> &WithdrawalRequest {
         &self.inner_sign_request
     }
 
-    fn public_attributes(&self) -> Vec<Attribute> {
-        self.public_attributes_hashed()
+    fn expiration_date(&self) -> u64 {
+        self.expiration_date
+    }
+
+    fn ecash_pubkey(&self) -> PublicKeyUser {
+        self.ecash_pubkey.clone()
     }
 }
 

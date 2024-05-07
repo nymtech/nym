@@ -5,6 +5,7 @@ use std::fmt::{self, Debug, Formatter};
 
 use crate::backends::memory::CoconutCredentialManager;
 use crate::error::StorageError;
+use crate::models::CoinIndicesSignature;
 use crate::models::{StorableIssuedCredential, StoredIssuedCredential};
 use crate::storage::Storage;
 use async_trait::async_trait;
@@ -78,7 +79,32 @@ impl Storage for EphemeralStorage {
             .consume_coconut_credential(id, gateway_id)
             .await;
 
+    async fn insert_coin_indices_sig(
+        &self,
+        epoch_id: String,
+        coin_indices_sig: String,
+    ) -> Result<(), StorageError> {
+        self.coconut_credential_manager
+            .insert_coin_indices_sig(epoch_id, coin_indices_sig)
+            .await;
         Ok(())
+    }
+
+    async fn is_coin_indices_sig_present(&self, epoch_id: String) -> Result<bool, StorageError> {
+        Ok(self
+            .coconut_credential_manager
+            .is_coin_indices_sig_present(epoch_id)
+            .await)
+    }
+
+    async fn get_coin_indices_sig(
+        &self,
+        epoch_id: String,
+    ) -> Result<CoinIndicesSignature, StorageError> {
+        self.coconut_credential_manager
+            .get_coin_indices_sig(epoch_id)
+            .await
+            .ok_or(StorageError::NoSignatures)
     }
 
     async fn mark_expired(&self, id: i64) -> Result<(), Self::StorageError> {

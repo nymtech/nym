@@ -3,12 +3,12 @@
 
 use crate::commands::helpers::{initialise_local_network_requester, try_load_current_config};
 use clap::Args;
-use log::warn;
 use nym_bin_common::output_format::OutputFormat;
 use nym_gateway::helpers::{load_public_key, OverrideNetworkRequesterConfig};
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::time::Duration;
+use tracing::warn;
 
 #[derive(Args, Clone)]
 pub struct CmdArgs {

@@ -1,28 +1,37 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::client_handling::websocket::connection_handler::ecash::ClientTicket;
 use crate::node::storage::bandwidth::BandwidthManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
-use crate::node::storage::models::{PersistedBandwidth, PersistedSharedKeys, StoredMessage};
+use crate::node::storage::models::{
+    PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage, VerifiedTicket,
+};
 use crate::node::storage::shared_keys::SharedKeysManager;
+use crate::node::storage::tickets::TicketStorageManager;
 use async_trait::async_trait;
-use log::{debug, error};
-use nym_credentials_interface::{Base58, BlindedSerialNumber};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
 use time::OffsetDateTime;
+use tracing::{debug, error};
 
 mod bandwidth;
 pub(crate) mod error;
 mod inboxes;
-mod models;
+pub(crate) mod models;
 mod shared_keys;
+mod tickets;
 
 #[async_trait]
 pub trait Storage: Send + Sync {
+    async fn get_client_id(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<i64, StorageError>;
+
     /// Inserts provided derived shared keys into the database.
     /// If keys previously existed for the provided client, they are overwritten with the new data.
     ///
@@ -34,7 +43,7 @@ pub trait Storage: Send + Sync {
         &self,
         client_address: DestinationAddressBytes,
         shared_keys: &SharedKeys,
-    ) -> Result<(), StorageError>;
+    ) -> Result<i64, StorageError>;
 
     /// Tries to retrieve shared keys stored for the particular client.
     ///
@@ -94,81 +103,110 @@ pub trait Storage: Send + Sync {
     async fn remove_messages(&self, ids: Vec<i64>) -> Result<(), StorageError>;
 
     /// Creates a new bandwidth entry for the particular client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    async fn create_bandwidth_entry(
-        &self,
-        client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError>;
+    async fn create_bandwidth_entry(&self, client_id: i64) -> Result<(), StorageError>;
 
     /// Set the freepass expiration date of the particular client to the provided date.
     ///
     /// # Arguments
     ///
     /// * `client_address`: address of the client
-    /// * `freepass_expiration`: the expiration date of the associated free pass.
-    async fn set_freepass_expiration(
+    /// * `expiration`: the expiration date of the associated free pass.
+    async fn set_expiration(
         &self,
-        client_address: DestinationAddressBytes,
-        freepass_expiration: OffsetDateTime,
+        client_id: i64,
+        expiration: OffsetDateTime,
     ) -> Result<(), StorageError>;
 
-    /// Reset all the bandwidth associated with the freepass and reset its expiration date
+    /// Reset all the bandwidth
     ///
     /// # Arguments
     ///
     /// * `client_address`: address of the client
-    async fn reset_freepass_bandwidth(
-        &self,
-        client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError>;
+    async fn reset_bandwidth(&self, client_id: i64) -> Result<(), StorageError>;
 
     /// Tries to retrieve available bandwidth for the particular client.
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
     async fn get_available_bandwidth(
         &self,
-        client_address: DestinationAddressBytes,
+        client_id: i64,
     ) -> Result<Option<PersistedBandwidth>, StorageError>;
 
-    /// Sets available bandwidth of the particular client to the provided amount;
-    ///
-    /// # Arguments
-    ///
-    /// * `client_address`: address of the client
-    /// * `amount`: the updated client bandwidth amount.
-    async fn set_bandwidth(
+    /// Increases specified client's bandwidth by the provided amount and returns the current value.
+    async fn increase_bandwidth(&self, client_id: i64, amount: i64) -> Result<i64, StorageError>;
+
+    async fn revoke_ticket_bandwidth(
         &self,
-        client_address: DestinationAddressBytes,
+        ticket_id: i64,
         amount: i64,
     ) -> Result<(), StorageError>;
 
-    /// Mark received credential as spent and insert it into the storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential
-    /// * `client_address`: address of the client that spent the credential
-    async fn insert_spent_credential(
+    #[allow(dead_code)]
+    /// Decreases specified client's bandwidth by the provided amount and returns the current value.
+    async fn decrease_bandwidth(&self, client_id: i64, amount: i64) -> Result<i64, StorageError>;
+
+    async fn insert_epoch_signers(
         &self,
-        blinded_serial_number: BlindedSerialNumber,
-        was_freepass: bool,
-        client_address: DestinationAddressBytes,
+        epoch_id: i64,
+        signer_ids: Vec<i64>,
     ) -> Result<(), StorageError>;
 
-    /// Check if the credential with the provided blinded serial number if already present in the storage.
+    async fn insert_received_ticket(
+        &self,
+        client_id: i64,
+        received_at: OffsetDateTime,
+        serial_number: Vec<u8>,
+        data: Vec<u8>,
+    ) -> Result<i64, StorageError>;
+
+    // note: this only checks very recent tickets that haven't yet been redeemed
+    // (but it's better than nothing)
+    /// Check if the ticket with the provided serial number if already present in the storage.
     ///
     /// # Arguments
     ///
-    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential
-    async fn contains_credential(
+    /// * `serial_number`: the unique serial number embedded in the ticket
+    async fn contains_ticket(&self, serial_number: &[u8]) -> Result<bool, StorageError>;
+
+    async fn insert_ticket_verification(
         &self,
-        blinded_serial_number: &BlindedSerialNumber,
-    ) -> Result<bool, StorageError>;
+        ticket_id: i64,
+        signer_id: i64,
+        verified_at: OffsetDateTime,
+        accepted: bool,
+    ) -> Result<(), StorageError>;
+
+    async fn update_rejected_ticket(&self, ticket_id: i64) -> Result<(), StorageError>;
+
+    async fn update_verified_ticket(&self, ticket_id: i64) -> Result<(), StorageError>;
+
+    async fn remove_verified_ticket_binary_data(&self, ticket_id: i64) -> Result<(), StorageError>;
+
+    async fn get_all_verified_tickets_with_sn(&self) -> Result<Vec<VerifiedTicket>, StorageError>;
+    async fn get_all_proposed_tickets_with_sn(
+        &self,
+        proposal_id: u32,
+    ) -> Result<Vec<VerifiedTicket>, StorageError>;
+
+    async fn insert_redemption_proposal(
+        &self,
+        tickets: &[VerifiedTicket],
+        proposal_id: u32,
+        created_at: OffsetDateTime,
+    ) -> Result<(), StorageError>;
+
+    async fn clear_post_proposal_data(
+        &self,
+        proposal_id: u32,
+        resolved_at: OffsetDateTime,
+        rejected: bool,
+    ) -> Result<(), StorageError>;
+
+    async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, StorageError>;
+
+    async fn get_all_unverified_tickets(&self) -> Result<Vec<ClientTicket>, StorageError>;
+    async fn get_all_unresolved_proposals(&self) -> Result<Vec<i64>, StorageError>;
+    async fn get_votes(&self, ticket_id: i64) -> Result<Vec<i64>, StorageError>;
+
+    async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -177,6 +215,7 @@ pub struct PersistentStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
+    ticket_manager: TicketStorageManager,
 }
 
 impl PersistentStorage {
@@ -222,26 +261,37 @@ impl PersistentStorage {
         Ok(PersistentStorage {
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
-            bandwidth_manager: BandwidthManager::new(connection_pool),
+            bandwidth_manager: BandwidthManager::new(connection_pool.clone()),
+            ticket_manager: TicketStorageManager::new(connection_pool),
         })
     }
 }
 
 #[async_trait]
 impl Storage for PersistentStorage {
+    async fn get_client_id(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<i64, StorageError> {
+        Ok(self
+            .shared_key_manager
+            .client_id(&client_address.as_base58_string())
+            .await?)
+    }
+
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
         shared_keys: &SharedKeys,
-    ) -> Result<(), StorageError> {
-        let persisted_shared_keys = PersistedSharedKeys {
-            client_address_bs58: client_address.as_base58_string(),
-            derived_aes128_ctr_blake3_hmac_keys_bs58: shared_keys.to_base58_string(),
-        };
-        self.shared_key_manager
-            .insert_shared_keys(persisted_shared_keys)
+    ) -> Result<i64, StorageError> {
+        let client_id = self
+            .shared_key_manager
+            .insert_shared_keys(
+                client_address.as_base58_string(),
+                shared_keys.to_base58_string(),
+            )
             .await?;
-        Ok(())
+        Ok(client_id)
     }
 
     async fn get_shared_keys(
@@ -296,194 +346,237 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn create_bandwidth_entry(
+    async fn create_bandwidth_entry(&self, client_id: i64) -> Result<(), StorageError> {
+        self.bandwidth_manager.insert_new_client(client_id).await?;
+        Ok(())
+    }
+
+    async fn set_expiration(
         &self,
-        client_address: DestinationAddressBytes,
+        client_id: i64,
+        expiration: OffsetDateTime,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .insert_new_client(&client_address.as_base58_string())
+            .set_expiration(client_id, expiration)
             .await?;
         Ok(())
     }
 
-    async fn set_freepass_expiration(
-        &self,
-        client_address: DestinationAddressBytes,
-        freepass_expiration: OffsetDateTime,
-    ) -> Result<(), StorageError> {
-        self.bandwidth_manager
-            .set_freepass_expiration(&client_address.as_base58_string(), freepass_expiration)
-            .await?;
-        Ok(())
-    }
-
-    async fn reset_freepass_bandwidth(
-        &self,
-        client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        self.bandwidth_manager
-            .reset_freepass_bandwidth(&client_address.as_base58_string())
-            .await?;
+    async fn reset_bandwidth(&self, client_id: i64) -> Result<(), StorageError> {
+        self.bandwidth_manager.reset_bandwidth(client_id).await?;
         Ok(())
     }
 
     async fn get_available_bandwidth(
         &self,
-        client_address: DestinationAddressBytes,
+        client_id: i64,
     ) -> Result<Option<PersistedBandwidth>, StorageError> {
         Ok(self
             .bandwidth_manager
-            .get_available_bandwidth(&client_address.as_base58_string())
+            .get_available_bandwidth(client_id)
             .await?)
     }
 
-    async fn set_bandwidth(
+    async fn increase_bandwidth(&self, client_id: i64, amount: i64) -> Result<i64, StorageError> {
+        Ok(self
+            .bandwidth_manager
+            .increase_bandwidth(client_id, amount)
+            .await?)
+    }
+
+    async fn revoke_ticket_bandwidth(
         &self,
-        client_address: DestinationAddressBytes,
+        ticket_id: i64,
         amount: i64,
     ) -> Result<(), StorageError> {
-        self.bandwidth_manager
-            .set_available_bandwidth(&client_address.as_base58_string(), amount)
+        Ok(self
+            .bandwidth_manager
+            .revoke_ticket_bandwidth(ticket_id, amount)
+            .await?)
+    }
+
+    async fn decrease_bandwidth(&self, client_id: i64, amount: i64) -> Result<i64, StorageError> {
+        Ok(self
+            .bandwidth_manager
+            .decrease_bandwidth(client_id, amount)
+            .await?)
+    }
+
+    async fn insert_epoch_signers(
+        &self,
+        epoch_id: i64,
+        signer_ids: Vec<i64>,
+    ) -> Result<(), StorageError> {
+        self.ticket_manager
+            .insert_ecash_signers(epoch_id, signer_ids)
             .await?;
         Ok(())
     }
 
-    async fn insert_spent_credential(
+    async fn insert_received_ticket(
         &self,
-        blinded_serial_number: BlindedSerialNumber,
-        was_freepass: bool,
-        client_address: DestinationAddressBytes,
+        client_id: i64,
+        received_at: OffsetDateTime,
+        serial_number: Vec<u8>,
+        data: Vec<u8>,
+    ) -> Result<i64, StorageError> {
+        // technically if we crash between those 2 calls we'll have a bit of data inconsistency,
+        // but nothing too tragic. we just won't get paid for a single ticket
+        let ticket_id = self
+            .ticket_manager
+            .insert_new_ticket(client_id, received_at)
+            .await?;
+        self.ticket_manager
+            .insert_ticket_data(ticket_id, &serial_number, &data)
+            .await?;
+
+        Ok(ticket_id)
+    }
+
+    async fn contains_ticket(&self, serial_number: &[u8]) -> Result<bool, StorageError> {
+        Ok(self.ticket_manager.has_ticket_data(serial_number).await?)
+    }
+
+    async fn insert_ticket_verification(
+        &self,
+        ticket_id: i64,
+        signer_id: i64,
+        verified_at: OffsetDateTime,
+        accepted: bool,
     ) -> Result<(), StorageError> {
-        self.bandwidth_manager
-            .insert_spent_credential(
-                &blinded_serial_number.to_bs58(),
-                was_freepass,
-                &client_address.as_base58_string(),
+        self.ticket_manager
+            .insert_ticket_verification(ticket_id, signer_id, verified_at, accepted)
+            .await?;
+        Ok(())
+    }
+
+    async fn update_rejected_ticket(&self, ticket_id: i64) -> Result<(), StorageError> {
+        // TODO:
+        error!("unimplemented: decrease clients bandwidth");
+
+        // set the ticket as rejected
+        self.ticket_manager.set_rejected_ticket(ticket_id).await?;
+
+        // drop all ticket_data - we no longer need it
+        // TODO: or maybe we do as a proof of receiving bad data?
+        self.ticket_manager.remove_ticket_data(ticket_id).await?;
+
+        Ok(())
+    }
+
+    async fn update_verified_ticket(&self, ticket_id: i64) -> Result<(), StorageError> {
+        // 1. insert into verified table
+        self.ticket_manager
+            .insert_verified_ticket(ticket_id)
+            .await?;
+
+        // TODO: maybe we want to leave that be until ticket gets fully redeemed instead?
+        // 2. remove individual verifications
+        self.ticket_manager
+            .remove_ticket_verification(ticket_id)
+            .await?;
+        Ok(())
+    }
+
+    async fn remove_verified_ticket_binary_data(&self, ticket_id: i64) -> Result<(), StorageError> {
+        self.ticket_manager
+            .remove_binary_ticket_data(ticket_id)
+            .await?;
+        Ok(())
+    }
+
+    async fn get_all_verified_tickets_with_sn(&self) -> Result<Vec<VerifiedTicket>, StorageError> {
+        Ok(self
+            .ticket_manager
+            .get_all_verified_tickets_with_sn()
+            .await?)
+    }
+
+    async fn get_all_proposed_tickets_with_sn(
+        &self,
+        proposal_id: u32,
+    ) -> Result<Vec<VerifiedTicket>, StorageError> {
+        Ok(self
+            .ticket_manager
+            .get_all_proposed_tickets_with_sn(proposal_id as i64)
+            .await?)
+    }
+
+    async fn insert_redemption_proposal(
+        &self,
+        tickets: &[VerifiedTicket],
+        proposal_id: u32,
+        created_at: OffsetDateTime,
+    ) -> Result<(), StorageError> {
+        // if we crash between those, there might a bit of an issue. we should revisit it later
+
+        // 1. insert the actual proposal
+        self.ticket_manager
+            .insert_redemption_proposal(proposal_id as i64, created_at)
+            .await?;
+
+        // 2. update all the associated tickets
+        self.ticket_manager
+            .insert_verified_tickets_proposal_id(
+                tickets.iter().map(|t| t.ticket_id),
+                proposal_id as i64,
             )
             .await?;
         Ok(())
     }
 
-    async fn contains_credential(
+    async fn clear_post_proposal_data(
         &self,
-        blinded_serial_number: &BlindedSerialNumber,
-    ) -> Result<bool, StorageError> {
-        let cred = self
-            .bandwidth_manager
-            .retrieve_spent_credential(&blinded_serial_number.to_bs58())
+        proposal_id: u32,
+        resolved_at: OffsetDateTime,
+        rejected: bool,
+    ) -> Result<(), StorageError> {
+        // 1. update proposal metadata
+        self.ticket_manager
+            .update_redemption_proposal(proposal_id as i64, resolved_at, rejected)
             .await?;
 
-        Ok(cred.is_some())
-    }
-}
+        // 2. remove ticket data rows (we can drop serial numbers)
+        self.ticket_manager
+            .remove_redeemed_tickets_data(proposal_id as i64)
+            .await?;
 
-/// In-memory implementation of `Storage`. The intention is primarily in testing environments.
-#[derive(Clone)]
-pub struct InMemStorage;
+        // 3. remove verified tickets rows
+        self.ticket_manager
+            .remove_verified_tickets(proposal_id as i64)
+            .await?;
 
-//#[cfg(test)]
-//impl InMemStorage {
-//    #[allow(unused)]
-//    async fn init<P: AsRef<Path> + Send>() -> Result<Self, StorageError> {
-//        todo!()
-//    }
-//}
-
-#[cfg(test)]
-#[async_trait]
-impl Storage for InMemStorage {
-    async fn insert_shared_keys(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _shared_keys: &SharedKeys,
-    ) -> Result<(), StorageError> {
-        todo!()
+        Ok(())
     }
 
-    async fn get_shared_keys(
-        &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<Option<PersistedSharedKeys>, StorageError> {
-        todo!()
+    async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, StorageError> {
+        Ok(self.ticket_manager.get_latest_redemption_proposal().await?)
     }
 
-    async fn remove_shared_keys(
-        &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        todo!()
+    async fn get_all_unverified_tickets(&self) -> Result<Vec<ClientTicket>, StorageError> {
+        self.ticket_manager
+            .get_unverified_tickets()
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect()
     }
 
-    async fn store_message(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _message: Vec<u8>,
-    ) -> Result<(), StorageError> {
-        todo!()
+    async fn get_all_unresolved_proposals(&self) -> Result<Vec<i64>, StorageError> {
+        Ok(self
+            .ticket_manager
+            .get_all_unresolved_redemption_proposal_ids()
+            .await?)
     }
 
-    async fn retrieve_messages(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _start_after: Option<i64>,
-    ) -> Result<(Vec<StoredMessage>, Option<i64>), StorageError> {
-        todo!()
+    async fn get_votes(&self, ticket_id: i64) -> Result<Vec<i64>, StorageError> {
+        Ok(self
+            .ticket_manager
+            .get_verification_votes(ticket_id)
+            .await?)
     }
 
-    async fn remove_messages(&self, _ids: Vec<i64>) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn create_bandwidth_entry(
-        &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn set_freepass_expiration(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _freepass_expiration: OffsetDateTime,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn reset_freepass_bandwidth(
-        &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn get_available_bandwidth(
-        &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<Option<PersistedBandwidth>, StorageError> {
-        todo!()
-    }
-
-    async fn set_bandwidth(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _amount: i64,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn insert_spent_credential(
-        &self,
-        _blinded_serial_number: BlindedSerialNumber,
-        _was_freepass: bool,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn contains_credential(
-        &self,
-        _blinded_serial_number: &BlindedSerialNumber,
-    ) -> Result<bool, StorageError> {
-        todo!()
+    async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, StorageError> {
+        Ok(self.ticket_manager.get_epoch_signers(epoch_id).await?)
     }
 }

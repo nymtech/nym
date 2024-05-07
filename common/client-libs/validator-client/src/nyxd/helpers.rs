@@ -3,11 +3,16 @@
 
 use crate::nyxd::TxResponse;
 
+// Searches in events for an event of the given event type which contains an
+// attribute for with the given key.
 pub fn find_tx_attribute(tx: &TxResponse, event_type: &str, attribute_key: &str) -> Option<String> {
     let event = tx.tx_result.events.iter().find(|e| e.kind == event_type)?;
-    let attribute = event
-        .attributes
-        .iter()
-        .find(|attr| attr.key == attribute_key)?;
-    Some(attribute.value.clone())
+    let attribute = event.attributes.iter().find(|&attr| {
+        if let Ok(key_str) = attr.key_str() {
+            key_str == attribute_key
+        } else {
+            false
+        }
+    })?;
+    Some(attribute.value_str().ok().map(|str| str.to_string())).flatten()
 }

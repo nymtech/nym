@@ -6,7 +6,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cw3::{
-    ProposalListResponse, ProposalResponse, VoteListResponse, VoteResponse, VoterDetail,
+    ProposalListResponse, ProposalResponse, VoteInfo, VoteListResponse, VoteResponse, VoterDetail,
     VoterListResponse, VoterResponse,
 };
 use cw_utils::ThresholdResponse;
@@ -133,6 +133,28 @@ pub trait PagedMultisigQueryClient: MultisigQueryClient {
         }
 
         Ok(voters)
+    }
+
+    async fn get_all_votes(&self, proposal_id: u64) -> Result<Vec<VoteInfo>, NyxdError> {
+        let mut votes = Vec::new();
+        let mut start_after = None;
+
+        loop {
+            let mut paged_response = self
+                .list_votes(proposal_id, start_after.take(), None)
+                .await?;
+
+            let last_voter = paged_response.votes.last().map(|vote| vote.voter.clone());
+            votes.append(&mut paged_response.votes);
+
+            if let Some(start_after_res) = last_voter {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(votes)
     }
 }
 

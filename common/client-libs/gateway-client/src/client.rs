@@ -23,12 +23,12 @@ use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
     CURRENT_PROTOCOL_VERSION,
 };
-use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
+use nym_network_defaults::REMAINING_BANDWIDTH_THRESHOLD;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
-
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
@@ -83,7 +83,7 @@ impl GatewayConfig {
 pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
-    bandwidth_remaining: i64,
+    bandwidth_remaining: Arc<AtomicI64>,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
@@ -122,7 +122,7 @@ impl<C, St> GatewayClient<C, St> {
         GatewayClient {
             authenticated: false,
             disabled_credentials_mode: true,
-            bandwidth_remaining: 0,
+            bandwidth_remaining: Arc::new(AtomicI64::new(0)),
             gateway_address: config.gateway_listener,
             gateway_identity: config.gateway_identity,
             local_identity,
@@ -182,7 +182,7 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     pub fn remaining_bandwidth(&self) -> i64 {
-        self.bandwidth_remaining
+        self.bandwidth_remaining.load(Ordering::Acquire)
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -259,7 +259,7 @@ impl<C, St> GatewayClient<C, St> {
         self.authenticated = false;
 
         for i in 1..self.reconnection_attempts {
-            info!("attempt {}...", i);
+            info!("reconnection attempt {}...", i);
             if self.try_reconnect().await.is_ok() {
                 info!("managed to reconnect!");
                 return Ok(());
@@ -269,7 +269,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         // final attempt (done separately to be able to return a proper error)
-        info!("attempt {}", self.reconnection_attempts);
+        info!("reconnection attempt {}", self.reconnection_attempts);
         match self.try_reconnect().await {
             Ok(_) => {
                 info!("managed to reconnect!");
@@ -537,7 +537,8 @@ impl<C, St> GatewayClient<C, St> {
             } => {
                 self.check_gateway_protocol(protocol_version)?;
                 self.authenticated = status;
-                self.bandwidth_remaining = bandwidth_remaining;
+                self.bandwidth_remaining
+                    .store(bandwidth_remaining, Ordering::Release);
                 self.negotiated_protocol = protocol_version;
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
                 self.task_client.send_status_msg(Box::new(
@@ -576,36 +577,43 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn claim_coconut_bandwidth(
+    async fn claim_ecash_bandwidth(
         &mut self,
         credential: CredentialSpendingData,
     ) -> Result<(), GatewayClientError> {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
-        let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential_v2(
+        let msg = ClientControlRequest::new_enc_ecash_credential(
             credential,
             self.shared_key.as_ref().unwrap(),
             iv,
         )
         .into();
-        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+        let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => Err(GatewayClientError::UnexpectedResponse),
         }?;
+        self.bandwidth_remaining
+            .store(bandwidth_remaining, Ordering::Relaxed);
         Ok(())
     }
 
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
         let msg = ClientControlRequest::ClaimFreeTestnetBandwidth.into();
-        self.bandwidth_remaining = match self.send_websocket_message(msg).await? {
+        let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             _ => Err(GatewayClientError::UnexpectedResponse),
         }?;
-
+        self.bandwidth_remaining
+            .store(bandwidth_remaining, Ordering::Release);
         Ok(())
+    }
+
+    fn unchecked_bandwidth_controller(&self) -> &BandwidthController<C, St> {
+        self.bandwidth_controller.as_ref().unwrap()
     }
 
     pub async fn claim_bandwidth(&mut self) -> Result<(), GatewayClientError>
@@ -614,6 +622,9 @@ impl<C, St> GatewayClient<C, St> {
         St: CredentialStorage,
         <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
+        // TODO: make it configurable
+        const TICKETS_TO_SPEND: u32 = 1;
+
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -641,49 +652,42 @@ impl<C, St> GatewayClient<C, St> {
                 negotiated_protocol: Some(gateway_protocol),
             });
         }
-
-        let gateway_id = self.gateway_identity().to_base58_string();
-
         let prepared_credential = self
-            .bandwidth_controller
-            .as_ref()
-            .unwrap()
-            .prepare_bandwidth_credential(&gateway_id)
+            .unchecked_bandwidth_controller()
+            .prepare_ecash_ticket(self.gateway_identity.to_bytes(), TICKETS_TO_SPEND)
             .await?;
 
-        self.claim_coconut_bandwidth(prepared_credential.data)
-            .await?;
-        self.bandwidth_controller
-            .as_ref()
-            .unwrap()
-            .consume_credential(prepared_credential.credential_id, &gateway_id)
-            .await?;
-
-        Ok(())
-    }
-
-    fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
-        packets
-            .iter()
-            .map(|packet| packet.packet().len())
-            .sum::<usize>() as i64
+        match self.claim_ecash_bandwidth(prepared_credential.data).await {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                error!("failed to claim ecash bandwidth with the gateway... attempting to revert storage withdrawal");
+                self.unchecked_bandwidth_controller()
+                    .attempt_revert_ticket_usage(prepared_credential.metadata)
+                    .await?;
+                Err(err)
+            }
+        }
     }
 
     pub async fn batch_send_mix_packets(
         &mut self,
         packets: Vec<MixPacket>,
-    ) -> Result<(), GatewayClientError> {
+    ) -> Result<(), GatewayClientError>
+    where
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
+    {
         debug!("Sending {} mix packets", packets.len());
 
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if self.estimate_required_bandwidth(&packets) > self.bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth(
-                self.estimate_required_bandwidth(&packets),
-                self.bandwidth_remaining,
-            ));
+        let bandwidth_remaining = self.bandwidth_remaining.load(Ordering::Acquire);
+        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+            self.claim_bandwidth().await?;
         }
+
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -742,19 +746,20 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     // TODO: possibly make responses optional
-    pub async fn send_mix_packet(
-        &mut self,
-        mix_packet: MixPacket,
-    ) -> Result<(), GatewayClientError> {
+    pub async fn send_mix_packet(&mut self, mix_packet: MixPacket) -> Result<(), GatewayClientError>
+    where
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
+    {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
-        if (mix_packet.packet().len() as i64) > self.bandwidth_remaining {
-            return Err(GatewayClientError::NotEnoughBandwidth(
-                mix_packet.packet().len() as i64,
-                self.bandwidth_remaining,
-            ));
+        let bandwidth_remaining = self.bandwidth_remaining.load(Ordering::Acquire);
+        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+            self.claim_bandwidth().await?;
         }
+
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -808,6 +813,7 @@ impl<C, St> GatewayClient<C, St> {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
+                        self.bandwidth_remaining.clone(),
                         self.task_client.clone(),
                     )
                 }
@@ -848,10 +854,9 @@ impl<C, St> GatewayClient<C, St> {
             self.establish_connection().await?;
         }
         let shared_key = self.perform_initial_authentication().await?;
-
-        if self.bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
-            info!("Claiming more bandwidth for your tokens. This will use {} token(s) from your wallet. \
-            Stop the process now if you don't want that to happen.", TOKENS_TO_BURN);
+        let bandwidth_remaining = self.bandwidth_remaining.load(Ordering::Acquire);
+        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+            info!("Claiming more bandwidth with existing credentials. Stop the process now if you don't want that to happen.");
             self.claim_bandwidth().await?;
         }
 
@@ -888,7 +893,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         GatewayClient {
             authenticated: false,
             disabled_credentials_mode: true,
-            bandwidth_remaining: 0,
+            bandwidth_remaining: Arc::new(AtomicI64::new(0)),
             gateway_address: gateway_listener.to_string(),
             gateway_identity,
             local_identity,

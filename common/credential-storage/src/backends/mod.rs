@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod memory;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "persistent-storage"))]
 pub mod sqlite;

@@ -22,6 +22,7 @@ mod import_credential;
 mod init;
 mod list_gateways;
 mod run;
+mod show_ticketbooks;
 mod sign;
 mod switch_gateway;
 
@@ -85,6 +86,9 @@ pub(crate) enum Commands {
 
     /// Change the currently active gateway. Note that you must have already registered with the new gateway!
     SwitchGateway(switch_gateway::Args),
+
+    /// Display information associated with the imported ticketbooks,
+    ShowTicketbooks(show_ticketbooks::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
@@ -152,6 +156,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::AddGateway(args) => add_gateway::execute(args).await?,
         Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
+        Commands::ShowTicketbooks(args) => show_ticketbooks::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

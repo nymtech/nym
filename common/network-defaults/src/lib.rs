@@ -13,8 +13,11 @@ use std::{
 };
 use url::Url;
 
+pub mod ecash;
 pub mod mainnet;
 pub mod var_names;
+
+pub use ecash::*;
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct ChainDetails {
@@ -27,7 +30,7 @@ pub struct ChainDetails {
 pub struct NymContracts {
     pub mixnet_contract_address: Option<String>,
     pub vesting_contract_address: Option<String>,
-    pub coconut_bandwidth_contract_address: Option<String>,
+    pub ecash_contract_address: Option<String>,
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
@@ -121,9 +124,7 @@ impl NymNetworkDetails {
             ))
             .with_mixnet_contract(get_optional_env(var_names::MIXNET_CONTRACT_ADDRESS))
             .with_vesting_contract(get_optional_env(var_names::VESTING_CONTRACT_ADDRESS))
-            .with_coconut_bandwidth_contract(get_optional_env(
-                var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-            ))
+            .with_ecash_contract(get_optional_env(var_names::ECASH_CONTRACT_ADDRESS))
             .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
             .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
@@ -148,9 +149,7 @@ impl NymNetworkDetails {
             contracts: NymContracts {
                 mixnet_contract_address: parse_optional_str(mainnet::MIXNET_CONTRACT_ADDRESS),
                 vesting_contract_address: parse_optional_str(mainnet::VESTING_CONTRACT_ADDRESS),
-                coconut_bandwidth_contract_address: parse_optional_str(
-                    mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-                ),
+                ecash_contract_address: parse_optional_str(mainnet::ECASH_CONTRACT_ADDRESS),
                 group_contract_address: parse_optional_str(mainnet::GROUP_CONTRACT_ADDRESS),
                 multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(
@@ -239,8 +238,8 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
-    pub fn with_coconut_bandwidth_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
-        self.contracts.coconut_bandwidth_contract_address = contract.map(Into::into);
+    pub fn with_ecash_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.ecash_contract_address = contract.map(Into::into);
         self
     }
 
@@ -437,19 +436,6 @@ pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
         print_env_vars_with_keys_in_file(config_env_file);
     }
 }
-
-/// How much bandwidth (in bytes) one token can buy
-pub const BYTES_PER_UTOKEN: u64 = 1024;
-/// How much bandwidth (in bytes) one freepass provides
-pub const BYTES_PER_FREEPASS: u64 = 1024 * 1024 * 1024; // 1GB
-/// Threshold for claiming more bandwidth: 1 MB
-pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
-/// How many tokens should be burned to buy bandwidth
-pub const TOKENS_TO_BURN: u64 = 1;
-/// How many ERC20 utokens should be burned to buy bandwidth
-pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;
-/// Default bandwidth (in bytes) that we try to buy
-pub const BANDWIDTH_VALUE: u64 = UTOKENS_TO_BURN * BYTES_PER_UTOKEN;
 
 /// Defaults Cosmos Hub/ATOM path
 pub const COSMOS_DERIVATION_PATH: &str = "m/44'/118'/0'/0/0";

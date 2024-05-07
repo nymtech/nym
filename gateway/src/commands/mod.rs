@@ -5,10 +5,10 @@ use crate::Cli;
 use anyhow::bail;
 use clap::CommandFactory;
 use clap::Subcommand;
-use log::{error, warn};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use std::io::IsTerminal;
 use std::time::Duration;
+use tracing::{error, warn};
 
 pub(crate) mod build_info;
 pub(crate) mod helpers;

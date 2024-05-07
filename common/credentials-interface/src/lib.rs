@@ -1,136 +1,218 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::Scalar;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-use thiserror::Error;
+use time::{Date, OffsetDateTime};
 
-pub use nym_coconut::{
-    aggregate_signature_shares, aggregate_signature_shares_and_verify, aggregate_verification_keys,
-    blind_sign, hash_to_scalar, keygen, prepare_blind_sign, prove_bandwidth_credential,
-    verify_credential, Attribute, Base58, BlindSignRequest, BlindedSerialNumber, BlindedSignature,
-    Bytable, CoconutError, KeyPair, Parameters, PrivateAttribute, PublicAttribute, SecretKey,
-    Signature, SignatureShare, VerificationKey, VerifyCredentialRequest,
+pub use nym_compact_ecash::{
+    aggregate_verification_keys, aggregate_wallets, constants, ecash_parameters,
+    error::CompactEcashError,
+    generate_keypair_user, generate_keypair_user_from_seed, issue_verify,
+    scheme::coin_indices_signatures::aggregate_indices_signatures,
+    scheme::coin_indices_signatures::{
+        AnnotatedCoinIndexSignature, CoinIndexSignature, CoinIndexSignatureShare,
+        PartialCoinIndexSignature,
+    },
+    scheme::expiration_date_signatures::aggregate_expiration_signatures,
+    scheme::expiration_date_signatures::date_scalar,
+    scheme::expiration_date_signatures::{
+        AnnotatedExpirationDateSignature, ExpirationDateSignature, ExpirationDateSignatureShare,
+        PartialExpirationDateSignature,
+    },
+    scheme::keygen::KeyPairUser,
+    scheme::withdrawal::RequestInfo,
+    scheme::Payment,
+    scheme::{Wallet, WalletSignatures},
+    withdrawal_request, Base58, BlindedSignature, Bytable, PartialWallet, PayInfo, PublicKeyUser,
+    SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
-
-pub const VOUCHER_INFO_TYPE: &str = "BandwidthVoucher";
-pub const FREE_PASS_INFO_TYPE: &str = "FreeBandwidthPass";
-
-// pub trait NymCredential {
-//     fn prove_credential(&self) -> Result<(), ()>;
-// }
-
-#[derive(Debug, Error)]
-#[error("{0} is not a valid credential type")]
-pub struct UnknownCredentialType(String);
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum CredentialType {
-    Voucher,
-    FreePass,
-}
-
-impl FromStr for CredentialType {
-    type Err = UnknownCredentialType;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == VOUCHER_INFO_TYPE {
-            Ok(CredentialType::Voucher)
-        } else if s == FREE_PASS_INFO_TYPE {
-            Ok(CredentialType::FreePass)
-        } else {
-            Err(UnknownCredentialType(s.to_string()))
-        }
-    }
-}
-
-impl CredentialType {
-    pub fn validate(&self, type_plain: &str) -> bool {
-        match self {
-            CredentialType::Voucher => type_plain == VOUCHER_INFO_TYPE,
-            CredentialType::FreePass => type_plain == FREE_PASS_INFO_TYPE,
-        }
-    }
-
-    pub fn is_free_pass(&self) -> bool {
-        matches!(self, CredentialType::FreePass)
-    }
-
-    pub fn is_voucher(&self) -> bool {
-        matches!(self, CredentialType::Voucher)
-    }
-}
-
-impl Display for CredentialType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CredentialType::Voucher => VOUCHER_INFO_TYPE.fmt(f),
-            CredentialType::FreePass => FREE_PASS_INFO_TYPE.fmt(f),
-        }
-    }
-}
+use nym_ecash_time::EcashTime;
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
-    pub pedersen_commitments_openings: Vec<Scalar>,
+    pub withdrawal_request: WithdrawalRequest,
 
-    pub blind_sign_request: BlindSignRequest,
+    pub request_info: RequestInfo,
 
-    pub public_attributes_plain: Vec<String>,
+    pub ecash_pub_key: PublicKeyUser,
 
-    pub typ: CredentialType,
+    pub expiration_date: Date,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CredentialSpendingData {
-    pub embedded_private_attributes: usize,
+    pub payment: Payment,
 
-    pub verify_credential_request: VerifyCredentialRequest,
+    pub pay_info: PayInfo,
 
-    pub public_attributes_plain: Vec<String>,
+    pub spend_date: Date,
 
-    pub typ: CredentialType,
-
+    // pub value: u64,
     /// The (DKG) epoch id under which the credential has been issued so that the verifier could use correct verification key for validation.
     pub epoch_id: u64,
 }
 
 impl CredentialSpendingData {
-    pub fn verify(&self, params: &Parameters, verification_key: &VerificationKey) -> bool {
-        let hashed_public_attributes = self
-            .public_attributes_plain
-            .iter()
-            .map(hash_to_scalar)
-            .collect::<Vec<_>>();
-
-        // get references to the attributes
-        let public_attributes = hashed_public_attributes.iter().collect::<Vec<_>>();
-
-        verify_credential(
-            params,
+    pub fn verify(&self, verification_key: &VerificationKeyAuth) -> Result<(), CompactEcashError> {
+        self.payment.spend_verify(
             verification_key,
-            &self.verify_credential_request,
-            &public_attributes,
+            &self.pay_info,
+            date_scalar(self.spend_date.ecash_unix_timestamp()),
         )
     }
 
-    pub fn validate_type_attribute(&self) -> bool {
-        // the first attribute is variant specific bandwidth encoding, the second one should be the type
-        let Some(type_plain) = self.public_attributes_plain.get(1) else {
-            return false;
+    pub fn encoded_serial_number(&self) -> Vec<u8> {
+        self.payment.encoded_serial_number()
+    }
+
+    pub fn serial_number_b58(&self) -> String {
+        self.payment.serial_number_bs58()
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        // simple length prefixed serialization
+        // TODO: change it to a standard format instead
+        let mut bytes = Vec::new();
+        let payment_bytes = self.payment.to_bytes();
+
+        bytes.extend_from_slice(&(payment_bytes.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&payment_bytes);
+        bytes.extend_from_slice(&self.pay_info.pay_info_bytes); //this is 72 bytes long
+        bytes.extend_from_slice(&self.spend_date.to_julian_day().to_be_bytes());
+        bytes.extend_from_slice(&self.epoch_id.to_be_bytes());
+
+        bytes
+    }
+
+    pub fn try_from_bytes(raw: &[u8]) -> Result<Self, CompactEcashError> {
+        // minimum length: 72 (pay_info) + 8 (epoch_id) + 4 (spend date) + 4 (payment length prefix)
+        if raw.len() < 72 + 8 + 4 + 4 {
+            return Err(CompactEcashError::DeserializationFailure {
+                object: "EcashCredential".into(),
+            });
+        }
+        let mut index = 0;
+        //SAFETY : casting a slice of length 4 into an array of size 4
+        let payment_len = u32::from_be_bytes(raw[index..index + 4].try_into().unwrap()) as usize;
+        index += 4;
+
+        if raw[index..].len() != payment_len + 84 {
+            return Err(CompactEcashError::DeserializationFailure {
+                object: "EcashCredential".into(),
+            });
+        }
+        let payment = Payment::try_from(&raw[index..index + payment_len])?;
+        index += payment_len;
+
+        let pay_info = PayInfo {
+            //SAFETY : casting a slice of length 72 into an array of size 72
+            pay_info_bytes: raw[index..index + 72].try_into().unwrap(),
         };
+        index += 72;
 
-        self.typ.validate(type_plain)
+        //SAFETY : casting a slice of length 4 into an array of size 4
+        let spend_date_julian = i32::from_be_bytes(raw[index..index + 4].try_into().unwrap());
+        let spend_date = Date::from_julian_day(spend_date_julian).map_err(|_| {
+            CompactEcashError::DeserializationFailure {
+                object: "CredentialSpendingData".into(),
+            }
+        })?;
+        index += 4;
+
+        if raw[index..].len() != 8 {
+            return Err(CompactEcashError::DeserializationFailure {
+                object: "EcashCredential".into(),
+            });
+        }
+
+        //SAFETY : casting a slice of length 8 into an array of size 8
+        let epoch_id = u64::from_be_bytes(raw[index..].try_into().unwrap());
+
+        Ok(CredentialSpendingData {
+            payment,
+            pay_info,
+            spend_date,
+            epoch_id,
+        })
+    }
+}
+
+impl Bytable for CredentialSpendingData {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes()
     }
 
-    pub fn get_bandwidth_attribute(&self) -> Option<&String> {
-        // the first attribute is variant specific bandwidth encoding, the second one should be the type
-        self.public_attributes_plain.first()
+    fn try_from_byte_slice(slice: &[u8]) -> Result<Self, CompactEcashError> {
+        Self::try_from_bytes(slice)
+    }
+}
+
+impl Base58 for CredentialSpendingData {}
+
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub struct NymPayInfo {
+    randomness: [u8; 32],
+    timestamp: i64,
+    provider_public_key: [u8; 32],
+}
+
+impl NymPayInfo {
+    /// Generates a new `NymPayInfo` instance with random bytes, a timestamp, and a provider public key.
+    ///
+    /// # Arguments
+    ///
+    /// * `provider_pk` - The public key of the payment provider.
+    ///
+    /// # Returns
+    ///
+    /// A new `NymPayInfo` instance.
+    ///
+    pub fn generate(provider_pk: [u8; 32]) -> Self {
+        let mut randomness = [0u8; 32];
+        rand::thread_rng().fill(&mut randomness[..32]);
+
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp();
+
+        NymPayInfo {
+            randomness,
+            timestamp,
+            provider_public_key: provider_pk,
+        }
     }
 
-    pub fn blinded_serial_number(&self) -> BlindedSerialNumber {
-        self.verify_credential_request.blinded_serial_number()
+    pub fn timestamp(&self) -> i64 {
+        self.timestamp
+    }
+
+    pub fn pk(&self) -> [u8; 32] {
+        self.provider_public_key
+    }
+}
+
+impl From<NymPayInfo> for PayInfo {
+    fn from(value: NymPayInfo) -> Self {
+        let mut pay_info_bytes = [0u8; 72];
+
+        pay_info_bytes[..32].copy_from_slice(&value.randomness);
+        pay_info_bytes[32..40].copy_from_slice(&value.timestamp.to_be_bytes());
+        pay_info_bytes[40..].copy_from_slice(&value.provider_public_key);
+
+        PayInfo { pay_info_bytes }
+    }
+}
+
+impl From<PayInfo> for NymPayInfo {
+    fn from(value: PayInfo) -> Self {
+        //SAFETY : slice to array of same length
+        let randomness = value.pay_info_bytes[..32].try_into().unwrap();
+        let timestamp = i64::from_be_bytes(value.pay_info_bytes[32..40].try_into().unwrap());
+        let provider_public_key = value.pay_info_bytes[40..].try_into().unwrap();
+
+        NymPayInfo {
+            randomness,
+            timestamp,
+            provider_public_key,
+        }
     }
 }

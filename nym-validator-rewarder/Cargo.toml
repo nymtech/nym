@@ -33,7 +33,8 @@ humantime-serde.workspace = true
 # internal
 nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
 nym-config = { path = "../common/config" }
-nym-coconut = { path = "../common/nymcoconut" }
+nym-ecash-time = { path = "../common/ecash-time" }
+nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric"] }
 nym-credentials = { path = "../common/credentials" }
 nym-network-defaults = { path = "../common/network-defaults" }

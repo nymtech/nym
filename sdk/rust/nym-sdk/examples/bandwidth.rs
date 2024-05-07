@@ -18,10 +18,10 @@ async fn main() -> anyhow::Result<()> {
         .enable_credentials_mode()
         .build()?;
 
-    let bandwidth_client = mixnet_client.create_bandwidth_client(mnemonic)?;
+    let bandwidth_client = mixnet_client.create_bandwidth_client(mnemonic).await?;
 
-    // Get a bandwidth credential worth 1000000 unym for the mixnet_client
-    bandwidth_client.acquire(1000000).await?;
+    // Get a bandwidth credential for the mixnet_client
+    bandwidth_client.acquire().await?;
 
     // Connect using paid bandwidth credential
     let mut client = mixnet_client.connect_to_mixnet().await?;

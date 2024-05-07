@@ -12,6 +12,7 @@ use nym_gateway::node::LocalAuthenticatorOpts;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::path::Path;
+use std::time::Duration;
 
 use super::helpers::{base_client_config, EphemeralConfig};
 use super::LocalWireguardOpts;
@@ -48,9 +49,12 @@ pub struct EntryGatewayConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(default)]
 pub struct Debug {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
+
+    pub zk_nym_tickets: ZkNymTicketHandlerDebug,
 }
 
 impl Debug {
@@ -61,6 +65,52 @@ impl Default for Debug {
     fn default() -> Self {
         Debug {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            zk_nym_tickets: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ZkNymTicketHandlerDebug {
+    /// Specifies the multiplier for revoking a malformed/double-spent ticket
+    /// (if it has to go all the way to the nym-api for verification)
+    /// e.g. if one ticket grants 100Mb and `revocation_bandwidth_penalty` is set to 1.5,
+    /// the client will lose 150Mb
+    pub revocation_bandwidth_penalty: f32,
+
+    /// Specifies the interval for attempting to resolve any failed, pending operations,
+    /// such as ticket verification or redemption.
+    #[serde(with = "humantime_serde")]
+    pub pending_poller: Duration,
+
+    pub minimum_api_quorum: f32,
+
+    /// Specifies the minimum number of tickets this gateway will attempt to redeem.
+    pub minimum_redemption_tickets: usize,
+
+    /// Specifies the maximum time between two subsequent tickets redemptions.
+    /// That's required as nym-apis will purge all ticket information for tickets older than 30 days.
+    #[serde(with = "humantime_serde")]
+    pub maximum_time_between_redemption: Duration,
+}
+
+impl ZkNymTicketHandlerDebug {
+    pub const DEFAULT_REVOCATION_BANDWIDTH_PENALTY: f32 = 10.0;
+    pub const DEFAULT_PENDING_POLLER: Duration = Duration::from_secs(300);
+    pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
+    pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
+    pub const DEFAULT_MAXIMUM_TIME_BETWEEN_REDEMPTION: Duration = Duration::from_secs(86400 * 25);
+}
+
+impl Default for ZkNymTicketHandlerDebug {
+    fn default() -> Self {
+        ZkNymTicketHandlerDebug {
+            revocation_bandwidth_penalty: Self::DEFAULT_REVOCATION_BANDWIDTH_PENALTY,
+            pending_poller: Self::DEFAULT_PENDING_POLLER,
+            minimum_api_quorum: Self::DEFAULT_MINIMUM_API_QUORUM,
+            minimum_redemption_tickets: Self::DEFAULT_MINIMUM_REDEMPTION_TICKETS,
+            maximum_time_between_redemption: Self::DEFAULT_MAXIMUM_TIME_BETWEEN_REDEMPTION,
         }
     }
 }

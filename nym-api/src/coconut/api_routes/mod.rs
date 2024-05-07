@@ -286,7 +286,14 @@ pub async fn verify_bandwidth_credential(
         .await;
     accepted_vote_err(ret)?;
 
-    Ok(Json(VerifyCredentialResponse::new(vote_yes)))
+#[get("/spent-credentials")]
+pub async fn spent_credentials(
+    state: &RocketState<State>,
+) -> Result<Json<SpentCredentialsResponse>> {
+    let spent_credentials_export = state.export_spent_credentials().await;
+    Ok(Json(SpentCredentialsResponse::new(
+        spent_credentials_export,
+    )))
 }
 
 #[get("/epoch-credentials/<epoch>")]

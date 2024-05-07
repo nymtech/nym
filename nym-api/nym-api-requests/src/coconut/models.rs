@@ -246,6 +246,18 @@ pub struct CredentialsRequestBody {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct SpentCredentialsResponse {
+    pub bitmap: Vec<u8>,
+}
+
+impl SpentCredentialsResponse {
+    pub fn new(bitmap: Vec<u8>) -> SpentCredentialsResponse {
+        SpentCredentialsResponse { bitmap }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct EpochCredentialsResponse {
     pub epoch_id: u64,
     pub first_epoch_credential_id: Option<i64>,

@@ -19,7 +19,7 @@ pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
 
 pub(crate) mod authenticated;
-pub(crate) mod coconut;
+pub(crate) mod ecash;
 mod fresh;
 
 // TODO: note for my future self to consider the following idea:

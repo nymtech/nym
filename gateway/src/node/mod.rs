@@ -12,7 +12,7 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
+use crate::node::client_handling::websocket::connection_handler::ecash::EcashVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
@@ -243,7 +243,7 @@ impl<St> Gateway<St> {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-        coconut_verifier: Arc<CoconutVerifier>,
+        ecash_verifier: Arc<EcashVerifier>,
     ) where
         St: Storage + Clone + 'static,
     {
@@ -255,9 +255,10 @@ impl<St> Gateway<St> {
         );
 
         let shared_state = websocket::CommonHandlerState {
-            coconut_verifier,
+            ecash_verifier,
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
+            offline_credential_verification: self.config.gateway.offline_credential_verification,
             bandwidth_cfg: (&self.config).into(),
         };
 
@@ -490,8 +491,18 @@ impl<St> Gateway<St> {
             }
         }
 
-        let coconut_verifier =
-            CoconutVerifier::new(nyxd_client, self.config.gateway.only_coconut_credentials).await?;
+        let ecash_verifier = {
+            let nyxd_client = self.random_nyxd_client()?;
+            EcashVerifier::new(
+                nyxd_client,
+                self.config.gateway.only_coconut_credentials,
+                self.identity_keypair.public_key().to_bytes(),
+                shutdown.fork("EcashVerifier"),
+                self.storage.clone(),
+                self.config.gateway.offline_credential_verification,
+            )
+            .await
+        }?;
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 
@@ -519,7 +530,7 @@ impl<St> Gateway<St> {
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shutdown.fork("websocket::Listener"),
-            Arc::new(coconut_verifier),
+            Arc::new(ecash_verifier),
         );
 
         let nr_request_filter = if self.config.network_requester.enabled {

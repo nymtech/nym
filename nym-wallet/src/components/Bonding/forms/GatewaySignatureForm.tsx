@@ -60,9 +60,9 @@ const GatewaySignatureForm = ({
   return (
     <Stack gap={3} mb={3}>
       <Typography variant="body1">
-        Copy below message and sign it with your gateway using the following command
+        Copy below message and sign it with your nym-node using the following command
         <br />
-        <code>nym-gateway sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
+        <code>nym-node sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
         <br />
         Then paste the signature in the next field.
       </Typography>

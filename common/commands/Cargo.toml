@@ -43,9 +43,9 @@ nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common" }
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }
-nym-coconut-bandwidth-contract-common = { path = "../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
 nym-multisig-contract-common = { path = "../cosmwasm-smart-contracts/multisig-contract" }
+nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
 nym-service-provider-directory-common = { path = "../cosmwasm-smart-contracts/service-provider-directory" }
 nym-name-service-common = { path = "../cosmwasm-smart-contracts/name-service" }
 nym-sphinx = { path = "../../common/nymsphinx" }

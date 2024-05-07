@@ -166,22 +166,36 @@ impl IssuedBandwidthCredential {
 
     pub fn prepare_for_spending(
         &self,
-        verification_key: &VerificationKey,
+        verification_key: &VerificationKeyAuth,
+        pay_info: PayInfo,
+        coin_indices_signatures: Vec<CoinIndexSignature>,
     ) -> Result<CredentialSpendingData, Error> {
         let params = bandwidth_credential_params();
-
-        let verify_credential_request = prove_bandwidth_credential(
+        let spend_date = today_timestamp();
+        let (payment, _) = self.wallet.spend(
             params,
             verification_key,
-            &self.signature,
-            &self.serial_number,
-            &self.binding_number,
+            &self.ecash_secret_key,
+            &pay_info,
+            false,
+            constants::SPEND_TICKETS,
+            self.exp_date_sigs(),
+            coin_indices_signatures,
+            date_scalar(spend_date),
         )?;
 
+        let value = match &self.variant_data {
+            BandwidthCredentialIssuedDataVariant::FreePass => 0u64,
+            BandwidthCredentialIssuedDataVariant::TicketBook(voucher) => {
+                constants::SPEND_TICKETS * voucher.value() as u64 / params.get_total_coins()
+            }
+        };
+
         Ok(CredentialSpendingData {
-            embedded_private_attributes: IssuanceBandwidthCredential::PRIVATE_ATTRIBUTES as usize,
-            verify_credential_request,
-            public_attributes_plain: self.get_plain_public_attributes(),
+            payment,
+            pay_info,
+            spend_date,
+            value,
             typ: self.typ(),
             epoch_id: self.epoch_id,
         })

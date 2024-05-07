@@ -15,7 +15,6 @@ pub mod issuance;
 pub mod issued;
 pub mod voucher;
 
-// works under the assumption of having 4 attributes in the underlying credential(s)
 pub fn bandwidth_credential_params() -> &'static Parameters {
     static BANDWIDTH_CREDENTIAL_PARAMS: OnceLock<Parameters> = OnceLock::new();
     BANDWIDTH_CREDENTIAL_PARAMS.get_or_init(IssuanceBandwidthCredential::default_parameters)

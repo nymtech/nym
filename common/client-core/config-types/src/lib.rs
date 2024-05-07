@@ -56,6 +56,7 @@ const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 6
 // 24 hours
 const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
+use crate::error::InvalidTrafficModeFailure;
 pub use nym_country_group::CountryGroup;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -127,6 +128,56 @@ impl Config {
         self
     }
 
+    // TODO: this should be refactored properly
+    // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
+    // medium_toggle:
+    // - sets secondary packet size to 16kb
+    // - disables poisson distribution of the main traffic stream
+    // - sets the cover traffic stream to 1 packet / 5s (on average)
+    // - disables per hop delay
+    //
+    // fastmode (to be renamed to `fast-poisson`):
+    // - sets average per hop delay to 10ms
+    // - sets the cover traffic stream to 1 packet / 2000s (on average); for all intents and purposes it disables the stream
+    // - sets the poisson distribution of the main traffic stream to 4ms, i.e. 250 packets / s on average
+    //
+    // no_cover:
+    // - disables poisson distribution of the main traffic stream
+    // - disables the secondary cover traffic stream
+    #[doc(hidden)]
+    pub fn try_apply_traffic_modes(
+        &mut self,
+        disable_poisson_process: bool,
+        medium_toggle: bool,
+        fast_mode: bool,
+        no_cover: bool,
+    ) -> Result<(), InvalidTrafficModeFailure> {
+        if disable_poisson_process {
+            self.set_no_poisson_process()
+        }
+
+        if medium_toggle {
+            if fast_mode {
+                return Err(InvalidTrafficModeFailure::MediumToggleWithFastMode);
+            }
+            if no_cover {
+                return Err(InvalidTrafficModeFailure::MediumToggleWithNoCover);
+            }
+
+            self.set_experimental_medium_toggle();
+        }
+
+        if fast_mode {
+            self.set_high_default_traffic_volume()
+        }
+
+        if no_cover {
+            self.set_no_cover_traffic();
+        }
+
+        Ok(())
+    }
+
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.traffic.average_packet_delay = Duration::from_millis(10);
         // basically don't really send cover messages
@@ -134,6 +185,15 @@ impl Config {
             Duration::from_millis(2_000_000);
         // 250 "real" messages / s
         self.debug.traffic.message_sending_average_delay = Duration::from_millis(4);
+    }
+
+    /// Enable medium mixnet traffic, for experiments only.
+    /// This includes things like disabling cover traffic, no per hop delays, etc.
+    #[doc(hidden)]
+    pub fn set_experimental_medium_toggle(&mut self) {
+        self.set_no_cover_traffic_with_keepalive();
+        self.set_no_per_hop_delays();
+        self.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
     }
 
     pub fn with_disabled_poisson_process(mut self, disabled: bool) -> Self {

@@ -154,7 +154,7 @@ pub fn ephemeral_exit_gateway_config(
     config: Config,
     mnemonic: &bip39::Mnemonic,
 ) -> Result<EphemeralConfig, ExitGatewayError> {
-    let nr_opts = LocalNetworkRequesterOpts {
+    let mut nr_opts = LocalNetworkRequesterOpts {
         config: nym_network_requester::Config {
             base: nym_client_core_config_types::Config {
                 client: base_client_config(&config),
@@ -186,7 +186,20 @@ pub fn ephemeral_exit_gateway_config(
         custom_mixnet_path: None,
     };
 
-    let ipr_opts = LocalIpPacketRouterOpts {
+    // SAFETY: this function can only fail if fastmode or nocover is set alongside medium_toggle which is not the case here
+    #[allow(clippy::unwrap_used)]
+    nr_opts
+        .config
+        .base
+        .try_apply_traffic_modes(
+            nr_opts.config.network_requester.disable_poisson_rate,
+            false,
+            false,
+            false,
+        )
+        .unwrap();
+
+    let mut ipr_opts = LocalIpPacketRouterOpts {
         config: nym_ip_packet_router::Config {
             base: nym_client_core_config_types::Config {
                 client: base_client_config(&config),
@@ -215,6 +228,10 @@ pub fn ephemeral_exit_gateway_config(
         },
         custom_mixnet_path: None,
     };
+
+    if ipr_opts.config.ip_packet_router.disable_poisson_rate {
+        ipr_opts.config.base.set_no_poisson_process()
+    }
 
     let pub_id_path = config
         .storage_paths

@@ -6,7 +6,6 @@ use crate::node::helpers::load_keypair;
 use crate::GatewayError;
 use nym_config::OptionalSet;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_ip_packet_router::config::BaseClientConfig;
 use nym_pemstore::traits::PemStorableKey;
 use nym_pemstore::KeyPairPath;
 use nym_sphinx::addressing::clients::Recipient;
@@ -43,48 +42,23 @@ pub struct OverrideIpPacketRouterConfig {
     // TODO
 }
 
-// NOTE: make sure this is in sync with service-providers/network-requester/src/cli/mod.rs::override_config
 pub fn override_network_requester_config(
     mut cfg: nym_network_requester::Config,
     opts: Option<OverrideNetworkRequesterConfig>,
 ) -> nym_network_requester::Config {
     let Some(opts) = opts else { return cfg };
 
-    // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
-    // medium_toggle:
-    // - sets secondary packet size to 16kb
-    // - disables poisson distribution of the main traffic stream
-    // - sets the cover traffic stream to 1 packet / 5s (on average)
-    // - disables per hop delay
-    //
-    // fastmode (to be renamed to `fast-poisson`):
-    // - sets average per hop delay to 10ms
-    // - sets the cover traffic stream to 1 packet / 2000s (on average); for all intents and purposes it disables the stream
-    // - sets the poisson distribution of the main traffic stream to 4ms, i.e. 250 packets / s on average
-    //
-    // no_cover:
-    // - disables poisson distribution of the main traffic stream
-    // - disables the secondary cover traffic stream
+    // in the old code we had calls to `assert` thus panicking
+    cfg.base
+        .try_apply_traffic_modes(
+            cfg.network_requester.disable_poisson_rate,
+            opts.medium_toggle,
+            opts.fastmode,
+            opts.no_cover,
+        )
+        .expect("failed to apply traffic modes");
 
-    // disable poisson rate in the BASE client if the NR option is enabled
-    if cfg.network_requester.disable_poisson_rate {
-        cfg.set_no_poisson_process();
-    }
-
-    // those should be enforced by `clap` when parsing the arguments
-    if opts.medium_toggle {
-        assert!(!opts.fastmode);
-        assert!(!opts.no_cover);
-
-        cfg.set_medium_toggle();
-    }
-
-    cfg.with_base(
-        BaseClientConfig::with_high_default_traffic_volume,
-        opts.fastmode,
-    )
-    .with_base(BaseClientConfig::with_disabled_cover_traffic, opts.no_cover)
-    .with_optional(
+    cfg.with_optional(
         nym_network_requester::Config::with_open_proxy,
         opts.open_proxy,
     )

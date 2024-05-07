@@ -33,6 +33,7 @@ members = [
     "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
+    "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
     #    "common/cosmwasm-smart-contracts/ephemera",

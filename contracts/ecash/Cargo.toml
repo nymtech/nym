@@ -1,0 +1,27 @@
+[package]
+name = "nym-ecash"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+sylvia = "0.8.0"
+schemars = "0.8.16"
+cosmwasm-std = { workspace = true }
+cosmwasm-schema =  { workspace = true }
+serde = "1.0.180"
+cw-storage-plus = { workspace = true }
+thiserror = { workspace = true }
+cw-controllers = { workspace = true }
+cosmwasm-storage = { workspace = true }
+cw3 = { workspace = true }
+cw4 = { workspace = true }
+
+nym-ecash-contract-common = { path = "../../common/cosmwasm-smart-contracts/ecash-contract" }
+nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
+
+
+[dev-dependencies]
+sylvia = { version = "0.8.0", features = ["mt"] }

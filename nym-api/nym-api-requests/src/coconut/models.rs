@@ -135,7 +135,7 @@ pub struct FreePassRequest {
     // secp256k1 key associated with the admin account
     pub cosmos_pubkey: cosmrs::crypto::PublicKey,
 
-    pub inner_sign_request: BlindSignRequest,
+    pub inner_sign_request: WithdrawalRequest,
 
     // we need to include a nonce here to prevent replay attacks
     // (and not making the nym-api store the serial numbers of all issued credential)
@@ -145,35 +145,32 @@ pub struct FreePassRequest {
     /// to prove the possession of the cosmos key/address
     pub nonce_signature: cosmrs::crypto::secp256k1::Signature,
 
-    pub public_attributes_plain: Vec<String>,
+    pub ecash_pubkey: PublicKeyUser,
+
+    pub expiration_date: u64,
 }
 
 impl FreePassRequest {
     pub fn new(
         cosmos_pubkey: cosmrs::crypto::PublicKey,
-        inner_sign_request: BlindSignRequest,
+        inner_sign_request: WithdrawalRequest,
         used_nonce: [u8; 16],
         nonce_signature: cosmrs::crypto::secp256k1::Signature,
-        public_attributes_plain: Vec<String>,
+        ecash_pubkey: PublicKeyUser,
+        expiration_date: u64,
     ) -> Self {
         FreePassRequest {
             cosmos_pubkey,
             inner_sign_request,
             used_nonce,
             nonce_signature,
-            public_attributes_plain,
+            ecash_pubkey,
+            expiration_date,
         }
     }
 
     pub fn tendermint_pubkey(&self) -> tendermint::PublicKey {
         self.cosmos_pubkey.into()
-    }
-
-    pub fn public_attributes_hashed(&self) -> Vec<Attribute> {
-        self.public_attributes_plain
-            .iter()
-            .map(hash_to_scalar)
-            .collect()
     }
 }
 

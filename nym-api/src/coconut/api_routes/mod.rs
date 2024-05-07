@@ -30,48 +30,6 @@ use time::OffsetDateTime;
 
 mod helpers;
 
-fn validate_freepass_public_attributes(res: &FreePassRequest) -> Result<()> {
-    let public_attributes = &res.public_attributes_plain;
-
-    if public_attributes.len() != IssuanceBandwidthCredential::PUBLIC_ATTRIBUTES as usize {
-        return Err(CoconutError::InvalidFreePassAttributes {
-            got: public_attributes.len(),
-            expected: IssuanceBandwidthCredential::PUBLIC_ATTRIBUTES as usize,
-        });
-    }
-
-    // SAFETY: we just ensured correct number of attributes
-    let expiry_raw = public_attributes.first().unwrap();
-    let type_raw = public_attributes.get(1).unwrap();
-
-    let parsed_type = type_raw.parse::<CredentialType>()?;
-    if parsed_type != CredentialType::FreePass {
-        return Err(CoconutError::InvalidFreePassTypeAttribute { got: parsed_type });
-    }
-
-    let expiry_timestamp: i64 = expiry_raw
-        .parse()
-        .map_err(|source| CoconutError::ExpiryDateParsingFailure { source })?;
-
-    let expiry_date = OffsetDateTime::from_unix_timestamp(expiry_timestamp).map_err(|source| {
-        CoconutError::InvalidExpiryDate {
-            unix_timestamp: expiry_timestamp,
-            source,
-        }
-    })?;
-    let now = OffsetDateTime::now_utc();
-
-    if expiry_date > now + MAX_FREE_PASS_VALIDITY {
-        return Err(CoconutError::TooLongFreePass { expiry_date });
-    }
-
-    if expiry_date < now {
-        return Err(CoconutError::FreePassExpiryInThePast { expiry_date });
-    }
-
-    Ok(())
-}
-
 #[get("/free-pass-nonce")]
 pub async fn get_current_free_pass_nonce(
     state: &RocketState<State>,
@@ -94,7 +52,16 @@ pub async fn post_free_pass(
     debug!("Received free pass sign request");
     trace!("body: {:?}", freepass_request_body);
 
-    validate_freepass_public_attributes(&freepass_request_body)?;
+    //check expiration date validity
+    if freepass_request_body.expiration_date > freepass_exp_date_timestamp() {
+        return Err(CoconutError::TooLongFreePass {
+            expiry_date: OffsetDateTime::from_unix_timestamp(
+                //safety : expiration date is a unix timestamp so these unwraps will not fail for 290 million years
+                freepass_request_body.expiration_date.try_into().unwrap(),
+            )
+            .unwrap(),
+        });
+    }
 
     // grab the admin of the bandwidth contract
     let Some(authorised_admin) = state.get_bandwidth_contract_admin().await? else {
@@ -161,8 +128,10 @@ pub async fn post_free_pass(
 
     // produce the partial signature
     debug!("producing the partial credential");
-    let blinded_signature =
-        blind_sign(freepass_request_body.deref(), signing_key.keys.secret_key())?;
+    let blinded_signature = blind_sign(
+        freepass_request_body.deref(),
+        &signing_key.keys.secret_key(),
+    )?;
 
     // update the number of issued free passes
     state.storage.increment_issued_freepasses().await?;

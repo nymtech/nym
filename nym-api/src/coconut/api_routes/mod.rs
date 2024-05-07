@@ -7,9 +7,10 @@ use crate::coconut::helpers::{accepted_vote_err, blind_sign};
 use crate::coconut::state::State;
 use crate::coconut::storage::CoconutStorageExt;
 use k256::ecdsa::signature::Verifier;
+use nym_api_requests::coconut::models::SpentCredentialsResponse;
 use nym_api_requests::coconut::models::{
     CredentialsRequestBody, EpochCredentialsResponse, FreePassNonceResponse, FreePassRequest,
-    IssuedCredentialResponse, IssuedCredentialsResponse,
+    IssuedCredentialResponse, IssuedCredentialsResponse, VerifyEcashCredentialResponse,
 };
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
@@ -17,16 +18,18 @@ use nym_api_requests::coconut::{
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::error::CompactEcashError;
+use nym_compact_ecash::identify::IdentifyResult;
+use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
 use nym_credentials::coconut::utils::{
     cred_exp_date_timestamp, freepass_exp_date_timestamp, today_timestamp,
 };
-use nym_validator_client::nyxd::Coin;
+use nym_ecash_contract_common::spend_credential::check_proposal;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::ops::Deref;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 mod helpers;
 
@@ -221,70 +224,227 @@ pub async fn post_blind_sign(
     Ok(Json(BlindedSignatureResponse { blinded_signature }))
 }
 
-#[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
-pub async fn verify_bandwidth_credential(
-    verify_credential_body: Json<VerifyCredentialBody>,
+#[post("/verify-online-credential", data = "<verify_credential_body>")]
+pub async fn verify_online_credential(
+    verify_credential_body: Json<VerifyEcashCredentialBody>,
     state: &RocketState<State>,
-) -> Result<Json<VerifyCredentialResponse>> {
+) -> Result<Json<VerifyEcashCredentialResponse>> {
     let proposal_id = verify_credential_body.proposal_id;
-    let credential_data = &verify_credential_body.credential_data;
-    let epoch_id = credential_data.epoch_id;
-    let theta = &credential_data.verify_credential_request;
+    let credential_data = &verify_credential_body.credential;
+    let payment = &credential_data.payment;
+    let today_date = today_timestamp();
 
-    let voucher_value: u64 = if credential_data.typ.is_voucher() {
-        credential_data
-            .get_bandwidth_attribute()
-            .ok_or(CoconutError::MissingBandwidthValue)?
-            .parse()
-            .map_err(|source| CoconutError::VoucherValueParsingFailure { source })?
-    } else {
-        return Err(CoconutError::NotABandwidthVoucher {
-            typ: credential_data.typ,
-        });
-    };
-
-    // TODO: introduce a check to make sure we haven't already voted for this proposal to prevent DDOS
-
-    let proposal = state.client.get_proposal(proposal_id).await?;
-
-    // Proposal description is the blinded serial number
-    if !theta.has_blinded_serial_number(&proposal.description)? {
-        return Err(CoconutError::IncorrectProposal {
-            reason: String::from("incorrect blinded serial number in description"),
-        });
+    //tickets needs a proposal
+    if proposal_id.is_none() && credential_data.typ.is_ticketbook() {
+        return Ok(Json(VerifyEcashCredentialResponse::InvalidFormat(
+            "No proposal for a ticketbook".to_string(),
+        )));
     }
-    let proposed_release_funds =
-        funds_from_cosmos_msgs(proposal.msgs).ok_or(CoconutError::IncorrectProposal {
-            reason: String::from("action is not to release funds"),
-        })?;
-    // Credential has not been spent before, and is on its way of being spent
-    let credential_status = state
+    //there should be no proposal on a freepass
+    if proposal_id.is_some() && credential_data.typ.is_free_pass() {
+        return Ok(Json(VerifyEcashCredentialResponse::InvalidFormat(
+            "Proposal present for a freepass".to_string(),
+        )));
+    }
+
+    if today_date != credential_data.spend_date {
+        state.refuse_proposal_online(proposal_id).await;
+        return Ok(Json(VerifyEcashCredentialResponse::SubmittedTooLate(
+            today_date,
+            credential_data.spend_date,
+        )));
+    }
+
+    //actual double spend detection with storage
+    if let Some(previous_payment) = state
+        .get_credential_by_sn(credential_data.serial_number_b58())
+        .await?
+    {
+        match nym_compact_ecash::identify::identify(
+            credential_data.payment.clone(),
+            previous_payment.payment,
+            credential_data.pay_info.clone(),
+            previous_payment.pay_info,
+        ) {
+            IdentifyResult::NotADuplicatePayment => {} //SW NOTE This should never happen, quick message?
+            IdentifyResult::DuplicatePayInfo(_) => {
+                log::warn!("Identical payInfo");
+                state.refuse_proposal_online(proposal_id).await;
+                return Ok(Json(VerifyEcashCredentialResponse::AlreadySent));
+            }
+            IdentifyResult::DoubleSpendingPublicKeys(pub_key) => {
+                //Actual double spending
+                log::warn!(
+                    "Double spending attempt for key {}",
+                    pub_key.to_base58_string()
+                );
+                state.refuse_proposal_online(proposal_id).await;
+                if credential_data.typ.is_ticketbook() {
+                    state.blacklist(pub_key.to_base58_string()).await;
+                }
+                return Ok(Json(VerifyEcashCredentialResponse::DoubleSpend));
+            }
+        }
+    }
+    //Double spend check with contract
+    if let Some(spent_credential) = state
         .client
-        .get_spent_credential(theta.blinded_serial_number_bs58())
+        .get_spent_credential(payment.serial_number_bs58())
         .await?
         .spend_credential
-        .ok_or(CoconutError::InvalidCredentialStatus {
-            status: String::from("Inexistent"),
-        })?
-        .status();
-    if credential_status != SpendCredentialStatus::InProgress {
-        return Err(CoconutError::InvalidCredentialStatus {
-            status: format!("{:?}", credential_status),
-        });
+    {
+        if spent_credential.serial_number() == credential_data.serial_number_b58() {
+            state.refuse_proposal_online(proposal_id).await;
+            return Ok(Json(VerifyEcashCredentialResponse::DoubleSpend));
+        }
     }
+
+    let verification_key = state.verification_key(credential_data.epoch_id).await?;
+    let params = bandwidth_credential_params();
+
+    if credential_data.verify(params, &verification_key).is_err() {
+        state.refuse_proposal_online(proposal_id).await;
+        return Ok(Json(VerifyEcashCredentialResponse::Refused));
+    }
+
+    // TODO: introduce a check to make sure we haven't already voted for this proposal to prevent DDOS
+    if let Some(id) = proposal_id {
+        let proposal = state.client.get_proposal(id).await?;
+
+        // Proposal description is the blinded serial number
+        if !payment.has_serial_number(&proposal.description)? {
+            state.client.vote_proposal(id, false, None).await?;
+            return Ok(Json(VerifyEcashCredentialResponse::InvalidFormat(
+                String::from("incorrect blinded serial number in description"),
+            )));
+        }
+        if !check_proposal(proposal.msgs) {
+            state.client.vote_proposal(id, false, None).await?;
+            return Ok(Json(VerifyEcashCredentialResponse::InvalidFormat(
+                String::from("action is not to spend_credential"),
+            )));
+        }
+
+        // Vote yes or no on the proposal based on the verification result
+        let ret = state.client.vote_proposal(id, true, None).await;
+        accepted_vote_err(ret)?;
+    }
+    //From here, credential is considered spent
+
+    //add to bloom filter for fast dup detection
+    state
+        .add_spent_credentials(&credential_data.serial_number_b58())
+        .await;
+    //store credential
+    //don't store free pass, as they do not incur rewards
+    if !credential_data.typ.is_free_pass() {
+        state
+            .store_credential(
+                &verify_credential_body.credential,
+                &verify_credential_body.gateway_cosmos_addr,
+                proposal_id.unwrap(), //safety : It's not a freepass, and we checked before that it was not none
+            )
+            .await?;
+    }
+
+    Ok(Json(VerifyEcashCredentialResponse::Accepted))
+}
+
+#[post("/verify-offline-credential", data = "<verify_credential_body>")]
+pub async fn verify_offline_credential(
+    verify_credential_body: Json<VerifyEcashCredentialBody>,
+    state: &RocketState<State>,
+) -> Result<Json<VerifyEcashCredentialResponse>> {
+    let credential_data = &verify_credential_body.credential;
+    let proposal_id = verify_credential_body.proposal_id;
+    //tickets needs a proposal
+    if proposal_id.is_none() && credential_data.typ.is_ticketbook() {
+        return Ok(Json(VerifyEcashCredentialResponse::InvalidFormat(
+            "No proposal for a ticketbook".to_string(),
+        )));
+    }
+    //there should be no proposal on a freepass
+    if proposal_id.is_some() && credential_data.typ.is_free_pass() {
+        return Ok(Json(VerifyEcashCredentialResponse::InvalidFormat(
+            "Proposal present for a freepass".to_string(),
+        )));
+    }
+    //SW NOTE: Offline scheme, but we still need some check on that, so that client and gateway can't collude and send expired credentials.
+    //Let's allow the current day (obviously), and the day before (for late sender or around midnight)
+    let today_date = today_timestamp();
+    let yesterday_date = today_date - Duration::DAY.whole_seconds() as u64;
+    if today_date != credential_data.spend_date && yesterday_date != credential_data.spend_date {
+        state.refuse_proposal(proposal_id).await;
+        return Ok(Json(VerifyEcashCredentialResponse::SubmittedTooLate(
+            yesterday_date,
+            credential_data.spend_date,
+        )));
+    }
+
+    //actual double spend detection with storage
+    if let Some(previous_payment) = state
+        .get_credential_by_sn(credential_data.serial_number_b58())
+        .await?
+    {
+        match nym_compact_ecash::identify::identify(
+            credential_data.payment.clone(),
+            previous_payment.payment,
+            credential_data.pay_info.clone(),
+            previous_payment.pay_info,
+        ) {
+            IdentifyResult::NotADuplicatePayment => {} //SW NOTE This should never happen, quick message?
+            IdentifyResult::DuplicatePayInfo(_) => {
+                log::warn!("Identical payInfo");
+                state.refuse_proposal(proposal_id).await;
+                return Ok(Json(VerifyEcashCredentialResponse::AlreadySent));
+            }
+            IdentifyResult::DoubleSpendingPublicKeys(pub_key) => {
+                //Actual double spending
+                log::warn!(
+                    "Double spending attempt for key {}",
+                    pub_key.to_base58_string()
+                );
+                state.refuse_proposal(proposal_id).await;
+                if credential_data.typ.is_ticketbook() {
+                    state.blacklist(pub_key.to_base58_string()).await;
+                }
+                return Ok(Json(VerifyEcashCredentialResponse::DoubleSpend));
+            }
+        }
+    }
+
+    let epoch_id = credential_data.epoch_id;
     let verification_key = state.verification_key(epoch_id).await?;
     let params = bandwidth_credential_params();
-    let mut vote_yes = credential_data.verify(params, &verification_key);
 
-    vote_yes &= Coin::from(proposed_release_funds)
-        == Coin::new(voucher_value as u128, state.mix_denom.clone());
+    if credential_data.verify(params, &verification_key).is_err() {
+        state.refuse_proposal(proposal_id).await;
+        return Ok(Json(VerifyEcashCredentialResponse::Refused));
+    }
 
-    // Vote yes or no on the proposal based on the verification result
-    let ret = state
-        .client
-        .vote_proposal(proposal_id, vote_yes, None)
+    //add to bloom filter for fast dup detection
+    state
+        .add_spent_credentials(&credential_data.serial_number_b58())
         .await;
-    accepted_vote_err(ret)?;
+
+    //store credential
+    //don't store free pass, as they do not incur rewards
+    if !credential_data.typ.is_free_pass() {
+        state
+            .store_credential(
+                &verify_credential_body.credential,
+                &verify_credential_body.gateway_cosmos_addr,
+                proposal_id.unwrap(), //safety : It's not a freepass, and we checked before that it was not none
+            )
+            .await?;
+    }
+
+    state
+        .accept_and_execute_proposal(proposal_id, credential_data.serial_number_b58())
+        .await?;
+
+    Ok(Json(VerifyEcashCredentialResponse::Accepted))
+}
 
 #[get("/spent-credentials")]
 pub async fn spent_credentials(

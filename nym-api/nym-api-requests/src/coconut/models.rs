@@ -4,18 +4,20 @@
 use crate::coconut::helpers::issued_credential_plaintext;
 use cosmrs::AccountId;
 use nym_credentials_interface::{
-    hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, Bytable, CoconutError,
-    CredentialSpendingData, VerificationKey,
+    BlindedSignature, CompactEcashError, CredentialSpendingData, OldCredentialSpendingData,
+    PartialCoinIndexSignature, PartialExpirationDateSignature, PublicKeyUser, VerificationKeyAuth,
+    WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::Display};
 use tendermint::hash::Hash;
+use time::OffsetDateTime;
 
 #[derive(Serialize, Deserialize)]
 pub struct VerifyCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
-    pub credential_data: CredentialSpendingData,
+    pub credential_data: OldCredentialSpendingData,
 
     /// Multisig proposal for releasing funds for the provided bandwidth credential
     pub proposal_id: u64,
@@ -26,7 +28,7 @@ pub struct VerifyCredentialBody {
 
 impl VerifyCredentialBody {
     pub fn new(
-        credential_data: CredentialSpendingData,
+        credential_data: OldCredentialSpendingData,
         proposal_id: u64,
         gateway_cosmos_addr: AccountId,
     ) -> VerifyCredentialBody {
@@ -47,6 +49,64 @@ impl VerifyCredentialResponse {
     pub fn new(verification_result: bool) -> Self {
         VerifyCredentialResponse {
             verification_result,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct VerifyEcashCredentialBody {
+    /// The cryptographic material required for spending the underlying credential.
+    pub credential: CredentialSpendingData,
+
+    /// Cosmos address of the sender of the credential
+    pub gateway_cosmos_addr: AccountId,
+
+    /// Multisig proposal for releasing funds for the provided bandwidth credential, None for freepasses
+    pub proposal_id: Option<u64>,
+}
+
+impl VerifyEcashCredentialBody {
+    pub fn new(
+        credential: CredentialSpendingData,
+        gateway_cosmos_addr: AccountId,
+        proposal_id: Option<u64>,
+    ) -> VerifyEcashCredentialBody {
+        VerifyEcashCredentialBody {
+            credential,
+            gateway_cosmos_addr,
+            proposal_id,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VerifyEcashCredentialResponse {
+    InvalidFormat(String),
+    DoubleSpend,
+    AlreadySent,
+    SubmittedTooLate(u64, u64),
+    Refused,
+    Accepted,
+}
+
+impl Display for VerifyEcashCredentialResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidFormat(reason) => {
+                write!(f, "Invalid format : {:?}", reason)
+            }
+            Self::DoubleSpend => write!(f, "Credential was already spent"),
+            Self::AlreadySent => write!(f, "This credential was already sent"),
+            Self::SubmittedTooLate(expected, actual) => {
+                write!(
+                    f,
+                    "Credential spent too late. Accepted from {:#?}, spent on {:#?}",
+                    OffsetDateTime::from_unix_timestamp(*expected as i64),
+                    OffsetDateTime::from_unix_timestamp(*actual as i64)
+                )
+            }
+            Self::Refused => write!(f, "Credential failed to validate"),
+            Self::Accepted => write!(f, "Credential was accepted"),
         }
     }
 }

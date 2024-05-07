@@ -13,6 +13,8 @@ use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
 use nym_compact_ecash::setup::{sign_coin_indices, CoinIndexSignature, Parameters};
 use nym_compact_ecash::utils::BlindedSignature;
 use nym_compact_ecash::{PublicKeyUser, VerificationKeyAuth, WithdrawalRequest};
+use nym_ecash_contract_common::events::BLACKLIST_PROPOSAL_ID;
+use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::error::NyxdError::AbciError;
 use tokio::sync::RwLock;
 
@@ -182,4 +184,14 @@ impl ExpirationDateSignatureCache {
         signatures.clone().unwrap() // Either we or someone else update the signatures, so they must be there
     }
 }
+
+/// Search for the proposal id in the given log. It'll be in the LAST wasm event, with attribute key "proposal_id"
+pub fn find_proposal_id(logs: &[Log]) -> Option<&cosmwasm_std::Attribute> {
+    logs.iter()
+        .rev()
+        .flat_map(|log| log.events.iter())
+        .find(|event| event.ty == "wasm")?
+        .attributes
+        .iter()
+        .find(|attr| attr.key == BLACKLIST_PROPOSAL_ID)
 }

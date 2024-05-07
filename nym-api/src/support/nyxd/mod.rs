@@ -8,7 +8,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
-use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use nym_coconut_dkg_common::dealing::{
     DealerDealingsStatusResponse, DealingChunkInfo, DealingMetadata, DealingStatusResponse,
     PartialContractDealing,
@@ -24,6 +23,7 @@ use nym_config::defaults::{ChainDetails, NymNetworkDetails};
 
 use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
+use nym_ecash_contract_common::spend_credential::EcashSpentCredentialResponse;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
@@ -37,7 +37,7 @@ use nym_validator_client::nyxd::contract_traits::{NameServiceQueryClient, PagedD
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{
     contract_traits::{
-        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
+        DkgQueryClient, DkgSigningClient, EcashQueryClient, EcashSigningClient, GroupQueryClient,
         MixnetQueryClient, MixnetSigningClient, MultisigQueryClient, MultisigSigningClient,
         NymContractsProvider, PagedMixnetQueryClient, PagedMultisigQueryClient,
         PagedVestingQueryClient, SpDirectoryQueryClient,
@@ -401,12 +401,23 @@ impl crate::coconut::client::Client for Client {
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,
-    ) -> crate::coconut::error::Result<SpendCredentialResponse> {
+    ) -> crate::coconut::error::Result<EcashSpentCredentialResponse> {
         Ok(nyxd_query!(
             self,
             get_spent_credential(blinded_serial_number).await?
         ))
     }
+
+    async fn propose_for_blacklist(
+        &self,
+        public_key: String,
+    ) -> crate::coconut::error::Result<ExecuteResult> {
+        Ok(nyxd_signing!(
+            self,
+            propose_for_blacklist(public_key, None).await?
+        ))
+    }
+
     async fn get_blacklisted_account(
         &self,
         public_key: String,

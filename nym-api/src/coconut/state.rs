@@ -1,13 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::client::Client as LocalClient;
 use crate::coconut::comm::APICommunicationChannel;
 use crate::coconut::deposit::validate_deposit_tx;
 use crate::coconut::error::Result;
 use crate::coconut::keys::KeyPair;
 use crate::coconut::storage::CoconutStorageExt;
+use crate::coconut::{client::Client as LocalClient, helpers::find_proposal_id};
 use crate::support::storage::NymApiStorage;
+use bloomfilter::Bloom;
+use cw3::Status;
 use nym_api_requests::coconut::helpers::issued_credential_plaintext;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_compact_ecash::{
@@ -17,6 +19,10 @@ use nym_compact_ecash::{
     utils::BlindedSignature,
     VerificationKeyAuth,
 };
+use nym_config::defaults::{BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS};
+use nym_credentials::{coconut::utils::cred_exp_date_timestamp, CredentialSpendingData};
+use nym_ecash_contract_common::spend_credential::check_proposal;
+
 use super::{
     error::CoconutError,
     helpers::{accepted_vote_err, CoinIndexSignatureCache, ExpirationDateSignatureCache},
@@ -107,6 +113,103 @@ impl State {
         validate_deposit_tx(request, tx).await
     }
 
+    pub(crate) async fn accept_and_execute_proposal(
+        &self,
+        proposal_id: Option<u64>,
+        serial_number_bs58: String,
+    ) -> Result<()> {
+        if let Some(id) = proposal_id {
+            let proposal = self.client.get_proposal(id).await?;
+
+            // Proposal description is the blinded serial number
+            if serial_number_bs58 != proposal.description {
+                return Err(CoconutError::IncorrectProposal {
+                    reason: String::from("incorrect blinded serial number in description"),
+                });
+            }
+            if !check_proposal(proposal.msgs) {
+                return Err(CoconutError::IncorrectProposal {
+                    reason: String::from("action is not to spend_credential"),
+                });
+            }
+            let client = self.client.clone();
+            tokio::spawn(async move {
+                let ret = client.vote_proposal(id, true, None).await;
+                //SW NOTE: What to do if this fails
+                if let Err(e) = accepted_vote_err(ret) {
+                    log::debug!("Failed to vote on proposal {} - {:?}", id, e);
+                }
+
+                if let Ok(proposal) = client.get_proposal(id).await {
+                    if proposal.status == Status::Passed {
+                        //SW NOTE: What to do if this fails
+                        if let Err(e) = client.execute_proposal(id).await {
+                            log::debug!("Failed to execute proposal {} - {:?}", id, e);
+                        }
+                    }
+                }
+            });
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn refuse_proposal(&self, proposal_id: Option<u64>) {
+        if let Some(id) = proposal_id {
+            let client = self.client.clone();
+            tokio::spawn(async move {
+                //whatever is in the proposal, we can refuse it anyway
+                if let Err(e) = client.vote_proposal(id, false, None).await {
+                    log::debug!("Failed to refuse proposal {:?} - {:?}", id, e)
+                }
+            });
+        }
+    }
+
+    pub(crate) async fn refuse_proposal_online(&self, proposal_id: Option<u64>) {
+        if let Some(id) = proposal_id {
+            //whatever is in the proposal, we can refuse it anyway
+            if let Err(e) = self.client.vote_proposal(id, false, None).await {
+                log::debug!("Failed to refuse proposal {:?} - {:?}", id, e)
+            }
+        }
+    }
+
+    pub(crate) async fn blacklist(&self, public_key: String) {
+        let client = self.client.clone();
+        tokio::spawn(async move {
+            //SW TODO error handling with one log at the end
+            let response = client.propose_for_blacklist(public_key.clone()).await?;
+            let proposal_id = find_proposal_id(&response.logs)
+                .ok_or(CoconutError::ProposalIdError {
+                    reason: "Proposal_ID not found".to_string(),
+                })?
+                .value
+                .parse::<u64>()
+                .map_err(|_| CoconutError::ProposalIdError {
+                    reason: String::from("proposal id could not be parsed to u64"),
+                })?;
+
+            let proposal = client.get_proposal(proposal_id).await?;
+            if proposal.status == Status::Open {
+                if public_key != proposal.description {
+                    return Err(CoconutError::IncorrectProposal {
+                        reason: String::from("incorrect publickey in description"),
+                    });
+                }
+                let ret = client.vote_proposal(proposal_id, true, None).await;
+
+                accepted_vote_err(ret)?;
+
+                if let Ok(proposal) = client.get_proposal(proposal_id).await {
+                    if proposal.status == Status::Passed {
+                        client.execute_proposal(proposal_id).await?
+                    }
+                }
+            }
+            Ok(())
+        });
+    }
+
     pub(crate) async fn sign_and_store_credential(
         &self,
         current_epoch: EpochId,
@@ -164,7 +267,7 @@ impl State {
         Ok(())
     }
 
-    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
+    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth> {
         self.comm_channel
             .aggregated_verification_key(epoch_id)
             .await

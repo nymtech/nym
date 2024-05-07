@@ -29,7 +29,6 @@ pub(crate) const MINIMUM_BALANCE: u128 = 10_000000;
 
 pub fn stage<C, D>(
     client: C,
-    mix_denom: String,
     identity_keypair: identity::KeyPair,
     key_pair: KeyPair,
     comm_channel: D,
@@ -39,14 +38,7 @@ where
     C: LocalClient + Send + Sync + 'static,
     D: APICommunicationChannel + Send + Sync + 'static,
 {
-    let state = State::new(
-        client,
-        mix_denom,
-        identity_keypair,
-        key_pair,
-        comm_channel,
-        storage,
-    );
+    let state = State::new(client, identity_keypair, key_pair, comm_channel, storage);
     AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
         rocket.manage(state).mount(
             // this format! is so ugly...

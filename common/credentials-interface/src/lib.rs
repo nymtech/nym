@@ -1,21 +1,28 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bls12_381::Scalar;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
 
-pub use nym_coconut::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar, keygen,
-    prepare_blind_sign, prove_bandwidth_credential, verify_credential, Attribute, Base58,
-    BlindSignRequest, BlindedSerialNumber, BlindedSignature, Bytable, CoconutError, KeyPair,
-    Parameters, PrivateAttribute, PublicAttribute, SecretKey, Signature, SignatureShare,
-    VerificationKey, VerifyCredentialRequest,
+pub use nym_compact_ecash::{
+    aggregate_verification_keys, aggregate_wallets, constants, error::CompactEcashError,
+    generate_keypair_user, generate_keypair_user_from_seed, issue_verify,
+    scheme::expiration_date_signatures::aggregate_expiration_signatures,
+    scheme::expiration_date_signatures::date_scalar,
+    scheme::expiration_date_signatures::ExpirationDateSignature,
+    scheme::expiration_date_signatures::PartialExpirationDateSignature,
+    scheme::keygen::KeyPairUser, scheme::setup::aggregate_indices_signatures,
+    scheme::setup::CoinIndexSignature, scheme::setup::PartialCoinIndexSignature,
+    scheme::withdrawal::RequestInfo, scheme::Payment, scheme::Wallet, setup::setup,
+    setup::Parameters, utils::BlindedSignature, withdrawal_request, Base58, Bytable,
+    GroupParameters, PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+    WithdrawalRequest,
 };
 
 pub const VOUCHER_INFO_TYPE: &str = "BandwidthVoucher";
+pub const ECASH_INFO_TYPE: &str = "TicketBook";
 pub const FREE_PASS_INFO_TYPE: &str = "FreeBandwidthPass";
 
 // pub trait NymCredential {
@@ -29,6 +36,7 @@ pub struct UnknownCredentialType(String);
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum CredentialType {
     Voucher,
+    TicketBook,
     FreePass,
 }
 
@@ -36,10 +44,12 @@ impl FromStr for CredentialType {
     type Err = UnknownCredentialType;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == VOUCHER_INFO_TYPE {
-            Ok(CredentialType::Voucher)
+        if s == ECASH_INFO_TYPE {
+            Ok(CredentialType::TicketBook)
         } else if s == FREE_PASS_INFO_TYPE {
             Ok(CredentialType::FreePass)
+        } else if s == VOUCHER_INFO_TYPE {
+            Ok(CredentialType::Voucher)
         } else {
             Err(UnknownCredentialType(s.to_string()))
         }
@@ -49,6 +59,7 @@ impl FromStr for CredentialType {
 impl CredentialType {
     pub fn validate(&self, type_plain: &str) -> bool {
         match self {
+            CredentialType::TicketBook => type_plain == ECASH_INFO_TYPE,
             CredentialType::Voucher => type_plain == VOUCHER_INFO_TYPE,
             CredentialType::FreePass => type_plain == FREE_PASS_INFO_TYPE,
         }
@@ -56,6 +67,10 @@ impl CredentialType {
 
     pub fn is_free_pass(&self) -> bool {
         matches!(self, CredentialType::FreePass)
+    }
+
+    pub fn is_ticketbook(&self) -> bool {
+        matches!(self, CredentialType::TicketBook)
     }
 
     pub fn is_voucher(&self) -> bool {
@@ -66,6 +81,7 @@ impl CredentialType {
 impl Display for CredentialType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            CredentialType::TicketBook => ECASH_INFO_TYPE.fmt(f),
             CredentialType::Voucher => VOUCHER_INFO_TYPE.fmt(f),
             CredentialType::FreePass => FREE_PASS_INFO_TYPE.fmt(f),
         }
@@ -74,17 +90,168 @@ impl Display for CredentialType {
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
-    pub pedersen_commitments_openings: Vec<Scalar>,
+    pub withdrawal_request: WithdrawalRequest,
 
-    pub blind_sign_request: BlindSignRequest,
+    pub request_info: RequestInfo,
 
-    pub public_attributes_plain: Vec<String>,
+    pub ecash_pub_key: PublicKeyUser,
+
+    pub expiration_date: u64,
 
     pub typ: CredentialType,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CredentialSpendingData {
+    pub payment: Payment,
+
+    pub pay_info: PayInfo,
+
+    pub spend_date: u64,
+
+    pub value: u64,
+
+    pub typ: CredentialType,
+
+    /// The (DKG) epoch id under which the credential has been issued so that the verifier could use correct verification key for validation.
+    pub epoch_id: u64,
+}
+
+impl CredentialSpendingData {
+    pub fn verify(
+        &self,
+        params: &Parameters,
+        verification_key: &VerificationKeyAuth,
+    ) -> Result<bool, CompactEcashError> {
+        self.payment.spend_verify(
+            params,
+            verification_key,
+            &self.pay_info,
+            date_scalar(self.spend_date),
+        )
+    }
+
+    pub fn serial_number_b58(&self) -> String {
+        self.payment.serial_number_bs58()
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        // simple length prefixed serialization
+        // TODO: change it to a standard format instead
+        let mut bytes = Vec::new();
+        let payment_bytes = self.payment.to_bytes();
+        let typ = self.typ.to_string();
+        let typ_bytes = typ.as_bytes();
+
+        bytes.extend_from_slice(&(payment_bytes.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&payment_bytes);
+        bytes.extend_from_slice(&self.pay_info.pay_info_bytes); //this is 72 bytes long
+        bytes.extend_from_slice(&self.spend_date.to_be_bytes());
+        bytes.extend_from_slice(&self.value.to_be_bytes());
+        bytes.extend_from_slice(&(typ_bytes.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(typ_bytes);
+        bytes.extend_from_slice(&self.epoch_id.to_be_bytes());
+
+        bytes
+    }
+
+    pub fn try_from_bytes(raw: &[u8]) -> Result<Self, CompactEcashError> {
+        if raw.len() < 72 + 8 + 8 + 8 + 4 + 4 {
+            return Err(CompactEcashError::Deserialization(
+                "Invalid byte array for EcashCredential deserialization".to_string(),
+            ));
+        }
+        let mut index = 0;
+        //SAFETY : casting a slice of lenght 4 into an array of size 4
+        let payment_len = u32::from_be_bytes(raw[index..index + 4].try_into().unwrap()) as usize;
+        index += 4;
+
+        if raw[index..].len() < payment_len {
+            return Err(CompactEcashError::Deserialization(
+                "Invalid byte array for EcashCredential deserialization".to_string(),
+            ));
+        }
+        let payment = Payment::try_from(&raw[index..index + payment_len])?;
+        index += payment_len;
+
+        if raw[index..].len() < 72 + 8 + 8 + 8 + 4 {
+            return Err(CompactEcashError::Deserialization(
+                "Invalid byte array for EcashCredential deserialization".to_string(),
+            ));
+        }
+
+        let pay_info = PayInfo {
+            //SAFETY : casting a slice of lenght 72 into an array of size 72
+            pay_info_bytes: raw[index..index + 72].try_into().unwrap(),
+        };
+        index += 72;
+
+        //SAFETY : casting a slice of lenght 8 into an array of size 8
+        let spend_date = u64::from_be_bytes(raw[index..index + 8].try_into().unwrap());
+        index += 8;
+
+        //SAFETY : casting a slice of lenght 8 into an array of size 8
+        let value = u64::from_be_bytes(raw[index..index + 8].try_into().unwrap());
+        index += 8;
+
+        //SAFETY : casting a slice of lenght 4 into an array of size 4
+        let typ_len = u32::from_be_bytes(raw[index..index + 4].try_into().unwrap()) as usize;
+        index += 4;
+
+        if raw[index..].len() != typ_len + 8 {
+            return Err(CompactEcashError::Deserialization(
+                "Invalid byte array for EcashCredential deserialization".to_string(),
+            ));
+        }
+
+        let raw_typ = String::from_utf8(raw[index..index + typ_len].to_vec()).map_err(|_| {
+            CompactEcashError::Deserialization("Failed to deserialize type".to_string())
+        })?;
+        let typ = raw_typ.parse().map_err(|_| {
+            CompactEcashError::Deserialization("Failed to deserialize type".to_string())
+        })?;
+        index += typ_len;
+
+        //SAFETY : casting a slice of lenght 8 into an array of size 8
+        let epoch_id = u64::from_be_bytes(raw[index..index + 8].try_into().unwrap());
+
+        Ok(CredentialSpendingData {
+            payment,
+            pay_info,
+            spend_date,
+            value,
+            typ,
+            epoch_id,
+        })
+    }
+}
+
+impl Bytable for CredentialSpendingData {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> Result<Self, CompactEcashError> {
+        Self::try_from_bytes(slice)
+    }
+}
+
+impl Base58 for CredentialSpendingData {}
+
+pub use nym_coconut::{
+    hash_to_scalar, keygen as coconut_keygen, prove_bandwidth_credential, verify_credential,
+    Attribute, Base58 as CoconutBase58, BlindedSerialNumber, CoconutError,
+    Parameters as CoconutParameters, Signature as CoconutSignature, VerificationKey,
+    VerifyCredentialRequest,
+};
+
+//SW NOTE: for coconut compatibility
+pub fn to_coconut(verification_key: &VerificationKeyAuth) -> Result<VerificationKey, CoconutError> {
+    VerificationKey::from_bytes(&verification_key.to_bytes())
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+pub struct OldCredentialSpendingData {
     pub embedded_private_attributes: usize,
 
     pub verify_credential_request: VerifyCredentialRequest,
@@ -97,8 +264,8 @@ pub struct CredentialSpendingData {
     pub epoch_id: u64,
 }
 
-impl CredentialSpendingData {
-    pub fn verify(&self, params: &Parameters, verification_key: &VerificationKey) -> bool {
+impl OldCredentialSpendingData {
+    pub fn verify(&self, params: &CoconutParameters, verification_key: &VerificationKey) -> bool {
         let hashed_public_attributes = self
             .public_attributes_plain
             .iter()

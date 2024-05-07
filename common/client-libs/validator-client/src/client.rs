@@ -8,9 +8,14 @@ use crate::{
     nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
     ReqwestRpcClient, ValidatorClientError,
 };
-use nym_api_requests::coconut::models::FreePassNonceResponse;
+use nym_api_requests::coconut::models::{
+    FreePassNonceResponse, SpentCredentialsResponse, VerifyCredentialBody,
+    VerifyEcashCredentialResponse,
+};
 use nym_api_requests::coconut::{
+    BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest,
     PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
+    VerifyCredentialResponse, VerifyEcashCredentialBody,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -349,6 +354,27 @@ impl NymApiClient {
             .verify_bandwidth_credential(request_body)
             .await?)
     }
+
+    pub async fn verify_offline_credential(
+        &self,
+        request_body: &VerifyEcashCredentialBody,
+    ) -> Result<VerifyEcashCredentialResponse, ValidatorClientError> {
+        Ok(self.nym_api.verify_offline_credential(request_body).await?)
+    }
+
+    pub async fn verify_online_credential(
+        &self,
+        request_body: &VerifyEcashCredentialBody,
+    ) -> Result<VerifyEcashCredentialResponse, ValidatorClientError> {
+        Ok(self.nym_api.verify_online_credential(request_body).await?)
+    }
+
+    pub async fn spent_credentials(
+        &self,
+    ) -> Result<SpentCredentialsResponse, ValidatorClientError> {
+        Ok(self.nym_api.spent_credentials().await?)
+    }
+
     pub async fn expiration_date_signatures(
         &self,
     ) -> Result<PartialExpirationDateSignatureResponse, ValidatorClientError> {

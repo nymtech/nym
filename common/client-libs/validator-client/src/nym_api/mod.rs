@@ -8,10 +8,11 @@ pub use nym_api_requests::{
     coconut::{
         models::{
             EpochCredentialsResponse, IssuedCredential, IssuedCredentialBody,
-            IssuedCredentialResponse, IssuedCredentialsResponse,
+            IssuedCredentialResponse, IssuedCredentialsResponse, SpentCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
         PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
+        VerifyCredentialResponse, VerifyEcashCredentialBody,
     },
     models::{
         ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -31,7 +32,9 @@ use nym_service_provider_directory_common::response::ServicesListResponse;
 pub mod error;
 pub mod routes;
 
-use nym_api_requests::coconut::models::FreePassNonceResponse;
+use nym_api_requests::coconut::models::{
+    FreePassNonceResponse, VerifyCredentialBody, VerifyEcashCredentialResponse,
+};
 use nym_api_requests::coconut::FreePassRequest;
 pub use nym_http_api_client::Client;
 
@@ -438,6 +441,54 @@ pub trait NymApiClientExt: ApiClient {
         )
         .await
     }
+
+    async fn verify_offline_credential(
+        &self,
+        request_body: &VerifyEcashCredentialBody,
+    ) -> Result<VerifyEcashCredentialResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::ECASH_VERIFY_OFFLINE_CREDENTIAL,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    async fn verify_online_credential(
+        &self,
+        request_body: &VerifyEcashCredentialBody,
+    ) -> Result<VerifyEcashCredentialResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::ECASH_VERIFY_ONLINE_CREDENTIAL,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    async fn spent_credentials(&self) -> Result<SpentCredentialsResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::SPENT_CREDENTIALS,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     async fn expiration_date_signatures(
         &self,
     ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {

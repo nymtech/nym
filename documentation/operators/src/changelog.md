@@ -6,10 +6,10 @@ This page displays a full list of all the changes during our release cycle from 
 
 - [Merged PRs](https://github.com/nymtech/nym/milestone/59?closed=1)
 - [`nym-node`](nodes/nym-node.md) version `1.1.1`
-- This release also contains: `nym-gateway` and `nym-network-requester`
+- This release also contains: `nym-gateway` and `nym-network-requester` binaries
 - core improvements on nym-node configuration
 - Nym wallet changes:
-    - Adding the `nym-node` command to bonding screens
+    - Adding `nym-node` command to bonding screens
     - Fixed the delegation issues with fixing RPC
 - [Network configuration](nodes/configuration.md#connectivity-test-and-configuration) section updates, in particular for `--mode mixnode` operators
 - [VPS IPv6 troubleshooting](troubleshooting/vps-isp.md#ipv6-troubleshooting) updates

@@ -110,8 +110,6 @@ impl<'a> HttpApiBuilder<'a> {
                 Ok(server) => server.with_task_client(task_client),
                 Err(err) => {
                     error!("failed to create http server: {err}");
-                    // this will cause global shutdown
-                    drop(task_client);
                     return;
                 }
             };

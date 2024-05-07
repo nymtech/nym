@@ -19,6 +19,7 @@ use nym_coconut_dkg_common::types::{
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_contracts_common::IdentityKey;
 use nym_dkg::Threshold;
+use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, Fee, Hash, TxResponse};
 
@@ -42,6 +43,10 @@ pub trait Client {
         &self,
         blinded_serial_number: String,
     ) -> Result<SpendCredentialResponse>;
+    async fn get_blacklisted_account(
+        &self,
+        public_key: String,
+    ) -> Result<BlacklistedAccountResponse>;
 
     async fn contract_state(&self) -> Result<State>;
 

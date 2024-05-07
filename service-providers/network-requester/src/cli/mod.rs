@@ -112,41 +112,18 @@ pub(crate) struct OverrideConfig {
 
 // NOTE: make sure this is in sync with `gateway/src/helpers.rs::override_network_requester_config`
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
-    // medium_toggle:
-    // - sets secondary packet size to 16kb
-    // - disables poisson distribution of the main traffic stream
-    // - sets the cover traffic stream to 1 packet / 5s (on average)
-    // - disables per hop delay
-    //
-    // fastmode (to be renamed to `fast-poisson`):
-    // - sets average per hop delay to 10ms
-    // - sets the cover traffic stream to 1 packet / 2000s (on average); for all intents and purposes it disables the stream
-    // - sets the poisson distribution of the main traffic stream to 4ms, i.e. 250 packets / s on average
-    //
-    // no_cover:
-    // - disables poisson distribution of the main traffic stream
-    // - disables the secondary cover traffic stream
-
-    // disable poisson rate in the BASE client if the NR option is enabled
-    if config.network_requester.disable_poisson_rate {
-        config.set_no_poisson_process();
-    }
-
-    // those should be enforced by `clap` when parsing the arguments
-    if args.medium_toggle {
-        assert!(!args.fastmode);
-        assert!(!args.no_cover);
-
-        config.set_medium_toggle();
-    }
+    // in the old code we had calls to `assert` thus panicking
+    config
+        .base
+        .try_apply_traffic_modes(
+            config.network_requester.disable_poisson_rate,
+            args.medium_toggle,
+            args.fastmode,
+            args.no_cover,
+        )
+        .expect("failed to apply traffic modes");
 
     config
-        .with_base(
-            BaseClientConfig::with_high_default_traffic_volume,
-            args.fastmode,
-        )
-        .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional_base_custom_env(
             BaseClientConfig::with_custom_nym_apis,
             args.nym_apis,

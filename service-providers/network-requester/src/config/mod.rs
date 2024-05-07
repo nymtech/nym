@@ -12,7 +12,6 @@ use nym_config::{
 };
 use nym_network_defaults::mainnet;
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
-use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -149,20 +148,6 @@ impl Config {
         self.base.validate()
     }
 
-    /// Enable medium mixnet traffic, for experiments only.
-    /// This includes things like disabling cover traffic, no per hop delays, etc.
-    #[doc(hidden)]
-    pub fn set_medium_toggle(&mut self) {
-        self.base.set_no_cover_traffic_with_keepalive();
-        self.base.set_no_per_hop_delays();
-        self.base.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
-    }
-
-    #[doc(hidden)]
-    pub fn set_no_poisson_process(&mut self) {
-        self.base.set_no_poisson_process()
-    }
-
     #[must_use]
     pub fn with_open_proxy(mut self, open_proxy: bool) -> Self {
         self.network_requester.open_proxy = open_proxy;
@@ -182,6 +167,7 @@ impl Config {
     }
 
     // poor man's 'builder' method
+    #[allow(unused)]
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
     where
         F: Fn(BaseClientConfig, T) -> BaseClientConfig,

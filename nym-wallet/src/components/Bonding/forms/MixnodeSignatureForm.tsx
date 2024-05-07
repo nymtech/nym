@@ -61,7 +61,13 @@ const MixnodeSignatureForm = ({
   return (
     <Stack gap={3} mb={3}>
       <Typography variant="body1">
-        Copy below message and sign it with your nym-node using the following command
+        Copy the message below and sign it: 
+        <br />
+        If you're using a nym-mixnode:
+        <br />
+        <code>nym-mixnode sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
+        <br />
+        If you're using a nym-node:
         <br />
         <code>nym-node sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
         <br />

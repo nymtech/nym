@@ -3,8 +3,52 @@
 
 use crate::GatewayRequestsError;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
-use nym_credentials_interface::{CoconutError, VerifyCredentialRequest};
+use nym_credentials_interface::CompactEcashError;
+use nym_credentials_interface::{
+    Base58, Bytable, CoconutError, OldCredentialSpendingData, VerifyCredentialRequest,
+};
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+pub struct CredentialSpendingRequest {
+    /// The cryptographic material required for spending the underlying credential.
+    pub data: CredentialSpendingData,
+}
+
+impl CredentialSpendingRequest {
+    pub fn new(data: CredentialSpendingData) -> Self {
+        CredentialSpendingRequest { data }
+    }
+
+    pub fn matches_serial_number(
+        &self,
+        serial_number_bs58: &str,
+    ) -> Result<bool, CompactEcashError> {
+        self.data.payment.has_serial_number(serial_number_bs58)
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.data.to_bytes()
+    }
+
+    pub fn try_from_bytes(raw: &[u8]) -> Result<Self, CompactEcashError> {
+        Ok(CredentialSpendingRequest {
+            data: CredentialSpendingData::try_from_bytes(raw)?,
+        })
+    }
+}
+
+impl Bytable for CredentialSpendingRequest {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> Result<Self, CompactEcashError> {
+        Self::try_from_bytes(slice)
+    }
+}
+
+impl Base58 for CredentialSpendingRequest {}
 
 // reimplements old coconut-interface::Credential for backwards compatibility sake
 // (so that 'new' gateways could still understand those requests)
@@ -22,7 +66,7 @@ pub struct OldV1Credential {
 }
 
 // attempt to convert the old request type into the new variant
-impl TryFrom<OldV1Credential> for CredentialSpendingRequest {
+impl TryFrom<OldV1Credential> for OldCredentialSpendingRequest {
     type Error = GatewayRequestsError;
 
     fn try_from(value: OldV1Credential) -> Result<Self, Self::Error> {
@@ -35,8 +79,8 @@ impl TryFrom<OldV1Credential> for CredentialSpendingRequest {
         let typ = value.voucher_info.parse()?;
         let public_attributes_plain = vec![value.voucher_value.to_string(), value.voucher_info];
 
-        Ok(CredentialSpendingRequest {
-            data: CredentialSpendingData {
+        Ok(OldCredentialSpendingRequest {
+            data: OldCredentialSpendingData {
                 embedded_private_attributes,
                 verify_credential_request: value.theta,
                 public_attributes_plain,
@@ -105,12 +149,6 @@ impl OldV1Credential {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct CredentialSpendingRequest {
-    /// The cryptographic material required for spending the underlying credential.
-    pub data: CredentialSpendingData,
-}
-
 // just a helper macro for checking required length and advancing the buffer
 macro_rules! ensure_len_and_advance {
     ($b:expr, $n:expr) => {{
@@ -128,9 +166,15 @@ macro_rules! ensure_len_and_advance {
     }};
 }
 
-impl CredentialSpendingRequest {
-    pub fn new(data: CredentialSpendingData) -> Self {
-        CredentialSpendingRequest { data }
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct OldCredentialSpendingRequest {
+    /// The cryptographic material required for spending the underlying credential.
+    pub data: OldCredentialSpendingData,
+}
+
+impl OldCredentialSpendingRequest {
+    pub fn new(data: OldCredentialSpendingData) -> Self {
+        OldCredentialSpendingRequest { data }
     }
 
     pub fn matches_blinded_serial_number(
@@ -223,8 +267,8 @@ impl CredentialSpendingRequest {
         let epoch_id_bytes = ensure_len_and_advance!(b, 8);
         let epoch_id = u64::from_be_bytes(epoch_id_bytes.try_into().unwrap());
 
-        Ok(CredentialSpendingRequest {
-            data: CredentialSpendingData {
+        Ok(OldCredentialSpendingRequest {
+            data: nym_credentials_interface::OldCredentialSpendingData {
                 embedded_private_attributes,
                 verify_credential_request: theta,
                 public_attributes_plain,
@@ -238,11 +282,17 @@ impl CredentialSpendingRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
+    use nym_compact_ecash::{
+        identify::{generate_coin_indices_signatures, generate_expiration_date_signatures},
+        issue, ttp_keygen, PayInfo,
+    };
+    use nym_credentials::coconut::{
+        bandwidth::bandwidth_credential_params, utils::freepass_exp_date_timestamp,
+    };
     use nym_credentials::IssuanceBandwidthCredential;
     use nym_credentials_interface::{
-        blind_sign, hash_to_scalar, prove_bandwidth_credential, Attribute, Base58, Parameters,
-        Signature, VerificationKey,
+        prove_bandwidth_credential, Attribute, CoconutBase58, CoconutParameters, CoconutSignature,
+        VerificationKey,
     };
 
     #[test]
@@ -253,13 +303,13 @@ mod tests {
             Attribute::try_from_bs58("7Rp3imcuNX3w9se9wm5th8gSvc2czsnMrGsdt5HsrycA").unwrap();
         let binding_number =
             Attribute::try_from_bs58("Auf8yVEgyEAWNHaXUZmimS4n9g5YiYnNYqp6F9BtBe9E").unwrap();
-        let signature = Signature::try_from_bs58(
+        let signature = CoconutSignature::try_from_bs58(
             "ta3pM9ffj5T6YGbwjSBp2W118rcwyP9PXStc\
         7ssb91g5GQYMQHhuTNajbdZcjxUFBFL5rhED8EHpRzE8r432ss3qbPBfpNev4CdkfMkQ3wepyM7hy7q1W6Rn9WmFoZL\
         ZR9j",
         )
         .unwrap();
-        let params = Parameters::new(4).unwrap();
+        let params = CoconutParameters::new(4).unwrap();
         let verification_key = VerificationKey::try_from_bs58("8CFtVVXdwLy4WHMQPE4\
         woe89q3DRHoNxBSchftrEjSBPWA4r4xZv4Y9qSvS5x5bMmFtp7BX6ikECAnuXr5EjXWSsgjirZJmpS5XDUynVfht1cD\
         FWGDvy2XFrRCuoCMotNXi3PoF6wYqdTR9Rqcfoj3i2H5Nid422WBaLtVoC9QNobvpvaqq6vX5PbsSyPayvU8HCXFxM6\
@@ -299,33 +349,59 @@ mod tests {
     fn credential_roundtrip() {
         // make valid request
         let params = bandwidth_credential_params();
-        let keypair = nym_credentials_interface::keygen(params);
+        let keypair = ttp_keygen(params.grp(), 1, 1).unwrap().remove(0);
 
-        let issuance = IssuanceBandwidthCredential::new_freepass(None);
+        let issuance = IssuanceBandwidthCredential::new_freepass(freepass_exp_date_timestamp());
         let sig_req = issuance.prepare_for_signing();
-        let pub_attrs_hashed = sig_req
-            .public_attributes_plain
-            .iter()
-            .map(hash_to_scalar)
-            .collect::<Vec<_>>();
-        let pub_attrs = pub_attrs_hashed.iter().collect::<Vec<_>>();
-        let blind_sig = blind_sign(
+        let exp_date_sigs = generate_expiration_date_signatures(
             params,
-            keypair.secret_key(),
-            &sig_req.blind_sign_request,
-            &pub_attrs,
+            sig_req.expiration_date,
+            &[keypair.secret_key()],
+            &vec![keypair.verification_key()],
+            &keypair.verification_key(),
+            &[keypair.index.unwrap()],
         )
         .unwrap();
-        let sig = blind_sig
-            .unblind(
-                keypair.verification_key(),
-                &sig_req.pedersen_commitments_openings,
+        let blind_sig = issue(
+            params.grp(),
+            keypair.secret_key(),
+            sig_req.ecash_pub_key.clone(),
+            &sig_req.withdrawal_request,
+            freepass_exp_date_timestamp(),
+        )
+        .unwrap();
+
+        let partial_wallet = issuance
+            .unblind_signature(
+                &keypair.verification_key(),
+                &sig_req,
+                blind_sig,
+                keypair.index.unwrap(),
             )
             .unwrap();
 
-        let issued = issuance.into_issued_credential(sig, 42);
+        let wallet = issuance
+            .aggregate_signature_shares(&keypair.verification_key(), &vec![partial_wallet], sig_req)
+            .unwrap();
+
+        let issued = issuance.into_issued_credential(wallet, exp_date_sigs, 1);
+        let coin_indices_signatures = generate_coin_indices_signatures(
+            params,
+            &[keypair.secret_key()],
+            &vec![keypair.verification_key()],
+            &keypair.verification_key(),
+            &[keypair.index.unwrap()],
+        )
+        .unwrap();
+        let pay_info = PayInfo {
+            pay_info_bytes: [6u8; 72],
+        };
         let spending = issued
-            .prepare_for_spending(keypair.verification_key())
+            .prepare_for_spending(
+                &keypair.verification_key(),
+                pay_info,
+                coin_indices_signatures,
+            )
             .unwrap();
 
         let with_epoch = CredentialSpendingRequest { data: spending };

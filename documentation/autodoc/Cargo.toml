@@ -1,0 +1,14 @@
+[package]
+name = "autodoc"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+env_logger = "0.11.3"
+log.workspace = true
+nym-client = { path = "../../clients/native" }

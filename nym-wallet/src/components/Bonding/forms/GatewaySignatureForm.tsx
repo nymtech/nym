@@ -54,19 +54,19 @@ const GatewaySignatureForm = ({
   }, [gateway, amount]);
 
   if (error) {
-    return <ErrorModal open message={error} onClose={() => {}} />;
+    return <ErrorModal open message={error} onClose={() => { }} />;
   }
 
   return (
     <Stack gap={3} mb={3}>
       <Typography variant="body1">
-        Copy the message below and sign it: 
+        Copy the message below and sign it:
         <br />
-        If you're using a nym-gateway:
+        If you are using a nym-gateway:
         <br />
         <code>nym-gateway sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
         <br />
-        If you're using a nym-node:
+        If you are using a nym-node:
         <br />
         <code>nym-node sign --id &lt;your-node-id&gt; --contract-msg &lt;payload-generated-by-the-wallet&gt;</code>
         <br />

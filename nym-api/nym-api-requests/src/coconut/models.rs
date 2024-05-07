@@ -4,49 +4,73 @@
 use crate::coconut::helpers::issued_credential_plaintext;
 use cosmrs::AccountId;
 use nym_credentials_interface::{
-    hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, Bytable, CoconutError,
-    CredentialSpendingData, VerificationKey,
+    BlindedSignature, CompactEcashError, CredentialSpendingData, PartialCoinIndexSignature,
+    PartialExpirationDateSignature, PublicKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use tendermint::hash::Hash;
+use std::{collections::BTreeMap, fmt::Display};
+use time::OffsetDateTime;
 
-#[derive(Serialize, Deserialize)]
-pub struct VerifyCredentialBody {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct VerifyEcashCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
-    pub credential_data: CredentialSpendingData,
+    pub credential: CredentialSpendingData,
 
-    /// Multisig proposal for releasing funds for the provided bandwidth credential
-    pub proposal_id: u64,
-
-    /// Cosmos address of the spender of the credential
+    /// Cosmos address of the sender of the credential
     pub gateway_cosmos_addr: AccountId,
+
+    /// Multisig proposal for releasing funds for the provided bandwidth credential, None for freepasses
+    pub proposal_id: Option<u64>,
 }
 
-impl VerifyCredentialBody {
+impl VerifyEcashCredentialBody {
     pub fn new(
-        credential_data: CredentialSpendingData,
-        proposal_id: u64,
+        credential: CredentialSpendingData,
         gateway_cosmos_addr: AccountId,
-    ) -> VerifyCredentialBody {
-        VerifyCredentialBody {
-            credential_data,
-            proposal_id,
+        proposal_id: Option<u64>,
+    ) -> VerifyEcashCredentialBody {
+        VerifyEcashCredentialBody {
+            credential,
             gateway_cosmos_addr,
+            proposal_id,
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct VerifyCredentialResponse {
-    pub verification_result: bool,
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum VerifyEcashCredentialResponse {
+    InvalidFormat(String),
+    DoubleSpend,
+    AlreadySent,
+    SubmittedTooLate {
+        expected_until: OffsetDateTime,
+        actual: OffsetDateTime,
+    },
+    Refused,
+    Accepted,
 }
 
-impl VerifyCredentialResponse {
-    pub fn new(verification_result: bool) -> Self {
-        VerifyCredentialResponse {
-            verification_result,
+impl Display for VerifyEcashCredentialResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidFormat(reason) => {
+                write!(f, "invalid format : {:?}", reason)
+            }
+            Self::DoubleSpend => write!(f, "credential was already spent"),
+            Self::AlreadySent => write!(f, "this credential was already sent"),
+            Self::SubmittedTooLate {
+                expected_until,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "credential spent too late. Accepted from {:#?}, spent on {:#?}",
+                    expected_until, actual,
+                )
+            }
+            Self::Refused => write!(f, "credential failed to validate"),
+            Self::Accepted => write!(f, "credential was accepted"),
         }
     }
 }
@@ -54,49 +78,41 @@ impl VerifyCredentialResponse {
 //  All strings are base58 encoded representations of structs
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BlindSignRequestBody {
-    pub inner_sign_request: BlindSignRequest,
+    pub inner_sign_request: WithdrawalRequest,
 
-    /// Hash of the deposit transaction
-    pub tx_hash: Hash,
+    /// the id of the associated deposit
+    pub deposit_id: u32,
 
     /// Signature on the inner sign request and the tx hash
     pub signature: identity::Signature,
 
-    pub public_attributes_plain: Vec<String>,
+    pub ecash_pubkey: PublicKeyUser,
+
+    pub expiration_date: OffsetDateTime,
 }
 
 impl BlindSignRequestBody {
     pub fn new(
-        inner_sign_request: BlindSignRequest,
-        tx_hash: Hash,
+        inner_sign_request: WithdrawalRequest,
+        deposit_id: u32,
         signature: identity::Signature,
-        public_attributes_plain: Vec<String>,
+        ecash_pubkey: PublicKeyUser,
+        expiration_date: OffsetDateTime,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
             inner_sign_request,
-            tx_hash,
+            deposit_id,
             signature,
-            public_attributes_plain,
+            ecash_pubkey,
+            expiration_date,
         }
     }
 
-    pub fn attributes(&self) -> u32 {
-        (self.public_attributes_plain.len() + self.inner_sign_request.num_private_attributes())
-            as u32
-    }
-
-    pub fn public_attributes_hashed(&self) -> Vec<Attribute> {
-        self.public_attributes_plain
-            .iter()
-            .map(hash_to_scalar)
-            .collect()
-    }
-
     pub fn encode_commitments(&self) -> Vec<String> {
-        use nym_credentials_interface::Base58;
+        use nym_compact_ecash::Base58;
 
         self.inner_sign_request
-            .get_private_attributes_pedersen_commitments()
+            .get_private_attributes_commitments()
             .iter()
             .map(|c| c.to_bs58())
             .collect()
@@ -122,16 +138,16 @@ impl BlindedSignatureResponse {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CoconutError> {
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CompactEcashError> {
         let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.blinded_signature.to_byte_vec()
+        self.blinded_signature.to_bytes().to_vec()
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CompactEcashError> {
         Ok(BlindedSignatureResponse {
             blinded_signature: BlindedSignature::from_bytes(bytes)?,
         })
@@ -143,7 +159,7 @@ pub struct FreePassRequest {
     // secp256k1 key associated with the admin account
     pub cosmos_pubkey: cosmrs::crypto::PublicKey,
 
-    pub inner_sign_request: BlindSignRequest,
+    pub inner_sign_request: WithdrawalRequest,
 
     // we need to include a nonce here to prevent replay attacks
     // (and not making the nym-api store the serial numbers of all issued credential)
@@ -153,45 +169,42 @@ pub struct FreePassRequest {
     /// to prove the possession of the cosmos key/address
     pub nonce_signature: cosmrs::crypto::secp256k1::Signature,
 
-    pub public_attributes_plain: Vec<String>,
+    pub ecash_pubkey: PublicKeyUser,
+
+    pub expiration_date: OffsetDateTime,
 }
 
 impl FreePassRequest {
     pub fn new(
         cosmos_pubkey: cosmrs::crypto::PublicKey,
-        inner_sign_request: BlindSignRequest,
+        inner_sign_request: WithdrawalRequest,
         used_nonce: [u8; 16],
         nonce_signature: cosmrs::crypto::secp256k1::Signature,
-        public_attributes_plain: Vec<String>,
+        ecash_pubkey: PublicKeyUser,
+        expiration_date: OffsetDateTime,
     ) -> Self {
         FreePassRequest {
             cosmos_pubkey,
             inner_sign_request,
             used_nonce,
             nonce_signature,
-            public_attributes_plain,
+            ecash_pubkey,
+            expiration_date,
         }
     }
 
     pub fn tendermint_pubkey(&self) -> tendermint::PublicKey {
         self.cosmos_pubkey.into()
     }
-
-    pub fn public_attributes_hashed(&self) -> Vec<Attribute> {
-        self.public_attributes_plain
-            .iter()
-            .map(hash_to_scalar)
-            .collect()
-    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct VerificationKeyResponse {
-    pub key: VerificationKey,
+    pub key: VerificationKeyAuth,
 }
 
 impl VerificationKeyResponse {
-    pub fn new(key: VerificationKey) -> VerificationKeyResponse {
+    pub fn new(key: VerificationKeyAuth) -> VerificationKeyResponse {
         VerificationKeyResponse { key }
     }
 }
@@ -204,6 +217,34 @@ pub struct CosmosAddressResponse {
 impl CosmosAddressResponse {
     pub fn new(addr: AccountId) -> CosmosAddressResponse {
         CosmosAddressResponse { addr }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PartialExpirationDateSignatureResponse {
+    pub signatures: Vec<PartialExpirationDateSignature>,
+}
+
+impl PartialExpirationDateSignatureResponse {
+    pub fn new(
+        signatures: &[PartialExpirationDateSignature],
+    ) -> PartialExpirationDateSignatureResponse {
+        PartialExpirationDateSignatureResponse {
+            signatures: signatures.to_owned(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PartialCoinIndicesSignatureResponse {
+    pub signatures: Vec<PartialCoinIndexSignature>,
+}
+
+impl PartialCoinIndicesSignatureResponse {
+    pub fn new(signatures: &[PartialCoinIndexSignature]) -> PartialCoinIndicesSignatureResponse {
+        PartialCoinIndicesSignatureResponse {
+            signatures: signatures.to_owned(),
+        }
     }
 }
 
@@ -227,6 +268,18 @@ pub struct CredentialsRequestBody {
 
     /// Pagination settings for retrieving credentials. Note: it can't be set alongside explicit ids.
     pub pagination: Option<Pagination<i64>>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SpentCredentialsResponse {
+    pub bitmap: Vec<u8>,
+}
+
+impl SpentCredentialsResponse {
+    pub fn new(bitmap: Vec<u8>) -> SpentCredentialsResponse {
+        SpentCredentialsResponse { bitmap }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -263,14 +316,14 @@ pub struct IssuedCredentialBody {
 pub struct IssuedCredential {
     pub id: i64,
     pub epoch_id: u32,
-    pub tx_hash: Hash,
+    pub deposit_id: u32,
 
     // NOTE: if we find creation of this guy takes too long,
     // change `BlindedSignature` to `BlindedSignatureBytes`
     // so that nym-api wouldn't need to parse the value out of its storage
     pub blinded_partial_credential: BlindedSignature,
     pub bs58_encoded_private_attributes_commitments: Vec<String>,
-    pub public_attributes: Vec<String>,
+    pub expiration_date: OffsetDateTime,
 }
 
 impl IssuedCredential {
@@ -278,10 +331,10 @@ impl IssuedCredential {
     pub fn signable_plaintext(&self) -> Vec<u8> {
         issued_credential_plaintext(
             self.epoch_id,
-            self.tx_hash,
+            self.deposit_id,
             &self.blinded_partial_credential,
             &self.bs58_encoded_private_attributes_commitments,
-            &self.public_attributes,
+            self.expiration_date,
         )
     }
 }

@@ -11,13 +11,15 @@ use wasm_bindgen::prelude::*;
 pub mod bandwidth_voucher;
 pub mod error;
 pub mod generic_scheme;
+pub(crate) mod helpers;
+pub mod ticketbook;
 pub mod types;
 
 // keep in internal to the crate since I'm not sure how temporary this thing is going to be
 // I mostly got it, so I could test the whole thing end to end
 pub(crate) mod vpn_api_client;
 
-pub(crate) static GLOBAL_PARAMS: OnceLock<Parameters> = OnceLock::new();
+pub(crate) static GLOBAL_COCONUT_PARAMS: OnceLock<Parameters> = OnceLock::new();
 
 #[wasm_bindgen(start)]
 // #[cfg(target_arch = "wasm32")]

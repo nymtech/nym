@@ -4,7 +4,7 @@
 #[macro_use]
 extern crate rocket;
 
-use crate::coconut::dkg::controller::keys::{
+use crate::ecash::dkg::controller::keys::{
     can_validate_coconut_keys, load_bte_keypair, load_coconut_keypair_if_exists,
 };
 use crate::epoch_operations::RewardedSetUpdater;
@@ -19,7 +19,7 @@ use crate::support::storage::NymApiStorage;
 use ::nym_config::defaults::setup_env;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
-use coconut::dkg::controller::DkgController;
+use ecash::dkg::controller::DkgController;
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_logging;
 use nym_config::defaults::NymNetworkDetails;
@@ -30,7 +30,7 @@ use rand::rngs::OsRng;
 use support::{http, nyxd};
 
 mod circulating_supply_api;
-mod coconut;
+mod ecash;
 mod epoch_operations;
 pub(crate) mod network;
 mod network_monitor;
@@ -70,7 +70,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
-    let coconut_keypair_wrapper = coconut::keys::KeyPair::new();
+    let coconut_keypair_wrapper = ecash::keys::KeyPair::new();
 
     // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
     if let Some(loaded_keys) = load_coconut_keypair_if_exists(&config.coconut_signer)? {

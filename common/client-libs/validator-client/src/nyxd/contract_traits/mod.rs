@@ -8,34 +8,32 @@ use std::str::FromStr;
 // TODO: all of those could/should be derived via a macro
 
 // query clients
-pub mod coconut_bandwidth_query_client;
 pub mod dkg_query_client;
+pub mod ecash_query_client;
 pub mod group_query_client;
 pub mod mixnet_query_client;
 pub mod multisig_query_client;
 pub mod vesting_query_client;
 
 // signing clients
-pub mod coconut_bandwidth_signing_client;
 pub mod dkg_signing_client;
+pub mod ecash_signing_client;
 pub mod group_signing_client;
 pub mod mixnet_signing_client;
 pub mod multisig_signing_client;
 pub mod vesting_signing_client;
 
 // re-export query traits
-pub use coconut_bandwidth_query_client::{
-    CoconutBandwidthQueryClient, PagedCoconutBandwidthQueryClient,
-};
 pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
+pub use ecash_query_client::{EcashQueryClient, PagedEcashQueryClient};
 pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
 pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
 pub use vesting_query_client::{PagedVestingQueryClient, VestingQueryClient};
 
 // re-export signing traits
-pub use coconut_bandwidth_signing_client::CoconutBandwidthSigningClient;
 pub use dkg_signing_client::DkgSigningClient;
+pub use ecash_signing_client::EcashSigningClient;
 pub use group_signing_client::GroupSigningClient;
 pub use mixnet_signing_client::MixnetSigningClient;
 pub use multisig_signing_client::MultisigSigningClient;

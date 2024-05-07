@@ -73,6 +73,10 @@ pub struct Run {
     #[arg(long, hide = true)]
     only_coconut_credentials: Option<bool>,
 
+    /// Set this gateway to use offline credentials verification
+    #[clap(long, hide = true)]
+    offline_credential_verification: Option<bool>,
+
     /// Allows this gateway to run an embedded network requester for minimal network overhead
     #[arg(long)]
     with_network_requester: Option<bool>,
@@ -132,6 +136,7 @@ impl From<Run> for OverrideConfig {
 
             nyxd_urls: run_config.nyxd_urls,
             only_coconut_credentials: run_config.only_coconut_credentials,
+            offline_credential_verification: run_config.offline_credential_verification,
             with_network_requester: run_config.with_network_requester,
             with_ip_packet_router: run_config.with_ip_packet_router,
         }

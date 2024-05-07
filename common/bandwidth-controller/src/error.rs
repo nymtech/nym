@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_coconut::CoconutError;
 use nym_credential_storage::error::StorageError;
 use nym_credentials::error::Error as CredentialsError;
+use nym_credentials_interface::CompactEcashError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_validator_client::coconut::CoconutApiError;
@@ -28,8 +28,8 @@ pub enum BandwidthControllerError {
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
-    #[error("Coconut error - {0}")]
-    CoconutError(#[from] CoconutError),
+    #[error("Ecash error - {0}")]
+    EcashError(#[from] CompactEcashError),
 
     #[error("Validator client error - {0}")]
     ValidatorError(#[from] ValidatorClientError),
@@ -51,4 +51,7 @@ pub enum BandwidthControllerError {
 
     #[error("can't handle recovering storage with revision {stored}. {expected} was expected")]
     UnsupportedCredentialStorageRevision { stored: u8, expected: u8 },
+
+    #[error("could not recover deposit_id from the transaction data")]
+    MalformedDepositId,
 }

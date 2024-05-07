@@ -1,23 +1,24 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{CredentialUsage, StoredIssuedCredential};
+use crate::models::CoinIndicesSignature;
+use crate::models::StoredIssuedCredential;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct CoconutCredentialManager {
-    inner: Arc<RwLock<CoconutCredentialManagerInner>>,
+    inner: Arc<RwLock<EcashCredentialManagerInner>>,
 }
 
 #[derive(Default)]
-struct CoconutCredentialManagerInner {
+struct EcashCredentialManagerInner {
     credentials: Vec<StoredIssuedCredential>,
-    credential_usage: Vec<CredentialUsage>,
+    coin_indices_sig: Vec<CoinIndicesSignature>,
     _next_id: i64,
 }
 
-impl CoconutCredentialManagerInner {
+impl EcashCredentialManagerInner {
     fn next_id(&mut self) -> i64 {
         let next = self._next_id;
         self._next_id += 1;
@@ -49,73 +50,86 @@ impl CoconutCredentialManager {
             credential_type,
             epoch_id,
             expired: false,
+            consumed: false,
         })
     }
 
-    async fn bandwidth_voucher_spent(&self, id: i64) -> bool {
-        self.inner
-            .read()
-            .await
-            .credential_usage
-            .iter()
-            .any(|c| c.credential_id == id)
-    }
-
-    async fn freepass_spent(&self, id: i64, gateway_id: &str) -> bool {
-        self.inner
-            .read()
-            .await
-            .credential_usage
-            .iter()
-            .any(|c| c.credential_id == id && c.gateway_id_bs58 == gateway_id)
-    }
-
     /// Tries to retrieve one of the stored, unused credentials.
-    pub async fn get_next_unspect_bandwidth_voucher(&self) -> Option<StoredIssuedCredential> {
+    pub async fn get_next_unspent_ticketbook(&self) -> Option<StoredIssuedCredential> {
         let guard = self.inner.read().await;
         for credential in guard
             .credentials
             .iter()
-            .filter(|c| c.credential_type == "BandwidthVoucher")
+            .filter(|c| c.credential_type == "TicketBook")
         {
-            if !self.bandwidth_voucher_spent(credential.id).await {
+            if !credential.consumed && !credential.expired {
                 return Some(credential.clone());
             }
         }
         None
     }
 
-    pub async fn get_next_unspect_freepass(
-        &self,
-        gateway_id: &str,
-    ) -> Option<StoredIssuedCredential> {
+    pub async fn get_next_unspent_freepass(&self) -> Option<StoredIssuedCredential> {
         let guard = self.inner.read().await;
         for credential in guard
             .credentials
             .iter()
             .filter(|c| c.credential_type == "FreeBandwidthPass")
         {
-            if credential.expired {
-                continue;
-            }
-            if !self.freepass_spent(credential.id, gateway_id).await {
+            if !credential.consumed && !credential.expired {
                 return Some(credential.clone());
             }
         }
         None
     }
 
-    /// Consumes in the database the specified credential.
+    pub async fn update_issued_credential(&self, credential_data: &[u8], id: i64, consumed: bool) {
+        let mut guard = self.inner.write().await;
+        if let Some(cred) = guard.credentials.get_mut(id as usize) {
+            cred.credential_data = credential_data.to_vec();
+            cred.consumed = consumed;
+        }
+    }
+
+    /// Inserts provided coin_indices_signatures into the database.
     ///
     /// # Arguments
     ///
-    /// * `id`: Database id.
-    pub async fn consume_coconut_credential(&self, id: i64, gateway_id: &str) {
+    /// * `epoch_id`: Id of the epoch.
+    /// * `coin_indices_signatures` : The coin indices signatures for the epoch
+    pub async fn insert_coin_indices_sig(&self, epoch_id: i64, coin_indices_sig: String) {
         let mut guard = self.inner.write().await;
-        guard.credential_usage.push(CredentialUsage {
-            credential_id: id,
-            gateway_id_bs58: gateway_id.to_string(),
+        guard.coin_indices_sig.push(CoinIndicesSignature {
+            epoch_id,
+            signatures: coin_indices_sig,
         });
+    }
+
+    /// Check if coin indices signatures are present for a given epoch
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_id`: Id of the epoch.
+    pub async fn is_coin_indices_sig_present(&self, epoch_id: i64) -> bool {
+        let guard = self.inner.read().await;
+        guard
+            .coin_indices_sig
+            .iter()
+            .any(|s| s.epoch_id == epoch_id)
+    }
+
+    /// Get coin_indices_signatures of a given epoch.
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_id`: Id of the epoch.
+    pub async fn get_coin_indices_sig(&self, epoch_id: i64) -> Option<CoinIndicesSignature> {
+        let guard = self.inner.read().await;
+        guard
+            .coin_indices_sig
+            .iter()
+            .find(|s| s.epoch_id == epoch_id)
+            .cloned()
     }
 
     /// Marks the specified credential as expired

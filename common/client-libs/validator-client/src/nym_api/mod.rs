@@ -8,10 +8,11 @@ pub use nym_api_requests::{
     coconut::{
         models::{
             EpochCredentialsResponse, IssuedCredential, IssuedCredentialBody,
-            IssuedCredentialResponse, IssuedCredentialsResponse,
+            IssuedCredentialResponse, IssuedCredentialsResponse, SpentCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
-        VerifyCredentialBody, VerifyCredentialResponse,
+        PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
+        VerifyEcashCredentialBody,
     },
     models::{
         ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -29,7 +30,7 @@ use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 pub mod error;
 pub mod routes;
 
-use nym_api_requests::coconut::models::FreePassNonceResponse;
+use nym_api_requests::coconut::models::{FreePassNonceResponse, VerifyEcashCredentialResponse};
 use nym_api_requests::coconut::FreePassRequest;
 use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
 pub use nym_http_api_client::Client;
@@ -467,19 +468,96 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn verify_bandwidth_credential(
+    async fn verify_offline_credential(
         &self,
-        request_body: &VerifyCredentialBody,
-    ) -> Result<VerifyCredentialResponse, NymAPIError> {
+        request_body: &VerifyEcashCredentialBody,
+    ) -> Result<VerifyEcashCredentialResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
-                routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+                routes::ECASH_VERIFY_OFFLINE_CREDENTIAL,
             ],
             NO_PARAMS,
             request_body,
+        )
+        .await
+    }
+
+    async fn verify_online_credential(
+        &self,
+        request_body: &VerifyEcashCredentialBody,
+    ) -> Result<VerifyEcashCredentialResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::ECASH_VERIFY_ONLINE_CREDENTIAL,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    async fn spent_credentials_filter(&self) -> Result<SpentCredentialsResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::SPENT_CREDENTIALS_FILTER,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn expiration_date_signatures(
+        &self,
+    ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::EXPIRATION_DATE_SIGNATURES,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn expiration_date_signatures_timestamp(
+        &self,
+        timestamp: &str,
+    ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::EXPIRATION_DATE_SIGNATURES,
+                timestamp,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn coin_indices_signatures(
+        &self,
+    ) -> Result<PartialCoinIndicesSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COIN_INDICES_SIGNATURES,
+            ],
+            NO_PARAMS,
         )
         .await
     }

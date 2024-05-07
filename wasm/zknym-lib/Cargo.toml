@@ -27,11 +27,12 @@ reqwest = { workspace = true }
 wasmtimer = { workspace = true }
 zeroize.workspace = true
 
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 
 
 nym-bin-common = { path = "../../common/bin-common" }
 nym-coconut = { path = "../../common/nymcoconut", features = ["key-zeroize"] }
+nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 nym-http-api-client = { path = "../../common/http-api-client" }

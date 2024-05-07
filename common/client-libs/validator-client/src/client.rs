@@ -8,10 +8,13 @@ use crate::{
     nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
     ReqwestRpcClient, ValidatorClientError,
 };
-use nym_api_requests::coconut::models::FreePassNonceResponse;
+use nym_api_requests::coconut::models::{
+    FreePassNonceResponse, SpentCredentialsResponse, VerifyEcashCredentialResponse,
+};
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest,
+    PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
+    VerifyEcashCredentialBody,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -364,14 +367,46 @@ impl NymApiClient {
         Ok(self.nym_api.blind_sign(request_body).await?)
     }
 
-    pub async fn verify_bandwidth_credential(
+    pub async fn verify_offline_credential(
         &self,
-        request_body: &VerifyCredentialBody,
-    ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
+        request_body: &VerifyEcashCredentialBody,
+    ) -> Result<VerifyEcashCredentialResponse, ValidatorClientError> {
+        Ok(self.nym_api.verify_offline_credential(request_body).await?)
+    }
+
+    pub async fn verify_online_credential(
+        &self,
+        request_body: &VerifyEcashCredentialBody,
+    ) -> Result<VerifyEcashCredentialResponse, ValidatorClientError> {
+        Ok(self.nym_api.verify_online_credential(request_body).await?)
+    }
+
+    pub async fn spent_credentials_filter(
+        &self,
+    ) -> Result<SpentCredentialsResponse, ValidatorClientError> {
+        Ok(self.nym_api.spent_credentials_filter().await?)
+    }
+
+    pub async fn expiration_date_signatures(
+        &self,
+    ) -> Result<PartialExpirationDateSignatureResponse, ValidatorClientError> {
+        Ok(self.nym_api.expiration_date_signatures().await?)
+    }
+
+    pub async fn expiration_date_signatures_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<PartialExpirationDateSignatureResponse, ValidatorClientError> {
         Ok(self
             .nym_api
-            .verify_bandwidth_credential(request_body)
+            .expiration_date_signatures_timestamp(&timestamp.to_string())
             .await?)
+    }
+
+    pub async fn coin_indices_signatures(
+        &self,
+    ) -> Result<PartialCoinIndicesSignatureResponse, ValidatorClientError> {
+        Ok(self.nym_api.coin_indices_signatures().await?)
     }
 
     pub async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, ValidatorClientError> {

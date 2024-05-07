@@ -374,6 +374,13 @@ pub(crate) struct EntryGatewayArgs {
     )]
     pub(crate) enforce_zk_nyms: Option<bool>,
 
+    /// Indicates whether this gateway is using offline setup for zk-nyms verification
+    #[clap(
+        long,
+        env = NYMNODE_OFFLINE_ZK_NYMS_ARG
+    )]
+    pub(crate) offline_zk_nyms: Option<bool>,
+
     /// Custom cosmos wallet mnemonic used for zk-nym redemption.
     /// If no value is provided, a fresh mnemonic is going to be generated.
     #[clap(
@@ -407,6 +414,10 @@ impl EntryGatewayArgs {
         }
         if let Some(enforce_zk_nyms) = self.enforce_zk_nyms {
             section.enforce_zk_nyms = enforce_zk_nyms
+        }
+
+        if let Some(offline_zk_nyms) = self.offline_zk_nyms {
+            section.offline_zk_nyms = offline_zk_nyms
         }
 
         section

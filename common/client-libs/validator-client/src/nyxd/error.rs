@@ -32,6 +32,12 @@ pub enum NyxdError {
     #[error("There was an issue on the cosmrs side: {0}")]
     CosmrsErrorReport(#[from] cosmrs::ErrorReport),
 
+    #[error("cosmwasm event not found")]
+    ComswasmEventNotFound,
+
+    #[error("cosmwasm attribute not found")]
+    ComswasmAttributeNotFound,
+
     #[error("Failed to derive account address")]
     AccountDerivationError,
 

@@ -154,6 +154,9 @@ bind_address = '{{ mixnode.verloc.bind_address }}'
 # or if it also accepts non-paying clients
 enforce_zk_nyms = {{ entry_gateway.enforce_zk_nyms }}
 
+# Indicates whether this gateway is using offline mode for zk-nyms verification
+offline_zk_nyms = {{ entry_gateway.offline_zk_nyms }}
+
 # Socket address this node will use for binding its client websocket API.
 # default: `0.0.0.0:9000`
 bind_address = '{{ entry_gateway.bind_address }}'

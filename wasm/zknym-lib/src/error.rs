@@ -7,10 +7,16 @@ use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum ZkNymError {
-    #[error("cryptographic failure: {source}")]
+    #[error("[coconut] cryptographic failure: {source}")]
     CoconutFailure {
         #[from]
         source: nym_coconut::CoconutError,
+    },
+
+    #[error("[ecash] cryptographic failure: {source}")]
+    EcashFailure {
+        #[from]
+        source: nym_compact_ecash::CompactEcashError,
     },
 
     #[error("failed to contact the vpn api")]

@@ -47,7 +47,7 @@ mod proofs;
 mod scheme;
 pub mod tests;
 mod traits;
-mod utils;
+pub mod utils;
 
 pub type Attribute = bls12_381::Scalar;
 pub type PrivateAttribute = Attribute;

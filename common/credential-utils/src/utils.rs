@@ -7,20 +7,19 @@ use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_validator_client::nyxd::contract_traits::{
-    dkg_query_client::EpochState, CoconutBandwidthSigningClient, DkgQueryClient,
+    dkg_query_client::EpochState, DkgQueryClient, EcashSigningClient,
 };
-use nym_validator_client::nyxd::Coin;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 pub async fn issue_credential<C>(
     client: &C,
-    amount: Coin,
+    client_id: &[u8],
     persistent_storage: &PersistentStorage,
     recovery_storage_path: PathBuf,
 ) -> Result<()>
 where
-    C: DkgQueryClient + CoconutBandwidthSigningClient + Send + Sync,
+    C: DkgQueryClient + EcashSigningClient + Send + Sync,
 {
     let recovery_storage = setup_recovery_storage(recovery_storage_path).await;
 
@@ -39,7 +38,8 @@ where
         }
     };
 
-    let state = nym_bandwidth_controller::acquire::deposit(client, amount.clone()).await?;
+    let state = nym_bandwidth_controller::acquire::deposit(client, client_id).await?;
+    info!("Deposit done");
 
     if nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, client, persistent_storage)
         .await
@@ -60,7 +60,7 @@ where
         ));
     }
 
-    info!("Succeeded adding a credential with amount {amount}");
+    info!("Succeeded adding a ticketbook credential");
 
     Ok(())
 }
@@ -120,15 +120,21 @@ where
     let mut recovered_amount: u128 = 0;
     for voucher in recovery_storage.unconsumed_vouchers()? {
         let voucher_value = match voucher.typ() {
-            CredentialType::Voucher => voucher.get_bandwidth_attribute(),
+            CredentialType::TicketBook => voucher.value(),
             CredentialType::FreePass => {
                 error!("unimplemented recovery of free pass credentials");
                 continue;
             }
         };
-        recovered_amount += voucher_value.parse::<u128>()?;
+        recovered_amount += voucher_value;
 
         let voucher_name = RecoveryStorage::voucher_filename(&voucher);
+
+        if voucher.check_expiration_date() {
+            //We did change the expiration
+            warn!("Deposit {} was made with a different expiration date, it's validity will be shorter than the max one", voucher_name);
+        }
+
         let state = State::new(voucher);
 
         if let Err(e) =

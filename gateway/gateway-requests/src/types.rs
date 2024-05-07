@@ -3,12 +3,12 @@
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
-use crate::models::{CredentialSpendingRequest, OldV1Credential};
+use crate::models::CredentialSpendingRequest;
 use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION};
 use log::error;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
-use nym_credentials_interface::{CoconutError, UnknownCredentialType};
+use nym_credentials_interface::{CompactEcashError, UnknownCredentialType};
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use nym_crypto::symmetric::stream_cipher;
@@ -122,6 +122,9 @@ pub enum GatewayRequestsError {
         source: MixPacketFormattingError,
     },
 
+    #[error("failed to deserialize provided credential: {0}")]
+    EcashCredentialDeserializationFailure(#[from] CompactEcashError),
+
     #[error("failed to deserialize provided credential: EOF")]
     CredentialDeserializationFailureEOF,
 
@@ -130,9 +133,6 @@ pub enum GatewayRequestsError {
 
     #[error("failed to deserialize provided credential: {0}")]
     CredentialDeserializationFailureUnknownType(#[from] UnknownCredentialType),
-
-    #[error("failed to deserialize provided credential: malformed verify request: {0}")]
-    CredentialDeserializationFailureMalformedTheta(CoconutError),
 
     #[error("the provided [v1] credential has invalid number of parameters - {0}")]
     InvalidNumberOfEmbededParameters(u32),
@@ -161,6 +161,10 @@ pub enum ClientControlRequest {
         iv: Vec<u8>,
     },
     BandwidthCredentialV2 {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
+    EcashCredential {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
@@ -200,37 +204,14 @@ impl ClientControlRequest {
             ClientControlRequest::BandwidthCredentialV2 { .. } => {
                 "BandwidthCredentialV2".to_string()
             }
+            ClientControlRequest::EcashCredential { .. } => "EcashCredential".to_string(),
             ClientControlRequest::ClaimFreeTestnetBandwidth => {
                 "ClaimFreeTestnetBandwidth".to_string()
             }
         }
     }
 
-    pub fn new_enc_coconut_bandwidth_credential_v1(
-        credential: &OldV1Credential,
-        shared_key: &SharedKeys,
-        iv: IV,
-    ) -> Self {
-        let serialized_credential = credential.as_bytes();
-        let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
-
-        ClientControlRequest::BandwidthCredential {
-            enc_credential,
-            iv: iv.to_bytes(),
-        }
-    }
-
-    pub fn try_from_enc_coconut_bandwidth_credential_v1(
-        enc_credential: Vec<u8>,
-        shared_key: &SharedKeys,
-        iv: IV,
-    ) -> Result<OldV1Credential, GatewayRequestsError> {
-        let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
-        OldV1Credential::from_bytes(&credential_bytes)
-            .map_err(|_| GatewayRequestsError::MalformedEncryption)
-    }
-
-    pub fn new_enc_coconut_bandwidth_credential_v2(
+    pub fn new_enc_ecash_credential(
         credential: CredentialSpendingData,
         shared_key: &SharedKeys,
         iv: IV,
@@ -239,19 +220,19 @@ impl ClientControlRequest {
         let serialized_credential = cred.to_bytes();
         let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-        ClientControlRequest::BandwidthCredentialV2 {
+        ClientControlRequest::EcashCredential {
             enc_credential,
             iv: iv.to_bytes(),
         }
     }
 
-    pub fn try_from_enc_coconut_bandwidth_credential_v2(
+    pub fn try_from_enc_ecash_credential(
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
         iv: IV,
     ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
         let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
-        CredentialSpendingRequest::try_from_bytes(&credential_bytes)
+        CredentialSpendingRequest::try_from_bytes(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }

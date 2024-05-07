@@ -23,6 +23,9 @@ pub struct EntryGatewayConfig {
     /// or if it also accepts non-paying clients
     pub enforce_zk_nyms: bool,
 
+    /// Indicates whether this gateway uses offline zk-nyms verification
+    pub offline_zk_nyms: bool,
+
     /// Socket address this node will use for binding its client websocket API.
     /// default: `0.0.0.0:9000`
     pub bind_address: SocketAddr,
@@ -66,6 +69,7 @@ impl EntryGatewayConfig {
         EntryGatewayConfig {
             storage_paths: EntryGatewayPaths::new(data_dir),
             enforce_zk_nyms: false,
+            offline_zk_nyms: false,
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,

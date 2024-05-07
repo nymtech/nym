@@ -11,11 +11,10 @@ use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
 use bip39::rand::prelude::SliceRandom;
 use bip39::rand::thread_rng;
-use nym_coconut::{
-    hash_to_scalar, verify_partial_blind_signature, Base58, G1Projective, VerificationKey,
-};
 use nym_coconut_dkg_common::types::EpochId;
-use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
+use nym_compact_ecash::scheme::withdrawal::verify_partial_blind_signature;
+use nym_compact_ecash::{Attribute, Base58, G1Projective, VerificationKeyAuth};
+use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::{IssuedCredential, IssuedCredentialBody, NymApiClientExt};
@@ -69,10 +68,10 @@ impl CredentialIssuanceMonitor {
         credential_info: &IssuedCredentialBody,
     ) -> Result<bool, NymRewarderError> {
         let credential_id = credential_info.credential.id;
-        let deposit_tx = credential_info.credential.tx_hash;
+        let deposit_id = credential_info.credential.deposit_id;
         let prior_id = self
             .storage
-            .get_deposit_credential_id(issuer_identity.to_string(), deposit_tx.to_string())
+            .get_deposit_credential_id(issuer_identity.to_string(), deposit_id)
             .await?;
 
         match prior_id {
@@ -82,7 +81,7 @@ impl CredentialIssuanceMonitor {
                     debug!("we have already verified this credential before");
                     Ok(true)
                 } else {
-                    error!("double signing detected!! used deposit {deposit_tx} for credentials {prior} and {credential_id}!!");
+                    error!("double signing detected!! used deposit {deposit_id} for credentials {prior} and {credential_id}!!");
                     self.storage
                         .insert_double_signing_evidence(
                             issuer_identity.to_string(),
@@ -90,8 +89,8 @@ impl CredentialIssuanceMonitor {
                             credential_info,
                         )
                         .await?;
-                    Err(NymRewarderError::DuplicateDepositHash {
-                        tx_hash: deposit_tx,
+                    Err(NymRewarderError::DuplicateDepositId {
+                        deposit_id,
                         first: prior,
                         other: credential_id,
                     })
@@ -105,32 +104,20 @@ impl CredentialIssuanceMonitor {
         issued_credential: &IssuedCredentialBody,
     ) -> Result<(), NymRewarderError> {
         // check if this deposit even exists
-        let deposit_tx = issued_credential.credential.tx_hash;
+        let deposit_id = issued_credential.credential.deposit_id;
 
-        let (deposit_value, deposit_info) = self
-            .nyxd_client
-            .get_deposit_transaction_attributes(deposit_tx)
-            .await?;
+        //not using value anymore, but it should still be there
+        let deposit = self.nyxd_client.get_deposit_details(deposit_id).await?;
         trace!("deposit exists");
 
         // check if the deposit values match
-        let credential_value = issued_credential.credential.public_attributes.first();
-        let credential_info = issued_credential.credential.public_attributes.get(1);
+        let credential_info = CredentialType::TicketBook.to_string();
 
-        if credential_value != Some(&deposit_value) {
-            return Err(NymRewarderError::InconsistentDepositValue {
-                tx_hash: deposit_tx,
-                request: credential_value.cloned(),
-                on_chain: deposit_value,
-            });
-        }
-        trace!("credential values matches the deposit");
-
-        if credential_info != Some(&deposit_info) {
+        if credential_info != deposit.info {
             return Err(NymRewarderError::InconsistentDepositInfo {
-                tx_hash: deposit_tx,
-                request: credential_info.cloned(),
-                on_chain: deposit_info,
+                deposit_id,
+                request: Some(credential_info),
+                on_chain: deposit.info,
             });
         }
         trace!("credential info matches the deposit");
@@ -139,14 +126,12 @@ impl CredentialIssuanceMonitor {
 
     fn verify_credential(
         &mut self,
-        vk: &VerificationKey,
+        vk: &VerificationKeyAuth,
         credential: &IssuedCredential,
     ) -> Result<(), NymRewarderError> {
-        let public_attributes = credential
-            .public_attributes
-            .iter()
-            .map(hash_to_scalar)
-            .collect::<Vec<_>>();
+        let public_attributes = [Attribute::from(
+            credential.expiration_date.unix_timestamp() as u64
+        )];
 
         #[allow(clippy::map_identity)]
         let attributes_refs = public_attributes.iter().collect::<Vec<_>>();
@@ -168,7 +153,6 @@ impl CredentialIssuanceMonitor {
 
         // actually do verify the credential now
         if !verify_partial_blind_signature(
-            bandwidth_credential_params(),
             &public_attribute_commitments,
             &attributes_refs,
             &credential.blinded_partial_credential,
@@ -181,7 +165,7 @@ impl CredentialIssuanceMonitor {
         Ok(())
     }
 
-    #[instrument(skip_all, fields(credential_id = %issued_credential.credential.id, deposit = %issued_credential.credential.tx_hash))]
+    #[instrument(skip_all, fields(credential_id = %issued_credential.credential.id, deposit_id = %issued_credential.credential.deposit_id))]
     async fn validate_issued_credential(
         &mut self,
         issuer: &CredentialIssuer,

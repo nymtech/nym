@@ -535,17 +535,29 @@ where
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
     /// credentials for this client to consume.
-    pub fn create_bandwidth_client(
+    pub async fn create_bandwidth_client(
         &self,
         mnemonic: String,
     ) -> Result<BandwidthAcquireClient<S::CredentialStore>> {
         if !self.config.enabled_credentials_mode {
             return Err(Error::DisabledCredentialsMode);
         }
+        let client_id = self
+            .storage
+            .key_store()
+            .load_keys()
+            .await
+            .map_err(|e| Error::KeyStorageError {
+                source: Box::new(e),
+            })?
+            .identity_keypair()
+            .private_key()
+            .to_base58_string();
         BandwidthAcquireClient::new(
             self.config.network_details.clone(),
             mnemonic,
             self.storage.credential_store(),
+            client_id,
         )
     }
 

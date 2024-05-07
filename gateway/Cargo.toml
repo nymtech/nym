@@ -55,6 +55,7 @@ tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true, features = ["serde"] }
 time = { workspace = true }
 zeroize = { workspace = true }
+bloomfilter = { workspace = true }
 
 # internal
 

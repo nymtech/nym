@@ -24,6 +24,7 @@ ecdsa = { workspace = true, features = ["serde"] }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"] }
 
+nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false }
 

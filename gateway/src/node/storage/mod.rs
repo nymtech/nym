@@ -1,21 +1,29 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::client_handling::websocket::connection_handler::ecash::PendingCredential;
 use crate::node::storage::bandwidth::BandwidthManager;
+use crate::node::storage::credential::CredentialManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
 use crate::node::storage::models::{PersistedBandwidth, PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
 use log::{debug, error};
-use nym_credentials_interface::{Base58, BlindedSerialNumber};
+use nym_credentials_interface::Base58;
+use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
+use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::NymApiClient;
 use sqlx::ConnectOptions;
 use std::path::Path;
+use std::str::FromStr;
 use time::OffsetDateTime;
+use url::Url;
 
 mod bandwidth;
+mod credential;
 pub(crate) mod error;
 mod inboxes;
 mod models;
@@ -108,19 +116,19 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `client_address`: address of the client
-    /// * `freepass_expiration`: the expiration date of the associated free pass.
-    async fn set_freepass_expiration(
+    /// * `expiration`: the expiration date of the associated free pass.
+    async fn set_expiration(
         &self,
         client_address: DestinationAddressBytes,
-        freepass_expiration: OffsetDateTime,
+        expiration: OffsetDateTime,
     ) -> Result<(), StorageError>;
 
-    /// Reset all the bandwidth associated with the freepass and reset its expiration date
+    /// Reset all the bandwidth
     ///
     /// # Arguments
     ///
     /// * `client_address`: address of the client
-    async fn reset_freepass_bandwidth(
+    async fn reset_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError>;
@@ -147,15 +155,47 @@ pub trait Storage: Send + Sync {
         amount: i64,
     ) -> Result<(), StorageError>;
 
+    /// Stored the accepted credential
+    ///
+    /// # Arguments
+    ///
+    /// * `credential`: credential to store
+    async fn insert_credential(
+        &self,
+        credential: CredentialSpendingRequest,
+    ) -> Result<(), StorageError>;
+
+    /// Store a pending credential
+    ///
+    /// # Arguments
+    ///
+    /// * `pending`: pending credential to store
+    async fn insert_pending_credential(
+        &self,
+        pending: PendingCredential,
+    ) -> Result<(), StorageError>;
+
+    /// Remove a pending credential
+    ///
+    /// # Arguments
+    ///
+    /// * `id`: id of the pending credential to remove
+    async fn remove_pending_credential(&self, id: i64) -> Result<(), StorageError>;
+
+    /// Get all pending credentials
+    ///
+    async fn get_all_pending_credential(
+        &self,
+    ) -> Result<Vec<(i64, PendingCredential)>, StorageError>;
     /// Mark received credential as spent and insert it into the storage.
     ///
     /// # Arguments
     ///
-    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential
+    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential in base58
     /// * `client_address`: address of the client that spent the credential
     async fn insert_spent_credential(
         &self,
-        blinded_serial_number: BlindedSerialNumber,
+        blinded_serial_number: String,
         was_freepass: bool,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError>;
@@ -164,11 +204,8 @@ pub trait Storage: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential
-    async fn contains_credential(
-        &self,
-        blinded_serial_number: &BlindedSerialNumber,
-    ) -> Result<bool, StorageError>;
+    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential in base58 form
+    async fn contains_credential(&self, blinded_serial_number: &str) -> Result<bool, StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -177,6 +214,7 @@ pub struct PersistentStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
+    credential_manager: CredentialManager,
 }
 
 impl PersistentStorage {
@@ -222,7 +260,8 @@ impl PersistentStorage {
         Ok(PersistentStorage {
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
-            bandwidth_manager: BandwidthManager::new(connection_pool),
+            bandwidth_manager: BandwidthManager::new(connection_pool.clone()),
+            credential_manager: CredentialManager::new(connection_pool),
         })
     }
 }
@@ -306,23 +345,23 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn set_freepass_expiration(
+    async fn set_expiration(
         &self,
         client_address: DestinationAddressBytes,
-        freepass_expiration: OffsetDateTime,
+        expiration: OffsetDateTime,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .set_freepass_expiration(&client_address.as_base58_string(), freepass_expiration)
+            .set_expiration(&client_address.as_base58_string(), expiration)
             .await?;
         Ok(())
     }
 
-    async fn reset_freepass_bandwidth(
+    async fn reset_bandwidth(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .reset_freepass_bandwidth(&client_address.as_base58_string())
+            .reset_bandwidth(&client_address.as_base58_string())
             .await?;
         Ok(())
     }
@@ -348,15 +387,44 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
+    async fn insert_credential(
+        &self,
+        credential: CredentialSpendingRequest,
+    ) -> Result<(), StorageError> {
+        self.credential_manager
+            .insert_credential(credential.to_bs58())
+            .await?;
+        Ok(())
+    }
+
+    async fn insert_pending_credential(
+        &self,
+        pending: PendingCredential,
+    ) -> Result<(), StorageError> {
+        self.credential_manager
+            .insert_pending_credential(
+                pending.credential.to_bs58(),
+                pending.address.into(),
+                pending
+                    .api_clients
+                    .iter()
+                    .map(|client| client.api_url().to_string())
+                    .collect::<Vec<_>>()
+                    .join(","),
+                pending.proposal_id.map(|id| id as i64),
+            )
+            .await?;
+        Ok(())
+    }
     async fn insert_spent_credential(
         &self,
-        blinded_serial_number: BlindedSerialNumber,
+        blinded_serial_number: String,
         was_freepass: bool,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
             .insert_spent_credential(
-                &blinded_serial_number.to_bs58(),
+                &blinded_serial_number,
                 was_freepass,
                 &client_address.as_base58_string(),
             )
@@ -364,13 +432,54 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn contains_credential(
+    async fn remove_pending_credential(&self, id: i64) -> Result<(), StorageError> {
+        self.credential_manager
+            .remove_pending_credential(id)
+            .await?;
+        Ok(())
+    }
+
+    async fn get_all_pending_credential(
         &self,
-        blinded_serial_number: &BlindedSerialNumber,
-    ) -> Result<bool, StorageError> {
+    ) -> Result<Vec<(i64, PendingCredential)>, StorageError> {
+        let credentials: Vec<_> = self
+            .credential_manager
+            .get_all_pending_credential()
+            .await?
+            .into_iter()
+            .map(|stored_pending| {
+                let credential =
+                    CredentialSpendingRequest::try_from_bs58(stored_pending.credential)
+                        .map_err(|err| StorageError::DataCorruption(err.to_string()))?;
+                let urls = stored_pending
+                    .api_urls
+                    .split(',')
+                    .map(|url| {
+                        Url::from_str(url)
+                            .map_err(|err| StorageError::DataCorruption(err.to_string()))
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                let proposal_id = stored_pending.proposal_id.map(|id| id as u64);
+                Ok((
+                    stored_pending.id,
+                    PendingCredential {
+                        credential,
+                        address: AccountId::from_str(&stored_pending.gateway_address)
+                            .map_err(|err| StorageError::DataCorruption(err.to_string()))?,
+                        api_clients: urls.into_iter().map(NymApiClient::new).collect(),
+                        proposal_id,
+                    },
+                ))
+            })
+            .collect();
+        credentials.into_iter().collect()
+    }
+
+    async fn contains_credential(&self, blinded_serial_number: &str) -> Result<bool, StorageError> {
         let cred = self
             .bandwidth_manager
-            .retrieve_spent_credential(&blinded_serial_number.to_bs58())
+            .retrieve_spent_credential(blinded_serial_number)
             .await?;
 
         Ok(cred.is_some())
@@ -441,15 +550,15 @@ impl Storage for InMemStorage {
         todo!()
     }
 
-    async fn set_freepass_expiration(
+    async fn set_expiration(
         &self,
         _client_address: DestinationAddressBytes,
-        _freepass_expiration: OffsetDateTime,
+        _expiration: OffsetDateTime,
     ) -> Result<(), StorageError> {
         todo!()
     }
 
-    async fn reset_freepass_bandwidth(
+    async fn reset_bandwidth(
         &self,
         _client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
@@ -471,18 +580,42 @@ impl Storage for InMemStorage {
         todo!()
     }
 
+    async fn insert_credential(
+        &self,
+        _credential: CredentialSpendingRequest,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn insert_pending_credential(
+        &self,
+        _pending: PendingCredential,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
     async fn insert_spent_credential(
         &self,
-        _blinded_serial_number: BlindedSerialNumber,
+        _blinded_serial_number: String,
         _was_freepass: bool,
         _client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
         todo!()
     }
 
+    async fn remove_pending_credential(&self, _id: i64) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn get_all_pending_credential(
+        &self,
+    ) -> Result<Vec<(i64, PendingCredential)>, StorageError> {
+        todo!()
+    }
+
     async fn contains_credential(
         &self,
-        _blinded_serial_number: &BlindedSerialNumber,
+        _blinded_serial_number: &str,
     ) -> Result<bool, StorageError> {
         todo!()
     }

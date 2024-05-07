@@ -5,6 +5,7 @@ use crate::backends::sqlite::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::storage::Storage;
 
+use crate::models::CoinIndicesSignature;
 use crate::models::{StorableIssuedCredential, StoredIssuedCredential};
 use async_trait::async_trait;
 use log::{debug, error};
@@ -88,12 +89,11 @@ impl Storage for PersistentStorage {
 
     async fn get_next_unspent_credential(
         &self,
-        gateway_id: &str,
     ) -> Result<Option<StoredIssuedCredential>, Self::StorageError> {
         // first try to get a free pass if available, otherwise fallback to bandwidth voucher
         let maybe_freepass = self
             .coconut_credential_manager
-            .get_next_unspect_freepass(gateway_id)
+            .get_next_unspent_freepass()
             .await?;
         if maybe_freepass.is_some() {
             return Ok(maybe_freepass);
@@ -101,20 +101,49 @@ impl Storage for PersistentStorage {
 
         Ok(self
             .coconut_credential_manager
-            .get_next_unspect_bandwidth_voucher()
+            .get_next_unspent_ticketbook()
             .await?)
     }
 
-    async fn consume_coconut_credential(
+    async fn update_issued_credential<'a>(
         &self,
+        bandwidth_credential: StorableIssuedCredential<'a>,
         id: i64,
-        gateway_id: &str,
-    ) -> Result<(), StorageError> {
+        consumed: bool,
+    ) -> Result<(), Self::StorageError> {
         self.coconut_credential_manager
-            .consume_coconut_credential(id, gateway_id)
+            .update_issued_credential(bandwidth_credential.credential_data, id, consumed)
             .await?;
 
         Ok(())
+    }
+
+    async fn insert_coin_indices_sig(
+        &self,
+        epoch_id: i64,
+        coin_indices_sig: String,
+    ) -> Result<(), StorageError> {
+        self.coconut_credential_manager
+            .insert_coin_indices_sig(epoch_id, coin_indices_sig)
+            .await?;
+        Ok(())
+    }
+
+    async fn is_coin_indices_sig_present(&self, epoch_id: i64) -> Result<bool, Self::StorageError> {
+        Ok(self
+            .coconut_credential_manager
+            .is_coin_indices_sig_present(epoch_id)
+            .await?)
+    }
+
+    async fn get_coin_indices_sig(
+        &self,
+        epoch_id: i64,
+    ) -> Result<CoinIndicesSignature, StorageError> {
+        self.coconut_credential_manager
+            .get_coin_indices_sig(epoch_id)
+            .await?
+            .ok_or(StorageError::NoSignatures { epoch_id })
     }
 
     async fn mark_expired(&self, id: i64) -> Result<(), Self::StorageError> {

@@ -5,13 +5,31 @@ use crate::coconut::bandwidth::IssuanceBandwidthCredential;
 use crate::error::Error;
 use log::{debug, warn};
 use nym_credentials_interface::{
-    aggregate_verification_keys, Signature, SignatureShare, VerificationKey,
+    aggregate_expiration_signatures, aggregate_indices_signatures, aggregate_verification_keys,
+    constants, Base58, CoinIndexSignature, CoinIndexSignatureShare, ExpirationDateSignature,
+    ExpirationDateSignatureShare, VerificationKeyAuth, Wallet,
 };
 use nym_validator_client::client::CoconutApiClient;
+use time::{macros::time, Duration, OffsetDateTime};
+
+pub fn today() -> OffsetDateTime {
+    let now_utc = OffsetDateTime::now_utc();
+    now_utc.replace_time(time!(0:00))
+}
+
+pub fn cred_exp_date() -> OffsetDateTime {
+    //count today as well
+    today() + Duration::days(constants::CRED_VALIDITY_PERIOD as i64 - 1)
+}
+
+pub fn freepass_exp_date() -> OffsetDateTime {
+    //count today as well
+    today() + Duration::days(nym_network_defaults::FREEPASS_VALIDITY_PERIOD as i64 - 1)
+}
 
 pub fn obtain_aggregate_verification_key(
     api_clients: &[CoconutApiClient],
-) -> Result<VerificationKey, Error> {
+) -> Result<VerificationKeyAuth, Error> {
     if api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
@@ -28,70 +46,159 @@ pub fn obtain_aggregate_verification_key(
     Ok(aggregate_verification_keys(&shares, Some(&indices))?)
 }
 
-pub async fn obtain_aggregate_signature(
-    voucher: &IssuanceBandwidthCredential,
-    coconut_api_clients: &[CoconutApiClient],
+pub async fn obtain_expiration_date_signatures(
+    ecash_api_clients: &[CoconutApiClient],
+    verification_key: &VerificationKeyAuth,
     threshold: u64,
-) -> Result<Signature, Error> {
-    if coconut_api_clients.is_empty() {
+) -> Result<Vec<ExpirationDateSignature>, Error> {
+    if ecash_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
-    let mut shares = Vec::with_capacity(coconut_api_clients.len());
-    let verification_key = obtain_aggregate_verification_key(coconut_api_clients)?;
+
+    let mut signatures_shares: Vec<ExpirationDateSignatureShare> =
+        Vec::with_capacity(ecash_api_clients.len());
+
+    let expiration_date = cred_exp_date().unix_timestamp() as u64;
+    for ecash_api_client in ecash_api_clients.iter() {
+        match ecash_api_client
+            .api_client
+            .expiration_date_signatures()
+            .await
+        {
+            Ok(signature) => {
+                let index = ecash_api_client.node_id;
+                let key_share = ecash_api_client.verification_key.clone();
+                signatures_shares.push(ExpirationDateSignatureShare {
+                    index,
+                    key: key_share,
+                    signatures: signature.signatures,
+                });
+            }
+            Err(err) => {
+                warn!(
+                    "failed to obtain expiration date signature from {}: {err}",
+                    ecash_api_client.api_client.api_url()
+                );
+            }
+        }
+    }
+
+    if signatures_shares.len() < threshold as usize {
+        return Err(Error::NotEnoughShares);
+    }
+
+    //this already takes care of partial signatures validation
+    aggregate_expiration_signatures(verification_key, expiration_date, &signatures_shares)
+        .map_err(Error::CompactEcashError)
+}
+
+pub async fn obtain_coin_indices_signatures(
+    ecash_api_clients: &[CoconutApiClient],
+    verification_key: &VerificationKeyAuth,
+    threshold: u64,
+) -> Result<Vec<CoinIndexSignature>, Error> {
+    if ecash_api_clients.is_empty() {
+        return Err(Error::NoValidatorsAvailable);
+    }
+
+    let mut signatures_shares: Vec<CoinIndexSignatureShare> =
+        Vec::with_capacity(ecash_api_clients.len());
+
+    for ecash_api_client in ecash_api_clients.iter() {
+        match ecash_api_client.api_client.coin_indices_signatures().await {
+            Ok(signature) => {
+                let index = ecash_api_client.node_id;
+                let key_share = ecash_api_client.verification_key.clone();
+                signatures_shares.push(CoinIndexSignatureShare {
+                    index,
+                    key: key_share,
+                    signatures: signature.signatures,
+                });
+            }
+            Err(err) => {
+                warn!(
+                    "failed to obtain expiration date signature from {}: {err}",
+                    ecash_api_client.api_client.api_url()
+                );
+            }
+        }
+    }
+
+    if signatures_shares.len() < threshold as usize {
+        return Err(Error::NotEnoughShares);
+    }
+
+    //this takes care of validating partial signatures
+    aggregate_indices_signatures(
+        nym_credentials_interface::ecash_parameters(),
+        verification_key,
+        &signatures_shares,
+    )
+    .map_err(Error::CompactEcashError)
+}
+
+pub async fn obtain_aggregate_wallet(
+    voucher: &IssuanceBandwidthCredential,
+    ecash_api_clients: &[CoconutApiClient],
+    threshold: u64,
+) -> Result<Wallet, Error> {
+    if ecash_api_clients.is_empty() {
+        return Err(Error::NoValidatorsAvailable);
+    }
+    let verification_key = obtain_aggregate_verification_key(ecash_api_clients)?;
 
     let request = voucher.prepare_for_signing();
 
-    for coconut_api_client in coconut_api_clients.iter() {
+    let mut wallets = Vec::with_capacity(ecash_api_clients.len());
+
+    for ecash_api_client in ecash_api_clients.iter() {
         debug!(
             "attempting to obtain partial credential from {}",
-            coconut_api_client.api_client.api_url()
+            ecash_api_client.api_client.api_url()
         );
 
         match voucher
             .obtain_partial_bandwidth_voucher_credential(
-                &coconut_api_client.api_client,
-                &coconut_api_client.verification_key,
-                Some(request.clone()),
+                &ecash_api_client.api_client,
+                ecash_api_client.node_id,
+                &ecash_api_client.verification_key,
+                request.clone(),
             )
             .await
         {
-            Ok(signature) => {
-                let share = SignatureShare::new(signature, coconut_api_client.node_id);
-                shares.push(share)
-            }
+            Ok(wallet) => wallets.push(wallet),
             Err(err) => {
                 warn!(
                     "failed to obtain partial credential from {}: {err}",
-                    coconut_api_client.api_client.api_url()
+                    ecash_api_client.api_client.api_url()
                 );
             }
         };
     }
-    if shares.len() < threshold as usize {
+    if wallets.len() < threshold as usize {
         return Err(Error::NotEnoughShares);
     }
 
-    voucher.aggregate_signature_shares(&verification_key, &shares)
+    voucher.aggregate_signature_shares(&verification_key, &wallets, request)
 }
 
-pub(crate) mod scalar_serde_helper {
-    use bls12_381::Scalar;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use zeroize::Zeroizing;
+pub fn signatures_to_string<B>(sigs: &[B]) -> String
+where
+    B: Base58,
+{
+    sigs.iter()
+        .map(|sig| sig.to_bs58())
+        .collect::<Vec<_>>()
+        .join(",")
+}
 
-    pub fn serialize<S: Serializer>(scalar: &Scalar, serializer: S) -> Result<S::Ok, S::Error> {
-        scalar.to_bytes().serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Scalar, D::Error> {
-        let b = <[u8; 32]>::deserialize(deserializer)?;
-
-        // make sure the bytes get zeroed
-        let bytes = Zeroizing::new(b);
-
-        let maybe_scalar: Option<Scalar> = Scalar::from_bytes(&bytes).into();
-        maybe_scalar.ok_or(serde::de::Error::custom(
-            "did not construct a valid bls12-381 scalar out of the provided bytes",
-        ))
-    }
+pub fn signatures_from_string<B>(bs58_sigs: String) -> Result<Vec<B>, Error>
+where
+    B: Base58,
+{
+    bs58_sigs
+        .split(',')
+        .map(B::try_from_bs58)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(Error::CompactEcashError)
 }

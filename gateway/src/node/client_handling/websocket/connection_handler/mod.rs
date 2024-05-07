@@ -4,6 +4,7 @@
 use crate::config::Config;
 use crate::node::storage::Storage;
 use log::{trace, warn};
+use nym_credentials::coconut::utils::today;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
@@ -19,7 +20,7 @@ pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
 
 pub(crate) mod authenticated;
-pub(crate) mod coconut;
+pub(crate) mod ecash;
 mod fresh;
 
 // TODO: note for my future self to consider the following idea:
@@ -136,20 +137,24 @@ impl<'a> From<&'a Config> for BandwidthFlushingBehaviourConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) struct AvailableBandwidth {
     pub(crate) bytes: i64,
-    pub(crate) freepass_expiration: Option<OffsetDateTime>,
+    pub(crate) expiration: OffsetDateTime,
 }
 
 impl AvailableBandwidth {
-    pub(crate) fn freepass_expired(&self) -> bool {
-        if let Some(expiration) = self.freepass_expiration {
-            if expiration < OffsetDateTime::now_utc() {
-                return true;
-            }
+    pub(crate) fn expired(&self) -> bool {
+        self.expiration < today()
+    }
+}
+
+impl Default for AvailableBandwidth {
+    fn default() -> Self {
+        Self {
+            bytes: 0,
+            expiration: OffsetDateTime::UNIX_EPOCH,
         }
-        false
     }
 }
 

@@ -29,32 +29,33 @@ impl BandwidthManager {
         client_address_bs58: &str,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO available_bandwidth(client_address_bs58, available) VALUES (?, 0)",
-            client_address_bs58
+            "INSERT INTO available_bandwidth(client_address_bs58, available, expiration) VALUES (?, 0, ?)",
+            client_address_bs58,
+            OffsetDateTime::UNIX_EPOCH,
         )
         .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
 
-    /// Set the freepass expiration date of the particular client to the provided date.
+    /// Set the expiration date of the particular client to the provided date.
     ///
     /// # Arguments
     ///
     /// * `client_address_bs58`: base58-encoded address of the client.
-    /// * `freepass_expiration`: the expiration date of the associated free pass.
-    pub(crate) async fn set_freepass_expiration(
+    /// * `expiration`: the expiration date
+    pub(crate) async fn set_expiration(
         &self,
         client_address_bs58: &str,
-        freepass_expiration: OffsetDateTime,
+        expiration: OffsetDateTime,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE available_bandwidth
-                SET freepass_expiration = ?
+                SET expiration = ?
                 WHERE client_address_bs58 = ?
             "#,
-            freepass_expiration,
+            expiration,
             client_address_bs58
         )
         .execute(&self.connection_pool)
@@ -67,16 +68,17 @@ impl BandwidthManager {
     /// # Arguments
     ///
     /// * `client_address_bs58`: base58-encoded address of the client.
-    pub(crate) async fn reset_freepass_bandwidth(
+    pub(crate) async fn reset_bandwidth(
         &self,
         client_address_bs58: &str,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE available_bandwidth
-                SET available = 0, freepass_expiration = NULL
+                SET available = 0, expiration = ?
                 WHERE client_address_bs58 = ?
             "#,
+            OffsetDateTime::UNIX_EPOCH,
             client_address_bs58
         )
         .execute(&self.connection_pool)

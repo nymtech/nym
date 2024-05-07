@@ -8,5 +8,5 @@ pub use coconut::bandwidth::{
     CredentialSigningData, CredentialSpendingData, IssuanceBandwidthCredential,
     IssuedBandwidthCredential,
 };
-pub use coconut::utils::{obtain_aggregate_signature, obtain_aggregate_verification_key};
+pub use coconut::utils::{obtain_aggregate_verification_key, obtain_aggregate_wallet};
 pub use error::Error;

@@ -27,6 +27,7 @@ pub struct StoredIssuedCredential {
 
     pub epoch_id: u32,
     pub expired: bool,
+    pub consumed: bool,
 }
 
 pub struct StorableIssuedCredential<'a> {
@@ -41,4 +42,10 @@ pub struct StorableIssuedCredential<'a> {
 pub struct CredentialUsage {
     pub credential_id: i64,
     pub gateway_id_bs58: String,
+}
+
+#[derive(Clone)]
+pub struct CoinIndicesSignature {
+    pub epoch_id: i64,
+    pub signatures: String,
 }

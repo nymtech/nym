@@ -19,6 +19,7 @@ rust-version = "1.76.0"
 async-trait = { workspace = true }
 bs58 = { workspace = true }
 bip39 = { workspace = true }
+bloomfilter = "1.0.13"
 cfg-if = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 console-subscriber = { workspace = true, optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
@@ -52,6 +53,7 @@ sqlx = { workspace = true, features = [
     "sqlite",
     "macros",
     "migrate",
+    "time",
 ] }
 
 okapi = { workspace = true, features = ["impl_json_schema"] }
@@ -70,8 +72,10 @@ zeroize = { workspace = true }
 ## internal
 #ephemera = { path = "../ephemera" }
 nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
-nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
 #nym-ephemera-common = { path = "../common/cosmwasm-smart-contracts/ephemera" }
 nym-config = { path = "../common/config" }
 cosmwasm-std = { workspace = true }

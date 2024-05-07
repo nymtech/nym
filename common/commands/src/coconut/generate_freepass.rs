@@ -9,12 +9,15 @@ use futures::StreamExt;
 use log::{error, info};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_credential_utils::utils::block_until_coconut_is_available;
-use nym_credentials::coconut::bandwidth::freepass::MAX_FREE_PASS_VALIDITY;
+use nym_credentials::coconut::utils::freepass_exp_date;
+use nym_credentials::coconut::utils::today;
 use nym_credentials::{
     obtain_aggregate_verification_key, IssuanceBandwidthCredential, IssuedBandwidthCredential,
 };
-use nym_credentials_interface::VerificationKey;
-use nym_validator_client::coconut::all_coconut_api_clients;
+use nym_credentials_interface::aggregate_expiration_signatures;
+use nym_credentials_interface::ExpirationDateSignatureShare;
+use nym_credentials_interface::VerificationKeyAuth;
+use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, NymContractsProvider};
 use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::AccountData;
@@ -24,6 +27,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 use time::format_description::well_known::Rfc3339;
+use time::macros::time;
 use time::OffsetDateTime;
 use zeroize::Zeroizing;
 
@@ -55,17 +59,16 @@ pub struct Args {
 
 async fn get_freepass(
     api_clients: Vec<CoconutApiClient>,
-    aggregate_vk: &VerificationKey,
+    aggregate_vk: &VerificationKeyAuth,
     threshold: u64,
     epoch_id: EpochId,
     signing_account: &AccountData,
     expiration_date: OffsetDateTime,
 ) -> anyhow::Result<IssuedBandwidthCredential> {
-    let issuance_pass = IssuanceBandwidthCredential::new_freepass(Some(expiration_date));
+    let issuance_pass = IssuanceBandwidthCredential::new_freepass(expiration_date);
     let signing_data = issuance_pass.prepare_for_signing();
 
-    let credential_shares = Arc::new(tokio::sync::Mutex::new(Vec::new()));
-
+    let shares = Arc::new(tokio::sync::Mutex::new((Vec::new(), Vec::new())));
     futures::stream::iter(api_clients)
         .for_each_concurrent(None, |client| async {
             // move the client into the block
@@ -77,20 +80,38 @@ async fn get_freepass(
             match issuance_pass
                 .obtain_partial_freepass_credential(
                     &client.api_client,
+                    client.node_id,
                     signing_account,
                     &client.verification_key,
                     signing_data.clone(),
                 )
                 .await
             {
-                Ok(partial_credential) => {
-                    credential_shares
-                        .lock()
-                        .await
-                        .push((partial_credential, client.node_id).into());
+                Ok(partial_wallet) => {
+                    shares.lock().await.0.push(partial_wallet);
                 }
                 Err(err) => {
                     error!("failed to obtain partial free pass from {api_url}: {err}")
+                }
+            }
+
+            info!("contacting {api_url} for expiration date signatures");
+            match client
+                .api_client
+                .expiration_date_signatures_timestamp(expiration_date.unix_timestamp() as u64)
+                .await
+            {
+                Ok(signature) => {
+                    let index = client.node_id;
+                    let key_share = client.verification_key.clone();
+                    shares.lock().await.1.push(ExpirationDateSignatureShare {
+                        index,
+                        key: key_share,
+                        signatures: signature.signatures,
+                    });
+                }
+                Err(err) => {
+                    error!("failed to obtain expiration date signature from {api_url}: {err}");
                 }
             }
         })
@@ -98,14 +119,25 @@ async fn get_freepass(
 
     // SAFETY: the futures have completed, so we MUST have the only arc reference
     #[allow(clippy::unwrap_used)]
-    let credential_shares = Arc::into_inner(credential_shares).unwrap().into_inner();
+    let (wallet_shares, signatures_shares) = Arc::into_inner(shares).unwrap().into_inner();
 
-    if credential_shares.len() < threshold as usize {
-        bail!("we managed to obtain only {} partial credentials while the minimum threshold is {threshold}", credential_shares.len());
+    if wallet_shares.len() < threshold as usize {
+        bail!("we managed to obtain only {} partial credentials while the minimum threshold is {threshold}", wallet_shares.len());
     }
 
-    let signature = issuance_pass.aggregate_signature_shares(aggregate_vk, &credential_shares)?;
-    Ok(issuance_pass.into_issued_credential(signature, epoch_id))
+    let wallet =
+        issuance_pass.aggregate_signature_shares(aggregate_vk, &wallet_shares, signing_data)?;
+
+    if signatures_shares.len() < threshold as usize {
+        bail!("we managed to obtain only {} partial expiration date signatures while the minimum threshold is {threshold}", signatures_shares.len());
+    }
+
+    let exp_date_sigs = aggregate_expiration_signatures(
+        aggregate_vk,
+        expiration_date.unix_timestamp() as u64,
+        &signatures_shares,
+    )?;
+    Ok(issuance_pass.into_issued_credential(wallet, exp_date_sigs, epoch_id))
 }
 
 pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
@@ -142,13 +174,13 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         None => OffsetDateTime::from_unix_timestamp(args.expiration_timestamp.unwrap())?,
     };
 
-    let now = OffsetDateTime::now_utc();
+    let expiration_date = expiration_date.replace_time(time!(0:00));
 
-    if expiration_date > now + MAX_FREE_PASS_VALIDITY {
+    if expiration_date > freepass_exp_date() {
         bail!("the provided free pass request has too long expiry (expiry is set to on {expiration_date})")
     }
 
-    if expiration_date < now {
+    if expiration_date < today() {
         bail!("the provided free pass expiry is set in the past!")
     }
 
@@ -162,7 +194,7 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         .get_current_epoch_threshold()
         .await?
         .ok_or(anyhow!("no threshold available"))?;
-    let api_clients = all_coconut_api_clients(&client, epoch_id).await?;
+    let api_clients = all_ecash_api_clients(&client, epoch_id).await?;
 
     if api_clients.len() < threshold as usize {
         bail!(

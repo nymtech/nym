@@ -3,10 +3,11 @@
 
 use crate::nyxd::error::NyxdError;
 use itertools::Itertools;
+use nym_ecash_contract_common::events::BLACKLIST_PROPOSAL_ID;
 use serde::{Deserialize, Serialize};
 
-pub use nym_coconut_bandwidth_contract_common::event_attributes::*;
 pub use nym_coconut_dkg_common::event_attributes::*;
+pub use nym_ecash_contract_common::event_attributes::*;
 
 // it seems that currently validators just emit stringified events (which are also returned as part of deliverTx response)
 // as theirs logs
@@ -35,6 +36,25 @@ pub fn find_attribute<'a>(
         .attributes
         .iter()
         .find(|attr| attr.key == attribute_key)
+}
+
+/// Search for the proposal id in the given log. It'll be in the LAST wasm event, with attribute key "proposal_id"
+pub fn find_proposal_id(logs: &[Log]) -> Result<u64, NyxdError> {
+    let maybe_attributes = logs
+        .iter()
+        .rev()
+        .flat_map(|log| log.events.iter())
+        .find(|event| event.ty == "wasm")
+        .ok_or(NyxdError::ComswasmEventNotFound)?
+        .attributes
+        .iter()
+        .find(|attr| attr.key == BLACKLIST_PROPOSAL_ID);
+    let attribute = maybe_attributes.ok_or(NyxdError::ComswasmAttributeNotFound)?;
+
+    attribute
+        .value
+        .parse::<u64>()
+        .map_err(|_| NyxdError::DeserializationError("proposal_id".into()))
 }
 
 // those two functions were separated so that the internal logic could actually be tested

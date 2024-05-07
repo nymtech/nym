@@ -19,6 +19,9 @@ pub enum StorageError {
     #[error("No unused credential in database. You need to buy at least one")]
     NoCredential,
 
+    #[error("No signatures for epoch {epoch_id} in the database")]
+    NoSignatures { epoch_id: i64 },
+
     #[error("Database unique constraint violation. Is the credential already imported?")]
     ConstraintUnique,
 }

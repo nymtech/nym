@@ -4,9 +4,10 @@
 use crate::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use crate::nyxd::error::NyxdError;
 use crate::NymApiClient;
-use nym_coconut::{Base58, CoconutError, VerificationKey};
 use nym_coconut_dkg_common::types::{EpochId, NodeIndex};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
+use nym_compact_ecash::error::CompactEcashError;
+use nym_compact_ecash::{Base58, VerificationKeyAuth};
 use thiserror::Error;
 use url::Url;
 
@@ -14,7 +15,7 @@ use url::Url;
 #[derive(Clone)]
 pub struct CoconutApiClient {
     pub api_client: NymApiClient,
-    pub verification_key: VerificationKey,
+    pub verification_key: VerificationKeyAuth,
     pub node_id: NodeIndex,
     pub cosmos_address: cosmrs::AccountId,
 }
@@ -43,7 +44,7 @@ pub enum CoconutApiError {
     #[error("the provided verification key is malformed: {source}")]
     MalformedVerificationKey {
         #[from]
-        source: CoconutError,
+        source: CompactEcashError,
     },
 
     #[error("the provided account address is malformed: {source}")]
@@ -65,14 +66,14 @@ impl TryFrom<ContractVKShare> for CoconutApiClient {
 
         Ok(CoconutApiClient {
             api_client: NymApiClient::new(url_address),
-            verification_key: VerificationKey::try_from_bs58(&share.share)?,
+            verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
             node_id: share.node_index,
             cosmos_address: share.owner.as_str().parse()?,
         })
     }
 }
 
-pub async fn all_coconut_api_clients<C>(
+pub async fn all_ecash_api_clients<C>(
     client: &C,
     epoch_id: EpochId,
 ) -> Result<Vec<CoconutApiClient>, CoconutApiError>

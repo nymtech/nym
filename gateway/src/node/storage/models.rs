@@ -22,14 +22,14 @@ pub struct PersistedBandwidth {
     #[allow(dead_code)]
     pub(crate) client_address_bs58: String,
     pub(crate) available: i64,
-    pub(crate) freepass_expiration: Option<OffsetDateTime>,
+    pub(crate) expiration: Option<OffsetDateTime>,
 }
 
 impl From<PersistedBandwidth> for AvailableBandwidth {
     fn from(value: PersistedBandwidth) -> Self {
         AvailableBandwidth {
             bytes: value.available,
-            freepass_expiration: value.freepass_expiration,
+            expiration: value.expiration.unwrap_or(OffsetDateTime::UNIX_EPOCH),
         }
     }
 }
@@ -41,6 +41,14 @@ impl From<Option<PersistedBandwidth>> for AvailableBandwidth {
             Some(b) => b.into(),
         }
     }
+}
+
+pub(crate) struct PendingStoredCredential {
+    pub(crate) id: i64,
+    pub(crate) credential: String,
+    pub(crate) gateway_address: String,
+    pub(crate) api_urls: String,
+    pub(crate) proposal_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, FromRow)]

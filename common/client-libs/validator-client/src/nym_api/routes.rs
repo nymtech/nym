@@ -14,11 +14,17 @@ pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
 pub const COCONUT_ROUTES: &str = "coconut";
 pub const BANDWIDTH: &str = "bandwidth";
+pub const SPENT_CREDENTIALS_FILTER: &str = "spent-credentials-filter";
 
 pub const COCONUT_FREE_PASS: &str = "free-pass";
 pub const COCONUT_FREE_PASS_NONCE: &str = "free-pass-nonce";
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
+pub const ECASH_VERIFY_OFFLINE_CREDENTIAL: &str = "verify-offline-credential";
+pub const ECASH_VERIFY_ONLINE_CREDENTIAL: &str = "verify-online-credential";
 pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
+pub const EXPIRATION_DATE_SIGNATURES: &str = "expiration-date-signatures";
+pub const EXPIRATION_DATE_SIGNATURES_TIMESTAMP: &str = "expiration-date-signatures-ts";
+pub const COIN_INDICES_SIGNATURES: &str = "coin-indices-signatures";
 pub const COCONUT_EPOCH_CREDENTIALS: &str = "epoch-credentials";
 pub const COCONUT_ISSUED_CREDENTIAL: &str = "issued-credential";
 pub const COCONUT_ISSUED_CREDENTIALS: &str = "issued-credentials";

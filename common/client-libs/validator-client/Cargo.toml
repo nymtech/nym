@@ -18,6 +18,7 @@ nym-ephemera-common = { path = "../../cosmwasm-smart-contracts/ephemera" }
 nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-ecash-contract-common = { path = "../../cosmwasm-smart-contracts/ecash-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 nym-name-service-common = { path = "../../cosmwasm-smart-contracts/name-service" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
@@ -32,7 +33,7 @@ url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["sync", "time"] }
 futures = { workspace = true }
 
-nym-coconut = { path = "../../nymcoconut" }
+nym-compact-ecash = { path = "../../nym_offline_compact_ecash" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 

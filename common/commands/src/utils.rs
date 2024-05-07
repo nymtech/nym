@@ -123,6 +123,21 @@ impl CommonConfigsWrapper {
         }
     }
 
+    pub(crate) fn try_get_private_id_key(&self) -> anyhow::Result<PathBuf> {
+        match self {
+            CommonConfigsWrapper::NymClients(cfg) => Ok(cfg
+                .storage_paths
+                .inner
+                .keys
+                .private_identity_key_file
+                .clone()),
+            CommonConfigsWrapper::NymApi(_cfg) => {
+                todo!() //SW this will depend on the new network monitor structure. Ping @Drazen
+            }
+            CommonConfigsWrapper::Unknown(cfg) => cfg.try_get_private_id_key(),
+        }
+    }
+
     pub(crate) fn try_get_credentials_store(&self) -> anyhow::Result<PathBuf> {
         match self {
             CommonConfigsWrapper::NymClients(cfg) => {
@@ -223,6 +238,19 @@ impl UnknownConfigWrapper {
             Ok(credentials_store.parse()?)
         } else {
             bail!("no 'credentials_database_path' field present in the config")
+        }
+    }
+
+    pub(crate) fn try_get_private_id_key(&self) -> anyhow::Result<PathBuf> {
+        let id_val = self
+            .find_value("keys.private_identity_key_file")
+            .ok_or_else(|| {
+                anyhow!("no 'keys.private_identity_key_file' field present in the config")
+            })?;
+        if let toml::Value::String(pub_id_key) = id_val {
+            Ok(pub_id_key.parse()?)
+        } else {
+            bail!("no 'keys.private_identity_key_file' field present in the config")
         }
     }
 }

@@ -6,7 +6,6 @@ use nym_bandwidth_controller::acquire::state::State;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::Coin;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 
 /// The serialized version of the yet untransformed bandwidth voucher. It can be used to complete
@@ -20,9 +19,9 @@ pub type VoucherBlob = Vec<u8>;
 /// [`crate::mixnet::DisconnectedMixnetClient::create_bandwidth_client`] on the associated mixnet
 /// client.
 pub struct BandwidthAcquireClient<'a, St: Storage> {
-    network_details: NymNetworkDetails,
     client: DirectSigningHttpRpcNyxdClient,
     storage: &'a St,
+    client_id: String,
 }
 
 impl<'a, St> BandwidthAcquireClient<'a, St>
@@ -34,6 +33,7 @@ where
         network_details: NymNetworkDetails,
         mnemonic: String,
         storage: &'a St,
+        client_id: String,
     ) -> Result<Self> {
         let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();
         let config = nyxd::Config::try_from_nym_network_details(&network_details)?;
@@ -44,9 +44,9 @@ where
             mnemonic.parse()?,
         )?;
         Ok(Self {
-            network_details,
             client,
             storage,
+            client_id,
         })
     }
 
@@ -54,9 +54,10 @@ where
     /// means the tokens have been deposited, but the proper bandwidth credential hasn't yet been
     /// created. A [`VoucherBlob`] is returned that can be used for a later recovery of the
     /// associated bandwidth credential, using [`Self::recover`].
-    pub async fn acquire(&self, amount: u128) -> Result<()> {
-        let amount = Coin::new(amount, &self.network_details.chain_details.mix_denom.base);
-        let state = nym_bandwidth_controller::acquire::deposit(&self.client, amount).await?;
+    pub async fn acquire(&self) -> Result<()> {
+        let state =
+            nym_bandwidth_controller::acquire::deposit(&self.client, self.client_id.as_bytes())
+                .await?;
         nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, &self.client, self.storage)
             .await
             .map_err(|reason| Error::UnconvertedDeposit {

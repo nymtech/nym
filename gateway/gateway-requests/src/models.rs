@@ -316,12 +316,10 @@ mod tests {
             &pub_attrs,
         )
         .unwrap();
-        let sig = blind_sig
-            .unblind(
-                keypair.verification_key(),
-                &sig_req.pedersen_commitments_openings,
-            )
-            .unwrap();
+        let sig = blind_sig.unblind(
+            keypair.verification_key(),
+            &sig_req.pedersen_commitments_openings,
+        );
 
         let issued = issuance.into_issued_credential(sig, 42);
         let spending = issued

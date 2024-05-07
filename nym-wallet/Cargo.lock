@@ -3005,6 +3005,7 @@ dependencies = [
  "schemars",
  "serde",
  "tendermint",
+ "time",
 ]
 
 [[package]]
@@ -3442,7 +3443,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.2.12"
+version = "1.2.13"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
@@ -3476,6 +3477,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "strum 0.23.0",
+ "tap",
  "tauri",
  "tauri-build",
  "tauri-codegen",

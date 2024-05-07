@@ -1,9 +1,9 @@
 import React from 'react';
-import { Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
+import { Box, Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
-import { LockOutlined } from '@mui/icons-material';
-import { isDelegation } from 'src/context/delegations';
+import { LockOutlined, WarningAmberOutlined } from '@mui/icons-material';
+import { isDelegation, useDelegationContext } from 'src/context/delegations';
 import { toPercentIntegerString } from 'src/utils';
 import { format } from 'date-fns';
 import { Undelegate } from 'src/svg-icons';
@@ -29,6 +29,8 @@ export const DelegationItem = ({
   nodeIsUnbonded: boolean;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
 }) => {
+  const { setDelegationItemErrors } = useDelegationContext();
+
   const operatingCost = isDelegation(item) && item.cost_params?.interval_operating_cost;
 
   const tooltipText = () => {
@@ -45,13 +47,26 @@ export const DelegationItem = ({
           {nodeIsUnbonded ? (
             '-'
           ) : (
-            <Link
-              target="_blank"
-              href={`${explorerUrl}/network-components/mixnode/${item.mix_id}`}
-              text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
-              color="text.primary"
-              noIcon
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {item.errors && (
+                <Tooltip title="Open to view a list of errors that occurred">
+                  <IconButton
+                    sx={{ mr: 1 }}
+                    size="small"
+                    onClick={() => setDelegationItemErrors({ nodeId: item.node_identity, errors: item.errors! })}
+                  >
+                    <WarningAmberOutlined color="warning" fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <Link
+                target="_blank"
+                href={`${explorerUrl}/network-components/mixnode/${item.mix_id}`}
+                text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
+                color="text.primary"
+                noIcon
+              />
+            </Box>
           )}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
@@ -70,7 +85,7 @@ export const DelegationItem = ({
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>{getStakeSaturation(item)}</TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          {format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
+          {item.delegated_on_iso_datetime && format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
           <Typography style={{ textTransform: 'uppercase', fontSize: 'inherit' }}>

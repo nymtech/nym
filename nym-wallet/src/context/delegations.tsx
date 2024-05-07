@@ -20,6 +20,7 @@ import { decCoinToDisplay } from 'src/utils';
 import { Console } from 'src/utils/console';
 
 export type TDelegationContext = {
+  delegationItemErrors?: { nodeId: string; errors: string };
   isLoading: boolean;
   delegations?: TDelegations;
   pendingDelegations?: WrappedDelegationEvent[];
@@ -34,6 +35,7 @@ export type TDelegationContext = {
   ) => Promise<TransactionExecuteResult>;
   undelegate: (mix_id: number, fee?: Fee) => Promise<TransactionExecuteResult>;
   undelegateVesting: (mix_id: number) => Promise<TransactionExecuteResult>;
+  setDelegationItemErrors: (data: { nodeId: string; errors: string } | undefined) => void;
 };
 
 export type TDelegationTransaction = {
@@ -61,6 +63,7 @@ export const DelegationContext = createContext<TDelegationContext>({
   undelegateVesting: () => {
     throw new Error('Not implemented');
   },
+  setDelegationItemErrors: () => undefined,
 });
 
 export const DelegationContextProvider: FC<{
@@ -69,6 +72,7 @@ export const DelegationContextProvider: FC<{
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ network, children }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [delegationItemErrors, setDelegationItemErrors] = useState<{ nodeId: string; errors: string }>();
   const [delegations, setDelegations] = useState<undefined | TDelegations>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
@@ -130,6 +134,7 @@ export const DelegationContextProvider: FC<{
 
   const memoizedValue = useMemo(
     () => ({
+      delegationItemErrors,
       isLoading,
       delegations,
       pendingDelegations,
@@ -137,11 +142,20 @@ export const DelegationContextProvider: FC<{
       totalRewards,
       totalDelegationsAndRewards,
       refresh,
+      setDelegationItemErrors,
       addDelegation,
       undelegate: undelegateFromMixnode,
       undelegateVesting: vestingUndelegateFromMixnode,
     }),
-    [isLoading, delegations, pendingDelegations, totalDelegations, totalRewards, totalDelegationsAndRewards],
+    [
+      isLoading,
+      delegations,
+      delegationItemErrors,
+      pendingDelegations,
+      totalDelegations,
+      totalRewards,
+      totalDelegationsAndRewards,
+    ],
   );
 
   return <DelegationContext.Provider value={memoizedValue}>{children}</DelegationContext.Provider>;

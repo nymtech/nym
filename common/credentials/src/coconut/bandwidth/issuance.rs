@@ -10,9 +10,9 @@ use crate::coconut::bandwidth::{
 use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
 use nym_credentials_interface::{
-    aggregate_signature_shares_and_verify, hash_to_scalar, prepare_blind_sign, Attribute,
-    BlindedSerialNumber, BlindedSignature, Parameters, PrivateAttribute, PublicAttribute,
-    Signature, SignatureShare, VerificationKey,
+    aggregate_signature_shares, aggregate_signature_shares_and_verify, hash_to_scalar,
+    prepare_blind_sign, Attribute, BlindedSerialNumber, BlindedSignature, Parameters,
+    PrivateAttribute, PublicAttribute, Signature, SignatureShare, VerificationKey,
 };
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_validator_client::nym_api::EpochId;
@@ -264,6 +264,13 @@ impl IssuanceBandwidthCredential {
             _ => return Err(Error::NotABandwdithVoucher),
         };
         self.unblind_signature(validator_vk, &signing_data, blinded_signature)
+    }
+
+    pub fn unchecked_aggregate_signature_shares(
+        &self,
+        shares: &[SignatureShare],
+    ) -> Result<Signature, Error> {
+        aggregate_signature_shares(shares).map_err(Error::SignatureAggregationError)
     }
 
     pub fn aggregate_signature_shares(

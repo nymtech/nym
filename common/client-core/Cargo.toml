@@ -3,7 +3,7 @@ name = "nym-client-core"
 version = "1.1.15"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
-rust-version = "1.66"
+rust-version = "1.70"
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -48,7 +48,7 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
-nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"]}
+nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"] }
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 

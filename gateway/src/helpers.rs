@@ -49,6 +49,7 @@ pub fn override_network_requester_config(
     let Some(opts) = opts else { return cfg };
 
     // in the old code we had calls to `assert` thus panicking
+    #[allow(clippy::expect_used)]
     cfg.base
         .try_apply_traffic_modes(
             cfg.network_requester.disable_poisson_rate,

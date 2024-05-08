@@ -10,6 +10,7 @@ use crate::error::{CoconutError, Result};
 use crate::utils::hash_g1;
 
 /// System-wide parameters used for the protocol
+#[derive(Clone)]
 pub struct Parameters {
     /// Generator of the G1 group
     g1: G1Affine,

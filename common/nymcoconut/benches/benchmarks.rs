@@ -6,10 +6,10 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use ff::Field;
 use group::{Curve, Group};
 use nym_coconut::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, prepare_blind_sign,
-    prove_bandwidth_credential, random_scalars_refs, setup, ttp_keygen, verify_credential,
-    verify_partial_blind_signature, Attribute, BlindedSignature, Parameters, Signature,
-    SignatureShare, VerificationKey,
+    aggregate_signature_shares_and_verify, aggregate_verification_keys, blind_sign,
+    prepare_blind_sign, prove_bandwidth_credential, random_scalars_refs, setup, ttp_keygen,
+    verify_credential, verify_partial_blind_signature, Attribute, BlindedSignature, Parameters,
+    Signature, SignatureShare, VerificationKey,
 };
 use rand::seq::SliceRandom;
 use std::ops::Neg;
@@ -99,7 +99,7 @@ fn unblind_and_aggregate(
     let mut attributes = vec![];
     attributes.extend_from_slice(private_attributes);
     attributes.extend_from_slice(public_attributes);
-    aggregate_signature_shares(
+    aggregate_signature_shares_and_verify(
         params,
         verification_key,
         &attributes,

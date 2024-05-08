@@ -157,6 +157,10 @@ impl BlindSignRequest {
         )
     }
 
+    pub fn verify_commitment_hash(&self, public_attributes: &[&Attribute]) -> bool {
+        self.commitment_hash == compute_hash(self.commitment, public_attributes)
+    }
+
     pub fn get_commitment_hash(&self) -> G1Projective {
         self.commitment_hash
     }

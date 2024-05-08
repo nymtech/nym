@@ -249,7 +249,7 @@ impl BlockProcessor {
         match to_prune {
             v if v > 1000 => warn!("approximately {v} blocks worth of data will be pruned"),
             v if v > 100 => info!("approximately {v} blocks worth of data will be pruned"),
-            v if v == 0 => trace!("no blocks to prune"),
+            0 => trace!("no blocks to prune"),
             v => debug!("approximately {v} blocks worth of data will be pruned"),
         }
 

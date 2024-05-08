@@ -4,6 +4,16 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.4-nutella] (2024-05-08)
+
+- [fix] apply disable_poisson_rate from internal NR/IPR cfgs ([#4579])
+- updating sign commands to include nym-node ([#4578])
+- changed nym-node redirects from 308 'Permanent Redirect' to 303: 'See Other' ([#4572])
+
+[#4579]: https://github.com/nymtech/nym/pull/4579
+[#4578]: https://github.com/nymtech/nym/pull/4578
+[#4572]: https://github.com/nymtech/nym/pull/4572
+
 ## [2024.3-eclipse] (2024-04-22)
 
 - Initial release of the first iteration of the Nym Node

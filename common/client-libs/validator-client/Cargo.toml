@@ -24,7 +24,6 @@ nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contr
 nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts/service-provider-directory" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-reqwest = { workspace = true, features = ["json"] }
 nym-http-api-client = { path = "../../../common/http-api-client"}
 thiserror = { workspace = true }
 log = { workspace = true }
@@ -66,6 +65,14 @@ cosmwasm-std = { workspace = true }
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
 workspace = true
 features = ["tokio"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.reqwest]
+workspace = true
+features = ["json"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.reqwest]
+workspace = true
+features = ["json", "rustls-tls"]
 
 [dev-dependencies]
 bip39 = { workspace = true }

@@ -25,7 +25,6 @@ si-scale = "0.2.2"
 tap = "1.0.1"
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tungstenite = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["macros"] }
 time = { workspace = true }
 zeroize = { workspace = true }
@@ -74,8 +73,17 @@ workspace = true
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
-version = "0.20.1"
-features = ["rustls-tls-native-roots"]
+workspace = true
+features = ["rustls-tls-webpki-roots"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tungstenite]
+workspace = true
+default-features = true
+features = ["rustls-tls-webpki-roots"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.tungstenite]
+workspace = true
+default-features = false
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 workspace = true

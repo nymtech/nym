@@ -6,7 +6,7 @@ use crate::coconut::utils::scalar_serde_helper;
 use crate::error::Error;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_credentials_interface::{
-    hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, PublicAttribute,
+    hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature, CredentialType, PublicAttribute,
 };
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_validator_client::nyxd::{Coin, Hash};
@@ -121,6 +121,10 @@ impl BandwidthVoucherIssuanceData {
 
     pub fn value_attribute(&self) -> &Attribute {
         &self.value_prehashed
+    }
+
+    pub fn typ() -> CredentialType {
+        CredentialType::Voucher
     }
 
     pub fn tx_hash(&self) -> Hash {

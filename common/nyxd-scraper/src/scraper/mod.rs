@@ -8,6 +8,7 @@ use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
 use crate::scraper::subscriber::ChainSubscriber;
 use crate::storage::ScraperStorage;
+use crate::PruningOptions;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc::{channel, unbounded_channel};
@@ -27,6 +28,8 @@ pub struct Config {
     pub rpc_url: Url,
 
     pub database_path: PathBuf,
+
+    pub pruning_options: PruningOptions,
 }
 
 pub struct NyxdScraperBuilder {
@@ -54,6 +57,7 @@ impl NyxdScraperBuilder {
             processing_tx.clone(),
         );
         let mut block_processor = BlockProcessor::new(
+            scraper.config.pruning_options,
             scraper.cancel_token.clone(),
             scraper.startup_sync.clone(),
             processing_rx,
@@ -119,6 +123,7 @@ impl NyxdScraper {
     }
 
     pub async fn new(config: Config) -> Result<Self, ScraperError> {
+        config.pruning_options.validate()?;
         let storage = ScraperStorage::init(&config.database_path).await?;
 
         Ok(NyxdScraper {
@@ -160,6 +165,7 @@ impl NyxdScraper {
             processing_tx.clone(),
         );
         let block_processor = BlockProcessor::new(
+            self.config.pruning_options,
             self.cancel_token.clone(),
             self.startup_sync.clone(),
             processing_rx,

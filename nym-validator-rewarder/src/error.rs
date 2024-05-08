@@ -166,6 +166,12 @@ pub enum NymRewarderError {
 
     #[error("there were no validators to reward in this epoch")]
     NoValidatorsToReward,
+
+    #[error("the current pruning strategy is set to 'everything' - we won't have any block data for rewarding")]
+    EverythingPruningStrategy,
+
+    #[error("pruning.keep_recent must not be smaller than {min_to_keep}. got: {keep_recent}")]
+    TooSmallKeepRecent { min_to_keep: u32, keep_recent: u32 },
 }
 
 #[derive(Debug)]

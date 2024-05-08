@@ -16,7 +16,9 @@ const_format = "0.2.32"
 cosmrs.workspace = true
 eyre = "0.6.9"
 futures.workspace = true
+humantime = "2.1.0"
 sha2 = "0.10.8"
+serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
 tendermint.workspace = true
 tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
@@ -24,13 +26,13 @@ thiserror.workspace = true
 time = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = "0.1.14"
-tokio-util = { version = "0.7.10", features = ["rt"]}
+tokio-util = { version = "0.7.10", features = ["rt"] }
 tracing.workspace = true
 url.workspace = true
 
 
 # TEMP
-nym-bin-common = { path = "../bin-common", features = ["basic_tracing"]}
+#nym-bin-common = { path = "../bin-common", features = ["basic_tracing"]}
 
 
 [build-dependencies]

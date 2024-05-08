@@ -50,7 +50,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymRewarderError> {
     };
 
     let config = Config::new(args.mnemonic, websocket, nyxd).with_override(args.config_override);
-    config.ensure_is_valid()?;
+    config.validate()?;
 
     config
         .save_to_path(&path)

@@ -5,7 +5,8 @@ use crate::block_processor::types::{FullBlockInformation, ParsedTransactionRespo
 use crate::error::ScraperError;
 use crate::storage::manager::{
     insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
-    update_last_processed, StorageManager,
+    prune_blocks, prune_messages, prune_pre_commits, prune_transactions, update_last_processed,
+    update_last_pruned, StorageManager,
 };
 use crate::storage::models::{CommitSignature, Validator};
 use sqlx::types::time::OffsetDateTime;
@@ -15,6 +16,7 @@ use std::path::Path;
 use tendermint::block::{Commit, CommitSig};
 use tendermint::Block;
 use tendermint_rpc::endpoint::validators;
+use tokio::time::Instant;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 mod helpers;
@@ -26,6 +28,19 @@ pub type StorageTransaction = Transaction<'static, Sqlite>;
 #[derive(Clone)]
 pub struct ScraperStorage {
     pub(crate) manager: StorageManager,
+}
+
+pub(crate) fn log_db_operation_time(op_name: &str, start_time: Instant) {
+    let elapsed = start_time.elapsed();
+    let formatted = humantime::format_duration(elapsed);
+
+    match elapsed.as_millis() {
+        v if v > 10000 => error!("{op_name} took {formatted} to execute"),
+        v if v > 1000 => warn!("{op_name} took {formatted} to execute"),
+        v if v > 100 => info!("{op_name} took {formatted} to execute"),
+        v if v > 10 => debug!("{op_name} took {formatted} to execute"),
+        _ => trace!("{op_name} took {formatted} to execute"),
+    }
 }
 
 impl ScraperStorage {
@@ -65,6 +80,32 @@ impl ScraperStorage {
         Ok(storage)
     }
 
+    #[instrument(skip(self))]
+    pub async fn prune_storage(
+        &self,
+        oldest_to_keep: u32,
+        current_height: u32,
+    ) -> Result<(), ScraperError> {
+        let start = Instant::now();
+
+        let mut tx = self.begin_processing_tx().await?;
+
+        prune_messages(oldest_to_keep.into(), &mut tx).await?;
+        prune_transactions(oldest_to_keep.into(), &mut tx).await?;
+        prune_pre_commits(oldest_to_keep.into(), &mut tx).await?;
+        prune_blocks(oldest_to_keep.into(), &mut tx).await?;
+        update_last_pruned(current_height.into(), &mut tx).await?;
+
+        let commit_start = Instant::now();
+        tx.commit()
+            .await
+            .map_err(|source| ScraperError::StorageTxCommitFailure { source })?;
+        log_db_operation_time("committing pruning tx", commit_start);
+
+        log_db_operation_time("pruning storage", start);
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     pub async fn begin_processing_tx(&self) -> Result<StorageTransaction, ScraperError> {
         debug!("starting storage tx");
@@ -73,6 +114,10 @@ impl ScraperStorage {
             .begin()
             .await
             .map_err(|source| ScraperError::StorageTxBeginFailure { source })
+    }
+
+    pub async fn lowest_block_height(&self) -> Result<Option<i64>, ScraperError> {
+        Ok(self.manager.get_lowest_block().await?)
     }
 
     pub async fn get_first_block_height_after(
@@ -154,6 +199,10 @@ impl ScraperStorage {
 
     pub async fn get_last_processed_height(&self) -> Result<i64, ScraperError> {
         Ok(self.manager.get_last_processed_height().await?)
+    }
+
+    pub async fn get_pruned_height(&self) -> Result<i64, ScraperError> {
+        Ok(self.manager.get_pruned_height().await?)
     }
 }
 

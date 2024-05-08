@@ -14,6 +14,7 @@ pub(crate) mod rpc_client;
 pub(crate) mod scraper;
 pub mod storage;
 
+pub use block_processor::pruning::{PruningOptions, PruningStrategy};
 pub use modules::{BlockModule, MsgModule, TxModule};
 pub use scraper::{Config, NyxdScraper};
 pub use storage::models;

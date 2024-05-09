@@ -20,7 +20,8 @@ use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
 use nym_topology::{NymTopology, NymTopologyError};
-use rand::{CryptoRng, Rng};
+use rand::SeedableRng;
+use rand_chacha::ChaCha8Rng;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -147,10 +148,10 @@ impl Config {
 }
 
 #[derive(Clone)]
-pub(crate) struct MessageHandler<R> {
+pub(crate) struct MessageHandler {
     config: Config,
-    rng: R,
-    message_preparer: MessagePreparer<R>,
+    rng: ChaCha8Rng,
+    message_preparer: MessagePreparer,
     action_sender: AckActionSender,
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
@@ -158,29 +159,25 @@ pub(crate) struct MessageHandler<R> {
     tag_storage: UsedSenderTags,
 }
 
-impl<R> MessageHandler<R>
-where
-    R: CryptoRng + Rng,
-{
+impl MessageHandler {
     pub(crate) fn new(
         config: Config,
-        rng: R,
         action_sender: AckActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: SentReplyKeys,
         tag_storage: UsedSenderTags,
-    ) -> Self
-    where
-        R: Copy,
-    {
+        seed: Option<u64>,
+    ) -> Self {
         let message_preparer = MessagePreparer::new(
-            rng,
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
+            seed,
         )
         .with_mix_hops(config.num_mix_hops);
+
+        let rng = ChaCha8Rng::from_entropy();
 
         MessageHandler {
             config,

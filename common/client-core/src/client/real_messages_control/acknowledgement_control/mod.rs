@@ -24,7 +24,6 @@ use nym_sphinx::{
     chunking::fragment::{Fragment, FragmentIdentifier},
     Delay as SphinxDelay,
 };
-use rand::{CryptoRng, Rng};
 use std::{
     sync::{Arc, Weak},
     time::Duration,
@@ -188,26 +187,20 @@ impl Config {
     }
 }
 
-pub(super) struct AcknowledgementController<R>
-where
-    R: CryptoRng + Rng,
-{
+pub(super) struct AcknowledgementController {
     acknowledgement_listener: AcknowledgementListener,
-    input_message_listener: InputMessageListener<R>,
-    retransmission_request_listener: RetransmissionRequestListener<R>,
+    input_message_listener: InputMessageListener,
+    retransmission_request_listener: RetransmissionRequestListener,
     sent_notification_listener: SentNotificationListener,
     action_controller: ActionController,
 }
 
-impl<R> AcknowledgementController<R>
-where
-    R: 'static + CryptoRng + Rng + Clone + Send + Sync,
-{
+impl AcknowledgementController {
     pub(super) fn new(
         config: Config,
         ack_key: Arc<AckKey>,
         connectors: AcknowledgementControllerConnectors,
-        message_handler: MessageHandler<R>,
+        message_handler: MessageHandler,
         reply_controller_sender: ReplyControllerSender,
         stats_tx: PacketStatisticsReporter,
     ) -> Self {

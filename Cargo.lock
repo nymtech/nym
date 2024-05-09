@@ -4098,6 +4098,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "nnm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum 0.7.5",
+ "crossbeam-channel",
+ "futures",
+ "nym-bin-common",
+ "nym-network-defaults",
+ "nym-sdk",
+ "rand 0.8.5",
+ "tokio",
+ "tokio-util",
+ "uuid",
+]
+
+[[package]]
 name = "no-std-compat"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4579,6 +4596,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -5575,6 +5593,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "serde",
  "serde_json",
  "thiserror",
@@ -5871,6 +5890,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "rand_distr",
  "thiserror",
  "tokio",

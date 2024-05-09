@@ -92,10 +92,10 @@ impl MixnetClient {
     /// }
     ///
     /// ```
-    pub async fn connect_new() -> Result<Self> {
+    pub async fn connect_new(seed: Option<u64>) -> Result<Self> {
         MixnetClientBuilder::new_ephemeral()
             .build()?
-            .connect_to_mixnet()
+            .connect_to_mixnet(seed)
             .await
     }
 

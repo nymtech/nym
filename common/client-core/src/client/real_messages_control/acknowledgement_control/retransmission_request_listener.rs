@@ -15,24 +15,21 @@ use nym_sphinx::chunking::fragment::Fragment;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::{addressing::clients::Recipient, params::PacketType};
 use nym_task::connections::TransmissionLane;
-use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
 // responsible for packet retransmission upon fired timer
-pub(super) struct RetransmissionRequestListener<R> {
+pub(super) struct RetransmissionRequestListener {
     action_sender: AckActionSender,
-    message_handler: MessageHandler<R>,
+    message_handler: MessageHandler,
     request_receiver: RetransmissionRequestReceiver,
     reply_controller_sender: ReplyControllerSender,
 }
 
-impl<R> RetransmissionRequestListener<R>
-where
-    R: CryptoRng + Rng,
+impl RetransmissionRequestListener
 {
     pub(super) fn new(
         action_sender: AckActionSender,
-        message_handler: MessageHandler<R>,
+        message_handler: MessageHandler,
         request_receiver: RetransmissionRequestReceiver,
         reply_controller_sender: ReplyControllerSender,
     ) -> Self {

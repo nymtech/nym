@@ -12,13 +12,13 @@ use nym_sphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
 use nym_sphinx_params::PacketType;
 use nym_topology::{gateway, mix, NymTopology};
-use rand::{CryptoRng, Rng};
+use rand_chacha::ChaCha8Rng;
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub struct NodeTester<R> {
-    rng: R,
+pub struct NodeTester {
+    rng: ChaCha8Rng,
 
     base_topology: NymTopology,
 
@@ -44,12 +44,9 @@ pub struct NodeTester<R> {
     ack_key: Arc<AckKey>,
 }
 
-impl<R> NodeTester<R>
-where
-    R: Rng + CryptoRng,
-{
+impl NodeTester {
     pub fn new(
-        rng: R,
+        rng: ChaCha8Rng,
         base_topology: NymTopology,
         self_address: Option<Recipient>,
         packet_size: PacketSize,
@@ -276,10 +273,8 @@ where
     }
 }
 
-impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
-    type Rng = R;
-
-    fn rng(&mut self) -> &mut Self::Rng {
+impl FragmentPreparer for NodeTester {
+    fn rng(&mut self) -> &mut ChaCha8Rng {
         &mut self.rng
     }
 

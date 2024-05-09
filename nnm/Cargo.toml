@@ -1,0 +1,26 @@
+[package]
+name = "nnm"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros", "time"] }
+axum = "0.7.5"
+uuid = { version = "1", features = ["v4"] }
+crossbeam-channel = "0.5.12"
+futures = { workspace = true }
+tokio-util = { workspace = true }
+rand = { workspace = true }
+
+# internal
+nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-bin-common = { path = "../common/bin-common" }
+nym-network-defaults = { path = "../common/network-defaults" }

@@ -78,6 +78,6 @@ pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync
     }
 
     SocketClient::new(config, args.common_args.custom_mixnet)
-        .run_socket_forever()
+        .run_socket_forever(None)
         .await
 }

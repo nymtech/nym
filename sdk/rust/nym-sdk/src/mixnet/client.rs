@@ -580,10 +580,7 @@ where
         )
     }
 
-    async fn connect_to_mixnet_common(
-        mut self,
-        seed: Option<u64>,
-    ) -> Result<(BaseClient, Recipient)> {
+    async fn connect_to_mixnet_common(mut self) -> Result<(BaseClient, Recipient)> {
         self.setup_client_keys().await?;
         self.setup_gateway().await?;
 
@@ -596,7 +593,7 @@ where
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
         let mut base_builder: BaseClientBuilder<_, _> =
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client, seed)
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_wireguard_connection(self.wireguard_mode);
 
@@ -646,17 +643,14 @@ where
     ///     let client = client.connect_to_mixnet_via_socks5().await.unwrap();
     /// }
     /// ```
-    pub async fn connect_to_mixnet_via_socks5(
-        self,
-        seed: Option<u64>,
-    ) -> Result<Socks5MixnetClient> {
+    pub async fn connect_to_mixnet_via_socks5(self) -> Result<Socks5MixnetClient> {
         let socks5_config = self
             .socks5_config
             .clone()
             .ok_or(Error::Socks5Config { set: false })?;
         let debug_config = self.config.debug_config;
         let packet_type = self.config.debug_config.traffic.packet_type;
-        let (mut started_client, nym_address) = self.connect_to_mixnet_common(seed).await?;
+        let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let (socks5_status_tx, mut socks5_status_rx) = mpsc::channel(128);
 
         let client_input = started_client.client_input.register_producer();
@@ -726,11 +720,11 @@ where
     ///     let client = client.connect_to_mixnet().await.unwrap();
     /// }
     /// ```
-    pub async fn connect_to_mixnet(self, seed: Option<u64>) -> Result<MixnetClient> {
+    pub async fn connect_to_mixnet(self) -> Result<MixnetClient> {
         if self.socks5_config.is_some() {
             return Err(Error::Socks5Config { set: true });
         }
-        let (mut started_client, nym_address) = self.connect_to_mixnet_common(seed).await?;
+        let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
         let client_state: nym_client_core::client::base_client::ClientState =

@@ -3,7 +3,6 @@
 
 use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
-use log::info;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
@@ -17,8 +16,7 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
-use rand::thread_rng;
-use rand_chacha::rand_core::SeedableRng;
+use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
 use std::time::Duration;
@@ -49,10 +47,10 @@ impl From<PreparedFragment> for MixPacket {
 // this is extracted into a trait with default implementation to remove duplicate code
 // (which we REALLY want to avoid with crypto)
 pub trait FragmentPreparer {
-    fn rng(&mut self) -> &mut ChaCha8Rng;
-    fn route_rng(&mut self) -> &mut ChaCha8Rng {
-        self.rng()
-    }
+    type Rng: CryptoRng + Rng;
+
+    fn rng(&mut self) -> &mut Self::Rng;
+    fn nonce(&self) -> i32;
     fn num_mix_hops(&self) -> u8;
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
@@ -199,6 +197,11 @@ pub trait FragmentPreparer {
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
         // the packet encryption key
+
+        let seed = fragment.seed().wrapping_mul(self.nonce());
+        let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
+        // nym_metrics::fragment_sent!(seed);
+
         let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
         let expected_plaintext = match packet_type {
             PacketType::Outfox => {
@@ -234,9 +237,7 @@ pub trait FragmentPreparer {
         // generate pseudorandom route for the packet
         let hops = mix_hops.unwrap_or(self.num_mix_hops());
         log::trace!("Preparing chunk for sending with {} mix hops", hops);
-        let route =
-            topology.random_route_to_gateway(self.route_rng(), hops, packet_recipient.gateway())?;
-        info!("Generated route: {:?}", route);
+        let route = topology.random_route_to_gateway(&mut rng, hops, packet_recipient.gateway())?;
         let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays
@@ -301,12 +302,9 @@ pub trait FragmentPreparer {
 /// and chunking into appropriate size [`Fragment`]s.
 #[derive(Clone)]
 #[must_use]
-pub struct MessagePreparer {
+pub struct MessagePreparer<R> {
     /// Instance of a cryptographically secure random number generator.
-    rng: ChaCha8Rng,
-
-    /// cryptographically secure random number generator used for generating routes only
-    route_rng: ChaCha8Rng,
+    rng: R,
 
     /// Address of this client which also represent an address to which all acknowledgements
     /// and surb-based are going to be sent.
@@ -321,30 +319,29 @@ pub struct MessagePreparer {
     /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
     /// Note that it does not include gateway hops.
     num_mix_hops: u8,
+
+    nonce: i32,
 }
 
-impl MessagePreparer {
+impl<R> MessagePreparer<R>
+where
+    R: CryptoRng + Rng,
+{
     pub fn new(
+        rng: R,
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
-        seed: Option<u64>,
     ) -> Self {
-        let route_rng = if let Some(seed) = seed {
-            ChaCha8Rng::seed_from_u64(seed)
-        } else {
-            ChaCha8Rng::from_entropy()
-        };
-
-        let rng = ChaCha8Rng::from_entropy();
-
+        let mut rng = rng;
+        let nonce = rng.gen();
         MessagePreparer {
             rng,
-            route_rng,
             sender_address,
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            nonce,
         }
     }
 
@@ -365,10 +362,9 @@ impl MessagePreparer {
         topology: &NymTopology,
     ) -> Result<Vec<ReplySurb>, NymTopologyError> {
         let mut reply_surbs = Vec::with_capacity(amount);
-        let mut rng = thread_rng();
         for _ in 0..amount {
             let reply_surb = ReplySurb::construct(
-                &mut rng,
+                &mut self.rng,
                 &self.sender_address,
                 self.average_packet_delay,
                 topology,
@@ -451,8 +447,10 @@ impl MessagePreparer {
     }
 }
 
-impl FragmentPreparer for MessagePreparer {
-    fn rng(&mut self) -> &mut ChaCha8Rng {
+impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
+    type Rng = R;
+
+    fn rng(&mut self) -> &mut Self::Rng {
         &mut self.rng
     }
 
@@ -466,6 +464,10 @@ impl FragmentPreparer for MessagePreparer {
 
     fn average_ack_delay(&self) -> Duration {
         self.average_ack_delay
+    }
+
+    fn nonce(&self) -> i32 {
+        self.nonce
     }
 }
 

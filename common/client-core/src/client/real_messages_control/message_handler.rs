@@ -20,8 +20,7 @@ use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
 use nym_topology::{NymTopology, NymTopologyError};
-use rand::SeedableRng;
-use rand_chacha::ChaCha8Rng;
+use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -148,10 +147,10 @@ impl Config {
 }
 
 #[derive(Clone)]
-pub(crate) struct MessageHandler {
+pub(crate) struct MessageHandler<R> {
     config: Config,
-    rng: ChaCha8Rng,
-    message_preparer: MessagePreparer,
+    rng: R,
+    message_preparer: MessagePreparer<R>,
     action_sender: AckActionSender,
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
@@ -159,25 +158,29 @@ pub(crate) struct MessageHandler {
     tag_storage: UsedSenderTags,
 }
 
-impl MessageHandler {
+impl<R> MessageHandler<R>
+where
+    R: CryptoRng + Rng,
+{
     pub(crate) fn new(
         config: Config,
+        rng: R,
         action_sender: AckActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: SentReplyKeys,
         tag_storage: UsedSenderTags,
-        seed: Option<u64>,
-    ) -> Self {
+    ) -> Self
+    where
+        R: Copy,
+    {
         let message_preparer = MessagePreparer::new(
+            rng,
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
-            seed,
         )
         .with_mix_hops(config.num_mix_hops);
-
-        let rng = ChaCha8Rng::from_entropy();
 
         MessageHandler {
             config,
@@ -450,6 +453,7 @@ impl MessageHandler {
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut real_messages = Vec::with_capacity(fragments.len());
+        debug!("Splitting message into {} fragments", fragments.len());
         for fragment in fragments {
             // we need to clone it because we need to keep it in memory in case we had to retransmit
             // it. And then we'd need to recreate entire ACK again.

@@ -28,6 +28,7 @@ use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
+use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 
 use crate::client::replies::reply_controller;
@@ -119,15 +120,18 @@ impl Config {
     }
 }
 
-pub(crate) struct RealMessagesController {
-    out_queue_control: OutQueueControl,
-    ack_control: AcknowledgementController,
-    reply_control: ReplyController,
+pub(crate) struct RealMessagesController<R>
+where
+    R: CryptoRng + Rng,
+{
+    out_queue_control: OutQueueControl<R>,
+    ack_control: AcknowledgementController<R>,
+    reply_control: ReplyController<R>,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
-impl RealMessagesController {
+impl RealMessagesController<OsRng> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
@@ -142,8 +146,9 @@ impl RealMessagesController {
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         stats_tx: PacketStatisticsReporter,
-        seed: Option<u64>,
     ) -> Self {
+        let rng = OsRng;
+
         // create channels for inter-task communication
         let (real_message_sender, real_message_receiver) = tokio::sync::mpsc::channel(1);
         let (sent_notifier_tx, sent_notifier_rx) = mpsc::unbounded();
@@ -165,12 +170,12 @@ impl RealMessagesController {
         // create the actual components
         let message_handler = MessageHandler::new(
             message_handler_config,
+            rng,
             ack_action_tx,
             real_message_sender,
             topology_access.clone(),
             reply_storage.key_storage(),
             reply_storage.tags_storage(),
-            seed,
         );
 
         let ack_control = AcknowledgementController::new(
@@ -191,6 +196,7 @@ impl RealMessagesController {
 
         let out_queue_control = OutQueueControl::new(
             out_queue_config,
+            rng,
             sent_notifier_tx,
             mix_sender,
             real_message_receiver,

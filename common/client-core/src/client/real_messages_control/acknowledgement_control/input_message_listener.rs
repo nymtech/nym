@@ -11,23 +11,30 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use rand::{CryptoRng, Rng};
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
 /// It also makes an initial sending attempt for said messages.
-pub(super) struct InputMessageListener {
+pub(super) struct InputMessageListener<R>
+where
+    R: CryptoRng + Rng,
+{
     input_receiver: InputMessageReceiver,
-    message_handler: MessageHandler,
+    message_handler: MessageHandler<R>,
     reply_controller_sender: ReplyControllerSender,
 }
 
-impl InputMessageListener {
+impl<R> InputMessageListener<R>
+where
+    R: CryptoRng + Rng,
+{
     // at this point I'm not entirely sure how to deal with this warning without
     // some considerable refactoring
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         input_receiver: InputMessageReceiver,
-        message_handler: MessageHandler,
+        message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
     ) -> Self {
         InputMessageListener {

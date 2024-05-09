@@ -4106,9 +4106,12 @@ dependencies = [
  "crossbeam-channel",
  "futures",
  "nym-bin-common",
+ "nym-metrics",
  "nym-network-defaults",
  "nym-sdk",
- "rand 0.8.5",
+ "nym-topology",
+ "rand 0.7.3",
+ "rand_chacha 0.2.2",
  "tokio",
  "tokio-util",
  "uuid",
@@ -5877,6 +5880,7 @@ version = "0.1.0"
 dependencies = [
  "log",
  "nym-crypto",
+ "nym-metrics",
  "nym-mixnet-contract-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
@@ -5948,6 +5952,7 @@ name = "nym-sphinx-chunking"
 version = "0.1.0"
 dependencies = [
  "log",
+ "nym-metrics",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",

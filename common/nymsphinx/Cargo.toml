@@ -28,6 +28,7 @@ nym-sphinx-types = { path = "types" }
 # to separate crate?
 nym-crypto = { path = "../crypto", version = "0.4.0" }
 nym-topology = { path = "../topology" }
+nym-metrics = { path = "../nym-metrics" }
 
 [dev-dependencies]
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }

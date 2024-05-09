@@ -1,6 +1,8 @@
 use anyhow::Result;
 use nym_network_defaults::setup_env;
 use nym_sdk::mixnet::{self, MixnetClient};
+use rand::SeedableRng;
+use rand_chacha::ChaCha8Rng;
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
@@ -13,7 +15,22 @@ use crate::http::HttpServer;
 
 mod http;
 
-async fn make_client() -> Result<MixnetClient> {
+pub struct ClientWrapper {
+    client: MixnetClient,
+    rng: ChaCha8Rng,
+}
+
+impl ClientWrapper {
+    pub fn new(client: MixnetClient, rng: ChaCha8Rng) -> Self {
+        Self { client, rng }
+    }
+
+    pub fn rng(&mut self) -> &mut ChaCha8Rng {
+        &mut self.rng
+    }
+}
+
+async fn make_client() -> Result<ClientWrapper> {
     let ff_net = mixnet::NymNetworkDetails::new_from_env();
 
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
@@ -21,8 +38,9 @@ async fn make_client() -> Result<MixnetClient> {
         // .enable_credentials_mode()
         .build()?;
 
-    let client = mixnet_client.connect_to_mixnet(Some(1)).await?;
-    Ok(client)
+    let client = mixnet_client.connect_to_mixnet().await?;
+    let rng = ChaCha8Rng::seed_from_u64(1);
+    Ok(ClientWrapper::new(client, rng))
 }
 
 #[tokio::main]
@@ -36,7 +54,7 @@ async fn main() -> Result<()> {
     let server_cancel_token = cancel_token.clone();
 
     let mut clients = vec![];
-    for i in 0..20 {
+    for i in 0..1 {
         println!(
             "############################################# Getting client {}",
             i

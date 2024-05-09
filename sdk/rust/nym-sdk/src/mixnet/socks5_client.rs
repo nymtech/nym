@@ -40,14 +40,11 @@ impl Socks5MixnetClient {
     /// }
     ///
     /// ```
-    pub async fn connect_new<S: Into<String>>(
-        provider_mix_address: S,
-        seed: Option<u64>,
-    ) -> Result<Self> {
+    pub async fn connect_new<S: Into<String>>(provider_mix_address: S) -> Result<Self> {
         MixnetClientBuilder::new_ephemeral()
             .socks5_config(Socks5::new(provider_mix_address))
             .build()?
-            .connect_to_mixnet_via_socks5(seed)
+            .connect_to_mixnet_via_socks5()
             .await
     }
 

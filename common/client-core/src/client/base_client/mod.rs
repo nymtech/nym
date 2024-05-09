@@ -188,7 +188,6 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
-    seed: Option<u64>,
 }
 
 impl<'a, C, S> BaseClientBuilder<'a, C, S>
@@ -200,7 +199,6 @@ where
         base_config: &'a Config,
         client_store: S,
         dkg_query_client: Option<C>,
-        seed: Option<u64>,
     ) -> BaseClientBuilder<'a, C, S> {
         BaseClientBuilder {
             config: base_config,
@@ -213,7 +211,6 @@ where
             shutdown: None,
             user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
-            seed,
         }
     }
 
@@ -319,7 +316,6 @@ where
         shutdown: TaskClient,
         packet_type: PacketType,
         stats_tx: PacketStatisticsReporter,
-        seed: Option<u64>,
     ) {
         info!("Starting real traffic stream...");
 
@@ -335,7 +331,6 @@ where
             lane_queue_lengths,
             client_connection_rx,
             stats_tx,
-            seed,
         )
         .start_with_shutdown(shutdown, packet_type);
     }
@@ -796,7 +791,6 @@ where
             shutdown.fork("real_traffic_controller"),
             self.config.debug.traffic.packet_type,
             packet_stats_reporter.clone(),
-            self.seed,
         );
 
         if !self

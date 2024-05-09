@@ -216,6 +216,13 @@ impl Fragment {
         }
     }
 
+    pub fn seed(&self) -> i32 {
+        let mut seed = self.header.id;
+        seed = seed.wrapping_mul(self.header.total_fragments as i32);
+        seed = seed.wrapping_mul(self.header.current_fragment as i32);
+        seed
+    }
+
     /// Gets the size of payload contained in this `Fragment`.
     pub fn payload_size(&self) -> usize {
         self.payload.len()

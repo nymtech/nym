@@ -3,7 +3,7 @@ use axum::http::Response;
 use axum::routing::get;
 use axum::Router;
 use futures::StreamExt;
-use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender};
+use nym_sdk::mixnet::MixnetMessageSender;
 use rand::seq::SliceRandom;
 use std::future::IntoFuture;
 use std::net::SocketAddr;
@@ -12,6 +12,8 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
+use crate::ClientWrapper;
+
 pub struct HttpServer {
     listener: SocketAddr,
     cancel: CancellationToken,
@@ -19,7 +21,7 @@ pub struct HttpServer {
 
 #[derive(Clone)]
 struct AppState {
-    clients: Vec<Arc<RwLock<MixnetClient>>>,
+    clients: Vec<Arc<RwLock<ClientWrapper>>>,
 }
 
 impl HttpServer {
@@ -27,7 +29,7 @@ impl HttpServer {
         HttpServer { listener, cancel }
     }
 
-    pub async fn run(self, clients: Vec<Arc<RwLock<MixnetClient>>>) -> anyhow::Result<()> {
+    pub async fn run(self, clients: Vec<Arc<RwLock<ClientWrapper>>>) -> anyhow::Result<()> {
         let n_clients = clients.len();
         let state = AppState { clients };
         let app = Router::new().route("/", get(handler).with_state(state));
@@ -76,16 +78,17 @@ async fn send_receive_mixnet(state: AppState) -> Response<String> {
     let client = state.clients.choose(&mut rand::thread_rng()).unwrap();
 
     // Be able to get our client address
-    let our_address = *client.read().await.nym_address();
+    let our_address = *client.read().await.client.nym_address();
     // println!("Our client nym address is: {our_address}");
 
-    let sender = client.read().await.split_sender();
+    let sender = client.read().await.client.split_sender();
 
     let recv = Arc::clone(client);
     // receiving task
     let receiving_task_handle = tokio::spawn(async move {
-        if let Some(received) = recv.write().await.next().await {
+        if let Some(received) = recv.write().await.client.next().await {
             println!("Received: {}", String::from_utf8_lossy(&received.message));
+            println!("{:?}", *nym_metrics::FRAGMENTS_RECEIVED);
         }
 
         // client.write().await.disconnect().await;
@@ -93,6 +96,15 @@ async fn send_receive_mixnet(state: AppState) -> Response<String> {
 
     let msg = Uuid::new_v4().to_string();
     let sent_msg = msg.clone();
+
+    let topology = client
+        .read()
+        .await
+        .client
+        .read_current_topology()
+        .await
+        .unwrap();
+
     // sending task
     let sending_task_handle = tokio::spawn(async move {
         match sender.send_plain_message(our_address, &msg).await {

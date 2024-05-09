@@ -12,6 +12,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::anonymous_replies::ReplySurb;
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_task::connections::{ConnectionId, TransmissionLane};
+use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap};
@@ -49,7 +50,7 @@ impl Config {
 
 // TODO: this should be split into ingress and egress controllers
 // because currently its trying to perform two distinct jobs
-pub struct ReplyController {
+pub struct ReplyController<R> {
     config: Config,
 
     // TODO: incorporate that field at some point
@@ -65,14 +66,17 @@ pub struct ReplyController {
     pending_retransmissions:
         HashMap<AnonymousSenderTag, BTreeMap<FragmentIdentifier, Weak<PendingAcknowledgement>>>,
 
-    message_handler: MessageHandler,
+    message_handler: MessageHandler<R>,
     full_reply_storage: CombinedReplyStorage,
 }
 
-impl ReplyController {
+impl<R> ReplyController<R>
+where
+    R: CryptoRng + Rng,
+{
     pub(crate) fn new(
         config: Config,
-        message_handler: MessageHandler,
+        message_handler: MessageHandler<R>,
         full_reply_storage: CombinedReplyStorage,
         request_receiver: ReplyControllerReceiver,
     ) -> Self {

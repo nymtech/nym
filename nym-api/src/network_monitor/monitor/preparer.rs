@@ -14,9 +14,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_topology::{gateway, mix};
-use rand::SeedableRng;
-use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
-use rand_chacha::ChaCha8Rng;
+use rand_07::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
 
 use std::fmt::{self, Display, Formatter};
@@ -106,8 +104,8 @@ impl PacketPreparer {
         &self,
         test_route: &TestRoute,
         self_address: Option<Recipient>,
-    ) -> NodeTester {
-        let rng = ChaCha8Rng::from_entropy();
+    ) -> NodeTester<ThreadRng> {
+        let rng = thread_rng();
         NodeTester::new(
             rng,
             // the topology here contains 3 mixnodes and 1 gateway so its cheap to clone it
@@ -121,13 +119,13 @@ impl PacketPreparer {
     }
 
     // when we're testing mixnodes, the recipient is going to stay constant, so we can specify it ahead of time
-    fn ephemeral_mix_tester(&self, test_route: &TestRoute) -> NodeTester {
+    fn ephemeral_mix_tester(&self, test_route: &TestRoute) -> NodeTester<ThreadRng> {
         let self_address = self.create_packet_sender(test_route.gateway());
         self.ephemeral_tester(test_route, Some(self_address))
     }
 
     #[allow(dead_code)]
-    fn ephemeral_gateway_tester(&self, test_route: &TestRoute) -> NodeTester {
+    fn ephemeral_gateway_tester(&self, test_route: &TestRoute) -> NodeTester<ThreadRng> {
         self.ephemeral_tester(test_route, None)
     }
 

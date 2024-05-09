@@ -22,8 +22,7 @@ use nym_sphinx::utils::sample_poisson_duration;
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -73,7 +72,10 @@ impl Config {
     }
 }
 
-pub(crate) struct OutQueueControl {
+pub(crate) struct OutQueueControl<R>
+where
+    R: CryptoRng + Rng,
+{
     /// Configurable parameters of the `ActionController`
     config: Config,
 
@@ -97,7 +99,7 @@ pub(crate) struct OutQueueControl {
     real_receiver: BatchRealMessageReceiver,
 
     /// Instance of a cryptographically secure random number generator.
-    rng: StdRng,
+    rng: R,
 
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
@@ -157,12 +159,16 @@ pub(crate) enum StreamMessage {
     Real(Box<RealMessage>),
 }
 
-impl OutQueueControl {
+impl<R> OutQueueControl<R>
+where
+    R: CryptoRng + Rng + Unpin,
+{
     // at this point I'm not entirely sure how to deal with this warning without
     // some considerable refactoring
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
+        rng: R,
         sent_notifier: SentPacketNotificationSender,
         mix_tx: BatchMixMessageSender,
         real_receiver: BatchRealMessageReceiver,
@@ -171,7 +177,6 @@ impl OutQueueControl {
         client_connection_rx: ConnectionCommandReceiver,
         stats_tx: PacketStatisticsReporter,
     ) -> Self {
-        let rng = StdRng::from_entropy();
         OutQueueControl {
             config,
             sent_notifier,
@@ -585,7 +590,10 @@ impl OutQueueControl {
     }
 }
 
-impl Stream for OutQueueControl {
+impl<R> Stream for OutQueueControl<R>
+where
+    R: CryptoRng + Rng + Unpin,
+{
     type Item = StreamMessage;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {

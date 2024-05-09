@@ -45,7 +45,7 @@ pub(crate) async fn create_mixnet_client(
         .map_err(|err| IpPacketRouterError::FailedToSetupMixnetClient { source: err })?;
 
     mixnet_client
-        .connect_to_mixnet(None)
+        .connect_to_mixnet()
         .await
         .map_err(|err| IpPacketRouterError::FailedToConnectToMixnet { source: err })
 }

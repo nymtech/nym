@@ -197,32 +197,33 @@ pub struct SerialisedNymIssuedBandwidthVoucher {
     pub bs58_encoded_data: String,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::vpn_api_client::client::{new_client, NymVpnApiClient};
-
-    #[tokio::test]
-    async fn end_to_end() -> anyhow::Result<()> {
-        let client = new_client("http://0.0.0.0:8080", "foomp")?;
-        let opts = client.get_prehashed_public_attributes().await?;
-        let issuance = NymIssuanceBandwidthVoucher::prepare_new(opts, None)?;
-
-        let shares = client
-            .get_bandwidth_voucher_blinded_shares(issuance.blind_sign_request.clone())
-            .await?;
-        let keys = client.get_partial_verification_keys().await?;
-        let master_key = client.get_master_verification_key().await?;
-
-        let voucher = issuance.unblind_shares(shares, keys)?;
-
-        println!(
-            "valid: {}",
-            voucher.ensure_is_valid(master_key.bs58_encoded_key, None)
-        );
-        let serialised = voucher.serialise();
-        println!("final: {serialised:#?}");
-
-        Ok(())
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::vpn_api_client::client::{new_client, NymVpnApiClient};
+//
+//     #[ignore]
+//     #[tokio::test]
+//     async fn end_to_end() -> anyhow::Result<()> {
+//         let client = new_client("http://0.0.0.0:8080", "foomp")?;
+//         let opts = client.get_prehashed_public_attributes().await?;
+//         let issuance = NymIssuanceBandwidthVoucher::prepare_new(opts, None)?;
+//
+//         let shares = client
+//             .get_bandwidth_voucher_blinded_shares(issuance.blind_sign_request.clone())
+//             .await?;
+//         let keys = client.get_partial_verification_keys().await?;
+//         let master_key = client.get_master_verification_key().await?;
+//
+//         let voucher = issuance.unblind_shares(shares, keys)?;
+//
+//         println!(
+//             "valid: {}",
+//             voucher.ensure_is_valid(master_key.bs58_encoded_key, None)
+//         );
+//         let serialised = voucher.serialise();
+//         println!("final: {serialised:#?}");
+//
+//         Ok(())
+//     }
+// }

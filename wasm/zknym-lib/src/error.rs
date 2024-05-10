@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::vpn_api_client::NymVpnApiClientError;
 use thiserror::Error;
 use wasm_utils::wasm_error;
 
@@ -11,12 +12,12 @@ pub enum ZkNymError {
         #[from]
         source: nym_coconut::CoconutError,
     },
-    //
-    // #[error("failed to contact the vpn api")]
-    // HttpClientFailure {
-    //     #[from]
-    //     source: NymVpnApiClientError,
-    // },
+
+    #[error("failed to contact the vpn api")]
+    HttpClientFailure {
+        #[from]
+        source: NymVpnApiClientError,
+    },
     #[error("the provided shares and issuers are not from the same epoch! {shares} and {issuers}")]
     InconsistentEpochId { shares: u64, issuers: u64 },
 

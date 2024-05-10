@@ -38,7 +38,7 @@ nym-http-api-client = { path = "../../common/http-api-client" }
 wasm-utils = { path = "../../common/wasm/utils" }
 
 [dev-dependencies]
-anyhow = { workspac = true }
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 

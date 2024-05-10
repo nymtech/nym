@@ -1,25 +1,26 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::NymVpnApiClientError;
 use crate::error::ZkNymError;
 use crate::vpn_api_client::types::{
-    AttributesResponse, BandwidthVoucherRequest, BandwidthVoucherResponse, ErrorResponse,
+    AttributesResponse, BandwidthVoucherRequest, BandwidthVoucherResponse,
     MasterVerificationKeyResponse, PartialVerificationKeysResponse,
 };
 use async_trait::async_trait;
 use nym_coconut::BlindSignRequest;
 pub use nym_http_api_client::Client;
-use nym_http_api_client::{parse_response, HttpClientError, PathSegments, NO_PARAMS};
+use nym_http_api_client::{parse_response, PathSegments, NO_PARAMS};
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 
-pub type NymVpnApiClientError = HttpClientError<ErrorResponse>;
-
+#[allow(dead_code)]
 pub struct VpnApiClient {
     inner: Client,
     bearer_token: String,
 }
 
+#[allow(dead_code)]
 pub fn new_client(
     base_url: impl IntoUrl,
     bearer_token: impl Into<String>,
@@ -33,6 +34,7 @@ pub fn new_client(
 }
 
 // TODO: do it properly by implementing auth headers on `ApiClient` trait
+#[allow(dead_code)]
 #[async_trait(?Send)]
 pub trait NymVpnApiClient {
     async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, NymVpnApiClientError>

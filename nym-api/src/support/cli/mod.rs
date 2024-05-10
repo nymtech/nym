@@ -23,6 +23,10 @@ pub(crate) struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    /// A no-op flag included for consistency with other binaries (and compatibility with nymvisor, oops)
+    #[clap(long)]
+    pub(crate) no_banner: bool,
+
     #[clap(subcommand)]
     pub(crate) command: Commands,
 }

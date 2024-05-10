@@ -82,7 +82,7 @@ pub trait NymVpnApiClient {
 }
 
 #[async_trait(?Send)]
-impl crate::vpn_api_client::NymVpnApiClient for VpnApiClient {
+impl NymVpnApiClient for VpnApiClient {
     async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, NymVpnApiClientError>
     where
         T: DeserializeOwned,

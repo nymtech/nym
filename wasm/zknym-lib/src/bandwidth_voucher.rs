@@ -200,7 +200,7 @@ pub struct SerialisedNymIssuedBandwidthVoucher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::vpn_api_client::{new_client, NymVpnApiClient};
+    use crate::vpn_api_client::client::{new_client, NymVpnApiClient};
 
     #[tokio::test]
     async fn end_to_end() -> anyhow::Result<()> {

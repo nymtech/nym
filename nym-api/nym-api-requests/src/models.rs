@@ -414,7 +414,9 @@ const fn unix_epoch() -> OffsetDateTime {
 
 // for all intents and purposes it's just OffsetDateTime, but we need JsonSchema...
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct OffsetDateTimeJsonSchemaWrapper(#[serde(default = "unix_epoch")] pub OffsetDateTime);
+pub struct OffsetDateTimeJsonSchemaWrapper(
+    #[serde(default = "unix_epoch", with = "time::serde::rfc3339")] pub OffsetDateTime,
+);
 
 impl Default for OffsetDateTimeJsonSchemaWrapper {
     fn default() -> Self {

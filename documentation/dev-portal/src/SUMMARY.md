@@ -3,12 +3,12 @@
 # Summary
 - [Introduction](introduction.md)
 
+[//]: # (TODO see what you can take from here and put in the intro file )
   [//]: # (# Infrastructure)
   [//]: # ()
   [//]: # (- [What is Nym?]&#40;infrastructure/nym.md&#41;)
   [//]: # (- [Nym vs Other Systems]&#40;infrastructure/nym-vs-others.md&#41;)
   [//]: # (- [Node Types]&#40;infrastructure/node-types.md&#41;)
-
 
 [//]: # (TODO change this to something like 'where to get started and rewrite')
 # Integrations
@@ -34,6 +34,9 @@
 - [Typescript SDK](sdk/typescript.md)
 
 # Clients
+- [Client Binaries](clients/client-binaries.md)
+  - [Building Nym](clients/building-nym.md)
+  - [Prebuilt Binaries](clients/pre-built-binaries.md)
 - [Clients Overview](clients/overview.md)
 - [Websocket Client](clients/websocket-client.md)
   - [Setup Guide](clients/websocket/guide.md)
@@ -48,6 +51,14 @@
 - [Webassembly Client](clients/webassembly-client.md)
 - [Addressing System](clients/addressing-system.md)
 
+# Nyx Blockchain
+- [Interacting with Nyx Chain and Smart Contracts](nyx/interacting-with-chain.md)
+- [Smart Contracts](nyx/smart-contracts.md)
+    - [Mixnet Contract](nyx/mixnet-contract.md)
+    - [Vesting Contract](nyx/vesting-contract.md)
+- [RPC Nodes](nyx/rpc-node.md)
+- [Ledger Live Support](nyx/ledger-live.md)
+
 # User Manuals
 - [NymVPN alpha](nymvpn/intro.md)
     - [CLI](nymvpn/cli.md)
@@ -57,7 +68,6 @@
 - [Apps Using Network Requesters](examples/using-nrs.md)
 - [Browser only](examples/browser-only.md)
 - [Monorepo examples](examples/monorepo-examples.md)
-
 
 # Tutorials
 - [Under Construction](tutorials/comingsoon.md)

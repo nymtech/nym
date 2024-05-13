@@ -304,7 +304,7 @@ Verify a signature.
 
 ### Create a Vesting Schedule
 
-Creates a vesting schedule for an account in the [vesting smart contract](../nyx/vesting-contract.md).
+Creates a vesting schedule for an account in the [vesting smart contract](../../../dev-portal/src/nyx/vesting-contract.md).
 
 ```
 ./nym-cli vesting-schedule create --mnemonic <mnemonic> --address <ADDRESS> --amount <AMOUNT>
@@ -312,7 +312,7 @@ Creates a vesting schedule for an account in the [vesting smart contract](../nyx
 
 ### Query a Vesting Schedule
 
-Query for vesting schedule in the [vesting smart contract](../nyx/vesting-contract.md).
+Query for vesting schedule in the [vesting smart contract](../../../dev-portal/src/nyx/vesting-contract.md).
 
 ```
 ./nym-cli vesting-schedule query --mnemonic <mnemonic>

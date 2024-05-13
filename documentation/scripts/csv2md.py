@@ -41,16 +41,16 @@ def parser_main():
     """Main function initializing ArgumentParser, storing arguments and executing commands."""
     # Top level parser
     parser = argparse.ArgumentParser(
-            prog='CSV TERMINAL READER',
-            description='''Quickly prints .csv files in terminal''',
+            prog='CSV2MD',
+            description='''Displays .csv files in markdown''',
             epilog='''Code is power!'''
         )
 
     # Parser arguments
     parser.add_argument("-V","--version", action="version", version='%(prog)s 1.1.0')
-    parser.add_argument("file", help="csv file name")
+    parser.add_argument("file", help="path/to/file.csv")
     parser.add_argument("-t","--table", default=False, action="store_true", help="output with a tabulate option for terminal reading - does not parse for mdbook render!")
-    parser.add_argument("-i","--index", default=False, action="store_true", help="output without an index column")
+    parser.add_argument("-i","--index", default=False, action="store_true", help="output with an index column")
 
     parser.set_defaults(func=display_file)
     args = parser.parse_args()

@@ -10,9 +10,9 @@ You should have the following set up:
 
 Simply fill in the fields in your browser and click `Send`. In your browser you will see the message sent to the SP, followed by the response from the SP. In your console you will see the logged incoming message from the UC, and the reply message to itfrom the SP.  
 
-<img src="../../images/tutorial_image_5.png"/>
+<img src="../../../images/tutorial_image_5.png"/>
 
-This small project can be used as a template to start conceptualizing and developing more complex PEApps. Stay tuned for more soon, and if you're searching for inspiration check out the [community apps](../../community-resources/community-applications-and-guides.md) list! 
+This small project can be used as a template to start conceptualizing and developing more complex PEApps. Stay tuned for more soon, and if you're searching for inspiration check out the [community apps](../../../community-resources/community-applications-and-guides.md) list! 
 
 
 

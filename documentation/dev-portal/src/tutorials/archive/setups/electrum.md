@@ -27,10 +27,10 @@ chmod +x ./nym-connect_<VERSION>
 
 To download Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
 
-7. Start and connect [NymConnect](./electrum.md#nymconnect-installation) (or [`nym-socks5-client`](https://nymtech.net/docs/clients/socks5-client.html))
+7. Start and connect [NymConnect](electrum.mdymconnect-installation) (or [`nym-socks5-client`](https://nymtech.net/docs/clients/socks5-client.html))
 2. Start your Electrum Bitcoin wallet
 3. Go to: *Tools* -> *Network* -> *Proxy*
 4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add the values from your NymConnect application
 5. Now your Electrum Bitcoin wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client` are connected.
 
-![Electrum Bitcoin wallet setup](../images/electrum_tutorial/electrum.gif)
+![Electrum Bitcoin wallet setup](../../../images/electrum_tutorial/electrum.gif)

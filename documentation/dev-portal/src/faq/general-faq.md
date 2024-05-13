@@ -1,7 +1,5 @@
 # Nym General FAQ
 
-> If you have questions which are not answered below, please share them at our [DevRel AMAs](../community-resources/ama.md) or seek support in [Nym's community](https://nymtech.net/community)
-
 ### What is Nym? 
 
 Nym is a privacy platform that secures user data and protects against surveillance at the network level. 

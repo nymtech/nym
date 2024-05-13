@@ -248,7 +248,7 @@ npm start
 
 Return to [localhost:1234](http://localhost:1234/)) and you should see an updated UI.  
 
-<img src="../../images/tutorial_image_2.png"/>
+<img src="../../../images/tutorial_image_2.png"/>
 
 ## Connecting to your Nym Client
 
@@ -256,7 +256,7 @@ Follow instructions in the [Nym websocket client documentation](https://nymtech.
 
 Your User Client application code is connected to a Nym websocket client, and ready to send messages through the mixnet! 
 
-<img src="../../images/tutorial_image_1.png"/>
+<img src="../../../images/tutorial_image_1.png"/>
 
 In the next section, you will build the Service application you will send these messages to. 
  

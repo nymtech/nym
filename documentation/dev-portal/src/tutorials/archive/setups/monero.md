@@ -2,7 +2,7 @@
 
 *New Nym mixnet integration launched for Monero desktop to secure the right to financial privacy and censorship-resistance*
 
-![](../images/monero_tutorial/monero.png)
+![](../../../images/monero_tutorial/monero.png)
 
 Financial privacy is an important component of digital currencies and the use of Nym will provide users with the highest level of privacy at the infrastructure level. All users of digital currencies should be afforded equal rights to protection from financial surveillance.
 

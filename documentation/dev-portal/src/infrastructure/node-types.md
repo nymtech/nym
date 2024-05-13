@@ -11,4 +11,4 @@ For more in-depth information on the network architecture, head to the [Network 
 If you would like to concentrate on building an application that uses the mixnet:
 * Explore the [Quickstart](../quickstart/overview.md) options.
 * Check out examples of [Community Apps](../community-resources/community-applications-and-guides.md). 
-* Run through the [Rust SDK](../tutorials/rust-sdk.md) or [Typescript](../tutorials/typescript.md) tutorials. 
+* Run through the [Rust SDK](../tutorials/archive/setups/rust-sdk.md) or [Typescript](../tutorials/archive/setups/typescript.md) tutorials. 

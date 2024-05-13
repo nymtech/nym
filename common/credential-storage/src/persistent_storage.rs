@@ -69,9 +69,21 @@ impl Storage for PersistentStorage {
                 bandwidth_credential.credential_data,
                 bandwidth_credential.epoch_id,
             )
-            .await?;
-
-        Ok(())
+            .await
+            .map_err(|err| {
+                // There is one error we want to handle specifically.
+                // Check if database_error is `SqliteError` with code 2067 which
+                // means UNIQUE constraint violation
+                if let Some(db_error) = err.as_database_error() {
+                    if db_error.code().map_or(false, |code| code == "2067") {
+                        StorageError::ContraintUnique
+                    } else {
+                        err.into()
+                    }
+                } else {
+                    err.into()
+                }
+            })
     }
 
     async fn get_next_unspent_credential(

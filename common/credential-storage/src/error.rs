@@ -18,4 +18,7 @@ pub enum StorageError {
 
     #[error("No unused credential in database. You need to buy at least one")]
     NoCredential,
+
+    #[error("Database unique constraint violation. Is the credential already imported?")]
+    ContraintUnique,
 }

@@ -11,6 +11,7 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
+use nym_sphinx_chunking::fragment_sent;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
@@ -200,7 +201,7 @@ pub trait FragmentPreparer {
 
         let seed = fragment.seed().wrapping_mul(self.nonce());
         let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
-        // nym_metrics::fragment_sent!(seed);
+        fragment_sent(&fragment);
 
         let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
         let expected_plaintext = match packet_type {

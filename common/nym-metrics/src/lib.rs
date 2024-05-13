@@ -29,16 +29,6 @@ macro_rules! inc_by {
 }
 
 #[macro_export]
-macro_rules! now {
-    () => {
-        match std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH) {
-            Ok(n) => n.as_secs(),
-            Err(_) => 0,
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! inc {
     ($name:literal) => {
         $crate::REGISTRY.inc($crate::prepend_package_name!($name));
@@ -49,20 +39,6 @@ macro_rules! inc {
 macro_rules! metrics {
     () => {
         $crate::REGISTRY.to_string();
-    };
-}
-
-#[macro_export]
-macro_rules! fragment_recieved {
-    ($seed:expr) => {
-        $crate::FRAGMENTS_RECEIVED.insert($seed, $crate::now!());
-    };
-}
-
-#[macro_export]
-macro_rules! fragment_sent {
-    ($seed:expr) => {
-        $crate::FRAGMENTS_SENT.insert($seed, $crate::now!());
     };
 }
 
@@ -79,53 +55,8 @@ macro_rules! nanos {
     }};
 }
 
-pub struct FragmentIdentifier {
-    set_id: i32,
-    total_fragments: u8,
-    fragment_id: u8,
-}
-
-impl FragmentIdentifier {
-    pub fn new(set_id: i32, total_fragments: u8, fragment_id: u8) -> Self {
-        Self {
-            set_id,
-            total_fragments,
-            fragment_id,
-        }
-    }
-
-    pub fn seed(&self) -> i32 {
-        let mut seed = self.set_id;
-        seed = seed.wrapping_mul(self.total_fragments as i32);
-        seed = seed.wrapping_mul(self.fragment_id as i32);
-        seed
-    }
-}
-
-pub struct FragmentTrace {
-    fragment_identifier: FragmentIdentifier,
-    client_nonce: i32,
-}
-
-impl FragmentTrace {
-    pub fn new(fragment_identifier: FragmentIdentifier, client_nonce: i32) -> Self {
-        Self {
-            fragment_identifier,
-            client_nonce,
-        }
-    }
-
-    pub fn seed(&self) -> i32 {
-        self.fragment_identifier
-            .seed()
-            .wrapping_mul(self.client_nonce)
-    }
-}
-
 lazy_static::lazy_static! {
     pub static ref REGISTRY: MetricsController = MetricsController::default();
-    pub static ref FRAGMENTS_RECEIVED: DashMap<u64, FragmentIdentifier> = DashMap::new();
-    pub static ref FRAGMENTS_SENT: DashMap<u64, FragmentTrace> = DashMap::new();
 }
 
 #[derive(Default)]

@@ -14,16 +14,13 @@ license.workspace = true
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros", "time"] }
 axum = "0.7.5"
-uuid = { version = "1", features = ["v4"] }
-crossbeam-channel = "0.5.12"
 futures = { workspace = true }
 tokio-util = { workspace = true }
 rand = "0.7.3"
-rand_chacha = { version = "0.2.1" }
 
 # internal
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-bin-common = { path = "../common/bin-common" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-topology = { path = "../common/topology" }
-nym-metrics = { path = "../common/nym-metrics" }
+nym-sphinx = { path = "../common/nymsphinx" }

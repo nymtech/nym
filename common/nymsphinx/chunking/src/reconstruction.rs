@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::fragment::Fragment;
-use crate::ChunkingError;
+use crate::{fragment_received, ChunkingError};
 use log::*;
 use std::collections::HashMap;
 
@@ -104,7 +104,7 @@ impl ReconstructionBuffer {
             }
         });
 
-        // nym_metrics::fragment_recieved!(fragment.seed());
+        fragment_received(&fragment);
 
         let fragment_index = fragment.current_fragment() as usize - 1;
         if self.fragments[fragment_index].is_some() {

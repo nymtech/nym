@@ -125,6 +125,10 @@ impl Debug for Fragment {
 }
 
 impl Fragment {
+    pub fn header(&self) -> FragmentHeader {
+        self.header.clone()
+    }
+
     /// Tries to encapsulate provided payload slice and metadata into a `Fragment`.
     /// It can fail if payload would not fully fit in a single `Fragment` or some of the metadata
     /// is malformed or self-contradictory, for example if current_fragment > total_fragments.
@@ -305,7 +309,7 @@ impl Fragment {
 /// and for the longest messages, without upper bound, there is usually also only 7 bytes
 /// of overhead apart from first and last fragments in each set that instead have 10 bytes of overhead.
 #[derive(PartialEq, Clone, Debug)]
-pub(crate) struct FragmentHeader {
+pub struct FragmentHeader {
     /// ID associated with `FragmentSet` to which this particular `Fragment` belongs.
     /// Its value is restricted to (0, i32::MAX].
     /// Note that it *excludes* 0, but *includes* i32::MAX.

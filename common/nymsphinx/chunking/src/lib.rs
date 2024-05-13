@@ -1,7 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::fragment::{linked_fragment_payload_max_len, unlinked_fragment_payload_max_len};
+use crate::fragment::{
+    linked_fragment_payload_max_len, unlinked_fragment_payload_max_len, FragmentIdentifier,
+};
+use dashmap::DashMap;
+use fragment::{Fragment, FragmentHeader};
 pub use set::split_into_sets;
 use thiserror::Error;
 
@@ -21,6 +25,43 @@ pub const MIN_PADDING_OVERHEAD: usize = 1;
 pub mod fragment;
 pub mod reconstruction;
 pub mod set;
+
+lazy_static::lazy_static! {
+    pub static ref FRAGMENTS_RECEIVED: DashMap<FragmentIdentifier, (FragmentHeader, u64)> = DashMap::new();
+    pub static ref FRAGMENTS_SENT: DashMap<FragmentIdentifier, (FragmentHeader, u64)> = DashMap::new();
+}
+
+#[macro_export]
+macro_rules! now {
+    () => {
+        match std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH) {
+            Ok(n) => n.as_secs(),
+            Err(_) => 0,
+        }
+    };
+}
+
+pub fn fragment_received(fragment: &Fragment) {
+    FRAGMENTS_RECEIVED.insert(fragment.fragment_identifier(), (fragment.header(), now!()));
+}
+
+pub fn fragment_sent(fragment: &Fragment) {
+    FRAGMENTS_SENT.insert(fragment.fragment_identifier(), (fragment.header(), now!()));
+}
+
+// #[macro_export]
+// macro_rules! fragment_received {
+//     ($header:expr) => {
+//         $crate::FRAGMENTS_RECEIVED.insert($header, $crate::now!());
+//     };
+// }
+
+// #[macro_export]
+// macro_rules! fragment_sent {
+//     ($header:expr) => {
+//         $crate::FRAGMENTS_SENT.insert($header, $crate::now!());
+//     };
+// }
 
 /// The idea behind the process of chunking is to incur as little data overhead as possible due
 /// to very computationally costly sphinx encapsulation procedure.

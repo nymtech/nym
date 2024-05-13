@@ -122,7 +122,8 @@ fn execute_command(file: &mut File, main_command: &str, subcommand: &str) -> io:
     // perhaps if this list grows we could just add a timeout and shunt the running and writing
     // into a thread with a timeout or something but for right now its fine / thats overkill
     if get_last_word_from_filepath(main_command).unwrap() == "nym-node"
-        || get_last_word_from_filepath(main_command).unwrap() == "nym-api" && subcommand == "run"
+        || get_last_word_from_filepath(main_command).unwrap() == "nym-api"
+        || get_last_word_from_filepath(main_command).unwrap() == "nymvisor" && subcommand == "run"
     {
         info!("SKIPPING {} {}", main_command, subcommand);
     } else {

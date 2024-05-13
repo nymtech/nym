@@ -20,17 +20,15 @@
 # User Manuals
 
 - [NymVPN alpha](nymvpn/intro.md)
-    - [GUI](nymvpn/gui.md)
-        - [Linux](nymvpn/gui-linux.md)
-        - [MacOS](nymvpn/gui-mac.md)
     - [CLI](nymvpn/cli.md)
-    - [Troubleshooting](nymvpn/troubleshooting.md)
-    - [NymVPN FAQ](nymvpn/faq.md)
+
+<!-- OUTDATED STUFF:
 - [NymConnect X Monero](tutorials/monero.md)
 - [NymConnect X Matrix](tutorials/matrix.md)
 - [NymConnect X Telegram](tutorials/telegram.md)
 - [NymConnect X Electrum](tutorials/electrum.md)
 - [NymConnect X Firo wallet](tutorials/firo.md)
+-->
 
 # Code Examples
 

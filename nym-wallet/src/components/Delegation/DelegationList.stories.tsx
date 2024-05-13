@@ -34,6 +34,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: false,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 2,
@@ -57,6 +58,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 3,
@@ -80,6 +82,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 4,
@@ -103,6 +106,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 5,
@@ -126,6 +130,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 6,
@@ -149,6 +154,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 7,
@@ -172,6 +178,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: false,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 8,
@@ -195,6 +202,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 9,
@@ -218,6 +226,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 10,
@@ -241,6 +250,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 11,
@@ -264,6 +274,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
   {
     mix_id: 12,
@@ -287,6 +298,7 @@ export const items: DelegationWithEverything[] = [
     uses_vesting_contract_tokens: true,
     pending_events: [],
     mixnode_is_unbonding: true,
+    errors: null,
   },
 ];
 

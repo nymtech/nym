@@ -1,21 +1,20 @@
-# Network Requesters
+# Network Requester
 
-> Nym Network Requester was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
-
-```admonish info
-As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym Exit Gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
+```admonish warning
+**This is an archived page for backwards compatibility for existing node operators. To start a new node or migrate, follow the [`nym-node` guides](../../nodes/nym-node.md).** The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!
 ```
+
+> Nym Network Requester was built in the [building nym](../../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
-```
-<!-- cmdrun ../../../../target/release/nym-network-requester --version | grep "Build Version" | cut -b 21-26  -->
-```
+
+The last version before migration to [`nym-node`](../../nodes/nym-node.md) was `1.1.33`.
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your Network Requester.
+Make sure you do the preparation listed in the [preliminary steps page](initial-steps.md) before setting up your Network Requester.
 
 ## Network Requester Whitelist
 
@@ -127,12 +126,6 @@ cd target/release
 
 The `./nym-network-requester --help ` command can be used to show a list of available parameters.
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-network-requester --help -->
-```
-~~~
-
 You can check the required parameters for available commands by running:
 
 ```
@@ -148,15 +141,6 @@ The Network Requester needs to be initialized before it can be run. This is requ
 ```
  ./nym-network-requester init --id <YOUR_ID>
 ```
-
-In the following we used `example`.
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun timeout 20s ../../../../target/release/nym-network-requester init --id example -->
-```
-~~~
-
 
 Now that we have initialized our network-requester, we can start it with the following command:
 
@@ -218,7 +202,4 @@ This command should return the following:
 { "status": "ok" }
 ```
 
-## Maintenance
-
-For Network Requester upgrade (including an upgrade from `<v1.1.9` to `>= v1.1.10`), firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md).
 

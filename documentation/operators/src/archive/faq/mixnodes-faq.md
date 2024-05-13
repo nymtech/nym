@@ -1,5 +1,9 @@
 # Frequently Asked Questions
 
+```admonish warning
+**This is an archived page for backwards compatibility. The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!**
+```
+
 ## Nym Mixnet
 
 To see different stats about Nym Mixnet live, we recommend you to visit [status.notrustverify.ch](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1) built by [No Trust Verify](https://notrustverify.ch/) crew, one of the squads within Nym core community.
@@ -32,7 +36,6 @@ The rewarded nodes are the nodes which will receive some rewards by the end of t
 
 2. Standby: Bottom *N* nodes of the rewarded set, they don't mix data from the clients but are used for testing. Their reward is smaller.
 
-
 For more detailed calculation, read our blog post [Nym Token Economics update](https://blog.nymtech.net/nym-token-economics-update-fedff0ed5267). More info on staking can be found [here](https://blog.nymtech.net/staking-in-nym-introducing-mainnet-mixmining-f9bb1cbc7c36). And [here](https://blog.nymtech.net/want-to-stake-in-nym-here-is-how-to-choose-a-mix-node-to-delegate-nym-to-c3b862add165) is more info on how to choose a Mix Node for delegation. And finally an [update](https://blog.nymtech.net/quarterly-token-economic-parameter-update-b2862948710f) on token economics from July 2023.
 
 <iframe src="https://status.notrustverify.ch/d-solo/CW3L7dVVk/nym-mixnet?orgId=1&from=1703074829887&to=1705666829887&panelId=31" width="850" height="400" frameborder="0"></iframe>
@@ -57,7 +60,7 @@ Because of the way the smart contract works we keep it one-node one-address at t
 
 ### Which nodes are the most needed to be setup to strengthen Nym infrastructure and which ones bring rewards?
 
-Ath this point the most crutial component needed are [Exit Gateways](../legal/exit-gateway.md).
+Ath this point the most crutial component needed are [Exit Gateways](../../legal/exit-gateway.md).
 
 ### Are Mix Nodes whitelisted?
 

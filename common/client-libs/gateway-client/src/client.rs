@@ -442,7 +442,7 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         debug_assert!(self.connection.is_available());
-        log::trace!("Registering gateway");
+        log::debug!("Registering gateway");
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
@@ -494,6 +494,7 @@ impl<C, St> GatewayClient<C, St> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
+        log::debug!("Authenticating with gateway");
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
@@ -529,6 +530,7 @@ impl<C, St> GatewayClient<C, St> {
                 self.authenticated = status;
                 self.bandwidth_remaining = bandwidth_remaining;
                 self.negotiated_protocol = protocol_version;
+                log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
@@ -541,10 +543,11 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
     ) -> Result<Arc<SharedKeys>, GatewayClientError> {
         if self.authenticated {
+            debug!("Already authenticated");
             return if let Some(shared_key) = &self.shared_key {
                 Ok(Arc::clone(shared_key))
             } else {
-                Err(GatewayClientError::AuthenticationFailure)
+                Err(GatewayClientError::AuthenticationFailureWithPreexistingSharedKey)
             };
         }
 

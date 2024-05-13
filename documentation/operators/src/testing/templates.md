@@ -1,4 +1,4 @@
- Metrics of Performance Testing
+# Metrics of Performance Testing
 
 At Nym as well as several core community operators had setup metrics monitors for a clear overview of node performance.
 

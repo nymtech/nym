@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v1.2.13] (2024-05-08)
+
+- Bug fix: wallet delegations list is empty when RPC node doesn't hold block ([#4565])
+- updating sign commands to include nym-node([#4578])
+
+[#4578]: https://github.com/nymtech/nym/pull/4578
+[#4565]: https://github.com/nymtech/nym/pull/4565
+
 ## [v1.2.10] (2023-10-31)
 
 - Add loading model on initial load of delegations ([#4039])

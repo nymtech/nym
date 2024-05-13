@@ -101,7 +101,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   // Refresh the rewards and delegations periodically when page is mounted
   useEffect(() => {
-    const timer = setInterval(refreshWithIntervalUpdate, 1 * 60 * 1000); // every 1 minute
+    const timer = setInterval(refreshWithIntervalUpdate, 5 * 60 * 1000); // every 5 minutes
     return () => clearInterval(timer);
   }, []);
 

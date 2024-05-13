@@ -71,6 +71,9 @@ pub enum GatewayClientError {
     #[error("Authentication failure")]
     AuthenticationFailure,
 
+    #[error("Authentication failure with preexisting shared key")]
+    AuthenticationFailureWithPreexistingSharedKey,
+
     #[error("Timed out")]
     Timeout,
 

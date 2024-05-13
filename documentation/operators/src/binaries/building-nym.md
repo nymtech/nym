@@ -54,16 +54,14 @@ cargo build --release # build your binaries with **mainnet** configuration
 
 Quite a bit of stuff gets built. The key working parts are:
 
-* [mix node](../nodes/mix-node-setup.md): `nym-mixnode`
-* [gateway node](../nodes/gateway-setup.md): `nym-gateway`
+* [Nym Node](../nodes/nym-node.md): `nym-node`
+* [Validator](../nodes/validator-setup.md)
 * [websocket client](https://nymtech.net/docs/clients/websocket-client.html): `nym-client`
 * [socks5 client](https://nymtech.net/docs/clients/socks5-client.html): `nym-socks5-client`
 * [webassembly client](https://nymtech.net/docs/clients/webassembly-client.html): `webassembly-client`
-* [network requester](../nodes/network-requester-setup.md): `nym-network-requester`
 * [nym-cli tool](https://nymtech.net/docs/tools/nym-cli.html): `nym-cli`
 * [nym-api](../nodes/nym-api.md): `nym-api`
-
-[//]: # (* [nymvisor]&#40;../nodes/nymvisor-upgrade.md&#41;: `nymvisor`)
+* [nymvisor](../nodes/nymvisor-upgrade.md): `nymvisor`
  
 The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
 * [Nym Wallet](https://nymtech.net/docs/wallet/desktop-wallet.html)

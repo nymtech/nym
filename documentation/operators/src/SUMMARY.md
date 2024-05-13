@@ -2,6 +2,7 @@
 # Summary
 
 - [Introduction](introduction.md)
+- [Changelog](changelog.md)
 
 # Binaries
 
@@ -12,13 +13,17 @@
 
 # Operators Guides
 
-- [Mixnet Nodes Setup](nodes/setup-guides.md)
-    - [Preliminary Steps](preliminary-steps.md)
-    - [Mix Node](nodes/mix-node-setup.md)
-    - [Gateway](nodes/gateway-setup.md)
-    - [Network Requester](nodes/network-requester-setup.md)
+- [Preliminary Steps](nodes/preliminary-steps.md)
+  - [Nym Wallet Preparation](nodes/wallet-preparation.md)
+  - [VPS Setup](nodes/vps-setup.md)
+- [Nym Node](nodes/nym-node.md)
+  - [Setup & Run](nodes/setup.md)
+  - [Configuration](nodes/configuration.md)
+      - [WSS & Reversed Proxy](nodes/proxy-configuration.md)
+  - [Bonding](nodes/bonding.md)
 - [Nyx Validator Setup](nodes/validator-setup.md)
   - [Nym API Setup](nodes/nym-api.md)
+  - [Validator & API Configuration](nodes/nyx-configuration.md)
 - [Maintenance](nodes/maintenance.md)
   - [Manual Node Upgrade](nodes/manual-upgrade.md)
   - [Automatic Node Upgrade: Nymvisor Setup and Usage](nodes/nymvisor-upgrade.md)
@@ -28,12 +33,12 @@
   - [Prometheus & Grafana](testing/prometheus-grafana.md)
     - [ExploreNYM scripts](testing/explorenym-scripts.md)
 <!--    - [Run in a Docker](testing/docker-monitor.md) -->
-- [Troubleshooting](nodes/troubleshooting.md)
-<!--
-  - [Nym Nodes]()
-  - [Validators]
-  - [Binary]
--->
+
+# Troubleshooting
+
+- [VPS Setup](troubleshooting/vps-isp.md)
+- [Nym Node](troubleshooting/nodes.md)
+- [Validators](troubleshooting/validators.md)
 
 # Token Economics
 
@@ -43,10 +48,11 @@
 
 # FAQ
 
-- [Mix Nodes](faq/mixnodes-faq.md)
-- [Project Smoosh](faq/smoosh-faq.md)
+- [General Operators FAQ](faq/general-faq.md)
+- [Nym Nodes](faq/nym-nodes-faq.md)
+- [Nyx & Validators](faq/nyx-faq.md)
 
-# Legal Forum
+# Community & Legal Forum
 
 - [Exit Gateway](legal/exit-gateway.md)
 - [Community Counsel](legal/community-counsel.md)
@@ -55,6 +61,19 @@
         - [United States](legal/united-states.md)
     - [Landing Pages](legal/landing-pages.md)
 - [How to Add Info](legal/add-content.md)
+
+---
+# Archive
+
+- [Why archive?](archive/archive.md)
+- [Mixnet Nodes Setup](archive/nodes/setup-guides.md)
+    - [Preliminary Steps](archive/nodes/initial-steps.md)
+    - [Mix Node](archive/nodes/mix-node-setup.md)
+    - [Gateway](archive/nodes/gateway-setup.md)
+    - [Network Requester](archive/nodes/network-requester-setup.md)
+- [FAQ: Mix Nodes](archive/faq/mixnodes-faq.md)
+- [FAQ: Project Smoosh](archive/faq/smoosh-faq.md)
+
 
 ---
 # Misc.

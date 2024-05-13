@@ -1,23 +1,26 @@
 # Mix Nodes
 
-> The Nym Mix Node binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+```admonish warning
+**This is an archived page for backwards compatibility for existing node operators. To start a new node or migrate, follow the [`nym-node` guides](../../nodes/nym-node.md).** The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!
+```
+
+> The Nym Mix Node binary was built in the [building nym](../../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
-```
-<!-- cmdrun ../../../../target/release/nym-mixnode --version | grep "Build Version" | cut -b 21-26  -->
-```
+
+The last version before migration to [`nym-node`](../../nodes/nym-node.md) was `1.1.35`.
 
 The `nym-mix node` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your Mix Node.
+Make sure you do the preparation listed in the [preliminary steps page](initial-steps.md) before setting up your Mix Node.
 
 ## Mix node setup
 
-Now that you have built the [codebase](../binaries/building-nym.md), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mix node` binary, you can set up your Mix Node with the instructions below.  
+Now that you have built the [codebase](../../binaries/building-nym.md), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mix node` binary, you can set up your Mix Node with the instructions below.  
 
 To begin, move to `/target/release` directory from which you run the node commands:
 
@@ -35,12 +38,6 @@ You can check that your binaries are properly compiled with:
 
 Which should return a list of all available commands.
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-mixnode --help -->
-```
-~~~
-
 You can also check the various arguments required for individual commands with:
 
 ```
@@ -57,24 +54,11 @@ To check available configuration options for initializing your node use:
 ./nym-mixnode init --help
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --help -->
-```
-~~~
-
 Initialise your Mix Node with the following command, replacing the value of `--id` with the moniker you wish to give your Mix Node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl -4 https://ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
 ./nym-mixnode init --id <YOUR_ID> --host $(curl -4 https://ifconfig.me) 
 ```
-If `<YOUR_ID>` was `my-node`, the output will look like this:
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --id my-node --host $(curl -4 https://ifconfig.me) -->
-```
-~~~
 
 > The `init` command will refuse to destroy existing Mix Node keys.
 
@@ -119,9 +103,9 @@ From `v1.1.3`, if you unbond your Mix Node that means you are leaving the mi
 To initialise, run and bond your Mix Node are the minimum steps to do in order for your Mix Node to work. However we recommend to do a few more steps before bonding. These steps will make it easier for you as a node operator on a long run as well as for others to possibly delegate Nym tokens to your Mix Node. These steps are:
 
 - [Describe your Mix Node](./mix-node-setup.md#node-description-optional) 
-- [Configure your firewall](./maintenance.md#configure-your-firewall)
-- [Automate your Mix Node](./maintenance.md#vps-setup-and-automation)
-- Set the [ulimit](./maintenance.md#set-the-ulimit-via-systemd-service-file), in case you haven't automated with [systemd](./maintenance.md#set-the-ulimit-on-non-systemd-based-distributions)
+- [Configure your firewall](../../nodes/maintenance.md#configure-your-firewall)
+- [Automate your Mix Node](../../nodes/maintenance.md#vps-setup-and-automation)
+- Set the [ulimit](../../nodes/maintenance.md#set-the-ulimit-via-systemd-service-file), in case you haven't automated with [systemd](../../nodes/maintenance.md#set-the-ulimit-on-non-systemd-based-distributions)
 
 ### Bond via the Desktop wallet (recommended)
 
@@ -137,15 +121,6 @@ You can bond your Mix Node via the Desktop wallet.
 ./nym-mixnode sign --id <YOUR_ID> --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>
 ```
 
-It will look something like this:
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --id my-node --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../target/release/nym-mixnode sign --id my-node --contract-msg 22Z9wt4PyiBCbMiErxj5bBa4VCCFsjNawZ1KnLyMeV9pMUQGyksRVANbXHjWndMUaXNRnAuEVJW6UCxpRJwZe788hDt4sicsrv7iAXRajEq19cWPVybbUqgeo76wbXbCbRdg1FvVKgYZGZZp8D72p5zWhKSBRD44qgCrqzfV1SkiFEhsvcLUvZATdLRocAUL75KmWivyRiQjCE1XYEWyRH9yvRYn4TymWwrKVDtEB63zhHjATN4QEi2E5qSrSbBcmmqatXsKakbgSbQoLsYygcHx7tkwbQ2HDYzeiKP1t16Rhcjn6Ftc2FuXUNnTcibk2LQ1hiqu3FAq31bHUbzn2wiaPfm4RgqTwGM4eqnjBofwR3251wQSxbYwKUYwGsrkweRcoPuEaovApR9R19oJ7GVG5BrKmFwZWX3XFVuECe8vt1x9MY7DbQ3xhAapsHhThUmzN6JPPU4qbQ3PdMt3YVWy6oRhap97ma2dPMBaidebfgLJizpRU3Yu7mtb6E8vgi5Xnehrgtd35gitoJqJUY5sB1p6TDPd6vk3MVU1zqusrke7Lvrud4xKfCLqp672Bj9eGb2wPwow643CpHuMkhigfSWsv9jDq13d75EGTEiprC2UmWTzCJWHrDH7ka68DZJ5XXAW67DBewu7KUm1jrJkNs55vS83SWwm5RjzQLVhscdtCH1Bamec6uZoFBNVzjs21o7ax2WHDghJpGMxFi6dmdMCZpqn618t4 -->
-```
-~~~
-
 * Copy the resulting signature:
 
 ```sh
@@ -155,7 +130,7 @@ It will look something like this:
 
 * And paste it into the wallet nodal, press `Next` and confirm the transaction.
 
-![Paste Signature](../images/wallet-screenshots/wallet-sign.png)  
+![Paste Signature](../../images/wallet-screenshots/wallet-sign.png)  
 *This image is just an example, copy-paste your own base58-encoded signature*
 
 * Your node will now be bonded and ready to mix at the beginning of the next epoch (at most 1 hour).
@@ -187,13 +162,6 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 ./nym-mixnode sign --id <YOUR_ID> --text <TEXT>
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
-```
-~~~
-
 Using `nym-cli`:
 
 > `--mnemonic` is the mnemonic of the member wanting to be the head of family.
@@ -221,13 +189,6 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 ```
 ./nym-mixnode sign --id <YOUR_ID> --text <TEXT>
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
-```
-~~~
 
 Using `nym-cli`:
 
@@ -276,9 +237,7 @@ There are also 2 community explorers which have been created by [Nodes Guru](htt
 - [Mainnet](https://mixnet.explorers.guru/)
 - [Sandbox testnet](https://sandbox.mixnet.explorers.guru/)
 
-For more details see [Troubleshooting FAQ](../nodes/troubleshooting.md)
-
 ## Maintenance
 
-For Mix Node upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md)
+For Mix Node upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](../../nodes/maintenance.md)
 

@@ -161,28 +161,24 @@ impl NymNodeRouter {
                 // redirection for old legacy mixnode routes
                 .route(
                     "/hardware",
-                    get(|| async { Redirect::permanent(&routes::api::v1::system_info_absolute()) }),
+                    get(|| async { Redirect::to(&routes::api::v1::system_info_absolute()) }),
                 )
                 .route(
                     "/description",
-                    get(|| async { Redirect::permanent(&routes::api::v1::description_absolute()) }),
+                    get(|| async { Redirect::to(&routes::api::v1::description_absolute()) }),
                 )
                 .route(
                     "/stats",
-                    get(|| async {
-                        Redirect::permanent(&routes::api::v1::metrics::mixing_absolute())
-                    }),
+                    get(|| async { Redirect::to(&routes::api::v1::metrics::mixing_absolute()) }),
                 )
                 .route(
                     "/verloc",
-                    get(|| async {
-                        Redirect::permanent(&routes::api::v1::metrics::verloc_absolute())
-                    }),
+                    get(|| async { Redirect::to(&routes::api::v1::metrics::verloc_absolute()) }),
                 )
                 .route(
                     "/metrics",
                     get(|| async {
-                        Redirect::permanent(&routes::api::v1::metrics::prometheus_absolute())
+                        Redirect::to(&routes::api::v1::metrics::prometheus_absolute())
                     }),
                 )
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))

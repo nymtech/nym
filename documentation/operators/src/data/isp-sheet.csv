@@ -1,0 +1,5 @@
+**ISP**,**Locations**,**Public IPv6**,**Crypto Payments**,**Comments**,**Last Updated**
+[Flokinet](https://flokinet.is),"Netherlands, Iceland, Romania,  ","Yes, needs a ticket and custom setup","yes, including XMR",Very slow customer support,
+[BitLaunch](https://bitlaunch.io),"Canada, USA, UK",No,Yes,Digial Ocean through BitLanch has IPv6,
+[Hostinger](https://hostinger.com),,"Yes, out of the box",Yes,Crypto payments must be done each month per each server.,
+[Linode](https://linode.com),"USA, Canada, Japan, India, Indonesia, Sweden, Netherlands, Germany, Brazil, France, UK, Australia, Italy",Yes out of the box,No,"IPv6 sometimes need to be re-added in Networking tab, no reboot needed",

@@ -8,7 +8,7 @@ license.workspace = true
 
 [dependencies]
 axum.workspace = true
-axum-extra = { axum.workspace = true, features = ["typed-header"] }
+axum-extra = { workspace = true, features = ["typed-header"] }
 headers.workspace = true
 
 # useful for `#[axum_macros::debug_handler]`

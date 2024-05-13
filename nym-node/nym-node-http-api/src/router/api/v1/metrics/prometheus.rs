@@ -3,10 +3,10 @@
 
 use crate::state::metrics::MetricsAppState;
 use axum::extract::State;
-use axum::headers::authorization::Bearer;
-use axum::headers::Authorization;
 use axum::http::StatusCode;
-use axum::TypedHeader;
+use axum_extra::TypedHeader;
+use headers::authorization::Bearer;
+use headers::Authorization;
 use nym_metrics::metrics;
 
 /// Returns `prometheus` compatible metrics

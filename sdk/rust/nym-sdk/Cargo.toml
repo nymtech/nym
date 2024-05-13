@@ -9,7 +9,7 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 bip39 = { workspace = true }
-nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage"]}
+nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage"] }
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
@@ -48,7 +48,7 @@ tokio = { workspace = true, features = ["full"] }
 nym-bin-common = { path = "../../../common/bin-common" }
 
 # extra dependencies for libp2p examples
-libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
+#libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
 tokio-stream = "0.1.12"
 tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = "0.12"

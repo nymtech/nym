@@ -37,6 +37,38 @@ Options:
           Print help
 ```
 
+### `account` 
+```
+Query and manage Nyx blockchain accounts
+
+Usage: nym-cli account [OPTIONS]
+       nym-cli account <COMMAND>
+
+Commands:
+  create         Create a new mnemonic - note, this account does not appear on the chain until the account id is used in a transaction
+  balance        Gets the balance of an account
+  pub-key        Gets the public key of an account
+  send           Sends tokens to another account
+  send-multiple  Batch multiple token sends
+  help           Print this message or the help of the given subcommand(s)
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
+```
+
 ### `account create`
 ```
 Create a new mnemonic - note, this account does not appear on the chain until the account id is used in a transaction
@@ -60,10 +92,6 @@ Options:
           Overrides the vesting contract address provided either as an environment variable or in a config file
   -h, --help
           Print help
-```
-```
-suit hat mammal misery someone void domain napkin into false real flower priority limb network spawn sport dawn icon cage tuition shell lottery father
-n1sye7xctzwjq9m6w50wh0dnvk9787jryau6wcvu
 ```
 
 ### `account balance`
@@ -97,8 +125,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `account pub-key`
 ```
@@ -126,8 +152,6 @@ Options:
           Overrides the vesting contract address provided either as an environment variable or in a config file
   -h, --help
           Print help
-```
-```
 ```
 
 ### `account send`
@@ -160,8 +184,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `account send-multiple`
 ```
@@ -191,7 +213,34 @@ Options:
   -h, --help
           Print help
 ```
+
+### `signature` 
 ```
+Sign and verify messages
+
+Usage: nym-cli signature [OPTIONS]
+       nym-cli signature <COMMAND>
+
+Commands:
+  sign    Sign a message
+  verify  Verify a message
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
 ```
 
 ### `signature sign`
@@ -218,8 +267,6 @@ Options:
           Overrides the vesting contract address provided either as an environment variable or in a config file
   -h, --help
           Print help
-```
-```
 ```
 
 ### `signature verify`
@@ -249,7 +296,36 @@ Options:
   -h, --help
           Print help
 ```
+
+### `coconut` 
 ```
+Coconut related stuff
+
+Usage: nym-cli coconut [OPTIONS]
+       nym-cli coconut <COMMAND>
+
+Commands:
+  generate-freepass    
+  issue-credentials    
+  recover-credentials  
+  import-credential    
+  help                 Print this message or the help of the given subcommand(s)
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
 ```
 
 ### `coconut generate-freepass`
@@ -280,8 +356,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `coconut issue-credentials`
 ```
@@ -309,8 +383,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `coconut recover-credentials`
 ```
@@ -335,8 +407,6 @@ Options:
           Overrides the vesting contract address provided either as an environment variable or in a config file
   -h, --help
           Print help
-```
-```
 ```
 
 ### `coconut import-credential`
@@ -365,7 +435,35 @@ Options:
   -h, --help
           Print help
 ```
+
+### `block` 
 ```
+Query chain blocks
+
+Usage: nym-cli block [OPTIONS]
+       nym-cli block <COMMAND>
+
+Commands:
+  get             Gets a block's details and prints as JSON
+  time            Gets the block time at a height
+  current-height  Gets the current block height
+  help            Print this message or the help of the given subcommand(s)
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
 ```
 
 ### `block get`
@@ -393,8 +491,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `block time`
 ```
@@ -421,8 +517,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `block current-height`
 ```
@@ -446,9 +540,37 @@ Options:
   -h, --help
           Print help
 ```
+
+### `cosmwasm` 
 ```
-Current block height:
-12528833
+Manage and execute WASM smart contracts
+
+Usage: nym-cli cosmwasm [OPTIONS]
+       nym-cli cosmwasm <COMMAND>
+
+Commands:
+  upload                 Upload a smart contract WASM blob
+  init                   Init a WASM smart contract
+  generate-init-message  Generate an instantiate message
+  migrate                Migrate a WASM smart contract
+  execute                Execute a WASM smart contract method
+  help                   Print this message or the help of the given subcommand(s)
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
 ```
 
 ### `cosmwasm upload`
@@ -476,8 +598,6 @@ Options:
           Overrides the vesting contract address provided either as an environment variable or in a config file
   -h, --help
           Print help
-```
-```
 ```
 
 ### `cosmwasm init`
@@ -517,8 +637,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `cosmwasm generate-init-message`
 ```
@@ -550,8 +668,6 @@ Options:
           Overrides the vesting contract address provided either as an environment variable or in a config file
   -h, --help
           Print help
-```
-```
 ```
 
 ### `cosmwasm migrate`
@@ -585,8 +701,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `cosmwasm execute`
 ```
@@ -619,7 +733,34 @@ Options:
   -h, --help
           Print help
 ```
+
+### `tx` 
 ```
+Query for transactions
+
+Usage: nym-cli tx [OPTIONS]
+       nym-cli tx <COMMAND>
+
+Commands:
+  get    Get a transaction by hash or block height
+  query  Query for transactions
+  help   Print this message or the help of the given subcommand(s)
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
 ```
 
 ### `tx get`
@@ -647,8 +788,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `tx query`
 ```
@@ -675,7 +814,36 @@ Options:
   -h, --help
           Print help
 ```
+
+### `vesting-schedule` 
 ```
+Create and query for a vesting schedule
+
+Usage: nym-cli vesting-schedule [OPTIONS]
+       nym-cli vesting-schedule <COMMAND>
+
+Commands:
+  create           Creates a vesting schedule
+  query            Query for vesting schedule
+  vested-balance   Get the amount that has vested and is free for withdrawal, delegation or bonding
+  withdraw-vested  Withdraw vested tokens (note: the available amount excludes anything delegated or bonded before or after vesting)
+  help             Print this message or the help of the given subcommand(s)
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
 ```
 
 ### `vesting-schedule create`
@@ -714,8 +882,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `vesting-schedule query`
 ```
@@ -741,8 +907,6 @@ Options:
           Overrides the vesting contract address provided either as an environment variable or in a config file
   -h, --help
           Print help
-```
-```
 ```
 
 ### `vesting-schedule vested-balance`
@@ -770,8 +934,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `vesting-schedule withdraw-vested`
 ```
@@ -798,7 +960,35 @@ Options:
   -h, --help
           Print help
 ```
+
+### `mixnet` 
 ```
+Manage your mixnet infrastructure, delegate stake or query the directory
+
+Usage: nym-cli mixnet [OPTIONS]
+       nym-cli mixnet <COMMAND>
+
+Commands:
+  query       Query the mixnet directory
+  delegators  Manage your delegations
+  operators   Manage a mixnode or gateway you operate
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
 ```
 
 ### `mixnet query`
@@ -830,8 +1020,6 @@ Options:
           Overrides the vesting contract address provided either as an environment variable or in a config file
   -h, --help
           Print help
-```
-```
 ```
 
 ### `mixnet delegators`
@@ -867,8 +1055,6 @@ Options:
   -h, --help
           Print help
 ```
-```
-```
 
 ### `mixnet operators`
 ```
@@ -901,9 +1087,28 @@ Options:
   -h, --help
           Print help
 ```
+
+### `generate-fig` 
 ```
+Generates shell completion
+
+Usage: nym-cli generate-fig [OPTIONS]
+
+Options:
+      --mnemonic <MNEMONIC>
+          Provide the mnemonic for your account. You can also provide this is an env var called MNEMONIC.
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file.
+      --nyxd-url <NYXD_URL>
+          Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
+      --nym-api-url <NYM_API_URL>
+          Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
+      --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
+          Overrides the mixnet contract address provided either as an environment variable or in a config file
+      --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
+          Overrides the vesting contract address provided either as an environment variable or in a config file
+  -h, --help
+          Print help
 ```
 
 ### `generate-fig `
-```
-```

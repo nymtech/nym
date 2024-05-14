@@ -56,6 +56,7 @@
 
 - [Exit Gateway](legal/exit-gateway.md)
 - [Community Counsel](legal/community-counsel.md)
+    - [ISP list](legal/isp-list.md)
     - [Jurisdictions](legal/jurisdictions.md)
         - [Switzerland](legal/swiss.md)
         - [United States](legal/united-states.md)

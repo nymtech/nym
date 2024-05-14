@@ -14,7 +14,6 @@ def create_table(args):
     csv = pd.read_csv(file)
     if args.sort != None:
         csv = csv.sort_values(csv.columns[args.sort])
-        print(csv.columns[args.sort])
     if args.table:
         table = csv.to_markdown(tablefmt="grid", index=args.index)
     else:

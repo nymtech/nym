@@ -13,7 +13,7 @@ use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{Display, Formatter};
 use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
@@ -412,10 +412,22 @@ const fn unix_epoch() -> OffsetDateTime {
     OffsetDateTime::UNIX_EPOCH
 }
 
+pub fn de_rfc3339_or_default<'de, D>(deserializer: D) -> Result<OffsetDateTime, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(time::serde::rfc3339::deserialize(deserializer).unwrap_or_else(|_| unix_epoch()))
+}
+
 // for all intents and purposes it's just OffsetDateTime, but we need JsonSchema...
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct OffsetDateTimeJsonSchemaWrapper(
-    #[serde(default = "unix_epoch", with = "time::serde::rfc3339")] pub OffsetDateTime,
+    #[serde(
+        default = "unix_epoch",
+        serialize_with = "time::serde::rfc3339::serialize",
+        deserialize_with = "de_rfc3339_or_default"
+    )]
+    pub OffsetDateTime,
 );
 
 impl Default for OffsetDateTimeJsonSchemaWrapper {

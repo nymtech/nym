@@ -11,7 +11,7 @@ jobs:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler git python3
       - name: Install Python3 plugins
-        run: sudo apt-get install -y python3-pandas python3-argparse
+        run: sudo apt-get install -y python3-pandas
       - name: Install rsync
         run: sudo apt-get install rsync
       - uses: rlespinasse/github-slug-action@v3.x

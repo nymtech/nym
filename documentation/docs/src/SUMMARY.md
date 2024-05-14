@@ -24,9 +24,6 @@
 - [Coconut](coconut.md)
 - [Bandwidth Credentials](bandwidth-credentials.md)
 
-# Tools
-- [NymCLI](tools/nym-cli.md)
-
 ---
 # Misc.
 - [Code of Conduct](coc.md)

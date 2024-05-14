@@ -59,6 +59,9 @@
 - [RPC Nodes](nyx/rpc-node.md)
 - [Ledger Live Support](nyx/ledger-live.md)
 
+# Tools
+- [NymCLI](tools/nym-cli.md)
+
 # User Manuals
 - [NymVPN alpha](nymvpn/intro.md)
     - [CLI](nymvpn/cli.md)

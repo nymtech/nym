@@ -8,7 +8,7 @@ Nym has two main codebases:
 - the [Nym platform](https://github.com/nymtech/nym), written in Rust. This contains all of our code _except_ for the validators.
 - the [Nym validators](https://github.com/nymtech/nyxd), written in Go.
 
-> This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here](../../../docs/src/nodes/validator.md) instead.**
+> This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here](https://nymtech.net/operators/nodes/validator.md) instead.**
 
 ## Prerequisites
 - Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
@@ -54,19 +54,18 @@ cargo build --release # build your binaries with **mainnet** configuration
 
 Quite a bit of stuff gets built. The key working parts are:
 
-* [mix node](../../../docs/src/nodes/mixnode.md): `nym-mixnode`
-* [gateway node](../../../docs/src/nodes/gateway.md): `nym-gateway`
+* [mix node](https://nymtech.net/operators/nodes/mixnode.md): `nym-mixnode`
+* [gateway node](https://nymtech.net/operators/nodes/gateway.md): `nym-gateway`
 * [websocket client](../clients/websocket-client.md): `nym-client`
 * [socks5 client](../clients/socks5-client.md): `nym-socks5-client`
-* [network requester](../../../docs/src/nodes/network-requester.md): `nym-network-requester`
-* [nym-cli tool](../../../docs/src/tools/nym-cli.md): `nym-cli`
+* [network requester](https://nymtech.net/operators/nodes/network-requester.md): `nym-network-requester`
+* [nym-cli tool](../tools/nym-cli.md): `nym-cli`
 * [nym-api](https://nymtech.net/operators/nodes/nym-api.html): `nym-api`
+* [nymvisor](https://nymtech.net/operators/nodes/nymvisor-upgrade.html): `nymvisor`
 
-[//]: # (* [nymvisor]&#40;https://nymtech.net/operators/nodes/nymvisor-upgrade.html&#41;: `nymvisor`)
-
-The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
-* [Nym Wallet](../../../docs/src/wallet/desktop-wallet.md)
-* [Nym Connect](https://nymtech.net/developers/quickstart/nymconnect-gui.html)
-* [Network Explorer UI](../../../docs/src/explorers/mixnet-explorer.md)
+[//]: # (The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.)
+[//]: # (* [Nym Wallet]&#40;../../../docs/src/wallet/desktop-wallet.md&#41;)
+[//]: # (* [Nym Connect]&#40;https://nymtech.net/developers/quickstart/nymconnect-gui.html&#41;)
+[//]: # (* [Network Explorer UI]&#40;../../../docs/src/explorers/mixnet-explorer.md&#41;)
 
 > You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.

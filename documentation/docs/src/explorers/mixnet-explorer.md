@@ -34,7 +34,7 @@ If you really don't want to use the shell script installer, the [Rust installati
 
 
 ### Local Development
-Complete the steps in the [building nym](../../../dev-portal/src/clients/building-nym.md) section, before `cd`-ing into `nym/explorer`. 
+Complete the steps in the [building nym]() section, before `cd`-ing into `nym/explorer`. 
 
 Start a development server with hot reloading running on `http://localhost:3000` with the following commands from inside the `explorer` directory:
 
@@ -63,7 +63,7 @@ npm run lint:fix
 Please see the development docs in `explorer/docs` for more information on the structure and design of this app.
 
 ### Deployment
-Complete the steps in the [building nym](../../../dev-portal/src/clients/building-nym.md) section, before `cd`-ing into `nym/explorer`. 
+Complete the steps in the [building nym]() section, before `cd`-ing into `nym/explorer`. 
 
 > The Network Explorer should be run on a machine with at least 4GB of RAM - the build process might fail if run on a less powerful machine. 
 

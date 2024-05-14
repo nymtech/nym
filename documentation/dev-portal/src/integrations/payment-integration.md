@@ -2,7 +2,7 @@
 
 If you want to integrate with Nym in order to send `NYM` tokens (for instance, if running a `NYM` <-> `BTC` swap application, or using `NYM` for payments), then you will need to interact with the Nyx blockchain. 
 
-Nyx is the blockchain supporting the Nym network, hosting both the `NYM` and `NYX` cryptocurrencies, the CosmWasm smart contracts keeping track of the network, and (coming soon) facilitating zk-Nym credential generation. It is built with the [Cosmos SDK](https://tendermint.com/sdk/).
+Nyx is the blockchain supporting the Nym network, hosting both the `NYM` and `NYX` cryptocurrencies, the CosmWasm smart contracts keeping track of the network, and facilitating zk-Nym credential generation. It is built with the [Cosmos SDK](https://tendermint.com/sdk/).
 
 ### Interacting with the Nyx blockchain 
 Check out the integration options in the [Integration FAQ](../faq/integrations-faq.md#how-can-i-use-json-rpc-methods-to-interact-with-the-nyx-blockchain). 

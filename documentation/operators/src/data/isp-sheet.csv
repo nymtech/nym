@@ -1,7 +1,7 @@
 **ISP**,**Locations**,**Public IPv6**,**Crypto Payments**,**Comments**,**Last Updated**
-[Flokinet](https://flokinet.is),"Netherlands, Iceland, Romania,  ","Yes, needs a ticket and custom setup","yes, including XMR",Very slow customer support,
-[BitLaunch](https://bitlaunch.io),"Canada, USA, UK",No,Yes,Digial Ocean through BitLanch has IPv6,
-[Hostinger](https://hostinger.com),"France, Lithuania, India, USA, Brazil","Yes, out of the box",Yes,Crypto payments must be done each month per each server.,
-[Linode](https://linode.com),"USA, Canada, Japan, India, Indonesia, Sweden, Netherlands, Germany, Brazil, France, UK, Australia, Italy",Yes out of the box,No,"IPv6 sometimes need to be re-added in Networking tab, no reboot needed",
-[Cherry Servers](https://www.cherryservers.com),"Lithuania, Netherlands, USA, Singapore",No,Yes,Issued IP doesn’t match the location offered by the provider.,
-[Njalla](https://nja.la),Sweden,Yes,Yes,"The biggest VPS 45 is 3 cores only, but it works better than many “larger” servers on the market.",
+[Flokinet](https://flokinet.is),"Netherlands, Iceland, Romania,  ","Yes, needs a ticket and custom setup","yes, including XMR",Very slow customer support,"05/2024"
+[BitLaunch](https://bitlaunch.io),"Canada, USA, UK",No,Yes,Digial Ocean through BitLanch has IPv6,"05/2024"
+[Hostinger](https://hostinger.com),"France, Lithuania, India, USA, Brazil","Yes, out of the box",Yes,Crypto payments must be done each month per each server.,"05/2024"
+[Linode](https://linode.com),"USA, Canada, Japan, India, Indonesia, Sweden, Netherlands, Germany, Brazil, France, UK, Australia, Italy",Yes out of the box,No,"IPv6 sometimes need to be re-added in Networking tab, no reboot needed","05/2024"
+[Cherry Servers](https://www.cherryservers.com),"Lithuania, Netherlands, USA, Singapore",No,Yes,Issued IP doesn’t match the location offered by the provider.,"05/2024"
+[Njalla](https://nja.la),Sweden,Yes,Yes,"The biggest VPS 45 is 3 cores only, but it works better than many “larger” servers on the market.","05/2024"

@@ -1,7 +1,7 @@
 # Message Helpers
 
 ## Handling incoming messages
-As seen in the [Chain querier tutorial](https://github.com/nymtech/developer-tutorials/blob/0130ee5a61cd6801bdcfc84608b2a520b5392714/rust/chain-query-service/) when listening out for a response to a sent message (e.g. if you have sent a request to a service, and are awaiting the response) you will want to await [non-empty messages (if you don't know why, read the info on this here)](troubleshooting.md#client-receives-empty-messages-when-listening-for-response). This can be done with something like the helper functions [here](https://github.com/nymtech/developer-tutorials/blob/0130ee5a61cd6801bdcfc84608b2a520b5392714/rust/chain-query-service/src/lib.rs#L71): 
+When listening out for a response to a sent message (e.g. if you have sent a request to a service, and are awaiting the response) you will want to await non-empty messages [(if you don't know why, read the info on this here)](troubleshooting.md#client-receives-empty-messages-when-listening-for-response). This can be done with something like the helper functions [here](https://github.com/nymtech/developer-tutorials/blob/0130ee5a61cd6801bdcfc84608b2a520b5392714/rust/chain-query-service/src/lib.rs#L71): 
 
 ```rust
 use nym_sdk::mixnet::ReconstructedMessage; 

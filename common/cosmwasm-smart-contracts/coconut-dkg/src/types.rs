@@ -328,4 +328,8 @@ impl EpochState {
     pub fn is_dealing_exchange(&self) -> bool {
         matches!(self, EpochState::DealingExchange { .. })
     }
+
+    pub fn is_waiting_initialisation(&self) -> bool {
+        matches!(self, EpochState::WaitingInitialisation)
+    }
 }

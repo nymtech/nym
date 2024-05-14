@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, Time};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-pub const MAX_FREE_PASS_VALIDITY: Duration = Duration::WEEK; // 1 week
+pub const DEFAULT_FREE_PASS_VALIDITY: Duration = Duration::WEEK; // 1 week
+pub const MAX_FREE_PASS_VALIDITY: Duration = Duration::weeks(12); // 12 weeks
 
 #[derive(Debug, Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
 pub struct FreePassIssuedData {
@@ -77,9 +78,9 @@ impl FreePassIssuanceData {
     }
 
     pub fn default_expiry_date() -> OffsetDateTime {
-        // set it to furthest midnight in the future such as it's no more than a week away,
+        // set it to the furthest midnight in the future such as it's no more than a week away,
         // i.e. if it's currently for example 9:43 on 2nd March 2024, it will set it to 0:00 on 9th March 2024
-        (OffsetDateTime::now_utc() + MAX_FREE_PASS_VALIDITY).replace_time(Time::MIDNIGHT)
+        (OffsetDateTime::now_utc() + DEFAULT_FREE_PASS_VALIDITY).replace_time(Time::MIDNIGHT)
     }
 
     pub fn expiry_date_attribute(&self) -> &Attribute {

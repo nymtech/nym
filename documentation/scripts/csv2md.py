@@ -5,7 +5,6 @@
 import argparse
 import pandas as pd
 import sys
-import pathlib
 import csv
 
 def create_table(args):

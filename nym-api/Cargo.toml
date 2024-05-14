@@ -11,7 +11,7 @@ authors = [
     "Drazen Urch <durch@users.noreply.github.com>",
 ]
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.76.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -48,7 +48,7 @@ tokio = { version = "1.24.1", features = [
 tokio-stream = "0.1.11"
 url = { workspace = true }
 
-ts-rs = { workspace = true, optional = true}
+ts-rs = { workspace = true, optional = true }
 
 anyhow = { workspace = true }
 getset = "0.1.1"

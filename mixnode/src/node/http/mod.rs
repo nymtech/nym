@@ -4,7 +4,7 @@
 use crate::config::Config;
 use crate::error::MixnodeError;
 use crate::node::node_description::NodeDescription;
-use log::info;
+use log::{error, info};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_node_http_api::api::api_requests;
@@ -104,11 +104,17 @@ impl<'a> HttpApiBuilder<'a> {
         .with_landing_page_assets(self.mixnode_config.http.landing_page_assets_path.as_ref());
 
         let router = nym_node_http_api::NymNodeRouter::new(config, None, None);
-        let server = router
-            // .with_merged(legacy::routes(self.legacy_mixnode, self.legacy_descriptor))
-            .build_server(&bind_address)?
-            .with_task_client(task_client);
-        tokio::spawn(async move { server.run().await });
+
+        tokio::spawn(async move {
+            let server = match router.build_server(&bind_address).await {
+                Ok(server) => server.with_task_client(task_client),
+                Err(err) => {
+                    error!("failed to create http server: {err}");
+                    return;
+                }
+            };
+            server.run().await
+        });
         Ok(())
     }
 }

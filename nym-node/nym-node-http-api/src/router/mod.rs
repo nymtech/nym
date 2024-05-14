@@ -204,19 +204,22 @@ impl NymNodeRouter {
         self
     }
 
-    pub fn build_server(
+    pub async fn build_server(
         self,
         bind_address: &SocketAddr,
     ) -> Result<NymNodeHTTPServer, NymNodeHttpError> {
-        let axum_server = axum::Server::try_bind(bind_address)
+        let listener = tokio::net::TcpListener::bind(bind_address)
+            .await
             .map_err(|source| NymNodeHttpError::HttpBindFailure {
                 bind_address: *bind_address,
                 source,
-            })?
-            .serve(
-                self.inner
-                    .into_make_service_with_connect_info::<SocketAddr>(),
-            );
+            })?;
+
+        let axum_server = axum::serve(
+            listener,
+            self.inner
+                .into_make_service_with_connect_info::<SocketAddr>(),
+        );
 
         Ok(NymNodeHTTPServer::new(axum_server))
     }

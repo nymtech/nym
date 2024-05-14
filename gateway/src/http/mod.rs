@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::helpers::load_public_key;
 use ipnetwork::IpNetwork;
-use log::{debug, warn};
+use log::{debug, error, warn};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_requester::RequestFilter;
@@ -295,12 +295,19 @@ impl<'a> HttpApiBuilder<'a> {
             .ok()
         });
 
+        let bind_address = self.gateway_config.http.bind_address;
         let router = nym_node_http_api::NymNodeRouter::new(config, None, wg_state);
 
-        let server = router
-            .build_server(&self.gateway_config.http.bind_address)?
-            .with_task_client(task_client);
-        tokio::spawn(async move { server.run().await });
+        tokio::spawn(async move {
+            let server = match router.build_server(&bind_address).await {
+                Ok(server) => server.with_task_client(task_client),
+                Err(err) => {
+                    error!("failed to create http server: {err}");
+                    return;
+                }
+            };
+            server.run().await
+        });
         Ok(())
     }
 }

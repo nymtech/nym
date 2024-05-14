@@ -455,7 +455,7 @@ impl NymNode {
         Ok(())
     }
 
-    pub(crate) fn build_http_server(&self) -> Result<NymNodeHTTPServer, NymNodeError> {
+    pub(crate) async fn build_http_server(&self) -> Result<NymNodeHTTPServer, NymNodeError> {
         let host_details = sign_host_details(
             &self.config,
             self.x25519_sphinx_keys.public_key(),
@@ -559,15 +559,23 @@ impl NymNode {
             .with_metrics_key(self.config.http.access_token.clone());
 
         Ok(NymNodeRouter::new(config, Some(app_state), Some(wg_state))
-            .build_server(&self.config.http.bind_address)?)
+            .build_server(&self.config.http.bind_address)
+            .await?)
     }
 
     pub(crate) async fn run(self) -> Result<(), NymNodeError> {
         let mut task_manager = TaskManager::default().named("NymNode");
         let http_server = self
-            .build_http_server()?
+            .build_http_server()
+            .await?
             .with_task_client(task_manager.subscribe_named("http-server"));
-        tokio::spawn(async move { http_server.run().await });
+        let bind_address = self.config.http.bind_address;
+        tokio::spawn(async move {
+            {
+                info!("Started NymNodeHTTPServer on {bind_address}");
+                http_server.run().await
+            }
+        });
 
         match self.config.mode {
             NodeMode::Mixnode => {

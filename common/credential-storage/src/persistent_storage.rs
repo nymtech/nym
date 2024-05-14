@@ -76,7 +76,7 @@ impl Storage for PersistentStorage {
                 // means UNIQUE constraint violation
                 if let Some(db_error) = err.as_database_error() {
                     if db_error.code().map_or(false, |code| code == "2067") {
-                        StorageError::ContraintUnique
+                        StorageError::ConstraintUnique
                     } else {
                         err.into()
                     }

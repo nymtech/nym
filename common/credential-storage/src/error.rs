@@ -20,5 +20,5 @@ pub enum StorageError {
     NoCredential,
 
     #[error("Database unique constraint violation. Is the credential already imported?")]
-    ContraintUnique,
+    ConstraintUnique,
 }

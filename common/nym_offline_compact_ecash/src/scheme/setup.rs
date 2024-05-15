@@ -93,27 +93,6 @@ impl Default for GroupParameters {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct SecretKeyRP {
-    pub(crate) x: Scalar,
-    pub(crate) y: Scalar,
-}
-
-impl SecretKeyRP {
-    pub fn public_key(&self, params: &GroupParameters) -> PublicKeyRP {
-        PublicKeyRP {
-            alpha: params.gen2() * self.x,
-            beta: params.gen2() * self.y,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct PublicKeyRP {
-    pub(crate) alpha: G2Projective,
-    pub(crate) beta: G2Projective,
-}
-
 #[derive(Debug)]
 pub struct Parameters {
     /// group parameters
@@ -200,7 +179,7 @@ impl Bytable for CoinIndexSignature {
         self.to_bytes().to_vec()
     }
 
-    fn try_from_byte_slice(slice: &[u8]) -> std::result::Result<Self, CompactEcashError> {
+    fn try_from_byte_slice(slice: &[u8]) -> Result<Self> {
         Self::try_from(slice)
     }
 }
@@ -220,18 +199,13 @@ impl Base58 for CoinIndexSignature {}
 /// # Returns
 ///
 /// A vector containing partial coin index signatures.
-///
-/// # Panics
-///
-/// The function may panic if there is an issue with converting bytes to Scalar during initialization.
-///
 pub fn sign_coin_indices(
     params: &Parameters,
     vk: &VerificationKeyAuth,
     sk_auth: &SecretKeyAuth,
 ) -> Vec<PartialCoinIndexSignature> {
-    let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
-    let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    let m1: Scalar = constants::TYPE_IDX;
+    let m2: Scalar = constants::TYPE_IDX;
     (0..params.get_total_coins())
         .into_par_iter()
         .fold(
@@ -283,18 +257,14 @@ pub fn sign_coin_indices(
 ///
 /// Returns `Ok(())` if all signatures are valid, otherwise returns an error with a description
 /// of the verification failure.
-///
-/// # Panics
-///
-/// The function may panic if there is an issue with converting bytes to Scalar during initialization.
 pub fn verify_coin_indices_signatures(
     params: &Parameters,
     vk: &VerificationKeyAuth,
     vk_auth: &VerificationKeyAuth,
     signatures: &[CoinIndexSignature],
 ) -> Result<()> {
-    let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
-    let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    let m1: Scalar = constants::TYPE_IDX;
+    let m2: Scalar = constants::TYPE_IDX;
 
     // Precompute concatenated_bytes for each l
     let concatenated_bytes_list: Vec<Vec<u8>> = signatures
@@ -369,10 +339,6 @@ pub fn verify_coin_indices_signatures(
 ///
 /// Returns a vector of aggregated coin index signatures if the aggregation is successful.
 /// Otherwise, returns an error describing the nature of the failure.
-///
-/// # Panics
-///
-/// The function may panic if there is an issue with converting bytes to Scalar during initialization.
 pub fn aggregate_indices_signatures(
     params: &Parameters,
     vk: &VerificationKeyAuth,
@@ -422,7 +388,6 @@ pub fn aggregate_indices_signatures(
         let collected_at_l: Vec<_> = signatures
             .iter()
             .filter_map(|(_, _, inner_vec)| inner_vec.get(l as usize))
-            .cloned()
             .collect();
 
         // Aggregate partial signatures for each coin index
@@ -450,6 +415,7 @@ pub fn aggregate_indices_signatures(
 /// and a map of signatures for each index `l`.
 ///
 pub fn setup(total_coins: u64) -> Parameters {
+    assert!(total_coins > 0);
     let grp = GroupParameters::new();
     Parameters { grp, total_coins }
 }

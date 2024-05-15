@@ -45,9 +45,7 @@ impl PartialWallet {
     pub fn signature(&self) -> &Signature {
         &self.sig
     }
-    pub fn v(&self) -> Scalar {
-        self.v
-    }
+
     pub fn index(&self) -> SignerIndex {
         self.idx
     }
@@ -672,12 +670,12 @@ impl Payment {
 
         // Calculate m1 and m2 values.
         let m1: Scalar = spend_date;
-        let m2 = constants::TYPE_EXP;
+        let m2: Scalar = constants::TYPE_EXP;
 
         // Perform a bilinear pairing check for kappa_e
         let combined_kappa_e = self.kappa_e
             + verification_key.beta_g2.get(1).unwrap() * m1
-            + verification_key.beta_g2.get(2).unwrap() * Scalar::from_bytes(&m2).unwrap();
+            + verification_key.beta_g2.get(2).unwrap() * m2;
 
         if !check_bilinear_pairing(
             &self.sig_exp.h.to_affine(),
@@ -756,10 +754,8 @@ impl Payment {
                 ));
             }
             let combined_kappa_k = self.kappa_k[k as usize].to_affine()
-                + verification_key.beta_g2.get(1).unwrap()
-                    * Scalar::from_bytes(&constants::TYPE_IDX).unwrap()
-                + verification_key.beta_g2.get(2).unwrap()
-                    * Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+                + verification_key.beta_g2.get(1).unwrap() * constants::TYPE_IDX
+                + verification_key.beta_g2.get(2).unwrap() * constants::TYPE_IDX;
 
             if !check_bilinear_pairing(
                 &coin_idx_sign.h.to_affine(),

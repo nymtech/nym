@@ -16,7 +16,7 @@ rand = { workspace = true }
 thiserror = { workspace = true }
 sha2 = "0.9"
 bs58 = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 getset = "0.1.1"
 rayon = "1.5.0"
 zeroize = { workspace = true , features = ["zeroize_derive"]}
@@ -24,7 +24,7 @@ zeroize = { workspace = true , features = ["zeroize_derive"]}
 nym-pemstore = { path = "../pemstore" }
 
 [dev-dependencies]
-criterion = { version = "0.3", features = ["html_reports"] }
+criterion = { version = "0.5.1", features = ["html_reports"] }
 
 [dependencies.ff]
 version = "0.13"

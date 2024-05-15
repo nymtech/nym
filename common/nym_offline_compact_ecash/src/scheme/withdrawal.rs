@@ -34,7 +34,7 @@ use crate::{Attribute, Base58};
 ///
 /// The struct derives `Debug` and `PartialEq` to provide debug output and basic comparison functionality.
 ///
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct WithdrawalRequest {
     joined_commitment_hash: G1Projective,
     joined_commitment: G1Projective,

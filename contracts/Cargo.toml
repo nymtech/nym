@@ -3,7 +3,8 @@ resolver = "2"
 members = [
     "coconut-bandwidth",
     "coconut-dkg",
-    "coconut-test", "ecash",
+    "coconut-test", 
+    "ecash",
     "mixnet",
     "mixnet-vesting-integration-tests",
     "multisig/cw3-flex-multisig",

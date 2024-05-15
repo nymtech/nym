@@ -106,10 +106,6 @@ impl SecretKeyAuth {
         self.ys.len()
     }
 
-    pub fn get_ys(&self) -> Vec<Scalar> {
-        self.ys.clone()
-    }
-
     pub(crate) fn get_y_by_idx(&self, i: usize) -> Option<&Scalar> {
         self.ys.get(i)
     }
@@ -140,7 +136,7 @@ impl SecretKeyAuth {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct VerificationKeyAuth {
     pub(crate) alpha: G2Projective,
     pub(crate) beta_g1: Vec<G1Projective>,
@@ -478,6 +474,7 @@ impl Base58 for PublicKeyUser {}
 #[derive(Debug, Zeroize, ZeroizeOnDrop)]
 pub struct KeyPairAuth {
     secret_key: SecretKeyAuth,
+    #[zeroize(skip)]
     verification_key: VerificationKeyAuth,
     /// Optional index value specifying polynomial point used during threshold key generation.
     pub index: Option<SignerIndex>,

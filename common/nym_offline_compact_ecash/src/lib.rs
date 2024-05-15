@@ -1,8 +1,7 @@
+use bls12_381::Scalar;
 use std::convert::TryInto;
 
 pub use bls12_381::G1Projective;
-use bls12_381::Scalar;
-
 pub use scheme::aggregation::aggregate_verification_keys;
 pub use scheme::aggregation::aggregate_wallets;
 pub use scheme::identify;

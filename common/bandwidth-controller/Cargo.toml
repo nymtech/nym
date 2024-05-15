@@ -14,7 +14,6 @@ thiserror = { workspace = true }
 url = { workspace = true }
 zeroize = { workspace = true }
 
-nym-coconut = { path = "../nymcoconut" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }

@@ -18,6 +18,8 @@ use crate::scheme::setup::GroupParameters;
 use crate::traits::Bytable;
 use crate::{Base58, VerificationKeyAuth};
 
+pub type SignerIndex = u64;
+
 pub struct Polynomial {
     coefficients: Vec<Scalar>,
 }
@@ -235,8 +237,6 @@ pub fn check_vk_pairing(
     true
 }
 
-pub type SignerIndex = u64;
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 // #[cfg_attr(test, derive(PartialEq))]
 pub struct Signature(pub(crate) G1Projective, pub(crate) G1Projective);
@@ -310,7 +310,7 @@ impl Bytable for Signature {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BlindedSignature(pub(crate) G1Projective, pub(crate) G1Projective);
 
 impl TryFrom<&[u8]> for BlindedSignature {

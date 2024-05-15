@@ -4,7 +4,7 @@
 The entire content of this page is under [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/).
 ```
 
-Inspired by a valubale resource, done by Tor community - [*Good Bad ISPs*](https://community.torproject.org/relay/community-resources/good-bad-isps/), LunarDAO squad initiated a table customised for Nym Exit Gateways operators.
+Inspired by a valuable resource, done by Tor community - [*Good Bad ISPs*](https://community.torproject.org/relay/community-resources/good-bad-isps/), LunarDAO squad initiated a table customised for Nym Exit Gateways operators.
 
 This ISP list is fully managed by Nym operator community and it serves as a space to share their experience of running Exit Gateways on various Internet Service Providers (ISPs). The ISPs greatly differ in regards to services they offer as well as to their openess of hosting exit routing software.
 

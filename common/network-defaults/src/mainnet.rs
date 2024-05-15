@@ -18,9 +18,12 @@ pub const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
 
 pub const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str = "";
-pub const GROUP_CONTRACT_ADDRESS: &str = "";
-pub const MULTISIG_CONTRACT_ADDRESS: &str = "";
-pub const COCONUT_DKG_CONTRACT_ADDRESS: &str = "";
+pub const GROUP_CONTRACT_ADDRESS: &str =
+    "n1e2zq4886zzewpvpucmlw8v9p7zv692f6yck4zjzxh699dkcmlrfqk2knsr";
+pub const MULTISIG_CONTRACT_ADDRESS: &str =
+    "n1txayqfz5g9qww3rlflpg025xd26m9payz96u54x4fe3s2ktz39xqk67gzx";
+pub const COCONUT_DKG_CONTRACT_ADDRESS: &str =
+    "n19604yflqggs9mk2z26mqygq43q2kr3n932egxx630svywd5mpxjsztfpvx";
 pub const EPHEMERA_CONTRACT_ADDRESS: &str = "";
 
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";

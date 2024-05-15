@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};

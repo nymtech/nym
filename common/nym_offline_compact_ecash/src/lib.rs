@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use bls12_381::Scalar;
 use std::convert::TryInto;
 

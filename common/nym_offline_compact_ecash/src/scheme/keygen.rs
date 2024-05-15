@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use core::borrow::Borrow;
 use core::iter::Sum;
 use core::ops::{Add, Mul};

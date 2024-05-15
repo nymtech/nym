@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_compact_ecash::scheme::expiration_date_signatures::{

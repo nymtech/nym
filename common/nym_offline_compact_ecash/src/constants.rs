@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use bls12_381::Scalar;
 
 pub const PUBLIC_ATTRIBUTES_LEN: usize = 1; //expiration date

@@ -57,12 +57,11 @@ pub fn ephemeral_gateway_config(
         cosmos_mnemonic: mnemonic.clone(),
     };
 
-    let wireguard = nym_gateway::config::Wireguard {
+    let wireguard = nym_wireguard_types::config::Wireguard {
         enabled: config.wireguard.enabled,
         bind_address: config.wireguard.bind_address,
         announced_port: config.wireguard.announced_port,
         private_network_prefix: config.wireguard.private_network_prefix,
-        storage_paths: nym_gateway::config::WireguardPaths::new_empty(),
     };
 
     Ok(nym_gateway::config::Config::externally_loaded(

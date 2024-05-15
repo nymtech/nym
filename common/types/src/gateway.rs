@@ -89,6 +89,7 @@ pub struct GatewayNodeDetailsResponse {
 
     pub network_requester: Option<GatewayNetworkRequesterDetails>,
     pub ip_packet_router: Option<GatewayIpPacketRouterDetails>,
+    pub wireguard: Option<GatewayWireguardDetails>,
 }
 
 impl fmt::Display for GatewayNodeDetailsResponse {
@@ -169,5 +170,27 @@ impl fmt::Display for GatewayIpPacketRouterDetails {
         writeln!(f, "\tidentity key: {}", self.identity_key)?;
         writeln!(f, "\tencryption key: {}", self.encryption_key)?;
         writeln!(f, "\taddress: {}", self.address)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GatewayWireguardDetails {
+    pub enabled: bool,
+
+    pub announced_port: u16,
+    pub private_network_prefix: u8,
+}
+
+impl fmt::Display for GatewayWireguardDetails {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "wireguard:")?;
+        writeln!(f, "\tenabled: {}", self.enabled)?;
+
+        writeln!(f, "\tannounced_port: {}", self.announced_port)?;
+        writeln!(
+            f,
+            "\tprivate_network_prefix: {}",
+            self.private_network_prefix
+        )
     }
 }

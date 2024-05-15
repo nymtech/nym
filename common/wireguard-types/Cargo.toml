@@ -17,7 +17,9 @@ log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
+nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-network-defaults = { path = "../network-defaults" }
 
 # feature-specific dependencies:
 

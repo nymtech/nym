@@ -101,6 +101,10 @@ impl OverrideConfig {
             config = config.with_default_ip_packet_router_config_path();
         }
 
+        if config.wireguard.enabled && config.storage_paths.wireguard_config.is_none() {
+            config = config.with_default_wireguard_config_path();
+        }
+
         Ok(config)
     }
 }

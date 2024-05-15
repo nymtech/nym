@@ -11,7 +11,8 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_network_defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT};
+use nym_network_defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
+use nym_wireguard_types::config::Wireguard;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -20,12 +21,13 @@ use std::time::Duration;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-pub use crate::config::persistence::paths::{GatewayPaths, WireguardPaths};
+pub use crate::config::persistence::paths::GatewayPaths;
 
 pub mod old_config_v1_1_20;
 pub mod old_config_v1_1_28;
 pub mod old_config_v1_1_29;
 pub mod old_config_v1_1_31;
+pub mod old_config_v1_1_36;
 pub mod persistence;
 mod template;
 
@@ -85,16 +87,15 @@ pub struct Config {
 
     pub gateway: Gateway,
 
-    // currently not really used for anything useful
-    #[serde(default)]
-    pub wireguard: Wireguard,
-
     pub storage_paths: GatewayPaths,
 
     pub network_requester: NetworkRequester,
 
     #[serde(default)]
     pub ip_packet_router: IpPacketRouter,
+
+    #[serde(default)]
+    pub wireguard: Wireguard,
 
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -227,6 +228,18 @@ impl Config {
         self
     }
 
+    pub fn with_enabled_wireguard(mut self, enabled_wireguard: bool) -> Self {
+        self.wireguard.enabled = enabled_wireguard;
+        self
+    }
+
+    pub fn with_default_wireguard_config_path(mut self) -> Self {
+        self.storage_paths = self
+            .storage_paths
+            .with_default_wireguard_config(&self.gateway.id);
+        self
+    }
+
     pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
@@ -343,40 +356,6 @@ impl Default for Http {
                 DEFAULT_NYM_NODE_HTTP_PORT,
             ),
             landing_page_assets_path: None,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Wireguard {
-    /// Specifies whether the wireguard service is enabled on this node.
-    pub enabled: bool,
-
-    /// Socket address this node will use for binding its wireguard interface.
-    /// default: `0.0.0.0:51822`
-    pub bind_address: SocketAddr,
-
-    /// Port announced to external clients wishing to connect to the wireguard interface.
-    /// Useful in the instances where the node is behind a proxy.
-    pub announced_port: u16,
-
-    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard.
-    /// The maximum value for IPv4 is 32 and for IPv6 is 128
-    pub private_network_prefix: u8,
-
-    /// Paths for wireguard keys, client registries, etc.
-    pub storage_paths: WireguardPaths,
-}
-
-impl Default for Wireguard {
-    fn default() -> Self {
-        Wireguard {
-            enabled: false,
-            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_PORT),
-            announced_port: WG_PORT,
-            private_network_prefix: 16,
-            storage_paths: WireguardPaths {},
         }
     }
 }

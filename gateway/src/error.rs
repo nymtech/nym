@@ -64,6 +64,17 @@ pub enum GatewayError {
     },
 
     #[error(
+        "failed to load config file for wireguard (gateway-id: '{id}') using path '{}'. detailed message: {source}",
+        path.display()
+    )]
+    WireguardConfigLoadFailure {
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
         "failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display()
     )]
     ConfigSaveFailure {

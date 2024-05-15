@@ -22,4 +22,4 @@ To edit or add information to the ISP list, make changes to the csv file located
 As of now the list is quite short. When it grows, we can divide it according the localities of the listed ISPs.
 ```
 
-<!--cmdrun python3 ../../../scripts/csv2md.py ../data/isp-sheet.csv -s 0 -->
+<!--cmdrun python ../../../scripts/csv2md.py ../data/isp-sheet.csv -s 0 -->

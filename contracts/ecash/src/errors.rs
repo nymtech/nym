@@ -3,6 +3,7 @@
 
 use cosmwasm_std::StdError;
 use cw_controllers::AdminError;
+use cw_utils::PaymentError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -10,23 +11,14 @@ pub enum ContractError {
     #[error(transparent)]
     Std(#[from] StdError),
 
-    #[error("Received multiple coin types")]
-    MultipleDenoms,
-
-    #[error("No coin was sent for voucher")]
-    NoCoin,
-
-    #[error("Wrong coin denomination, you must send {mix_denom}")]
-    WrongDenom { mix_denom: String },
+    #[error("Invalid deposit")]
+    InvalidDeposit(#[from] PaymentError),
 
     #[error("Wrong amount for deposit, you must send {amount}")]
     WrongAmount { amount: u128 },
 
     #[error("There aren't enough funds in the contract")]
     NotEnoughFunds,
-
-    #[error("Credential already spent or in process of spending")]
-    DuplicateBlindedSerialNumber,
 
     #[error(transparent)]
     Admin(#[from] AdminError),

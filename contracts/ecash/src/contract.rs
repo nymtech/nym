@@ -36,7 +36,7 @@ use nym_ecash_contract_common::spend_credential::{
 };
 
 pub struct NymEcashContract<'a> {
-    pub(crate) admin: Admin<'a>,
+    pub(crate) multisig: Admin<'a>,
     pub(crate) config: Item<'a, Config>,
     pub(crate) spent_credentials:
         IndexedMap<'a, &'a str, EcashSpentCredential, SpendCredentialIndex<'a>>,
@@ -49,9 +49,10 @@ pub struct NymEcashContract<'a> {
 #[contract]
 #[error(ContractError)]
 impl NymEcashContract<'_> {
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> Self {
         Self {
-            admin: Admin::new("admin"),
+            multisig: Admin::new("multisig"),
             config: Item::new("config"),
             spent_credentials: storage::spent_credentials(),
             blacklist: storage::blacklist(),
@@ -74,7 +75,7 @@ impl NymEcashContract<'_> {
             }
         })?);
 
-        self.admin
+        self.multisig
             .set(ctx.deps.branch(), Some(multisig_addr.clone()))?;
         let cfg = Config {
             multisig_addr,
@@ -186,26 +187,17 @@ impl NymEcashContract<'_> {
         identity_key: String,
         encryption_key: String,
     ) -> Result<Response, ContractError> {
-        if ctx.info.funds.is_empty() {
-            return Err(ContractError::NoCoin);
-        }
-        if ctx.info.funds.len() > 1 {
-            return Err(ContractError::MultipleDenoms);
-        }
         let mix_denom = self.config.load(ctx.deps.storage)?.mix_denom;
-        if ctx.info.funds[0].denom != mix_denom {
-            return Err(ContractError::WrongDenom { mix_denom });
-        }
+        let voucher_value = cw_utils::must_pay(&ctx.info, &mix_denom)?;
 
-        let voucher_value = ctx.info.funds.last().unwrap();
-        if u128::from(voucher_value.amount) != TICKET_BOOK_VALUE {
+        if u128::from(voucher_value) != TICKET_BOOK_VALUE {
             return Err(ContractError::WrongAmount {
                 amount: TICKET_BOOK_VALUE,
             });
         }
 
         let event = Event::new(DEPOSITED_FUNDS_EVENT_TYPE)
-            .add_attribute(DEPOSIT_VALUE, voucher_value.amount)
+            .add_attribute(DEPOSIT_VALUE, voucher_value)
             .add_attribute(DEPOSIT_INFO, deposit_info)
             .add_attribute(DEPOSIT_IDENTITY_KEY, identity_key)
             .add_attribute(DEPOSIT_ENCRYPTION_KEY, encryption_key);
@@ -240,19 +232,12 @@ impl NymEcashContract<'_> {
         serial_number: String,
         gateway_cosmos_address: String,
     ) -> Result<Response, ContractError> {
+        //only a mutlisig proposal can do that
+        self.multisig
+            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
+
         let mix_denom = self.config.load(ctx.deps.storage)?.mix_denom;
         let ticket_fund = Coin::new(TICKET_VALUE, mix_denom.clone());
-        let current_balance = ctx
-            .deps
-            .querier
-            .query_balance(ctx.env.contract.address, mix_denom)?;
-        if ticket_fund.amount > current_balance.amount {
-            return Err(ContractError::NotEnoughFunds);
-        }
-
-        //only a mutlisig proposal can do that
-        self.admin
-            .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
         let return_tokens = BankMsg::Send {
             to_address: gateway_cosmos_address.clone(),
@@ -306,7 +291,7 @@ impl NymEcashContract<'_> {
         public_key: String,
     ) -> Result<Response, ContractError> {
         //Only by multisig contract, actually add public key to blacklist
-        self.admin
+        self.multisig
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
         self.blacklist.save(

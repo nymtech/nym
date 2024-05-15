@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::Coin;
+use cw_utils::PaymentError;
 use sylvia::multitest::App;
 
 use crate::{contract::multitest_utils::CodeId, errors::ContractError};
@@ -35,7 +36,7 @@ fn invalid_deposit() {
             )
             .call(owner)
             .unwrap_err(),
-        ContractError::NoCoin
+        ContractError::InvalidDeposit(PaymentError::NoFunds {})
     );
 
     let coin = Coin::new(1000000, denom.to_string());
@@ -51,7 +52,7 @@ fn invalid_deposit() {
             .with_funds(&[coin, second_coin.clone()])
             .call(owner)
             .unwrap_err(),
-        ContractError::MultipleDenoms
+        ContractError::InvalidDeposit(PaymentError::MultipleDenoms {})
     );
 
     assert_eq!(
@@ -64,8 +65,6 @@ fn invalid_deposit() {
             .with_funds(&[second_coin])
             .call(owner)
             .unwrap_err(),
-        ContractError::WrongDenom {
-            mix_denom: denom.to_string()
-        }
+        ContractError::InvalidDeposit(PaymentError::MissingDenom(denom.to_string()))
     );
 }

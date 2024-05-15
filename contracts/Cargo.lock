@@ -1380,6 +1380,7 @@ dependencies = [
  "cosmwasm-storage",
  "cw-controllers",
  "cw-storage-plus",
+ "cw-utils",
  "cw3",
  "cw4",
  "nym-ecash-contract-common",

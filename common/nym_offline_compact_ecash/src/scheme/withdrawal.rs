@@ -469,7 +469,7 @@ pub fn request_verify(
     req: &WithdrawalRequest,
     pk_user: PublicKeyUser,
     expiration_date: u64,
-) -> Result<bool> {
+) -> Result<()> {
     // Verify the joined commitment hash
     let expected_commitment_hash = hash_g1(
         (req.joined_commitment + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date))
@@ -492,27 +492,7 @@ pub fn request_verify(
             "Failed to verify the proof of knowledge".to_string(),
         ));
     }
-    Ok(true)
-}
-
-/// Function to blind sign a private attribute commitments.
-/// Given a private attribute commitment (`private_attribute_commitment`) and an element of the signing key,
-/// this function computes the blinded commitment by multiplying the commitment with the blinding factor.
-///
-/// # Arguments
-///
-/// * `private_attribute_commitment` - The G1Projective point representing the commitment to the private attribute.
-/// * `yi` - The element of the secret key of the signing authority.
-///
-/// # Returns
-///
-/// A new G1Projective point representing the blinded commitment.
-///
-pub fn blind_sing_private_attribute(
-    private_attribute_commitment: &G1Projective,
-    yi: &Scalar,
-) -> G1Projective {
-    private_attribute_commitment * yi
+    Ok(())
 }
 
 /// Signs an expiration date using a joined commitment hash and a secret key.
@@ -579,7 +559,7 @@ pub fn issue(
         .private_attributes_commitments
         .iter()
         .zip(sk_auth.ys.iter().take(2))
-        .map(|(pc, yi)| blind_sing_private_attribute(pc, yi))
+        .map(|(pc, yi)| pc * yi)
         .sum();
     // Sign the expiration date
     let expiration_date_sign = sign_expiration_date(

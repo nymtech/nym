@@ -33,8 +33,9 @@ pub mod withdrawal;
 /// a scalar value (`v`) representing the wallet's secret, an optional
 /// `SignerIndex` (`idx`) indicating the signer's index, and an expiration date (`expiration_date`).
 ///
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub struct PartialWallet {
+    #[zeroize(skip)]
     sig: Signature,
     v: Scalar,
     idx: SignerIndex,
@@ -380,7 +381,6 @@ impl Wallet {
             o_mu,
             r_k: r_k_vec,
             r_e: date_sign_blinding_factor,
-            expiration_date: self.expiration_date,
         };
 
         let zk_proof = SpendProof::construct(
@@ -794,12 +794,12 @@ impl Payment {
         pay_info: &PayInfo,
         spend_date: Scalar,
     ) -> Result<bool> {
+        // check if all serial numbers are different
+        self.no_duplicate_serial_numbers()?;
         // Verify whether the payment signature and kappa are correct
         self.check_signature_validity(params)?;
         // Verify whether the expiration date signature and kappa_e are correct
         self.check_exp_signature_validity(params, verification_key, spend_date)?;
-        // check if all serial numbers are different
-        self.no_duplicate_serial_numbers()?;
 
         // Compute pay_info hash for each coin
         let mut rr = Vec::with_capacity(self.spend_value as usize);
@@ -852,22 +852,7 @@ impl Payment {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(
-            4 * 96 + // kappa_bytes, kappa_e_bytes, sig_bytes, sig_exp_bytes
-                8 +      // spend_value_bytes
-                48 +     // cc_bytes
-                4 +      // kappa_k_len_bytes
-                self.kappa_k.len() * 96 +   // kappa_k bytes
-                4 +      // omega_len_bytes
-                self.omega.len() * 96 +     // omega bytes
-                4 +      // ss_len_bytes
-                self.ss.len() * 48 +        // ss bytes
-                4 +      // tt_len_bytes
-                self.tt.len() * 48 +        // tt bytes
-                4 +      // aa_len_bytes
-                self.aa.len() * 48 +        // aa bytes
-                self.zk_proof.to_bytes().len(), // zk_proof bytes
-        );
+        let mut bytes = Vec::new();
 
         bytes.extend_from_slice(&self.kappa.to_affine().to_compressed());
         bytes.extend_from_slice(&self.kappa_e.to_affine().to_compressed());

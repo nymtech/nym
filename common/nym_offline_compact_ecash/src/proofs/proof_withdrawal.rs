@@ -17,13 +17,13 @@ use crate::utils::{
 // instance: g, gamma1, gamma2, gamma3, com, h, com1, com2, com3, pkUser
 pub struct WithdrawalReqInstance {
     // Joined commitment to all attributes
-    pub joined_commitment: G1Projective,
+    pub(crate) joined_commitment: G1Projective,
     // Hash of the joined commitment com
-    pub joined_commitment_hash: G1Projective,
+    pub(crate) joined_commitment_hash: G1Projective,
     // Pedersen commitments to each attribute
-    pub private_attributes_commitments: Vec<G1Projective>,
+    pub(crate) private_attributes_commitments: Vec<G1Projective>,
     // Public key of a user
-    pub pk_user: PublicKeyUser,
+    pub(crate) pk_user: PublicKeyUser,
 }
 
 impl TryFrom<&[u8]> for WithdrawalReqInstance {

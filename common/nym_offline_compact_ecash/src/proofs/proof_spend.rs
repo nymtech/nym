@@ -2,6 +2,7 @@ use std::convert::{TryFrom, TryInto};
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::{Curve, GroupEncoding};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
@@ -206,19 +207,19 @@ impl SpendInstance {
     }
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct SpendWitness {
     // includes skUser, v, t
-    pub attributes: Vec<Scalar>,
+    pub(crate) attributes: Vec<Scalar>,
     // signature randomizing element
-    pub r: Scalar,
-    pub o_c: Scalar,
-    pub lk: Vec<Scalar>,
-    pub o_a: Vec<Scalar>,
-    pub mu: Vec<Scalar>,
-    pub o_mu: Vec<Scalar>,
-    pub r_k: Vec<Scalar>,
-    pub r_e: Scalar,
-    pub expiration_date: Scalar,
+    pub(crate) r: Scalar,
+    pub(crate) o_c: Scalar,
+    pub(crate) lk: Vec<Scalar>,
+    pub(crate) o_a: Vec<Scalar>,
+    pub(crate) mu: Vec<Scalar>,
+    pub(crate) o_mu: Vec<Scalar>,
+    pub(crate) r_k: Vec<Scalar>,
+    pub(crate) r_e: Scalar,
 }
 
 pub struct WitnessReplacement {

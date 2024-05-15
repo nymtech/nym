@@ -48,14 +48,15 @@ struct ShutdownHandles {
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    println!("Starting nym api...");
-
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
         // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
     }}
 
     setup_logging();
+
+    info!("Starting nym api...");
+
     let args = cli::Cli::parse();
     trace!("{:#?}", args);
 

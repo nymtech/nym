@@ -34,6 +34,7 @@ pub(crate) struct DisplayDetails {
     pub(crate) ed25519_identity_key: String,
     pub(crate) x25519_sphinx_key: String,
     pub(crate) x25519_noise_key: String,
+    pub(crate) x25519_wireguard_key: String,
 
     pub(crate) exit_network_requester_address: String,
     pub(crate) exit_ip_packet_router_address: String,
@@ -139,6 +140,12 @@ pub(crate) fn load_x25519_noise_keypair(
     Ok(load_keypair(paths, "x25519-noise")?)
 }
 
+pub(crate) fn load_x25519_wireguard_keypair(
+    paths: KeyPairPath,
+) -> Result<x25519::KeyPair, NymNodeError> {
+    Ok(load_keypair(paths, "x25519-wireguard")?)
+}
+
 pub(crate) fn load_x25519_sphinx_public_key<P: AsRef<Path>>(
     path: P,
 ) -> Result<x25519::PublicKey, NymNodeError> {
@@ -164,4 +171,11 @@ pub(crate) fn store_x25519_noise_keypair(
     paths: KeyPairPath,
 ) -> Result<(), NymNodeError> {
     Ok(store_keypair(keys, paths, "x25519-noise")?)
+}
+
+pub(crate) fn store_x25519_wireguard_keypair(
+    keys: &x25519::KeyPair,
+    paths: KeyPairPath,
+) -> Result<(), NymNodeError> {
+    Ok(store_keypair(keys, paths, "x25519-wireguard")?)
 }

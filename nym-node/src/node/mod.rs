@@ -5,7 +5,7 @@ use crate::node::description::{load_node_description, save_node_description};
 use crate::node::helpers::{
     load_ed25519_identity_keypair, load_key, load_x25519_noise_keypair, load_x25519_sphinx_keypair,
     store_ed25519_identity_keypair, store_key, store_keypair, store_x25519_noise_keypair,
-    store_x25519_sphinx_keypair, DisplayDetails,
+    store_x25519_sphinx_keypair, store_x25519_wireguard_keypair, DisplayDetails,
 };
 use crate::node::http::{sign_host_details, system_info::get_system_info};
 use ipnetwork::IpNetwork;
@@ -38,6 +38,8 @@ use std::path::Path;
 use std::sync::Arc;
 use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
+
+use self::helpers::load_x25519_wireguard_keypair;
 
 pub mod bonding_information;
 pub mod description;
@@ -262,6 +264,8 @@ pub(crate) struct NymNode {
     ed25519_identity_keys: Arc<ed25519::KeyPair>,
     x25519_sphinx_keys: Arc<x25519::KeyPair>,
 
+    x25519_wireguard_keys: Arc<x25519::KeyPair>,
+
     // to be used when noise is integrated
     #[allow(dead_code)]
     x25519_noise_keys: Arc<x25519::KeyPair>,
@@ -279,6 +283,7 @@ impl NymNode {
         let ed25519_identity_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx_keys = x25519::KeyPair::new(&mut rng);
         let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
+        let x25519_wireguard_keys = x25519::KeyPair::new(&mut rng);
 
         trace!("attempting to store ed25519 identity keypair");
         store_ed25519_identity_keypair(
@@ -296,6 +301,12 @@ impl NymNode {
         store_x25519_noise_keypair(
             &x25519_noise_keys,
             config.storage_paths.keys.x25519_noise_storage_paths(),
+        )?;
+
+        trace!("attempting to store x25519 wireguard keypair");
+        store_x25519_wireguard_keypair(
+            &x25519_wireguard_keys,
+            config.storage_paths.keys.x25519_wireguard_storage_paths(),
         )?;
 
         trace!("creating description file");
@@ -327,6 +338,9 @@ impl NymNode {
             )?),
             x25519_noise_keys: Arc::new(load_x25519_noise_keypair(
                 config.storage_paths.keys.x25519_noise_storage_paths(),
+            )?),
+            x25519_wireguard_keys: Arc::new(load_x25519_wireguard_keypair(
+                config.storage_paths.keys.x25519_wireguard_storage_paths(),
             )?),
             description: load_node_description(&config.storage_paths.description)?,
             verloc_stats: Default::default(),
@@ -360,6 +374,7 @@ impl NymNode {
             ed25519_identity_key: self.ed25519_identity_key().to_base58_string(),
             x25519_sphinx_key: self.x25519_sphinx_key().to_base58_string(),
             x25519_noise_key: self.x25519_noise_key().to_base58_string(),
+            x25519_wireguard_key: self.x25519_wireguard_key().to_base58_string(),
             exit_network_requester_address: self.exit_network_requester_address().to_string(),
             exit_ip_packet_router_address: self.exit_ip_packet_router_address().to_string(),
         }
@@ -379,6 +394,10 @@ impl NymNode {
 
     pub(crate) fn x25519_noise_key(&self) -> &x25519::PublicKey {
         self.x25519_noise_keys.public_key()
+    }
+
+    pub(crate) fn x25519_wireguard_key(&self) -> &x25519::PublicKey {
+        self.x25519_wireguard_keys.public_key()
     }
 
     fn start_mixnode(&self, task_client: TaskClient) -> Result<(), NymNodeError> {

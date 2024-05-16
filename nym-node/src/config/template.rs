@@ -129,10 +129,10 @@ private_network_prefix = {{ wireguard.private_network_prefix }}
 
 [wireguard.storage_paths]
 # Path to file containing wireguard x25519 diffie hellman private key.
-private_x25519_diffie_hellman_key_file = '{{ wireguard.storage_paths.private_diffie_hellman_key_file }}'
+private_x25519_wireguard_key_file = '{{ wireguard.storage_paths.private_diffie_hellman_key_file }}'
 
 # Path to file containing wireguard x25519 diffie hellman public key.
-public_x25519_diffie_hellman_key_file = '{{ wireguard.storage_paths.public_diffie_hellman_key_file }}'
+public_x25519_wireguard_key_file = '{{ wireguard.storage_paths.public_diffie_hellman_key_file }}'
 
 
 ##### mixnode mode nym-node config options #####

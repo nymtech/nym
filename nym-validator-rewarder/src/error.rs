@@ -3,6 +3,7 @@
 
 use crate::config::RewardingRatios;
 use nym_coconut::CoconutError;
+use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::tx::ErrorReport;
@@ -98,6 +99,12 @@ pub enum NymRewarderError {
         source: url::ParseError,
     },
 
+    #[error("the provided ed25519 identity key is malformed: {source}")]
+    MalformedIdentityKey {
+        #[from]
+        source: ed25519::Ed25519RecoveryError,
+    },
+
     #[error("failed to resolve nym-api query: {0}")]
     ApiQueryFailure(#[from] NymAPIError),
 
@@ -121,6 +128,9 @@ pub enum NymRewarderError {
         #[source]
         source: CoconutError,
     },
+
+    #[error("the signature on issued credential with id {credential_id} is invalid")]
+    SignatureVerificationFailure { credential_id: i64 },
 
     #[error("could not verify the blinded credential")]
     BlindVerificationFailure,

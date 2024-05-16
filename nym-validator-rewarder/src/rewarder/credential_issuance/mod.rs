@@ -7,6 +7,7 @@ use crate::rewarder::credential_issuance::monitor::CredentialIssuanceMonitor;
 use crate::rewarder::credential_issuance::types::{CredentialIssuanceResults, MonitoringResults};
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
+use crate::rewarder::storage::RewarderStorage;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::AccountId;
 use tracing::info;
@@ -16,17 +17,20 @@ pub mod types;
 
 pub struct CredentialIssuance {
     monitoring_results: MonitoringResults,
+    storage: RewarderStorage,
 }
 
 impl CredentialIssuance {
     pub(crate) async fn new(
         epoch: Epoch,
+        storage: RewarderStorage,
         nyxd_client: &NyxdClient,
         whitelist: &[AccountId],
     ) -> Result<Self, NymRewarderError> {
         Ok(CredentialIssuance {
             monitoring_results: MonitoringResults::new_initial(epoch, nyxd_client, whitelist)
                 .await?,
+            storage,
         })
     }
 
@@ -37,8 +41,12 @@ impl CredentialIssuance {
         task_client: TaskClient,
     ) {
         let monitoring_results = self.monitoring_results.clone();
-        let mut monitor =
-            CredentialIssuanceMonitor::new(monitor_config, nyxd_client, monitoring_results);
+        let mut monitor = CredentialIssuanceMonitor::new(
+            monitor_config,
+            nyxd_client,
+            self.storage.clone(),
+            monitoring_results,
+        );
 
         tokio::spawn(async move { monitor.run(task_client).await });
     }

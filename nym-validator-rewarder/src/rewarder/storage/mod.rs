@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymRewarderError;
+use crate::rewarder::credential_issuance::types::CredentialIssuer;
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::storage::manager::StorageManager;
 use crate::rewarder::{EpochRewards, RewardingResult};
+use nym_validator_client::nym_api::IssuedCredentialBody;
 use nym_validator_client::nyxd::Coin;
 use sqlx::ConnectOptions;
 use std::fmt::Debug;
@@ -13,6 +15,7 @@ use tracing::{error, info, instrument};
 
 mod manager;
 
+#[derive(Clone)]
 pub struct RewarderStorage {
     pub(crate) manager: StorageManager,
 }
@@ -77,11 +80,93 @@ impl RewarderStorage {
             .await?)
     }
 
+    pub(crate) async fn get_deposit_credential_id(
+        &self,
+        operator_identity_bs58: String,
+        deposit_tx: String,
+    ) -> Result<Option<i64>, NymRewarderError> {
+        Ok(self
+            .manager
+            .get_deposit_credential_id(operator_identity_bs58, deposit_tx)
+            .await?)
+    }
+
+    pub(crate) async fn insert_validated_deposit(
+        &self,
+        operator_identity_bs58: String,
+        credential_info: &IssuedCredentialBody,
+    ) -> Result<(), NymRewarderError> {
+        self.manager
+            .insert_validated_deposit(
+                operator_identity_bs58,
+                credential_info.credential.id,
+                credential_info.credential.tx_hash.to_string(),
+                credential_info.credential.signable_plaintext(),
+                credential_info.signature.to_base58_string(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn insert_double_signing_evidence(
+        &self,
+        operator_identity_bs58: String,
+        original_credential_id: i64,
+        credential_info: &IssuedCredentialBody,
+    ) -> Result<(), NymRewarderError> {
+        self.manager
+            .insert_double_signing_evidence(
+                operator_identity_bs58,
+                credential_info.credential.id,
+                original_credential_id,
+                credential_info.credential.tx_hash.to_string(),
+                credential_info.credential.signable_plaintext(),
+                credential_info.signature.to_base58_string(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn insert_issuance_foul_play_evidence(
+        &self,
+        issuer: &CredentialIssuer,
+        credential_info: &IssuedCredentialBody,
+        error_message: String,
+    ) -> Result<(), NymRewarderError> {
+        self.manager
+            .insert_foul_play_evidence(
+                issuer.operator_account.to_string(),
+                issuer.public_key.to_base58_string(),
+                credential_info.credential.id,
+                credential_info.credential.signable_plaintext(),
+                credential_info.signature.to_base58_string(),
+                error_message,
+            )
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn insert_issuance_validation_failure_info(
+        &self,
+        issuer: &CredentialIssuer,
+        error_message: String,
+    ) -> Result<(), NymRewarderError> {
+        self.manager
+            .insert_validation_failure_info(
+                issuer.operator_account.to_string(),
+                issuer.public_key.to_base58_string(),
+                error_message,
+            )
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn save_rewarding_information(
         &self,
         reward: EpochRewards,
-        rewarding_result: Result<RewardingResult, NymRewarderError>, // total_spent: Coin,
-                                                                     // rewarding_tx: Result<Hash, NymRewarderError>,
+        rewarding_result: Result<RewardingResult, NymRewarderError>,
+        // total_spent: Coin,
+        // rewarding_tx: Result<Hash, NymRewarderError>,
     ) -> Result<(), NymRewarderError> {
         info!("persisting reward details");
         let denom = &reward.total_budget.denom;

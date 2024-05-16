@@ -78,6 +78,7 @@ pub fn generate_lagrangian_coefficients_at_origin(points: &[u64]) -> Vec<Scalar>
                 }
             }
             // numerator / denominator
+            //SAFETY: denominator start as one, and (xi-xj) is guaranteed to be non zero, as we force i != j
             numerator * denominator.invert().unwrap()
         })
         .collect()

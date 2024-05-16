@@ -142,7 +142,15 @@ impl TryFrom<&[u8]> for PartialWallet {
             })?;
 
         let sig = Signature::try_from(sig_bytes.as_slice())?;
-        let v = Scalar::from_bytes(v_bytes).unwrap();
+        let maybe_v = Scalar::from_bytes(v_bytes);
+        let v = if maybe_v.is_some().into() {
+            //SAFETY: here we know maybe_v is Some()
+            maybe_v.unwrap()
+        } else {
+            return Err(CompactEcashError::Deserialization(
+                "Failed to convert wallet secret bytes".to_string(),
+            ));
+        };
         let expiration_date = Scalar::from_bytes(expiration_date_bytes).unwrap();
         let idx = u64::from_le_bytes(*idx_bytes);
 

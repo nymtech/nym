@@ -89,7 +89,6 @@ pub struct GatewayNodeDetailsResponse {
 
     pub network_requester: Option<GatewayNetworkRequesterDetails>,
     pub ip_packet_router: Option<GatewayIpPacketRouterDetails>,
-    pub wireguard: Option<GatewayWireguardDetails>,
 }
 
 impl fmt::Display for GatewayNodeDetailsResponse {

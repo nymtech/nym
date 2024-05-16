@@ -12,7 +12,6 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_network_defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
-use nym_wireguard_types::config::Wireguard;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -95,9 +94,6 @@ pub struct Config {
     pub ip_packet_router: IpPacketRouter,
 
     #[serde(default)]
-    pub wireguard: Wireguard,
-
-    #[serde(default)]
     pub logging: LoggingSettings,
 
     #[serde(default)]
@@ -122,7 +118,6 @@ impl Config {
             },
             http: Default::default(),
             gateway: default_gateway,
-            wireguard: Default::default(),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
             ip_packet_router: Default::default(),
@@ -136,7 +131,6 @@ impl Config {
         host: impl Into<Host>,
         http: impl Into<Http>,
         gateway: impl Into<Gateway>,
-        wireguard: impl Into<Wireguard>,
         storage_paths: impl Into<GatewayPaths>,
         network_requester: impl Into<NetworkRequester>,
         ip_packet_router: impl Into<IpPacketRouter>,
@@ -148,7 +142,6 @@ impl Config {
             host: host.into(),
             http: http.into(),
             gateway: gateway.into(),
-            wireguard: wireguard.into(),
             storage_paths: storage_paths.into(),
             network_requester: network_requester.into(),
             ip_packet_router: ip_packet_router.into(),
@@ -228,11 +221,6 @@ impl Config {
         self
     }
 
-    pub fn with_enabled_wireguard(mut self, enabled_wireguard: bool) -> Self {
-        self.wireguard.enabled = enabled_wireguard;
-        self
-    }
-
     pub fn with_default_wireguard_config_path(mut self) -> Self {
         self.storage_paths = self
             .storage_paths
@@ -275,8 +263,6 @@ impl Config {
 
         let http_port = self.http.bind_address.port();
         self.http.bind_address = SocketAddr::new(listening_address, http_port);
-        let wg_port = self.wireguard.bind_address.port();
-        self.wireguard.bind_address = SocketAddr::new(listening_address, wg_port);
 
         self
     }

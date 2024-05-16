@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::Config;
 use crate::node::helpers::load_keypair;
 use crate::GatewayError;
-use crate::{config::Config, node::helpers::load_wireguard_config};
 use nym_config::OptionalSet;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_pemstore::traits::PemStorableKey;
@@ -11,7 +11,6 @@ use nym_pemstore::KeyPairPath;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_types::gateway::{
     GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails, GatewayNodeDetailsResponse,
-    GatewayWireguardDetails,
 };
 use std::path::Path;
 
@@ -193,18 +192,6 @@ pub async fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse,
         None
     };
 
-    let wireguard = if let Some(nr_cfg_path) = &config.storage_paths.wireguard_config {
-        let cfg = load_wireguard_config(&config.gateway.id, nr_cfg_path).await?;
-
-        Some(GatewayWireguardDetails {
-            enabled: cfg.enabled,
-            announced_port: cfg.announced_port,
-            private_network_prefix: cfg.private_network_prefix,
-        })
-    } else {
-        None
-    };
-
     Ok(GatewayNodeDetailsResponse {
         identity_key: gateway_identity_public_key.to_base58_string(),
         sphinx_key: gateway_sphinx_public_key.to_base58_string(),
@@ -215,6 +202,5 @@ pub async fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse,
         data_store: display_path(&config.storage_paths.clients_storage),
         network_requester,
         ip_packet_router,
-        wireguard,
     })
 }

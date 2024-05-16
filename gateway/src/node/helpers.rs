@@ -37,19 +37,6 @@ pub async fn load_ip_packet_router_config<P: AsRef<Path>>(
     read_ip_packet_router_config(id, path)
 }
 
-pub async fn load_wireguard_config<P: AsRef<Path>>(
-    id: &str,
-    path: P,
-) -> Result<nym_wireguard_types::config::Wireguard, GatewayError> {
-    let path = path.as_ref();
-    if let Ok(cfg) = read_wireguard_config(id, path) {
-        return Ok(cfg);
-    }
-
-    nym_ip_packet_router::config::helpers::try_upgrade_config(path).await?;
-    read_wireguard_config(id, path)
-}
-
 pub fn read_network_requester_config<P: AsRef<Path>>(
     id: &str,
     path: P,
@@ -71,20 +58,6 @@ pub fn read_ip_packet_router_config<P: AsRef<Path>>(
     let path = path.as_ref();
     nym_ip_packet_router::Config::read_from_toml_file(path).map_err(|err| {
         GatewayError::IpPacketRouterConfigLoadFailure {
-            id: id.to_string(),
-            path: path.to_path_buf(),
-            source: err,
-        }
-    })
-}
-
-pub fn read_wireguard_config<P: AsRef<Path>>(
-    id: &str,
-    path: P,
-) -> Result<nym_wireguard_types::config::Wireguard, GatewayError> {
-    let path = path.as_ref();
-    nym_wireguard_types::config::Wireguard::read_from_toml_file(path).map_err(|err| {
-        GatewayError::WireguardConfigLoadFailure {
             id: id.to_string(),
             path: path.to_path_buf(),
             source: err,

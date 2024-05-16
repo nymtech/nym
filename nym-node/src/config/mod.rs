@@ -531,3 +531,10 @@ impl Wireguard {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct LocalWireguardOpts {
+    pub config: Wireguard,
+
+    pub custom_mixnet_path: Option<PathBuf>,
+}

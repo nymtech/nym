@@ -43,6 +43,10 @@ pub const DEFAULT_IPR_ACK_KEY_FILENAME: &str = "aes128ctr_ipr_ack";
 pub const DEFAULT_IPR_REPLY_SURB_DB_FILENAME: &str = "ipr_persistent_reply_store.sqlite";
 pub const DEFAULT_IPR_GATEWAYS_DB_FILENAME: &str = "ipr_gateways_info_store.sqlite";
 
+// Wireguard
+pub const DEFAULT_X25519_WG_DH_KEY_FILENAME: &str = "x25519_wg_dh";
+pub const DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME: &str = "x25519_wg_dh.pub";
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NymNodePaths {
@@ -366,11 +370,16 @@ impl ExitGatewayPaths {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WireguardPaths {
-    // pub keys:
+    pub private_diffie_hellman_key_file: PathBuf,
+    pub public_diffie_hellman_key_file: PathBuf,
 }
 
 impl WireguardPaths {
-    pub fn new<P: AsRef<Path>>(_data_dir: P) -> Self {
-        WireguardPaths {}
+    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
+        let data_dir = data_dir.as_ref();
+        WireguardPaths {
+            private_diffie_hellman_key_file: data_dir.join(DEFAULT_X25519_WG_DH_KEY_FILENAME),
+            public_diffie_hellman_key_file: data_dir.join(DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME),
+        }
     }
 }

@@ -15,7 +15,7 @@ use std::time::Duration;
 use url::Url;
 
 use super::persistence::paths::KeysPaths;
-use super::{Config, Debug, Gateway, Host, Http, IpPacketRouter, NetworkRequester, Wireguard};
+use super::{Config, Debug, Gateway, Host, Http, IpPacketRouter, NetworkRequester};
 
 const DEFAULT_GATEWAYS_DIR: &str = "gateways";
 
@@ -127,12 +127,6 @@ impl From<ConfigV1_1_36> for Config {
                 nym_api_urls: value.gateway.nym_api_urls,
                 nyxd_urls: value.gateway.nyxd_urls,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
-            },
-            wireguard: Wireguard {
-                enabled: value.wireguard.enabled,
-                bind_address: value.wireguard.bind_address,
-                announced_port: value.wireguard.announced_port,
-                private_network_prefix: value.wireguard.private_network_prefix,
             },
             storage_paths: GatewayPaths {
                 keys: KeysPaths {

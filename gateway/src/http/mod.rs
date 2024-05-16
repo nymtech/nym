@@ -4,7 +4,6 @@
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::helpers::load_public_key;
-use ipnetwork::IpNetwork;
 use log::{debug, error, warn};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -12,30 +11,19 @@ use nym_network_requester::RequestFilter;
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_http_api::api::api_requests::SignedHostInformation;
-use nym_node_http_api::router::WireguardAppState;
 use nym_node_http_api::NymNodeHttpError;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
 use nym_wireguard_types::registration::GatewayClientRegistry;
-use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 fn load_gateway_details(
     config: &Config,
 ) -> Result<api_requests::v1::gateway::models::Gateway, GatewayError> {
-    let wireguard = if config.wireguard.enabled {
-        Some(api_requests::v1::gateway::models::Wireguard {
-            port: config.wireguard.announced_port,
-            public_key: "placeholder key value".to_string(),
-        })
-    } else {
-        None
-    };
-
     Ok(api_requests::v1::gateway::models::Gateway {
         enforces_zk_nyms: config.gateway.only_coconut_credentials,
         client_interfaces: api_requests::v1::gateway::models::ClientInterfaces {
-            wireguard,
+            wireguard: None,
             mixnet_websockets: Some(api_requests::v1::gateway::models::WebSockets {
                 ws_port: config.gateway.clients_port,
                 wss_port: config.gateway.clients_wss_port,
@@ -281,22 +269,8 @@ impl<'a> HttpApiBuilder<'a> {
             )?);
         }
 
-        let wireguard_private_network = IpNetwork::new(
-            IpAddr::from(Ipv4Addr::new(10, 1, 0, 0)),
-            self.gateway_config.wireguard.private_network_prefix,
-        )?;
-        let wg_state = self.client_registry.and_then(|client_registry| {
-            WireguardAppState::new(
-                client_registry,
-                Default::default(),
-                self.gateway_config.wireguard.bind_address.port(),
-                wireguard_private_network,
-            )
-            .ok()
-        });
-
         let bind_address = self.gateway_config.http.bind_address;
-        let router = nym_node_http_api::NymNodeRouter::new(config, None, wg_state);
+        let router = nym_node_http_api::NymNodeRouter::new(config, None, None);
 
         tokio::spawn(async move {
             let server = match router.build_server(&bind_address).await {

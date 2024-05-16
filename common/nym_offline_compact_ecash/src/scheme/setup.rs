@@ -155,9 +155,11 @@ impl TryFrom<&[u8]> for CoinIndexSignature {
                 bytes.len()
             )));
         }
-
-        let h_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
-        let s_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
+        //SAFETY : 48 sized slice into 48 sized array
+        #[allow(clippy::unwrap_used)]
+        let h_bytes: &[u8; 48] = &bytes[..48].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        let s_bytes: &[u8; 48] = &bytes[48..].try_into().unwrap();
 
         let h = try_deserialize_g1_projective(
             h_bytes,

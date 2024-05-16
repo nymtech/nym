@@ -295,6 +295,8 @@ impl Wallet {
         // Randomise the expiration date signature for the date when we want to perform the spending, and compute kappa_e to prove possession of
         // the expiration signature
         let date_signature_index = find_index(spend_date, self.expiration_date)?;
+        //SAFETY : find_index eiter returns a valid index or an error. The unwrap is therefore fine
+        #[allow(clippy::unwrap_used)]
         let date_signature: ExpirationDateSignature = valid_dates_signatures
             .get(date_signature_index)
             .unwrap()
@@ -355,6 +357,8 @@ impl Wallet {
 
             // Randomize the coin index signatures and compute kappa_k to prove possession of each coin's signature
             // This involves iterating over the signatures corresponding to the coins we want to spend in this payment.
+            //SAFETY : Earlier `check_remaining_allowance` ensures we don't do out of of bound here
+            #[allow(clippy::unwrap_used)]
             let coin_sign: CoinIndexSignature = *coin_indices_signatures.get(lk as usize).unwrap();
             let (coin_sign_prime, coin_sign_blinding_factor) = coin_sign.randomise(grp_params);
             coin_indices_signatures_prime.push(coin_sign_prime);
@@ -436,14 +440,17 @@ impl TryFrom<&[u8]> for Wallet {
                 bytes.len()
             )));
         }
+        //SAFETY : slice to array conversions after a length check
+        #[allow(clippy::unwrap_used)]
+        let sig_bytes: &[u8; 96] = &bytes[..96].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        let v_bytes: &[u8; 32] = &bytes[96..128].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        let expiration_date_bytes: &[u8; 32] = &bytes[128..160].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        let l_bytes: &[u8; 8] = &bytes[160..168].try_into().unwrap();
 
-        let sig_bytes: &[u8; 96] = &bytes[..96].try_into().expect("Slice size != 96");
-        let v_bytes: &[u8; 32] = &bytes[96..128].try_into().expect("Slice size != 32");
-        let expiration_date_bytes: &[u8; 32] =
-            &bytes[128..160].try_into().expect("Slice size != 32");
-        let l_bytes: &[u8; 8] = &bytes[160..168].try_into().expect("Slice size != 8");
-
-        let sig = Signature::try_from(sig_bytes.as_slice()).unwrap();
+        let sig = Signature::try_from(sig_bytes.as_slice())?;
         let v = Scalar::from_bytes(v_bytes).unwrap();
         let expiration_date = Scalar::from_bytes(expiration_date_bytes).unwrap();
         let l = Cell::new(u64::from_le_bytes(*l_bytes));
@@ -550,10 +557,14 @@ impl PayInfo {
     }
 
     pub fn timestamp(&self) -> i64 {
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         i64::from_be_bytes(self.pay_info_bytes[32..40].try_into().unwrap())
     }
 
     pub fn pk(&self) -> [u8; 32] {
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         self.pay_info_bytes[40..].try_into().unwrap()
     }
 }
@@ -570,6 +581,7 @@ impl Bytable for PayInfo {
             ));
         }
         //safety : we checked that slices length is exactly 72, hence this unwrap won't fail
+        #[allow(clippy::unwrap_used)]
         Ok(Self {
             pay_info_bytes: slice.try_into().unwrap(),
         })
@@ -915,27 +927,39 @@ impl TryFrom<&[u8]> for Payment {
             ));
         }
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let kappa_bytes: [u8; 96] = bytes[..96].try_into().unwrap();
         let kappa = try_deserialize_g2_projective(
             &kappa_bytes,
             CompactEcashError::Deserialization("Failed to deserialize kappa".to_string()),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let kappa_e_bytes: [u8; 96] = bytes[96..192].try_into().unwrap();
         let kappa_e = try_deserialize_g2_projective(
             &kappa_e_bytes,
             CompactEcashError::Deserialization("Failed to deserialize kappa_e".to_string()),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let sig_bytes: [u8; 96] = bytes[192..288].try_into().unwrap();
         let sig = Signature::try_from(sig_bytes.as_slice())?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let sig_exp_bytes: [u8; 96] = bytes[288..384].try_into().unwrap();
         let sig_exp = ExpirationDateSignature::try_from(sig_exp_bytes.as_slice())?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let spend_value_bytes: [u8; 8] = bytes[384..392].try_into().unwrap();
         let spend_value = u64::from_le_bytes(spend_value_bytes);
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let cc_bytes: [u8; 48] = bytes[392..440].try_into().unwrap();
         let cc = try_deserialize_g1_projective(
             &cc_bytes,
@@ -943,10 +967,14 @@ impl TryFrom<&[u8]> for Payment {
         )?;
 
         let mut idx = 440;
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let kappa_k_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut kappa_k = Vec::with_capacity(kappa_k_len);
         for _ in 0..kappa_k_len {
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let kappa_k_bytes: [u8; 96] = bytes[idx..idx + 96].try_into().unwrap();
             let kappa_k_elem = try_deserialize_g2_projective(
                 &kappa_k_bytes,
@@ -958,20 +986,28 @@ impl TryFrom<&[u8]> for Payment {
             idx += 96;
         }
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let omega_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut omega = Vec::with_capacity(omega_len);
         for _ in 0..omega_len {
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let omega_bytes: [u8; 96] = bytes[idx..idx + 96].try_into().unwrap();
             let omega_elem = CoinIndexSignature::try_from(omega_bytes.as_slice())?;
             omega.push(omega_elem);
             idx += 96;
         }
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let ss_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut ss = Vec::with_capacity(ss_len);
         for _ in 0..ss_len {
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let ss_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
             let ss_elem = try_deserialize_g1_projective(
                 &ss_bytes,
@@ -981,10 +1017,14 @@ impl TryFrom<&[u8]> for Payment {
             idx += 48;
         }
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let tt_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut tt = Vec::with_capacity(tt_len);
         for _ in 0..tt_len {
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let tt_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
             let tt_elem = try_deserialize_g1_projective(
                 &tt_bytes,
@@ -994,10 +1034,14 @@ impl TryFrom<&[u8]> for Payment {
             idx += 48;
         }
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let aa_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut aa = Vec::with_capacity(aa_len);
         for _ in 0..aa_len {
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let aa_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
             let aa_elem = try_deserialize_g1_projective(
                 &aa_bytes,
@@ -1072,6 +1116,8 @@ impl TryFrom<&[u8]> for SerialNumber {
         let mut inner = Vec::with_capacity(inner_len);
         let mut idx = 0;
         for _ in 0..inner_len {
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let ss_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
             let ss_elem = try_deserialize_g1_projective(
                 &ss_bytes,

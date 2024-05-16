@@ -64,7 +64,8 @@ pub fn payment_from_keys_and_expiration_date(
         &verification_key,
         indices,
     )?;
-
+    //SAFETY : method intended for test only
+    #[allow(clippy::unwrap_used)]
     // request a wallet
     let (req, req_info) =
         withdrawal_request(grp_params, &user_keypair.secret_key(), expiration_date).unwrap();
@@ -84,6 +85,8 @@ pub fn payment_from_keys_and_expiration_date(
     }
 
     // Unblind
+    //SAFETY : method intended for test only
+    #[allow(clippy::unwrap_used)]
     let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()

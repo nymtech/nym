@@ -123,6 +123,8 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
 
         let mut j = 0;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let joined_commitment_hash_bytes = bytes[..j + joined_commitment_hash_bytes_len]
             .try_into()
             .unwrap();
@@ -134,6 +136,8 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
         )?;
         j += joined_commitment_hash_bytes_len;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let joined_commitment_bytes = bytes[j..j + joined_commitment_bytes_len]
             .try_into()
             .unwrap();
@@ -145,6 +149,8 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
         )?;
         j += joined_commitment_bytes_len;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let private_attributes_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
         if bytes[j..].len() < private_attributes_len as usize * 48 {
@@ -160,6 +166,8 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
             let start = j + i * 48;
             let end = start + 48;
 
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let pc_com_bytes = bytes[start..end].try_into().unwrap();
             let pc_com = try_deserialize_g1_projective(
                 &pc_com_bytes,
@@ -260,6 +268,9 @@ impl TryFrom<&[u8]> for RequestInfo {
 
         let mut j = 0;
         let commitment_hash_bytes_len = 48;
+
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let com_hash_bytes = bytes[j..j + commitment_hash_bytes_len].try_into().unwrap();
         let com_hash = try_deserialize_g1_projective(
             &com_hash_bytes,
@@ -270,6 +281,8 @@ impl TryFrom<&[u8]> for RequestInfo {
         j += commitment_hash_bytes_len;
 
         let com_opening_bytes_len = 32;
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let com_opening_bytes = bytes[j..j + com_opening_bytes_len].try_into().unwrap();
         let com_opening = try_deserialize_scalar(
             &com_opening_bytes,
@@ -279,6 +292,8 @@ impl TryFrom<&[u8]> for RequestInfo {
         )?;
         j += com_opening_bytes_len;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let pc_coms_openings_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
         if bytes[j..].len() < pc_coms_openings_len as usize * 32 {
@@ -292,6 +307,8 @@ impl TryFrom<&[u8]> for RequestInfo {
             let start = j + i * 32;
             let end = start + 32;
 
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let pc_com_opening_bytes = bytes[start..end].try_into().unwrap();
             let pc_com_opening = try_deserialize_scalar(
                 &pc_com_opening_bytes,
@@ -312,6 +329,8 @@ impl TryFrom<&[u8]> for RequestInfo {
                 actual: bytes[j..].len(),
             });
         }
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let v_bytes = bytes[j..j + v_len].try_into().unwrap();
         let v = try_deserialize_scalar(
             v_bytes,
@@ -320,6 +339,8 @@ impl TryFrom<&[u8]> for RequestInfo {
 
         j += v_len;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let exp_date_bytes = bytes[j..j + exp_date_len].try_into().unwrap();
         let exp_date = try_deserialize_scalar(
             exp_date_bytes,

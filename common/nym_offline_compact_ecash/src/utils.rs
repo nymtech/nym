@@ -41,6 +41,7 @@ impl Polynomial {
             // just return the last term of the polynomial
         } else if x.is_zero().unwrap_u8() == 1 {
             // we checked that coefficients are not empty so unwrap here is fine
+            #[allow(clippy::unwrap_used)]
             *self.coefficients.first().unwrap()
         } else {
             self.coefficients
@@ -155,6 +156,8 @@ pub fn try_deserialize_scalar_vec(
 
     let mut out = Vec::with_capacity(expected_len as usize);
     for i in 0..expected_len as usize {
+        //SAFETY : casting 32 len slice into 32 len array
+        #[allow(clippy::unwrap_used)]
         let s_bytes = bytes[i * 32..(i + 1) * 32].try_into().unwrap();
         let s = match Into::<Option<Scalar>>::into(Scalar::from_bytes(&s_bytes)) {
             None => return Err(err),
@@ -253,9 +256,11 @@ impl TryFrom<&[u8]> for Signature {
                 bytes.len()
             )));
         }
-
-        let sig1_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
-        let sig2_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
+        //SAFETY : [0..48] into 48 sized array and [48..96] into 48 sized array
+        #[allow(clippy::unwrap_used)]
+        let sig1_bytes: &[u8; 48] = &bytes[..48].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        let sig2_bytes: &[u8; 48] = &bytes[48..].try_into().unwrap();
 
         let sig1 = try_deserialize_g1_projective(
             sig1_bytes,
@@ -323,9 +328,11 @@ impl TryFrom<&[u8]> for BlindedSignature {
                 bytes.len()
             )));
         }
-
-        let bsig1_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
-        let bsig2_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
+        //SAFETY : [0..48] into 48 sized array and [48..96] into 48 sized array
+        #[allow(clippy::unwrap_used)]
+        let bsig1_bytes: &[u8; 48] = &bytes[..48].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        let bsig2_bytes: &[u8; 48] = &bytes[48..].try_into().unwrap();
 
         let bsig1 = try_deserialize_g1_projective(
             bsig1_bytes,

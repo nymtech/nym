@@ -20,7 +20,9 @@ where
     Self: Bytable,
 {
     fn try_from_bs58<S: AsRef<str>>(x: S) -> Result<Self, CompactEcashError> {
-        Self::try_from_byte_slice(&bs58::decode(x.as_ref()).into_vec().unwrap())
+        Self::try_from_byte_slice(&bs58::decode(x.as_ref()).into_vec().map_err(|_| {
+            CompactEcashError::Deserialization("failed to deserialize bs58 string".to_string())
+        })?)
     }
     fn to_bs58(&self) -> String {
         bs58::encode(self.to_byte_vec()).into_string()

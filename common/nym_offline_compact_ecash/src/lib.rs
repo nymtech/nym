@@ -1,6 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::todo)]
+#![warn(clippy::dbg_macro)]
+
 use bls12_381::Scalar;
 use std::convert::TryInto;
 
@@ -41,6 +46,17 @@ impl Bytable for Attribute {
     }
 
     fn try_from_byte_slice(slice: &[u8]) -> Result<Self, CompactEcashError> {
-        Ok(Attribute::from_bytes(slice.try_into().unwrap()).unwrap())
+        let maybe_attribute = Attribute::from_bytes(
+            slice
+                .try_into()
+                .map_err(|_| CompactEcashError::ScalarDeserializationFailure)?,
+        );
+        if maybe_attribute.is_none().into() {
+            Err(CompactEcashError::ScalarDeserializationFailure)
+        } else {
+            // safety: this unwrap is fine as we've just checked the element is not none
+            #[allow(clippy::unwrap_used)]
+            Ok(maybe_attribute.unwrap())
+        }
     }
 }

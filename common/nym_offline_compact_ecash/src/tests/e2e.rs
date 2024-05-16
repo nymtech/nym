@@ -14,8 +14,6 @@ use crate::scheme::setup::{
     PartialCoinIndexSignature,
 };
 
-//use bls12_381::Scalar;
-
 pub fn generate_expiration_date_signatures(
     params: &Parameters,
     expiration_date: u64,

@@ -62,8 +62,11 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
             });
         }
 
-        // this conversion will not fail as we are taking the same length of data
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let x_bytes: [u8; 32] = bytes[..32].try_into().unwrap();
+
+        #[allow(clippy::unwrap_used)]
         let ys_len = u64::from_le_bytes(bytes[32..40].try_into().unwrap());
         let actual_ys_len = (bytes.len() - 40) / 32;
 
@@ -177,8 +180,10 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
             });
         }
 
-        // this conversion will not fail as we are taking the same length of data
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let alpha_bytes: [u8; 96] = bytes[..96].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
         let betas_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
 
         let actual_betas_len = (bytes.len() - 104) / (96 + 48);
@@ -203,6 +208,8 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
         for i in 0..betas_len {
             let start = (104 + i * 48) as usize;
             let end = start + 48;
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g1_projective(
                 &beta_i_bytes,
@@ -219,6 +226,8 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
         for i in 0..betas_len {
             let start = (beta_g1_end + i * 96) as usize;
             let end = start + 96;
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g2_projective(
                 &beta_i_bytes,
@@ -452,6 +461,8 @@ impl PublicKeyUser {
                 "Failed to deserialize : Invalid length".to_string(),
             ));
         }
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let pk_bytes: &[u8; 48] = bytes[..48].try_into().unwrap();
         let pk = try_deserialize_g1_projective(
             pk_bytes,

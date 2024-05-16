@@ -44,20 +44,24 @@ impl TryFrom<&[u8]> for SpendInstance {
         }
 
         let mut j = 0;
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let kappa_bytes = bytes[j..j + 96].try_into().unwrap();
         let kappa = try_deserialize_g2_projective(
             &kappa_bytes,
             CompactEcashError::Deserialization("Failed to deserialize kappa".to_string()),
         )?;
         j += 96;
-
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let kappa_e_bytes = bytes[j..j + 96].try_into().unwrap();
         let kappa_e = try_deserialize_g2_projective(
             &kappa_e_bytes,
             CompactEcashError::Deserialization("Failed to deserialize kappa_e".to_string()),
         )?;
         j += 96;
-
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let a_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
         if bytes[j..].len() < a_len as usize * 48 {
@@ -71,7 +75,8 @@ impl TryFrom<&[u8]> for SpendInstance {
         for i in 0..a_len as usize {
             let start = j + i * 48;
             let end = start + 48;
-
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let aa_elem_bytes = bytes[start..end].try_into().unwrap();
             let aa_elem = try_deserialize_g1_projective(
                 &aa_elem_bytes,
@@ -83,14 +88,16 @@ impl TryFrom<&[u8]> for SpendInstance {
             aa.push(aa_elem)
         }
         j += a_len as usize * 48;
-
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let cc_bytes = bytes[j..j + 48].try_into().unwrap();
         let cc = try_deserialize_g1_projective(
             &cc_bytes,
             CompactEcashError::Deserialization("Failed to deserialize C".to_string()),
         )?;
         j += 48;
-
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let s_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
         if bytes[j..].len() < s_len as usize * 48 {
@@ -104,7 +111,8 @@ impl TryFrom<&[u8]> for SpendInstance {
         for i in 0..s_len as usize {
             let start = j + i * 48;
             let end = start + 48;
-
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let ss_elem_bytes = bytes[start..end].try_into().unwrap();
             let ss_elem = try_deserialize_g1_projective(
                 &ss_elem_bytes,
@@ -116,7 +124,8 @@ impl TryFrom<&[u8]> for SpendInstance {
             ss.push(ss_elem)
         }
         j += s_len as usize * 48;
-
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let t_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
         if bytes[j..].len() < t_len as usize * 48 {
@@ -130,7 +139,8 @@ impl TryFrom<&[u8]> for SpendInstance {
         for i in 0..t_len as usize {
             let start = j + i * 48;
             let end = start + 48;
-
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let tt_elem_bytes = bytes[start..end].try_into().unwrap();
             let tt_elem = try_deserialize_g1_projective(
                 &tt_elem_bytes,
@@ -142,7 +152,8 @@ impl TryFrom<&[u8]> for SpendInstance {
             tt.push(tt_elem)
         }
         j += t_len as usize * 48;
-
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let kappa_k_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
         if bytes[j..].len() < kappa_k_len as usize * 96 {
@@ -156,7 +167,8 @@ impl TryFrom<&[u8]> for SpendInstance {
         for i in 0..kappa_k_len as usize {
             let start = j + i * 48;
             let end = start + 48;
-
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let kappa_k_elem_bytes = bytes[start..end].try_into().unwrap();
             let kappa_k_elem = try_deserialize_g2_projective(
                 &kappa_k_elem_bytes,
@@ -647,14 +659,18 @@ impl TryFrom<&[u8]> for SpendProof {
                 "tried to deserialize proof of spending with bytes of invalid length".to_string(),
             ));
         }
-
+        //SAFETY : four times slice to array conversion after a length check
         let mut idx = 0;
+        #[allow(clippy::unwrap_used)]
         let challenge_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
+        #[allow(clippy::unwrap_used)]
         let response_r_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
+        #[allow(clippy::unwrap_used)]
         let response_r_e_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
+        #[allow(clippy::unwrap_used)]
         let response_o_c_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
 
@@ -677,7 +693,8 @@ impl TryFrom<&[u8]> for SpendProof {
             &response_o_c_bytes,
             CompactEcashError::Deserialization("Failed to deserialize response_o_c".to_string()),
         )?;
-
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let rrl_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
         idx += 8;
         if bytes[idx..].len() < rrl_len as usize * 32 {
@@ -692,6 +709,8 @@ impl TryFrom<&[u8]> for SpendProof {
             CompactEcashError::Deserialization("Failed to deserialize response_r_l".to_string()),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let rl_len = u64::from_le_bytes(bytes[rrl_end..rrl_end + 8].try_into().unwrap());
         let response_l_start = rrl_end + 8;
         if bytes[response_l_start..].len() < rl_len as usize * 32 {
@@ -706,6 +725,8 @@ impl TryFrom<&[u8]> for SpendProof {
             CompactEcashError::Deserialization("Failed to deserialize response_l".to_string()),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let roa_len = u64::from_le_bytes(bytes[rl_end..rl_end + 8].try_into().unwrap());
         let roa_end = rl_end + 8;
         if bytes[roa_end..].len() < roa_len as usize * 32 {
@@ -720,6 +741,8 @@ impl TryFrom<&[u8]> for SpendProof {
             CompactEcashError::Deserialization("Failed to deserialize response_o_a".to_string()),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let response_mu_len = u64::from_le_bytes(bytes[roa_end..roa_end + 8].try_into().unwrap());
         let response_mu_end = roa_end + 8;
         if bytes[response_mu_end..].len() < response_mu_len as usize * 32 {
@@ -734,6 +757,8 @@ impl TryFrom<&[u8]> for SpendProof {
             CompactEcashError::Deserialization("Failed to deserialize response_mu".to_string()),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let response_o_mu_len = u64::from_le_bytes(
             bytes[response_mu_end..response_mu_end + 8]
                 .try_into()
@@ -752,6 +777,8 @@ impl TryFrom<&[u8]> for SpendProof {
             CompactEcashError::Deserialization("Failed to deserialize response_o_mu".to_string()),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let response_attributes_len = u64::from_le_bytes(
             bytes[response_o_mu_end..response_o_mu_end + 8]
                 .try_into()

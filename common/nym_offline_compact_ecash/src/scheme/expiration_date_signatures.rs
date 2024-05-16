@@ -75,9 +75,11 @@ impl TryFrom<&[u8]> for ExpirationDateSignature {
                 bytes.len()
             )));
         }
-
-        let h_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
-        let s_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
+        let h_bytes: &[u8; 48] = &bytes[..48].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
+        let s_bytes: &[u8; 48] = &bytes[48..].try_into().unwrap();
 
         let h = try_deserialize_g1_projective(
             h_bytes,
@@ -342,16 +344,20 @@ pub fn aggregate_expiration_signatures(
 ///
 pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> {
     let expiration_date_bytes = expiration_date.to_bytes();
+    //SAFETY : slice to array conversion after a length check
+    #[allow(clippy::unwrap_used)]
     let expiration_date_u64 = u64::from_le_bytes(expiration_date_bytes[..8].try_into().unwrap());
     let spend_date_bytes = spend_date.to_bytes();
+    //SAFETY : slice to array conversion after a length check
+    #[allow(clippy::unwrap_used)]
     let spend_date_u64 = u64::from_le_bytes(spend_date_bytes[..8].try_into().unwrap());
+    let spend_date = DateTime::from_timestamp(spend_date_u64 as i64, 0).unwrap();
     let start_date = DateTime::from_timestamp(expiration_date_u64 as i64, 0).unwrap()
         - Duration::days(constants::CRED_VALIDITY_PERIOD as i64)
         + Duration::days(1i64);
 
-    if DateTime::from_timestamp(spend_date_u64 as i64, 0).unwrap() >= start_date {
-        let index_a = (DateTime::from_timestamp(spend_date_u64 as i64, 0).unwrap() - start_date)
-            .num_days() as usize;
+    if spend_date >= start_date {
+        let index_a = (spend_date - start_date).num_days() as usize;
         if index_a as u64 >= constants::CRED_VALIDITY_PERIOD {
             Err(CompactEcashError::ExpirationDate(
                 "Spend_date is too late, no valid index".to_string(),

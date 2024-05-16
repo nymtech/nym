@@ -42,16 +42,22 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
                 object: "withdrawal request zkp instance".to_string(),
             });
         }
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let com_bytes: [u8; 48] = bytes[..48].try_into().unwrap();
         let joined_commitment = try_deserialize_g1_projective(
             &com_bytes,
             CompactEcashError::Deserialization("Failed to deserialize com".to_string()),
         )?;
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let h_bytes: [u8; 48] = bytes[48..96].try_into().unwrap();
         let joined_commitment_hash = try_deserialize_g1_projective(
             &h_bytes,
             CompactEcashError::Deserialization("Failed to deserialize h".to_string()),
         )?;
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let pc_coms_len = u64::from_le_bytes(bytes[96..104].try_into().unwrap());
         let actual_pc_coms_len = (bytes.len() - 152) / 48;
         if pc_coms_len as usize != actual_pc_coms_len {
@@ -65,6 +71,8 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
         for i in 0..pc_coms_len {
             let start = (104 + i * 48) as usize;
             let end = start + 48;
+            //SAFETY : slice to array conversion after a length check
+            #[allow(clippy::unwrap_used)]
             let pc_i_bytes = bytes[start..end].try_into().unwrap();
             let pc_i = try_deserialize_g1_projective(
                 &pc_i_bytes,
@@ -75,6 +83,8 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
             pc_coms_end = end;
             private_attributes_commitments.push(pc_i);
         }
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let pk_bytes = bytes[pc_coms_end..].try_into().unwrap();
         let pk = try_deserialize_g1_projective(
             &pk_bytes,
@@ -294,8 +304,11 @@ impl TryFrom<&[u8]> for WithdrawalReqProof {
         }
 
         let mut idx = 0;
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let challenge_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
+        #[allow(clippy::unwrap_used)]
         let response_opening_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
 
@@ -311,6 +324,8 @@ impl TryFrom<&[u8]> for WithdrawalReqProof {
             ),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let ro_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
         idx += 8;
         if bytes[idx..].len() < ro_len as usize * 32 + 8 {
@@ -327,6 +342,8 @@ impl TryFrom<&[u8]> for WithdrawalReqProof {
             ),
         )?;
 
+        //SAFETY : slice to array conversion after a length check
+        #[allow(clippy::unwrap_used)]
         let ra_len = u64::from_le_bytes(bytes[ro_end..ro_end + 8].try_into().unwrap());
         let response_attributes = try_deserialize_scalar_vec(
             ra_len,

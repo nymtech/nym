@@ -6,6 +6,8 @@ use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
+use rand::Rng;
+use time::OffsetDateTime;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::constants;
@@ -20,8 +22,6 @@ use crate::utils::{
     try_deserialize_g2_projective, Signature, SignerIndex,
 };
 use crate::{Attribute, Base58};
-use chrono::Utc;
-use rand::Rng;
 
 pub mod aggregation;
 pub mod expiration_date_signatures;
@@ -555,7 +555,7 @@ impl PayInfo {
         rand::thread_rng().fill(&mut pay_info_bytes[..32]);
 
         // Adding timestamp bytes
-        let timestamp = Utc::now().timestamp();
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp();
         pay_info_bytes[32..40].copy_from_slice(&timestamp.to_be_bytes());
 
         // Adding provider public key bytes

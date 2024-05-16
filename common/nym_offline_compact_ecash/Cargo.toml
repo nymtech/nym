@@ -11,7 +11,7 @@ license = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = "0.4.38"
+time = { workspace = true }
 bls12_381 = { workspace = true , features = ["alloc", "pairings", "experimental", "zeroize"]}
 itertools = "0.12.1"
 digest = "0.9"

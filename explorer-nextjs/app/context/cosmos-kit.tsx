@@ -1,9 +1,11 @@
-import React from 'react';
-import { ChainProvider } from '@cosmos-kit/react';
-import { wallets as keplr } from '@cosmos-kit/keplr-extension';
-import { assets, chains } from 'chain-registry';
-import { Chain, AssetList } from '@chain-registry/types';
-import { VALIDATOR_BASE_URL } from '@src/api/constants';
+'use client'
+
+import React from 'react'
+import { ChainProvider } from '@cosmos-kit/react'
+import { wallets as keplr } from '@cosmos-kit/keplr-extension'
+import { assets, chains } from 'chain-registry'
+import { Chain, AssetList } from '@chain-registry/types'
+import { VALIDATOR_BASE_URL } from '@/app/api/constants'
 
 const nymSandbox: Chain = {
   chain_name: 'sandbox',
@@ -20,7 +22,7 @@ const nymSandbox: Chain = {
       },
     ],
   },
-};
+}
 
 const nymSandboxAssets = {
   chain_name: 'sandbox',
@@ -33,22 +35,22 @@ const nymSandboxAssets = {
       denom_units: [],
     },
   ],
-};
+}
 
 const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => {
   // Only use the nyx chains
   const chainsFixedUp = React.useMemo(() => {
-    const nyx = chains.find((chain) => chain.chain_id === 'nyx');
+    const nyx = chains.find((chain) => chain.chain_id === 'nyx')
 
-    return nyx ? [nymSandbox, nyx] : [nymSandbox];
-  }, [chains]);
+    return nyx ? [nymSandbox, nyx] : [nymSandbox]
+  }, [chains])
 
   // Only use the nyx assets
   const assetsFixedUp = React.useMemo(() => {
-    const nyx = assets.find((asset) => asset.chain_name === 'nyx');
+    const nyx = assets.find((asset) => asset.chain_name === 'nyx')
 
-    return nyx ? [nyx] : [nymSandboxAssets];
-  }, [assets]) as AssetList[];
+    return nyx ? [nymSandboxAssets, nyx] : [nymSandboxAssets]
+  }, [assets]) as AssetList[]
 
   return (
     <ChainProvider
@@ -65,7 +67,7 @@ const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => {
     >
       {children}
     </ChainProvider>
-  );
-};
+  )
+}
 
-export default CosmosKitProvider;
+export default CosmosKitProvider

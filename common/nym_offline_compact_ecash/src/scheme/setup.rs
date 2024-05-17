@@ -211,6 +211,7 @@ pub fn sign_coin_indices(
 ) -> Vec<PartialCoinIndexSignature> {
     let m1: Scalar = constants::TYPE_IDX;
     let m2: Scalar = constants::TYPE_IDX;
+    let vk_bytes = vk.to_bytes();
     (0..params.get_total_coins())
         .into_par_iter()
         .fold(
@@ -219,8 +220,8 @@ pub fn sign_coin_indices(
                 let m0: Scalar = Scalar::from(l);
                 // Compute the hash h
                 let mut concatenated_bytes =
-                    Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
-                concatenated_bytes.extend_from_slice(&vk.to_bytes());
+                    Vec::with_capacity(vk_bytes.len() + l.to_le_bytes().len());
+                concatenated_bytes.extend_from_slice(&vk_bytes);
                 concatenated_bytes.extend_from_slice(&l.to_le_bytes());
                 let h = hash_g1(concatenated_bytes);
 

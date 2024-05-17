@@ -1858,6 +1858,7 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core 0.9.10",
+ "serde",
 ]
 
 [[package]]
@@ -2396,6 +2397,12 @@ dependencies = [
  "redox_syscall 0.4.1",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "fixedbitset"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
 name = "flate2"
@@ -4114,13 +4121,19 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.7.5",
+ "dashmap",
  "futures",
+ "log",
  "nym-bin-common",
  "nym-network-defaults",
  "nym-sdk",
  "nym-sphinx",
  "nym-topology",
+ "petgraph",
  "rand 0.7.3",
+ "rand_chacha 0.2.2",
+ "serde",
+ "serde_json",
  "tokio",
  "tokio-util",
 ]
@@ -5962,11 +5975,13 @@ dependencies = [
  "dashmap",
  "lazy_static",
  "log",
+ "nym-crypto",
  "nym-metrics",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
  "rand 0.8.5",
+ "serde",
  "thiserror",
 ]
 
@@ -6716,6 +6731,16 @@ dependencies = [
  "once_cell",
  "pest",
  "sha2 0.10.8",
+]
+
+[[package]]
+name = "petgraph"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
+dependencies = [
+ "fixedbitset",
+ "indexmap 2.2.6",
 ]
 
 [[package]]

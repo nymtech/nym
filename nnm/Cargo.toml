@@ -13,10 +13,17 @@ license.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros", "time"] }
-axum = "0.7.5"
+axum = { workspace = true, features = ["json"] }
 futures = { workspace = true }
 tokio-util = { workspace = true }
 rand = "0.7.3"
+rand_chacha = "0.2.1"
+dashmap = "5"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+petgraph = "0.6.5"
+log = { version = "0.4" }
+
 
 # internal
 nym-sdk = { path = "../sdk/rust/nym-sdk" }

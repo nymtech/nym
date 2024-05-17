@@ -66,6 +66,12 @@ impl ReconstructionBuffer {
         // if the set is complete.
         debug_assert!(self.is_complete);
 
+        debug!(
+            "Got {} fragments for set id {}",
+            self.fragments.len(),
+            self.fragments[0].as_ref().unwrap().id()
+        );
+
         self.fragments
             .into_iter()
             .map(|fragment| fragment.unwrap().extract_payload())

@@ -3,6 +3,7 @@
 
 use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
+use log::debug;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
@@ -195,13 +196,17 @@ pub trait FragmentPreparer {
         packet_type: PacketType,
         mix_hops: Option<u8>,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        debug!("Preparing chunk for sending");
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
         // the packet encryption key
 
         let seed = fragment.seed().wrapping_mul(self.nonce());
         let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
-        fragment_sent(&fragment);
+
+        let destination = packet_recipient.gateway();
+        let hops = mix_hops.unwrap_or(self.num_mix_hops());
+        fragment_sent(&fragment, self.nonce(), *destination, hops);
 
         let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
         let expected_plaintext = match packet_type {
@@ -236,9 +241,8 @@ pub trait FragmentPreparer {
         };
 
         // generate pseudorandom route for the packet
-        let hops = mix_hops.unwrap_or(self.num_mix_hops());
         log::trace!("Preparing chunk for sending with {} mix hops", hops);
-        let route = topology.random_route_to_gateway(&mut rng, hops, packet_recipient.gateway())?;
+        let route = topology.random_route_to_gateway(&mut rng, hops, destination)?;
         let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays

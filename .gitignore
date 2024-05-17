@@ -49,3 +49,5 @@ foxyfox.env
 .next
 ppa-private-key.b64
 ppa-private-key.asc
+nnm/__pycache__
+nnm/topology.json

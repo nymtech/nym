@@ -1,11 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::fragment::{
-    linked_fragment_payload_max_len, unlinked_fragment_payload_max_len, FragmentIdentifier,
-};
+use crate::fragment::{linked_fragment_payload_max_len, unlinked_fragment_payload_max_len};
 use dashmap::DashMap;
 use fragment::{Fragment, FragmentHeader};
+use nym_crypto::asymmetric::ed25519::PublicKey;
+use serde::Serialize;
 pub use set::split_into_sets;
 use thiserror::Error;
 
@@ -26,9 +26,92 @@ pub mod fragment;
 pub mod reconstruction;
 pub mod set;
 
+#[derive(Debug, Clone)]
+pub struct FragmentMixParams {
+    destination: PublicKey,
+    hops: u8,
+}
+
+impl FragmentMixParams {
+    pub fn destination(&self) -> &PublicKey {
+        &self.destination
+    }
+
+    pub fn hops(&self) -> u8 {
+        self.hops
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SentFragment {
+    header: FragmentHeader,
+    at: u64,
+    client_nonce: i32,
+    #[serde(skip)]
+    mixnet_params: FragmentMixParams,
+}
+
+impl SentFragment {
+    fn new(
+        header: FragmentHeader,
+        at: u64,
+        client_nonce: i32,
+        destination: PublicKey,
+        hops: u8,
+    ) -> Self {
+        let mixnet_params = FragmentMixParams { destination, hops };
+        SentFragment {
+            header,
+            at,
+            client_nonce,
+            mixnet_params,
+        }
+    }
+
+    pub fn header(&self) -> FragmentHeader {
+        self.header.clone()
+    }
+
+    pub fn at(&self) -> u64 {
+        self.at
+    }
+
+    pub fn client_nonce(&self) -> i32 {
+        self.client_nonce
+    }
+
+    pub fn seed(&self) -> i32 {
+        self.header().seed().wrapping_mul(self.client_nonce())
+    }
+
+    pub fn mixnet_params(&self) -> FragmentMixParams {
+        self.mixnet_params.clone()
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ReceivedFragment {
+    header: FragmentHeader,
+    at: u64,
+}
+
+impl ReceivedFragment {
+    fn new(header: FragmentHeader, at: u64) -> Self {
+        ReceivedFragment { header, at }
+    }
+
+    pub fn header(&self) -> FragmentHeader {
+        self.header.clone()
+    }
+
+    pub fn at(&self) -> u64 {
+        self.at
+    }
+}
+
 lazy_static::lazy_static! {
-    pub static ref FRAGMENTS_RECEIVED: DashMap<FragmentIdentifier, (FragmentHeader, u64)> = DashMap::new();
-    pub static ref FRAGMENTS_SENT: DashMap<FragmentIdentifier, (FragmentHeader, u64)> = DashMap::new();
+    pub static ref FRAGMENTS_RECEIVED: DashMap<i32, Vec<ReceivedFragment>> = DashMap::new();
+    pub static ref FRAGMENTS_SENT: DashMap<i32, Vec<SentFragment>> = DashMap::new();
 }
 
 #[macro_export]
@@ -42,26 +125,18 @@ macro_rules! now {
 }
 
 pub fn fragment_received(fragment: &Fragment) {
-    FRAGMENTS_RECEIVED.insert(fragment.fragment_identifier(), (fragment.header(), now!()));
+    let id = fragment.fragment_identifier().set_id();
+    let mut entry = FRAGMENTS_RECEIVED.entry(id).or_default();
+    let r = ReceivedFragment::new(fragment.header(), now!());
+    entry.push(r);
 }
 
-pub fn fragment_sent(fragment: &Fragment) {
-    FRAGMENTS_SENT.insert(fragment.fragment_identifier(), (fragment.header(), now!()));
+pub fn fragment_sent(fragment: &Fragment, client_nonce: i32, destination: PublicKey, hops: u8) {
+    let id = fragment.fragment_identifier().set_id();
+    let mut entry = FRAGMENTS_SENT.entry(id).or_default();
+    let s = SentFragment::new(fragment.header(), now!(), client_nonce, destination, hops);
+    entry.push(s);
 }
-
-// #[macro_export]
-// macro_rules! fragment_received {
-//     ($header:expr) => {
-//         $crate::FRAGMENTS_RECEIVED.insert($header, $crate::now!());
-//     };
-// }
-
-// #[macro_export]
-// macro_rules! fragment_sent {
-//     ($header:expr) => {
-//         $crate::FRAGMENTS_SENT.insert($header, $crate::now!());
-//     };
-// }
 
 /// The idea behind the process of chunking is to incur as little data overhead as possible due
 /// to very computationally costly sphinx encapsulation procedure.

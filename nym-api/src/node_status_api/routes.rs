@@ -234,7 +234,8 @@ pub mod unstable {
     use crate::support::http::helpers::PaginationRequest;
     use crate::support::storage::NymApiStorage;
     use nym_api_requests::models::{
-        GatewayTestResultResponse, MixnodeTestResultResponse, TestNode, TestResult, TestRoute,
+        GatewayTestResultResponse, MixnodeTestResultResponse, PartialTestResult, TestNode,
+        TestRoute,
     };
     use nym_api_requests::pagination::Pagination;
     use nym_mixnet_contract_common::MixId;
@@ -353,18 +354,8 @@ pub mod unstable {
             Some(r) => storage.get_mixnode_detailed_statuses_count(r.db_id).await?,
         };
 
-        let mut test_results = HashMap::new();
-
+        let mut partial_results = Vec::new();
         for result in raw_results {
-            let entry = test_results
-                .entry(result.monitor_run_id)
-                .or_insert(TestResult {
-                    monitor_run_id: result.monitor_run_id,
-                    timestamp: result.timestamp,
-                    reliability: result.reliability,
-                    test_routes: vec![],
-                });
-
             let gateway = info_cache
                 .get_gateway_details(result.gateway_id, storage)
                 .await;
@@ -378,11 +369,16 @@ pub mod unstable {
                 .get_mix_node_details(result.layer3_mix_id, storage)
                 .await;
 
-            entry.test_routes.push(TestRoute {
-                gateway,
-                layer1,
-                layer2,
-                layer3,
+            partial_results.push(PartialTestResult {
+                monitor_run_id: result.monitor_run_id,
+                timestamp: result.timestamp,
+                overall_reliability_for_all_routes_in_monitor_run: result.reliability,
+                test_routes: TestRoute {
+                    gateway,
+                    layer1,
+                    layer2,
+                    layer3,
+                },
             })
         }
 
@@ -390,9 +386,9 @@ pub mod unstable {
             pagination: Pagination {
                 total,
                 page,
-                size: test_results.len(),
+                size: partial_results.len(),
             },
-            data: test_results.into_values().collect(),
+            data: partial_results,
         })
     }
 
@@ -442,18 +438,8 @@ pub mod unstable {
             Some(r) => storage.get_gateway_detailed_statuses_count(r.db_id).await?,
         };
 
-        let mut test_results = HashMap::new();
-
+        let mut partial_results = Vec::new();
         for result in raw_results {
-            let entry = test_results
-                .entry(result.monitor_run_id)
-                .or_insert(TestResult {
-                    monitor_run_id: result.monitor_run_id,
-                    timestamp: result.timestamp,
-                    reliability: result.reliability,
-                    test_routes: vec![],
-                });
-
             let gateway = info_cache
                 .get_gateway_details(result.gateway_id, storage)
                 .await;
@@ -467,11 +453,16 @@ pub mod unstable {
                 .get_mix_node_details(result.layer3_mix_id, storage)
                 .await;
 
-            entry.test_routes.push(TestRoute {
-                gateway,
-                layer1,
-                layer2,
-                layer3,
+            partial_results.push(PartialTestResult {
+                monitor_run_id: result.monitor_run_id,
+                timestamp: result.timestamp,
+                overall_reliability_for_all_routes_in_monitor_run: result.reliability,
+                test_routes: TestRoute {
+                    gateway,
+                    layer1,
+                    layer2,
+                    layer3,
+                },
             })
         }
 
@@ -479,9 +470,9 @@ pub mod unstable {
             pagination: Pagination {
                 total,
                 page,
-                size: test_results.len(),
+                size: partial_results.len(),
             },
-            data: test_results.into_values().collect(),
+            data: partial_results,
         })
     }
 

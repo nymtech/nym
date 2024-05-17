@@ -586,12 +586,12 @@ pub struct TestRoute {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct TestResult {
+pub struct PartialTestResult {
     pub monitor_run_id: i64,
     pub timestamp: i64,
-    pub reliability: Option<u8>,
-    pub test_routes: Vec<TestRoute>,
+    pub overall_reliability_for_all_routes_in_monitor_run: Option<u8>,
+    pub test_routes: TestRoute,
 }
 
-pub type MixnodeTestResultResponse = PaginatedResponse<TestResult>;
-pub type GatewayTestResultResponse = PaginatedResponse<TestResult>;
+pub type MixnodeTestResultResponse = PaginatedResponse<PartialTestResult>;
+pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;

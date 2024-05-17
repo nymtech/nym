@@ -1005,6 +1005,7 @@ impl StorageManager {
                 SELECT COUNT(*) as count
                 FROM mixnode_status
                     JOIN monitor_run ON mixnode_status.timestamp = monitor_run.timestamp
+                    JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id
                 WHERE mixnode_details_id = ?
             "#,
             db_id
@@ -1055,6 +1056,7 @@ impl StorageManager {
                 SELECT COUNT(*) as count
                 FROM gateway_status
                     JOIN monitor_run ON gateway_status.timestamp = monitor_run.timestamp
+                    JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id
                 WHERE gateway_details_id = ?
             "#,
             db_id

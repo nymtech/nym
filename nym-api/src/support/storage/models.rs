@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_api_requests::models::TestNode;
 use nym_mixnet_contract_common::MixId;
 
 // Internally used struct to catch results from the database to calculate uptimes for given mixnode/gateway
@@ -48,4 +49,62 @@ pub(crate) struct RewardingReport {
     pub(crate) absolute_epoch_id: u32,
 
     pub(crate) eligible_mixnodes: u32,
+}
+
+pub struct MixnodeDetails {
+    pub id: i64,
+    pub mix_id: i64,
+    pub owner: String,
+    pub identity_key: String,
+}
+
+impl From<MixnodeDetails> for TestNode {
+    fn from(value: MixnodeDetails) -> Self {
+        TestNode {
+            node_id: Some(value.mix_id.try_into().unwrap_or(u32::MAX)),
+            identity_key: Some(value.identity_key),
+        }
+    }
+}
+
+pub struct GatewayDetails {
+    pub id: i64,
+    pub owner: String,
+    pub identity: String,
+}
+
+impl From<GatewayDetails> for TestNode {
+    fn from(value: GatewayDetails) -> Self {
+        TestNode {
+            node_id: None,
+            identity_key: Some(value.identity),
+        }
+    }
+}
+
+pub struct TestedMixnodeStatus {
+    pub db_id: i64,
+    pub mix_id: i64,
+    pub identity_key: String,
+    pub reliability: Option<u8>,
+    pub timestamp: i64,
+
+    pub gateway_id: i64,
+    pub layer1_mix_id: i64,
+    pub layer2_mix_id: i64,
+    pub layer3_mix_id: i64,
+    pub monitor_run_id: i64,
+}
+
+pub struct TestedGatewayStatus {
+    pub db_id: i64,
+    pub identity_key: String,
+    pub reliability: Option<u8>,
+    pub timestamp: i64,
+
+    pub gateway_id: i64,
+    pub layer1_mix_id: i64,
+    pub layer2_mix_id: i64,
+    pub layer3_mix_id: i64,
+    pub monitor_run_id: i64,
 }

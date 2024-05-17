@@ -1,14 +1,13 @@
 use axum::extract::{Path, State};
-use axum::http::Response;
+use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
 use dashmap::DashMap;
 use futures::StreamExt;
-use log::debug;
+use log::{debug, error, warn};
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_sphinx::chunking::{ReceivedFragment, SentFragment, FRAGMENTS_RECEIVED, FRAGMENTS_SENT};
-use nym_sphinx::Node;
-use nym_topology::NymTopology;
+use nym_topology::{gateway, mix, NymTopology};
 use petgraph::dot::Dot;
 use petgraph::Graph;
 use rand::distributions::Alphanumeric;
@@ -21,11 +20,10 @@ use std::future::IntoFuture;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 
-use crate::ClientWrapper;
+use crate::ClientsWrapper;
 
 pub struct HttpServer {
     listener: SocketAddr,
@@ -34,7 +32,7 @@ pub struct HttpServer {
 
 #[derive(Clone)]
 struct AppState {
-    clients: Arc<RwLock<Vec<Arc<RwLock<ClientWrapper>>>>>,
+    clients: ClientsWrapper,
 }
 
 impl HttpServer {
@@ -42,10 +40,7 @@ impl HttpServer {
         HttpServer { listener, cancel }
     }
 
-    pub async fn run(
-        self,
-        clients: Arc<RwLock<Vec<Arc<RwLock<ClientWrapper>>>>>,
-    ) -> anyhow::Result<()> {
+    pub async fn run(self, clients: ClientsWrapper) -> anyhow::Result<()> {
         let n_clients = clients.read().await.len();
         let state = AppState { clients };
         let app = Router::new()
@@ -110,11 +105,11 @@ struct NetworkAccount {
     complete_fragment_sets: Vec<i32>,
     incomplete_fragment_sets: Vec<i32>,
     missing_fragments: HashMap<i32, Vec<u8>>,
-    complete_routes: Vec<Vec<String>>,
-    incomplete_routes: Vec<Vec<String>>,
+    complete_routes: Vec<Vec<u32>>,
+    incomplete_routes: Vec<Vec<u32>>,
     #[serde(skip)]
     topology: NymTopology,
-    tested_nodes: HashSet<String>,
+    tested_nodes: HashSet<u32>,
 }
 
 impl NetworkAccount {
@@ -162,10 +157,10 @@ impl NetworkAccount {
         account
     }
 
-    pub fn hydrate_route(&self, fragment: SentFragment) -> Vec<Node> {
+    pub fn hydrate_route(&self, fragment: SentFragment) -> (Vec<mix::Node>, gateway::Node) {
         let mut rng = ChaCha8Rng::seed_from_u64(fragment.seed() as u64);
         self.topology
-            .random_route_to_gateway(
+            .random_path_to_gateway(
                 &mut rng,
                 fragment.mixnet_params().hops(),
                 fragment.mixnet_params().destination(),
@@ -176,13 +171,12 @@ impl NetworkAccount {
     fn hydrate_all_fragments(&mut self) {
         for fragment_id in &self.complete_fragment_sets {
             let fragment_set = FRAGMENTS_SENT.get(fragment_id).unwrap();
-            let route = self
-                .hydrate_route(fragment_set.value().first().unwrap().clone())
-                .iter()
-                .map(|n| n.address.as_base58_string())
-                .collect::<Vec<String>>();
+            let path = self.hydrate_route(fragment_set.value().first().unwrap().clone());
+
+            let route = path.0.iter().map(|n| n.mix_id).collect::<Vec<u32>>();
+
             for node in &route {
-                self.tested_nodes.insert(node.clone());
+                self.tested_nodes.insert(*node);
             }
             self.complete_routes.push(route);
         }
@@ -191,9 +185,10 @@ impl NetworkAccount {
             let fragment_set = FRAGMENTS_SENT.get(fragment_id).unwrap();
             let route = self
                 .hydrate_route(fragment_set.value().first().unwrap().clone())
+                .0
                 .iter()
-                .map(|n| n.address.as_base58_string())
-                .collect::<Vec<String>>();
+                .map(|n| n.mix_id)
+                .collect::<Vec<u32>>();
             self.incomplete_routes.push(route);
         }
     }
@@ -238,41 +233,41 @@ async fn accounting_handler() -> Json<NetworkAccount> {
     Json(account)
 }
 
-async fn graph_handler(Path(node_address): Path<String>) -> String {
+async fn graph_handler(Path(mix_id): Path<u32>) -> String {
     let account = NetworkAccount::finalize();
     let mut nodes = HashSet::new();
-    let mut edges: Vec<(String, String)> = vec![];
-    let mut broken_edges: Vec<(String, String)> = vec![];
+    let mut edges: Vec<(u32, u32)> = vec![];
+    let mut broken_edges: Vec<(u32, u32)> = vec![];
 
     for route in &account.complete_routes {
-        if !route.contains(&node_address) {
+        if !route.contains(&mix_id) {
             continue;
         }
 
         for chunk in route.windows(2) {
-            nodes.insert(chunk[0].clone());
-            nodes.insert(chunk[1].clone());
-            edges.push((chunk[0].clone(), chunk[1].clone()));
+            nodes.insert(chunk[0]);
+            nodes.insert(chunk[1]);
+            edges.push((chunk[0], chunk[1]));
         }
     }
 
     for route in &account.incomplete_routes {
-        if !route.contains(&node_address) {
+        if !route.contains(&mix_id) {
             continue;
         }
 
         for chunk in route.windows(2) {
-            nodes.insert(chunk[0].clone());
-            nodes.insert(chunk[1].clone());
-            broken_edges.push((chunk[0].clone(), chunk[1].clone()));
+            nodes.insert(chunk[0]);
+            nodes.insert(chunk[1]);
+            broken_edges.push((chunk[0], chunk[1]));
         }
     }
 
     let mut graph = Graph::new();
 
-    let node_indices: HashMap<String, _> = nodes
+    let node_indices: HashMap<u32, _> = nodes
         .iter()
-        .map(|node| (node.clone(), graph.add_node(node.clone())))
+        .map(|node| (*node, graph.add_node(*node)))
         .collect();
 
     for (from, to) in edges {
@@ -292,17 +287,31 @@ async fn mermaid_handler() -> String {
     let mut mermaid = String::new();
     mermaid.push_str("flowchart LR;\n");
     for route in account.complete_routes {
-        mermaid.push_str(route.join("-->").as_str());
+        mermaid.push_str(
+            route
+                .iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<String>>()
+                .join("-->")
+                .as_str(),
+        );
         mermaid.push('\n')
     }
     for route in account.incomplete_routes {
-        mermaid.push_str(route.join("-- ❌ -->").as_str());
+        mermaid.push_str(
+            route
+                .iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<String>>()
+                .join("-- ❌ -->")
+                .as_str(),
+        );
         mermaid.push('\n')
     }
     mermaid
 }
 
-async fn handler(State(state): State<AppState>) -> Response<String> {
+async fn handler(State(state): State<AppState>) -> Result<String, StatusCode> {
     send_receive_mixnet(state).await
 }
 
@@ -314,17 +323,7 @@ async fn recv_handler() -> Json<DashMap<i32, Vec<ReceivedFragment>>> {
     Json((*FRAGMENTS_RECEIVED).clone())
 }
 
-async fn send_receive_mixnet(state: AppState) -> Response<String> {
-    // let mut client = match make_client().await {
-    //     Ok(client) => client,
-    //     Err(e) => {
-    //         return response
-    //             .status(500)
-    //             .body(format!("Failed to create mixnet client: {e}"))
-    //             .unwrap();
-    //     }
-    // };
-
+async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
     let msg: String = rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(32)
@@ -333,35 +332,39 @@ async fn send_receive_mixnet(state: AppState) -> Response<String> {
     let sent_msg = msg.clone();
 
     let client = {
-        let clients = state.clients.read().await;
-        Arc::clone(clients.choose(&mut rand::thread_rng()).unwrap())
+        let mut clients = state.clients.write().await;
+        Arc::clone(
+            clients
+                .make_contiguous()
+                .choose(&mut rand::thread_rng())
+                .expect("Empty client vec"),
+        )
     };
-    // Be able to get our client address
-    // println!("Our client nym address is: {our_address}");
+
     let recv = Arc::clone(&client);
     let sender = Arc::clone(&client);
 
     let recv_handle = tokio::spawn(async move {
-        match timeout(Duration::from_secs(10), recv.write().await.client.next()).await {
+        match timeout(Duration::from_secs(10), recv.write().await.next()).await {
             Ok(Some(received)) => {
-                println!("Received: {}", String::from_utf8_lossy(&received.message));
+                debug!("Received: {}", String::from_utf8_lossy(&received.message));
             }
-            Ok(None) => println!("No message received"),
-            Err(e) => println!("Failed to receive message: {e}"),
+            Ok(None) => debug!("No message received"),
+            Err(e) => warn!("Failed to receive message: {e}"),
         }
     });
 
     let send_handle = tokio::spawn(async move {
-        let mixnet_sender = sender.read().await.client.split_sender();
-        let our_address = *sender.read().await.client.nym_address();
+        let mixnet_sender = sender.read().await.split_sender();
+        let our_address = *sender.read().await.nym_address();
         match timeout(
             Duration::from_secs(5),
             mixnet_sender.send_plain_message(our_address, &msg),
         )
         .await
         {
-            Ok(_) => println!("Sent message: {msg}"),
-            Err(e) => println!("Failed to send message: {e}"),
+            Ok(_) => debug!("Sent message: {msg}"),
+            Err(e) => warn!("Failed to send message: {e}"),
         };
     });
 
@@ -370,37 +373,11 @@ async fn send_receive_mixnet(state: AppState) -> Response<String> {
         match result {
             Ok(_) => {}
             Err(e) => {
-                let response = Response::builder();
-                return response
-                    .status(500)
-                    .body(format!("Failed to send or receive message: {e}"))
-                    .unwrap();
+                error!("Failed to send/receive message: {e}");
+                return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
         }
     }
-    // wait for both tasks to be done
-    // println!("waiting for shutdown");
 
-    // match sending_task_handle.await {
-    //     Ok(_) => {}
-    //     Err(e) => {
-    //         let response = Response::builder();
-    //         return response
-    //             .status(500)
-    //             .body(format!("Failed to send message: {e}"))
-    //             .unwrap();
-    //     }
-    // };
-    // match recv_handle.await {
-    //     Ok(_) => {}
-    //     Err(e) => {
-    //         let response = Response::builder();
-    //         return response
-    //             .status(500)
-    //             .body(format!("Failed to receive message: {e}"))
-    //             .unwrap();
-    //     }
-    // };
-    let response = Response::builder();
-    response.status(200).body(sent_msg).unwrap()
+    Ok(sent_msg)
 }

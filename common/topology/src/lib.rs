@@ -7,6 +7,7 @@
 use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
 use log::{debug, warn};
+use mix::Node;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -270,7 +271,7 @@ impl NymTopology {
         &self,
         rng: &mut R,
         num_mix_hops: u8,
-    ) -> Result<Vec<SphinxNode>, NymTopologyError>
+    ) -> Result<Vec<Node>, NymTopologyError>
     where
         R: Rng + CryptoRng + ?Sized,
     {
@@ -295,10 +296,30 @@ impl NymTopology {
             let random_mix = layer_mixes
                 .choose(rng)
                 .ok_or(NymTopologyError::EmptyMixLayer { layer })?;
-            route.push(random_mix.into());
+            route.push(random_mix.clone());
         }
 
         Ok(route)
+    }
+
+    pub fn random_path_to_gateway<R>(
+        &self,
+        rng: &mut R,
+        num_mix_hops: u8,
+        gateway_identity: &NodeIdentity,
+    ) -> Result<(Vec<mix::Node>, gateway::Node), NymTopologyError>
+    where
+        R: Rng + CryptoRng + ?Sized,
+    {
+        let gateway = self.get_gateway(gateway_identity).ok_or(
+            NymTopologyError::NonExistentGatewayError {
+                identity_key: gateway_identity.to_base58_string(),
+            },
+        )?;
+
+        let path = self.random_mix_route(rng, num_mix_hops)?;
+
+        Ok((path, gateway.clone()))
     }
 
     /// Tries to create a route to the specified gateway, such that it goes through mixnode on layer 1,
@@ -321,6 +342,7 @@ impl NymTopology {
         Ok(self
             .random_mix_route(rng, num_mix_hops)?
             .into_iter()
+            .map(|node| SphinxNode::from(&node))
             .chain(std::iter::once(gateway.into()))
             .collect())
     }

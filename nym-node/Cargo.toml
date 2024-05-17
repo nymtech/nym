@@ -62,4 +62,4 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 cargo_metadata = "0.18.1"
 
 [features]
-wireguard = []
+wireguard = ["nym-gateway/wireguard"]

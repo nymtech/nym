@@ -402,7 +402,7 @@ impl Base58 for VerificationKeyAuth {}
 
 #[derive(Debug, PartialEq, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKeyUser {
-    pub sk: Scalar,
+    pub(crate) sk: Scalar,
 }
 
 impl SecretKeyUser {

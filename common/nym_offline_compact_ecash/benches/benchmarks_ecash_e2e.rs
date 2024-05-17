@@ -336,7 +336,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let mut public_keys: Vec<PublicKeyUser> = Default::default();
     for _ in 0..case.case_nr_pub_keys {
         let sk = grp.random_scalar();
-        let sk_user = SecretKeyUser { sk };
+        let sk_user = SecretKeyUser::from_bytes(&sk.to_bytes()).unwrap();
         let pk_user = sk_user.public_key(grp);
         public_keys.push(pk_user);
     }

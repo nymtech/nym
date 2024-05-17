@@ -172,10 +172,3 @@ pub(crate) fn store_x25519_noise_keypair(
 ) -> Result<(), NymNodeError> {
     Ok(store_keypair(keys, paths, "x25519-noise")?)
 }
-
-pub(crate) fn store_x25519_wireguard_keypair(
-    keys: &x25519::KeyPair,
-    paths: KeyPairPath,
-) -> Result<(), NymNodeError> {
-    Ok(store_keypair(keys, paths, "x25519-wireguard")?)
-}

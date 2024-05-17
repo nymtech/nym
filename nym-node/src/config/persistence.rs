@@ -87,12 +87,6 @@ pub struct KeysPaths {
 
     /// Path to file containing x25519 noise public key.
     pub public_x25519_noise_key_file: PathBuf,
-
-    /// Path to file containing x25519 wireguard private key.
-    pub private_x25519_wireguard_key_file: PathBuf,
-
-    /// Path to file containing x25519 wireguard public key.
-    pub public_x25519_wireguard_key_file: PathBuf,
 }
 
 impl KeysPaths {
@@ -109,9 +103,6 @@ impl KeysPaths {
             public_x25519_sphinx_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME),
             private_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME),
             public_x25519_noise_key_file: data_dir.join(DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME),
-            private_x25519_wireguard_key_file: data_dir.join(DEFAULT_X25519_WG_DH_KEY_FILENAME),
-            public_x25519_wireguard_key_file: data_dir
-                .join(DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME),
         }
     }
 
@@ -133,13 +124,6 @@ impl KeysPaths {
         nym_pemstore::KeyPairPath::new(
             &self.private_x25519_noise_key_file,
             &self.public_x25519_noise_key_file,
-        )
-    }
-
-    pub fn x25519_wireguard_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_x25519_wireguard_key_file,
-            &self.public_x25519_wireguard_key_file,
         )
     }
 }
@@ -397,5 +381,12 @@ impl WireguardPaths {
             private_diffie_hellman_key_file: data_dir.join(DEFAULT_X25519_WG_DH_KEY_FILENAME),
             public_diffie_hellman_key_file: data_dir.join(DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME),
         }
+    }
+
+    pub fn x25519_wireguard_storage_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_diffie_hellman_key_file,
+            &self.public_diffie_hellman_key_file,
+        )
     }
 }

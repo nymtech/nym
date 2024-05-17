@@ -5,7 +5,7 @@ use crate::node::description::{load_node_description, save_node_description};
 use crate::node::helpers::{
     load_ed25519_identity_keypair, load_key, load_x25519_noise_keypair, load_x25519_sphinx_keypair,
     store_ed25519_identity_keypair, store_key, store_keypair, store_x25519_noise_keypair,
-    store_x25519_sphinx_keypair, store_x25519_wireguard_keypair, DisplayDetails,
+    store_x25519_sphinx_keypair, DisplayDetails,
 };
 use crate::node::http::{sign_host_details, system_info::get_system_info};
 use ipnetwork::IpNetwork;
@@ -20,7 +20,9 @@ use nym_network_requester::{
 use nym_node::config::entry_gateway::ephemeral_entry_gateway_config;
 use nym_node::config::exit_gateway::ephemeral_exit_gateway_config;
 use nym_node::config::mixnode::ephemeral_mixnode_config;
-use nym_node::config::{Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode};
+use nym_node::config::{
+    Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode, Wireguard,
+};
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
@@ -246,6 +248,33 @@ impl ExitGatewayData {
     }
 }
 
+pub struct WireguardData {
+    x25519_wireguard_keys: Arc<x25519::KeyPair>,
+}
+
+impl WireguardData {
+    pub(crate) fn new(config: &Wireguard) -> Result<Self, NymNodeError> {
+        Ok(WireguardData {
+            x25519_wireguard_keys: Arc::new(load_x25519_wireguard_keypair(
+                config.storage_paths.x25519_wireguard_storage_paths(),
+            )?),
+        })
+    }
+
+    pub(crate) fn initialise(config: &Wireguard) -> Result<(), ExitGatewayError> {
+        let mut rng = OsRng;
+        let x25519_keys = x25519::KeyPair::new(&mut rng);
+
+        store_keypair(
+            &x25519_keys,
+            config.storage_paths.x25519_wireguard_storage_paths(),
+            "wg-x25519-dh",
+        )?;
+
+        Ok(())
+    }
+}
+
 pub(crate) struct NymNode {
     config: Config,
     description: NodeDescription,
@@ -261,10 +290,10 @@ pub(crate) struct NymNode {
     #[allow(dead_code)]
     exit_gateway: ExitGatewayData,
 
+    wireguard: WireguardData,
+
     ed25519_identity_keys: Arc<ed25519::KeyPair>,
     x25519_sphinx_keys: Arc<x25519::KeyPair>,
-
-    x25519_wireguard_keys: Arc<x25519::KeyPair>,
 
     // to be used when noise is integrated
     #[allow(dead_code)]
@@ -283,7 +312,6 @@ impl NymNode {
         let ed25519_identity_keys = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx_keys = x25519::KeyPair::new(&mut rng);
         let x25519_noise_keys = x25519::KeyPair::new(&mut rng);
-        let x25519_wireguard_keys = x25519::KeyPair::new(&mut rng);
 
         trace!("attempting to store ed25519 identity keypair");
         store_ed25519_identity_keypair(
@@ -303,12 +331,6 @@ impl NymNode {
             config.storage_paths.keys.x25519_noise_storage_paths(),
         )?;
 
-        trace!("attempting to store x25519 wireguard keypair");
-        store_x25519_wireguard_keypair(
-            &x25519_wireguard_keys,
-            config.storage_paths.keys.x25519_wireguard_storage_paths(),
-        )?;
-
         trace!("creating description file");
         save_node_description(
             &config.storage_paths.description,
@@ -325,6 +347,9 @@ impl NymNode {
         ExitGatewayData::initialise(&config.exit_gateway, *ed25519_identity_keys.public_key())
             .await?;
 
+        // wireguard initialisation
+        WireguardData::initialise(&config.wireguard)?;
+
         config.save()
     }
 
@@ -339,14 +364,12 @@ impl NymNode {
             x25519_noise_keys: Arc::new(load_x25519_noise_keypair(
                 config.storage_paths.keys.x25519_noise_storage_paths(),
             )?),
-            x25519_wireguard_keys: Arc::new(load_x25519_wireguard_keypair(
-                config.storage_paths.keys.x25519_wireguard_storage_paths(),
-            )?),
             description: load_node_description(&config.storage_paths.description)?,
             verloc_stats: Default::default(),
             mixnode: MixnodeData::new(&config.mixnode)?,
             entry_gateway: EntryGatewayData::new(&config.entry_gateway).await?,
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
+            wireguard: WireguardData::new(&config.wireguard)?,
             config,
         })
     }
@@ -365,6 +388,10 @@ impl NymNode {
             self.exit_gateway.ipr_x25519,
             *self.ed25519_identity_keys.public_key(),
         )
+    }
+
+    fn x25519_wireguard_key(&self) -> &x25519::PublicKey {
+        self.wireguard.x25519_wireguard_keys.public_key()
     }
 
     pub(crate) fn display_details(&self) -> DisplayDetails {
@@ -394,10 +421,6 @@ impl NymNode {
 
     pub(crate) fn x25519_noise_key(&self) -> &x25519::PublicKey {
         self.x25519_noise_keys.public_key()
-    }
-
-    pub(crate) fn x25519_wireguard_key(&self) -> &x25519::PublicKey {
-        self.x25519_wireguard_keys.public_key()
     }
 
     fn start_mixnode(&self, task_client: TaskClient) -> Result<(), NymNodeError> {

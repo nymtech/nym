@@ -9,7 +9,7 @@ pub mod setup;
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     mut task_client: nym_task::TaskClient,
-    _gateway_client_registry: std::sync::Arc<
+    gateway_client_registry: std::sync::Arc<
         nym_wireguard_types::registration::GatewayClientRegistry,
     >,
 ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -30,13 +30,15 @@ pub async fn start_wireguard(
         peers: vec![],
     };
     wgapi.configure_interface(&interface_config)?;
-    let peer = peer_static_public_key();
-    let mut peer = Peer::new(Key::new(peer.to_bytes()));
-    let peer_ip = peer_allowed_ips();
-    let peer_ip_mask = IpAddrMask::new(peer_ip.network_address(), peer_ip.netmask());
-    peer.set_allowed_ips(vec![peer_ip_mask]);
-    wgapi.configure_peer(&peer)?;
-    wgapi.configure_peer_routing(&[peer.clone()])?;
+    let mut peers = vec![];
+    for peer_client in gateway_client_registry.iter() {
+        let mut peer = Peer::new(Key::new(peer_client.pub_key.to_bytes()));
+        let peer_ip_mask = IpAddrMask::new(peer_client.private_ip, 32);
+        peer.set_allowed_ips(vec![peer_ip_mask]);
+        wgapi.configure_peer(&peer)?;
+        peers.push(peer);
+    }
+    wgapi.configure_peer_routing(&peers)?;
 
     tokio::spawn(async move { task_client.recv().await });
 

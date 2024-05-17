@@ -37,16 +37,12 @@ where
 {
     fn aggregate(aggregatable: &[T], indices: Option<&[u64]>) -> Result<T> {
         if aggregatable.is_empty() {
-            return Err(CompactEcashError::Aggregation(
-                "Empty set of values".to_string(),
-            ));
+            return Err(CompactEcashError::AggregationEmptySet);
         }
 
         if let Some(indices) = indices {
             if !Self::check_unique_indices(indices) {
-                return Err(CompactEcashError::Aggregation(
-                    "Non-unique indices".to_string(),
-                ));
+                return Err(CompactEcashError::AggregationDuplicateIndices);
             }
             perform_lagrangian_interpolation_at_origin(indices, aggregatable)
         } else {
@@ -60,7 +56,7 @@ impl Aggregatable for PartialSignature {
     fn aggregate(sigs: &[PartialSignature], indices: Option<&[u64]>) -> Result<Signature> {
         let h = sigs
             .first()
-            .ok_or_else(|| CompactEcashError::Aggregation("Empty set of signatures".to_string()))?
+            .ok_or(CompactEcashError::AggregationEmptySet)?
             .sig1();
 
         // TODO: is it possible to avoid this allocation?
@@ -82,9 +78,7 @@ pub fn aggregate_verification_keys(
     indices: Option<&[SignerIndex]>,
 ) -> Result<VerificationKeyAuth> {
     if !check_same_key_size(keys) {
-        return Err(CompactEcashError::Aggregation(
-            "Verification keys are of different sizes".to_string(),
-        ));
+        return Err(CompactEcashError::AggregationSizeMismatch);
     }
     Aggregatable::aggregate(keys, indices)
 }
@@ -136,9 +130,7 @@ pub fn aggregate_signatures(
         &signature.1.to_affine(),
         params.prepared_miller_g2(),
     ) {
-        return Err(CompactEcashError::Aggregation(
-            "Verification of the aggregated signature failed".to_string(),
-        ));
+        return Err(CompactEcashError::AggregationVerification);
     }
     Ok(signature)
 }

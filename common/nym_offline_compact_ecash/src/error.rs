@@ -7,69 +7,88 @@ pub type Result<T> = std::result::Result<T, CompactEcashError>;
 
 #[derive(Error, Debug)]
 pub enum CompactEcashError {
-    #[error("Setup error: {0}")]
-    Setup(String),
-
-    #[error("Aggregation error: {0}")]
-    Aggregation(String),
-
-    #[error("Withdrawal Request Verification related error: {0}")]
-    WithdrawalRequestVerification(String),
-
+    //SW TODO Legacy error to avoid messing up PR stack, remove and adapt once collapsed
     #[error("Deserialization error: {0}")]
     Deserialization(String),
 
-    #[error("Interpolation error: {0}")]
-    Interpolation(String),
-
-    #[error("Issuance related error: {0}")]
-    Issuance(String),
-
-    #[error("Issuance Verification related error: {0}")]
-    IssuanceVfy(String),
-
-    #[error("Spend Verification related error: {0}")]
-    Spend(String),
-
-    #[error("ZKP Proof related error: {0}")]
-    RangeProofOutOfBound(String),
-
-    #[error("Identify Verification related error: {0}")]
-    Identify(String),
-
-    #[error("Could not decode base 58 string - {0}")]
-    MalformedString(#[from] bs58::decode::Error),
-
-    #[error("Payment did not verify")]
-    PaymentVerification,
-
+    //SW TODO Legacy error to avoid messing up PR stack, remove and adapt once collapsed
     #[error("Expiration Date related error: {0}")]
     ExpirationDate(String),
 
-    #[error("Coin Indices related error: {0}")]
-    CoinIndices(String),
+    #[error("failed to verify expiration date signatures")]
+    ExpirationDateSignatureVerification,
+
+    #[error("failed to validate expiration date signatures")]
+    ExpirationDateSignatureValidity,
+
+    #[error("empty set for aggregation")]
+    AggregationEmptySet,
+
+    #[error("duplicate indices for aggregation")]
+    AggregationDuplicateIndices,
+
+    #[error("aggregation verification error")]
+    AggregationVerification,
+
+    #[error("different element size for aggregation")]
+    AggregationSizeMismatch,
+
+    #[error("withdrawal request failed to verify")]
+    WithdrawalRequestVerification,
+
+    #[error("invalid key generation parameters")]
+    KeygenParameters,
+
+    #[error("signing authority's key is too short")]
+    KeyTooShort,
+
+    #[error("empty/incomplete set of coordinates for interpolation")]
+    InterpolationSetSize,
+
+    #[error("issuance verification failed")]
+    IssuanceVerification,
+
+    #[error("trying to spend more than what's available. Spending : {spending}, available : {remaining}")]
+    SpendExceedsAllowance { spending: u64, remaining: u64 },
+
+    #[error("signature failed validity check")]
+    SpendSignaturesValidity,
+
+    #[error("signature failed verification check")]
+    SpendSignaturesVerification,
+
+    #[error("duplicate serial number in the payment")]
+    SpendDuplicateSerialNumber,
+
+    #[error("given spend date is too late")]
+    SpendDateTooLate,
+
+    #[error("given spend date is too early")]
+    SpendDateTooEarly,
+
+    #[error("ZK proof failed to verify")]
+    SpendZKProofVerification,
+
+    #[error("could not decode base 58 string - {0}")]
+    MalformedString(#[from] bs58::decode::Error),
+
+    #[error("failed to verify coin indices signatures")]
+    CoinIndicesSignatureVerification,
 
     #[error(
-        "Deserailization error, expected at least {} bytes, got {}",
+        "deserialization error, expected at least {} bytes, got {}",
         min,
         actual
     )]
     DeserializationMinLength { min: usize, actual: usize },
 
-    #[error("Tried to deserialize {object} with bytes of invalid length. Expected {actual} < {target} or {modulus_target} % {modulus} == 0")]
+    #[error("tried to deserialize {object} with bytes of invalid length. Expected {actual} < {target} or {modulus_target} % {modulus} == 0")]
     DeserializationInvalidLength {
         actual: usize,
         target: usize,
         modulus_target: usize,
         modulus: usize,
         object: String,
-    },
-
-    #[error("received an array of unexpected size for deserialization of {typ}. got {received} but expected {expected}")]
-    UnexpectedArrayLength {
-        typ: String,
-        received: usize,
-        expected: usize,
     },
 
     #[error("failed to deserialize scalar from the received bytes - it might not have been canonically encoded")]

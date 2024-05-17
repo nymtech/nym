@@ -35,15 +35,9 @@ impl Bytable for G1Projective {
     }
 
     fn try_from_byte_slice(slice: &[u8]) -> Result<Self, CompactEcashError> {
-        let received = slice.len();
-        let arr: Result<[u8; 48], _> = slice.try_into();
-        let Ok(bytes) = arr else {
-            return Err(CompactEcashError::UnexpectedArrayLength {
-                typ: "G1Projective".to_string(),
-                received,
-                expected: 48,
-            });
-        };
+        let bytes = slice
+            .try_into()
+            .map_err(|_| CompactEcashError::G1ProjectiveDeserializationFailure)?;
 
         let maybe_g1 = G1Affine::from_compressed(&bytes);
         if maybe_g1.is_none().into() {

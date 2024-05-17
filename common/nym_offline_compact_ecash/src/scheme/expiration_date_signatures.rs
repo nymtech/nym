@@ -182,8 +182,7 @@ pub fn sign_expiration_date(
 ///
 /// # Returns
 ///
-/// Returns `Ok(true)` if all signatures are verified successfully, otherwise returns an
-/// `Err(CompactEcashError::ExpirationDate)` with an error message.
+/// Returns `Ok(true)` if all signatures are verified successfully, otherwise returns an error
 ///
 pub fn verify_valid_dates_signatures(
     params: &Parameters,
@@ -204,9 +203,7 @@ pub fn verify_valid_dates_signatures(
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
         // Verify the signature correctness
         if sig.h != h {
-            return Err(CompactEcashError::ExpirationDate(
-                "Failed to verify the commitment hash".to_string(),
-            ));
+            return Err(CompactEcashError::ExpirationDateSignatureVerification);
         }
         let partially_signed_attributes = [m0, m1, m2]
             .iter()
@@ -220,9 +217,7 @@ pub fn verify_valid_dates_signatures(
             &sig.s.to_affine(),
             params.grp().prepared_miller_g2(),
         ) {
-            return Err(CompactEcashError::ExpirationDate(
-                "Verification of the date signature failed".to_string(),
-            ));
+            return Err(CompactEcashError::ExpirationDateSignatureVerification);
         }
         Ok(())
     })
@@ -272,9 +267,7 @@ pub fn aggregate_expiration_signatures(
         .count()
         != signatures.len()
     {
-        return Err(CompactEcashError::ExpirationDate(
-            "Not enough unique indices shares".to_string(),
-        ));
+        return Err(CompactEcashError::AggregationDuplicateIndices);
     }
 
     // Evaluate at 0 the Lagrange basis polynomials k_i
@@ -360,16 +353,12 @@ pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> 
     if spend_date >= start_date {
         let index_a = (spend_date - start_date).whole_days() as usize;
         if index_a as u64 >= constants::CRED_VALIDITY_PERIOD {
-            Err(CompactEcashError::ExpirationDate(
-                "Spend_date is too late, no valid index".to_string(),
-            ))
+            Err(CompactEcashError::SpendDateTooLate)
         } else {
             Ok(index_a)
         }
     } else {
-        Err(CompactEcashError::ExpirationDate(
-            "Spend_date is too early, no valid index".to_string(),
-        ))
+        Err(CompactEcashError::SpendDateTooEarly)
     }
 }
 

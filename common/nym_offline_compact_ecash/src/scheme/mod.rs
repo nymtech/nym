@@ -242,9 +242,10 @@ impl Wallet {
 
     fn check_remaining_allowance(&self, params: &Parameters, spend_value: u64) -> Result<()> {
         if self.l() + spend_value > params.get_total_coins() {
-            Err(CompactEcashError::Spend(
-                "The amount you want to spend exceeds remaining wallet allowance ".to_string(),
-            ))
+            Err(CompactEcashError::SpendExceedsAllowance {
+                spending: spend_value,
+                remaining: params.get_total_coins() - self.l(),
+            })
         } else {
             Ok(())
         }
@@ -637,9 +638,7 @@ impl Payment {
     ///
     pub fn check_signature_validity(&self, params: &Parameters) -> Result<()> {
         if bool::from(self.sig.0.is_identity()) {
-            return Err(CompactEcashError::Spend(
-                "The element h of the payment signature equals the identity".to_string(),
-            ));
+            return Err(CompactEcashError::SpendSignaturesValidity);
         }
 
         if !check_bilinear_pairing(
@@ -648,9 +647,7 @@ impl Payment {
             &self.sig.1.to_affine(),
             params.grp().prepared_miller_g2(),
         ) {
-            return Err(CompactEcashError::Spend(
-                "The bilinear check for kappa failed".to_string(),
-            ));
+            return Err(CompactEcashError::SpendSignaturesValidity);
         }
         Ok(())
     }
@@ -686,9 +683,7 @@ impl Payment {
     ) -> Result<()> {
         // Check if the element h of the payment expiration signature equals the identity.
         if bool::from(self.sig_exp.h.is_identity()) {
-            return Err(CompactEcashError::ExpirationDate(
-                "The element h of the payment expiration signature equals the identity".to_string(),
-            ));
+            return Err(CompactEcashError::ExpirationDateSignatureValidity);
         }
 
         // Calculate m1 and m2 values.
@@ -706,9 +701,7 @@ impl Payment {
             &self.sig_exp.s.to_affine(),
             params.grp().prepared_miller_g2(),
         ) {
-            return Err(CompactEcashError::ExpirationDate(
-                "The bilinear check for kappa_e failed".to_string(),
-            ));
+            return Err(CompactEcashError::ExpirationDateSignatureValidity);
         }
 
         Ok(())
@@ -731,9 +724,7 @@ impl Payment {
 
         for serial_number in &self.ss {
             if seen_serial_numbers.contains(serial_number) {
-                return Err(CompactEcashError::Spend(
-                    "Not all serial numbers are unique".to_string(),
-                ));
+                return Err(CompactEcashError::SpendDuplicateSerialNumber);
             }
             seen_serial_numbers.push(*serial_number);
         }
@@ -772,9 +763,7 @@ impl Payment {
     ) -> Result<()> {
         if let Some(coin_idx_sign) = self.omega.get(k as usize) {
             if bool::from(coin_idx_sign.h.is_identity()) {
-                return Err(CompactEcashError::Spend(
-                    "The element h of the signature on index l equals the identity".to_string(),
-                ));
+                return Err(CompactEcashError::SpendSignaturesVerification);
             }
             let combined_kappa_k = self.kappa_k[k as usize].to_affine()
                 + verification_key.beta_g2.get(1).unwrap() * constants::TYPE_IDX
@@ -786,12 +775,10 @@ impl Payment {
                 &coin_idx_sign.s.to_affine(),
                 params.grp().prepared_miller_g2(),
             ) {
-                return Err(CompactEcashError::Spend(
-                    "The bilinear check for kappa_l failed".to_string(),
-                ));
+                return Err(CompactEcashError::SpendSignaturesVerification);
             }
         } else {
-            return Err(CompactEcashError::Spend("Index out of bounds".to_string()));
+            return Err(CompactEcashError::SpendSignaturesVerification);
         }
         Ok(())
     }
@@ -853,9 +840,7 @@ impl Payment {
             pay_info,
             self.spend_value,
         ) {
-            return Err(CompactEcashError::Spend(
-                "ZkProof verification failed".to_string(),
-            ));
+            return Err(CompactEcashError::SpendZKProofVerification);
         }
 
         Ok(true)

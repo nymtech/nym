@@ -610,16 +610,11 @@ pub fn ttp_keygen(
     num_authorities: u64,
 ) -> Result<Vec<KeyPairAuth>> {
     if threshold == 0 {
-        return Err(CompactEcashError::Setup(
-            "Tried to generate threshold keys with a 0 threshold value".to_string(),
-        ));
+        return Err(CompactEcashError::KeygenParameters);
     }
 
     if threshold > num_authorities {
-        return Err(
-            CompactEcashError::Setup(
-                "Tried to generate threshold keys for threshold value being higher than number of the signing authorities".to_string(),
-            ));
+        return Err(CompactEcashError::KeygenParameters);
     }
 
     let attributes = params.gammas().len();

@@ -95,16 +95,11 @@ where
     for<'a> &'a T: Mul<Scalar, Output = T>,
 {
     if points.is_empty() || values.is_empty() {
-        return Err(CompactEcashError::Interpolation(
-            "Tried to perform lagrangian interpolation for an empty set of coordinates".to_string(),
-        ));
+        return Err(CompactEcashError::InterpolationSetSize);
     }
 
     if points.len() != values.len() {
-        return Err(CompactEcashError::Interpolation(
-            "Tried to perform lagrangian interpolation for an incomplete set of coordinates"
-                .to_string(),
-        ));
+        return Err(CompactEcashError::InterpolationSetSize);
     }
 
     let coefficients = generate_lagrangian_coefficients_at_origin(points);

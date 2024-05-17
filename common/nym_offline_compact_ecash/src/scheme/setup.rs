@@ -300,9 +300,7 @@ pub fn verify_coin_indices_signatures(
             let h = hash_g1(concatenated_bytes.clone());
             // Check if the hash is matching
             if sig.h != h {
-                return Err(CompactEcashError::CoinIndices(
-                    "Failed to verify the commitment hash".to_string(),
-                ));
+                return Err(CompactEcashError::CoinIndicesSignatureVerification);
             }
             let partially_signed_attributes = [*m0, m1, m2]
                 .iter()
@@ -316,9 +314,7 @@ pub fn verify_coin_indices_signatures(
                 &sig.s.to_affine(),
                 params.grp().prepared_miller_g2(),
             ) {
-                return Err(CompactEcashError::CoinIndices(
-                    "Verification of the coin signature failed".to_string(),
-                ));
+                return Err(CompactEcashError::CoinIndicesSignatureVerification);
             }
             Ok(())
         })?;
@@ -357,9 +353,7 @@ pub fn aggregate_indices_signatures(
         .count()
         != signatures.len()
     {
-        return Err(CompactEcashError::CoinIndices(
-            "Not enough unique indices shares".to_string(),
-        ));
+        return Err(CompactEcashError::AggregationDuplicateIndices);
     }
 
     // Evaluate at 0 the Lagrange basis polynomials k_i

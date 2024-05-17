@@ -19,7 +19,7 @@ use crate::utils::{
     SignerIndex,
 };
 use crate::utils::{BlindedSignature, Signature};
-use crate::{Attribute, Base58};
+use crate::{constants, Attribute, Base58};
 
 /// Represents a withdrawal request generate by the client who wants to obtain a zk-nym credential.
 ///
@@ -500,9 +500,7 @@ pub fn request_verify(
             .to_bytes(),
     );
     if req.joined_commitment_hash != expected_commitment_hash {
-        return Err(CompactEcashError::WithdrawalRequestVerification(
-            "Failed to verify the commitment hash".to_string(),
-        ));
+        return Err(CompactEcashError::WithdrawalRequestVerification);
     }
     // Verify zk proof
     let instance = WithdrawalReqInstance {
@@ -512,9 +510,7 @@ pub fn request_verify(
         pk_user,
     };
     if !req.zk_proof.verify(params, &instance) {
-        return Err(CompactEcashError::WithdrawalRequestVerification(
-            "Failed to verify the proof of knowledge".to_string(),
-        ));
+        return Err(CompactEcashError::WithdrawalRequestVerification);
     }
     Ok(())
 }
@@ -530,24 +526,21 @@ pub fn request_verify(
 ///
 /// * `joined_commitment_hash` - The G1Projective point representing the joined commitment hash.
 /// * `expiration_date` - The expiration date timestamp to be signed.
-/// * `sk_auth` - The secret key of the signing authority.
+/// * `sk_auth` - The secret key of the signing authority. Assumes key is long enough.
 ///
 /// # Returns
 ///
 /// A `Result` containing the resulting G1Projective point if successful, or an error if the
 /// authentication secret key index is out of bounds.
-pub fn sign_expiration_date(
+fn sign_expiration_date(
     joined_commitment_hash: &G1Projective,
     expiration_date: u64,
     sk_auth: &SecretKeyAuth,
-) -> Result<G1Projective> {
-    if let Some(yi) = sk_auth.get_y_by_idx(2) {
-        Ok(joined_commitment_hash * (yi * Scalar::from(expiration_date)))
-    } else {
-        Err(CompactEcashError::Issuance(
-            "The secret key of the authority does not have enough elements".to_string(),
-        ))
-    }
+) -> G1Projective {
+    //SAFETY : this fn assumes a long enough key
+    #[allow(clippy::unwrap_used)]
+    let yi = sk_auth.get_y_by_idx(2).unwrap();
+    joined_commitment_hash * (yi * Scalar::from(expiration_date))
 }
 
 /// Issues a blinded signature for a withdrawal request, after verifying its integrity.
@@ -578,6 +571,10 @@ pub fn issue(
 ) -> Result<BlindedSignature> {
     // Verify the withdrawal request
     request_verify(params, withdrawal_req, pk_user, expiration_date)?;
+    // Verify `sk_auth` is long enough
+    if sk_auth.ys.len() < constants::ATTRIBUTES_LEN {
+        return Err(CompactEcashError::KeyTooShort);
+    }
     // Blind sign the private attributes
     let blind_signatures: G1Projective = withdrawal_req
         .private_attributes_commitments
@@ -586,11 +583,12 @@ pub fn issue(
         .map(|(pc, yi)| pc * yi)
         .sum();
     // Sign the expiration date
+    //SAFETY: key length was verified before
     let expiration_date_sign = sign_expiration_date(
         &withdrawal_req.joined_commitment_hash,
         expiration_date,
         &sk_auth,
-    )?;
+    );
     // Combine both signatures
     let signature =
         blind_signatures + withdrawal_req.joined_commitment_hash * sk_auth.x + expiration_date_sign;
@@ -631,9 +629,7 @@ pub fn issue_verify(
 ) -> Result<PartialWallet> {
     // Verify the integrity of the response from the authority
     if req_info.joined_commitment_hash != blind_signature.0 {
-        return Err(CompactEcashError::IssuanceVfy(
-            "Integrity verification failed".to_string(),
-        ));
+        return Err(CompactEcashError::IssuanceVerification);
     }
 
     // Unblind the blinded signature on the partial signature
@@ -660,9 +656,7 @@ pub fn issue_verify(
         &unblinded_c.to_affine(),
         params.prepared_miller_g2(),
     ) {
-        return Err(CompactEcashError::IssuanceVfy(
-            "Verification of wallet share failed".to_string(),
-        ));
+        return Err(CompactEcashError::IssuanceVerification);
     }
 
     Ok(PartialWallet {

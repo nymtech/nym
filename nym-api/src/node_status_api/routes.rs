@@ -393,7 +393,7 @@ pub mod unstable {
     }
 
     #[openapi(tag = "UNSTABLE - DO **NOT** USE")]
-    #[get("/mixnodes/<mix_id>/test-results?<pagination..>")]
+    #[get("/mixnodes/unstable/<mix_id>/test-results?<pagination..>")]
     pub async fn mixnode_test_results(
         mix_id: MixId,
         pagination: PaginationRequest,
@@ -477,7 +477,7 @@ pub mod unstable {
     }
 
     #[openapi(tag = "UNSTABLE - DO **NOT** USE")]
-    #[get("/gateways/<gateway_identity>/test-results?<pagination..>")]
+    #[get("/gateways/unstable/<gateway_identity>/test-results?<pagination..>")]
     pub async fn gateway_test_results(
         gateway_identity: &str,
         pagination: PaginationRequest,

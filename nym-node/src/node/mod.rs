@@ -463,6 +463,10 @@ impl NymNode {
             &self.ed25519_identity_keys,
         )?;
 
+        let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
+            location: self.config.host.location.clone(),
+        };
+
         // mixnode info
         let mixnode_details = api_requests::v1::mixnode::models::Mixnode {};
 
@@ -535,7 +539,8 @@ impl NymNode {
             .with_network_requester_details(nr_details)
             .with_ip_packet_router_details(ipr_details)
             .with_used_exit_policy(exit_policy_details)
-            .with_description(self.description.clone());
+            .with_description(self.description.clone())
+            .with_auxiliary_details(auxiliary_details);
 
         if self.config.http.expose_system_info {
             config = config.with_system_info(get_system_info(

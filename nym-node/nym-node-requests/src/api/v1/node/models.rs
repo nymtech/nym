@@ -1,6 +1,8 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::de_maybe_stringified;
+use celes::Country;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -162,4 +164,16 @@ pub struct NodeDescription {
 
     /// details define other optional details.
     pub details: String,
+}
+
+/// Auxiliary details of the associated Nym Node.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AuxiliaryDetails {
+    /// Optional ISO 3166 alpha-2 two-letter country code of the node's **physical** location
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    #[cfg_attr(feature = "openapi", schema(example = "PL", value_type = Option<String>))]
+    #[schemars(with = "Option<String>")]
+    #[schemars(length(equal = 2))]
+    pub location: Option<Country>,
 }

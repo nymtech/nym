@@ -5153,6 +5153,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
+ "celes",
  "humantime 2.1.0",
  "humantime-serde",
  "nym-bin-common",

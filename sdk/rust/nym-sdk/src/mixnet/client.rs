@@ -742,10 +742,12 @@ where
         let mut client_output = started_client.client_output.register_consumer();
         let client_state = started_client.client_state;
 
+        let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;
 
         Ok(MixnetClient::new(
             nym_address,
+            identity_keys,
             client_input,
             client_output,
             client_state,

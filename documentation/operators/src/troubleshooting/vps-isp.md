@@ -16,6 +16,8 @@ Begin with the steps listed in [*Connectivity Test and Configuration*](../nodes/
 2. Checkout your VPS dashboard and make sure your IPv6-public enabled.
 3. If you are able to add IPv6 address `/64` range, do it.
 
+**Update:** Nym community started an ISP table called [*Where to host your nym node?*](../legal/isp-list.md), check it out and add your findings!
+
 ![](../images/ipv6_64.png)
 
 4. Search or ask your ISP for additional documentation related to IPv6 routing and ask them to provide you with `IPv6 IP address` and `IPv6 IP gateway address`

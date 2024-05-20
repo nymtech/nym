@@ -27,12 +27,14 @@
 - [Maintenance](nodes/maintenance.md)
   - [Manual Node Upgrade](nodes/manual-upgrade.md)
   - [Automatic Node Upgrade: Nymvisor Setup and Usage](nodes/nymvisor-upgrade.md)
-- [Performance Testing](testing/performance.md)
-  - [Node Setup](testing/node-setup.md)
-- [Metrics Monitoring](testing/templates.md)
+- [Performance Monitoring & Testing](testing/performance.md)
+  <!--- [Node Setup](testing/node-setup.md)-->
+  - [Gateway Probe](testing/gateway-probe.md)
   - [Prometheus & Grafana](testing/prometheus-grafana.md)
     - [ExploreNYM scripts](testing/explorenym-scripts.md)
 <!--    - [Run in a Docker](testing/docker-monitor.md) -->
+
+
 
 # Troubleshooting
 
@@ -56,6 +58,7 @@
 
 - [Exit Gateway](legal/exit-gateway.md)
 - [Community Counsel](legal/community-counsel.md)
+    - [ISP List](legal/isp-list.md)
     - [Jurisdictions](legal/jurisdictions.md)
         - [Switzerland](legal/swiss.md)
         - [United States](legal/united-states.md)

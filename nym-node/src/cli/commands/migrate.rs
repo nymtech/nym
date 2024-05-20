@@ -597,6 +597,8 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
         .await?;
     }
 
+    crate::node::WireguardData::initialise(&config.wireguard)?;
+
     save_node_description(
         &config.storage_paths.description,
         &NodeDescription::default(),

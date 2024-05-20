@@ -16,5 +16,6 @@ nym-sphinx = { path = "../nymsphinx" }
 rand = "0.8.5"
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 tokio-util = { workspace = true, features = ["codec"] }

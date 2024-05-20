@@ -1,5 +1,6 @@
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 
 use crate::{make_bincode_serializer, IpPair, CURRENT_VERSION};
 
@@ -35,6 +36,7 @@ impl IpPacketRequest {
                     reply_to_hops,
                     reply_to_avg_mix_delays,
                     buffer_timeout,
+                    timestamp: OffsetDateTime::now_utc(),
                 }),
                 signature: None,
             },
@@ -58,6 +60,7 @@ impl IpPacketRequest {
                     reply_to_hops,
                     reply_to_avg_mix_delays,
                     buffer_timeout,
+                    timestamp: OffsetDateTime::now_utc(),
                 }),
                 signature: None,
             },
@@ -73,6 +76,7 @@ impl IpPacketRequest {
                 data: IpPacketRequestData::Disconnect(DisconnectRequest {
                     request_id,
                     reply_to,
+                    timestamp: OffsetDateTime::now_utc(),
                 }),
                 signature: None,
             },
@@ -96,6 +100,7 @@ impl IpPacketRequest {
                 data: IpPacketRequestData::Ping(PingRequest {
                     request_id,
                     reply_to,
+                    timestamp: OffsetDateTime::now_utc(),
                 }),
                 signature: None,
             },
@@ -111,6 +116,7 @@ impl IpPacketRequest {
                 data: IpPacketRequestData::Health(HealthRequest {
                     request_id,
                     reply_to,
+                    timestamp: OffsetDateTime::now_utc(),
                 }),
                 signature: None,
             },
@@ -193,6 +199,9 @@ pub struct StaticConnectRequest {
     // The maximum time in milliseconds the IPR should wait when filling up a mix packet
     // with ip packets.
     pub buffer_timeout: Option<u64>,
+
+    // Timestamp of when the request was sent by the client.
+    pub timestamp: OffsetDateTime,
 }
 
 // A dynamic connect request is when the client does not provide the internal IP address it will use
@@ -215,6 +224,9 @@ pub struct DynamicConnectRequest {
     // The maximum time in milliseconds the IPR should wait when filling up a mix packet
     // with ip packets.
     pub buffer_timeout: Option<u64>,
+
+    // Timestamp of when the request was sent by the client.
+    pub timestamp: OffsetDateTime,
 }
 
 // A disconnect request is when the client wants to disconnect from the ip packet router and free
@@ -222,8 +234,12 @@ pub struct DynamicConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DisconnectRequest {
     pub request_id: u64,
+
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+
+    // Timestamp of when the request was sent by the client.
+    pub timestamp: OffsetDateTime,
 }
 
 // A data request is when the client wants to send an IP packet to a destination.
@@ -236,15 +252,23 @@ pub struct DataRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PingRequest {
     pub request_id: u64,
+
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+
+    // Timestamp of when the request was sent by the client.
+    pub timestamp: OffsetDateTime,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct HealthRequest {
     pub request_id: u64,
+
     // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+
+    // Timestamp of when the request was sent by the client.
+    pub timestamp: OffsetDateTime,
 }
 
 #[cfg(test)]

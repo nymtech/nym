@@ -25,20 +25,19 @@ impl IpPacketRequest {
         buffer_timeout: Option<u64>,
     ) -> (Self, u64) {
         let request_id = generate_random();
-        let request = StaticConnectRequest {
-            request_id,
-            ips,
-            reply_to,
-            reply_to_hops,
-            reply_to_avg_mix_delays,
-            buffer_timeout,
-            timestamp: OffsetDateTime::now_utc(),
-        };
         (
             Self {
                 version: CURRENT_VERSION,
                 data: IpPacketRequestData::StaticConnect(SignedStaticConnectRequest {
-                    request,
+                    request: StaticConnectRequest {
+                        request_id,
+                        ips,
+                        reply_to,
+                        reply_to_hops,
+                        reply_to_avg_mix_delays,
+                        buffer_timeout,
+                        timestamp: OffsetDateTime::now_utc(),
+                    },
                     signature: None,
                 }),
             },
@@ -56,13 +55,16 @@ impl IpPacketRequest {
         (
             Self {
                 version: CURRENT_VERSION,
-                data: IpPacketRequestData::DynamicConnect(DynamicConnectRequest {
-                    request_id,
-                    reply_to,
-                    reply_to_hops,
-                    reply_to_avg_mix_delays,
-                    buffer_timeout,
-                    timestamp: OffsetDateTime::now_utc(),
+                data: IpPacketRequestData::DynamicConnect(SignedDynamicConnectRequest {
+                    request: DynamicConnectRequest {
+                        request_id,
+                        reply_to,
+                        reply_to_hops,
+                        reply_to_avg_mix_delays,
+                        buffer_timeout,
+                        timestamp: OffsetDateTime::now_utc(),
+                    },
+                    signature: None,
                 }),
             },
             request_id,
@@ -74,10 +76,13 @@ impl IpPacketRequest {
         (
             Self {
                 version: CURRENT_VERSION,
-                data: IpPacketRequestData::Disconnect(DisconnectRequest {
-                    request_id,
-                    reply_to,
-                    timestamp: OffsetDateTime::now_utc(),
+                data: IpPacketRequestData::Disconnect(SignedDisconnectRequest {
+                    request: DisconnectRequest {
+                        request_id,
+                        reply_to,
+                        timestamp: OffsetDateTime::now_utc(),
+                    },
+                    signature: None,
                 }),
             },
             request_id,
@@ -124,8 +129,8 @@ impl IpPacketRequest {
     pub fn id(&self) -> Option<u64> {
         match &self.data {
             IpPacketRequestData::StaticConnect(request) => Some(request.request.request_id),
-            IpPacketRequestData::DynamicConnect(request) => Some(request.request_id),
-            IpPacketRequestData::Disconnect(request) => Some(request.request_id),
+            IpPacketRequestData::DynamicConnect(request) => Some(request.request.request_id),
+            IpPacketRequestData::Disconnect(request) => Some(request.request.request_id),
             IpPacketRequestData::Data(_) => None,
             IpPacketRequestData::Ping(request) => Some(request.request_id),
             IpPacketRequestData::Health(request) => Some(request.request_id),
@@ -135,8 +140,8 @@ impl IpPacketRequest {
     pub fn recipient(&self) -> Option<&Recipient> {
         match &self.data {
             IpPacketRequestData::StaticConnect(request) => Some(&request.request.reply_to),
-            IpPacketRequestData::DynamicConnect(request) => Some(&request.reply_to),
-            IpPacketRequestData::Disconnect(request) => Some(&request.reply_to),
+            IpPacketRequestData::DynamicConnect(request) => Some(&request.request.reply_to),
+            IpPacketRequestData::Disconnect(request) => Some(&request.request.reply_to),
             IpPacketRequestData::Data(_) => None,
             IpPacketRequestData::Ping(request) => Some(&request.reply_to),
             IpPacketRequestData::Health(request) => Some(&request.reply_to),
@@ -160,25 +165,31 @@ impl IpPacketRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum IpPacketRequestData {
     StaticConnect(SignedStaticConnectRequest),
-    DynamicConnect(DynamicConnectRequest),
-    Disconnect(DisconnectRequest),
+    DynamicConnect(SignedDynamicConnectRequest),
+    Disconnect(SignedDisconnectRequest),
     Data(DataRequest),
     Ping(PingRequest),
     Health(HealthRequest),
 }
 
 impl IpPacketRequestData {
-    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
-        use bincode::Options;
-        make_bincode_serializer().serialize(self)
-    }
-
-    pub fn add_signature(&mut self, signature: Vec<u8>) {
+    pub fn add_signature(&mut self, signature: Vec<u8>) -> Option<Vec<u8>> {
         match self {
             IpPacketRequestData::StaticConnect(request) => {
                 request.signature = Some(signature);
+                request.signature.clone()
             }
-            _ => panic!("Attempted to sign a non-signable request"),
+            IpPacketRequestData::DynamicConnect(request) => {
+                request.signature = Some(signature);
+                request.signature.clone()
+            }
+            IpPacketRequestData::Disconnect(request) => {
+                request.signature = Some(signature);
+                request.signature.clone()
+            }
+            IpPacketRequestData::Data(_)
+            | IpPacketRequestData::Ping(_)
+            | IpPacketRequestData::Health(_) => None,
         }
     }
 }
@@ -208,6 +219,13 @@ pub struct StaticConnectRequest {
 
     // Timestamp of when the request was sent by the client.
     pub timestamp: OffsetDateTime,
+}
+
+impl StaticConnectRequest {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().serialize(self)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -241,6 +259,19 @@ pub struct DynamicConnectRequest {
     pub timestamp: OffsetDateTime,
 }
 
+impl DynamicConnectRequest {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().serialize(self)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SignedDynamicConnectRequest {
+    pub request: DynamicConnectRequest,
+    pub signature: Option<Vec<u8>>,
+}
+
 // A disconnect request is when the client wants to disconnect from the ip packet router and free
 // up the allocated IP address.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -252,6 +283,19 @@ pub struct DisconnectRequest {
 
     // Timestamp of when the request was sent by the client.
     pub timestamp: OffsetDateTime,
+}
+
+impl DisconnectRequest {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().serialize(self)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SignedDisconnectRequest {
+    pub request: DisconnectRequest,
+    pub signature: Option<Vec<u8>>,
 }
 
 // A data request is when the client wants to send an IP packet to a destination.
@@ -294,14 +338,18 @@ mod tests {
         let connect = IpPacketRequest {
             version: 4,
             data: IpPacketRequestData::StaticConnect(
-                StaticConnectRequest {
-                    request_id: 123,
-                    ips: IpPair::new(Ipv4Addr::from_str("10.0.0.1").unwrap(), Ipv6Addr::from_str("2001:db8:a160::1").unwrap()),
-                    reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
-                    reply_to_hops: None,
-                    reply_to_avg_mix_delays: None,
-                    buffer_timeout: None,
-                },
+                SignedStaticConnectRequest {
+                    request: StaticConnectRequest {
+                        request_id: 123,
+                        ips: IpPair::new(Ipv4Addr::from_str("10.0.0.1").unwrap(), Ipv6Addr::from_str("2001:db8:a160::1").unwrap()),
+                        reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
+                        reply_to_hops: None,
+                        reply_to_avg_mix_delays: None,
+                        buffer_timeout: None,
+                        timestamp: OffsetDateTime::now_utc(),
+                    },
+                    signature: None,
+                }
             ),
         };
         assert_eq!(connect.to_bytes().unwrap().len(), 123);

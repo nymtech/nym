@@ -178,6 +178,10 @@ pub enum GatewayError {
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     #[error("failed to remove wireguard interface: {0}")]
     WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
+
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("wireguard not set")]
+    WireguardNotSet,
 }
 
 impl From<ClientCoreError> for GatewayError {

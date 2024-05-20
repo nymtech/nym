@@ -33,7 +33,7 @@ use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{TaskClient, TaskManager};
-use nym_wireguard_types::registration::GatewayClientRegistry;
+use nym_wireguard_types::WireguardGatewayData;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
@@ -67,7 +67,7 @@ impl MixnodeData {
 pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
-    client_registry: Arc<GatewayClientRegistry>,
+    wireguard_data: WireguardGatewayData,
 }
 
 impl EntryGatewayData {
@@ -85,7 +85,10 @@ impl EntryGatewayData {
         Ok(())
     }
 
-    async fn new(config: &EntryGatewayConfig) -> Result<EntryGatewayData, EntryGatewayError> {
+    async fn new(
+        config: &EntryGatewayConfig,
+        wireguard_data: WireguardGatewayData,
+    ) -> Result<EntryGatewayData, EntryGatewayError> {
         Ok(EntryGatewayData {
             mnemonic: config.storage_paths.load_mnemonic_from_file()?,
             client_storage: nym_gateway::node::PersistentStorage::init(
@@ -94,7 +97,7 @@ impl EntryGatewayData {
             )
             .await
             .map_err(nym_gateway::GatewayError::from)?,
-            client_registry: Arc::new(Default::default()),
+            wireguard_data: wireguard_data.clone(),
         })
     }
 }
@@ -354,6 +357,11 @@ impl NymNode {
     }
 
     pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
+        let wireguard_data = WireguardData::new(&config.wireguard)?;
+        let wireguard_gateway_data = WireguardGatewayData::new(
+            config.wireguard.clone().into(),
+            wireguard_data.x25519_wireguard_keys.clone(),
+        );
         Ok(NymNode {
             ed25519_identity_keys: Arc::new(load_ed25519_identity_keypair(
                 config.storage_paths.keys.ed25519_identity_storage_paths(),
@@ -367,9 +375,10 @@ impl NymNode {
             description: load_node_description(&config.storage_paths.description)?,
             verloc_stats: Default::default(),
             mixnode: MixnodeData::new(&config.mixnode)?,
-            entry_gateway: EntryGatewayData::new(&config.entry_gateway).await?,
+            entry_gateway: EntryGatewayData::new(&config.entry_gateway, wireguard_gateway_data)
+                .await?,
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
-            wireguard: WireguardData::new(&config.wireguard)?,
+            wireguard: wireguard_data,
             config,
         })
     }
@@ -451,6 +460,10 @@ impl NymNode {
 
         let config =
             ephemeral_entry_gateway_config(self.config.clone(), &self.entry_gateway.mnemonic)?;
+        let wireguard_data = Arc::new(WireguardGatewayData::new(
+            self.config.wireguard.clone().into(),
+            self.wireguard.x25519_wireguard_keys.clone(),
+        ));
         let mut entry_gateway = Gateway::new_loaded(
             config,
             None,
@@ -461,7 +474,7 @@ impl NymNode {
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
-        entry_gateway.set_wireguard_client_registry(self.entry_gateway.client_registry.clone());
+        entry_gateway.set_wireguard_data(wireguard_data);
 
         tokio::spawn(async move {
             if let Err(err) = entry_gateway.run().await {
@@ -476,6 +489,10 @@ impl NymNode {
 
         let config =
             ephemeral_exit_gateway_config(self.config.clone(), &self.entry_gateway.mnemonic)?;
+        let wireguard_data = Arc::new(WireguardGatewayData::new(
+            self.config.wireguard.clone().into(),
+            self.wireguard.x25519_wireguard_keys.clone(),
+        ));
 
         let mut exit_gateway = Gateway::new_loaded(
             config.gateway,
@@ -487,7 +504,7 @@ impl NymNode {
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
-        exit_gateway.set_wireguard_client_registry(self.entry_gateway.client_registry.clone());
+        exit_gateway.set_wireguard_data(wireguard_data);
 
         tokio::spawn(async move {
             if let Err(err) = exit_gateway.run().await {
@@ -564,7 +581,7 @@ impl NymNode {
         )?;
 
         let wg_state = WireguardAppState::new(
-            self.entry_gateway.client_registry.clone(),
+            &self.entry_gateway.wireguard_data,
             Default::default(),
             self.config.wireguard.bind_address.port(),
             wireguard_private_network,

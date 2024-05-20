@@ -532,6 +532,17 @@ impl Wireguard {
     }
 }
 
+impl Into<nym_wireguard_types::Config> for Wireguard {
+    fn into(self) -> nym_wireguard_types::Config {
+        nym_wireguard_types::Config {
+            bind_address: self.bind_address,
+            private_network_ip: self.private_network_ip,
+            announced_port: self.announced_port,
+            private_network_prefix: self.private_network_prefix,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LocalWireguardOpts {
     pub config: Wireguard,

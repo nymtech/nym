@@ -19,9 +19,6 @@ pub const DEFAULT_NETWORK_REQUESTER_DATA_DIR: &str = "network-requester-data";
 pub const DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME: &str = "ip_packet_router_config.toml";
 pub const DEFAULT_IP_PACKET_ROUTER_DATA_DIR: &str = "ip-packet-router-data";
 
-pub const DEFAULT_WIREGUARD_CONFIG_FILENAME: &str = "wireguard.toml";
-pub const DEFAULT_WIREGUARD_DATA_DIR: &str = "wireguard";
-
 // pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
 pub fn default_network_requester_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
@@ -30,10 +27,6 @@ pub fn default_network_requester_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
 
 pub fn default_ip_packet_router_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
     default_data_directory(id).join(DEFAULT_IP_PACKET_ROUTER_DATA_DIR)
-}
-
-pub fn default_wireguard_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
-    default_data_directory(id).join(DEFAULT_WIREGUARD_DATA_DIR)
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -117,13 +110,6 @@ impl GatewayPaths {
     pub fn with_default_ip_packet_router_config<P: AsRef<Path>>(self, id: P) -> Self {
         self.with_ip_packet_router_config(
             default_config_directory(id).join(DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME),
-        )
-    }
-
-    #[must_use]
-    pub fn with_default_wireguard_config<P: AsRef<Path>>(self, id: P) -> Self {
-        self.with_wireguard_config(
-            default_config_directory(id).join(DEFAULT_WIREGUARD_CONFIG_FILENAME),
         )
     }
 

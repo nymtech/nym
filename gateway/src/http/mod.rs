@@ -14,7 +14,7 @@ use nym_node_http_api::api::api_requests::SignedHostInformation;
 use nym_node_http_api::NymNodeHttpError;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
-use nym_wireguard_types::registration::GatewayClientRegistry;
+use nym_wireguard_types::WireguardGatewayData;
 use std::sync::Arc;
 
 fn load_gateway_details(
@@ -142,7 +142,7 @@ pub(crate) struct HttpApiBuilder<'a> {
     // TODO: this should be a wg specific key and not re-used sphinx
     sphinx_keypair: Arc<encryption::KeyPair>,
 
-    client_registry: Option<Arc<GatewayClientRegistry>>,
+    wireguard_data: Option<Arc<WireguardGatewayData>>,
 }
 
 impl<'a> HttpApiBuilder<'a> {
@@ -158,7 +158,7 @@ impl<'a> HttpApiBuilder<'a> {
             exit_policy: None,
             identity_keypair,
             sphinx_keypair,
-            client_registry: None,
+            wireguard_data: None,
         }
     }
 
@@ -223,11 +223,11 @@ impl<'a> HttpApiBuilder<'a> {
     }
 
     #[must_use]
-    pub(crate) fn with_wireguard_client_registry(
+    pub(crate) fn with_wireguard_data(
         mut self,
-        client_registry: Arc<GatewayClientRegistry>,
+        wireguard_data: Option<Arc<WireguardGatewayData>>,
     ) -> Self {
-        self.client_registry = Some(client_registry);
+        self.wireguard_data = wireguard_data;
         self
     }
 

@@ -221,13 +221,6 @@ impl Config {
         self
     }
 
-    pub fn with_default_wireguard_config_path(mut self) -> Self {
-        self.storage_paths = self
-            .storage_paths
-            .with_default_wireguard_config(&self.gateway.id);
-        self
-    }
-
     pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self

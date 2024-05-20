@@ -1040,6 +1040,7 @@ impl StorageManager {
                     JOIN monitor_run ON mixnode_status.timestamp = monitor_run.timestamp
                     JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id
                 WHERE mix_id = ?
+                ORDER BY mixnode_status.timestamp DESC
                 LIMIT ? OFFSET ?
             "#,
             mix_id,
@@ -1090,6 +1091,7 @@ impl StorageManager {
                     JOIN monitor_run ON gateway_status.timestamp = monitor_run.timestamp
                     JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id
                 WHERE identity = ?
+                ORDER BY gateway_status.timestamp DESC
                 LIMIT ? OFFSET ?
             "#,
             gateway_identity,

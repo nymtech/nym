@@ -182,6 +182,13 @@ pub enum GatewayError {
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     #[error("wireguard not set")]
     WireguardNotSet,
+
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("failed to catch an interrupt: {source}")]
+    StdError {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 impl From<ClientCoreError> for GatewayError {

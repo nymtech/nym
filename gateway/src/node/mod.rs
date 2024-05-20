@@ -571,7 +571,10 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        let wg_api = self.start_wireguard(shutdown.fork("wireguard")).await.ok();
+        let wg_api = self
+            .start_wireguard(shutdown.fork("wireguard"))
+            .await
+            .map_err(|source| GatewayError::StdError { source })?;
 
         #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
         self.start_wireguard(shutdown.fork("wireguard")).await;
@@ -583,9 +586,8 @@ impl<St> Gateway<St> {
             return Err(GatewayError::ShutdownFailure { source });
         }
         #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        if let Some(wg_api) = wg_api {
-            defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&wg_api)?;
-        }
+        defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&wg_api)?;
+
         Ok(())
     }
 }

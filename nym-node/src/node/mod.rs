@@ -576,7 +576,7 @@ impl NymNode {
             };
 
         let wireguard_private_network = IpNetwork::new(
-            self.config.wireguard.private_network_ip,
+            self.config.wireguard.private_ip,
             self.config.wireguard.private_network_prefix,
         )?;
 

@@ -24,14 +24,17 @@ pub async fn start_wireguard(
     let ifname = String::from("wg0");
     let wgapi = WGApi::new(ifname.clone(), false)?;
     wgapi.create_interface()?;
+    log::info!("Created interface");
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: wireguard_data.keypair().private_key().to_string(),
-        address: wireguard_data.config().private_network_ip.to_string(),
+        address: wireguard_data.config().private_ip.to_string(),
         port: wireguard_data.config().announced_port as u32,
         peers,
     };
+    log::info!("Configuring with {:?}", interface_config);
     wgapi.configure_interface(&interface_config)?;
+    log::info!("Configured interface");
     // wgapi.configure_peer_routing(&peers)?;
 
     tokio::spawn(async move { task_client.recv().await });

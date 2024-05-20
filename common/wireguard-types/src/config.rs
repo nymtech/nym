@@ -9,9 +9,9 @@ pub struct Config {
     /// default: `0.0.0.0:51822`
     pub bind_address: SocketAddr,
 
-    /// Ip address of the private wireguard network.
-    /// default: `10.1.0.0`
-    pub private_network_ip: IpAddr,
+    /// Private IP address of the wireguard gateway.
+    /// default: `10.1.0.1`
+    pub private_ip: IpAddr,
 
     /// Port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.

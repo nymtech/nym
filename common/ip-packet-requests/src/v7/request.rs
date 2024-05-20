@@ -14,7 +14,6 @@ fn generate_random() -> u64 {
 pub struct IpPacketRequest {
     pub version: u8,
     pub data: IpPacketRequestData,
-    pub signature: Option<Vec<u8>>,
 }
 
 impl IpPacketRequest {
@@ -26,19 +25,22 @@ impl IpPacketRequest {
         buffer_timeout: Option<u64>,
     ) -> (Self, u64) {
         let request_id = generate_random();
+        let request = StaticConnectRequest {
+            request_id,
+            ips,
+            reply_to,
+            reply_to_hops,
+            reply_to_avg_mix_delays,
+            buffer_timeout,
+            timestamp: OffsetDateTime::now_utc(),
+        };
         (
             Self {
                 version: CURRENT_VERSION,
-                data: IpPacketRequestData::StaticConnect(StaticConnectRequest {
-                    request_id,
-                    ips,
-                    reply_to,
-                    reply_to_hops,
-                    reply_to_avg_mix_delays,
-                    buffer_timeout,
-                    timestamp: OffsetDateTime::now_utc(),
+                data: IpPacketRequestData::StaticConnect(SignedStaticConnectRequest {
+                    request,
+                    signature: None,
                 }),
-                signature: None,
             },
             request_id,
         )
@@ -62,7 +64,6 @@ impl IpPacketRequest {
                     buffer_timeout,
                     timestamp: OffsetDateTime::now_utc(),
                 }),
-                signature: None,
             },
             request_id,
         )
@@ -78,7 +79,6 @@ impl IpPacketRequest {
                     reply_to,
                     timestamp: OffsetDateTime::now_utc(),
                 }),
-                signature: None,
             },
             request_id,
         )
@@ -88,7 +88,6 @@ impl IpPacketRequest {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketRequestData::Data(DataRequest { ip_packets }),
-            signature: None,
         }
     }
 
@@ -102,7 +101,6 @@ impl IpPacketRequest {
                     reply_to,
                     timestamp: OffsetDateTime::now_utc(),
                 }),
-                signature: None,
             },
             request_id,
         )
@@ -118,7 +116,6 @@ impl IpPacketRequest {
                     reply_to,
                     timestamp: OffsetDateTime::now_utc(),
                 }),
-                signature: None,
             },
             request_id,
         )
@@ -126,7 +123,7 @@ impl IpPacketRequest {
 
     pub fn id(&self) -> Option<u64> {
         match &self.data {
-            IpPacketRequestData::StaticConnect(request) => Some(request.request_id),
+            IpPacketRequestData::StaticConnect(request) => Some(request.request.request_id),
             IpPacketRequestData::DynamicConnect(request) => Some(request.request_id),
             IpPacketRequestData::Disconnect(request) => Some(request.request_id),
             IpPacketRequestData::Data(_) => None,
@@ -137,7 +134,7 @@ impl IpPacketRequest {
 
     pub fn recipient(&self) -> Option<&Recipient> {
         match &self.data {
-            IpPacketRequestData::StaticConnect(request) => Some(&request.reply_to),
+            IpPacketRequestData::StaticConnect(request) => Some(&request.request.reply_to),
             IpPacketRequestData::DynamicConnect(request) => Some(&request.reply_to),
             IpPacketRequestData::Disconnect(request) => Some(&request.reply_to),
             IpPacketRequestData::Data(_) => None,
@@ -162,7 +159,7 @@ impl IpPacketRequest {
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum IpPacketRequestData {
-    StaticConnect(StaticConnectRequest),
+    StaticConnect(SignedStaticConnectRequest),
     DynamicConnect(DynamicConnectRequest),
     Disconnect(DisconnectRequest),
     Data(DataRequest),
@@ -174,6 +171,15 @@ impl IpPacketRequestData {
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
         make_bincode_serializer().serialize(self)
+    }
+
+    pub fn add_signature(&mut self, signature: Vec<u8>) {
+        match self {
+            IpPacketRequestData::StaticConnect(request) => {
+                request.signature = Some(signature);
+            }
+            _ => panic!("Attempted to sign a non-signable request"),
+        }
     }
 }
 
@@ -202,6 +208,12 @@ pub struct StaticConnectRequest {
 
     // Timestamp of when the request was sent by the client.
     pub timestamp: OffsetDateTime,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SignedStaticConnectRequest {
+    pub request: StaticConnectRequest,
+    pub signature: Option<Vec<u8>>,
 }
 
 // A dynamic connect request is when the client does not provide the internal IP address it will use

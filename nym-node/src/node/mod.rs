@@ -464,7 +464,7 @@ impl NymNode {
         )?;
 
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
-            location: self.config.host.location.clone(),
+            location: self.config.host.location,
         };
 
         // mixnode info

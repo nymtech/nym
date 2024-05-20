@@ -167,7 +167,7 @@ pub struct NodeDescription {
 }
 
 /// Auxiliary details of the associated Nym Node.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AuxiliaryDetails {
     /// Optional ISO 3166 alpha-2 two-letter country code of the node's **physical** location

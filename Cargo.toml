@@ -39,7 +39,6 @@ members = [
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
-    "common/cosmwasm-smart-contracts/service-provider-directory",
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/country-group",
     "common/credential-storage",

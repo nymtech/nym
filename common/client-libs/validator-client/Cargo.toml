@@ -20,7 +20,6 @@ nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-c
 nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
-nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts/service-provider-directory" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 nym-http-api-client = { path = "../../../common/http-api-client"}
@@ -83,14 +82,6 @@ name = "offline_signing"
 # it should only really require the "signing" feature,
 # but that would require another round of refactoring to make it possible
 # (traits would need to be moved around and refactored themselves)
-required-features = ["http-client"]
-
-[[example]]
-name = "query_service_provider_directory"
-required-features = ["http-client"]
-
-[[example]]
-name = "query_name_service"
 required-features = ["http-client"]
 
 [features]

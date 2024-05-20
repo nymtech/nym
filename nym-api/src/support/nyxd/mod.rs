@@ -30,7 +30,6 @@ use nym_mixnet_contract_common::{
     CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment,
     MixId, RewardedSetNodeStatus,
 };
-use nym_service_provider_directory_common::msg::QueryMsg as SpQueryMsg;
 use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{
@@ -38,7 +37,7 @@ use nym_validator_client::nyxd::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
         MixnetQueryClient, MixnetSigningClient, MultisigQueryClient, MultisigSigningClient,
         NymContractsProvider, PagedMixnetQueryClient, PagedMultisigQueryClient,
-        PagedVestingQueryClient, SpDirectoryQueryClient,
+        PagedVestingQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
     CosmWasmClient, Fee,
@@ -598,18 +597,5 @@ impl DkgQueryClient for Client {
         for<'a> T: Deserialize<'a>,
     {
         nyxd_query!(self, query_dkg_contract(query).await)
-    }
-}
-
-#[async_trait]
-impl SpDirectoryQueryClient for Client {
-    async fn query_service_provider_contract<T>(
-        &self,
-        query: SpQueryMsg,
-    ) -> std::result::Result<T, NyxdError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        nyxd_query!(self, query_service_provider_contract(query).await)
     }
 }

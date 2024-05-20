@@ -3956,7 +3956,6 @@ dependencies = [
  "nym-node-requests",
  "nym-node-tester-utils",
  "nym-pemstore",
- "nym-service-provider-directory-common",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
@@ -4138,7 +4137,6 @@ dependencies = [
  "nym-multisig-contract-common",
  "nym-network-defaults",
  "nym-pemstore",
- "nym-service-provider-directory-common",
  "nym-sphinx",
  "nym-types",
  "nym-validator-client",
@@ -5284,19 +5282,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-service-provider-directory-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "cw2",
- "nym-contracts-common",
- "thiserror",
-]
-
-[[package]]
 name = "nym-service-providers-common"
 version = "0.1.0"
 dependencies = [
@@ -5720,7 +5705,6 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-network-defaults",
- "nym-service-provider-directory-common",
  "nym-vesting-contract-common",
  "prost 0.12.4",
  "reqwest 0.12.4",

@@ -7,6 +7,7 @@ use crate::{make_bincode_serializer, IpPair, CURRENT_VERSION};
 pub struct IpPacketResponse {
     pub version: u8,
     pub data: IpPacketResponseData,
+    pub signature: Option<Vec<u8>>,
 }
 
 impl IpPacketResponse {
@@ -18,6 +19,7 @@ impl IpPacketResponse {
                 reply_to,
                 reply: StaticConnectResponseReply::Success,
             }),
+            signature: None,
         }
     }
 
@@ -33,6 +35,7 @@ impl IpPacketResponse {
                 reply_to,
                 reply: StaticConnectResponseReply::Failure(reason),
             }),
+            signature: None,
         }
     }
 
@@ -44,6 +47,7 @@ impl IpPacketResponse {
                 reply_to,
                 reply: DynamicConnectResponseReply::Success(DynamicConnectSuccess { ips }),
             }),
+            signature: None,
         }
     }
 
@@ -59,6 +63,7 @@ impl IpPacketResponse {
                 reply_to,
                 reply: DynamicConnectResponseReply::Failure(reason),
             }),
+            signature: None,
         }
     }
 
@@ -70,6 +75,7 @@ impl IpPacketResponse {
                 reply_to,
                 reply: DisconnectResponseReply::Success,
             }),
+            signature: None,
         }
     }
 
@@ -85,6 +91,7 @@ impl IpPacketResponse {
                 reply_to,
                 reply: DisconnectResponseReply::Failure(reason),
             }),
+            signature: None,
         }
     }
 
@@ -98,6 +105,7 @@ impl IpPacketResponse {
                 reply_to,
                 reason,
             }),
+            signature: None,
         }
     }
 
@@ -105,6 +113,7 @@ impl IpPacketResponse {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketResponseData::Data(DataResponse { ip_packet }),
+            signature: None,
         }
     }
 
@@ -125,6 +134,7 @@ impl IpPacketResponse {
                 },
                 level: InfoLevel::Error,
             }),
+            signature: None,
         }
     }
 
@@ -141,6 +151,7 @@ impl IpPacketResponse {
                 reply,
                 level,
             }),
+            signature: None,
         }
     }
 
@@ -151,6 +162,7 @@ impl IpPacketResponse {
                 request_id,
                 reply_to,
             }),
+            signature: None,
         }
     }
 
@@ -170,6 +182,7 @@ impl IpPacketResponse {
                     routable,
                 },
             }),
+            signature: None,
         }
     }
 
@@ -238,6 +251,13 @@ pub enum IpPacketResponseData {
 
     // Info response. This can be anything from informative messages to errors
     Info(InfoResponse),
+}
+
+impl IpPacketResponseData {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().serialize(self)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

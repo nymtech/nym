@@ -13,6 +13,7 @@ fn generate_random() -> u64 {
 pub struct IpPacketRequest {
     pub version: u8,
     pub data: IpPacketRequestData,
+    pub signature: Option<Vec<u8>>,
 }
 
 impl IpPacketRequest {
@@ -35,6 +36,7 @@ impl IpPacketRequest {
                     reply_to_avg_mix_delays,
                     buffer_timeout,
                 }),
+                signature: None,
             },
             request_id,
         )
@@ -57,6 +59,7 @@ impl IpPacketRequest {
                     reply_to_avg_mix_delays,
                     buffer_timeout,
                 }),
+                signature: None,
             },
             request_id,
         )
@@ -71,6 +74,7 @@ impl IpPacketRequest {
                     request_id,
                     reply_to,
                 }),
+                signature: None,
             },
             request_id,
         )
@@ -80,6 +84,7 @@ impl IpPacketRequest {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketRequestData::Data(DataRequest { ip_packets }),
+            signature: None,
         }
     }
 
@@ -92,6 +97,7 @@ impl IpPacketRequest {
                     request_id,
                     reply_to,
                 }),
+                signature: None,
             },
             request_id,
         )
@@ -106,6 +112,7 @@ impl IpPacketRequest {
                     request_id,
                     reply_to,
                 }),
+                signature: None,
             },
             request_id,
         )
@@ -155,6 +162,13 @@ pub enum IpPacketRequestData {
     Data(DataRequest),
     Ping(PingRequest),
     Health(HealthRequest),
+}
+
+impl IpPacketRequestData {
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().serialize(self)
+    }
 }
 
 // A static connect request is when the client provides the internal IP address it will use on the

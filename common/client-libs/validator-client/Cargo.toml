@@ -19,7 +19,6 @@ nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-con
 nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
-nym-name-service-common = { path = "../../cosmwasm-smart-contracts/name-service" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts/service-provider-directory" }
 serde = { workspace = true, features = ["derive"] }

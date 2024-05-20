@@ -28,7 +28,6 @@ pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Rout
         routes::get_interval_reward_params,
         routes::get_current_epoch,
         routes::get_services,
-        routes::get_registered_names
     ]
 }
 

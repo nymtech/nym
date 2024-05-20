@@ -25,7 +25,6 @@ pub use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-use nym_name_service_common::response::NamesListResponse;
 use nym_service_provider_directory_common::response::ServicesListResponse;
 
 pub mod error;
@@ -496,13 +495,6 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_service_providers(&self) -> Result<ServicesListResponse, NymAPIError> {
         log::trace!("Getting service providers");
         self.get_json(&[routes::API_VERSION, routes::SERVICE_PROVIDERS], NO_PARAMS)
-            .await
-    }
-
-    //async fn get_registered_names(&self) -> Result<Vec<NameEntry>, NymAPIError> {
-    async fn get_registered_names(&self) -> Result<NamesListResponse, NymAPIError> {
-        log::trace!("Getting registered names");
-        self.get_json(&[routes::API_VERSION, routes::REGISTERED_NAMES], NO_PARAMS)
             .await
     }
 }

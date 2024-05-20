@@ -3953,7 +3953,6 @@ dependencies = [
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-node-requests",
  "nym-node-tester-utils",
  "nym-pemstore",
@@ -4137,7 +4136,6 @@ dependencies = [
  "nym-id",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-service-provider-directory-common",
@@ -4960,20 +4958,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-name-service-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "cw2",
- "nym-contracts-common",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
@@ -5735,7 +5719,6 @@ dependencies = [
  "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-network-defaults",
  "nym-service-provider-directory-common",
  "nym-vesting-contract-common",

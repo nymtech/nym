@@ -9,7 +9,6 @@ use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
     RewardingParams,
 };
-use nym_name_service_common::RegisteredName;
 use nym_service_provider_directory_common::Service;
 use rocket::fairing::AdHoc;
 use std::{
@@ -57,7 +56,6 @@ impl NymContractCache {
         current_interval: Interval,
         mix_to_family: Vec<(IdentityKey, FamilyHead)>,
         services: Option<Vec<Service>>,
-        names: Option<Vec<RegisteredName>>,
         nym_contracts_info: CachedContractsInfo,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
@@ -77,9 +75,6 @@ impl NymContractCache {
                 cache
                     .service_providers
                     .unchecked_update(services.unwrap_or_default());
-                cache
-                    .registered_names
-                    .unchecked_update(names.unwrap_or_default());
                 cache.contracts_info.unchecked_update(nym_contracts_info)
             }
             Err(err) => {
@@ -315,16 +310,6 @@ impl NymContractCache {
     pub(crate) async fn services(&self) -> Cache<Vec<Service>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.service_providers.clone_cache(),
-            Err(err) => {
-                error!("{err}");
-                Cache::new(Vec::new())
-            }
-        }
-    }
-
-    pub(crate) async fn names(&self) -> Cache<Vec<RegisteredName>> {
-        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.registered_names.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(Vec::new())

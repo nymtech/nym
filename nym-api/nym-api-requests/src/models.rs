@@ -10,7 +10,7 @@ use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
-use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
+use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, BinaryBuildInformationOwned};
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
@@ -483,12 +483,16 @@ impl JsonSchema for OffsetDateTimeJsonSchemaWrapper {
     }
 }
 
+// this struct is getting quite bloated...
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NymNodeDescription {
     #[serde(default)]
     pub last_polled: OffsetDateTimeJsonSchemaWrapper,
 
     pub host_information: HostInformation,
+
+    #[serde(default)]
+    pub auxiliary_details: AuxiliaryDetails,
 
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,

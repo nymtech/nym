@@ -48,10 +48,6 @@ pub struct GatewayPaths {
     /// Path to the configuration of the embedded ip packet router.
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub ip_packet_router_config: Option<PathBuf>,
-
-    /// Path to the configuration of the wireguard server.
-    #[serde(deserialize_with = "de_maybe_stringified")]
-    pub wireguard_config: Option<PathBuf>,
 }
 
 impl GatewayPaths {
@@ -62,7 +58,6 @@ impl GatewayPaths {
             // node_description: default_config_filepath(id).join(DEFAULT_DESCRIPTION_FILENAME),
             network_requester_config: None,
             ip_packet_router_config: None,
-            wireguard_config: None,
         }
     }
 
@@ -77,7 +72,6 @@ impl GatewayPaths {
             clients_storage: Default::default(),
             network_requester_config: None,
             ip_packet_router_config: None,
-            wireguard_config: None,
         }
     }
 
@@ -101,12 +95,6 @@ impl GatewayPaths {
     }
 
     #[must_use]
-    pub fn with_wireguard_config<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.wireguard_config = Some(path.as_ref().into());
-        self
-    }
-
-    #[must_use]
     pub fn with_default_ip_packet_router_config<P: AsRef<Path>>(self, id: P) -> Self {
         self.with_ip_packet_router_config(
             default_config_directory(id).join(DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME),
@@ -119,10 +107,6 @@ impl GatewayPaths {
 
     pub fn ip_packet_router_config(&self) -> &Option<PathBuf> {
         &self.ip_packet_router_config
-    }
-
-    pub fn wireguard_config(&self) -> &Option<PathBuf> {
-        &self.wireguard_config
     }
 
     pub fn private_identity_key(&self) -> &Path {

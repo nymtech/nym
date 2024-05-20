@@ -26,7 +26,6 @@ pub mod old_config_v1_1_20;
 pub mod old_config_v1_1_28;
 pub mod old_config_v1_1_29;
 pub mod old_config_v1_1_31;
-pub mod old_config_v1_1_36;
 pub mod persistence;
 mod template;
 

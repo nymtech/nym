@@ -11,4 +11,4 @@ cosmwasm-schema = { workspace = true }
 cw4 = { workspace = true }
 cw-controllers = { workspace = true }
 schemars = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }

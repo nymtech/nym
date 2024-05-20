@@ -14,7 +14,7 @@ digest = "0.9"
 rand = "0.8"
 thiserror = { workspace = true }
 serde = { workspace = true }
-serde_derive = "1.0"
+serde_derive = { workspace = true }
 bs58 = { workspace = true }
 sha2 = "0.9"
 zeroize = { workspace = true, optional = true }
@@ -31,8 +31,8 @@ workspace = true
 default-features = false
 
 [dev-dependencies]
-criterion = { version="0.4", features=["html_reports"] }
-doc-comment = "0.3"
+criterion = { workspace = true, features = ["html_reports"] }
+doc-comment = { workspace = true }
 rand_chacha = "0.3"
 
 [[bench]]

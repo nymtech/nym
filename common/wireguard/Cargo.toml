@@ -16,7 +16,7 @@ base64 = "0.21.3"
 # version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
 # latest commit. So pick that for now.
 x25519-dalek = "2.0.0"
-ip_network = "0.4.1"
+ip_network = { workspace = true }
 log.workspace = true
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }

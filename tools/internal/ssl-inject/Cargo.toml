@@ -7,7 +7,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "*", features = ["full"]}
-anyhow = "1.0.71"
-hex = "0.4.3"
-clap = { version = "4.0", features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+anyhow = { workspace = true }
+hex = { workspace = true }
+clap = { workspace = true, features = ["derive"] }

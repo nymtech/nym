@@ -19,7 +19,7 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 zeroize = { workspace = true }
 
-console_error_panic_hook = { version = "0.1", optional = true }
+console_error_panic_hook = { workspace = true, optional = true }
 
 wasm-utils = { path = "../../common/wasm/utils" }
 wasm-storage = { path = "../../common/wasm/storage" }

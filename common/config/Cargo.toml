@@ -9,7 +9,7 @@ license.workspace = true
 
 [dependencies]
 dirs = { version = "5.0.1", optional = true }
-handlebars = "3.5.5"
+handlebars = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 toml = "0.7.4"

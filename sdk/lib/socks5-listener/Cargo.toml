@@ -16,7 +16,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 anyhow = { workspace = true }
 futures = { workspace = true }
-lazy_static = "1.4.0"
+lazy_static = { workspace = true }
 nym-bin-common = { path = "../../../common/bin-common"}
 nym-client-core = { path = "../../../common/client-core", default-features = false }
 nym-config-common = { path = "../../../common/config", package = "nym-config" }
@@ -25,10 +25,10 @@ nym-crypto = { path = "../../../common/crypto" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core", default-features = false }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time"] }
-log = "0.4.17"
+log = { workspace = true }
 rand = "0.7.3"
 
-safer-ffi = { version = "0.1.4" }
+safer-ffi = { workspace = true }
 
 [target.'cfg(target_os="android")'.dependencies]
 jni = { version = "0.21", default-features = false }

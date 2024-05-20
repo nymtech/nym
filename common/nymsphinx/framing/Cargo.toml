@@ -8,7 +8,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-bytes = "1.0"
+bytes = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
 

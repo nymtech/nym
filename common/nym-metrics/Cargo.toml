@@ -14,4 +14,4 @@ license.workspace = true
 prometheus = { workspace = true }
 log = { workspace = true }
 dashmap = { workspace = true }
-lazy_static = "1.4"
+lazy_static = { workspace = true }

@@ -19,39 +19,34 @@ rust-version = "1.70.0"
 async-trait = { workspace = true }
 bs58 = { workspace = true }
 bip39 = { workspace = true }
-cfg-if = "1.0"
+cfg-if = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
-console-subscriber = { version = "0.1.1", optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
+console-subscriber = { workspace = true, optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 dirs = "4.0"
 futures = { workspace = true }
 itertools = "0.12.0"
 humantime-serde = { workspace = true }
-k256 = { version = "*", features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
+k256 = { workspace = true, features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
 log = { workspace = true }
-pin-project = "1.0"
+pin-project = { workspace = true }
 rand = "0.8.5"
 rand-07 = { package = "rand", version = "0.7.3" } # required for compatibility
 reqwest = { workspace = true, features = ["json"] }
-rocket = { version = "0.5.0", features = ["json"] }
-rocket_cors = { version = "0.6.0" }
+rocket = { workspace = true, features = ["json"] }
+rocket_cors = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tap = "1.0"
+tap = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["serde-human-readable", "parsing"] }
-tokio = { version = "1.24.1", features = [
-    "rt-multi-thread",
-    "macros",
-    "signal",
-    "time",
-] }
-tokio-stream = "0.1.11"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal", "time"] }
+tokio-stream = { workspace = true }
 url = { workspace = true }
 
 ts-rs = { workspace = true, optional = true}
 
 anyhow = { workspace = true }
-getset = "0.1.1"
+getset = { workspace = true }
 
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
@@ -60,8 +55,8 @@ sqlx = { workspace = true, features = [
     "migrate",
 ] }
 
-okapi = { version = "0.7.0", features = ["impl_json_schema"] }
-rocket_okapi = { version = "0.8.0", features = ["swagger"] }
+okapi = { workspace = true, features = ["impl_json_schema"] }
+rocket_okapi = { workspace = true, features = ["swagger"] }
 schemars = { workspace = true, features = ["preserve_order"] }
 zeroize = { workspace = true }
 
@@ -121,7 +116,7 @@ sqlx = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-tempfile = "3.3.0"
+tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = "0.3"

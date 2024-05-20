@@ -9,6 +9,7 @@ pub async fn start_wireguard(
     mut task_client: nym_task::TaskClient,
     wireguard_data: std::sync::Arc<nym_wireguard_types::WireguardGatewayData>,
 ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{
         host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WGApi, WireguardInterfaceApi,
     };
@@ -24,17 +25,14 @@ pub async fn start_wireguard(
     let ifname = String::from("wg0");
     let wgapi = WGApi::new(ifname.clone(), false)?;
     wgapi.create_interface()?;
-    log::info!("Created interface");
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
-        prvkey: wireguard_data.keypair().private_key().to_string(),
+        prvkey: BASE64_STANDARD.encode(wireguard_data.keypair().private_key().to_bytes()),
         address: wireguard_data.config().private_ip.to_string(),
         port: wireguard_data.config().announced_port as u32,
         peers,
     };
-    log::info!("Configuring with {:?}", interface_config);
     wgapi.configure_interface(&interface_config)?;
-    log::info!("Configured interface");
     // wgapi.configure_peer_routing(&peers)?;
 
     tokio::spawn(async move { task_client.recv().await });

@@ -691,7 +691,7 @@ checksum = "c762bae6dcaf24c4c84667b8579785430908723d5c889f469d76a41d59cc7a9d"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
- "rand 0.7.3",
+ "rand",
  "serde",
  "sha2 0.9.9",
  "zeroize",
@@ -1300,7 +1300,7 @@ dependencies = [
  "ed25519-dalek",
  "nym-pemstore",
  "nym-sphinx-types",
- "rand 0.7.3",
+ "rand",
  "subtle-encoding",
  "thiserror",
  "x25519-dalek",
@@ -1376,46 +1376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-name-service"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bs58 0.4.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-multi-test",
- "cw-storage-plus",
- "cw-utils",
- "cw2",
- "nym-contracts-common",
- "nym-crypto",
- "nym-name-service-common",
- "nym-sphinx-addressing",
- "rand 0.8.5",
- "rand_chacha 0.2.2",
- "rstest",
- "semver",
- "serde",
- "thiserror",
- "vergen",
-]
-
-[[package]]
-name = "nym-name-service-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "cw2",
- "nym-contracts-common",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-pemstore"
 version = "0.3.0"
 dependencies = [
@@ -1456,16 +1416,6 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-contracts-common",
- "thiserror",
-]
-
-[[package]]
-name = "nym-sphinx-addressing"
-version = "0.1.0"
-dependencies = [
- "nym-crypto",
- "nym-sphinx-types",
- "serde",
  "thiserror",
 ]
 
@@ -1677,17 +1627,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand"
-version = "0.8.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
-dependencies = [
- "libc",
- "rand_chacha 0.3.1",
- "rand_core 0.6.4",
-]
-
-[[package]]
 name = "rand_chacha"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1732,7 +1671,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9e9532ada3929fb8b2e9dbe28d1e06c9b2cc65813f074fcb6bd5fbefeff9d56"
 dependencies = [
  "num-traits",
- "rand 0.7.3",
+ "rand",
 ]
 
 [[package]]
@@ -2018,7 +1957,7 @@ dependencies = [
  "hmac 0.11.0",
  "lioness",
  "log",
- "rand 0.7.3",
+ "rand",
  "rand_distr",
  "sha2 0.9.9",
  "subtle 2.4.1",

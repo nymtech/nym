@@ -19,8 +19,25 @@
 	        "/status/gateway/{identity}/core-status-count",
 		"/status/gateway/{identity}/avg_uptime"
 
+	],
+
+	"swagger":[
+		"/roles",
+		"/build-information",
+		"/description",
+		"/host-information",
+		"/system-info",
+		"/gateway",
+		"/gateway/client-interfaces",
+		"/gateway/client-interfaces/mixnet-websockets",
+		"/gateway/client-interfaces/wireguard",
+		"/health",
+		"/ip-packet-router",
+		"/metrics/mixing",
+		"/metrics/prometheus",
+		"/metrics/verloc",
+		"/mixnode",
+		"/network-requester",
+		"/network-requester/exit-policy"
 	]
-
-
-
 }

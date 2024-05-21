@@ -19,9 +19,13 @@ class MainFunctions:
         gateways_df = self._json_to_dataframe(gateways_unfiltered)
         mixnodes_df = self._json_to_dataframe(mixnodes_unfiltered)
         mode, node_series = self.node_type_check(id_key, gateways_df, mixnodes_df)
-        print(f"mode = {mode}")
-        node_data = self.get_node_data(mode, node_series, id_key)
-        print(node_series.T, node_data)
+        print(f"Node type = {mode}")
+        api_data, swagger_data = self.get_node_data(mode, node_series, id_key)
+        api_data = pd.Series(api_data)
+        swagger_data = pd.Series(swagger_data)
+        print(node_series.T, "\n")
+        print(api_data, "\n")
+        print(swagger_data)
 
     def node_type_check(self,id_key, gateways_df, mixnodes_df):
         if id_key in mixnodes_df['mixnode_details.bond_information.mix_node.identity_key'].values:
@@ -52,18 +56,29 @@ class MainFunctions:
         with open(endpoint_json, "r") as f:
             dicts = json.load(f)
             enpoints = dicts[mode]
-        node_data = {}
+            swagger = dicts["swagger"]
+        api_data = {}
+        swagger_data = {}
         if mode == "gateway":
+            host = str(node_series["gateway_bond.gateway.host"])
+            api_data["API ENPOINTS"] = "RESPONSE"
             for key in enpoints:
-                url = f"{self.api_url}{key}"
+                endpoint = key.replace("{identity}", identity)
+                url = f"{self.api_url}{endpoint}"
                 value = r.get(url)
-                node_data[key] = value
+                api_data[endpoint] = value
+            swagger_data["SWAGGER ENDPOINTS"] = "RESPONSE"
+            for key in swagger:
+                swagger_url = f"https://{host}:8080/api/v1{key}"
+                value = r.get(url)
+                swagger_data[key] = value
+
         elif mode == "mixnode":
             mix_id = int(node_series["mixnode_details.bond_information.mix_id"])
         else:
             print(f"The mode type {mode} is not recognized!")
             sys.exit(-1)
-        return node_data
+        return api_data, swagger_data
 
 
 #    def get_api_endpoints(self):

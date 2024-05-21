@@ -12,11 +12,13 @@ pub use v6::response;
 
 pub mod codec;
 pub mod v6;
+pub mod v7;
 
 // version 3: initial version
 // version 4: IPv6 support
 // version 5: Add severity level to info response
 // version 6: Increase the available IPs
+// version 7: Add signature support (for the future)
 pub const CURRENT_VERSION: u8 = 6;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

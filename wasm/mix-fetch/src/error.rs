@@ -3,7 +3,6 @@
 
 use crate::harbourmaster::HarbourMasterApiError;
 use crate::RequestId;
-use js_sys::Promise;
 use nym_ordered_buffer::OrderedMessageError;
 use nym_socks5_requests::ConnectionError;
 use thiserror::Error;

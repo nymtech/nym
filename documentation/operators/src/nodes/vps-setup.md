@@ -10,9 +10,9 @@ A suboptimally configured VPS often results in a non-functional node. To follow 
 
 You will need to rent a VPS to run your node on. One key reason for this is that your node **must be able to send TCP data using both IPv4 and IPv6** (as other nodes you talk to may use either protocol).
 
-Tor community created a very helpful table called [*Good Bad ISPs*](https://community.torproject.org/relay/community-resources/good-bad-isps/), use that one as a guideline for your choice of ISP for your VPS.
+Tor community created a very helpful table called [*Good Bad ISPs*](https://community.torproject.org/relay/community-resources/good-bad-isps/), you can use that one as a guideline for your choice of ISP for your VPS.
 
-Currently we run [performance testing](../testing/performance.md) events to find out the best optimization. Sphinx packet decryption is CPU-bound, so more fast cores the better throughput.
+**Update:** Nym community started an ISP table called [*Where to host your nym node?*](../legal/isp-list.md), check it out and add your findings!
 
 ### `nym-node`
 

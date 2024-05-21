@@ -12,7 +12,7 @@ futures = { workspace = true }
 js-sys = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
-getrandom = { workspace = true, features=["js"], optional = true }
+getrandom = { workspace = true, features = ["js"], optional = true }
 gloo-utils = { workspace = true }
 gloo-net = { workspace = true, features = ["websocket"], optional = true }
 #gloo-net = { path = "../../../../gloo/crates/net", features = ["websocket"], optional = true }

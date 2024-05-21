@@ -3,7 +3,6 @@
 
 use crate::storage::wasm_client_traits::WasmClientStorageError;
 use crate::topology::WasmTopologyError;
-use js_sys::Promise;
 use nym_client_core::client::base_client::storage::gateways_storage::BadGateway;
 use nym_client_core::error::ClientCoreError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;

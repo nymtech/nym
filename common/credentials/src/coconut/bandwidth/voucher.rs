@@ -30,6 +30,10 @@ impl<'a> From<&'a BandwidthVoucherIssuanceData> for BandwidthVoucherIssuedData {
 }
 
 impl BandwidthVoucherIssuedData {
+    pub fn new(value: Coin) -> Self {
+        BandwidthVoucherIssuedData { value }
+    }
+
     pub fn value(&self) -> &Coin {
         &self.value
     }

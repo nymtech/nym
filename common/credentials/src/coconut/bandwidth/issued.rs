@@ -155,11 +155,6 @@ impl IssuedBandwidthCredential {
             })
     }
 
-    pub fn randomise_signature(&mut self) {
-        let signature_prime = self.signature.randomise(bandwidth_credential_params());
-        self.signature = signature_prime.0
-    }
-
     pub fn default_parameters() -> Parameters {
         IssuanceBandwidthCredential::default_parameters()
     }

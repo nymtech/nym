@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod coconut;
 pub mod models;
+pub mod pagination;
 
 pub trait Deprecatable {
     fn deprecate(self) -> Deprecated<Self>

@@ -7785,7 +7785,8 @@ dependencies = [
 [[package]]
 name = "sphinx-packet"
 version = "0.2.0"
-source = "git+https://github.com/nymtech/sphinx.git?branch=simon/x25519#e9f9aada09ac4fa2df8048c64b9fd5b3e77c5f9c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cffb0df8390239119e76d4f60a6b06900351ee971d78868fc4cfef18301728ad"
 dependencies = [
  "aes",
  "arrayref",

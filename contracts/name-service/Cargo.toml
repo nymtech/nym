@@ -33,7 +33,7 @@ cw-multi-test = { workspace = true }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 nym-sphinx-addressing = { path = "../../common/nymsphinx/addressing" }
 rand = "0.8.5"
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 rstest = "0.17.0"
 
 [features]

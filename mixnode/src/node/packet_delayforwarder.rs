@@ -141,8 +141,8 @@ mod tests {
     use nym_sphinx_params::packet_sizes::PacketSize;
     use nym_sphinx_params::PacketType;
     use nym_sphinx_types::{
-        crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
-        DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
+        test_utils, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node,
+        NodeAddressBytes, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
 
     #[derive(Default)]
@@ -166,17 +166,17 @@ mod tests {
     }
 
     fn make_valid_sphinx_packet(size: PacketSize) -> NymPacket {
-        let (_, node1_pk) = crypto::keygen();
+        let (_, node1_pk) = test_utils::fixtures::keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
             node1_pk,
         );
-        let (_, node2_pk) = crypto::keygen();
+        let (_, node2_pk) = test_utils::fixtures::keygen();
         let node2 = Node::new(
             NodeAddressBytes::from_bytes([4u8; NODE_ADDRESS_LENGTH]),
             node2_pk,
         );
-        let (_, node3_pk) = crypto::keygen();
+        let (_, node3_pk) = test_utils::fixtures::keygen();
         let node3 = Node::new(
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
             node3_pk,
@@ -197,23 +197,23 @@ mod tests {
     }
 
     fn make_valid_outfox_packet(size: PacketSize) -> NymPacket {
-        let (_, node1_pk) = crypto::keygen();
+        let (_, node1_pk) = test_utils::fixtures::keygen();
         let node1 = Node::new(
             NodeAddressBytes::from_bytes([5u8; NODE_ADDRESS_LENGTH]),
             node1_pk,
         );
-        let (_, node2_pk) = crypto::keygen();
+        let (_, node2_pk) = test_utils::fixtures::keygen();
         let node2 = Node::new(
             NodeAddressBytes::from_bytes([4u8; NODE_ADDRESS_LENGTH]),
             node2_pk,
         );
-        let (_, node3_pk) = crypto::keygen();
+        let (_, node3_pk) = test_utils::fixtures::keygen();
         let node3 = Node::new(
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
             node3_pk,
         );
 
-        let (_, node4_pk) = crypto::keygen();
+        let (_, node4_pk) = test_utils::fixtures::keygen();
         let node4 = Node::new(
             NodeAddressBytes::from_bytes([2u8; NODE_ADDRESS_LENGTH]),
             node4_pk,

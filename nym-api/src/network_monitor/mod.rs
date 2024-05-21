@@ -73,7 +73,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         // TODO: those keys change constant throughout the whole execution of the monitor.
         // and on top of that, they are used with ALL the gateways -> presumably this should change
         // in the future
-        let mut rng = rand_07::rngs::OsRng;
+        let mut rng = rand::rngs::OsRng;
 
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));

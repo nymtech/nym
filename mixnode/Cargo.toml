@@ -28,7 +28,7 @@ futures = { workspace = true }
 humantime-serde = { workspace = true }
 lazy_static = "1.4"
 log = { workspace = true }
-rand = "0.7.3"
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sysinfo = "0.27.7"

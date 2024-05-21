@@ -15,13 +15,13 @@ pub use sphinx_packet::{
         self, DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, MAX_PATH_LENGTH, NODE_ADDRESS_LENGTH,
         PAYLOAD_KEY_SIZE,
     },
-    crypto::{self, EphemeralSecret, PrivateKey, PublicKey, SharedSecret},
+    crypto::{self, PrivateKey, PublicKey},
     header::{self, delays, delays::Delay, ProcessedHeader, SphinxHeader, HEADER_SIZE},
     packet::builder::DEFAULT_PAYLOAD_SIZE,
     payload::{Payload, PAYLOAD_OVERHEAD_SIZE},
     route::{Destination, DestinationAddressBytes, Node, NodeAddressBytes, SURBIdentifier},
     surb::{SURBMaterial, SURB},
-    Error as SphinxError, ProcessedPacket,
+    test_utils, Error as SphinxError, ProcessedPacket,
 };
 #[cfg(feature = "sphinx")]
 use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};

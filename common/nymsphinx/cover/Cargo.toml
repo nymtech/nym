@@ -8,7 +8,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 thiserror = { workspace = true }
 
 nym-crypto = { path = "../../crypto" }

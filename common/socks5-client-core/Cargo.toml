@@ -12,7 +12,7 @@ dirs = "4.0"
 futures = { workspace = true }
 log = { workspace = true }
 pin-project = "1.0"
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 reqwest = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization

@@ -29,8 +29,7 @@ humantime-serde = { workspace = true }
 k256 = { version = "*", features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
 log = { workspace = true }
 pin-project = "1.0"
-rand = "0.8.5"
-rand-07 = { package = "rand", version = "0.7.3" } # required for compatibility
+rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 rocket = { version = "0.5.0", features = ["json"] }
 rocket_cors = { version = "0.6.0" }
@@ -125,6 +124,5 @@ tempfile = "3.3.0"
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = "0.3"
-rand_chacha_02 = { package = "rand_chacha", version = "0.2" }
 sha2 = "0.9"
 

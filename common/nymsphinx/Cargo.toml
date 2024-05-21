@@ -9,8 +9,8 @@ repository = { workspace = true }
 
 [dependencies]
 log = { workspace = true }
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-rand_distr = "0.3"
+rand = { workspace = true }
+rand_distr = "0.4"
 thiserror = { workspace = true }
 
 nym-sphinx-acknowledgements = { path = "acknowledgements" }

@@ -15,7 +15,7 @@ bs58 = { workspace = true }
 futures = { workspace = true }
 generic-array = { workspace = true, features = ["serde"] }
 log = { workspace = true }
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

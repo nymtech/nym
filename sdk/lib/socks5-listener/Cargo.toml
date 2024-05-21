@@ -26,7 +26,7 @@ nym-socks5-client-core = { path = "../../../common/socks5-client-core", default-
 serde = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time"] }
 log = "0.4.17"
-rand = "0.7.3"
+rand = { workspace = true }
 
 safer-ffi = { version = "0.1.4" }
 

@@ -44,7 +44,7 @@ time = { version = "0.3", features = ["macros"] }
 semver = { workspace = true, default-features = false }
 
 [dev-dependencies]
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 
 [build-dependencies]

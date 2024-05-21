@@ -87,7 +87,7 @@ async fn select_gateway_by_latency(gateways: Vec<GatewayBondAnnotated>) -> Resul
         .filter_map(|g| g.gateway_bond.try_into().ok())
         .collect();
 
-    let mut rng = rand_07::rngs::OsRng;
+    let mut rng = rand::rngs::OsRng;
     let selected_gateway = nym_client_core::init::helpers::choose_gateway_by_latency(
         &mut rng,
         &gateways_as_nodes,

@@ -49,8 +49,8 @@ use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
     AccountId, Algorithm, Event, EventAttribute, ExecTxResult, Fee, Hash, TxResponse,
 };
-use rand_07::rngs::OsRng;
-use rand_07::RngCore;
+use rand::rngs::OsRng;
+use rand::RngCore;
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
 use std::collections::{BTreeMap, HashMap};
@@ -1336,7 +1336,7 @@ struct TestFixture {
 
 impl TestFixture {
     async fn new() -> Self {
-        let mut rng = crate::coconut::tests::fixtures::test_rng_07([69u8; 32]);
+        let mut rng = crate::coconut::tests::fixtures::test_rng([69u8; 32]);
         let params = Parameters::new(4).unwrap();
         let coconut_keypair = nym_coconut::ttp_keygen(&params, 1, 1).unwrap().remove(0);
         let identity = identity::KeyPair::new(&mut rng);

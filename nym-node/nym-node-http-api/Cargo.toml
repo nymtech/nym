@@ -23,7 +23,7 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 colored = "2"
 ipnetwork = "0.16"
-rand = "0.7.3"
+rand = { workspace = true }
 
 # Wireguard:
 fastrand = "2"

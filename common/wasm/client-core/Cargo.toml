@@ -11,7 +11,7 @@ repository = "https://github.com/nymtech/nym"
 [dependencies]
 async-trait = { workspace = true }
 js-sys = { workspace = true }
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
 thiserror = { workspace = true }

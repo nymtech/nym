@@ -570,7 +570,7 @@ mod tests {
             let mut address_bytes = [0; NODE_ADDRESS_LENGTH];
             rng.fill_bytes(&mut address_bytes);
 
-            let dummy_private = PrivateKey::new_with_rng(rng);
+            let dummy_private = PrivateKey::random_from_rng(rng);
             let pub_key = (&dummy_private).into();
             Node {
                 address: NodeAddressBytes::from_bytes(address_bytes),

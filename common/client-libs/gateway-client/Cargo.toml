@@ -15,8 +15,8 @@ log = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-tokio = { version = "1.24.1", features = ["macros"] }
-si-scale = "0.2.2"
+tokio = { workspace = true, features = ["macros"] }
+si-scale = { workspace = true }
 time.workspace = true
 
 # internal

@@ -8,7 +8,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio-stream = "0.1.11" # this one seems to be a thing until `Stream` trait is stabilised in stdlib
+tokio-stream = { workspace = true } # this one seems to be a thing until `Stream` trait is stabilised in stdlib
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true

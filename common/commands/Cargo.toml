@@ -10,26 +10,26 @@ anyhow = { workspace = true }
 base64 = "0.13.0"
 bip39 = { workspace = true }
 bs58 = { workspace = true }
-comfy-table = "6.0.0"
-cfg-if = "1.0.0"
+comfy-table = { workspace = true }
+cfg-if = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-csv = "1.3.0"
+csv = { workspace = true }
 cw-utils = { workspace = true }
 futures = { workspace = true }
-handlebars = "3.0.1"
+handlebars = { workspace = true }
 humantime-serde = { workspace = true }
-inquire = "0.6.2"
+inquire = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "sha256"] }
 log = { workspace = true }
 rand = {version = "0.6", features = ["std"] }
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["parsing", "formatting"] }
 tokio = { workspace = true, features = ["sync"]}
 toml = "0.5.6"
 url = { workspace = true }
-tap = "1"
+tap = { workspace = true }
 zeroize = { workspace = true }
 
 cosmrs = { workspace = true }

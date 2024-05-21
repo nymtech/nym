@@ -8,4 +8,4 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-pem = "0.8"
+pem = { workspace = true }

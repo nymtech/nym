@@ -9,8 +9,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-bincode = "1.3.3"
-bytes = "1.5.0"
+bincode = { workspace = true }
+bytes = { workspace = true }
 nym-bin-common = { path = "../bin-common" }
 nym-sphinx = { path = "../nymsphinx" }
 rand = "0.8.5"

@@ -8,7 +8,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitvec = "1.0.0"
+bitvec = { workspace = true }
 
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
@@ -17,13 +17,13 @@ nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common", 
 bs58 = { workspace = true }
 
 
-lazy_static = "1.4.0"
+lazy_static = { workspace = true }
 rand = { version = "0.8.5", default-features = false}
 rand_chacha = "0.3"
-rand_core = "0.6.3"
+rand_core = { workspace = true }
 sha2 = "0.9"
 serde = { workspace = true }
-serde_derive = "1.0"
+serde_derive = { workspace = true }
 thiserror = { workspace = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
@@ -38,7 +38,7 @@ workspace = true
 default-features = false
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = { workspace = true }
 
 [[bench]]
 name = "benchmarks"

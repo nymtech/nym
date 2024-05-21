@@ -10,7 +10,7 @@ license.workspace = true
 bs58 = { workspace = true }
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
-getset = "0.1.1"
+getset = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 ts-rs = { workspace = true, optional = true }
@@ -19,7 +19,7 @@ time = { workspace = true, features = ["serde", "parsing", "formatting"] }
 
 
 # for serde on secp256k1 signatures
-ecdsa = { version = "0.16", features = ["serde"] }
+ecdsa = { workspace = true, features = ["serde"] }
 
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"] }

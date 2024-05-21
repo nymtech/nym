@@ -12,7 +12,7 @@ license.workspace = true
 async-trait = { workspace = true }
 base64 = "0.21.2"
 bs58 = { workspace = true }
-cfg-if = "1.0.0"
+cfg-if = { workspace = true }
 clap = { workspace = true, optional = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
@@ -21,8 +21,8 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = "0.10.6"
-si-scale = "0.2.2"
-tap = "1.0.1"
+si-scale = { workspace = true }
+tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["macros"] }
@@ -108,7 +108,7 @@ version = "0.3.17"
 features = ["wasm-bindgen"]
 
 [dev-dependencies]
-tempfile = "3.1.0"
+tempfile = { workspace = true }
 
 [features]
 default = []

@@ -8,5 +8,5 @@ license.workspace = true
 proc-macro = true
 
 [dependencies]
-syn = { version = "1", features = ["full"] }
-quote = "1"
+syn = { workspace = true, features = ["full"] }
+quote = { workspace = true }

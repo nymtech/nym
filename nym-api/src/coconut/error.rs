@@ -37,10 +37,20 @@ pub enum CoconutError {
     #[error("failed to derive the admin account from the provided public key: {formatted_source}")]
     AdminAccountDerivationFailure { formatted_source: String },
 
-    #[error("the requester of the free pass ({requester}) is not authorised. the only allowed account is {authorised_admin}.")]
+    #[error("failed to query for the authorised freepass requester address: {source}")]
+    FreepassAuthorisedFreepassRequesterQueryFailure {
+        #[from]
+        source: reqwest::Error,
+    },
+
+    #[error("the provided authorised freepass requester address ({address}) is not a valid cosmos address")]
+    MalformedAuthorisedFreepassRequesterAddress { address: String },
+
+    #[error("the requester of the free pass ({requester}) is not authorised. the only allowed account is {explicit_admin:?} or {bandwidth_contract_admin:?}.")]
     UnauthorisedFreePassAccount {
         requester: AccountId,
-        authorised_admin: AccountId,
+        explicit_admin: Option<AccountId>,
+        bandwidth_contract_admin: Option<AccountId>,
     },
 
     #[error("failed to verify signature on the provided free pass request")]

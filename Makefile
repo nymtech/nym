@@ -105,6 +105,7 @@ sdk-wasm-build:
 	$(MAKE) -C wasm/client
 	$(MAKE) -C wasm/node-tester
 	$(MAKE) -C wasm/mix-fetch
+	$(MAKE) -C wasm/zknym-lib
 	#$(MAKE) -C wasm/full-nym-wasm
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
@@ -115,7 +116,7 @@ sdk-typescript-build:
 	yarn --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
-WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm
+WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm zknym-lib
 
 sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings

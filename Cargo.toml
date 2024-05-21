@@ -122,6 +122,7 @@ members = [
     #    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
     "wasm/node-tester",
+    "wasm/zknym-lib",
 ]
 
 default-members = [
@@ -174,6 +175,7 @@ generic-array = "0.14.7"
 getrandom = "0.2.10"
 headers = "0.4.0"
 humantime-serde = "1.1.1"
+http = "1"
 hyper = "1.3.1"
 k256 = "0.13"
 lazy_static = "1.4.0"
@@ -237,14 +239,15 @@ tendermint-rpc = "0.34" # same version as used by cosmrs
 prost = "0.12"
 
 # wasm-related dependencies
-gloo-utils = "0.1.7"
-js-sys = "0.3.63"
-serde-wasm-bindgen = "0.5.0"
+gloo-utils = "0.2.0"
+gloo-net = "0.5.0"
+js-sys = "0.3.69"
+serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
-wasm-bindgen = "0.2.86"
-wasm-bindgen-futures = "0.4.37"
+wasm-bindgen = "0.2.92"
+wasm-bindgen-futures = "0.4.39"
 wasmtimer = "0.2.0"
-web-sys = "0.3.63"
+web-sys = "0.3.69"
 
 # Profile settings for individual crates
 

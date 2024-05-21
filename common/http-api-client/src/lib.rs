@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use reqwest::{IntoUrl, Response, StatusCode};
+use reqwest::header::HeaderValue;
+use reqwest::{RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
@@ -10,6 +11,8 @@ use std::time::Duration;
 use thiserror::Error;
 use tracing::warn;
 use url::Url;
+
+pub use reqwest::IntoUrl;
 
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -52,6 +55,88 @@ pub enum HttpClientError<E: Display = String> {
     RequestTimeout,
 }
 
+pub struct ClientBuilder {
+    url: Url,
+    timeout: Option<Duration>,
+    custom_user_agent: bool,
+    reqwest_client_builder: reqwest::ClientBuilder,
+}
+
+impl ClientBuilder {
+    pub fn new<U, E>(url: U) -> Result<Self, HttpClientError<E>>
+    where
+        U: IntoUrl,
+        E: Display,
+    {
+        // a naive check: if the provided URL does not start with http(s), add that scheme
+        let str_url = url.as_str();
+
+        if !str_url.starts_with("http") {
+            let alt = format!("http://{str_url}");
+            warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
+            // TODO: or should we maybe default to https?
+            Self::new(alt)
+        } else {
+            Ok(ClientBuilder {
+                url: url.into_url()?,
+                timeout: None,
+                custom_user_agent: false,
+                reqwest_client_builder: reqwest::ClientBuilder::new(),
+            })
+        }
+    }
+
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout);
+        self
+    }
+
+    pub fn with_reqwest_builder(mut self, reqwest_builder: reqwest::ClientBuilder) -> Self {
+        self.reqwest_client_builder = reqwest_builder;
+        self
+    }
+
+    pub fn with_user_agent<V>(mut self, value: V) -> Self
+    where
+        V: TryInto<HeaderValue>,
+        V::Error: Into<http::Error>,
+    {
+        self.custom_user_agent = true;
+        self.reqwest_client_builder = self.reqwest_client_builder.user_agent(value);
+        self
+    }
+
+    pub fn build<E>(self) -> Result<Client, HttpClientError<E>>
+    where
+        E: Display,
+    {
+        #[cfg(target_arch = "wasm32")]
+        let reqwest_client = self.reqwest_client_builder.build()?;
+
+        // TODO: we should probably be propagating the error rather than panicking,
+        // but that'd break bunch of things due to type changes
+        #[cfg(not(target_arch = "wasm32"))]
+        let reqwest_client = {
+            let mut builder = self
+                .reqwest_client_builder
+                .timeout(self.timeout.unwrap_or(DEFAULT_TIMEOUT));
+            if !self.custom_user_agent {
+                builder =
+                    builder.user_agent(format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION")))
+            }
+            builder.build()?
+        };
+
+        Ok(Client {
+            base_url: self.url,
+            reqwest_client,
+
+            #[cfg(target_arch = "wasm32")]
+            request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
+        })
+    }
+}
+
 /// A simple extendable client wrapper for http request with extra url sanitization.
 #[derive(Debug, Clone)]
 pub struct Client {
@@ -65,25 +150,9 @@ pub struct Client {
 impl Client {
     // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
     pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
-        #[cfg(target_arch = "wasm32")]
-        let reqwest_client = reqwest::Client::new();
-
-        // TODO: we should probably be propagating the error rather than panicking,
-        // but that'd break bunch of things due to type changes
-        #[cfg(not(target_arch = "wasm32"))]
-        let reqwest_client = reqwest::ClientBuilder::new()
-            .timeout(timeout.unwrap_or(DEFAULT_TIMEOUT))
-            .user_agent(format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION")))
-            .build()
-            .expect("Client::new()");
-
-        Client {
-            base_url,
-            reqwest_client,
-
-            #[cfg(target_arch = "wasm32")]
-            request_timeout: timeout.unwrap_or(DEFAULT_TIMEOUT),
-        }
+        Self::new_url::<_, String>(base_url, timeout).expect(
+            "we provided valid url and we were unwrapping previous construction errors anyway",
+        )
     }
 
     pub fn new_url<U, E>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError<E>>
@@ -91,17 +160,19 @@ impl Client {
         U: IntoUrl,
         E: Display,
     {
-        // a naive check: if the provided URL does not start with http(s), add that scheme
-        let str_url = url.as_str();
-
-        if !str_url.starts_with("http") {
-            let alt = format!("http://{str_url}");
-            warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
-            // TODO: or should we maybe default to https?
-            Self::new_url(alt, timeout)
-        } else {
-            Ok(Self::new(url.into_url()?, timeout))
+        let builder = Self::builder(url)?;
+        match timeout {
+            Some(timeout) => builder.with_timeout(timeout).build(),
+            None => builder.build(),
         }
+    }
+
+    pub fn builder<U, E>(url: U) -> Result<ClientBuilder, HttpClientError<E>>
+    where
+        U: IntoUrl,
+        E: Display,
+    {
+        ClientBuilder::new(url)
     }
 
     pub fn change_base_url(&mut self, new_url: Url) {
@@ -110,6 +181,19 @@ impl Client {
 
     pub fn current_url(&self) -> &Url {
         &self.base_url
+    }
+
+    pub fn create_get_request<K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> RequestBuilder
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let url = sanitize_url(&self.base_url, path, params);
+        self.reqwest_client.get(url)
     }
 
     async fn send_get_request<K, V, E>(
@@ -140,6 +224,21 @@ impl Client {
         {
             Ok(self.reqwest_client.get(url).send().await?)
         }
+    }
+
+    pub fn create_post_request<B, K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> RequestBuilder
+    where
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let url = sanitize_url(&self.base_url, path, params);
+        self.reqwest_client.post(url).json(json_body)
     }
 
     async fn send_post_request<B, K, V, E>(
@@ -407,7 +506,7 @@ pub fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     url
 }
 
-async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
+pub async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
 where
     T: DeserializeOwned,
     E: DeserializeOwned + Display,

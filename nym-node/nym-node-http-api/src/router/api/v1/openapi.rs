@@ -5,7 +5,7 @@ use crate::router::api;
 use crate::router::types::{ErrorResponse, RequestError};
 use axum::Router;
 use nym_node_requests::api as api_requests;
-use nym_node_requests::routes::api::v1;
+use nym_node_requests::routes::api::{v1, v1_absolute};
 use utoipa::openapi::security::{Http, HttpAuthScheme};
 use utoipa::{openapi::security::SecurityScheme, Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
@@ -97,7 +97,8 @@ impl Modify for SecurityAddon {
 
 pub(crate) fn route<S: Send + Sync + 'static + Clone>() -> Router<S> {
     // provide absolute path to the openapi.json
-    let config = utoipa_swagger_ui::Config::from("/api/v1/api-docs/openapi.json");
+    let config =
+        utoipa_swagger_ui::Config::from(format!("{}/api-docs/openapi.json", v1_absolute()));
     SwaggerUi::new(v1::SWAGGER)
         .url("/api-docs/openapi.json", ApiDoc::openapi())
         .config(config)

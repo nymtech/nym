@@ -14,7 +14,7 @@ js-sys = { workspace = true }
 wasm-bindgen = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
-indexed_db_futures = { version = " 0.3.0"}
+indexed_db_futures = { version = "0.4.1" }
 thiserror = { workspace = true }
 
 nym-store-cipher = { path = "../../store-cipher", features = ["json"] }

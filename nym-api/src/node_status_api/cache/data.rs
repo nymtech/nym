@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated};
+use nym_contracts_common::IdentityKey;
+use nym_mixnet_contract_common::MixId;
+use std::collections::HashMap;
 
 use crate::support::caching::Cache;
 
@@ -9,11 +12,11 @@ use super::inclusion_probabilities::InclusionProbabilities;
 
 #[derive(Default)]
 pub(crate) struct NodeStatusCacheData {
-    pub(crate) mixnodes_annotated: Cache<Vec<MixNodeBondAnnotated>>,
+    pub(crate) mixnodes_annotated: Cache<HashMap<MixId, MixNodeBondAnnotated>>,
     pub(crate) rewarded_set_annotated: Cache<Vec<MixNodeBondAnnotated>>,
     pub(crate) active_set_annotated: Cache<Vec<MixNodeBondAnnotated>>,
 
-    pub(crate) gateways_annotated: Cache<Vec<GatewayBondAnnotated>>,
+    pub(crate) gateways_annotated: Cache<HashMap<IdentityKey, GatewayBondAnnotated>>,
 
     // Estimated active set inclusion probabilities from Monte Carlo simulation
     pub(crate) inclusion_probabilities: Cache<InclusionProbabilities>,

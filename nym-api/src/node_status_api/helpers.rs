@@ -24,14 +24,9 @@ async fn get_gateway_bond_annotated(
     cache: &NodeStatusCache,
     identity: &str,
 ) -> Result<GatewayBondAnnotated, ErrorResponse> {
-    let gateways = cache
-        .gateways_annotated_filtered()
+    cache
+        .gateway_annotated(identity)
         .await
-        .ok_or_else(|| ErrorResponse::new("no data available", Status::ServiceUnavailable))?;
-
-    gateways
-        .into_iter()
-        .find(|gateway| gateway.identity() == identity)
         .ok_or(ErrorResponse::new(
             "gateway bond not found",
             Status::NotFound,
@@ -42,17 +37,9 @@ async fn get_mixnode_bond_annotated(
     cache: &NodeStatusCache,
     mix_id: MixId,
 ) -> Result<MixNodeBondAnnotated, ErrorResponse> {
-    let mixnodes = cache
-        .mixnodes_annotated_filtered()
+    cache
+        .mixnode_annotated(mix_id)
         .await
-        .ok_or(ErrorResponse::new(
-            "no data available",
-            Status::ServiceUnavailable,
-        ))?;
-
-    mixnodes
-        .into_iter()
-        .find(|mixnode| mixnode.mix_id() == mix_id)
         .ok_or(ErrorResponse::new(
             "mixnode bond not found",
             Status::NotFound,
@@ -383,11 +370,7 @@ pub(crate) async fn _get_mixnodes_detailed(cache: &NodeStatusCache) -> Vec<MixNo
 pub(crate) async fn _get_mixnodes_detailed_unfiltered(
     cache: &NodeStatusCache,
 ) -> Vec<MixNodeBondAnnotated> {
-    cache
-        .mixnodes_annotated_full()
-        .await
-        .unwrap_or_default()
-        .into_inner()
+    cache.mixnodes_annotated_full().await.unwrap_or_default()
 }
 
 pub(crate) async fn _get_rewarded_set_detailed(
@@ -418,9 +401,5 @@ pub(crate) async fn _get_gateways_detailed(cache: &NodeStatusCache) -> Vec<Gatew
 pub(crate) async fn _get_gateways_detailed_unfiltered(
     cache: &NodeStatusCache,
 ) -> Vec<GatewayBondAnnotated> {
-    cache
-        .gateways_annotated_full()
-        .await
-        .unwrap_or_default()
-        .into_inner()
+    cache.gateways_annotated_full().await.unwrap_or_default()
 }

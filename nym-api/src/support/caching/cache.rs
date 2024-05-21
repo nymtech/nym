@@ -94,6 +94,18 @@ impl<T> Cache<T> {
         }
     }
 
+    // I know, it's dead code for now, but I feel it could be useful code in the future
+    #[allow(dead_code)]
+    pub(crate) fn map<F, U>(this: Self, f: F) -> Cache<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        Cache {
+            value: f(this.value),
+            as_at: this.as_at,
+        }
+    }
+
     // ugh. I hate to expose it, but it'd have broken pre-existing code
     pub(crate) fn clone_cache(&self) -> Self
     where

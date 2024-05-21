@@ -165,16 +165,16 @@ impl State {
             .await
     }
     pub async fn get_coin_indices_signatures(&self) -> Result<Vec<CoinIndexSignature>> {
-        let current_epoch = self.client.get_current_epoch().await?;
+        let current_epoch = self.comm_channel.current_epoch().await?;
         match self
             .coin_indices_sigs_cache
-            .get_signatures(current_epoch.epoch_id)
+            .get_signatures(current_epoch)
             .await
         {
             Some(signatures) => Ok(signatures),
             None => {
                 let ecash_params = setup(constants::NB_TICKETS);
-                let verification_key = self.verification_key(current_epoch.epoch_id).await?;
+                let verification_key = self.verification_key(current_epoch).await?;
                 let maybe_keypair_guard = self.coconut_keypair.get().await;
                 let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
                     return Err(CoconutError::KeyPairNotDerivedYet);
@@ -185,7 +185,7 @@ impl State {
                 Ok(self
                     .coin_indices_sigs_cache
                     .refresh_signatures(
-                        current_epoch.epoch_id,
+                        current_epoch,
                         &ecash_params,
                         &verification_key,
                         &signing_key.keys.secret_key(),
@@ -196,11 +196,11 @@ impl State {
     }
 
     pub async fn get_exp_date_signatures(&self) -> Result<Vec<ExpirationDateSignature>> {
-        let current_epoch = self.client.get_current_epoch().await?;
+        let current_epoch = self.comm_channel.current_epoch().await?;
         let expiration_ts = cred_exp_date_timestamp();
         match self
             .exp_date_sigs_cache
-            .get_signatures(current_epoch.epoch_id, expiration_ts)
+            .get_signatures(current_epoch, expiration_ts)
             .await
         {
             Some(signatures) => Ok(signatures),
@@ -215,7 +215,7 @@ impl State {
                 Ok(self
                     .exp_date_sigs_cache
                     .refresh_signatures(
-                        current_epoch.epoch_id,
+                        current_epoch,
                         expiration_ts,
                         &signing_key.keys.secret_key(),
                     )

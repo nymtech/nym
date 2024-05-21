@@ -15,7 +15,7 @@ use nym_credentials_interface::{
     issue_verify, setup, withdrawal_request, BlindedSignature, ExpirationDateSignature,
     KeyPairUser, Parameters, PartialWallet, VerificationKeyAuth, Wallet,
 };
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::identity;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::Hash;
 use nym_validator_client::signing::AccountData;
@@ -92,10 +92,9 @@ impl IssuanceBandwidthCredential {
         deposit_tx_hash: Hash,
         identifier: &[u8],
         signing_key: identity::PrivateKey,
-        unused_ed25519: encryption::PrivateKey,
     ) -> Self {
         Self::new(
-            BandwidthVoucherIssuanceData::new(deposit_tx_hash, signing_key, unused_ed25519),
+            BandwidthVoucherIssuanceData::new(deposit_tx_hash, signing_key),
             Some(identifier),
             cred_exp_date_timestamp(),
         )

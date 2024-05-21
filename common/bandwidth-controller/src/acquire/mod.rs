@@ -38,8 +38,7 @@ where
         .await?
         .transaction_hash;
 
-    let voucher =
-        IssuanceBandwidthCredential::new_voucher(tx_hash, client_id, signing_key, encryption_key);
+    let voucher = IssuanceBandwidthCredential::new_voucher(tx_hash, client_id, signing_key);
 
     let state = State { voucher };
 

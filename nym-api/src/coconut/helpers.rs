@@ -90,7 +90,7 @@ impl CoinIndexSignatureCache {
         &self,
         expected_epoch_id: u64,
     ) -> Option<Vec<CoinIndexSignature>> {
-        if self.epoch_id.load(Ordering::Acquire) == expected_epoch_id {
+        if self.epoch_id.load(Ordering::Relaxed) == expected_epoch_id {
             let signatures = self.signatures.read().await;
             signatures.clone()
         } else {
@@ -111,13 +111,13 @@ impl CoinIndexSignatureCache {
         //if this fails, it means someone else updated the signatures in the meantime
         // => We don't have to update them, and we know they exist
         // (this check can spare us some signing)
-        if self.epoch_id.load(Ordering::Acquire) != expected_epoch_id {
+        if self.epoch_id.load(Ordering::Relaxed) != expected_epoch_id {
             *signatures = Some(sign_coin_indices(
                 ecash_parameters,
                 verification_key,
                 secret_key,
             ));
-            self.epoch_id.store(expected_epoch_id, Ordering::Release);
+            self.epoch_id.store(expected_epoch_id, Ordering::Relaxed);
         }
 
         signatures.clone().unwrap() // Either we or someone else update the signatures, so they must be there
@@ -144,8 +144,8 @@ impl ExpirationDateSignatureCache {
         expected_epoch_id: u64,
         expected_exp_date: u64,
     ) -> Option<Vec<ExpirationDateSignature>> {
-        if self.epoch_id.load(Ordering::Acquire) == expected_epoch_id
-            && self.expiration_date.load(Ordering::Acquire) == expected_exp_date
+        if self.epoch_id.load(Ordering::Relaxed) == expected_epoch_id
+            && self.expiration_date.load(Ordering::Relaxed) == expected_exp_date
         {
             let signatures = self.signatures.read().await;
             signatures.clone()
@@ -166,13 +166,13 @@ impl ExpirationDateSignatureCache {
         //if this fails, it means someone else updated the signatures in the meantime
         // => We don't have to update them, and we know they exist
         // (this check can spare us some signing)
-        if self.epoch_id.load(Ordering::Acquire) != expected_epoch_id
-            || self.expiration_date.load(Ordering::Acquire) != expected_exp_date
+        if self.epoch_id.load(Ordering::Relaxed) != expected_epoch_id
+            || self.expiration_date.load(Ordering::Relaxed) != expected_exp_date
         {
             *signatures = Some(sign_expiration_date(secret_key, expected_exp_date));
-            self.epoch_id.store(expected_epoch_id, Ordering::Release);
+            self.epoch_id.store(expected_epoch_id, Ordering::Relaxed);
             self.expiration_date
-                .store(expected_exp_date, Ordering::Release);
+                .store(expected_exp_date, Ordering::Relaxed);
         }
 
         signatures.clone().unwrap() // Either we or someone else update the signatures, so they must be there

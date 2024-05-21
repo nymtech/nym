@@ -5,7 +5,7 @@ use crate::coconut::bandwidth::CredentialSigningData;
 use crate::error::Error;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_credentials_interface::{BlindedSignature, WithdrawalRequest};
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::events::TICKET_BOOK_VALUE;
 use nym_validator_client::nyxd::Hash;
 use serde::{Deserialize, Serialize};
@@ -50,24 +50,16 @@ pub struct BandwidthVoucherIssuanceData {
 
     /// base58 encoded private key ensuring the depositer requested these attributes
     signing_key: identity::PrivateKey,
-
-    /// base58 encoded private key ensuring only this client receives the signature share
-    unused_ed25519: encryption::PrivateKey,
 }
 
 impl BandwidthVoucherIssuanceData {
-    pub fn new(
-        deposit_tx_hash: Hash,
-        signing_key: identity::PrivateKey,
-        unused_ed25519: encryption::PrivateKey,
-    ) -> Self {
+    pub fn new(deposit_tx_hash: Hash, signing_key: identity::PrivateKey) -> Self {
         let value = TICKET_BOOK_VALUE;
 
         BandwidthVoucherIssuanceData {
             value,
             deposit_tx_hash,
             signing_key,
-            unused_ed25519,
         }
     }
 
@@ -117,9 +109,5 @@ impl BandwidthVoucherIssuanceData {
 
     pub fn identity_key(&self) -> &identity::PrivateKey {
         &self.signing_key
-    }
-
-    pub fn encryption_key(&self) -> &encryption::PrivateKey {
-        &self.unused_ed25519
     }
 }

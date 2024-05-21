@@ -3,7 +3,6 @@
 
 use crate::coconut::bandwidth::IssuanceBandwidthCredential;
 use crate::error::Error;
-use chrono::{Duration, Timelike, Utc};
 use log::{debug, warn};
 use nym_credentials_interface::{
     aggregate_expiration_signatures, aggregate_indices_signatures, aggregate_verification_keys,
@@ -11,21 +10,23 @@ use nym_credentials_interface::{
     PartialCoinIndexSignature, PartialExpirationDateSignature, VerificationKeyAuth, Wallet,
 };
 use nym_validator_client::client::CoconutApiClient;
+use time::{macros::time, Duration, OffsetDateTime};
 
 pub fn today_timestamp() -> u64 {
-    let now_utc = Utc::now();
-    (now_utc.timestamp() - now_utc.num_seconds_from_midnight() as i64) as u64
+    let now_utc = OffsetDateTime::now_utc();
+    let midnight_utc = now_utc.replace_time(time!(0:00));
+    midnight_utc.unix_timestamp() as u64
 }
 
 pub fn cred_exp_date_timestamp() -> u64 {
     today_timestamp()
-        + Duration::days(constants::CRED_VALIDITY_PERIOD as i64 - 1).num_seconds() as u64
+        + Duration::days(constants::CRED_VALIDITY_PERIOD as i64 - 1).whole_seconds() as u64
     //count today as well
 }
 
 pub fn freepass_exp_date_timestamp() -> u64 {
     today_timestamp()
-        + Duration::days(constants::FREEPASS_VALIDITY_PERIOD as i64 - 1).num_seconds() as u64
+        + Duration::days(constants::FREEPASS_VALIDITY_PERIOD as i64 - 1).whole_seconds() as u64
     //count today as well
 }
 
@@ -74,7 +75,7 @@ pub async fn obtain_expiration_date_signatures(
             Ok(signature) => {
                 let index = ecash_api_client.node_id;
                 let share = ecash_api_client.verification_key.clone();
-                signatures.push((index, share, signature.signs));
+                signatures.push((index, share, signature.signatures));
             }
             Err(err) => {
                 warn!(
@@ -117,7 +118,7 @@ pub async fn obtain_coin_indices_signatures(
             Ok(signature) => {
                 let index = ecash_api_client.node_id;
                 let share = ecash_api_client.verification_key.clone();
-                signatures.push((index, share, signature.signs));
+                signatures.push((index, share, signature.signatures));
             }
             Err(err) => {
                 warn!(

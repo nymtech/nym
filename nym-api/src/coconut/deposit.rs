@@ -14,11 +14,6 @@ use nym_validator_client::nyxd::helpers::find_tx_attribute;
 use nym_validator_client::nyxd::TxResponse;
 
 pub async fn validate_deposit_tx(request: &BlindSignRequestBody, tx: TxResponse) -> Result<()> {
-    // extract actual public attributes + associated x25519 public key
-    // we're not using it anymore, but for legacy reasons it must be present
-    let _deposit_value = find_tx_attribute(&tx, COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_VALUE)
-        .ok_or(CoconutError::DepositValueNotFound)?;
-
     let deposit_info = find_tx_attribute(&tx, COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO)
         .ok_or(CoconutError::DepositInfoNotFound)?;
 
@@ -28,14 +23,6 @@ pub async fn validate_deposit_tx(request: &BlindSignRequestBody, tx: TxResponse)
         DEPOSIT_IDENTITY_KEY,
     )
     .ok_or(CoconutError::DepositVerifKeyNotFound)?;
-
-    // we're not using it anymore, but for legacy reasons it must be present
-    let _ed25519_raw = find_tx_attribute(
-        &tx,
-        COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE,
-        DEPOSIT_ENCRYPTION_KEY,
-    )
-    .ok_or(CoconutError::DepositEncrKeyNotFound)?;
 
     // check public attributes against static data
     // (thinking about it attaching that data might be redundant since we have the source of truth on the chain)

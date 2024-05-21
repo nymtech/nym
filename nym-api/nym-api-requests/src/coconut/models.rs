@@ -201,26 +201,28 @@ impl CosmosAddressResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct PartialExpirationDateSignatureResponse {
-    pub signs: Vec<PartialExpirationDateSignature>,
+    pub signatures: Vec<PartialExpirationDateSignature>,
 }
 
 impl PartialExpirationDateSignatureResponse {
-    pub fn new(signs: &[PartialExpirationDateSignature]) -> PartialExpirationDateSignatureResponse {
+    pub fn new(
+        signatures: &[PartialExpirationDateSignature],
+    ) -> PartialExpirationDateSignatureResponse {
         PartialExpirationDateSignatureResponse {
-            signs: signs.to_owned(),
+            signatures: signatures.to_owned(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct PartialCoinIndicesSignatureResponse {
-    pub signs: Vec<PartialCoinIndexSignature>,
+    pub signatures: Vec<PartialCoinIndexSignature>,
 }
 
 impl PartialCoinIndicesSignatureResponse {
-    pub fn new(signs: &[PartialCoinIndexSignature]) -> PartialCoinIndicesSignatureResponse {
+    pub fn new(signatures: &[PartialCoinIndexSignature]) -> PartialCoinIndicesSignatureResponse {
         PartialCoinIndicesSignatureResponse {
-            signs: signs.to_owned(),
+            signatures: signatures.to_owned(),
         }
     }
 }

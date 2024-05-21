@@ -56,8 +56,10 @@ pub async fn post_free_pass(
     if freepass_request_body.expiration_date > freepass_exp_date_timestamp() {
         return Err(CoconutError::TooLongFreePass {
             expiry_date: OffsetDateTime::from_unix_timestamp(
-                //safety : expiration date is a unix timestamp so these unwraps will not fail for 290 million years
-                freepass_request_body.expiration_date.try_into().unwrap(),
+                freepass_request_body
+                    .expiration_date
+                    .try_into()
+                    .map_err(|_| CoconutError::InvalidQueryArguments)?,
             )
             .unwrap(),
         });

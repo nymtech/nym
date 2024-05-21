@@ -176,12 +176,10 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         None => OffsetDateTime::from_unix_timestamp(args.expiration_timestamp.unwrap())?,
     };
 
-    //SAFETY : positive timestamp, so conversion to unsigned will not fail
     let expiration_date_ts: u64 = expiration_date
         .replace_time(time!(0:00))
         .unix_timestamp()
-        .try_into()
-        .unwrap();
+        .try_into()?;
 
     if expiration_date_ts > freepass_exp_date_timestamp() {
         bail!("the provided free pass request has too long expiry (expiry is set to on {expiration_date})")

@@ -1,7 +1,7 @@
-use crate::accounting::{NetworkAccount, NetworkAccountStats};
+use crate::accounting::{NetworkAccount, NetworkAccountStats, NodeStats};
 use crate::handlers::{
-    accounting_handler, graph_handler, mermaid_handler, mix_dot_handler, recv_handler,
-    send_handler, sent_handler, stats_handler, FragmentsReceived, FragmentsSent,
+    accounting_handler, graph_handler, mermaid_handler, mix_dot_handler, node_stats_handler,
+    recv_handler, send_handler, sent_handler, stats_handler, FragmentsReceived, FragmentsSent,
 };
 use axum::routing::{get, post};
 use axum::Router;
@@ -23,23 +23,25 @@ pub struct HttpServer {
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        crate::handlers::stats_handler,
         crate::handlers::accounting_handler,
-        crate::handlers::mix_dot_handler,
         crate::handlers::graph_handler,
-        crate::handlers::sent_handler,
+        crate::handlers::mermaid_handler,
+        crate::handlers::mix_dot_handler,
+        crate::handlers::node_stats_handler,
         crate::handlers::recv_handler,
         crate::handlers::send_handler,
-        crate::handlers::mermaid_handler
+        crate::handlers::sent_handler,
+        crate::handlers::stats_handler,
     ),
     components(schemas(
-        NetworkAccountStats,
-        NetworkAccount,
+        FragmentHeader,
         FragmentsReceived,
         FragmentsSent,
+        NetworkAccount,
+        NetworkAccountStats,
+        NodeStats,
         ReceivedFragment,
         SentFragment,
-        FragmentHeader
     ))
 )]
 struct ApiDoc;
@@ -72,6 +74,7 @@ impl HttpServer {
             .route("/v1/dot", get(graph_handler))
             .route("/v1/mermaid", get(mermaid_handler))
             .route("/v1/stats", get(stats_handler))
+            .route("/v1/node/:mix_id", get(node_stats_handler))
             .route("/v1/received", get(recv_handler));
         let listener = tokio::net::TcpListener::bind(self.listener).await?;
 

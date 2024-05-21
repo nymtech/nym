@@ -1,9 +1,3 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Duration,
-};
-
 use axum::{
     extract::{Path, State},
     http::StatusCode,
@@ -16,11 +10,16 @@ use nym_sphinx::chunking::{ReceivedFragment, SentFragment, FRAGMENTS_RECEIVED, F
 use petgraph::{dot::Dot, Graph};
 use rand::{distributions::Alphanumeric, seq::SliceRandom, Rng};
 use serde::Serialize;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 use tokio::time::timeout;
 use utoipa::ToSchema;
 
 use crate::{
-    accounting::{NetworkAccount, NetworkAccountStats},
+    accounting::{NetworkAccount, NetworkAccountStats, NodeStats},
     http::AppState,
 };
 
@@ -34,34 +33,47 @@ pub struct FragmentsReceived(HashMap<i32, Vec<ReceivedFragment>>);
     get,
     path = "/v1/stats",
     responses(
-        (status = 200, description = "Returns NetworkAccountStats", body = NetworkAccountStats),
+        (status = 200, description = "Returns statistics collected since startup", body = NetworkAccountStats),
     )
 )]
-pub async fn stats_handler() -> Json<NetworkAccountStats> {
-    let account = NetworkAccount::finalize();
-    Json(account.into())
+pub async fn stats_handler() -> Result<Json<NetworkAccountStats>, StatusCode> {
+    let account = NetworkAccount::finalize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(account.into()))
+}
+
+#[utoipa::path(
+    get,
+    path = "/v1/node/{mix_id}",
+    responses(
+        (status = 200, description = "Returns statistics for a given mix_id, collected since startup", body = NodeStats),
+    )
+)]
+pub async fn node_stats_handler(Path(mix_id): Path<u32>) -> Result<Json<NodeStats>, StatusCode> {
+    let account = NetworkAccount::finalize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(account.node_stats(mix_id)))
 }
 
 #[utoipa::path(
     get,
     path = "/v1/accounting",
     responses(
-        (status = 200, description = "Returns NetworkAccount", body = NetworkAccount),
+        (status = 200, description = "Returns raw aggregated data collected since startup", body = NetworkAccount),
     )
 )]
-pub async fn accounting_handler() -> Json<NetworkAccount> {
-    let account = NetworkAccount::finalize();
-    Json(account)
+pub async fn accounting_handler() -> Result<Json<NetworkAccount>, StatusCode> {
+    NetworkAccount::finalize()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map(Json)
 }
 
 #[utoipa::path(
     get,
     path = "/v1/dot/{mix_id}",
     responses(
-        (status = 200, description = "Returns Subgraph for a give mix_id in `dot` format", body = String),
+        (status = 200, description = "Returns Subgraph for a given *mix_id* in `dot` format", body = String),
     )
 )]
-pub async fn mix_dot_handler(Path(mix_id): Path<u32>) -> String {
+pub async fn mix_dot_handler(Path(mix_id): Path<u32>) -> Result<String, StatusCode> {
     generate_dot(Some(mix_id))
 }
 
@@ -72,7 +84,7 @@ pub async fn mix_dot_handler(Path(mix_id): Path<u32>) -> String {
         (status = 200, description = "Returns entire tested network graph in `dot` format", body = String),
     )
 )]
-pub async fn graph_handler() -> String {
+pub async fn graph_handler() -> Result<String, StatusCode> {
     generate_dot(None)
 }
 
@@ -126,8 +138,8 @@ pub async fn send_handler(State(state): State<AppState>) -> Result<String, Statu
         (status = 200, description = "Returns entire tested network graph in `mermaid` format", body = String),
     )
 )]
-pub async fn mermaid_handler() -> String {
-    let account = NetworkAccount::finalize();
+pub async fn mermaid_handler() -> Result<String, StatusCode> {
+    let account = NetworkAccount::finalize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let mut mermaid = String::new();
     mermaid.push_str("flowchart LR;\n");
     for route in account.complete_routes() {
@@ -152,7 +164,7 @@ pub async fn mermaid_handler() -> String {
         );
         mermaid.push('\n')
     }
-    mermaid
+    Ok(mermaid)
 }
 
 async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
@@ -214,8 +226,8 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
     Ok(sent_msg)
 }
 
-fn generate_dot(mix_id: Option<u32>) -> String {
-    let account = NetworkAccount::finalize();
+fn generate_dot(mix_id: Option<u32>) -> Result<String, StatusCode> {
+    let account = NetworkAccount::finalize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let mut nodes = HashSet::new();
     let mut edges: Vec<(u32, u32)> = vec![];
     let mut broken_edges: Vec<(u32, u32)> = vec![];
@@ -258,5 +270,5 @@ fn generate_dot(mix_id: Option<u32>) -> String {
     }
 
     let dot = Dot::new(&graph);
-    dot.to_string()
+    Ok(dot.to_string())
 }

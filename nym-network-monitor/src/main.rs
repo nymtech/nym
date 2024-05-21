@@ -8,6 +8,7 @@ use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::{
     collections::VecDeque,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    str::FromStr,
     sync::Arc,
 };
 use tokio::{signal::ctrl_c, sync::RwLock};
@@ -31,18 +32,22 @@ async fn make_clients(
         info!("Currently spawned clients: {}", spawned_clients);
         // If we have enough clients, sleep for a minute and remove the oldest one
         if spawned_clients >= n_clients {
-            info!("New client will be spawned in 1 minute");
+            info!("New client will be spawned in {} seconds", lifetime);
             tokio::time::sleep(tokio::time::Duration::from_secs(lifetime)).await;
             info!("Removing oldest client");
-            let dropped_client = clients.write().await.pop_front().unwrap();
-            loop {
-                if Arc::strong_count(&dropped_client) == 1 {
-                    let client = Arc::into_inner(dropped_client).unwrap().into_inner();
-                    client.disconnect().await;
-                    break;
+            if let Some(dropped_client) = clients.write().await.pop_front() {
+                loop {
+                    if Arc::strong_count(&dropped_client) == 1 {
+                        if let Some(client) = Arc::into_inner(dropped_client) {
+                            client.into_inner().disconnect().await;
+                        } else {
+                            warn!("Failed to drop client, client had more then one strong ref")
+                        }
+                        break;
+                    }
+                    info!("Client still in use, waiting 2 seconds");
+                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                 }
-                info!("Client still in use, waiting 2 seconds");
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
         }
         info!("Spawning new client");
@@ -83,6 +88,18 @@ struct Args {
     /// Lifetime of each client in seconds
     #[arg(short = 'T', long, default_value_t = 60)]
     client_lifetime: u64,
+
+    /// Port to listen on
+    #[arg(short, long, default_value_t = 8080)]
+    port: u16,
+
+    /// Host to listen on
+    #[arg(short, long, default_value = "127.0.0.1")]
+    host: String,
+
+    /// Path to the topology file
+    #[arg(short, long, default_value = "topology.json")]
+    topology: String,
 }
 
 #[tokio::main]
@@ -96,7 +113,7 @@ async fn main() -> Result<()> {
     let cancel_token = CancellationToken::new();
     let server_cancel_token = cancel_token.clone();
     let clients = Arc::new(RwLock::new(VecDeque::with_capacity(args.n_clients)));
-    let topology = NymTopology::new_from_file("topology.json").unwrap();
+    let topology = NymTopology::new_from_file(args.topology)?;
 
     let spawn_clients = Arc::clone(&clients);
     tokio::spawn(make_clients(
@@ -107,13 +124,13 @@ async fn main() -> Result<()> {
     ));
 
     let _server_handle = tokio::spawn(async move {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 8080);
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::from_str(&args.host)?), args.port);
         let server = HttpServer::new(socket, server_cancel_token);
         server.run(clients).await
     });
 
     ctrl_c().await?;
-    println!("received ctrl-c");
+    println!("Received Ctrl-C");
 
     cancel_token.cancel();
 

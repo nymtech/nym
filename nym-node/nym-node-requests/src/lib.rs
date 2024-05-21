@@ -6,8 +6,6 @@
 
 pub mod api;
 pub mod error;
-pub(crate) mod helpers;
-
 macro_rules! absolute_route {
     ( $name:ident, $parent:expr, $suffix:expr ) => {
         pub fn $name() -> String {

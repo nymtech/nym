@@ -28,18 +28,15 @@ async fn make_clients(clients: ClientsWrapper, n_clients: usize, topology: NymTo
             info!("New client will be spawned in 1 minute");
             tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
             info!("Removing oldest client");
+            let dropped_client = clients.write().await.pop_front().unwrap();
             loop {
-                let dropped_client = clients.write().await.pop_front().unwrap();
-                let client = match Arc::try_unwrap(dropped_client) {
-                    Ok(client) => client.into_inner(),
-                    Err(_) => {
-                        info!("Client still in use, waiting 1 second");
-                        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                        continue;
-                    }
-                };
-                client.disconnect().await;
-                break;
+                if Arc::strong_count(&dropped_client) == 1 {
+                    let client = Arc::into_inner(dropped_client).unwrap().into_inner();
+                    client.disconnect().await;
+                    break;
+                }
+                info!("Client still in use, waiting 2 seconds");
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
             }
         }
         info!("Spawning new client");

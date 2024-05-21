@@ -106,7 +106,7 @@ members = [
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
-    "nnm",
+    "nym-network-monitor",
     "nym-api",
     "nym-browser-extension/storage",
     "nym-api/nym-api-requests",

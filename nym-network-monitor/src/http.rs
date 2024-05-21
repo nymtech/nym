@@ -45,12 +45,13 @@ impl HttpServer {
         let state = AppState { clients };
         let app = Router::new()
             .route("/", get(handler).with_state(state))
-            .route("/a", get(accounting_handler))
-            .route("/s", get(sent_handler))
-            .route("/g/:node_address", get(graph_handler))
-            .route("/m", get(mermaid_handler))
+            .route("/accounting", get(accounting_handler))
+            .route("/sent", get(sent_handler))
+            .route("/dot/:node_address", get(mix_graph_handler))
+            .route("/dot", get(graph_handler))
+            .route("/mermaid", get(mermaid_handler))
             .route("/stats", get(stats_handler))
-            .route("/r", get(recv_handler));
+            .route("/received", get(recv_handler));
         let listener = tokio::net::TcpListener::bind(self.listener).await?;
 
         let shutdown_future = self.cancel.cancelled();
@@ -233,33 +234,31 @@ async fn accounting_handler() -> Json<NetworkAccount> {
     Json(account)
 }
 
-async fn graph_handler(Path(mix_id): Path<u32>) -> String {
+fn generate_dot(mix_id: Option<u32>) -> String {
     let account = NetworkAccount::finalize();
     let mut nodes = HashSet::new();
     let mut edges: Vec<(u32, u32)> = vec![];
     let mut broken_edges: Vec<(u32, u32)> = vec![];
 
-    for route in &account.complete_routes {
-        if !route.contains(&mix_id) {
-            continue;
-        }
+    let mix_id = mix_id.unwrap_or(0);
 
-        for chunk in route.windows(2) {
-            nodes.insert(chunk[0]);
-            nodes.insert(chunk[1]);
-            edges.push((chunk[0], chunk[1]));
+    for route in &account.complete_routes {
+        if mix_id == 0 || route.contains(&mix_id) {
+            for window in route.windows(2) {
+                nodes.insert(window[0]);
+                nodes.insert(window[1]);
+                edges.push((window[0], window[1]));
+            }
         }
     }
 
     for route in &account.incomplete_routes {
-        if !route.contains(&mix_id) {
-            continue;
-        }
-
-        for chunk in route.windows(2) {
-            nodes.insert(chunk[0]);
-            nodes.insert(chunk[1]);
-            broken_edges.push((chunk[0], chunk[1]));
+        if mix_id == 0 || route.contains(&mix_id) {
+            for window in route.windows(2) {
+                nodes.insert(window[0]);
+                nodes.insert(window[1]);
+                broken_edges.push((window[0], window[1]));
+            }
         }
     }
 
@@ -271,7 +270,7 @@ async fn graph_handler(Path(mix_id): Path<u32>) -> String {
         .collect();
 
     for (from, to) in edges {
-        graph.add_edge(node_indices[&from], node_indices[&to], "✔️");
+        graph.add_edge(node_indices[&from], node_indices[&to], "");
     }
 
     for (from, to) in broken_edges {
@@ -280,6 +279,14 @@ async fn graph_handler(Path(mix_id): Path<u32>) -> String {
 
     let dot = Dot::new(&graph);
     dot.to_string()
+}
+
+async fn mix_graph_handler(Path(mix_id): Path<u32>) -> String {
+    generate_dot(Some(mix_id))
+}
+
+async fn graph_handler() -> String {
+    generate_dot(None)
 }
 
 async fn mermaid_handler() -> String {
@@ -333,12 +340,12 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
 
     let client = {
         let mut clients = state.clients.write().await;
-        Arc::clone(
-            clients
-                .make_contiguous()
-                .choose(&mut rand::thread_rng())
-                .expect("Empty client vec"),
-        )
+        if let Some(client) = clients.make_contiguous().choose(&mut rand::thread_rng()) {
+            Arc::clone(client)
+        } else {
+            error!("No clients currently available");
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     };
 
     let recv = Arc::clone(&client);

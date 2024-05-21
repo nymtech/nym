@@ -4116,29 +4116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nnm"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum 0.7.5",
- "dashmap",
- "futures",
- "log",
- "nym-bin-common",
- "nym-network-defaults",
- "nym-sdk",
- "nym-sphinx",
- "nym-topology",
- "petgraph",
- "rand 0.7.3",
- "rand_chacha 0.2.2",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
 name = "no-std-compat"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5450,6 +5427,29 @@ dependencies = [
  "schemars",
  "serde",
  "url",
+]
+
+[[package]]
+name = "nym-network-monitor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum 0.7.5",
+ "dashmap",
+ "futures",
+ "log",
+ "nym-bin-common",
+ "nym-network-defaults",
+ "nym-sdk",
+ "nym-sphinx",
+ "nym-topology",
+ "petgraph",
+ "rand 0.7.3",
+ "rand_chacha 0.2.2",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]

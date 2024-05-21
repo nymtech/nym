@@ -8,6 +8,7 @@ use nym_crypto::asymmetric::ed25519::PublicKey;
 use serde::Serialize;
 pub use set::split_into_sets;
 use thiserror::Error;
+use utoipa::ToSchema;
 
 pub const MIN_PADDING_OVERHEAD: usize = 1;
 
@@ -42,7 +43,7 @@ impl FragmentMixParams {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct SentFragment {
     header: FragmentHeader,
     at: u64,
@@ -89,7 +90,7 @@ impl SentFragment {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ReceivedFragment {
     header: FragmentHeader,
     at: u64,

@@ -16,6 +16,7 @@ thiserror = { workspace = true }
 lazy_static = { workspace = true }
 dashmap = { version = "5", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
+utoipa = { workspace = true }
 
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }

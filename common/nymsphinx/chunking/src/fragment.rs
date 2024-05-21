@@ -4,6 +4,7 @@
 use crate::ChunkingError;
 use nym_sphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -310,7 +311,7 @@ impl Fragment {
 /// there is 7 bytes of overhead inside each sphinx packet sent
 /// and for the longest messages, without upper bound, there is usually also only 7 bytes
 /// of overhead apart from first and last fragments in each set that instead have 10 bytes of overhead.
-#[derive(PartialEq, Clone, Debug, Serialize)]
+#[derive(PartialEq, Clone, Debug, Serialize, ToSchema)]
 pub struct FragmentHeader {
     /// ID associated with `FragmentSet` to which this particular `Fragment` belongs.
     /// Its value is restricted to (0, i32::MAX].

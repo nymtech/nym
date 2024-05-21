@@ -5435,6 +5435,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.7.5",
+ "clap 4.5.11",
  "dashmap",
  "futures",
  "log",
@@ -5450,6 +5451,8 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-util",
+ "utoipa",
+ "utoipa-swagger-ui",
 ]
 
 [[package]]
@@ -5983,6 +5986,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "thiserror",
+ "utoipa",
 ]
 
 [[package]]

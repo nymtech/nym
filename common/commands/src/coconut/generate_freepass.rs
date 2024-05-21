@@ -68,8 +68,7 @@ async fn get_freepass(
     let issuance_pass = IssuanceBandwidthCredential::new_freepass(expiration_date_ts);
     let signing_data = issuance_pass.prepare_for_signing();
 
-    let wallet_shares = Arc::new(tokio::sync::Mutex::new(Vec::new()));
-    let signatures_shares = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    let shares = Arc::new(tokio::sync::Mutex::new((Vec::new(), Vec::new())));
     futures::stream::iter(api_clients)
         .for_each_concurrent(None, |client| async {
             // move the client into the block
@@ -89,7 +88,7 @@ async fn get_freepass(
                 .await
             {
                 Ok(partial_wallet) => {
-                    wallet_shares.lock().await.push(partial_wallet);
+                    shares.lock().await.0.push(partial_wallet);
                 }
                 Err(err) => {
                     error!("failed to obtain partial free pass from {api_url}: {err}")
@@ -105,10 +104,7 @@ async fn get_freepass(
                 Ok(signature) => {
                     let index = client.node_id;
                     let share = client.verification_key.clone();
-                    signatures_shares
-                        .lock()
-                        .await
-                        .push((index, share, signature.signs));
+                    shares.lock().await.1.push((index, share, signature.signs));
                 }
                 Err(err) => {
                     error!("failed to obtain expiration date signature from {api_url}: {err}");
@@ -119,8 +115,7 @@ async fn get_freepass(
 
     // SAFETY: the futures have completed, so we MUST have the only arc reference
     #[allow(clippy::unwrap_used)]
-    let wallet_shares = Arc::into_inner(wallet_shares).unwrap().into_inner();
-    let signatures_shares = Arc::into_inner(signatures_shares).unwrap().into_inner();
+    let (wallet_shares, signatures_shares) = Arc::into_inner(shares).unwrap().into_inner();
 
     if wallet_shares.len() < threshold as usize {
         bail!("we managed to obtain only {} partial credentials while the minimum threshold is {threshold}", wallet_shares.len());

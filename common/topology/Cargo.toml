@@ -14,7 +14,7 @@ documentation = { workspace = true }
 [dependencies]
 bs58 = { workspace = true }
 log = { workspace = true }
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true, optional = true }
 semver = "0.11"

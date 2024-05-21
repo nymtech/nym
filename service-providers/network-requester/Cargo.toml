@@ -28,7 +28,7 @@ ipnetwork = "0.20.0"
 log = { workspace = true }
 pretty_env_logger = { workspace = true }
 publicsuffix = { workspace = true }
-rand = "0.7.3"
+rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }

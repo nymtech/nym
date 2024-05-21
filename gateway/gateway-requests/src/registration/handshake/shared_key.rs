@@ -82,8 +82,10 @@ impl SharedKeys {
                 )
             }
         };
-        let mac =
-            compute_keyed_hmac::<GatewayIntegrityHmacAlgorithm>(self.mac_key(), &encrypted_data);
+        let mac = compute_keyed_hmac::<GatewayIntegrityHmacAlgorithm>(
+            self.mac_key().as_slice(),
+            &encrypted_data,
+        );
 
         mac.into_bytes().into_iter().chain(encrypted_data).collect()
     }
@@ -102,7 +104,7 @@ impl SharedKeys {
         let message_bytes = &enc_data[mac_size..];
 
         if !recompute_keyed_hmac_and_verify_tag::<GatewayIntegrityHmacAlgorithm>(
-            self.mac_key(),
+            self.mac_key().as_slice(),
             message_bytes,
             mac_tag,
         ) {

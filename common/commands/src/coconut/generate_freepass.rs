@@ -104,7 +104,11 @@ async fn get_freepass(
                 Ok(signature) => {
                     let index = client.node_id;
                     let share = client.verification_key.clone();
-                    shares.lock().await.1.push((index, share, signature.signs));
+                    shares
+                        .lock()
+                        .await
+                        .1
+                        .push((index, share, signature.signatures));
                 }
                 Err(err) => {
                     error!("failed to obtain expiration date signature from {api_url}: {err}");

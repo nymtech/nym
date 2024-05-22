@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::persistence::WireguardPaths;
 use crate::config::Config;
 use crate::error::NymNodeError;
 use std::path::Path;
@@ -8,6 +9,12 @@ use std::path::Path;
 // currently there are no upgrades
 async fn try_upgrade_config<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError> {
     use crate::config::*;
+
+    #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct OldWireguardPaths {
+        // pub keys:
+    }
 
     #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
     #[serde(deny_unknown_fields)]
@@ -32,7 +39,7 @@ async fn try_upgrade_config<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError>
         pub private_network_prefix: u8,
 
         /// Paths for wireguard keys, client registries, etc.
-        pub storage_paths: persistence::WireguardPaths,
+        pub storage_paths: OldWireguardPaths,
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,7 +99,7 @@ async fn try_upgrade_config<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError>
         }
     }
 
-    let old_cfg = OldConfig::read_from_path(path)?;
+    let old_cfg = OldConfig::read_from_path(&path)?;
     let cfg = Config {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
@@ -107,7 +114,7 @@ async fn try_upgrade_config<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError>
             private_ip: old_cfg.wireguard.private_network_ip,
             announced_port: old_cfg.wireguard.announced_port,
             private_network_prefix: old_cfg.wireguard.private_network_prefix,
-            storage_paths: old_cfg.wireguard.storage_paths,
+            storage_paths: WireguardPaths::new(Config::default_data_directory(path)?),
         },
         mixnode: old_cfg.mixnode,
         entry_gateway: old_cfg.entry_gateway,

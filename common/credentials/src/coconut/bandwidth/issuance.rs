@@ -143,12 +143,11 @@ impl IssuanceBandwidthCredential {
     }
 
     pub fn check_expiration_date(&self) -> bool {
-        let old_expiration_date = self.expiration_date;
         let new_expiration_date = match self.get_variant_data() {
             BandwidthCredentialIssuanceDataVariant::TicketBook(_) => cred_exp_date_timestamp(),
             BandwidthCredentialIssuanceDataVariant::FreePass => freepass_exp_date_timestamp(),
         };
-        old_expiration_date != new_expiration_date
+        self.expiration_date != new_expiration_date
     }
 
     pub fn prepare_for_signing(&self) -> CredentialSigningData {

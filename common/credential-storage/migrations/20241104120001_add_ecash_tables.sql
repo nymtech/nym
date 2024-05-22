@@ -14,7 +14,7 @@ CREATE TABLE ecash_credentials
     id                     INTEGER                                                                  NOT NULL PRIMARY KEY AUTOINCREMENT,
 
 --     introduce a way for us to introduce breaking changes in serialization
-serialization_revision INTEGER                                                                      NOT NULL,
+    serialization_revision INTEGER                                                                  NOT NULL,
 
 --     the best we can do without enums
     credential_type        TEXT CHECK ( credential_type IN ('TicketBook', 'FreeBandwidthPass') )    NOT NULL,

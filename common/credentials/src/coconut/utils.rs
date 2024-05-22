@@ -138,7 +138,7 @@ pub async fn obtain_coin_indices_signatures(
         .map_err(Error::CompactEcashError)
 }
 
-pub async fn obtain_aggregate_signature(
+pub async fn obtain_aggregate_wallet(
     voucher: &IssuanceBandwidthCredential,
     ecash_api_clients: &[CoconutApiClient],
     threshold: u64,

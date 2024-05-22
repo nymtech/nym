@@ -6,7 +6,7 @@ use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::{CredentialType, IssuanceBandwidthCredential};
 use nym_credentials::coconut::utils::{
-    obtain_aggregate_signature, obtain_coin_indices_signatures, obtain_expiration_date_signatures,
+    obtain_aggregate_wallet, obtain_coin_indices_signatures, obtain_expiration_date_signatures,
     signatures_to_string,
 };
 use nym_credentials::obtain_aggregate_verification_key;
@@ -69,7 +69,7 @@ where
     let verification_key = obtain_aggregate_verification_key(&ecash_api_clients)?;
 
     log::info!("Querying wallet signatures");
-    let wallet = obtain_aggregate_signature(&state.voucher, &ecash_api_clients, threshold).await?;
+    let wallet = obtain_aggregate_wallet(&state.voucher, &ecash_api_clients, threshold).await?;
 
     log::info!("Querying expiration date signatures");
     let exp_date_sig =

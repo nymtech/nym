@@ -7,8 +7,7 @@ use nym_credentials::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
 use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::events::{
-    COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY,
-    DEPOSIT_INFO, DEPOSIT_VALUE,
+    COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
 };
 use nym_validator_client::nyxd::helpers::find_tx_attribute;
 use nym_validator_client::nyxd::TxResponse;
@@ -52,6 +51,9 @@ mod test {
     };
     use nym_credentials::coconut::bandwidth::CredentialType;
     use nym_ecash_contract_common::events::DEPOSITED_FUNDS_EVENT_TYPE;
+    use nym_ecash_contract_common::events::{
+        DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
+    };
     use nym_validator_client::nyxd::{Event, EventAttribute};
 
     #[tokio::test]

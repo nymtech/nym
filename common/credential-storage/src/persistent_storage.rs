@@ -132,9 +132,9 @@ impl Storage for PersistentStorage {
         epoch_id: String,
     ) -> Result<CoinIndicesSignature, StorageError> {
         self.coconut_credential_manager
-            .get_coin_indices_sig(epoch_id)
+            .get_coin_indices_sig(epoch_id.clone())
             .await?
-            .ok_or(StorageError::NoSignatures)
+            .ok_or(StorageError::NoSignatures { epoch_id })
     }
 
     async fn mark_expired(&self, id: i64) -> Result<(), Self::StorageError> {

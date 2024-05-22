@@ -7,18 +7,18 @@ use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct CoconutCredentialManager {
-    inner: Arc<RwLock<CoconutCredentialManagerInner>>,
-    coin_indices_sig: Arc<RwLock<Vec<CoinIndicesSignature>>>,
+    inner: Arc<RwLock<EcashCredentialManagerInner>>,
 }
 
 #[derive(Default)]
-struct CoconutCredentialManagerInner {
+struct EcashCredentialManagerInner {
     credentials: Vec<StoredIssuedCredential>,
     credential_usage: Vec<CredentialUsage>,
+    coin_indices_sig: Vec<CoinIndicesSignature>,
     _next_id: i64,
 }
 
-impl CoconutCredentialManagerInner {
+impl EcashCredentialManagerInner {
     fn next_id(&mut self) -> i64 {
         let next = self._next_id;
         self._next_id += 1;
@@ -31,7 +31,6 @@ impl CoconutCredentialManager {
     pub fn new() -> Self {
         CoconutCredentialManager {
             inner: Default::default(),
-            coin_indices_sig: Default::default(),
         }
     }
 
@@ -121,8 +120,8 @@ impl CoconutCredentialManager {
     /// * `epoch_id`: Id of the epoch.
     /// * `coin_indices_signatures` : The coin indices signatures for the epoch
     pub async fn insert_coin_indices_sig(&self, epoch_id: String, coin_indices_sig: String) {
-        let mut signatures = self.coin_indices_sig.write().await;
-        signatures.push(CoinIndicesSignature {
+        let mut guard = self.inner.write().await;
+        guard.coin_indices_sig.push(CoinIndicesSignature {
             epoch_id,
             signatures: coin_indices_sig,
         });
@@ -134,8 +133,11 @@ impl CoconutCredentialManager {
     ///
     /// * `epoch_id`: Id of the epoch.
     pub async fn is_coin_indices_sig_present(&self, epoch_id: String) -> bool {
-        let sigs = self.coin_indices_sig.read().await;
-        sigs.iter().any(|s| s.epoch_id == epoch_id)
+        let guard = self.inner.read().await;
+        guard
+            .coin_indices_sig
+            .iter()
+            .any(|s| s.epoch_id == epoch_id)
     }
 
     /// Get coin_indices_signatures of a given epoch.
@@ -144,8 +146,12 @@ impl CoconutCredentialManager {
     ///
     /// * `epoch_id`: Id of the epoch.
     pub async fn get_coin_indices_sig(&self, epoch_id: String) -> Option<CoinIndicesSignature> {
-        let sigs = self.coin_indices_sig.read().await;
-        sigs.iter().find(|s| s.epoch_id == epoch_id).cloned()
+        let guard = self.inner.read().await;
+        guard
+            .coin_indices_sig
+            .iter()
+            .find(|s| s.epoch_id == epoch_id)
+            .cloned()
     }
 
     /// Marks the specified credential as expired

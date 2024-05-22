@@ -4,6 +4,42 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.5-ragusa] (2024-05-22)
+
+- Feature/nym node api location ([#4605])
+- Add optional signature to IPR request/response ([#4604])
+- Feature/unstable tested nodes endpoint ([#4601])
+- nym-api: make report/avg_uptime endpoints ignore blacklist ([#4599])
+- removed blocking for coconut in the final epoch state ([#4598])
+- allow using explicit admin address for issuing freepasses ([#4595])
+- Use rfc3339 for last_polled in described nym-api endpoint ([#4591])
+- Explicitly handle constraint unique violation when importing credential ([#4588])
+- [bugfix] noop flag for nym-api for nymvisor compatibility ([#4586])
+- Chore/additional helpers ([#4585])
+- Feature/wasm coconut ([#4584])
+- upgraded axum and related deps to the most recent version ([#4573])
+- Feature/nyxd scraper pruning ([#4564])
+- Run cargo autoinherit on the main workspace ([#4553])
+- Add rustls-tls to reqwest in validator-client ([#4552])
+- Feature/rewarder voucher issuance ([#4548])
+
+[#4605]: https://github.com/nymtech/nym/pull/4605
+[#4604]: https://github.com/nymtech/nym/pull/4604
+[#4601]: https://github.com/nymtech/nym/pull/4601
+[#4599]: https://github.com/nymtech/nym/pull/4599
+[#4598]: https://github.com/nymtech/nym/pull/4598
+[#4595]: https://github.com/nymtech/nym/pull/4595
+[#4591]: https://github.com/nymtech/nym/pull/4591
+[#4588]: https://github.com/nymtech/nym/pull/4588
+[#4586]: https://github.com/nymtech/nym/pull/4586
+[#4585]: https://github.com/nymtech/nym/pull/4585
+[#4584]: https://github.com/nymtech/nym/pull/4584
+[#4573]: https://github.com/nymtech/nym/pull/4573
+[#4564]: https://github.com/nymtech/nym/pull/4564
+[#4553]: https://github.com/nymtech/nym/pull/4553
+[#4552]: https://github.com/nymtech/nym/pull/4552
+[#4548]: https://github.com/nymtech/nym/pull/4548
+
 ## [2024.4-nutella] (2024-05-08)
 
 - [fix] apply disable_poisson_rate from internal NR/IPR cfgs ([#4579])

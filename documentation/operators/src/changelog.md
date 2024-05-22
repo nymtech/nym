@@ -2,6 +2,84 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+
+## `v2024.5-ragusa`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.5-ragusa)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.5-ragusa/CHANGELOG.md):
+~~~admonish example collapsible=true title="CHANGELOG.md"
+- Feature/nym node api location ([#4605])
+- Add optional signature to IPR request/response ([#4604])
+- Feature/unstable tested nodes endpoint ([#4601])
+- nym-api: make report/avg_uptime endpoints ignore blacklist ([#4599])
+- removed blocking for coconut in the final epoch state ([#4598])
+- allow using explicit admin address for issuing freepasses ([#4595])
+- Use rfc3339 for last_polled in described nym-api endpoint ([#4591])
+- Explicitly handle constraint unique violation when importing credential ([#4588])
+- [bugfix] noop flag for nym-api for nymvisor compatibility ([#4586])
+- Chore/additional helpers ([#4585])
+- Feature/wasm coconut ([#4584])
+- upgraded axum and related deps to the most recent version ([#4573])
+- Feature/nyxd scraper pruning ([#4564])
+- Run cargo autoinherit on the main workspace ([#4553])
+- Add rustls-tls to reqwest in validator-client ([#4552])
+- Feature/rewarder voucher issuance ([#4548])
+
+[#4605]: https://github.com/nymtech/nym/pull/4605
+[#4604]: https://github.com/nymtech/nym/pull/4604
+[#4601]: https://github.com/nymtech/nym/pull/4601
+[#4599]: https://github.com/nymtech/nym/pull/4599
+[#4598]: https://github.com/nymtech/nym/pull/4598
+[#4595]: https://github.com/nymtech/nym/pull/4595
+[#4591]: https://github.com/nymtech/nym/pull/4591
+[#4588]: https://github.com/nymtech/nym/pull/4588
+[#4586]: https://github.com/nymtech/nym/pull/4586
+[#4585]: https://github.com/nymtech/nym/pull/4585
+[#4584]: https://github.com/nymtech/nym/pull/4584
+[#4573]: https://github.com/nymtech/nym/pull/4573
+[#4564]: https://github.com/nymtech/nym/pull/4564
+[#4553]: https://github.com/nymtech/nym/pull/4553
+[#4552]: https://github.com/nymtech/nym/pull/4552
+[#4548]: https://github.com/nymtech/nym/pull/4548
+~~~
+
+### Features
+
+- New `nym-node` API endpoint `/api/v1/auxiliary-details`: to expose any additional information. Currently it's just the location. `nym-api` will then query all nodes for that information and put it in the `self-described` endpoint.
+- Newly `nym-node` location available - use one of the three options to add this to your node config:
+    1. Update the `location` field under `[host]` section of `config.toml`
+    2. For new nodes: Initialise the node with `--location` flag, where they have to provide the country info. Either full country name (e.g. 'Jamaica'), two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+    3. For existing nodes: It's also possible to use exactly the same `--location` argument as above, but make sure to also provide `--write-changes` (or `-w`) flag to persist those changes!
+- [Feature/unstable tested nodes endpoint](https://github.com/nymtech/nym/pull/4601): Adds new data structures (`TestNode`, `TestRoute`, `PartialTestResult`) to handle test results for Mixnodes and Gateways. With the inclusion of pagination to handle large API responses efficiently. Lastly, introducing a new route with the tag `unstable` thus meaning not to be consumed without a user risk, prefixes in endpoints with unstable, are what it says on the tin.
+    - Testing Steps Performed:
+        1. Deploy new api changes to sandbox environment
+        2. Ensure current operations are transactional and standed operations are working
+        3. Run a script to ensure that the new endpoints are working as expected with pagination 
+
+ <img width="719" alt="image" src="https://github.com/nymtech/nym/assets/60836166/91285971-e82a-4e5a-8a58-880505ae1be9">
+
+- [`nym-api`: make report/avg_uptime endpoints ignore blacklist](https://github.com/nymtech/nym/pull/4599): When querying for node specific data, it's no longer going to go through the entire list of all cached (and filtered nodes) to find it; instead it will attempt to retrieve a single unfiltered entry.
+    - Tests:
+        - Built the project and deployed it in a test environment.
+        - Manually tested API endpoints for mixnode and gateway data.
+        - Verified that the endpoints return the expected data and handle blacklists correctly.
+        - API performance improved due to the efficient `HashMap` lookups
+        - Data in mainnet will differ from test nets due to the increased amount of gateways and mixnodes in that environment
+        - Test standard uptime routes:
+```sh
+curl -X 'GET' 'https://qa-nym-api.qa.nymte.ch/api/v1/status/gateway/3ZmKvV3Fax9A8txxQ3GKh9fUeyTAk68rK4Yn4m3Vdvp9/avg_uptime' -H 'accept: application/json'
+
+curl -X 'GET' 'https://sandbox-nym-api1.nymtech.net/api/v1/status/mixnode/35/avg_uptime' -H 'accept: application/json'
+```
+
+
+
+
+### Documentation Updates
+
+- [`nym-gateway-probe`](../testing/gateway-probe.md): A CLI tool to check networking status of any Gateway locally
+- [Where to host your `nym-node`?](../legal/isp-list.md): An ISP list by Nym Operators community.
+
 ## `v2024.4-nutella`
 
 - [Merged PRs](https://github.com/nymtech/nym/milestone/59?closed=1)

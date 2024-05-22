@@ -174,7 +174,7 @@ Options:
           Print help
 -->
 
-The Wireguard flags currently have limited functionality, with `--wireguard-enabled` being the most relevant, enabling or disabling wireguard functionality.
+The Wireguard flags currently have limited functionality, **do not enable Wireguard** just yet. 
 
 #### Flags Summary
 
@@ -216,22 +216,34 @@ To prevent over-flooding of our documentation we cannot provide with every singl
 
 As part of the transition, `allowed.list` on Exit Gateway embedded Network Requester was depreciated.
 
-**Initialise and run:**
+**Initialise and run** in one command:
 ```sh
 # simple default
 ./nym-node  run  --mode exit-gateway
 
 # with other options
-./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --wireguard-enabled true
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --wireguard-enabled false
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# keep wireguard disabled
 ```
 
-Initialise only with a custom `--id` and `--init-only` command :
+**Initialise only** without running the node with `--init-only` command :
 
 ```sh
-./nym-node run --id <ID> --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --wireguard-enabled true
+# simple default
+./nym-node run --init-only --mode exit-gateway
+
+# with a custom `--id` and other options
+./nym-node run --id <ID> --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <COUNTRY_FULL_NAME> --wireguard-enabled false
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# keep wireguard disabled
 ```
 
-Run the node with custom `--id` without initialising
+Run the node with custom `--id` without initialising, using `--deny-init` command
 ```sh
 ./nym-node run --id <ID> --deny-init --mode exit-gateway
 ```

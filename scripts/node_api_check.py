@@ -15,11 +15,14 @@ class MainFunctions:
         self.api_endpoints_json = "api_endpoints.json"
 
     def display_results(self, args):
-        mode, host, version, mix_id, node_df, node_dict, api_data, swagger_data, routing_history = self.collect_all_results(args)
-        print(f"Node type = {mode}")
-        print(f"Node Identity Key = {args.id}")
-        print(f"Node host = {host}")
-        print(f"Node version = {version}")
+        mode, host, version, mix_id, role, node_df, node_dict, api_data, swagger_data, routing_history = self.collect_all_results(args)
+        print("\nNYM NODE INFO\n")
+        print(f"Type = {mode}")
+        if role:
+            print(f"Mode = {role}")
+        print(f"Identity Key = {args.id}")
+        print(f"Host = {host}")
+        print(f"Version = {version}")
         if mix_id:
             print(f"Mix ID = {mix_id}")
         #api_data = self.format_dataframe(api_data)
@@ -48,8 +51,8 @@ class MainFunctions:
         mixnodes_df = self._json_to_dataframe(mixnodes_unfiltered)
         mixnodes_df = self._set_index_to_empty(mixnodes_df)
         mode, node_df, node_dict = self.get_node_df(id_key, gateways_df, mixnodes_df, gateways_unfiltered, mixnodes_unfiltered)
-        host, version, mix_id, api_data, swagger_data, routing_history = self.get_node_data(mode, node_dict, id_key)
-        return mode, host, version, mix_id, node_df, node_dict, api_data, swagger_data, routing_history
+        host, version, mix_id, role, api_data, swagger_data, routing_history = self.get_node_data(mode, node_dict, id_key)
+        return mode, host, version, mix_id, role, node_df, node_dict, api_data, swagger_data, routing_history
 
     def get_node_df(self,id_key, gateways_df, mixnodes_df, gateways_unfiltered,mixnodes_unfiltered):
         if id_key in mixnodes_df['mixnode_details.bond_information.mix_node.identity_key'].values:
@@ -86,6 +89,7 @@ class MainFunctions:
         swagger_data = {}
         routing_history = {}
         mix_id = None
+        role = None
         if mode == "gateway":
             host = node_dict["gateway_bond"]["gateway"]["host"]
             version = node_dict["gateway_bond"]["gateway"]["version"]
@@ -96,11 +100,27 @@ class MainFunctions:
                 api_data[endpoint] = value
             routing_history = api_data[f"/status/gateway/{identity}/history"]["history"]
             del api_data[f"/status/gateway/{identity}/history"]["history"]
-            #swagger_data["SWAGGER ENDPOINTS"] = "RESPONSE"
             for key in swagger:
-                swagger_url = f"https://{host}:8080/api/v1{key}"
-                value = r.get(url).json()
-                swagger_data[key] = value
+                try:
+                    url = f"http://{host}:8080/api/v1{key}"
+                    value = r.get(url).json()
+                    swagger_data[key] = value
+                except r.exceptions.ConnectionError:
+                    url = f"https://{host}/api/v1{key}"
+                    value = r.get(url).json()
+                    swagger_data[key] = value
+                except r.exceptions.ConnectionError:
+                    url = f"http://{host}/api/v1{key}"
+                    value = r.get(url).json()
+                    swagger_data[key] = value
+                except r.exceptions.ConnectionError as e:
+                    print(f"The request to pull data from /api/v1/{key} returns {e}!")
+                except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError):
+                    print(f"Endpoint {url} results in 404: Not Found!\n")
+            if swagger_data["/roles"]["network_requester_enabled"]== True and swagger_data["/roles"]["ip_packet_router_enabled"] == True:
+                role = "exit-gateway"
+            else:
+                role = "entry-gateway"
         elif mode == "mixnode":
             mix_id = str(node_dict["mixnode_details"]["bond_information"]["mix_id"])
             for key in endpoints:
@@ -113,15 +133,14 @@ class MainFunctions:
                     print(f"Endpoint {url} results in 404: Not Found!\n")
             host = node_dict["mixnode_details"]["bond_information"]["mix_node"]["host"]
             version = node_dict["mixnode_details"]["bond_information"]["mix_node"]["version"]
+            routing_history = api_data[f"/status/mixnode/{mix_id}/history"]["history"]
+            del api_data[f"/status/mixnode/{mix_id}/history"]["history"]
         else:
             print(f"The mode type {mode} is not recognized!")
             sys.exit(-1)
         host = str(host)
-        routing_history = api_data[f"/status/mixnode/{mix_id}/history"]["history"]
-        del api_data[f"/status/mixnode/{mix_id}/history"]["history"]
 
-        return host, version, mix_id, api_data, swagger_data, routing_history
-
+        return host, version, mix_id, role, api_data, swagger_data, routing_history
 
 #    def get_api_endpoints(self):
 #        endpoint_json = r.get(self.api_existing_endpoints_url).json()

@@ -9,6 +9,10 @@ use std::path::Path;
 // currently there are no upgrades
 async fn try_upgrade_config<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError> {
     use crate::config::*;
+    use crate::error::KeyIOFailure;
+    use nym_crypto::asymmetric::encryption::KeyPair;
+    use nym_pemstore::store_keypair;
+    use rand::rngs::OsRng;
 
     #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
     #[serde(deny_unknown_fields)]
@@ -99,7 +103,32 @@ async fn try_upgrade_config<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError>
         }
     }
 
+    fn initialise(config: &Wireguard) -> std::io::Result<()> {
+        let mut rng = OsRng;
+        let x25519_keys = KeyPair::new(&mut rng);
+
+        store_keypair(
+            &x25519_keys,
+            &config.storage_paths.x25519_wireguard_storage_paths(),
+        )?;
+
+        Ok(())
+    }
+
     let old_cfg = OldConfig::read_from_path(&path)?;
+    let wireguard = Wireguard {
+        enabled: old_cfg.wireguard.enabled,
+        bind_address: old_cfg.wireguard.bind_address,
+        private_ip: old_cfg.wireguard.private_network_ip,
+        announced_port: old_cfg.wireguard.announced_port,
+        private_network_prefix: old_cfg.wireguard.private_network_prefix,
+        storage_paths: WireguardPaths::new(Config::default_data_directory(path)?),
+    };
+    initialise(&wireguard).map_err(|err| KeyIOFailure::KeyPairStoreFailure {
+        keys: "wg-x25519-dh".to_string(),
+        paths: wireguard.storage_paths.x25519_wireguard_storage_paths(),
+        err,
+    })?;
     let cfg = Config {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
@@ -108,14 +137,7 @@ async fn try_upgrade_config<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError>
         mixnet: old_cfg.mixnet,
         storage_paths: old_cfg.storage_paths,
         http: old_cfg.http,
-        wireguard: Wireguard {
-            enabled: old_cfg.wireguard.enabled,
-            bind_address: old_cfg.wireguard.bind_address,
-            private_ip: old_cfg.wireguard.private_network_ip,
-            announced_port: old_cfg.wireguard.announced_port,
-            private_network_prefix: old_cfg.wireguard.private_network_prefix,
-            storage_paths: WireguardPaths::new(Config::default_data_directory(path)?),
-        },
+        wireguard,
         mixnode: old_cfg.mixnode,
         entry_gateway: old_cfg.entry_gateway,
         exit_gateway: old_cfg.exit_gateway,

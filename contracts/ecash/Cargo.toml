@@ -16,9 +16,11 @@ cw-storage-plus = { workspace = true }
 thiserror = { workspace = true }
 cw-controllers = { workspace = true }
 cosmwasm-storage = { workspace = true }
+cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
 cw-utils = { worspace = true }
+semver = { workspace = true, default-features = false }
 
 nym-ecash-contract-common = { path = "../../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }

@@ -6,27 +6,27 @@ use cw3::ProposalResponse;
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
+use semver::Version;
+use sylvia::types::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx, ReplyCtx};
+use sylvia::{contract, entry_points};
+
 use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, PagedBlacklistedAccountResponse,
 };
 use nym_ecash_contract_common::events::{
     BLACKLIST_PROPOSAL_ID, BLACKLIST_PROPOSAL_REPLY_ID, DEPOSITED_FUNDS_EVENT_TYPE,
-    DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
+    DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO, DEPOSIT_VALUE, TICKET_BOOK_VALUE, TICKET_VALUE,
 };
-
-use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
-use sylvia::types::{ExecCtx, InstantiateCtx, QueryCtx, ReplyCtx};
-use sylvia::{contract, entry_points};
-
-use crate::errors::ContractError;
-use crate::helpers::{self, BlacklistKey, Config, ProposalId, SerialNumber};
-use crate::helpers::{
-    BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT, SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT,
-    SPEND_CREDENTIAL_PAGE_MAX_LIMIT,
-};
-use nym_ecash_contract_common::events::{TICKET_BOOK_VALUE, TICKET_VALUE};
 use nym_ecash_contract_common::spend_credential::{
     EcashSpentCredential, EcashSpentCredentialResponse, PagedEcashSpentCredentialResponse,
+};
+use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
+
+use crate::errors::ContractError;
+use crate::helpers::{
+    self, BlacklistKey, Config, ProposalId, SerialNumber, BLACKLIST_PAGE_DEFAULT_LIMIT,
+    BLACKLIST_PAGE_MAX_LIMIT, CONTRACT_NAME, CONTRACT_VERSION, SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT,
+    SPEND_CREDENTIAL_PAGE_MAX_LIMIT,
 };
 
 pub struct NymEcashContract<'a> {
@@ -76,6 +76,11 @@ impl NymEcashContract<'_> {
         };
 
         self.config.save(ctx.deps.storage, &cfg)?;
+        cw2::set_contract_version(
+            ctx.deps.storage,
+            helpers::CONTRACT_NAME,
+            helpers::CONTRACT_VERSION,
+        )?;
 
         Ok(Response::default())
     }
@@ -341,5 +346,37 @@ impl NymEcashContract<'_> {
             .save(ctx.deps.storage, public_key, &proposal_id)?;
 
         Ok(Response::new().add_attribute(BLACKLIST_PROPOSAL_ID, proposal_id.to_string()))
+    }
+
+    /*=====================
+    =======MIGRATION=======
+    =====================*/
+    #[msg(migrate)]
+    pub fn migrate(&self, ctx: MigrateCtx) -> Result<Response, ContractError> {
+        // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
+        let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
+            ContractError::SemVerFailure {
+                value: CONTRACT_VERSION.to_string(),
+                error_message: error.to_string(),
+            }
+        })?;
+
+        let storage_version_raw = cw2::get_contract_version(ctx.deps.storage)?.version;
+        let storage_version: Version =
+            storage_version_raw
+                .parse()
+                .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                    value: storage_version_raw,
+                    error_message: error.to_string(),
+                })?;
+
+        if storage_version < version {
+            cw2::set_contract_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+            // If state structure changed in any contract version in the way migration is needed, it
+            // should occur here, for example anything from `crate::queued_migrations::`
+        }
+
+        Ok(Response::new())
     }
 }

@@ -7,6 +7,10 @@ use nym_ecash_contract_common::{events::BLACKLIST_PROPOSAL_REPLY_ID, msg::Execut
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 use serde::{Deserialize, Serialize};
 
+// version info for migration info
+pub(crate) const CONTRACT_NAME: &str = "crate:nym-ecash";
+pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
     pub multisig_addr: Addr,

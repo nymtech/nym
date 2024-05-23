@@ -31,4 +31,10 @@ pub enum ContractError {
 
     #[error("Unauthorized")]
     Unauthorized,
+
+    #[error("Failed to parse {value} into a valid SemVer version: {error_message}")]
+    SemVerFailure {
+        value: String,
+        error_message: String,
+    },
 }

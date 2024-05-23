@@ -581,6 +581,11 @@ impl<St> Gateway<St> {
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
+        info!(
+            "Public key: {:?}",
+            self.identity_keypair.public_key().to_string()
+        );
+
         if let Err(source) = shutdown.wait_for_shutdown().await {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             return Err(GatewayError::ShutdownFailure { source });

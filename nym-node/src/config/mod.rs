@@ -532,13 +532,13 @@ impl Wireguard {
     }
 }
 
-impl Into<nym_wireguard_types::Config> for Wireguard {
-    fn into(self) -> nym_wireguard_types::Config {
+impl From<Wireguard> for nym_wireguard_types::Config {
+    fn from(value: Wireguard) -> Self {
         nym_wireguard_types::Config {
-            bind_address: self.bind_address,
-            private_ip: self.private_ip,
-            announced_port: self.announced_port,
-            private_network_prefix: self.private_network_prefix,
+            bind_address: value.bind_address,
+            private_ip: value.private_ip,
+            announced_port: value.announced_port,
+            private_network_prefix: value.private_network_prefix,
         }
     }
 }

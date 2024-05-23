@@ -47,7 +47,7 @@ This page displays a full list of all the changes during our release cycle from 
 ### Features
 
 - New `nym-node` API endpoint `/api/v1/auxiliary-details`: to expose any additional information. Currently it's just the location. `nym-api` will then query all nodes for that information and put it in the `self-described` endpoint.
-- Newly `nym-node` location available - use one of the three options to add this to your node config:
+- New `nym-node` location available - use one of the three options to add this to your node config:
     1. Update the `location` field under `[host]` section of `config.toml`
     2. For new nodes: Initialise the node with `--location` flag, where they have to provide the country info. Either full country name (e.g. 'Jamaica'), two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
     3. For existing nodes: It's also possible to use exactly the same `--location` argument as above, but make sure to also provide `--write-changes` (or `-w`) flag to persist those changes!

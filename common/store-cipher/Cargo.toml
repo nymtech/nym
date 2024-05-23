@@ -7,14 +7,14 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes-gcm = { version = "0.10.1" }
-argon2 = { version = "0.5.0" }
+aes-gcm = { workspace = true }
+argon2 = { workspace = true }
 generic-array = { workspace = true, features = ["zeroize"] }
 rand = "0.8.5"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
-zeroize = { version = "1.6.0", features = ["zeroize_derive"] }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 [target.'cfg(target_env = "wasm32-unknown-unknown")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

@@ -25,9 +25,9 @@ time.workspace = true
 url.workspace = true
 zeroize.workspace = true
 
-serde_with = "3.4.0"
+serde_with = { workspace = true }
 sha2 = "0.10.8"
-humantime = "2.1.0"
+humantime = { workspace = true }
 humantime-serde.workspace = true
 
 # internal

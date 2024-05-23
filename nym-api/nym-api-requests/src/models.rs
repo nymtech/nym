@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
@@ -9,7 +10,7 @@ use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
-use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
+use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, BinaryBuildInformationOwned};
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
@@ -482,12 +483,16 @@ impl JsonSchema for OffsetDateTimeJsonSchemaWrapper {
     }
 }
 
+// this struct is getting quite bloated...
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NymNodeDescription {
     #[serde(default)]
     pub last_polled: OffsetDateTimeJsonSchemaWrapper,
 
     pub host_information: HostInformation,
+
+    #[serde(default)]
+    pub auxiliary_details: AuxiliaryDetails,
 
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,
@@ -569,3 +574,28 @@ pub struct SignerInformationResponse {
 
     pub verification_key: Option<String>,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, Default)]
+pub struct TestNode {
+    pub node_id: Option<u32>,
+    pub identity_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct TestRoute {
+    pub gateway: TestNode,
+    pub layer1: TestNode,
+    pub layer2: TestNode,
+    pub layer3: TestNode,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct PartialTestResult {
+    pub monitor_run_id: i64,
+    pub timestamp: i64,
+    pub overall_reliability_for_all_routes_in_monitor_run: Option<u8>,
+    pub test_routes: TestRoute,
+}
+
+pub type MixnodeTestResultResponse = PaginatedResponse<PartialTestResult>;
+pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;

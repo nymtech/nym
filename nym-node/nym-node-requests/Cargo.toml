@@ -12,7 +12,8 @@ license.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
-humantime = "2.1.0"
+celes = { workspace = true } # country codes
+humantime = { workspace = true }
 humantime-serde = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }

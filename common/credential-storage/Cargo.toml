@@ -26,4 +26,4 @@ features = [ "rt-multi-thread", "net", "signal", "fs" ]
 
 [build-dependencies]
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

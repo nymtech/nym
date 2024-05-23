@@ -13,7 +13,7 @@ cosmwasm-schema = { workspace = true }
 cw2 = { workspace = true, optional = true }
 mixnet-contract-common = { path = "../mixnet-contract", package = "nym-mixnet-contract-common", version = "0.6.0" }
 contracts-common = { path = "../contracts-common", package = "nym-contracts-common", version = "0.5.0" }
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 ts-rs = { workspace = true, optional = true}
 

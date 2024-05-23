@@ -11,7 +11,7 @@ repository = { workspace = true }
 bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
-schemars = "0.8"
+schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 

@@ -714,9 +714,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck"
-version = "1.15.0"
+version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d6d68c57235a3a081186990eca2867354726650f42f7516ca50c28d6281fd15"
+checksum = "78834c15cb5d5efe3452d58b1e8ba890dd62d21907f867f383358198e56ebca5"
 
 [[package]]
 name = "byteorder"
@@ -2203,7 +2203,7 @@ dependencies = [
  "bip39",
  "console_error_panic_hook",
  "js-sys",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "thiserror",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -2586,14 +2586,14 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "gloo-net"
-version = "0.3.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a66b4e3c7d9ed8d315fd6b97c8b1f74a7c6ecbbc2320e65ae7ed38b7068cc620"
+checksum = "43aaa242d1239a8822c15c645f02166398da4f8b5c4bae795c1f5b44e9eee173"
 dependencies = [
  "futures-channel",
  "futures-core",
  "futures-sink",
- "gloo-utils",
+ "gloo-utils 0.2.0",
  "http 0.2.12",
  "js-sys",
  "pin-project",
@@ -2622,6 +2622,19 @@ name = "gloo-utils"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
+dependencies = [
+ "js-sys",
+ "serde",
+ "serde_json",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "gloo-utils"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b5555354113b18c547c1d3a98fbf7fb32a9ff4f6fa112ce823a21641a0ba3aa"
 dependencies = [
  "js-sys",
  "serde",
@@ -3677,7 +3690,7 @@ dependencies = [
  "nym-socks5-requests",
  "rand 0.7.3",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "thiserror",
  "tokio",
  "tsify",
@@ -4312,7 +4325,7 @@ dependencies = [
  "nym-node-tester-wasm",
  "rand 0.7.3",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "serde_json",
  "thiserror",
  "tsify",
@@ -4635,7 +4648,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.15",
- "gloo-utils",
+ "gloo-utils 0.2.0",
  "log",
  "nym-bandwidth-controller",
  "nym-credential-storage",
@@ -4702,6 +4715,7 @@ name = "nym-http-api-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "http 1.1.0",
  "reqwest 0.12.4",
  "serde",
  "serde_json",
@@ -4770,6 +4784,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "thiserror",
+ "time",
  "tokio",
  "tokio-util",
 ]
@@ -5138,6 +5153,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
+ "celes",
  "humantime 2.1.0",
  "humantime-serde",
  "nym-bin-common",
@@ -5183,7 +5199,7 @@ dependencies = [
  "nym-node-tester-utils",
  "rand 0.7.3",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "thiserror",
  "tokio",
  "tsify",
@@ -5266,7 +5282,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "hex",
- "http 0.2.12",
+ "http 1.1.0",
  "httpcodec",
  "log",
  "nym-bandwidth-controller",
@@ -6577,9 +6593,9 @@ checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
 
 [[package]]
 name = "psl"
-version = "2.1.38"
+version = "2.1.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a66783ea3ba6140ffd59462fa46585d7cc0797893fbf3835ad2da832319964c"
+checksum = "7b320cda4ad7e8f4269fa415754418f83b38c666a5e2e99ea48825b274a373f3"
 dependencies = [
  "psl-types",
 ]
@@ -7601,6 +7617,17 @@ name = "serde-wasm-bindgen"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3b143e2833c57ab9ad3ea280d21fd34e285a42837aeb0ee301f4f41890fa00e"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "serde-wasm-bindgen"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
 dependencies = [
  "js-sys",
  "serde",
@@ -9028,9 +9055,9 @@ version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6b26cf145f2f3b9ff84e182c448eaf05468e247f148cf3d2a7d67d78ff023a0"
 dependencies = [
- "gloo-utils",
+ "gloo-utils 0.1.7",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.5.0",
  "serde_json",
  "tsify-macros",
  "wasm-bindgen",
@@ -9291,6 +9318,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e395fcf16a7a3d8127ec99782007af141946b4795001f876d54fb0d55978560"
 dependencies = [
  "getrandom 0.2.15",
+ "serde",
  "wasm-bindgen",
 ]
 
@@ -9472,7 +9500,7 @@ dependencies = [
  "nym-validator-client",
  "rand 0.7.3",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "thiserror",
  "time",
  "tsify",
@@ -9494,7 +9522,7 @@ dependencies = [
  "js-sys",
  "nym-store-cipher",
  "serde",
- "serde-wasm-bindgen",
+ "serde-wasm-bindgen 0.6.5",
  "thiserror",
  "wasm-bindgen",
  "wasm-utils",
@@ -9520,7 +9548,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.15",
  "gloo-net",
- "gloo-utils",
+ "gloo-utils 0.2.0",
  "js-sys",
  "tungstenite",
  "wasm-bindgen",
@@ -10020,4 +10048,31 @@ dependencies = [
  "crc32fast",
  "crossbeam-utils",
  "flate2",
+]
+
+[[package]]
+name = "zknym-lib"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bs58 0.5.1",
+ "getrandom 0.2.15",
+ "js-sys",
+ "nym-bin-common",
+ "nym-coconut",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-http-api-client",
+ "rand 0.7.3",
+ "reqwest 0.12.4",
+ "serde",
+ "thiserror",
+ "tokio",
+ "tsify",
+ "uuid 1.6.1",
+ "wasm-bindgen",
+ "wasm-utils",
+ "wasmtimer",
+ "zeroize",
 ]

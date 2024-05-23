@@ -18,7 +18,7 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 # for the control requests example
-anyhow = "1.0.68"
+anyhow = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }

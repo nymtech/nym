@@ -12,9 +12,9 @@ license.workspace = true
 
 [dependencies]
 axum.workspace = true
-bytes = "1.5.0"
-mime = "0.3.17"
+bytes = { workspace = true }
+mime = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-serde_yaml = "0.9.25"
+serde_yaml = { workspace = true }
 utoipa = { workspace = true }

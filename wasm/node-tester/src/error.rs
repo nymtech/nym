@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use js_sys::Promise;
 use nym_node_tester_utils::error::NetworkTestingError;
 use thiserror::Error;
 use wasm_client_core::error::WasmCoreError;

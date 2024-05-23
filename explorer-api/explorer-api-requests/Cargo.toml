@@ -9,5 +9,5 @@ nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 schemars = { workspace = true, features = ["preserve_order"] }
-serde = { version = "1.0", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 ts-rs = { workspace = true, optional = true }

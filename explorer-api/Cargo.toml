@@ -7,28 +7,28 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4.31", features = ["serde"] }
+chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["cargo", "derive"] }
 dotenvy = { workspace = true }
 humantime-serde = { workspace = true }
-isocountry = "0.3.2"
+isocountry = { workspace = true }
 itertools = "0.10.3"
 log = { workspace = true }
-maxminddb = "0.23.0"
-okapi = { version = "0.7.0", features = ["impl_json_schema"] }
-pretty_env_logger = "0.4.0"
+maxminddb = { workspace = true }
+okapi = { workspace = true, features = ["impl_json_schema"] }
+pretty_env_logger = { workspace = true }
 rand = "0.8.5"
-rand_pcg = "0.3.1"
-rand_seeder = "0.2.3"
+rand_pcg = { workspace = true }
+rand_seeder = { workspace = true }
 reqwest = { workspace = true }
-rocket = { version = "0.5.0", features = ["json"] }
-rocket_cors = { version = "0.6.0" }
-rocket_okapi = { version = "0.8.0", features = ["swagger"] }
+rocket = { workspace = true, features = ["json"] }
+rocket_cors = { workspace = true }
+rocket_okapi = { workspace = true, features = ["swagger"] }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = {version = "1.21.2", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 
 nym-bin-common = { path = "../common/bin-common"}
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }

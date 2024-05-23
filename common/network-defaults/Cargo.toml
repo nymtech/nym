@@ -10,7 +10,7 @@ repository.workspace = true
 [dependencies]
 cfg-if = { workspace = true }
 dotenvy = { workspace = true }
-hex-literal = "0.3.3"
+hex-literal = { workspace = true }
 log = { workspace = true }
 once_cell = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }

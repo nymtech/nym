@@ -10,7 +10,7 @@ use nym_credentials::coconut::utils::{
     signatures_to_string,
 };
 use nym_credentials::obtain_aggregate_verification_key;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::identity;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::contract_traits::EcashSigningClient;
@@ -26,13 +26,11 @@ where
 {
     let mut rng = OsRng;
     let signing_key = identity::PrivateKey::new(&mut rng);
-    let encryption_key = encryption::PrivateKey::new(&mut rng);
 
     let tx_hash = client
         .deposit(
             CredentialType::TicketBook.to_string(),
             signing_key.public_key().to_base58_string(),
-            encryption_key.public_key().to_base58_string(),
             None,
         )
         .await?

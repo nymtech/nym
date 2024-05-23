@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::BlockInfo;
 
 #[cw_serde]
 pub struct BlacklistedAccount {
     public_key: String,
+    height: BlockInfo,
 }
 
 impl BlacklistedAccount {
-    pub fn new(public_key: String) -> Self {
-        BlacklistedAccount { public_key }
+    pub fn new(public_key: String, height: BlockInfo) -> Self {
+        BlacklistedAccount { public_key, height }
     }
 
     pub fn public_key(&self) -> &str {
@@ -49,62 +51,5 @@ pub struct BlacklistedAccountResponse {
 impl BlacklistedAccountResponse {
     pub fn new(account: Option<BlacklistedAccount>) -> Self {
         BlacklistedAccountResponse { account }
-    }
-}
-
-#[cw_serde]
-pub struct BlacklistProposal {
-    public_key: String,
-    proposal_id: u64,
-}
-
-impl BlacklistProposal {
-    pub fn new(public_key: String, proposal_id: u64) -> Self {
-        BlacklistProposal {
-            public_key,
-            proposal_id,
-        }
-    }
-
-    pub fn public_key(&self) -> &str {
-        &self.public_key
-    }
-
-    pub fn proposal_id(&self) -> u64 {
-        self.proposal_id
-    }
-}
-
-#[cw_serde]
-pub struct PagedBlacklistProposalResponse {
-    pub accounts: Vec<BlacklistProposal>,
-    pub per_page: usize,
-
-    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
-    pub start_next_after: Option<String>,
-}
-
-impl PagedBlacklistProposalResponse {
-    pub fn new(
-        accounts: Vec<BlacklistProposal>,
-        per_page: usize,
-        start_next_after: Option<String>,
-    ) -> Self {
-        PagedBlacklistProposalResponse {
-            accounts,
-            per_page,
-            start_next_after,
-        }
-    }
-}
-
-#[cw_serde]
-pub struct BlacklistProposalResponse {
-    pub account: Option<BlacklistProposal>,
-}
-
-impl BlacklistProposalResponse {
-    pub fn new(account: Option<BlacklistProposal>) -> Self {
-        BlacklistProposalResponse { account }
     }
 }

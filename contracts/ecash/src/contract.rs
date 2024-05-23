@@ -1,32 +1,26 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{
-    to_binary, BankMsg, Coin, CosmosMsg, Event, Order, Reply, Response, StdError, StdResult,
-    SubMsg, WasmMsg,
-};
+use cosmwasm_std::{to_binary, BankMsg, Coin, Event, Order, Reply, Response, StdError, StdResult};
 use cw3::ProposalResponse;
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
-use cw_storage_plus::{Bound, IndexedMap, Item};
+use cw_storage_plus::{Bound, Item, Map};
 use nym_ecash_contract_common::blacklist::{
-    BlacklistProposal, BlacklistedAccount, BlacklistedAccountResponse,
-    PagedBlacklistedAccountResponse,
+    BlacklistedAccount, BlacklistedAccountResponse, PagedBlacklistedAccountResponse,
 };
 use nym_ecash_contract_common::events::{
     BLACKLIST_PROPOSAL_ID, BLACKLIST_PROPOSAL_REPLY_ID, DEPOSITED_FUNDS_EVENT_TYPE,
-    DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
+    DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO, DEPOSIT_VALUE,
 };
-use nym_ecash_contract_common::msg::ExecuteMsg;
-use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
+
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
 use sylvia::types::{ExecCtx, InstantiateCtx, QueryCtx, ReplyCtx};
 use sylvia::{contract, entry_points};
 
 use crate::errors::ContractError;
-use crate::state::Config;
-use crate::storage::{
-    self, BlacklistIndex, BlacklistProposalIndex, SpendCredentialIndex,
+use crate::helpers::{self, BlacklistKey, Config, ProposalId, SerialNumber};
+use crate::helpers::{
     BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT, SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT,
     SPEND_CREDENTIAL_PAGE_MAX_LIMIT,
 };
@@ -38,11 +32,9 @@ use nym_ecash_contract_common::spend_credential::{
 pub struct NymEcashContract<'a> {
     pub(crate) multisig: Admin<'a>,
     pub(crate) config: Item<'a, Config>,
-    pub(crate) spent_credentials:
-        IndexedMap<'a, &'a str, EcashSpentCredential, SpendCredentialIndex<'a>>,
-    pub(crate) blacklist: IndexedMap<'a, &'a str, BlacklistedAccount, BlacklistIndex<'a>>,
-    pub(crate) blacklist_proposals:
-        IndexedMap<'a, &'a str, BlacklistProposal, BlacklistProposalIndex<'a>>,
+    pub(crate) spent_credentials: Map<'a, SerialNumber, EcashSpentCredential>,
+    pub(crate) blacklist: Map<'a, BlacklistKey, BlacklistedAccount>,
+    pub(crate) blacklist_proposals: Map<'a, BlacklistKey, ProposalId>,
 }
 
 #[entry_points]
@@ -54,9 +46,9 @@ impl NymEcashContract<'_> {
         Self {
             multisig: Admin::new("multisig"),
             config: Item::new("config"),
-            spent_credentials: storage::spent_credentials(),
-            blacklist: storage::blacklist(),
-            blacklist_proposals: storage::blacklist_proposal(),
+            spent_credentials: Map::new("spent_credentials"),
+            blacklist: Map::new("blacklist"),
+            blacklist_proposals: Map::new("blacklist_proposal"),
         }
     }
 
@@ -130,7 +122,7 @@ impl NymEcashContract<'_> {
     ) -> StdResult<EcashSpentCredentialResponse> {
         let spend_credential = self
             .spent_credentials
-            .may_load(ctx.deps.storage, &serial_number)?;
+            .may_load(ctx.deps.storage, serial_number)?;
         Ok(EcashSpentCredentialResponse::new(spend_credential))
     }
 
@@ -171,7 +163,7 @@ impl NymEcashContract<'_> {
         ctx: QueryCtx,
         public_key: String,
     ) -> StdResult<BlacklistedAccountResponse> {
-        let account = self.blacklist.may_load(ctx.deps.storage, &public_key)?;
+        let account = self.blacklist.may_load(ctx.deps.storage, public_key)?;
         Ok(BlacklistedAccountResponse::new(account))
     }
 
@@ -199,8 +191,7 @@ impl NymEcashContract<'_> {
         let event = Event::new(DEPOSITED_FUNDS_EVENT_TYPE)
             .add_attribute(DEPOSIT_VALUE, voucher_value)
             .add_attribute(DEPOSIT_INFO, deposit_info)
-            .add_attribute(DEPOSIT_IDENTITY_KEY, identity_key)
-            .add_attribute(DEPOSIT_ENCRYPTION_KEY, encryption_key);
+            .add_attribute(DEPOSIT_IDENTITY_KEY, identity_key);
         Ok(Response::new().add_event(event))
     }
 
@@ -215,7 +206,7 @@ impl NymEcashContract<'_> {
 
         let gateway_cosmos_address = ctx.deps.api.addr_validate(&gateway_cosmos_address)?;
 
-        let msg = Self::create_spend_proposal(
+        let msg = helpers::create_spend_proposal(
             serial_number.to_string(),
             gateway_cosmos_address.to_string(),
             ctx.env.contract.address.into_string(),
@@ -246,8 +237,8 @@ impl NymEcashContract<'_> {
 
         self.spent_credentials.save(
             ctx.deps.storage,
-            &serial_number,
-            &EcashSpentCredential::new(serial_number.to_owned(), gateway_cosmos_address),
+            serial_number.clone(),
+            &EcashSpentCredential::new(serial_number, gateway_cosmos_address),
         )?;
 
         let response = Response::new().add_message(return_tokens);
@@ -266,17 +257,15 @@ impl NymEcashContract<'_> {
             .is_voting_member(&ctx.deps.querier, &ctx.info.sender, ctx.env.block.height)?
             .ok_or(ContractError::Unauthorized)?;
 
-        if let Some(blacklist_proposal) = self
+        if let Some(blacklist_proposal_id) = self
             .blacklist_proposals
-            .may_load(ctx.deps.storage, &public_key)?
+            .may_load(ctx.deps.storage, public_key.clone())?
         {
-            Ok(Response::new().add_attribute(
-                BLACKLIST_PROPOSAL_ID,
-                blacklist_proposal.proposal_id().to_string(),
-            ))
+            Ok(Response::new()
+                .add_attribute(BLACKLIST_PROPOSAL_ID, blacklist_proposal_id.to_string()))
         } else {
-            let msg = Self::create_blacklist_proposal(
-                public_key.to_string(),
+            let msg = helpers::create_blacklist_proposal(
+                public_key,
                 ctx.env.contract.address.into_string(),
                 cfg.multisig_addr.into_string(),
             )?;
@@ -296,11 +285,15 @@ impl NymEcashContract<'_> {
 
         self.blacklist.save(
             ctx.deps.storage,
-            &public_key.clone(),
-            &BlacklistedAccount::new(public_key),
+            public_key.clone(),
+            &BlacklistedAccount::new(public_key, ctx.env.block),
         )?;
         Ok(Response::new())
     }
+
+    /*=====================
+    =========REPLY=========
+    =====================*/
     #[msg(reply)]
     pub fn reply(&self, ctx: ReplyCtx, msg: Reply) -> Result<Response, ContractError> {
         match msg.id {
@@ -344,72 +337,9 @@ impl NymEcashContract<'_> {
             }),
         )?;
         let public_key = proposal_response.description;
-        self.blacklist_proposals.save(
-            ctx.deps.storage,
-            &public_key.clone(),
-            &BlacklistProposal::new(public_key, proposal_id),
-        )?;
+        self.blacklist_proposals
+            .save(ctx.deps.storage, public_key, &proposal_id)?;
 
         Ok(Response::new().add_attribute(BLACKLIST_PROPOSAL_ID, proposal_id.to_string()))
-    }
-
-    fn create_spend_proposal(
-        serial_number: String,
-        gateway_cosmos_address: String,
-        ecash_bandwidth_address: String,
-        multisig_addr: String,
-    ) -> StdResult<CosmosMsg> {
-        let release_funds_req = ExecuteMsg::SpendCredential {
-            serial_number: serial_number.clone(),
-            gateway_cosmos_address,
-        };
-        let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: ecash_bandwidth_address,
-            msg: to_binary(&release_funds_req)?,
-            funds: vec![],
-        });
-        let req = MultisigExecuteMsg::Propose {
-            title: String::from("Spend credential, as ordered by Ecash Bandwidth Contract"),
-            description: serial_number,
-            msgs: vec![release_funds_msg],
-            latest: None,
-        };
-        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: multisig_addr,
-            msg: to_binary(&req)?,
-            funds: vec![],
-        });
-
-        Ok(msg)
-    }
-
-    fn create_blacklist_proposal(
-        public_key: String,
-        ecash_bandwidth_address: String,
-        multisig_addr: String,
-    ) -> StdResult<SubMsg> {
-        let blacklist_req = ExecuteMsg::AddToBlacklist {
-            public_key: public_key.clone(),
-        };
-        let blacklist_req_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: ecash_bandwidth_address,
-            msg: to_binary(&blacklist_req)?,
-            funds: vec![],
-        });
-        let req = MultisigExecuteMsg::Propose {
-            title: String::from("Add to blacklist, as ordered by Ecash Bandwidth Contract"),
-            description: public_key,
-            msgs: vec![blacklist_req_msg],
-            latest: None,
-        };
-        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: multisig_addr,
-            msg: to_binary(&req)?,
-            funds: vec![],
-        });
-
-        let submsg = SubMsg::reply_always(msg, BLACKLIST_PROPOSAL_REPLY_ID);
-
-        Ok(submsg)
     }
 }

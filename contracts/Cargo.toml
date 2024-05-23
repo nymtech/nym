@@ -52,5 +52,6 @@ cw20 = "=1.1.2"
 semver = "1.0.21"
 serde = "1.0.196"
 sylvia = "0.8.0"
+schemars = "0.8.16"
 
 thiserror = "1.0.48"

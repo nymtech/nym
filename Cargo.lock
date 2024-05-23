@@ -4017,6 +4017,7 @@ dependencies = [
  "nym-node-requests",
  "schemars",
  "serde",
+ "serde_json",
  "tendermint",
  "time",
  "ts-rs",

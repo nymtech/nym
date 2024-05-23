@@ -8,11 +8,11 @@ use crate::error::NymNodeHttpError;
 use axum::routing::{get, post};
 use axum::Router;
 use ipnetwork::IpNetwork;
-use nym_crypto::asymmetric::encryption::PrivateKey;
+use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
-use nym_wireguard::setup;
 use nym_wireguard_types::registration::PrivateIPs;
 use nym_wireguard_types::registration::{GatewayClientRegistry, PendingRegistrations};
+use nym_wireguard_types::WireguardGatewayData;
 use std::sync::Arc;
 
 pub(crate) mod client_registry;
@@ -27,17 +27,15 @@ pub struct WireguardAppState {
 
 impl WireguardAppState {
     pub fn new(
-        client_registry: Arc<GatewayClientRegistry>,
+        wireguard_gateway_data: &WireguardGatewayData,
         registration_in_progress: Arc<PendingRegistrations>,
         binding_port: u16,
         private_ip_network: IpNetwork,
     ) -> Result<Self, NymNodeHttpError> {
         Ok(WireguardAppState {
             inner: Some(WireguardAppStateInner {
-                private_key: Arc::new(PrivateKey::from_bytes(
-                    setup::server_static_private_key().as_ref(),
-                )?),
-                client_registry,
+                keypair: wireguard_gateway_data.keypair().clone(),
+                client_registry: wireguard_gateway_data.client_registry().clone(),
                 registration_in_progress,
                 binding_port,
                 free_private_network_ips: Arc::new(
@@ -83,7 +81,7 @@ macro_rules! get_state {
 
 #[derive(Clone)]
 pub(crate) struct WireguardAppStateInner {
-    private_key: Arc<PrivateKey>,
+    keypair: Arc<KeyPair>,
     client_registry: Arc<GatewayClientRegistry>,
     registration_in_progress: Arc<PendingRegistrations>,
     binding_port: u16,
@@ -168,7 +166,7 @@ mod test {
         let state = WireguardAppState {
             inner: Some(WireguardAppStateInner {
                 client_registry: Arc::clone(&client_registry),
-                private_key: Arc::new(gateway_private_key),
+                keypair: Arc::new(gateway_private_key),
                 registration_in_progress: Arc::clone(&registration_in_progress),
                 binding_port: 8080,
                 free_private_network_ips,

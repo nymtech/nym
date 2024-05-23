@@ -31,7 +31,10 @@ async fn process_final_message(
         }
     };
 
-    if client.verify(&state.private_key, preshared_nonce).is_ok() {
+    if client
+        .verify(&state.keypair.private_key(), preshared_nonce)
+        .is_ok()
+    {
         state.registration_in_progress.remove(&client.pub_key());
         state.client_registry.insert(client.pub_key(), client);
 
@@ -101,7 +104,7 @@ pub(crate) async fn register_client(
             // mark it as used, even though it's not final
             *private_ip_ref = false;
             let gateway_data = GatewayClient::new(
-                &state.private_key,
+                &state.keypair.private_key(),
                 remote_public,
                 *private_ip_ref.key(),
                 nonce,

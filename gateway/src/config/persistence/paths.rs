@@ -169,15 +169,3 @@ impl KeysPaths {
         &self.public_sphinx_key_file
     }
 }
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct WireguardPaths {
-    // pub keys:
-}
-
-impl WireguardPaths {
-    pub fn new_empty() -> Self {
-        WireguardPaths {}
-    }
-}

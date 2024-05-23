@@ -40,7 +40,7 @@ pub mod vars {
     // wireguard:
     pub const NYMNODE_WG_ENABLED_ARG: &str = "NYMNODE_WG_ENABLED";
     pub const NYMNODE_WG_BIND_ADDRESS_ARG: &str = "NYMNODE_WG_BIND_ADDRESS";
-    pub const NYMNODE_WG_IP_NETWORK_ARG: &str = "NYMNODE_WG_IP_NETWORK";
+    pub const NYMNODE_WG_IP_ARG: &str = "NYMNODE_WG_IP";
     pub const NYMNODE_WG_ANNOUNCED_PORT_ARG: &str = "NYMNODE_WG_ANNOUNCED_PORT";
     pub const NYMNODE_WG_PRIVATE_NETWORK_PREFIX_ARG: &str = "NYMNODE_WG_PRIVATE_NETWORK_PREFIX";
 

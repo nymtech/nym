@@ -40,7 +40,7 @@ pub use crate::config::mixnode::MixnodeConfig;
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
 pub const DEFAULT_WIREGUARD_PORT: u16 = WG_PORT;
-pub const DEFAULT_WIREGUARD_NETWORK_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 1, 0, 0));
+pub const DEFAULT_WIREGUARD_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 1, 0, 1));
 pub const DEFAULT_WIREGUARD_PREFIX: u8 = 16;
 pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
 pub const DEFAULT_MIXNET_PORT: u16 = DEFAULT_MIX_LISTENING_PORT;
@@ -500,9 +500,9 @@ pub struct Wireguard {
     /// default: `0.0.0.0:51822`
     pub bind_address: SocketAddr,
 
-    /// Ip address of the private wireguard network.
-    /// default: `10.1.0.0`
-    pub private_network_ip: IpAddr,
+    /// Private IP address of the wireguard gateway.
+    /// default: `10.1.0.1`
+    pub private_ip: IpAddr,
 
     /// Port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
@@ -524,10 +524,28 @@ impl Wireguard {
                 IpAddr::V4(Ipv4Addr::UNSPECIFIED),
                 DEFAULT_WIREGUARD_PORT,
             ),
-            private_network_ip: DEFAULT_WIREGUARD_NETWORK_IP,
+            private_ip: DEFAULT_WIREGUARD_IP,
             announced_port: DEFAULT_WIREGUARD_PORT,
             private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
             storage_paths: persistence::WireguardPaths::new(data_dir),
         }
     }
+}
+
+impl Into<nym_wireguard_types::Config> for Wireguard {
+    fn into(self) -> nym_wireguard_types::Config {
+        nym_wireguard_types::Config {
+            bind_address: self.bind_address,
+            private_ip: self.private_ip,
+            announced_port: self.announced_port,
+            private_network_prefix: self.private_network_prefix,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalWireguardOpts {
+    pub config: Wireguard,
+
+    pub custom_mixnet_path: Option<PathBuf>,
 }

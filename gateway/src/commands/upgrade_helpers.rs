@@ -84,13 +84,13 @@ fn try_upgrade_v1_1_29_config(id: &str) -> Result<bool, GatewayError> {
 }
 
 fn try_upgrade_v1_1_31_config(id: &str) -> Result<bool, GatewayError> {
-    // explicitly load it as v1.1.30 (which is incompatible with the current, i.e. 1.1.31+)
+    // explicitly load it as v1.1.35 (which is incompatible with the current, i.e. 1.1.36+)
     let Ok(old_config) = ConfigV1_1_31::read_from_default_path(id) else {
         // if we failed to load it, there might have been nothing to upgrade
         // or maybe it was an even older file. in either way. just ignore it and carry on with our day
         return Ok(false);
     };
-    info!("It seems the gateway is using <= v1.1.30 config template.");
+    info!("It seems the gateway is using <= v1.1.35 config template.");
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();

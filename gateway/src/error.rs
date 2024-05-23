@@ -64,6 +64,17 @@ pub enum GatewayError {
     },
 
     #[error(
+        "failed to load config file for wireguard (gateway-id: '{id}') using path '{}'. detailed message: {source}",
+        path.display()
+    )]
+    WireguardConfigLoadFailure {
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
         "failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display()
     )]
     ConfigSaveFailure {
@@ -167,6 +178,17 @@ pub enum GatewayError {
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     #[error("failed to remove wireguard interface: {0}")]
     WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
+
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("wireguard not set")]
+    WireguardNotSet,
+
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("failed to catch an interrupt: {source}")]
+    StdError {
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 impl From<ClientCoreError> for GatewayError {

@@ -1,8 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::paths::{GatewayPaths, WireguardPaths};
-use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
@@ -14,8 +12,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
 
-use super::persistence::paths::KeysPaths;
-use super::{Config, Debug, Gateway, Host, Http, NetworkRequester, Wireguard};
+use super::{Host, Http};
+use crate::config::persistence::paths::KeysPaths;
+use crate::config::{Config, Debug, Gateway, GatewayPaths, LoggingSettings, NetworkRequester};
 
 const DEFAULT_GATEWAYS_DIR: &str = "gateways";
 
@@ -124,15 +123,6 @@ impl From<ConfigV1_1_31> for Config {
                 nym_api_urls: value.gateway.nym_api_urls,
                 nyxd_urls: value.gateway.nyxd_urls,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
-            },
-            wireguard: Wireguard {
-                enabled: value.wireguard.enabled,
-                bind_address: value.wireguard.bind_address,
-                announced_port: value.wireguard.announced_port,
-                private_network_prefix: Default::default(),
-                storage_paths: WireguardPaths {
-                    // no fields (yet)
-                },
             },
             storage_paths: GatewayPaths {
                 keys: KeysPaths {

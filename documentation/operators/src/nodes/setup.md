@@ -148,8 +148,8 @@ Options:
           Specifies whether the wireguard service is enabled on this node [env: NYMNODE_WG_ENABLED=] [possible values: true, false]
       --wireguard-bind-address <WIREGUARD_BIND_ADDRESS>
           Socket address this node will use for binding its wireguard interface. default: `0.0.0.0:51822` [env: NYMNODE_WG_BIND_ADDRESS=]
-      --wireguard-private-network-ip <WIREGUARD_PRIVATE_NETWORK_IP>
-          Ip address of the private wireguard network. default: `10.1.0.0` [env: NYMNODE_WG_IP_NETWORK=]
+      --wireguard-private-gw-ip <WIREGUARD_PRIVATE_IP>
+          Private IP address of the wireguard gateway. default: `10.1.0.1` [env: NYMNODE_WG_IP=]
       --wireguard-announced-port <WIREGUARD_ANNOUNCED_PORT>
           Port announced to external clients wishing to connect to the wireguard interface. Useful in the instances where the node is behind a proxy [env: NYMNODE_WG_ANNOUNCED_PORT=]
       --wireguard-private-network-prefix <WIREGUARD_PRIVATE_NETWORK_PREFIX>

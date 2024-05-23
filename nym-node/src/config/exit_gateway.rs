@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
+use super::LocalWireguardOpts;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExitGatewayConfig {
@@ -136,6 +138,7 @@ pub struct EphemeralConfig {
     pub gateway: nym_gateway::config::Config,
     pub nr_opts: LocalNetworkRequesterOpts,
     pub ipr_opts: LocalIpPacketRouterOpts,
+    pub wg_opts: LocalWireguardOpts,
 }
 
 fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
@@ -241,6 +244,18 @@ pub fn ephemeral_exit_gateway_config(
     let ipr_enabled = config.exit_gateway.ip_packet_router.debug.enabled;
     let nr_enabled = config.exit_gateway.network_requester.debug.enabled;
 
+    let wg_opts = LocalWireguardOpts {
+        config: super::Wireguard {
+            enabled: config.wireguard.enabled,
+            bind_address: config.wireguard.bind_address,
+            private_ip: config.wireguard.private_ip,
+            announced_port: config.wireguard.announced_port,
+            private_network_prefix: config.wireguard.private_network_prefix,
+            storage_paths: config.wireguard.storage_paths.clone(),
+        },
+        custom_mixnet_path: None,
+    };
+
     let mut gateway = ephemeral_gateway_config(config, mnemonic)?;
     gateway.ip_packet_router.enabled = ipr_enabled;
     gateway.network_requester.enabled = nr_enabled;
@@ -253,6 +268,7 @@ pub fn ephemeral_exit_gateway_config(
     Ok(EphemeralConfig {
         nr_opts,
         ipr_opts,
+        wg_opts,
         gateway,
     })
 }

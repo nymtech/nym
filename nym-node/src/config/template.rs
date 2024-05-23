@@ -115,9 +115,9 @@ enabled = {{ wireguard.enabled }}
 # default: `0.0.0.0:51822`
 bind_address = '{{ wireguard.bind_address }}'
 
-# Ip address of the private wireguard network.
-# default: `10.1.0.0`
-private_network_ip = '{{ wireguard.private_network_ip }}'
+# Private IP address of the wireguard gateway.
+# default: `10.1.0.1`
+private_ip = '{{ wireguard.private_ip }}'
 
 # Port announced to external clients wishing to connect to the wireguard interface.
 # Useful in the instances where the node is behind a proxy.
@@ -127,9 +127,12 @@ announced_port = {{ wireguard.announced_port }}
 # The maximum value for IPv4 is 32 and for IPv6 is 128
 private_network_prefix = {{ wireguard.private_network_prefix }}
 
-# Paths for wireguard keys, client registries, etc.
 [wireguard.storage_paths]
-# currently empty
+# Path to file containing wireguard x25519 diffie hellman private key.
+private_diffie_hellman_key_file = '{{ wireguard.storage_paths.private_diffie_hellman_key_file }}'
+
+# Path to file containing wireguard x25519 diffie hellman public key.
+public_diffie_hellman_key_file = '{{ wireguard.storage_paths.public_diffie_hellman_key_file }}'
 
 
 ##### mixnode mode nym-node config options #####

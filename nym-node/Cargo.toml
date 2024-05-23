@@ -60,3 +60,6 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 [build-dependencies]
 # temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
 cargo_metadata = "0.18.1"
+
+[features]
+wireguard = ["nym-gateway/wireguard"]

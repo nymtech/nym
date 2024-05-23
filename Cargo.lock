@@ -4576,7 +4576,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.36"
+version = "1.1.37"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5843,7 +5843,9 @@ dependencies = [
  "dashmap",
  "hmac 0.12.1",
  "log",
+ "nym-config",
  "nym-crypto",
+ "nym-network-defaults",
  "rand 0.7.3",
  "serde",
  "serde_json",

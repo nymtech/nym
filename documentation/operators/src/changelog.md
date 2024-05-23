@@ -71,11 +71,78 @@ This page displays a full list of all the changes during our release cycle from 
 curl -X 'GET' 'https://validator.nymtech.net/api/v1/status/gateway/Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf/avg_uptime' -H 'accept: application/json'
 ```
 
+- [Use rfc3339 for last_polled in described nym-api endpoint](https://github.com/nymtech/nym/pull/4591): Fix issue where the validator-client can't parse the nym-api response for the described endpoint, in particular the `latest_polled` field that was recently added, by making the field use `rfc3339`
+    - **Note:** This will require upgrading `nym-api` and everything that depends on the described endpoint. 
+    - Local testing using sdk examples:
+```sh
+cd <PATH_TO>/nym/sdk/rust/nym-sdk
+cargo run --example simple
+
+# outcome
+thread 'main' panicked at sdk/rust/nym-sdk/examples/simple.rs:9:64:
+called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(NymAPIError { source: ReqwestClientError { source: reqwest::Error { kind: Request, url: Url { scheme: "https", cannot_be_a_base: false, username: "", password: None, 
+```
+    - Testing steps performed:
+        - Update a `nym-api` to the binary built from this branch, then restart the api
+        - Check the `journalctl` for error messages
+        - Connected via client and could not see the error messages, this is backwards compatible
+- [Upgrade `axum` and related dependencies to the most recent version](https://github.com/nymtech/nym/pull/4573)
+- [Run cargo autoinherit on the main workspace](https://github.com/nymtech/nym/pull/4553): Move several dependencies to the workspace level using cargo autoinherit, to make it easier to keep our dependencies up to date.
+    - Run cargo autoinherit in the root
+    - Merge in the new workspace deps in the main list
+    - We made sure to not mix in other changes as well - all features flags for all crates should be the same as before
+    - Testing steps performed:
+        - Run `cargo autoinherit` in the root directory to move dependencies to the workspace level
+        - Merge the new workspace dependencies into the main list
+        - Ensure no other changes were mixed in during the process
+        - Verify that all feature flags for all crates remained the same as before
+        - Build all the binaries from this branch to confirm successful compilation
+        - Deploy the built binaries across different environments to ensure there were no issues 
+- [Add rustls-tls to reqwest in validator-client](https://github.com/nymtech/nym/pull/4552): An attempt to make possible to end up in a situation where use use the validator-client but without functioning TLS support. For the monorepo this is masked by cargo feature unification, but becomes a problem for outside consumers, as as been noticed in many of the vpn client implementations.
+    - In `validator-client`: `reqwest`, enable `rustls-tls` for `non-wasm32`
+    - In `client-core`: Use default features enabled for `non-wasm32` and switch to `webpki` roots, since that's what we're using with `reqwest` anyway
+    - In `gateway-client`: Switch to `webpki` roots, since that's what we're using with `reqwest` anyway
+                
+#### Crypto
+
+- [Remove blocking for coconut in the final epoch state](https://github.com/nymtech/nym/pull/4598)
+    - Testing steps performed:
+        - Build the project to ensure no compilation errors
+        - Run tests to verify the functionality of the `issue_credential` function
+        - Execute integration tests to check the behaviour during an epoch transition.
+- [Allow using explicit admin address for issuing freepasses](https://github.com/nymtech/nym/pull/4595)
+- [Explicitly handle constraint unique violation when importing credential](https://github.com/nymtech/nym/pull/4588): Add a strong type for when a duplicate credential is imported so the vpn lib can handle this.
+- [Feature/wasm coconut](https://github.com/nymtech/nym/pull/4584): This pull request requires [\#4585](https://github.com/nymtech/nym/pull/4585) to be merged first
+- [Feature/nyxd scraper pruning](https://github.com/nymtech/nym/pull/4564): This PR introduces storage pruning to `nyxd` scraper which is then used by the validators rewarder.
+    - Testing steps performed:
+        - Add a `main.rs` file in the `nyxd` scraper dir, underneath `lib.rs`, amend `config.pruning_options.validate()?;` to be `let _ = config.pruning_options.validate();` in the mod.rs file
+        - Test the different variations of `pruning_options`:
+            a. Check the *default* option: `pruning_options: PruningOptions::default()`
+            b. Check the *nothing* option: `pruning_options: PruningOptions::nothing()`
+            c. Check the *custom* option, example: `pruning_options: PruningOptions { keep_recent: (500), interval: (10), strategy: (PruningStrategy::Custom) }`
+            d. Check the pruning *in real life* for the validator rewarder
+        - Validate that the database table `blocks` was being updated accordingly
+- [Feature/rewarder voucher issuance](https://github.com/nymtech/nym/pull/4548)
+    - Introduces signature checks on issued credential data
+    - Stores evidence of any failures/malicious behaviour in the internal db
+
+### Bugfix
+
+- [[bugfix] `noop` flag for `nym-api` for `nymvisor` compatibility](https://github.com/nymtech/nym/pull/4586)
+    - The application starts correctly and logs the starting message
+    - The `--no_banner` flag works as intended, providing compatibility with `nymvisor`
+    - Testing steps performed:
+        - Build the project to ensure no compilation errors
+        - Run the binary with different command-line arguments to verify the CLI functionality
+        - Test with and without the `--no_banner` flag to ensure compatibility and expected behavior
+        - Verify logging setup and configuration file parsing
 
 ### Documentation Updates
 
 - [`nym-gateway-probe`](testing/gateway-probe.md): A CLI tool to check in-real-time networking status of any Gateway locally.
 - [Where to host your `nym-node`?](legal/isp-list.md): A list of Internet Service Providers (ISPs) by Nym Operators community. We invite all operators to add their experiences with different ISPs to strengthen the community knowledge and Nym mixnet performance. 
+
+---
 
 ## `v2024.4-nutella`
 
@@ -88,6 +155,8 @@ curl -X 'GET' 'https://validator.nymtech.net/api/v1/status/gateway/Fo4f4SQLdoyoG
     - Fixed the delegation issues with fixing RPC
 - [Network configuration](nodes/configuration.md#connectivity-test-and-configuration) section updates, in particular for `--mode mixnode` operators
 - [VPS IPv6 troubleshooting](troubleshooting/vps-isp.md#ipv6-troubleshooting) updates
+
+---
 
 ## `v2024.3-eclipse`
 

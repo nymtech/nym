@@ -22,7 +22,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Run cargo autoinherit on the main workspace ([#4553])
 - Add rustls-tls to reqwest in validator-client ([#4552])
 - Feature/rewarder voucher issuance ([#4548])
+- make sure 'OffsetDateTimeJsonSchemaWrapper' is serialised with legacy format  ([#4613])
 
+
+[#4613]: https://github.com/nymtech/nym/pull/4613
 [#4605]: https://github.com/nymtech/nym/pull/4605
 [#4604]: https://github.com/nymtech/nym/pull/4604
 [#4601]: https://github.com/nymtech/nym/pull/4601

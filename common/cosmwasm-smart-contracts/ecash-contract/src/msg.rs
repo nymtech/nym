@@ -20,7 +20,6 @@ pub enum ExecuteMsg {
     DepositFunds {
         deposit_info: String,
         identity_key: String,
-        encryption_key: String,
     },
     PrepareCredential {
         serial_number: String,
@@ -48,11 +47,8 @@ pub enum QueryMsg {
     GetSpentCredential { serial_number: String },
 
     #[cfg_attr(feature = "schema", returns(PagedSpendCredentialResponse))]
-    GetAllSpentCredentials {
+    GetAllSpentCredentialsPaged {
         limit: Option<u32>,
         start_after: Option<String>,
     },
 }
-
-// #[cw_serde]
-// pub struct MigrateMsg {}

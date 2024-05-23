@@ -33,7 +33,7 @@ pub trait EcashQueryClient {
         start_after: Option<String>,
         limit: Option<u32>,
     ) -> Result<PagedEcashSpentCredentialResponse, NyxdError> {
-        self.query_ecash_contract(EcashQueryMsg::GetAllSpentCredentials { limit, start_after })
+        self.query_ecash_contract(EcashQueryMsg::GetAllSpentCredentialsPaged { limit, start_after })
             .await
     }
 
@@ -90,7 +90,7 @@ mod tests {
             EcashQueryMsg::GetSpentCredential { serial_number } => {
                 client.get_spent_credential(serial_number).ignore()
             }
-            EcashQueryMsg::GetAllSpentCredentials { limit, start_after } => client
+            EcashQueryMsg::GetAllSpentCredentialsPaged { limit, start_after } => client
                 .get_all_spent_credential_paged(start_after, limit)
                 .ignore(),
             EcashQueryMsg::GetBlacklistedAccount { public_key } => {

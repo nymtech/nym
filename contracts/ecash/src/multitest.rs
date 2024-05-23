@@ -25,15 +25,10 @@ fn invalid_deposit() {
 
     let deposit_info = "Deposit info";
     let verification_key = "Verification key";
-    let encryption_key = "Encryption key";
 
     assert_eq!(
         contract
-            .deposit_funds(
-                deposit_info.to_string(),
-                verification_key.to_string(),
-                encryption_key.to_string()
-            )
+            .deposit_funds(deposit_info.to_string(), verification_key.to_string(),)
             .call(owner)
             .unwrap_err(),
         ContractError::InvalidDeposit(PaymentError::NoFunds {})
@@ -44,11 +39,7 @@ fn invalid_deposit() {
 
     assert_eq!(
         contract
-            .deposit_funds(
-                deposit_info.to_string(),
-                verification_key.to_string(),
-                encryption_key.to_string()
-            )
+            .deposit_funds(deposit_info.to_string(), verification_key.to_string(),)
             .with_funds(&[coin, second_coin.clone()])
             .call(owner)
             .unwrap_err(),
@@ -57,11 +48,7 @@ fn invalid_deposit() {
 
     assert_eq!(
         contract
-            .deposit_funds(
-                deposit_info.to_string(),
-                verification_key.to_string(),
-                encryption_key.to_string()
-            )
+            .deposit_funds(deposit_info.to_string(), verification_key.to_string(),)
             .with_funds(&[second_coin])
             .call(owner)
             .unwrap_err(),

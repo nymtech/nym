@@ -89,7 +89,7 @@ impl NymEcashContract<'_> {
     ======QUERIES=======
     ==================*/
     #[msg(query)]
-    pub fn get_all_spent_credentials(
+    pub fn get_all_spent_credentials_paged(
         &self,
         ctx: QueryCtx,
         limit: Option<u32>,
@@ -132,7 +132,7 @@ impl NymEcashContract<'_> {
     }
 
     #[msg(query)]
-    pub fn get_blacklist(
+    pub fn get_blacklist_paged(
         &self,
         ctx: QueryCtx,
         limit: Option<u32>,
@@ -182,7 +182,6 @@ impl NymEcashContract<'_> {
         ctx: ExecCtx,
         deposit_info: String,
         identity_key: String,
-        encryption_key: String,
     ) -> Result<Response, ContractError> {
         let mix_denom = self.config.load(ctx.deps.storage)?.mix_denom;
         let voucher_value = cw_utils::must_pay(&ctx.info, &mix_denom)?;

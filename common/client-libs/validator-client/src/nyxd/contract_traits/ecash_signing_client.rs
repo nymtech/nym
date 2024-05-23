@@ -25,13 +25,11 @@ pub trait EcashSigningClient {
         &self,
         info: String,
         verification_key: String,
-        encryption_key: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = EcashExecuteMsg::DepositFunds {
             deposit_info: info,
             identity_key: verification_key,
-            encryption_key,
         };
         let amount = Coin::new(TICKET_BOOK_VALUE, "unym");
         self.execute_ecash_contract(fee, req, "Ecash::Deposit".to_string(), vec![amount])
@@ -111,14 +109,8 @@ mod tests {
             EcashExecuteMsg::DepositFunds {
                 deposit_info,
                 identity_key,
-                encryption_key,
             } => client
-                .deposit(
-                    deposit_info.to_string(),
-                    identity_key.to_string(),
-                    encryption_key.to_string(),
-                    None,
-                )
+                .deposit(deposit_info.to_string(), identity_key.to_string(), None)
                 .ignore(),
             EcashExecuteMsg::PrepareCredential {
                 serial_number,

@@ -5120,6 +5120,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.7.5",
  "axum-extra",
+ "base64 0.21.7",
  "colored",
  "dashmap",
  "fastrand 2.1.0",

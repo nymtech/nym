@@ -106,6 +106,7 @@ mod test {
     use axum::body::Body;
     use axum::http::Request;
     use axum::http::StatusCode;
+    use base64::{engine::general_purpose, Engine as _};
     use dashmap::DashMap;
     use hmac::Mac;
     use ipnetwork::IpNetwork;
@@ -115,7 +116,6 @@ mod test {
         PeerPublicKey,
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
-    use nym_wireguard::setup::server_static_private_key;
     use nym_wireguard_types::registration::HmacSha256;
     use std::net::IpAddr;
     use std::str::FromStr;
@@ -123,6 +123,22 @@ mod test {
     use tower::Service;
     use tower::ServiceExt;
     use x25519_dalek::{PublicKey, StaticSecret};
+
+    const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
+
+    fn decode_base64_key(base64_key: &str) -> [u8; 32] {
+        general_purpose::STANDARD
+            .decode(base64_key)
+            .unwrap()
+            .try_into()
+            .unwrap()
+    }
+
+    fn server_static_private_key() -> x25519_dalek::StaticSecret {
+        // TODO: this is a temporary solution for development
+        let static_private_bytes: [u8; 32] = decode_base64_key(PRIVATE_KEY);
+        x25519_dalek::StaticSecret::from(static_private_bytes)
+    }
 
     #[tokio::test]
     async fn registration() {
@@ -166,7 +182,7 @@ mod test {
         let state = WireguardAppState {
             inner: Some(WireguardAppStateInner {
                 client_registry: Arc::clone(&client_registry),
-                keypair: Arc::new(gateway_private_key),
+                keypair: Arc::new(gateway_key_pair),
                 registration_in_progress: Arc::clone(&registration_in_progress),
                 binding_port: 8080,
                 free_private_network_ips,

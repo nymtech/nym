@@ -38,6 +38,7 @@ nym-wireguard = { path = "../../common/wireguard" }
 nym-wireguard-types = { path = "../../common/wireguard-types", features = ["verify"] }
 
 [dev-dependencies]
+base64 = { workspace = true }
 hyper.workspace = true
 dashmap.workspace = true
 serde_json.workspace = true

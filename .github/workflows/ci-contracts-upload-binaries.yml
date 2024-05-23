@@ -35,7 +35,7 @@ jobs:
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: 1.77.0
           target: wasm32-unknown-unknown
           override: true
 
@@ -46,6 +46,17 @@ jobs:
 
       - name: Build release contracts
         run: make contracts
+
+      - name: Install CosmWasm optimizer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+
+      - name: Optimize WASM contracts
+        run: |
+          docker run --rm -v $(pwd)/contracts/target/wasm32-unknown-unknown/release:/code \
+          --mount type=volume,source=cosmwasm_cache,target=/code/cache \
+          cosmwasm/workspace-optimizer:0.12.9
 
       - name: Prepare build output
         shell: bash
@@ -58,8 +69,7 @@ jobs:
           cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_dkg.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/cw4_group.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_service_provider_directory.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_name_service.wasm $OUTPUT_DIR
+          cp contracts/target/wasm32-unknown-unknown/release/nym_ecash.wasm $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true

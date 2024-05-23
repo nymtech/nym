@@ -28,6 +28,10 @@ pub struct NetworkAccount {
 }
 
 impl NetworkAccount {
+    pub fn tested_nodes(&self) -> &HashSet<u32> {
+        &self.tested_nodes
+    }
+
     pub fn node_stats(&self, id: u32) -> NodeStats {
         let complete_routes = self.complete_for_id(id);
         let incomplete_routes = self.incomplete_for_id(id);
@@ -194,6 +198,7 @@ pub struct NodeStats {
     mix_id: u32,
     complete_routes: usize,
     incomplete_routes: usize,
+    reliability: f64,
 }
 
 impl NodeStats {
@@ -202,6 +207,11 @@ impl NodeStats {
             mix_id,
             complete_routes,
             incomplete_routes,
+            reliability: complete_routes as f64 / (complete_routes + incomplete_routes) as f64,
         }
+    }
+
+    pub fn reliability(&self) -> f64 {
+        self.reliability
     }
 }

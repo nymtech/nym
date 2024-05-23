@@ -43,7 +43,7 @@ pub async fn stats_handler() -> Result<Json<NetworkAccountStats>, StatusCode> {
 
 #[utoipa::path(
     get,
-    path = "/v1/node/{mix_id}",
+    path = "/v1/node_stats/{mix_id}",
     responses(
         (status = 200, description = "Returns statistics for a given mix_id, collected since startup", body = NodeStats),
     )
@@ -51,6 +51,24 @@ pub async fn stats_handler() -> Result<Json<NetworkAccountStats>, StatusCode> {
 pub async fn node_stats_handler(Path(mix_id): Path<u32>) -> Result<Json<NodeStats>, StatusCode> {
     let account = NetworkAccount::finalize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(account.node_stats(mix_id)))
+}
+
+#[utoipa::path(
+    get,
+    path = "/v1/node_stats",
+    responses(
+        (status = 200, description = "Returns statistics for all nodes, collected since startup, sorted by reliability", body = Vec<NodeStats>),
+    )
+)]
+pub async fn all_nodes_stats_handler() -> Result<Json<Vec<NodeStats>>, StatusCode> {
+    let account = NetworkAccount::finalize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut stats = account
+        .tested_nodes()
+        .iter()
+        .map(|id| account.node_stats(*id))
+        .collect::<Vec<NodeStats>>();
+    stats.sort_by(|a, b| a.reliability().partial_cmp(&b.reliability()).unwrap());
+    Ok(Json(stats))
 }
 
 #[utoipa::path(

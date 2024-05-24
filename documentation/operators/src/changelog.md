@@ -151,7 +151,7 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 
 - [`nym-gateway-probe`](testing/gateway-probe.md): A CLI tool to check in-real-time networking status of any Gateway locally.
 - [Where to host your `nym-node`?](legal/isp-list.md): A list of Internet Service Providers (ISPs) by Nym Operators community. We invite all operators to add their experiences with different ISPs to strengthen the community knowledge and Nym mixnet performance.
-- Make sure you run `nym-node` with `--wireguard_enabled false` and add a location description to your `config.toml`, both documented in [`nym-node` setup manual](nodes/setup.md#mode-exit-gateway).
+- Make sure you run `nym-node` with `--wireguard-enabled false` and add a location description to your `config.toml`, both documented in [`nym-node` setup manual](nodes/setup.md#mode-exit-gateway).
 
 
 ---

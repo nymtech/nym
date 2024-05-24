@@ -3,6 +3,8 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
+const WG_TUN_NAME: &str = "nymwg";
+
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
@@ -22,7 +24,7 @@ pub async fn start_wireguard(
         peers.push(peer);
     }
 
-    let ifname = String::from("wg0");
+    let ifname = String::from(WG_TUN_NAME);
     let wgapi = WGApi::new(ifname.clone(), false)?;
     wgapi.create_interface()?;
     let interface_config = InterfaceConfiguration {

@@ -22,7 +22,7 @@ pub(crate) fn valid_bond_gateway_msg(
         ..tests::fixtures::gateway_fixture()
     };
 
-    let msg = gateway_bonding_sign_payload(deps, sender, None, gateway.clone(), stake);
+    let msg = gateway_bonding_sign_payload(deps, sender, gateway.clone(), stake);
     let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
     let identity_key = keypair.public_key().to_base58_string();

@@ -373,18 +373,14 @@ mod tests {
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::Addr;
     use mixnet_contract_common::pending_events::PendingEpochEventKind;
-    use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
     fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
         // if you attempt to undelegate non-existent delegation,
         // it will return an empty response, but will not fail
         let env = test.env();
         for i in 0..n {
-            let dummy_action = PendingEpochEventKind::Undelegate {
-                owner: Addr::unchecked("foomp"),
-                mix_id: i as MixId,
-                proxy: None,
-            };
+            let dummy_action =
+                PendingEpochEventKind::new_undelegate(Addr::unchecked("foomp"), i as MixId);
             storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
         }
     }
@@ -406,7 +402,7 @@ mod tests {
     mod performing_pending_epoch_actions {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use cosmwasm_std::{coin, coins, wasm_execute, BankMsg, Empty, SubMsg};
+        use cosmwasm_std::{coin, coins, BankMsg, Empty, SubMsg};
         use mixnet_contract_common::events::{
             new_active_set_update_event, new_delegation_on_unbonded_node_event,
             new_undelegation_event,
@@ -495,7 +491,6 @@ mod tests {
         #[test]
         fn catches_all_events_and_messages_from_executed_actions() {
             let mut test = TestSetup::new();
-            let vesting_contract = test.vesting_contract();
 
             let env = test.env();
             let legit_mix = test.add_dummy_mixnode("mix-owner", None);
@@ -509,50 +504,21 @@ mod tests {
             // delegate to node that doesn't exist,
             // we expect to receive BankMsg with tokens being returned,
             // and event regarding delegation
-            let non_existent_delegation = PendingEpochEventKind::Delegate {
-                owner: Addr::unchecked("foomp"),
-                mix_id: 123,
-                amount: coin(123, TEST_COIN_DENOM),
-                proxy: None,
-            };
+            let non_existent_delegation = PendingEpochEventKind::new_delegate(
+                Addr::unchecked("foomp"),
+                123,
+                coin(123, TEST_COIN_DENOM),
+            );
             storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
                 .unwrap();
             expected_events.push(new_delegation_on_unbonded_node_event(
                 &Addr::unchecked("foomp"),
-                &None,
                 123,
             ));
             expected_messages.push(SubMsg::new(BankMsg::Send {
                 to_address: "foomp".to_string(),
                 amount: coins(123, TEST_COIN_DENOM),
             }));
-
-            // delegation to node that doesn't exist with vesting contract
-            // we expect the same as above PLUS TrackUndelegation message
-            let non_existent_delegation = PendingEpochEventKind::Delegate {
-                owner: Addr::unchecked("foomp2"),
-                mix_id: 123,
-                amount: coin(123, TEST_COIN_DENOM),
-                proxy: Some(vesting_contract.clone()),
-            };
-            storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
-                .unwrap();
-            expected_events.push(new_delegation_on_unbonded_node_event(
-                &Addr::unchecked("foomp2"),
-                &Some(vesting_contract.clone()),
-                123,
-            ));
-            expected_messages.push(SubMsg::new(BankMsg::Send {
-                to_address: vesting_contract.clone().into_string(),
-                amount: coins(123, TEST_COIN_DENOM),
-            }));
-            let msg = VestingContractExecuteMsg::TrackUndelegation {
-                owner: "foomp2".to_string(),
-                mix_id: 123,
-                amount: coin(123, TEST_COIN_DENOM),
-            };
-            let track_undelegate_message = wasm_execute(vesting_contract, &msg, vec![]).unwrap();
-            expected_messages.push(SubMsg::new(track_undelegate_message));
 
             // updating active set should only emit events and no cosmos messages
             let action_with_event = PendingEpochEventKind::UpdateActiveSetSize { new_size: 50 };
@@ -561,16 +527,12 @@ mod tests {
             expected_events.push(new_active_set_update_event(env.block.height, 50));
 
             // undelegation just returns tokens and emits event
-            let legit_undelegate = PendingEpochEventKind::Undelegate {
-                owner: delegator.clone(),
-                mix_id: legit_mix,
-                proxy: None,
-            };
+            let legit_undelegate =
+                PendingEpochEventKind::new_undelegate(delegator.clone(), legit_mix);
             storage::push_new_epoch_event(test.deps_mut().storage, &env, legit_undelegate).unwrap();
             expected_events.push(new_undelegation_event(
                 env.block.height,
                 &delegator,
-                &None,
                 legit_mix,
             ));
             expected_messages.push(SubMsg::new(BankMsg::Send {
@@ -583,9 +545,9 @@ mod tests {
             let mut expected = Response::new().add_events(expected_events);
             expected.messages = expected_messages;
             assert_eq!(res, expected);
-            assert_eq!(executed, 4);
+            assert_eq!(executed, 3);
             assert_eq!(
-                4,
+                3,
                 storage::LAST_PROCESSED_EPOCH_EVENT
                     .load(test.deps().storage)
                     .unwrap()
@@ -1330,17 +1292,15 @@ mod tests {
             let mut expected_messages: Vec<SubMsg<Empty>> = Vec::new();
 
             // epoch event
-            let non_existent_delegation = PendingEpochEventKind::Delegate {
-                owner: Addr::unchecked("foomp"),
-                mix_id: 123,
-                amount: coin(123, TEST_COIN_DENOM),
-                proxy: None,
-            };
+            let non_existent_delegation = PendingEpochEventKind::new_delegate(
+                Addr::unchecked("foomp"),
+                123,
+                coin(123, TEST_COIN_DENOM),
+            );
             storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
                 .unwrap();
             expected_events.push(new_delegation_on_unbonded_node_event(
                 &Addr::unchecked("foomp"),
-                &None,
                 123,
             ));
             expected_messages.push(SubMsg::new(BankMsg::Send {

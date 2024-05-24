@@ -518,7 +518,6 @@ impl MixNodeBond {
         original_pledge: Coin,
         layer: Layer,
         mix_node: MixNode,
-        proxy: Option<Addr>,
         bonding_height: u64,
     ) -> Self {
         MixNodeBond {
@@ -527,7 +526,7 @@ impl MixNodeBond {
             original_pledge,
             layer,
             mix_node,
-            proxy,
+            proxy: None,
             bonding_height,
             is_unbonding: false,
         }

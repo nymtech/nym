@@ -76,22 +76,6 @@ pub enum MixnetContractError {
     #[error("Received multiple coin types during staking")]
     MultipleDenoms,
 
-    #[error("Proxy address mismatch, expected {existing}, got {incoming}")]
-    ProxyMismatch { existing: String, incoming: String },
-
-    #[error("Proxy address ({received}) is not set to the vesting contract ({vesting_contract})")]
-    ProxyIsNotVestingContract {
-        received: Addr,
-        vesting_contract: Addr,
-    },
-    #[error(
-        "Sender of this message ({received}) is not the vesting contract ({vesting_contract})"
-    )]
-    SenderIsNotVestingContract {
-        received: Addr,
-        vesting_contract: Addr,
-    },
-
     #[error("Failed to recover ed25519 public key from its base58 representation - {0}")]
     MalformedEd25519IdentityKey(String),
 
@@ -239,6 +223,9 @@ pub enum MixnetContractError {
         #[from]
         source: ApiVerifierError,
     },
+
+    #[error("this operation is no longer allowed to be performed with vesting tokens. please move them to your liquid balance and try again")]
+    DisabledVestingOperation,
 }
 
 impl MixnetContractError {

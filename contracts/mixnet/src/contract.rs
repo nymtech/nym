@@ -118,44 +118,6 @@ pub fn execute(
         ExecuteMsg::KickFamilyMember { member } => {
             crate::families::transactions::try_head_kick_member(deps, info, member)
         }
-        ExecuteMsg::CreateFamilyOnBehalf {
-            owner_address,
-            label,
-        } => crate::families::transactions::try_create_family_on_behalf(
-            deps,
-            info,
-            owner_address,
-            label,
-        ),
-        ExecuteMsg::JoinFamilyOnBehalf {
-            member_address,
-            join_permit,
-            family_head,
-        } => crate::families::transactions::try_join_family_on_behalf(
-            deps,
-            info,
-            member_address,
-            join_permit,
-            family_head,
-        ),
-        ExecuteMsg::LeaveFamilyOnBehalf {
-            member_address,
-            family_head,
-        } => crate::families::transactions::try_leave_family_on_behalf(
-            deps,
-            info,
-            member_address,
-            family_head,
-        ),
-        ExecuteMsg::KickFamilyMemberOnBehalf {
-            head_address,
-            member,
-        } => crate::families::transactions::try_head_kick_member_on_behalf(
-            deps,
-            info,
-            head_address,
-            member,
-        ),
         // state/sys-params-related
         ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
             crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address(
@@ -232,61 +194,22 @@ pub fn execute(
             cost_params,
             owner_signature,
         ),
-        ExecuteMsg::BondMixnodeOnBehalf {
-            mix_node,
-            cost_params,
-            owner,
-            owner_signature,
-        } => crate::mixnodes::transactions::try_add_mixnode_on_behalf(
-            deps,
-            env,
-            info,
-            mix_node,
-            cost_params,
-            owner,
-            owner_signature,
-        ),
         ExecuteMsg::PledgeMore {} => {
             crate::mixnodes::transactions::try_increase_pledge(deps, env, info)
-        }
-        ExecuteMsg::PledgeMoreOnBehalf { owner } => {
-            crate::mixnodes::transactions::try_increase_pledge_on_behalf(deps, env, info, owner)
         }
         ExecuteMsg::DecreasePledge { decrease_by } => {
             crate::mixnodes::transactions::try_decrease_pledge(deps, env, info, decrease_by)
         }
-        ExecuteMsg::DecreasePledgeOnBehalf { owner, decrease_by } => {
-            crate::mixnodes::transactions::try_decrease_pledge_on_behalf(
-                deps,
-                env,
-                info,
-                decrease_by,
-                owner,
-            )
-        }
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, env, info)
-        }
-        ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, env, info, owner)
         }
         ExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
             crate::mixnodes::transactions::try_update_mixnode_cost_params(
                 deps, env, info, new_costs,
             )
         }
-        ExecuteMsg::UpdateMixnodeCostParamsOnBehalf { new_costs, owner } => {
-            crate::mixnodes::transactions::try_update_mixnode_cost_params_on_behalf(
-                deps, env, info, new_costs, owner,
-            )
-        }
         ExecuteMsg::UpdateMixnodeConfig { new_config } => {
             crate::mixnodes::transactions::try_update_mixnode_config(deps, info, new_config)
-        }
-        ExecuteMsg::UpdateMixnodeConfigOnBehalf { new_config, owner } => {
-            crate::mixnodes::transactions::try_update_mixnode_config_on_behalf(
-                deps, info, new_config, owner,
-            )
         }
 
         // gateway-related:
@@ -300,50 +223,20 @@ pub fn execute(
             gateway,
             owner_signature,
         ),
-        ExecuteMsg::BondGatewayOnBehalf {
-            gateway,
-            owner,
-            owner_signature,
-        } => crate::gateways::transactions::try_add_gateway_on_behalf(
-            deps,
-            env,
-            info,
-            gateway,
-            owner,
-            owner_signature,
-        ),
         ExecuteMsg::UnbondGateway {} => {
             crate::gateways::transactions::try_remove_gateway(deps, info)
         }
-        ExecuteMsg::UnbondGatewayOnBehalf { owner } => {
-            crate::gateways::transactions::try_remove_gateway_on_behalf(deps, info, owner)
-        }
         ExecuteMsg::UpdateGatewayConfig { new_config } => {
             crate::gateways::transactions::try_update_gateway_config(deps, info, new_config)
-        }
-        ExecuteMsg::UpdateGatewayConfigOnBehalf { new_config, owner } => {
-            crate::gateways::transactions::try_update_gateway_config_on_behalf(
-                deps, info, new_config, owner,
-            )
         }
 
         // delegation-related:
         ExecuteMsg::DelegateToMixnode { mix_id } => {
             crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_id)
         }
-        ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, delegate } => {
-            crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
-                deps, env, info, mix_id, delegate,
-            )
-        }
         ExecuteMsg::UndelegateFromMixnode { mix_id } => {
             crate::delegations::transactions::try_remove_delegation_from_mixnode(
                 deps, env, info, mix_id,
-            )
-        }
-        ExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, delegate } => {
-            crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
-                deps, env, info, mix_id, delegate,
             )
         }
 
@@ -356,16 +249,29 @@ pub fn execute(
         ExecuteMsg::WithdrawOperatorReward {} => {
             crate::rewards::transactions::try_withdraw_operator_reward(deps, info)
         }
-        ExecuteMsg::WithdrawOperatorRewardOnBehalf { owner } => {
-            crate::rewards::transactions::try_withdraw_operator_reward_on_behalf(deps, info, owner)
-        }
         ExecuteMsg::WithdrawDelegatorReward { mix_id } => {
             crate::rewards::transactions::try_withdraw_delegator_reward(deps, info, mix_id)
         }
-        ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, owner } => {
-            crate::rewards::transactions::try_withdraw_delegator_reward_on_behalf(
-                deps, info, mix_id, owner,
-            )
+
+        // legacy vesting
+        ExecuteMsg::CreateFamilyOnBehalf { .. }
+        | ExecuteMsg::JoinFamilyOnBehalf { .. }
+        | ExecuteMsg::LeaveFamilyOnBehalf { .. }
+        | ExecuteMsg::KickFamilyMemberOnBehalf { .. }
+        | ExecuteMsg::BondMixnodeOnBehalf { .. }
+        | ExecuteMsg::PledgeMoreOnBehalf { .. }
+        | ExecuteMsg::DecreasePledgeOnBehalf { .. }
+        | ExecuteMsg::UnbondMixnodeOnBehalf { .. }
+        | ExecuteMsg::UpdateMixnodeCostParamsOnBehalf { .. }
+        | ExecuteMsg::UpdateMixnodeConfigOnBehalf { .. }
+        | ExecuteMsg::BondGatewayOnBehalf { .. }
+        | ExecuteMsg::UnbondGatewayOnBehalf { .. }
+        | ExecuteMsg::UpdateGatewayConfigOnBehalf { .. }
+        | ExecuteMsg::DelegateToMixnodeOnBehalf { .. }
+        | ExecuteMsg::UndelegateFromMixnodeOnBehalf { .. }
+        | ExecuteMsg::WithdrawOperatorRewardOnBehalf { .. }
+        | ExecuteMsg::WithdrawDelegatorRewardOnBehalf { .. } => {
+            Err(MixnetContractError::DisabledVestingOperation)
         }
 
         // testing-only
@@ -607,12 +513,14 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    crate::queued_migrations::vesting_purge(deps.branch())?;
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh

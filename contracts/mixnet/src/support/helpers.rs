@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::gateways::storage as gateways_storage;
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, CosmosMsg, MessageInfo, Response, Storage};
+use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixId, MixNodeBond};
-use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
+use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixNodeBond};
 
 // helper trait to attach `Msg` to a response if it's provided
 #[allow(dead_code)]
@@ -26,151 +24,22 @@ impl<T> AttachOptionalMessage<T> for Response<T> {
     }
 }
 
-// another helper trait to remove some duplicate code and consolidate comments regarding
-// possible epoch progression halting behaviour
-pub(crate) trait VestingTracking
-where
-    Self: Sized,
-{
-    fn maybe_add_track_vesting_undelegation_message(
-        self,
-        storage: &dyn Storage,
-        proxy: Option<Addr>,
-        owner: String,
-        mix_id: MixId,
-        amount: Coin,
-    ) -> Result<Self, MixnetContractError>;
-
-    fn maybe_add_track_vesting_unbond_mixnode_message(
-        self,
-        storage: &dyn Storage,
-        proxy: Option<Addr>,
-        owner: String,
-        amount: Coin,
-    ) -> Result<Self, MixnetContractError>;
-
-    fn maybe_add_track_vesting_decrease_mixnode_pledge(
-        self,
-        storage: &dyn Storage,
-        proxy: Option<Addr>,
-        owner: String,
-        amount: Coin,
-    ) -> Result<Self, MixnetContractError>;
+pub(crate) trait AttachSendTokens {
+    fn send_tokens(self, to: impl AsRef<str>, amount: Coin) -> Self;
 }
 
-impl VestingTracking for Response {
-    fn maybe_add_track_vesting_undelegation_message(
-        self,
-        storage: &dyn Storage,
-        proxy: Option<Addr>,
-        owner: String,
-        mix_id: MixId,
-        amount: Coin,
-    ) -> Result<Self, MixnetContractError> {
-        // if there's a proxy set (i.e. the vesting contract), send the track message
-        if let Some(proxy) = proxy {
-            let vesting_contract = mixnet_params_storage::vesting_contract_address(storage)?;
-
-            // Note: this can INTENTIONALLY cause epoch progression halt if the proxy is not the vesting contract
-            // But this is fine,  since this situation should have NEVER occurred in the first place
-            // (as all 'on_behalf' methods, including 'DelegateToMixnodeOnBehalf' that got us here,
-            // explicitly require the proxy to be the vesting contract)
-            // 'fixing' it would require manually inspecting the problematic event, investigating
-            // it's cause and manually (presumably via migration) clearing it.
-            if proxy != vesting_contract {
-                return Err(MixnetContractError::ProxyIsNotVestingContract {
-                    received: proxy,
-                    vesting_contract,
-                });
-            }
-
-            let msg = VestingContractExecuteMsg::TrackUndelegation {
-                owner,
-                mix_id,
-                amount,
-            };
-
-            let track_undelegate_message = wasm_execute(proxy, &msg, vec![])?;
-            Ok(self.add_message(track_undelegate_message))
-        } else {
-            // there's no proxy so nothing to do
-            Ok(self)
-        }
-    }
-
-    fn maybe_add_track_vesting_unbond_mixnode_message(
-        self,
-        storage: &dyn Storage,
-        proxy: Option<Addr>,
-        owner: String,
-        amount: Coin,
-    ) -> Result<Self, MixnetContractError> {
-        // if there's a proxy set (i.e. the vesting contract), send the track message
-        if let Some(proxy) = proxy {
-            let vesting_contract = mixnet_params_storage::vesting_contract_address(storage)?;
-
-            // exactly the same possible halting behaviour as in `maybe_add_track_vesting_undelegation_message`.
-            if proxy != vesting_contract {
-                return Err(MixnetContractError::ProxyIsNotVestingContract {
-                    received: proxy,
-                    vesting_contract,
-                });
-            }
-
-            let msg = VestingContractExecuteMsg::TrackUnbondMixnode { owner, amount };
-            let track_unbond_message = wasm_execute(proxy, &msg, vec![])?;
-            Ok(self.add_message(track_unbond_message))
-        } else {
-            // there's no proxy so nothing to do
-            Ok(self)
-        }
-    }
-
-    fn maybe_add_track_vesting_decrease_mixnode_pledge(
-        self,
-        storage: &dyn Storage,
-        proxy: Option<Addr>,
-        owner: String,
-        amount: Coin,
-    ) -> Result<Self, MixnetContractError> {
-        if let Some(proxy) = proxy {
-            let vesting_contract = mixnet_params_storage::vesting_contract_address(storage)?;
-
-            // exactly the same possible halting behaviour as in `maybe_add_track_vesting_undelegation_message`.
-            if proxy != vesting_contract {
-                return Err(MixnetContractError::ProxyIsNotVestingContract {
-                    received: proxy,
-                    vesting_contract,
-                });
-            }
-
-            let msg = VestingContractExecuteMsg::TrackDecreasePledge { owner, amount };
-            let track_decrease_pledge_message = wasm_execute(proxy, &msg, vec![])?;
-            Ok(self.add_message(track_decrease_pledge_message))
-        } else {
-            // there's no proxy so nothing to do
-            Ok(self)
-        }
+impl<T> AttachSendTokens for Response<T> {
+    fn send_tokens(self, to: impl AsRef<str>, amount: Coin) -> Self {
+        self.add_message(BankMsg::Send {
+            to_address: to.as_ref().to_string(),
+            amount: vec![amount],
+        })
     }
 }
 
 // pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
 //     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
 // }
-
-/// Attempts to construct a `BankMsg` to send specified tokens to the provided
-/// proxy address. If that's unavailable, the `BankMsg` will use the "owner" as the
-/// "to_address".
-pub(crate) fn send_to_proxy_or_owner(
-    proxy: &Option<Addr>,
-    owner: &Addr,
-    amount: Vec<Coin>,
-) -> BankMsg {
-    BankMsg::Send {
-        to_address: proxy.as_ref().unwrap_or(owner).to_string(),
-        amount,
-    }
-}
 
 pub(crate) fn validate_pledge(
     mut pledge: Vec<Coin>,
@@ -335,39 +204,6 @@ pub(crate) fn ensure_is_owner(
         return Err(MixnetContractError::Unauthorized);
     }
     Ok(())
-}
-
-pub(crate) fn ensure_proxy_match(
-    actual: &Option<Addr>,
-    expected: &Option<Addr>,
-) -> Result<(), MixnetContractError> {
-    if actual != expected {
-        return Err(MixnetContractError::ProxyMismatch {
-            existing: expected
-                .as_ref()
-                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-            incoming: actual
-                .as_ref()
-                .map_or_else(|| "None".to_string(), |a| a.as_str().to_string()),
-        });
-    }
-    Ok(())
-}
-
-pub(crate) fn ensure_sent_by_vesting_contract(
-    info: &MessageInfo,
-    storage: &dyn Storage,
-) -> Result<(), MixnetContractError> {
-    let vesting_contract_address =
-        crate::mixnet_contract_settings::storage::vesting_contract_address(storage)?;
-    if info.sender != vesting_contract_address {
-        Err(MixnetContractError::SenderIsNotVestingContract {
-            received: info.sender.clone(),
-            vesting_contract: vesting_contract_address,
-        })
-    } else {
-        Ok(())
-    }
 }
 
 pub(crate) fn ensure_bonded(bond: &MixNodeBond) -> Result<(), MixnetContractError> {

@@ -1,8 +1,19 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
-
+use super::storage;
+use crate::delegations::storage as delegations_storage;
+use crate::interval::storage as interval_storage;
+use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
+use crate::mixnodes::helpers::get_mixnode_details_by_owner;
+use crate::mixnodes::storage as mixnodes_storage;
+use crate::rewards::helpers;
+use crate::rewards::helpers::update_and_save_last_rewarded;
+use crate::support::helpers::{
+    ensure_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_owner,
+    AttachSendTokens,
+};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_mix_rewarding_event,
@@ -16,22 +27,6 @@ use mixnet_contract_common::reward_params::{
     IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
 };
 use mixnet_contract_common::{Delegation, EpochState, MixId};
-use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
-
-use crate::delegations::storage as delegations_storage;
-use crate::interval::storage as interval_storage;
-use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
-use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnodes::helpers::get_mixnode_details_by_owner;
-use crate::mixnodes::storage as mixnodes_storage;
-use crate::rewards::helpers;
-use crate::rewards::helpers::update_and_save_last_rewarded;
-use crate::support::helpers::{
-    ensure_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_owner,
-    ensure_proxy_match, ensure_sent_by_vesting_contract, send_to_proxy_or_owner,
-};
-
-use super::storage;
 
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut<'_>,
@@ -140,37 +135,16 @@ pub(crate) fn try_withdraw_operator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
 ) -> Result<Response, MixnetContractError> {
-    _try_withdraw_operator_reward(deps, info.sender, None)
-}
-
-pub(crate) fn try_withdraw_operator_reward_on_behalf(
-    deps: DepsMut<'_>,
-    info: MessageInfo,
-    owner: String,
-) -> Result<Response, MixnetContractError> {
-    ensure_sent_by_vesting_contract(&info, deps.storage)?;
-
-    let proxy = info.sender;
-    let owner = deps.api.addr_validate(&owner)?;
-    _try_withdraw_operator_reward(deps, owner, Some(proxy))
-}
-
-pub(crate) fn _try_withdraw_operator_reward(
-    deps: DepsMut<'_>,
-    owner: Addr,
-    proxy: Option<Addr>,
-) -> Result<Response, MixnetContractError> {
-    // we need to grab all of the node's details so we'd known original pledge alongside
+    // we need to grab all of the node's details, so we'd known original pledge alongside
     // all the earned rewards (and obviously to know if this node even exists and is still
     // in the bonded state)
-    let mix_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?.ok_or(
+    let mix_details = get_mixnode_details_by_owner(deps.storage, info.sender.clone())?.ok_or(
         MixnetContractError::NoAssociatedMixNodeBond {
-            owner: owner.clone(),
+            owner: info.sender.clone(),
         },
     )?;
     let mix_id = mix_details.mix_id();
 
-    ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
     ensure_bonded(&mix_details.bond_information)?;
 
     let reward = helpers::withdraw_operator_reward(deps.storage, mix_details)?;
@@ -178,26 +152,13 @@ pub(crate) fn _try_withdraw_operator_reward(
 
     // if the reward is zero, don't track or send anything - there's no point
     if !reward.amount.is_zero() {
-        let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
-        response = response.add_message(return_tokens);
-
-        if let Some(proxy) = &proxy {
-            // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
-            // otherwise, we don't care
-            let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
-            if proxy == vesting_contract {
-                let msg = VestingContractExecuteMsg::TrackReward {
-                    amount: reward.clone(),
-                    address: owner.clone().into_string(),
-                };
-                let track_reward_message = wasm_execute(proxy, &msg, vec![])?;
-                response = response.add_message(track_reward_message);
-            }
-        }
+        response = response.send_tokens(&info.sender, reward.clone())
     }
 
     Ok(response.add_event(new_withdraw_operator_reward_event(
-        &owner, &proxy, reward, mix_id,
+        &info.sender,
+        reward,
+        mix_id,
     )))
 }
 
@@ -206,36 +167,14 @@ pub(crate) fn try_withdraw_delegator_reward(
     info: MessageInfo,
     mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
-    _try_withdraw_delegator_reward(deps, mix_id, info.sender, None)
-}
-
-pub(crate) fn try_withdraw_delegator_reward_on_behalf(
-    deps: DepsMut<'_>,
-    info: MessageInfo,
-    mix_id: MixId,
-    owner: String,
-) -> Result<Response, MixnetContractError> {
-    ensure_sent_by_vesting_contract(&info, deps.storage)?;
-
-    let proxy = info.sender;
-    let owner = deps.api.addr_validate(&owner)?;
-    _try_withdraw_delegator_reward(deps, mix_id, owner, Some(proxy))
-}
-
-pub(crate) fn _try_withdraw_delegator_reward(
-    deps: DepsMut<'_>,
-    mix_id: MixId,
-    owner: Addr,
-    proxy: Option<Addr>,
-) -> Result<Response, MixnetContractError> {
     // see if the delegation even exists
-    let storage_key = Delegation::generate_storage_key(mix_id, &owner, proxy.as_ref());
+    let storage_key = Delegation::generate_storage_key(mix_id, &info.sender, None);
     let delegation = match delegations_storage::delegations().may_load(deps.storage, storage_key)? {
         None => {
             return Err(MixnetContractError::NoMixnodeDelegationFound {
                 mix_id,
-                address: owner.into_string(),
-                proxy: proxy.map(Addr::into_string),
+                address: info.sender.into_string(),
+                proxy: None,
             });
         }
         Some(delegation) => delegation,
@@ -257,33 +196,18 @@ pub(crate) fn _try_withdraw_delegator_reward(
         _ => (),
     };
 
-    ensure_proxy_match(&proxy, &delegation.proxy)?;
-
     let reward = helpers::withdraw_delegator_reward(deps.storage, delegation, mix_rewarding)?;
     let mut response = Response::new();
 
     // if the reward is zero, don't track or send anything - there's no point
     if !reward.amount.is_zero() {
-        let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![reward.clone()]);
-        response = response.add_message(return_tokens);
-
-        if let Some(proxy) = &proxy {
-            // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
-            // otherwise, we don't care
-            let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
-            if proxy == vesting_contract {
-                let msg = VestingContractExecuteMsg::TrackReward {
-                    amount: reward.clone(),
-                    address: owner.clone().into_string(),
-                };
-                let track_reward_message = wasm_execute(proxy, &msg, vec![])?;
-                response = response.add_message(track_reward_message);
-            }
-        }
+        response = response.send_tokens(&info.sender, reward.clone())
     }
 
     Ok(response.add_event(new_withdraw_delegator_reward_event(
-        &owner, &proxy, reward, mix_id,
+        &info.sender,
+        reward,
+        mix_id,
     )))
 }
 
@@ -1405,13 +1329,10 @@ pub mod tests {
 
     #[cfg(test)]
     mod withdrawing_delegator_reward {
-        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Decimal, Uint128};
-
-        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
-
         use crate::interval::pending_events;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
+        use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         use super::*;
 
@@ -1742,60 +1663,14 @@ pub mod tests {
             let accumulated_actual = truncate_reward_amount(accumulated_quad);
             assert_eq_with_leeway(total_claimed, accumulated_actual, Uint128::new(6));
         }
-
-        #[test]
-        fn fails_for_illegal_proxy() {
-            let test = TestSetup::new();
-
-            let illegal_proxy = Addr::unchecked("not-vesting-contract");
-            let vesting_contract = test.vesting_contract();
-
-            let mut test = TestSetup::new();
-            let mix_id =
-                test.add_dummy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
-
-            let delegator = "delegator";
-
-            test.add_immediate_delegation_with_illegal_proxy(
-                delegator,
-                100_000_000u128,
-                mix_id,
-                illegal_proxy.clone(),
-            );
-
-            // reward the node
-            test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
-            test.start_epoch_transition();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
-
-            let res = try_withdraw_delegator_reward_on_behalf(
-                test.deps_mut(),
-                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
-                mix_id,
-                delegator.to_string(),
-            )
-            .unwrap_err();
-
-            assert_eq!(
-                res,
-                MixnetContractError::SenderIsNotVestingContract {
-                    received: illegal_proxy,
-                    vesting_contract,
-                }
-            )
-        }
     }
 
     #[cfg(test)]
     mod withdrawing_operator_reward {
-        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Uint128};
-
-        use crate::interval::pending_events;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use crate::support::tests::test_helpers::TestSetup;
-
         use super::*;
+        use crate::interval::pending_events;
+        use crate::support::tests::test_helpers::TestSetup;
+        use cosmwasm_std::{Addr, BankMsg, CosmosMsg, Uint128};
 
         #[test]
         fn can_only_be_done_if_bond_exists() {
@@ -1907,42 +1782,6 @@ pub mod tests {
                     owner: Addr::unchecked(owner2)
                 })
             );
-        }
-
-        #[test]
-        fn fails_for_illegal_proxy() {
-            let mut test = TestSetup::new();
-
-            let illegal_proxy = Addr::unchecked("not-vesting-contract");
-            let vesting_contract = test.vesting_contract();
-
-            let owner = "mix-owner1";
-            let mix_id = test.add_dummy_mixnode_with_illegal_proxy(
-                owner,
-                Some(Uint128::new(1_000_000_000_000)),
-                illegal_proxy.clone(),
-            );
-
-            // reward the node
-            test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
-            test.start_epoch_transition();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
-
-            let res = try_withdraw_operator_reward_on_behalf(
-                test.deps_mut(),
-                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
-                owner.to_string(),
-            )
-            .unwrap_err();
-
-            assert_eq!(
-                res,
-                MixnetContractError::SenderIsNotVestingContract {
-                    received: illegal_proxy,
-                    vesting_contract,
-                }
-            )
         }
     }
 

@@ -231,7 +231,7 @@ impl<St> Gateway<St> {
     async fn start_wireguard(
         &self,
         shutdown: TaskClient,
-    ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<nym_wireguard::WgApiWrapper, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(wireguard_data) = self.wireguard_data.as_ref() {
             nym_wireguard::start_wireguard(shutdown, Arc::clone(wireguard_data)).await
         } else {
@@ -571,7 +571,7 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        let wg_api = self
+        let _wg_api = self
             .start_wireguard(shutdown.fork("wireguard"))
             .await
             .map_err(|source| GatewayError::StdError { source })?;
@@ -590,8 +590,6 @@ impl<St> Gateway<St> {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             return Err(GatewayError::ShutdownFailure { source });
         }
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&wg_api)?;
 
         Ok(())
     }

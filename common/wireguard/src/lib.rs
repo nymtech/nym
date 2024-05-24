@@ -3,14 +3,35 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
+use defguard_wireguard_rs::WGApi;
+
 const WG_TUN_NAME: &str = "nymwg";
+
+pub struct WgApiWrapper {
+    wg_api: WGApi,
+}
+
+impl WgApiWrapper {
+    pub fn new(wg_api: WGApi) -> Self {
+        WgApiWrapper { wg_api }
+    }
+}
+
+impl Drop for WgApiWrapper {
+    fn drop(&mut self) {
+        if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.wg_api)
+        {
+            log::error!("Could not remove the wireguard interface: {:?}", e);
+        }
+    }
+}
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     mut task_client: nym_task::TaskClient,
     wireguard_data: std::sync::Arc<nym_wireguard_types::WireguardGatewayData>,
-) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<WgApiWrapper, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{
         host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WGApi, WireguardInterfaceApi,
@@ -39,7 +60,7 @@ pub async fn start_wireguard(
 
     tokio::spawn(async move { task_client.recv().await });
 
-    Ok(wgapi)
+    Ok(WgApiWrapper::new(wgapi))
 }
 
 #[cfg(not(target_os = "linux"))]

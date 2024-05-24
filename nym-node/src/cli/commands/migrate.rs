@@ -308,6 +308,8 @@ async fn migrate_mixnode(mut args: Args) -> Result<(), NymNodeError> {
     // exit gateway initialisation
     crate::node::ExitGatewayData::initialise(&config.exit_gateway, ed25519_public_key).await?;
 
+    crate::node::WireguardData::initialise(&config.wireguard)?;
+
     config.save()?;
 
     info!(

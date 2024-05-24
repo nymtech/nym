@@ -16,6 +16,7 @@ use rocket_okapi::openapi;
 
 use super::helpers::_get_gateways_detailed;
 use super::NodeStatusCache;
+use crate::network_monitor::monitor::summary_producer::MixnodeResult;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
     _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
@@ -28,6 +29,24 @@ use crate::node_status_api::helpers::{
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
 use crate::NymContractCache;
+
+#[openapi(tag = "status")]
+#[post("/submit", data = "<results>")]
+pub(crate) async fn submit_monitoring_results(
+    results: Json<Vec<MixnodeResult>>,
+    storage: &State<NymApiStorage>,
+) -> Result<(), ErrorResponse> {
+    match storage.manager.submit_mixnode_statuses_v2(results.0).await {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("failed to submit monitoring results: {}", err);
+            Err(ErrorResponse::new(
+                "failed to submit monitoring results".to_string(),
+                rocket::http::Status::InternalServerError,
+            ))
+        }
+    }
+}
 
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/report")]

@@ -25,23 +25,37 @@ class MainFunctions:
         print(f"Version = {version}")
         if mix_id:
             print(f"Mix ID = {mix_id}")
-        #api_data = self.format_dataframe(api_data)
         print("\n\nNODE RESULTS FROM UNFILTERED QUERY\n")
-        self.print_neat_dict(node_dict)
+        if args.markdown:
+            node_markdown = self._dataframe_to_markdown(node_df, ["RESULT"], ["API EDNPOINT"])
+            print(node_markdown, "\n")
+        else:
+            self.print_neat_dict(node_dict)
         print(f"\n\nNODE RESULTS FROM {self.api_url.upper()}\n")
-        self.print_neat_dict(api_data)
-#        print(node_df.T.to_markdown(), "\n")
-#        print(api_data.to_markdown(), "\n")
+        if args.markdown:
+            api_df = self._json_to_dataframe(api_data)
+            node_markdown = self._dataframe_to_markdown(api_df, ["RESULT"], ["API EDNPOINT"])
+            print(node_markdown, "\n")
+        else:
+            self.print_neat_dict(api_data)
         if swagger_data:
             print(f"\n\nNODE RESULTS FROM SWAGGER PAGE\n")
-            self.print_neat_dict(swagger_data)
+            if args.markdown:
+                swagger_df = self._json_to_dataframe(swagger_data)
+                node_markdown = self._dataframe_to_markdown(swagger_df, ["RESULT"], ["API EDNPOINT"])
+                print(node_markdown, "\n")
+            else:
+                self.print_neat_dict(swagger_data)
         if routing_history:
             print(f"\n\nNODE UPTIME HISTORY\n")
-            self.print_neat_dict(routing_history)
-#            swagger_data = self.format_dataframe(swagger_data)
-#            routing_history = self.format_dataframe(routing_history)
-#            print(swagger_data.to_markdown())
-#            print(routing_history.to_markdown())
+            if args.markdown:
+                routing_history_df = self._json_to_dataframe(routing_history)
+                print(routing_history_df.to_markdown(index = False))
+#                node_markdown = self._dataframe_to_markdown(routing_history_df, ["PERFORMANCE"], ["TIME"])
+#                print(node_markdown, "\n")
+            else:
+                self.print_neat_dict(routing_history)
+
 
     def collect_all_results(self,args):
         id_key = args.id
@@ -51,14 +65,13 @@ class MainFunctions:
         mixnodes_df = self._json_to_dataframe(mixnodes_unfiltered)
         mixnodes_df = self._set_index_to_empty(mixnodes_df)
         mode, node_df, node_dict = self.get_node_df(id_key, gateways_df, mixnodes_df, gateways_unfiltered, mixnodes_unfiltered)
-        host, version, mix_id, role, api_data, swagger_data, routing_history = self.get_node_data(mode, node_dict, id_key)
+        host, version, mix_id, role, api_data, swagger_data, routing_history = self.get_node_data(mode, node_dict, id_key, args)
         return mode, host, version, mix_id, role, node_df, node_dict, api_data, swagger_data, routing_history
 
     def get_node_df(self,id_key, gateways_df, mixnodes_df, gateways_unfiltered,mixnodes_unfiltered):
         if id_key in mixnodes_df['mixnode_details.bond_information.mix_node.identity_key'].values:
             node_df = mixnodes_df.loc[mixnodes_df['mixnode_details.bond_information.mix_node.identity_key'] == id_key]
             node_dict = next((mn for mn in mixnodes_unfiltered if mn['mixnode_details']['bond_information']['mix_node']['identity_key'] == f"{id_key}"), None)
-
             mode = "mixnode"
         elif id_key in gateways_df["gateway_bond.gateway.identity_key"].values:
             node_df = gateways_df.loc[gateways_df["gateway_bond.gateway.identity_key"] == id_key]
@@ -77,7 +90,7 @@ class MainFunctions:
         mix_id = int(node_df["mixnode_details.bond_information.mix_id"])
 
 
-    def get_node_data(self,mode, node_dict, id_key):
+    def get_node_data(self,mode, node_dict, id_key, args):
         #endpoint_json = self.get_api_endpoints()
         identity = id_key
         endpoint_json = self.api_endpoints_json
@@ -140,6 +153,11 @@ class MainFunctions:
             sys.exit(-1)
         host = str(host)
 
+        if args.no_routing_history == True:
+            routing_history = None
+        else:
+            routing_history = routing_history
+
         return host, version, mix_id, role, api_data, swagger_data, routing_history
 
 #    def get_api_endpoints(self):
@@ -155,6 +173,14 @@ class MainFunctions:
         df.index = new_index
         return df
 
+    def _dataframe_to_markdown(self,df,col_names, index_names=""):
+        df = df.T
+#        print(f"columns = {df.columns}")
+#        print(f"index = {df.index}")
+        df.index.names = index_names
+        df.columns  = col_names
+        markdown = df.to_markdown()
+        return markdown
 
     def format_dataframe(self, df):
         #df = pd.DataFrame(df)
@@ -192,11 +218,16 @@ class ArgParser:
 
         # sub-command parsers
         subparsers = parser.add_subparsers(help="{subcommand}[-h] shows all the options")
-        parser_check = subparsers.add_parser('check',help='Run with node identity key', aliases=['c','C'])
+        parser_pull_stats = subparsers.add_parser('pull_stats',help='Run with node identity key', aliases=['p','P','pull'])
 
-        # check - arguments
-        parser_check.add_argument("id", help="supply nym-node identity key")
-        parser_check.set_defaults(func=self.functions.display_results)
+        # pull_stats arguments
+        parser_pull_stats.add_argument("id", help="supply nym-node identity key")
+        parser_pull_stats.add_argument("-n","--no_routing_history", help="Display node stats without routing history", action="store_true")
+        parser_pull_stats.add_argument("-m","--markdown",help="Display node stats in markdown format", action="store_true")
+        parser_pull_stats.add_argument("-o","--output",help="Save results to file")
+
+
+        parser_pull_stats.set_defaults(func=self.functions.display_results)
 
         args = parser.parse_args()
 

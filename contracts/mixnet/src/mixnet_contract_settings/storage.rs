@@ -43,12 +43,6 @@ pub(crate) fn rewarding_denom(storage: &dyn Storage) -> Result<String, MixnetCon
         .map(|state| state.rewarding_denom)?)
 }
 
-pub(crate) fn vesting_contract_address(storage: &dyn Storage) -> Result<Addr, MixnetContractError> {
-    Ok(CONTRACT_STATE
-        .load(storage)
-        .map(|state| state.vesting_contract_address)?)
-}
-
 pub(crate) fn initialise_storage(
     storage: &mut dyn Storage,
     initial_state: ContractState,

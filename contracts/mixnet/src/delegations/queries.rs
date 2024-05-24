@@ -302,10 +302,7 @@ mod tests {
 
     mod delegator_delegations {
         use super::*;
-        use crate::delegations::transactions::try_delegate_to_mixnode_on_behalf;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, Addr};
+        use cosmwasm_std::Addr;
 
         #[test]
         fn obeys_limits() {
@@ -453,24 +450,9 @@ mod tests {
         #[test]
         fn all_retrieved_delegations_are_from_the_specified_delegator() {
             let mut test = TestSetup::new();
-            let env = test.env();
+
             // it means we have, for example, delegation from "delegator1" towards mix1, mix2, ...., from "delegator2" towards mix1, mix2, ...., etc
             add_dummy_mixes_with_delegations(&mut test, 50, 100);
-
-            // add some proxies while we're at it to make sure they're queried for separately
-            let with_proxy = "delegator42";
-            let vesting_contract = test.vesting_contract();
-            for mix_id in 1..=25 {
-                try_delegate_to_mixnode_on_behalf(
-                    test.deps_mut(),
-                    env.clone(),
-                    mock_info(vesting_contract.as_ref(), &[coin(100_000, TEST_COIN_DENOM)]),
-                    mix_id,
-                    with_proxy.into(),
-                )
-                .unwrap();
-            }
-            test.execute_all_pending_events();
 
             // make few queries
             let res1 =
@@ -490,59 +472,6 @@ mod tests {
                 .delegations
                 .into_iter()
                 .all(|d| d.owner == Addr::unchecked("delegator35")));
-
-            let with_proxy_full =
-                query_delegator_delegations_paged(test.deps(), with_proxy.into(), None, None)
-                    .unwrap();
-            assert_eq!(with_proxy_full.delegations.len(), 125);
-
-            // all delegations have correct owner
-            assert!(with_proxy_full
-                .delegations
-                .iter()
-                .all(|d| d.owner == Addr::unchecked(with_proxy)));
-
-            // and we have 100 delegations without proxy and 25 with
-            let no_proxy = with_proxy_full
-                .delegations
-                .iter()
-                .filter(|d| d.proxy.is_none())
-                .count();
-            assert_eq!(no_proxy, 100);
-            let proxy = with_proxy_full
-                .delegations
-                .iter()
-                .filter(|d| d.proxy.is_some())
-                .count();
-            assert_eq!(proxy, 25);
-
-            assert!(with_proxy_full
-                .delegations
-                .iter()
-                .filter(|d| d.proxy.is_some())
-                .all(|d| d.proxy.as_ref().unwrap() == vesting_contract));
-
-            // now make sure that if we do it in paged manner, we'll get exactly the same result
-            let per_page = Some(15);
-            let mut delegations = Vec::new();
-            let mut start_after = None;
-            loop {
-                let mut paged_response = query_delegator_delegations_paged(
-                    test.deps(),
-                    with_proxy.into(),
-                    start_after,
-                    per_page,
-                )
-                .unwrap();
-                delegations.append(&mut paged_response.delegations);
-
-                if let Some(start_after_res) = paged_response.start_next_after {
-                    start_after = Some(start_after_res)
-                } else {
-                    break;
-                }
-            }
-            assert_eq!(with_proxy_full.delegations, delegations)
         }
     }
 

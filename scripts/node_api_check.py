@@ -86,10 +86,6 @@ class MainFunctions:
         mixnodes_unfiltered = r.get(f"{self.api_url}/status/mixnodes/detailed-unfiltered").json()
         return gateways_unfiltered, mixnodes_unfiltered
 
-    def get_mixnode_data(self, node_df, id_key):
-        mix_id = int(node_df["mixnode_details.bond_information.mix_id"])
-
-
     def get_node_data(self,mode, node_dict, id_key, args):
         #endpoint_json = self.get_api_endpoints()
         identity = id_key
@@ -160,10 +156,6 @@ class MainFunctions:
 
         return host, version, mix_id, role, api_data, swagger_data, routing_history
 
-#    def get_api_endpoints(self):
-#        endpoint_json = r.get(self.api_existing_endpoints_url).json()
-#        return endpoint_json
-
     def _set_index_to_empty(self, df):
         index_len = pd.RangeIndex(len(df.index))
         new_index = []
@@ -217,8 +209,8 @@ class ArgParser:
         parser.add_argument("-V","--version", action="version", version='%(prog)s 0.1.0')
 
         # sub-command parsers
-        subparsers = parser.add_subparsers(help="{subcommand}[-h] shows all the options")
-        parser_pull_stats = subparsers.add_parser('pull_stats',help='Run with node identity key', aliases=['p','P','pull'])
+        subparsers = parser.add_subparsers()
+        parser_pull_stats = subparsers.add_parser('pull_stats',help='Run with node identity key', aliases=['p'])
 
         # pull_stats arguments
         parser_pull_stats.add_argument("id", help="supply nym-node identity key")
@@ -232,10 +224,17 @@ class ArgParser:
         args = parser.parse_args()
 
         try:
-            args.func(args)
-        except AttributeError as e:
-            msg = f"{e}.\nPlease run __file__ --help"
-            self.panic(msg)
+            func = args.func
+            try:
+                args.func(args)
+            except AttributeError as e:
+                msg = f"{e}.\nPlease run python {__file__} --help"
+                self.panic(msg)
+            except UnboundLocalError as e:
+                msg = f"{e}.\nPlease provide a correct node identity key."
+                self.panic(msg)
+        except AttributeError:
+            parser.print_help(sys.stderr)
 
 
     def panic(self,msg):

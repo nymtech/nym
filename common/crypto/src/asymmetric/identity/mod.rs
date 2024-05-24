@@ -227,6 +227,14 @@ impl<'a> From<&'a PrivateKey> for PublicKey {
     }
 }
 
+impl FromStr for PrivateKey {
+    type Err = Ed25519RecoveryError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PrivateKey::from_base58_string(s)
+    }
+}
+
 impl PrivateKey {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {

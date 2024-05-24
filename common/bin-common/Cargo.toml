@@ -8,40 +8,28 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-const-str = "0.5.6"
+const-str = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-clap_complete = "4.0"
-clap_complete_fig = "4.0"
+clap_complete = { workspace = true }
+clap_complete_fig = { workspace = true }
 log = { workspace = true }
-pretty_env_logger = "0.4.0"
+pretty_env_logger = { workspace = true }
 semver = "0.11"
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 
 ## tracing
-tracing-subscriber = { version = "0.3.16", features = [
-    "env-filter",
-], optional = true }
-tracing-tree = { version = "0.2.2", optional = true }
-opentelemetry-jaeger = { version = "0.18.0", optional = true, features = [
-    "rt-tokio",
-    "collector_client",
-    "isahc_collector_client",
-] }
-tracing-opentelemetry = { version = "0.19.0", optional = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
+tracing-tree = { workspace = true, optional = true }
+opentelemetry-jaeger = { workspace = true, features = ["rt-tokio", "collector_client", "isahc_collector_client"], optional = true }
+tracing-opentelemetry = { workspace = true, optional = true }
 utoipa = { workspace = true, optional = true }
-opentelemetry = { version = "0.19.0", optional = true, features = ["rt-tokio"] }
+opentelemetry = { workspace = true, features = ["rt-tokio"], optional = true }
 
 
 [build-dependencies]
-vergen = { version = "=8.2.6", default-features = false, features = [
-    "build",
-    "git",
-    "gitcl",
-    "rustc",
-    "cargo",
-] }
+vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "cargo"] }
 
 [features]
 default = []

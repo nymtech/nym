@@ -6,8 +6,8 @@ use crate::rewarder::epoch::Epoch;
 use crate::rewarder::helpers::api_client;
 use crate::rewarder::nyxd_client::NyxdClient;
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use nym_coconut::{Base58, VerificationKey};
-use nym_coconut_dkg_common::verification_key::ContractVKShare;
+use nym_coconut::VerificationKey;
+use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::{AccountId, Coin};
 use std::collections::{HashMap, HashSet};
@@ -338,32 +338,15 @@ impl CredentialIssuanceResults {
 
 #[derive(Debug)]
 pub struct CredentialIssuer {
-    // pub public_key: identity::PublicKey,
+    pub public_key: ed25519::PublicKey,
     pub operator_account: AccountId,
     pub api_runner: String,
     pub verification_key: VerificationKey,
 }
 
-impl TryFrom<ContractVKShare> for CredentialIssuer {
-    type Error = NymRewarderError;
-
-    fn try_from(value: ContractVKShare) -> Result<Self, Self::Error> {
-        Ok(CredentialIssuer {
-            operator_account: addr_to_account_id(value.owner.clone()),
-            api_runner: value.announce_address,
-            verification_key: VerificationKey::try_from_bs58(value.share).map_err(|source| {
-                NymRewarderError::MalformedPartialVerificationKey {
-                    runner: value.owner.to_string(),
-                    source,
-                }
-            })?,
-        })
-    }
-}
-
 // safety: we're converting between different wrappers for bech32 addresses
 // and we trust (reasonably so), the values coming out of registered dealers in the DKG contract
-fn addr_to_account_id(addr: Addr) -> AccountId {
+pub(crate) fn addr_to_account_id(addr: Addr) -> AccountId {
     #[allow(clippy::unwrap_used)]
     addr.as_str().parse().unwrap()
 }

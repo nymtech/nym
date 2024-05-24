@@ -13,7 +13,7 @@ license.workspace = true
 [dependencies]
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
-etherparse = "0.13.0"
+etherparse = { workspace = true }
 log.workspace = true
 nym-wireguard-types = { path = "../wireguard-types", optional = true }
 

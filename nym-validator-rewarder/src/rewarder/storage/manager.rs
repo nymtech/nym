@@ -181,4 +181,139 @@ impl StorageManager {
 
         Ok(())
     }
+
+    pub(crate) async fn insert_validated_deposit(
+        &self,
+        operator_identity_bs58: String,
+        credential_id: i64,
+        deposit_tx: String,
+        signed_plaintext: Vec<u8>,
+        signature_bs58: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO validated_deposit (
+                    operator_identity_bs58,
+                    credential_id,
+                    deposit_tx,
+                    signed_plaintext,
+                    signature_bs58
+                ) VALUES (?, ?, ?, ?, ?)
+            "#,
+            operator_identity_bs58,
+            credential_id,
+            deposit_tx,
+            signed_plaintext,
+            signature_bs58
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn get_deposit_credential_id(
+        &self,
+        operator_identity_bs58: String,
+        deposit_tx: String,
+    ) -> Result<Option<i64>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT credential_id
+                FROM validated_deposit
+                WHERE operator_identity_bs58 = ? AND deposit_tx = ?
+            "#,
+            operator_identity_bs58,
+            deposit_tx
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?
+        .map(|record| record.credential_id))
+    }
+
+    pub(crate) async fn insert_double_signing_evidence(
+        &self,
+        operator_identity_bs58: String,
+        credential_id: i64,
+        original_credential_id: i64,
+        deposit_tx: String,
+        signed_plaintext: Vec<u8>,
+        signature_bs58: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO double_signing_evidence (
+                    operator_identity_bs58,
+                    credential_id,
+                    original_credential_id,
+                    deposit_tx,
+                    signed_plaintext,
+                    signature_bs58
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            "#,
+            operator_identity_bs58,
+            credential_id,
+            original_credential_id,
+            deposit_tx,
+            signed_plaintext,
+            signature_bs58
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn insert_foul_play_evidence(
+        &self,
+        operator_account: String,
+        operator_identity_bs58: String,
+        credential_id: i64,
+        signed_plaintext: Vec<u8>,
+        signature_bs58: String,
+        failure_message: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO issuance_evidence (
+                    operator_account,
+                    operator_identity_bs58,
+                    credential_id,
+                    signed_plaintext,
+                    signature_bs58,
+                    failure_message
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            "#,
+            operator_account,
+            operator_identity_bs58,
+            credential_id,
+            signed_plaintext,
+            signature_bs58,
+            failure_message,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn insert_validation_failure_info(
+        &self,
+        operator_account: String,
+        operator_identity_bs58: String,
+        failure_message: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO issuance_validation_failure (
+                    operator_account,
+                    operator_identity_bs58,
+                    failure_message
+                ) VALUES (?, ?, ?)
+            "#,
+            operator_account,
+            operator_identity_bs58,
+            failure_message,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
 }

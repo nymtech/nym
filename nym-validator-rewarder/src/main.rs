@@ -20,7 +20,7 @@ mod rewarder;
 async fn main() -> anyhow::Result<()> {
     // std::env::set_var(
     //     "RUST_LOG",
-    //     "debug,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn",
+    //     "trace,handlebars=warn,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn,tokio_util=warn,tokio_tungstenite=warn,tokio-util=warn",
     // );
 
     let args = Cli::parse();

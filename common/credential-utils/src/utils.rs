@@ -11,10 +11,7 @@ use nym_validator_client::nyxd::contract_traits::{
 };
 use nym_validator_client::nyxd::Coin;
 use std::path::PathBuf;
-use std::process::exit;
 use std::time::{Duration, SystemTime};
-
-const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
 
 pub async fn issue_credential<C>(
     client: &C,
@@ -92,13 +89,6 @@ where
             .as_secs();
 
         if epoch.state.is_final() {
-            if let Some(finish_timestamp) = epoch.deadline {
-                if current_timestamp_secs + SAFETY_BUFFER_SECS >= finish_timestamp.seconds() {
-                    info!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
-                    exit(0);
-                }
-            }
-
             break;
         } else if let Some(final_timestamp) = epoch.final_timestamp_secs() {
             // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries

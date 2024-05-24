@@ -146,6 +146,11 @@ async fn get_gateway_description(
                 source: err,
             })?;
 
+    // this can be an old node that hasn't yet exposed this
+    let auxiliary_details = client.get_auxiliary_details().await.inspect_err(|err| {
+        debug!("could not obtain auxiliary details of gateway {}: {err} is it running an old version?", gateway.identity_key);
+    }).unwrap_or_default();
+
     let websockets =
         client
             .get_mixnet_websockets()
@@ -188,6 +193,7 @@ async fn get_gateway_description(
         network_requester,
         ip_packet_router,
         mixnet_websockets: websockets.into(),
+        auxiliary_details,
     };
 
     Ok((gateway.identity_key, description))

@@ -15,7 +15,7 @@ use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models;
-use nym_node_requests::api::v1::node::models::{HostSystem, NodeDescription};
+use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, HostSystem, NodeDescription};
 use nym_node_requests::api::SignedHostInformation;
 use nym_node_requests::routes;
 use std::net::SocketAddr;
@@ -47,6 +47,7 @@ impl Config {
                         system_info: None,
                         roles: Default::default(),
                         description: Default::default(),
+                        auxiliary_details: Default::default(),
                     },
                     metrics: Default::default(),
                     gateway: Default::default(),
@@ -85,6 +86,12 @@ impl Config {
     #[must_use]
     pub fn with_description(mut self, description: NodeDescription) -> Self {
         self.api.v1_config.node.description = description;
+        self
+    }
+
+    #[must_use]
+    pub fn with_auxiliary_details(mut self, auxiliary_details: AuxiliaryDetails) -> Self {
+        self.api.v1_config.node.auxiliary_details = auxiliary_details;
         self
     }
 
@@ -204,19 +211,22 @@ impl NymNodeRouter {
         self
     }
 
-    pub fn build_server(
+    pub async fn build_server(
         self,
         bind_address: &SocketAddr,
     ) -> Result<NymNodeHTTPServer, NymNodeHttpError> {
-        let axum_server = axum::Server::try_bind(bind_address)
+        let listener = tokio::net::TcpListener::bind(bind_address)
+            .await
             .map_err(|source| NymNodeHttpError::HttpBindFailure {
                 bind_address: *bind_address,
                 source,
-            })?
-            .serve(
-                self.inner
-                    .into_make_service_with_connect_info::<SocketAddr>(),
-            );
+            })?;
+
+        let axum_server = axum::serve(
+            listener,
+            self.inner
+                .into_make_service_with_connect_info::<SocketAddr>(),
+        );
 
         Ok(NymNodeHTTPServer::new(axum_server))
     }

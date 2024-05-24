@@ -4,7 +4,7 @@
 [package]
 name = "nym-network-requester"
 license = "GPL-3.0"
-version = "1.1.35"
+version = "1.1.36"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.70"
@@ -17,7 +17,7 @@ path = "src/lib.rs"
 
 [dependencies]
 anyhow = { workspace = true }
-addr = "0.15.6"
+addr = { workspace = true }
 async-trait = { workspace = true }
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"]}
@@ -26,10 +26,10 @@ futures = { workspace = true }
 humantime-serde = { workspace = true }
 ipnetwork = "0.20.0"
 log = { workspace = true }
-pretty_env_logger = "0.4.0"
-publicsuffix = "2.2.3"
+pretty_env_logger = { workspace = true }
+publicsuffix = { workspace = true }
 rand = "0.7.3"
-regex = "1.8.4"
+regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -39,8 +39,8 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }
 tokio-tungstenite = { workspace = true }
 url = { workspace = true }
-time = "0.3.30"
-zeroize = "1.6.0"
+time = { workspace = true }
+zeroize = { workspace = true }
 
 # internal
 nym-async-file-watcher = { path = "../../common/async-file-watcher" }
@@ -65,4 +65,4 @@ nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }
 nym-id = { path = "../../common/nym-id" }
 
 [dev-dependencies]
-tempfile = "3.5.0"
+tempfile = { workspace = true }

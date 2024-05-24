@@ -3,7 +3,7 @@ name = "nym-client-core"
 version = "1.1.15"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
-rust-version = "1.66"
+rust-version = "1.70"
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,7 +12,7 @@ license.workspace = true
 async-trait = { workspace = true }
 base64 = "0.21.2"
 bs58 = { workspace = true }
-cfg-if = "1.0.0"
+cfg-if = { workspace = true }
 clap = { workspace = true, optional = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
@@ -21,11 +21,10 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = "0.10.6"
-si-scale = "0.2.2"
-tap = "1.0.1"
+si-scale = { workspace = true }
+tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tungstenite = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["macros"] }
 time = { workspace = true }
 zeroize = { workspace = true }
@@ -48,7 +47,7 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
-nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"]}
+nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"] }
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 
@@ -74,8 +73,17 @@ workspace = true
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
-version = "0.20.1"
-features = ["rustls-tls-native-roots"]
+workspace = true
+features = ["rustls-tls-webpki-roots"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tungstenite]
+workspace = true
+default-features = true
+features = ["rustls-tls-webpki-roots"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.tungstenite]
+workspace = true
+default-features = false
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 workspace = true
@@ -100,7 +108,7 @@ version = "0.3.17"
 features = ["wasm-bindgen"]
 
 [dev-dependencies]
-tempfile = "3.1.0"
+tempfile = { workspace = true }
 
 [features]
 default = []

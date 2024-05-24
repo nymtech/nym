@@ -5,7 +5,7 @@ use crate::router::api;
 use crate::router::types::{ErrorResponse, RequestError};
 use axum::Router;
 use nym_node_requests::api as api_requests;
-use nym_node_requests::routes::api::v1;
+use nym_node_requests::routes::api::{v1, v1_absolute};
 use utoipa::openapi::security::{Http, HttpAuthScheme};
 use utoipa::{openapi::security::SecurityScheme, Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
@@ -19,6 +19,7 @@ use utoipa_swagger_ui::SwaggerUi;
         api::v1::node::roles::roles,
         api::v1::node::hardware::host_system,
         api::v1::node::description::description,
+        api::v1::node::auxiliary::auxiliary,
         api::v1::metrics::mixing::mixing_stats,
         api::v1::metrics::verloc::verloc_stats,
         api::v1::metrics::prometheus::prometheus_metrics,
@@ -52,6 +53,7 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::node::models::Cpu,
             api_requests::v1::node::models::CryptoHardware,
             api_requests::v1::node::models::NodeDescription,
+            api_requests::v1::node::models::AuxiliaryDetails,
             api_requests::v1::metrics::models::MixingStats,
             api_requests::v1::metrics::models::VerlocStats,
             api_requests::v1::metrics::models::VerlocResult,
@@ -97,7 +99,8 @@ impl Modify for SecurityAddon {
 
 pub(crate) fn route<S: Send + Sync + 'static + Clone>() -> Router<S> {
     // provide absolute path to the openapi.json
-    let config = utoipa_swagger_ui::Config::from("/api/v1/api-docs/openapi.json");
+    let config =
+        utoipa_swagger_ui::Config::from(format!("{}/api-docs/openapi.json", v1_absolute()));
     SwaggerUi::new(v1::SWAGGER)
         .url("/api-docs/openapi.json", ApiDoc::openapi())
         .config(config)

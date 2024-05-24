@@ -288,7 +288,6 @@ pub fn verify_credential(
 }
 
 // Used in tests only
-#[cfg(test)]
 pub fn verify(
     params: &Parameters,
     verification_key: &VerificationKey,

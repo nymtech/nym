@@ -9,16 +9,16 @@ license.workspace = true
 
 [dependencies]
 base64 = "0.21.4"
-eyre = "0.6.5"
-hmac = "0.12.1"
+eyre = { workspace = true }
+hmac = { workspace = true }
 itertools = "0.11"
 log = { workspace = true }
 reqwest = { workspace = true }
-schemars = "0.8"
-serde = { version = "1.0", features = ["derive"] }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = "0.10.8"
-strum = { version = "0.25", features = ["derive"] }
+strum = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 ts-rs = { workspace = true }
 url = { workspace = true }
@@ -34,7 +34,7 @@ nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 
 [dev-dependencies]
-tempfile = "3.3.0"
+tempfile = { workspace = true }
 
 [features]
 default = []

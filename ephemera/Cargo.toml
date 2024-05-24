@@ -37,7 +37,7 @@ nym-config = { path = "../common/config" }
 nym-ephemera-common = { path = "../common/cosmwasm-smart-contracts/ephemera" }
 pretty_env_logger = "0.4"
 refinery = { version = "0.8.7", features = ["rusqlite"], optional = true }
-reqwest = { version = "0.11.22", default_features = false, features = ["rustls-tls", "json"] }
+reqwest = { version = "0.12.4", default_features = false, features = ["rustls-tls", "json"] }
 # Rocksdb kills compilation times and we're not currently using it. The reason
 # we comment it out is that rust-analyzer runs with --all-features
 #rocksdb = { version = "0.21.0", optional = true }
@@ -46,7 +46,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0.149"
 serde_json = "1.0.91"
 thiserror = { workspace = true }
-tokio = { version = "1", features = ["macros", "net","rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
 tokio-tungstenite = { workspace = true }
 tokio-util = { workspace = true, features = ["full"] }
 toml = "0.7.0"

@@ -157,7 +157,7 @@ async fn fetch_delegation_data(
             // If a pending undelegate tx is found, remove it from delegation map
             Undelegate { owner, mix_id, .. } => {
                 if owner == address.as_ref()
-                    && existing_delegation_map.get(&mix_id.to_string()).is_some()
+                    && existing_delegation_map.contains_key(&mix_id.to_string())
                 {
                     existing_delegation_map.remove(&mix_id.to_string());
                 }

@@ -10,6 +10,7 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_validator_client::nyxd::{AccountId, Coin};
+use nyxd_scraper::PruningOptions;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::io;
@@ -33,6 +34,9 @@ const DEFAULT_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const DEFAULT_MONITOR_MIN_VALIDATE: usize = 10;
 const DEFAULT_MONITOR_SAMPLING_RATE: f64 = 0.10;
+
+// 'worst' case scenario
+pub const TYPICAL_BLOCK_TIME: f32 = 5.;
 
 /// Get default path to rewarder's config directory.
 /// It should get resolved to `$HOME/.nym/validators-rewarder/config`
@@ -100,7 +104,10 @@ impl Config {
             rewarding: Rewarding::default(),
             block_signing: Default::default(),
             issuance_monitor: IssuanceMonitor::default(),
-            nyxd_scraper: NyxdScraper { websocket_url },
+            nyxd_scraper: NyxdScraper {
+                websocket_url,
+                pruning: Default::default(),
+            },
             base: Base {
                 upstream_nyxd: nyxd_url,
                 mnemonic,
@@ -114,11 +121,13 @@ impl Config {
             websocket_url: self.nyxd_scraper.websocket_url.clone(),
             rpc_url: self.base.upstream_nyxd.clone(),
             database_path: self.storage_paths.nyxd_scraper.clone(),
+            pruning_options: self.nyxd_scraper.pruning,
         }
     }
 
-    pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
-        self.rewarding.ratios.ensure_is_valid()?;
+    pub fn validate(&self) -> Result<(), NymRewarderError> {
+        self.rewarding.ratios.validate()?;
+        self.nyxd_scraper.validate(self.rewarding.epoch_duration)?;
         Ok(())
     }
 
@@ -140,7 +149,7 @@ impl Config {
                 source,
             }
         })?;
-        loaded.ensure_is_valid()?;
+        loaded.validate()?;
         loaded.save_path = Some(path.to_path_buf());
         debug!("loaded config file from {}", path.display());
         Ok(loaded)
@@ -223,7 +232,7 @@ impl Default for RewardingRatios {
 }
 
 impl RewardingRatios {
-    pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
+    pub fn validate(&self) -> Result<(), NymRewarderError> {
         if self.block_signing + self.credential_verification + self.credential_issuance != 1.0 {
             return Err(NymRewarderError::InvalidRewardingRatios { ratios: *self });
         }
@@ -235,7 +244,42 @@ impl RewardingRatios {
 pub struct NyxdScraper {
     /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
+
+    /// Defines the pruning options, if applicable, to be used by the underlying scraper.
+    // if the value is missing, use `nothing` pruning as this was the past behaviour
+    #[serde(default = "PruningOptions::nothing")]
+    pub pruning: PruningOptions,
     // TODO: debug with everything that's currently hardcoded in the scraper
+}
+
+impl NyxdScraper {
+    pub fn validate(&self, epoch_duration: Duration) -> Result<(), NymRewarderError> {
+        // basic, sanity check, of pruning
+        self.pruning.validate()?;
+
+        if self.pruning.strategy.is_nothing() {
+            return Ok(());
+        }
+
+        // rewarder-specific validation:
+        if self.pruning.strategy.is_everything() {
+            return Err(NymRewarderError::EverythingPruningStrategy);
+        }
+
+        if self.pruning.strategy.is_custom() {
+            let min_to_keep =
+                (epoch_duration.as_secs_f32() / TYPICAL_BLOCK_TIME * 1.5).ceil() as u32;
+
+            if self.pruning.strategy_keep_recent() < min_to_keep {
+                return Err(NymRewarderError::TooSmallKeepRecent {
+                    min_to_keep,
+                    keep_recent: self.pruning.strategy_keep_recent(),
+                });
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

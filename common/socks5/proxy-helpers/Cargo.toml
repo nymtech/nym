@@ -8,7 +8,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bytes = "1.0"
+bytes = { workspace = true }
 tokio = { workspace = true, features = [ "net", "io-util", "sync", "macros", "time", "rt-multi-thread" ] }
 tokio-util = { workspace = true, features = [ "io" ] } # reason for getting this guy is to to able to port to tokio 1.X more quickly by being able to use
 # their `read_buf` [from the util crate] replacement rather than having to rethink/reimplement `AvailableReader` with the new AsyncRead trait definition.
@@ -22,4 +22,4 @@ nym-socks5-requests = { path = "../requests" }
 nym-task = { path = "../../task" }
 
 [dev-dependencies]
-tokio-test = "0.4.2"
+tokio-test = { workspace = true }

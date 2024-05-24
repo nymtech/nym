@@ -23,7 +23,7 @@ anyhow = "1.0"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 dirs = "4.0"
 eyre = "0.6.5"
-fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", branch = "release"}
+fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", branch = "release" }
 futures = "0.3"
 fern = { version = "0.6.1", features = ["colored"] }
 itertools = "0.10.5"
@@ -31,7 +31,7 @@ log = { version = "0.4", features = ["serde"] }
 pretty_env_logger = "0.4.0"
 rand = "0.8"
 rand-07 = { package = "rand", version = "0.7.3" }
-reqwest = { version = "0.11.22", features = ["json", "socks"] }
+reqwest = { version = "0.12.4", features = ["json", "socks"] }
 rust-embed = { version = "6.4.2", features = ["include-exclude"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -41,22 +41,22 @@ tap = "1.0.1"
 tauri = { version = "1.4.1", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
 #tendermint-rpc = "0.23.0"
 thiserror = "1.0"
-time = { version = "0.3.17", features = ["local-offset"] }
+time = { version = "0.3.30", features = ["local-offset"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 url = "2.4"
 yaml-rust = "0.4"
 toml = "0.7"
-sentry = { version = "0.31.5", features = [ "anyhow" ] }
+sentry = { version = "0.31.5", features = ["anyhow"] }
 sentry-log = "0.31.5"
 dotenvy = "0.15.7"
 
 nym-client-core = { path = "../../../common/client-core" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
-nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common"}
+nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-config = { path = "../../../common/config" }
 nym-crypto = { path = "../../../common/crypto" }
 nym-credential-storage = { path = "../../../common/credential-storage" }
-nym-bin-common = { path = "../../../common/bin-common"}
+nym-bin-common = { path = "../../../common/bin-common" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-sphinx = { path = "../../../common/nymsphinx" }
 nym-task = { path = "../../../common/task" }

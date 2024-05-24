@@ -11,7 +11,7 @@ use nyxd_scraper::NyxdScraper;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Range;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 pub(crate) mod types;
 
@@ -28,7 +28,7 @@ impl EpochSigning {
         height_range: Range<i64>,
     ) -> Result<Option<i64>, NymRewarderError> {
         for height in height_range {
-            trace!("attempting to get precommit for {address} at height {height}");
+            trace!("attempting to get pre-commit for {address} at height {height}");
             if let Some(precommit) = self
                 .nyxd_scraper
                 .storage
@@ -121,7 +121,7 @@ impl EpochSigning {
                 .get_voting_power(&validator.consensus_address, vp_range.clone())
                 .await?
             else {
-                warn!("failed to obtain voting power of {addr}");
+                error!("failed to obtain voting power for validator {addr} for any block between heights {vp_range:?} - there were no stored pre-commits for that validator.");
                 continue;
             };
 

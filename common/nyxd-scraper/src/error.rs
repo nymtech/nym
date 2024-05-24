@@ -1,6 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::block_processor::pruning::{
+    EVERYTHING_PRUNING_INTERVAL, EVERYTHING_PRUNING_KEEP_RECENT,
+};
 use tendermint::Hash;
 use thiserror::Error;
 use tokio::sync::mpsc::error::SendError;
@@ -122,6 +125,15 @@ pub enum ScraperError {
         "could not find validator information for {address}; the validator has signed a commit"
     )]
     MissingValidatorInfoCommitted { address: String },
+
+    #[error("pruning.interval must not be set to 0. If you want to disable pruning, select pruning.strategy = \"nothing\"")]
+    ZeroPruningInterval,
+
+    #[error("pruning.interval must not be smaller than {}. got: {interval}. for most aggressive pruning, select pruning.strategy = \"everything\"", EVERYTHING_PRUNING_INTERVAL)]
+    TooSmallPruningInterval { interval: u32 },
+
+    #[error("pruning.keep_recent must not be smaller than {}. got: {keep_recent}. for most aggressive pruning, select pruning.strategy = \"everything\"", EVERYTHING_PRUNING_KEEP_RECENT)]
+    TooSmallKeepRecent { keep_recent: u32 },
 }
 
 impl<T> From<SendError<T>> for ScraperError {

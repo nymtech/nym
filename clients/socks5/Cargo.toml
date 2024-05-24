@@ -1,6 +1,6 @@
 [package]
 name = "nym-socks5-client"
-version = "1.1.34"
+version = "1.1.35"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"
@@ -13,9 +13,9 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 log = { workspace = true }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
 serde_json = { workspace = true }
-tap = "1.0.1"
+tap = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 rand = "0.7.3"
 time = { workspace = true }
 url = { workspace = true }

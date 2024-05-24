@@ -39,7 +39,7 @@ use log::{debug, error, info, warn};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
@@ -670,6 +670,7 @@ where
         let self_address = Self::mix_address(&init_res);
         let ack_key = init_res.client_keys.ack_key();
         let encryption_keys = init_res.client_keys.encryption_keypair();
+        let identity_keys = init_res.client_keys.identity_keypair();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -792,6 +793,7 @@ where
 
         Ok(BaseClient {
             address: self_address,
+            identity_keys,
             client_input: ClientInputStatus::AwaitingProducer {
                 client_input: ClientInput {
                     connection_command_sender: client_connection_tx,
@@ -816,6 +818,7 @@ where
 
 pub struct BaseClient {
     pub address: Recipient,
+    pub identity_keys: Arc<identity::KeyPair>,
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,

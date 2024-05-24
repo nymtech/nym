@@ -7,23 +7,21 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { workspace = true, features = ["headers"] }
-# \/ will be needed once we update axum to 0.7
-#axum-extra = { version = "0.9.3", features = ["typed-header"] }
-#headers = "0.4"
+axum.workspace = true
+axum-extra = { workspace = true, features = ["typed-header"] }
+headers.workspace = true
 
 # useful for `#[axum_macros::debug_handler]`
 #axum-macros = "0.3.8"
-hyper.workspace = true
 thiserror.workspace = true
 time = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["macros"] }
-tower-http = { version = "0.4.4", features = ["fs"] }
+tower-http = { workspace = true, features = ["fs"] }
 tracing.workspace = true
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
-colored = "2"
+colored = { workspace = true }
 ipnetwork = "0.16"
 rand = "0.7.3"
 
@@ -40,11 +38,12 @@ nym-wireguard = { path = "../../common/wireguard" }
 nym-wireguard-types = { path = "../../common/wireguard-types", features = ["verify"] }
 
 [dev-dependencies]
+hyper.workspace = true
 dashmap.workspace = true
 serde_json.workspace = true
 
-hmac = "0.12.1"
-tower = { version = "0.4.13" }
+hmac = { workspace = true }
+tower = { workspace = true }
 x25519-dalek = { version = "2.0.0" }
 
 nym-crypto = { path = "../../common/crypto", features = ["rand"] }

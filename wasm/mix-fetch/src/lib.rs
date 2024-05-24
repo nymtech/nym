@@ -31,5 +31,8 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 pub fn main() {
     wasm_utils::console_log!("[rust main]: rust module loaded");
-    wasm_utils::console_log!("mix fetch version used: {:#?}", nym_bin_common::bin_info!());
+    wasm_utils::console_log!(
+        "mix fetch version used: {}",
+        nym_bin_common::bin_info_owned!()
+    );
 }

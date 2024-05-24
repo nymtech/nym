@@ -1,22 +1,24 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use axum::{
-    extract::ConnectInfo,
-    http::{HeaderValue, Request},
+    extract::{ConnectInfo, Request},
+    http::{
+        header::{HOST, USER_AGENT},
+        HeaderValue,
+    },
     middleware::Next,
     response::IntoResponse,
 };
 use colored::*;
-use hyper::header::{HOST, USER_AGENT};
 use std::net::SocketAddr;
 use tracing::info;
 
 /// Simple logger for requests
-pub async fn logger<B>(
+pub async fn logger(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    req: Request<B>,
-    next: Next<B>,
+    req: Request,
+    next: Next,
 ) -> impl IntoResponse {
     let method = req.method().to_string().green();
     let uri = req.uri().to_string().blue();

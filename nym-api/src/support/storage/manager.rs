@@ -4,7 +4,8 @@ use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeRe
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
 use crate::support::storage::models::{
-    ActiveGateway, ActiveMixnode, NodeStatus, RewardingReport, TestingRoute,
+    ActiveGateway, ActiveMixnode, GatewayDetails, MixnodeDetails, NodeStatus, RewardingReport,
+    TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
 };
 use nym_mixnet_contract_common::{EpochId, IdentityKey, MixId};
 
@@ -970,5 +971,134 @@ impl StorageManager {
         }
 
         Ok(active_day_statuses)
+    }
+
+    pub(crate) async fn get_mixnode_details_by_db_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<MixnodeDetails>, sqlx::Error> {
+        sqlx::query_as!(
+            MixnodeDetails,
+            "SELECT * FROM mixnode_details WHERE id = ?",
+            id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
+    }
+
+    pub(crate) async fn get_gateway_details_by_db_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<GatewayDetails>, sqlx::Error> {
+        sqlx::query_as!(
+            GatewayDetails,
+            "SELECT * FROM gateway_details WHERE id = ?",
+            id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
+    }
+
+    pub(crate) async fn get_mixnode_statuses_count(&self, db_id: i64) -> Result<i32, sqlx::Error> {
+        sqlx::query!(
+            r#"
+                SELECT COUNT(*) as count
+                FROM mixnode_status
+                    JOIN monitor_run ON mixnode_status.timestamp = monitor_run.timestamp
+                    JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id
+                WHERE mixnode_details_id = ?
+            "#,
+            db_id
+        )
+        .fetch_one(&self.connection_pool)
+        .await
+        .map(|record| record.count)
+    }
+
+    pub(crate) async fn get_mixnode_statuses(
+        &self,
+        mix_id: MixId,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<TestedMixnodeStatus>, sqlx::Error> {
+        sqlx::query_as!(
+            TestedMixnodeStatus,
+            r#"
+                SELECT
+                    mixnode_details.id as "db_id",
+                    mix_id as "mix_id!",
+                    identity_key,
+                    reliability as "reliability: u8",
+                    monitor_run.timestamp as "timestamp!",
+                    gateway_id as "gateway_id!",
+                    layer1_mix_id as "layer1_mix_id!",
+                    layer2_mix_id as "layer2_mix_id!",
+                    layer3_mix_id as "layer3_mix_id!",
+                    monitor_run_id as "monitor_run_id!"
+                FROM mixnode_status
+                    JOIN mixnode_details ON mixnode_status.mixnode_details_id = mixnode_details.id
+                    JOIN monitor_run ON mixnode_status.timestamp = monitor_run.timestamp
+                    JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id
+                WHERE mix_id = ?
+                ORDER BY mixnode_status.timestamp DESC
+                LIMIT ? OFFSET ?
+            "#,
+            mix_id,
+            limit,
+            offset
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+    }
+
+    pub(crate) async fn get_gateway_statuses_count(&self, db_id: i64) -> Result<i32, sqlx::Error> {
+        sqlx::query!(
+            r#"
+                SELECT COUNT(*) as count
+                FROM gateway_status
+                    JOIN monitor_run ON gateway_status.timestamp = monitor_run.timestamp
+                    JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id
+                WHERE gateway_details_id = ?
+            "#,
+            db_id
+        )
+        .fetch_one(&self.connection_pool)
+        .await
+        .map(|record| record.count)
+    }
+
+    pub(crate) async fn get_gateway_statuses(
+        &self,
+        gateway_identity: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<TestedGatewayStatus>, sqlx::Error> {
+        sqlx::query_as!(
+            TestedGatewayStatus,
+            r#"
+                SELECT
+                    gateway_details.id as "db_id",
+                    identity as "identity_key",
+                    reliability as "reliability: u8",
+                    monitor_run.timestamp as "timestamp!",
+                    gateway_id as "gateway_id!",
+                    layer1_mix_id as "layer1_mix_id!",
+                    layer2_mix_id as "layer2_mix_id!",
+                    layer3_mix_id as "layer3_mix_id!",
+                    monitor_run_id as "monitor_run_id!"
+                FROM gateway_status
+                    JOIN gateway_details ON gateway_status.gateway_details_id = gateway_details.id
+                    JOIN monitor_run ON gateway_status.timestamp = monitor_run.timestamp
+                    JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id
+                WHERE identity = ?
+                ORDER BY gateway_status.timestamp DESC
+                LIMIT ? OFFSET ?
+            "#,
+            gateway_identity,
+            limit,
+            offset
+        )
+        .fetch_all(&self.connection_pool)
+        .await
     }
 }

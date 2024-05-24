@@ -1,6 +1,6 @@
 [package]
 name = "nymvisor"
-version = "0.1.0"
+version = "0.1.1"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -12,20 +12,20 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-bytes = { version = "1.5.0", features = ["std"]}
+bytes = { workspace = true, features = ["std"] }
 clap = { workspace = true, features = ["derive"] }
 dotenvy = { workspace = true }
-flate2 = "1.0.28"
+flate2 = { workspace = true }
 futures = { workspace = true }
-hex = "0.4.3"
-humantime = "2.1.0"
+hex = { workspace = true }
+humantime = { workspace = true }
 humantime-serde = { workspace = true }
-nix = { version = "0.27.1", features = ["signal", "fs"] }
+nix = { workspace = true, features = ["signal", "fs"] }
 reqwest = { workspace = true, features = ["json", "stream"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = "0.10.8"
-tar = "0.4.40"
+tar = { workspace = true }
 time = { workspace = true, features = [ "serde-human-readable" ] }
 tokio = { workspace = true, features = ["rt", "macros", "signal", "process", "sync"] }
 thiserror = { workspace = true }

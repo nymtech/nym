@@ -11,14 +11,14 @@ anyhow = { workspace = true }
 dirs = "4.0"
 futures = { workspace = true }
 log = { workspace = true }
-pin-project = "1.0"
+pin-project = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 reqwest = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
-tap = "1.0.1"
+tap = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 url = { workspace = true }
 
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }

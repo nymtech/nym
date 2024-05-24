@@ -9,7 +9,7 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 bip39 = { workspace = true }
-nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage"]}
+nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage"] }
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
@@ -25,15 +25,15 @@ nym-validator-client = { path = "../../../common/client-libs/validator-client", 
 nym-socks5-requests = { path = "../../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../../common/socks5/ordered-buffer" }
 nym-service-providers-common = { path = "../../../service-providers/common" }
-bytecodec = "0.4.15"
-httpcodec = "0.2.3"
-bytes = "1"
-http = "0.2.9"
+bytecodec = { workspace = true }
+httpcodec = { workspace = true }
+bytes = { workspace = true }
+http = { workspace = true }
 
 futures = { workspace = true }
 log = { workspace = true }
 rand = { version = "0.7.3" }
-tap = "1.0.1"
+tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 toml = "0.5.10"
@@ -41,18 +41,18 @@ toml = "0.5.10"
 [dev-dependencies]
 anyhow = { workspace = true }
 dotenvy = { workspace = true }
-pretty_env_logger = "0.4.0"
+pretty_env_logger = { workspace = true }
 reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 nym-bin-common = { path = "../../../common/bin-common" }
 
 # extra dependencies for libp2p examples
-libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
-tokio-stream = "0.1.12"
+#libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
+tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
-parking_lot = "0.12"
-hex = "0.4"
+parking_lot = { workspace = true }
+hex = { workspace = true }
 
 [features]
 libp2p-vanilla = []

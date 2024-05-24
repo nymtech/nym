@@ -75,8 +75,12 @@ pub fn theta_from_keys_and_attributes(
     attributes.extend_from_slice(public_attributes);
 
     // Randomize credentials and generate any cryptographic material to verify them
-    let signature =
-        aggregate_signature_shares(params, &verification_key, &attributes, &signature_shares)?;
+    let signature = aggregate_signature_shares_and_verify(
+        params,
+        &verification_key,
+        &attributes,
+        &signature_shares,
+    )?;
 
     // Generate cryptographic material to verify them
     let theta = prove_bandwidth_credential(

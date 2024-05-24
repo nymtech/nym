@@ -40,102 +40,104 @@
 //! The two nodes establish a connection, negotiate the ping protocol
 //! and begin pinging each other.
 
-use libp2p::futures::StreamExt;
-use libp2p::ping::Success;
-use libp2p::swarm::{keep_alive, NetworkBehaviour, SwarmEvent};
-use libp2p::{identity, ping, Multiaddr, PeerId};
-use log::{debug, info, LevelFilter};
+// use libp2p::futures::StreamExt;
+// use libp2p::ping::Success;
+// use libp2p::swarm::{keep_alive, NetworkBehaviour, SwarmEvent};
+// use libp2p::{identity, ping, Multiaddr, PeerId};
+// use log::{debug, info, LevelFilter};
 use std::error::Error;
-use std::time::Duration;
-
-#[path = "../libp2p_shared/lib.rs"]
-mod rust_libp2p_nym;
+// use std::time::Duration;
+//
+// #[path = "../libp2p_shared/lib.rs"]
+// mod rust_libp2p_nym;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    pretty_env_logger::formatted_timed_builder()
-        .filter_level(LevelFilter::Warn)
-        .filter(Some("libp2p_ping"), LevelFilter::Debug)
-        .init();
-
-    let local_key = identity::Keypair::generate_ed25519();
-    let local_peer_id = PeerId::from(local_key.public());
-    info!("Local peer id: {local_peer_id:?}");
-
-    #[cfg(not(feature = "libp2p-vanilla"))]
-    let mut swarm = {
-        debug!("Running `ping` example using NymTransport");
-        use libp2p::core::{muxing::StreamMuxerBox, transport::Transport};
-        use libp2p::swarm::SwarmBuilder;
-        use rust_libp2p_nym::transport::NymTransport;
-
-        let client = nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap();
-
-        let transport = NymTransport::new(client, local_key.clone()).await?;
-        SwarmBuilder::with_tokio_executor(
-            transport
-                .map(|a, _| (a.0, StreamMuxerBox::new(a.1)))
-                .boxed(),
-            Behaviour::default(),
-            local_peer_id,
-        )
-        .build()
-    };
-
-    #[cfg(feature = "libp2p-vanilla")]
-    let mut swarm = {
-        debug!("Running `ping` example using the vanilla libp2p tokio_development_transport");
-        let transport = libp2p::tokio_development_transport(local_key)?;
-        let mut swarm =
-            libp2p::Swarm::with_tokio_executor(transport, Behaviour::default(), local_peer_id);
-        swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
-        swarm
-    };
-
-    // Dial the peer identified by the multi-address given as the second
-    // command-line argument, if any.
-    if let Some(addr) = std::env::args().nth(1) {
-        let remote: Multiaddr = addr.parse()?;
-        swarm.dial(remote)?;
-        info!("Dialed {addr}")
-    }
-
-    let mut total_ping_rtt: Duration = Duration::from_micros(0);
-    let mut counter: u128 = 0;
-    loop {
-        match swarm.select_next_some().await {
-            SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {address:?}"),
-            SwarmEvent::Behaviour(event) => {
-                // Get the round-trip duration for the pings.
-                // This value is already captured in the BehaviourEvent::Ping's `Success::Ping`
-                // field.
-                debug!("{event:?}");
-                if let BehaviourEvent::Ping(ping_event) = event {
-                    let result: Success = ping_event.result?;
-                    match result {
-                        Success::Ping { rtt } => {
-                            counter += 1;
-                            total_ping_rtt += rtt;
-                            let average_ping_rtt = Duration::from_micros(
-                                (total_ping_rtt.as_micros() / counter).try_into().unwrap(),
-                            );
-                            info!("Ping RTT: {rtt:?} AVERAGE RTT: ({counter} pings): {average_ping_rtt:?}");
-                        }
-                        Success::Pong => info!("Pong Event"),
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
+    unimplemented!("temporarily disabled")
+    //
+    // pretty_env_logger::formatted_timed_builder()
+    //     .filter_level(LevelFilter::Warn)
+    //     .filter(Some("libp2p_ping"), LevelFilter::Debug)
+    //     .init();
+    //
+    // let local_key = identity::Keypair::generate_ed25519();
+    // let local_peer_id = PeerId::from(local_key.public());
+    // info!("Local peer id: {local_peer_id:?}");
+    //
+    // #[cfg(not(feature = "libp2p-vanilla"))]
+    // let mut swarm = {
+    //     debug!("Running `ping` example using NymTransport");
+    //     use libp2p::core::{muxing::StreamMuxerBox, transport::Transport};
+    //     use libp2p::swarm::SwarmBuilder;
+    //     use rust_libp2p_nym::transport::NymTransport;
+    //
+    //     let client = nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap();
+    //
+    //     let transport = NymTransport::new(client, local_key.clone()).await?;
+    //     SwarmBuilder::with_tokio_executor(
+    //         transport
+    //             .map(|a, _| (a.0, StreamMuxerBox::new(a.1)))
+    //             .boxed(),
+    //         Behaviour::default(),
+    //         local_peer_id,
+    //     )
+    //     .build()
+    // };
+    //
+    // #[cfg(feature = "libp2p-vanilla")]
+    // let mut swarm = {
+    //     debug!("Running `ping` example using the vanilla libp2p tokio_development_transport");
+    //     let transport = libp2p::tokio_development_transport(local_key)?;
+    //     let mut swarm =
+    //         libp2p::Swarm::with_tokio_executor(transport, Behaviour::default(), local_peer_id);
+    //     swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+    //     swarm
+    // };
+    //
+    // // Dial the peer identified by the multi-address given as the second
+    // // command-line argument, if any.
+    // if let Some(addr) = std::env::args().nth(1) {
+    //     let remote: Multiaddr = addr.parse()?;
+    //     swarm.dial(remote)?;
+    //     info!("Dialed {addr}")
+    // }
+    //
+    // let mut total_ping_rtt: Duration = Duration::from_micros(0);
+    // let mut counter: u128 = 0;
+    // loop {
+    //     match swarm.select_next_some().await {
+    //         SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {address:?}"),
+    //         SwarmEvent::Behaviour(event) => {
+    //             // Get the round-trip duration for the pings.
+    //             // This value is already captured in the BehaviourEvent::Ping's `Success::Ping`
+    //             // field.
+    //             debug!("{event:?}");
+    //             if let BehaviourEvent::Ping(ping_event) = event {
+    //                 let result: Success = ping_event.result?;
+    //                 match result {
+    //                     Success::Ping { rtt } => {
+    //                         counter += 1;
+    //                         total_ping_rtt += rtt;
+    //                         let average_ping_rtt = Duration::from_micros(
+    //                             (total_ping_rtt.as_micros() / counter).try_into().unwrap(),
+    //                         );
+    //                         info!("Ping RTT: {rtt:?} AVERAGE RTT: ({counter} pings): {average_ping_rtt:?}");
+    //                     }
+    //                     Success::Pong => info!("Pong Event"),
+    //                 }
+    //             }
+    //         }
+    //         _ => {}
+    //     }
+    // }
 }
-
-/// Our network behaviour.
-///
-/// For illustrative purposes, this includes the [`KeepAlive`](behaviour::KeepAlive) behaviour so a continuous sequence of
-/// pings can be observed.
-#[derive(NetworkBehaviour, Default)]
-struct Behaviour {
-    keep_alive: keep_alive::Behaviour,
-    ping: ping::Behaviour,
-}
+//
+// /// Our network behaviour.
+// ///
+// /// For illustrative purposes, this includes the [`KeepAlive`](behaviour::KeepAlive) behaviour so a continuous sequence of
+// /// pings can be observed.
+// #[derive(NetworkBehaviour, Default)]
+// struct Behaviour {
+//     keep_alive: keep_alive::Behaviour,
+//     ping: ping::Behaviour,
+// }

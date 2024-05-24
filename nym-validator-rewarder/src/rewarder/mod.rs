@@ -121,7 +121,10 @@ impl Rewarder {
                 return Err(NymRewarderError::EmptyCredentialIssuanceWhitelist);
             }
 
-            Some(CredentialIssuance::new(current_epoch, &nyxd_client, whitelist).await?)
+            Some(
+                CredentialIssuance::new(current_epoch, storage.clone(), &nyxd_client, whitelist)
+                    .await?,
+            )
         } else {
             None
         };

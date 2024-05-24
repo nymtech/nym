@@ -104,6 +104,7 @@ mod test {
     use crate::api::v1::gateway::client_interfaces::wireguard::{
         routes, WireguardAppState, WireguardAppStateInner,
     };
+    use axum::body::to_bytes;
     use axum::body::Body;
     use axum::http::Request;
     use axum::http::StatusCode;
@@ -203,7 +204,7 @@ mod test {
             nonce,
             gateway_data,
             wg_port: 8080,
-        } = serde_json::from_slice(&hyper::body::to_bytes(response.into_body()).await.unwrap())
+        } = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
             .unwrap()
         else {
             panic!("invalid response")
@@ -257,7 +258,7 @@ mod test {
         assert_eq!(response.status(), StatusCode::OK);
 
         let clients: Vec<PeerPublicKey> =
-            serde_json::from_slice(&hyper::body::to_bytes(response.into_body()).await.unwrap())
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
                 .unwrap();
 
         assert!(!clients.is_empty());

@@ -1752,12 +1752,10 @@ mod credential_tests {
             &pub_attrs,
         )
         .unwrap();
-        let sig = blind_sig
-            .unblind(
-                key_pair.verification_key(),
-                &sig_req.pedersen_commitments_openings,
-            )
-            .unwrap();
+        let sig = blind_sig.unblind(
+            key_pair.verification_key(),
+            &sig_req.pedersen_commitments_openings,
+        );
 
         let issued = issuance.into_issued_credential(sig, epoch);
         let spending = issued

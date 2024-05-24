@@ -6,11 +6,11 @@ rust-version = "1.56"
 license.workspace = true
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "sha256"] }
-eyre = "0.6.5"
+eyre = { workspace = true }
 
 cosmrs = { workspace = true }
 
@@ -18,4 +18,4 @@ nym-cli-commands = { path = "../../common/commands" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 
 [dev-dependencies]
-anyhow = "1"
+anyhow = { workspace = true }

@@ -7,6 +7,7 @@ use crate::coconut::{self, comm::QueryCommunicationChannel};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
+use crate::node_status_api::routes::unstable;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::{api_status_routes, ApiStatusState, SignerState};
@@ -23,6 +24,7 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
 
+pub(crate) mod helpers;
 pub(crate) mod openapi;
 
 pub(crate) async fn setup_rocket(
@@ -57,7 +59,8 @@ pub(crate) async fn setup_rocket(
         .attach(setup_cors()?)
         .attach(NymContractCache::stage())
         .attach(NodeStatusCache::stage())
-        .attach(CirculatingSupplyCache::stage(mix_denom.clone()));
+        .attach(CirculatingSupplyCache::stage(mix_denom.clone()))
+        .manage(unstable::NodeInfoCache::default());
 
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465

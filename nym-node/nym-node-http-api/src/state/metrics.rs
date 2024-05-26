@@ -134,8 +134,6 @@ impl VerlocStatsState {
 
 #[derive(Debug, Clone, Default)]
 pub struct MetricsAppState {
-    pub(crate) prometheus_access_token: Option<String>,
-
     pub(crate) mixing_stats: SharedMixingStats,
 
     pub(crate) verloc: SharedVerlocStats,

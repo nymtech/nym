@@ -369,6 +369,7 @@ pub struct Http {
     /// An optional bearer token for accessing certain http endpoints.
     /// Currently only used for obtaining mixnode's stats.
     #[serde(default)]
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub access_token: Option<String>,
 
     /// Specify whether basic system information should be exposed.

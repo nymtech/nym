@@ -14,11 +14,25 @@ use zeroize::Zeroizing;
 #[derive(Debug, Clone)]
 pub struct BearerAuthLayer {
     bearer_token: Arc<Zeroizing<String>>,
+    allow_empty: bool,
 }
 
 impl BearerAuthLayer {
     pub fn new(bearer_token: Arc<Zeroizing<String>>) -> Self {
-        BearerAuthLayer { bearer_token }
+        BearerAuthLayer {
+            bearer_token,
+            allow_empty: false,
+        }
+    }
+
+    pub fn new_raw(bearer_token: impl Into<String>) -> Self {
+        BearerAuthLayer::new(Arc::new(Zeroizing::new(bearer_token.into())))
+    }
+
+    #[must_use]
+    pub fn with_allow_empty(mut self, allow_empty: bool) -> Self {
+        self.allow_empty = allow_empty;
+        self
     }
 }
 
@@ -26,7 +40,7 @@ impl<S> Layer<S> for BearerAuthLayer {
     type Service = RequireBearerAuth<S>;
 
     fn layer(&self, inner: S) -> Self::Service {
-        RequireBearerAuth::new(inner, self.bearer_token.clone())
+        RequireBearerAuth::new(inner, self.bearer_token.clone()).with_allow_empty(self.allow_empty)
     }
 }
 
@@ -34,6 +48,7 @@ impl<S> Layer<S> for BearerAuthLayer {
 pub struct RequireBearerAuth<S> {
     inner: S,
     bearer_token: Arc<Zeroizing<String>>,
+    allow_empty: bool,
 }
 
 impl<S> RequireBearerAuth<S> {
@@ -41,7 +56,14 @@ impl<S> RequireBearerAuth<S> {
         RequireBearerAuth {
             inner,
             bearer_token,
+            allow_empty: false,
         }
+    }
+
+    #[must_use]
+    pub fn with_allow_empty(mut self, allow_empty: bool) -> Self {
+        self.allow_empty = allow_empty;
+        self
     }
 
     fn check_auth_header(&self, header: Option<&HeaderValue>) -> Result<(), &'static str> {
@@ -102,6 +124,16 @@ where
     #[instrument(skip_all, fields(uri = %req.uri()))]
     fn call(&mut self, req: Request) -> Self::Future {
         debug!("checking the auth");
+
+        if self.bearer_token.is_empty() && !self.allow_empty {
+            return Box::pin(async move {
+                Ok((
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "no valid access token has been specified on the server",
+                )
+                    .into_response())
+            });
+        }
 
         let auth_header = req.headers().get(header::AUTHORIZATION);
 

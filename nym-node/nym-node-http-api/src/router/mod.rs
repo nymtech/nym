@@ -148,6 +148,12 @@ impl Config {
         self.api.v1_config.ip_packet_router.details = Some(ip_packet_router);
         self
     }
+
+    #[must_use]
+    pub fn with_metrics_token(mut self, bearer_token: impl Into<Option<String>>) -> Self {
+        self.api.v1_config.metrics.prometheus_token = bearer_token.into().unwrap_or_default();
+        self
+    }
 }
 
 pub struct NymNodeRouter {

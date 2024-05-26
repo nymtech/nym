@@ -1,12 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::state::metrics::MetricsAppState;
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum_extra::TypedHeader;
-use headers::authorization::Bearer;
-use headers::Authorization;
 use nym_metrics::metrics;
 
 /// Returns `prometheus` compatible metrics
@@ -25,21 +19,6 @@ use nym_metrics::metrics;
         ("prometheus_token" = [])
     )
 )]
-pub(crate) async fn prometheus_metrics<'a>(
-    TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
-    State(state): State<MetricsAppState>,
-) -> Result<String, StatusCode> {
-    if authorization.token().is_empty() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-    // TODO: is 500 the correct error code here?
-    let Some(metrics_key) = state.prometheus_access_token else {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    };
-
-    if metrics_key != authorization.token() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    Ok(metrics!())
+pub(crate) async fn prometheus_metrics() -> String {
+    metrics!()
 }

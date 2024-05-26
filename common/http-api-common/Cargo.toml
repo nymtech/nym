@@ -12,9 +12,15 @@ license.workspace = true
 
 [dependencies]
 axum.workspace = true
-bytes = { workspace = true }
-mime = { workspace = true }
+bytes.workspace = true
+colored.workspace = true
+futures.workspace = true
+mime.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
-serde_yaml = { workspace = true }
-utoipa = { workspace = true }
+serde_yaml.workspace = true
+tokio.workspace = true
+tower.workspace = true
+tracing.workspace = true
+utoipa.workspace = true
+zeroize.workspace = true

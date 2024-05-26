@@ -4732,11 +4732,17 @@ version = "0.1.0"
 dependencies = [
  "axum 0.7.5",
  "bytes",
+ "colored",
+ "futures",
  "mime",
  "serde",
  "serde_json",
  "serde_yaml",
+ "tokio",
+ "tower",
+ "tracing",
  "utoipa",
+ "zeroize",
 ]
 
 [[package]]

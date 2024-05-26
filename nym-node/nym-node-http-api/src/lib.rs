@@ -11,7 +11,6 @@ use std::net::SocketAddr;
 use tracing::{debug, error};
 
 pub mod error;
-pub mod middleware;
 pub mod router;
 pub mod state;
 

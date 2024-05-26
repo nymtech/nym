@@ -3,12 +3,12 @@
 
 pub use crate::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 use crate::error::NymNodeHttpError;
-use crate::middleware::logging;
 use crate::state::AppState;
 use crate::NymNodeHTTPServer;
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
+use nym_http_api_common::middleware::logger;
 use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
@@ -193,7 +193,7 @@ impl NymNodeRouter {
                     routes::API,
                     api::routes(config.api, initial_wg_state.unwrap_or_default()),
                 )
-                .layer(axum::middleware::from_fn(logging::logger))
+                .layer(axum::middleware::from_fn(logger))
                 .with_state(state),
         }
     }

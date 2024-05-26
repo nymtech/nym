@@ -15,7 +15,7 @@ use nym_mixnet_contract_common::{
 
 use nym_name_service_common::response::NamesListResponse;
 use nym_service_provider_directory_common::response::ServicesListResponse;
-use rocket::{serde::json::Json, State};
+use rocket::{get, serde::json::Json, State};
 use rocket_okapi::openapi;
 use std::collections::HashSet;
 

@@ -27,7 +27,7 @@ use rocket_okapi::swagger_ui::make_swagger_ui;
 pub(crate) mod helpers;
 pub(crate) mod openapi;
 
-pub(crate) async fn setup_rocket(
+pub(crate) async fn setup_rest_api(
     config: &Config,
     network_details: NetworkDetails,
     nyxd_client: nyxd::Client,

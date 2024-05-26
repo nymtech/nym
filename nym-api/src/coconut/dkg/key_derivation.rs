@@ -9,7 +9,7 @@ use crate::coconut::error::CoconutError;
 use crate::coconut::keys::KeyPairWithEpoch;
 use crate::coconut::state::bandwidth_credential_params;
 use cosmwasm_std::Addr;
-use log::debug;
+use log::{debug, error, info, warn};
 use nym_coconut::KeyPair as CoconutKeyPair;
 use nym_coconut::{check_vk_pairing, Base58, SecretKey, VerificationKey};
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;

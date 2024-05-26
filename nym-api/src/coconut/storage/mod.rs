@@ -5,6 +5,7 @@ use crate::coconut::storage::manager::CoconutStorageManagerExt;
 use crate::coconut::storage::models::{join_attributes, EpochCredentials, IssuedCredential};
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
+use async_trait::async_trait;
 use nym_api_requests::coconut::models::Pagination;
 use nym_coconut::{Base58, BlindedSignature};
 use nym_coconut_dkg_common::types::EpochId;

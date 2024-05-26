@@ -4,6 +4,7 @@
 use self::data::NodeStatusCacheData;
 use self::inclusion_probabilities::InclusionProbabilities;
 use crate::support::caching::Cache;
+use log::error;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, MixnodeStatus};
 use nym_contracts_common::{IdentityKey, IdentityKeyRef};
 use nym_mixnet_contract_common::MixId;

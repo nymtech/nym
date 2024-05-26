@@ -61,7 +61,10 @@ rocket_cors = { workspace = true }
 rocket_okapi = { workspace = true, features = ["swagger"] }
 okapi = { workspace = true, features = ["impl_json_schema"] }
 
-
+#axum.workspace = true
+#tower-http = { workspace = true, features = ["cors"] }
+#utoipa = { workspace = true, features = ["axum_extras", "time"] }
+#utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 ## ephemera-specific
 #actix-web = "4"

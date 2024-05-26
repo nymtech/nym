@@ -7,6 +7,7 @@ use crate::support::config::persistence::{
 use crate::support::config::r#override::OverrideConfig;
 use crate::support::config::template::CONFIG_TEMPLATE;
 use anyhow::bail;
+use log::debug;
 use nym_config::defaults::mainnet::read_parsed_var_if_not_default;
 use nym_config::defaults::var_names::{CONFIGURED, NYXD};
 use nym_config::serde_helpers::de_maybe_stringified;

@@ -8,7 +8,7 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_coconut::Base58;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use rocket::State;
+use rocket::{get, State};
 use rocket_okapi::openapi;
 
 #[openapi(tag = "Api Status")]

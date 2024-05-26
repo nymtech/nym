@@ -4,6 +4,7 @@
 use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::MixnodeWithPerformance;
 use crate::RewardedSetUpdater;
+use log::{error, warn};
 use nym_mixnet_contract_common::{EpochState, Interval, MixId};
 
 impl RewardedSetUpdater {

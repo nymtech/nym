@@ -3,6 +3,7 @@
 
 use crate::epoch_operations::error::RewardingError;
 use crate::RewardedSetUpdater;
+use log::{error, warn};
 use nym_mixnet_contract_common::EpochState;
 use std::cmp::max;
 

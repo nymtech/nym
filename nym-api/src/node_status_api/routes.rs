@@ -11,7 +11,7 @@ use nym_api_requests::models::{
 };
 use nym_mixnet_contract_common::MixId;
 use rocket::serde::json::Json;
-use rocket::State;
+use rocket::{get, post, State};
 use rocket_okapi::openapi;
 
 use super::helpers::_get_gateways_detailed;
@@ -233,6 +233,7 @@ pub mod unstable {
     use crate::node_status_api::models::ErrorResponse;
     use crate::support::http::helpers::PaginationRequest;
     use crate::support::storage::NymApiStorage;
+    use log::{error, trace};
     use nym_api_requests::models::{
         GatewayTestResultResponse, MixnodeTestResultResponse, PartialTestResult, TestNode,
         TestRoute,
@@ -241,7 +242,7 @@ pub mod unstable {
     use nym_mixnet_contract_common::MixId;
     use rocket::http::Status;
     use rocket::serde::json::Json;
-    use rocket::State;
+    use rocket::{get, State};
     use rocket_okapi::openapi;
     use std::cmp::min;
     use std::collections::HashMap;

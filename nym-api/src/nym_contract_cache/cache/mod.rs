@@ -4,6 +4,7 @@
 use crate::nym_contract_cache::cache::data::CachedContractsInfo;
 use crate::support::caching::Cache;
 use data::ValidatorCacheData;
+use log::{debug, error};
 use nym_api_requests::models::MixnodeStatus;
 use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,

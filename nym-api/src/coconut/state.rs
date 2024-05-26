@@ -8,6 +8,7 @@ use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::keys::KeyPair;
 use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
+use log::{debug, warn};
 use nym_api_requests::coconut::helpers::issued_credential_plaintext;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_coconut::{BlindedSignature, VerificationKey};

@@ -3,6 +3,7 @@
 
 use crate::coconut::storage::models::{EpochCredentials, IssuedCredential};
 use crate::support::storage::manager::StorageManager;
+use async_trait::async_trait;
 use nym_coconut_dkg_common::types::EpochId;
 use thiserror::Error;
 

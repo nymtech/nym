@@ -4,6 +4,7 @@
 use super::CirculatingSupplyCache;
 use crate::circulating_supply_api::cache::CirculatingSupplyCacheError;
 use crate::support::nyxd::Client;
+use log::{error, trace};
 use nym_contracts_common::truncate_decimal;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::Coin;

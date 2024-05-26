@@ -6,7 +6,7 @@ use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
 use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::KeyPairWithEpoch;
-use log::debug;
+use log::{debug, error, info, warn};
 use nym_coconut_dkg_common::dealing::{chunk_dealing, DealingChunkInfo, MAX_DEALING_CHUNK_SIZE};
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
 use nym_dkg::{Dealing, Scalar};

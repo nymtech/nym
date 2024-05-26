@@ -1,9 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-#[macro_use]
-extern crate rocket;
-
 use crate::coconut::dkg::controller::keys::{
     can_validate_coconut_keys, load_bte_keypair, load_coconut_keypair_if_exists,
 };
@@ -20,6 +17,7 @@ use ::nym_config::defaults::setup_env;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
 use coconut::dkg::controller::DkgController;
+use log::{info, trace};
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_logging;
 use nym_config::defaults::NymNetworkDetails;
@@ -86,7 +84,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let identity_public_key = *identity_keypair.public_key();
 
     // let's build our rocket!
-    let rocket = http::setup_rocket(
+    let rocket = http::setup_rest_api(
         &config,
         network_details,
         nyxd_client.clone(),

@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_route::TestRoute;
 use crate::nym_contract_cache::cache::NymContractCache;
-use log::info;
+use log::{error, info, trace};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_contract_common::{GatewayBond, Layer, MixNodeBond};
 use nym_node_tester_utils::node::TestableNode;

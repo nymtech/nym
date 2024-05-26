@@ -3,6 +3,7 @@
 
 use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::RewardedSetUpdater;
+use log::{error, info};
 
 impl RewardedSetUpdater {
     // returns boolean indicating whether we should bother continuing

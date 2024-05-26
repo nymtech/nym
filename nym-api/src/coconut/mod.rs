@@ -10,6 +10,7 @@ use nym_config::defaults::NYM_API_VERSION;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 use rocket::fairing::AdHoc;
+use rocket::routes;
 
 pub(crate) mod api_routes;
 pub(crate) mod client;

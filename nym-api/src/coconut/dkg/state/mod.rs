@@ -12,7 +12,7 @@ use crate::coconut::dkg::state::registration::{
 use crate::coconut::error::CoconutError;
 use crate::coconut::keys::{KeyPair as CoconutKeyPair, KeyPairWithEpoch};
 use cosmwasm_std::Addr;
-use log::debug;
+use log::{debug, warn};
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_crypto::asymmetric::identity;

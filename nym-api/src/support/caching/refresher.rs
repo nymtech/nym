@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::cache::SharedCache;
+use async_trait::async_trait;
+use log::error;
 use nym_task::TaskClient;
 use std::time::Duration;
 use tokio::time::interval;

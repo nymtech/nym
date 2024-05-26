@@ -5,7 +5,7 @@ use crate::network::models::{ContractInformation, NetworkDetails};
 use crate::nym_contract_cache::cache::NymContractCache;
 use nym_contracts_common::ContractBuildInformation;
 use rocket::serde::json::Json;
-use rocket::State;
+use rocket::{get, State};
 use rocket_okapi::openapi;
 use std::collections::HashMap;
 use std::ops::Deref;

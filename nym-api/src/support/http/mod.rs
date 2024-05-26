@@ -13,22 +13,48 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::{api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
+use crate::support::http::router::NymApiRouter;
 use crate::support::{nyxd, storage};
 use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+use axum::Router;
+use http::{header, Method, Request, Response};
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::Coin;
-use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
+use std::net::SocketAddr;
+use tower_http::cors::{Any, CorsLayer};
 
 pub(crate) mod helpers;
 pub(crate) mod openapi;
-mod state;
+pub(crate) mod router;
+pub(crate) mod state;
 
 pub(crate) async fn setup_rest_api(
+    config: &Config,
+    network_details: NetworkDetails,
+    nyxd_client: nyxd::Client,
+    identity_keypair: identity::KeyPair,
+    coconut_keypair: coconut::keys::KeyPair,
+) -> anyhow::Result<()> {
+    let bind_address = config.base.bind_address;
+    // TODO: we might want to bind on both ipv4 and ipv6:
+    // https://github.com/tokio-rs/axum/blob/main/examples/listen-multiple-addrs/src/main.rs
+    let listener = tokio::net::TcpListener::bind(&bind_address)
+        .await
+        .context(format!("failed to bind http api to {bind_address}"))?;
+
+    let serve_future = axum::serve(
+        listener,
+        NymApiRouter::new().into_make_service_with_connect_info(),
+    );
+    unimplemented!()
+}
+
+pub(crate) async fn old_setup_rest_api(
     config: &Config,
     network_details: NetworkDetails,
     nyxd_client: nyxd::Client,
@@ -57,7 +83,7 @@ pub(crate) async fn setup_rest_api(
         .manage(network_details)
         .manage(SharedCache::<DescribedNodes>::new())
         .mount("/swagger", make_swagger_ui(&openapi::get_docs()))
-        .attach(setup_cors()?)
+        .attach(old_setup_cors()?)
         .attach(NymContractCache::stage())
         .attach(NodeStatusCache::stage())
         .attach(CirculatingSupplyCache::stage(mix_denom.clone()))
@@ -122,13 +148,13 @@ pub(crate) async fn setup_rest_api(
     Ok(rocket.manage(status_state).ignite().await?)
 }
 
-fn setup_cors() -> Result<Cors> {
+fn old_setup_cors() -> Result<Cors> {
     let allowed_origins = AllowedOrigins::all();
 
     // You can also deserialize this
     let cors = rocket_cors::CorsOptions {
         allowed_origins,
-        allowed_methods: vec![Method::Post, Method::Get]
+        allowed_methods: vec![rocket::http::Method::Post, rocket::http::Method::Get]
             .into_iter()
             .map(From::from)
             .collect(),
@@ -139,4 +165,12 @@ fn setup_cors() -> Result<Cors> {
     .to_cors()?;
 
     Ok(cors)
+}
+
+fn setup_cors() -> CorsLayer {
+    CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers(Any)
+        .allow_credentials(true)
 }

@@ -84,7 +84,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let identity_public_key = *identity_keypair.public_key();
 
     // let's build our rocket!
-    let rocket = http::setup_rest_api(
+    let rocket = http::old_setup_rest_api(
         &config,
         network_details,
         nyxd_client.clone(),

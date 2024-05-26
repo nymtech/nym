@@ -3886,6 +3886,7 @@ version = "1.1.38"
 dependencies = [
  "anyhow",
  "async-trait",
+ "axum 0.7.5",
  "bip39",
  "bs58 0.5.1",
  "cfg-if",
@@ -3950,8 +3951,11 @@ dependencies = [
  "time",
  "tokio",
  "tokio-stream",
+ "tower-http",
  "ts-rs",
  "url",
+ "utoipa",
+ "utoipa-swagger-ui",
  "zeroize",
 ]
 

@@ -26,6 +26,7 @@ use rocket_okapi::swagger_ui::make_swagger_ui;
 
 pub(crate) mod helpers;
 pub(crate) mod openapi;
+mod state;
 
 pub(crate) async fn setup_rest_api(
     config: &Config,

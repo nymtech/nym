@@ -41,7 +41,7 @@ impl MixnodeResult {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub(crate) struct GatewayResult {
     pub(crate) identity: String,
     pub(crate) owner: String,

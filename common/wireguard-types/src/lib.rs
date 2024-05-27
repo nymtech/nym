@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::DashMap;
+use defguard_wireguard_rs::WGApi;
 use nym_crypto::asymmetric::encryption::KeyPair;
 use std::sync::Arc;
 
 pub mod config;
 pub mod error;
+pub mod peer_controller;
 pub mod public_key;
 pub mod registration;
 
@@ -20,6 +22,25 @@ pub use registration::{
 
 #[cfg(feature = "verify")]
 pub use registration::HmacSha256;
+
+pub struct WgApiWrapper {
+    inner: WGApi,
+}
+
+impl WgApiWrapper {
+    pub fn new(wg_api: WGApi) -> Self {
+        WgApiWrapper { inner: wg_api }
+    }
+}
+
+impl Drop for WgApiWrapper {
+    fn drop(&mut self) {
+        if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
+        {
+            log::error!("Could not remove the wireguard interface: {:?}", e);
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct WireguardGatewayData {

@@ -231,7 +231,8 @@ impl<St> Gateway<St> {
     async fn start_wireguard(
         &self,
         shutdown: TaskClient,
-    ) -> Result<nym_wireguard::WgApiWrapper, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Arc<nym_wireguard_types::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>>
+    {
         if let Some(wireguard_data) = self.wireguard_data.as_ref() {
             nym_wireguard::start_wireguard(shutdown, Arc::clone(wireguard_data)).await
         } else {

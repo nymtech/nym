@@ -3,39 +3,24 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use defguard_wireguard_rs::WGApi;
+use std::sync::Arc;
 
 const WG_TUN_NAME: &str = "nymwg";
-
-pub struct WgApiWrapper {
-    wg_api: WGApi,
-}
-
-impl WgApiWrapper {
-    pub fn new(wg_api: WGApi) -> Self {
-        WgApiWrapper { wg_api }
-    }
-}
-
-impl Drop for WgApiWrapper {
-    fn drop(&mut self) {
-        if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.wg_api)
-        {
-            log::error!("Could not remove the wireguard interface: {:?}", e);
-        }
-    }
-}
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
-    mut task_client: nym_task::TaskClient,
+    task_client: nym_task::TaskClient,
     wireguard_data: std::sync::Arc<nym_wireguard_types::WireguardGatewayData>,
-) -> Result<WgApiWrapper, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<
+    Arc<nym_wireguard_types::WgApiWrapper>,
+    Box<dyn std::error::Error + Send + Sync + 'static>,
+> {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{
         host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WGApi, WireguardInterfaceApi,
     };
+    use nym_wireguard_types::peer_controller::PeerController;
 
     let mut peers = vec![];
     for peer_client in wireguard_data.client_registry().iter() {
@@ -46,8 +31,8 @@ pub async fn start_wireguard(
     }
 
     let ifname = String::from(WG_TUN_NAME);
-    let wgapi = WGApi::new(ifname.clone(), false)?;
-    wgapi.create_interface()?;
+    let wg_api = WGApi::new(ifname.clone(), false)?;
+    wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.keypair().private_key().to_bytes()),
@@ -55,12 +40,14 @@ pub async fn start_wireguard(
         port: wireguard_data.config().announced_port as u32,
         peers,
     };
-    wgapi.configure_interface(&interface_config)?;
+    wg_api.configure_interface(&interface_config)?;
     // wgapi.configure_peer_routing(&peers)?;
 
-    tokio::spawn(async move { task_client.recv().await });
+    let wg_api = Arc::new(nym_wireguard_types::WgApiWrapper::new(wg_api));
+    let (mut controller, peer_sender) = PeerController::new(wg_api.clone());
+    tokio::spawn(async move { controller.run(task_client).await });
 
-    Ok(WgApiWrapper::new(wgapi))
+    Ok(wg_api)
 }
 
 #[cfg(not(target_os = "linux"))]

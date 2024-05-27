@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use defguard_wireguard_rs::{host::Peer, key::Key, WireguardInterfaceApi};
-use futures::{channel::mpsc, StreamExt};
+use tokio::sync::mpsc;
 
 use crate::WgApiWrapper;
 
@@ -14,15 +14,16 @@ pub enum PeerControlMessage {
 }
 
 pub struct PeerController {
-    client_rx: mpsc::UnboundedReceiver<PeerControlMessage>,
+    peer_rx: mpsc::UnboundedReceiver<PeerControlMessage>,
     wg_api: Arc<WgApiWrapper>,
 }
 
 impl PeerController {
-    pub fn new(wg_api: Arc<WgApiWrapper>) -> (Self, mpsc::UnboundedSender<PeerControlMessage>) {
-        let (client_tx, client_rx) = mpsc::unbounded();
-
-        (PeerController { client_rx, wg_api }, client_tx)
+    pub fn new(
+        wg_api: Arc<WgApiWrapper>,
+        peer_rx: mpsc::UnboundedReceiver<PeerControlMessage>,
+    ) -> Self {
+        PeerController { wg_api, peer_rx }
     }
 
     pub async fn run(&mut self, mut task_client: nym_task::TaskClient) {
@@ -32,7 +33,7 @@ impl PeerController {
                     log::trace!("PeerController handler: Received shutdown");
                     break;
                 }
-                msg = self.client_rx.next() => {
+                msg = self.peer_rx.recv() => {
                     match msg {
                         Some(PeerControlMessage::AddPeer(peer)) => {
                             if self.wg_api.inner.configure_peer(&peer).is_err() {

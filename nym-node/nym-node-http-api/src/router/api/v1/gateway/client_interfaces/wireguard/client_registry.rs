@@ -31,11 +31,21 @@ async fn process_final_message(
     };
 
     if client
-        .verify(state.keypair.private_key(), preshared_nonce)
+        .verify(
+            state.wireguard_gateway_data.keypair().private_key(),
+            preshared_nonce,
+        )
         .is_ok()
     {
+        state
+            .wireguard_gateway_data
+            .add_peer(&client)
+            .map_err(|err| RequestError::from_err(err, StatusCode::INTERNAL_SERVER_ERROR))?;
         state.registration_in_progress.remove(&client.pub_key());
-        state.client_registry.insert(client.pub_key(), client);
+        state
+            .wireguard_gateway_data
+            .client_registry()
+            .insert(client.pub_key(), client);
 
         Ok(StatusCode::OK)
     } else {
@@ -102,7 +112,7 @@ pub(crate) async fn register_client(
             // mark it as used, even though it's not final
             *private_ip_ref = false;
             let gateway_data = GatewayClient::new(
-                state.keypair.private_key(),
+                state.wireguard_gateway_data.keypair().private_key(),
                 remote_public,
                 *private_ip_ref.key(),
                 nonce,
@@ -154,7 +164,8 @@ pub(crate) async fn get_all_clients(
     };
 
     let clients = state
-        .client_registry
+        .wireguard_gateway_data
+        .client_registry()
         .iter()
         .map(|c| c.pub_key())
         .collect::<Vec<PeerPublicKey>>();
@@ -196,7 +207,8 @@ pub(crate) async fn get_client(
     };
 
     let clients = state
-        .client_registry
+        .wireguard_gateway_data
+        .client_registry()
         .iter()
         .filter_map(|c| {
             if c.pub_key() == pub_key {

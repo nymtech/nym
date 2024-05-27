@@ -11,7 +11,7 @@ const WG_TUN_NAME: &str = "nymwg";
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
-    wireguard_data: std::sync::Arc<nym_wireguard_types::WireguardGatewayData>,
+    wireguard_data: nym_wireguard_types::WireguardData,
 ) -> Result<
     Arc<nym_wireguard_types::WgApiWrapper>,
     Box<dyn std::error::Error + Send + Sync + 'static>,
@@ -23,7 +23,7 @@ pub async fn start_wireguard(
     use nym_wireguard_types::peer_controller::PeerController;
 
     let mut peers = vec![];
-    for peer_client in wireguard_data.client_registry().iter() {
+    for peer_client in wireguard_data.inner.client_registry().iter() {
         let mut peer = Peer::new(Key::new(peer_client.pub_key.to_bytes()));
         let peer_ip_mask = IpAddrMask::new(peer_client.private_ip, 32);
         peer.set_allowed_ips(vec![peer_ip_mask]);
@@ -35,16 +35,16 @@ pub async fn start_wireguard(
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
-        prvkey: BASE64_STANDARD.encode(wireguard_data.keypair().private_key().to_bytes()),
-        address: wireguard_data.config().private_ip.to_string(),
-        port: wireguard_data.config().announced_port as u32,
+        prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
+        address: wireguard_data.inner.config().private_ip.to_string(),
+        port: wireguard_data.inner.config().announced_port as u32,
         peers,
     };
     wg_api.configure_interface(&interface_config)?;
     // wgapi.configure_peer_routing(&peers)?;
 
     let wg_api = Arc::new(nym_wireguard_types::WgApiWrapper::new(wg_api));
-    let (mut controller, peer_sender) = PeerController::new(wg_api.clone());
+    let mut controller = PeerController::new(wg_api.clone(), wireguard_data.peer_rx);
     tokio::spawn(async move { controller.run(task_client).await });
 
     Ok(wg_api)

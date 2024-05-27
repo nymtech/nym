@@ -27,7 +27,7 @@ use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
-use nym_wireguard_types::WireguardGatewayData;
+use nym_wireguard_types::WireguardData;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -128,7 +128,7 @@ pub struct Gateway<St = PersistentStorage> {
 
     storage: St,
 
-    wireguard_data: Option<Arc<WireguardGatewayData>>,
+    wireguard_data: Option<WireguardData>,
 
     run_http_server: bool,
     task_client: Option<TaskClient>,
@@ -184,13 +184,7 @@ impl<St> Gateway<St> {
         self.task_client = Some(task_client)
     }
 
-    pub fn set_wireguard_data(&mut self, wireguard_data: Arc<WireguardGatewayData>) {
-        // sanity check:
-        if let Some(wg_data) = self.wireguard_data.as_ref() {
-            if Arc::strong_count(wg_data) != 1 {
-                panic!("the client registry is already being used elsewhere")
-            }
-        }
+    pub fn set_wireguard_data(&mut self, wireguard_data: WireguardData) {
         self.wireguard_data = Some(wireguard_data)
     }
 
@@ -229,12 +223,12 @@ impl<St> Gateway<St> {
 
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     async fn start_wireguard(
-        &self,
+        &mut self,
         shutdown: TaskClient,
     ) -> Result<Arc<nym_wireguard_types::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>>
     {
-        if let Some(wireguard_data) = self.wireguard_data.as_ref() {
-            nym_wireguard::start_wireguard(shutdown, Arc::clone(wireguard_data)).await
+        if let Some(wireguard_data) = self.wireguard_data.take() {
+            nym_wireguard::start_wireguard(shutdown, wireguard_data).await
         } else {
             Err(Box::new(GatewayError::WireguardNotSet))
         }
@@ -562,7 +556,6 @@ impl<St> Gateway<St> {
                 self.identity_keypair.as_ref(),
                 self.sphinx_keypair.clone(),
             )
-            .with_wireguard_data(self.wireguard_data.clone())
             .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
             .with_maybe_network_request_filter(nr_request_filter)
             .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))

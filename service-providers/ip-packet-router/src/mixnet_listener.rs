@@ -4,13 +4,16 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
-use nym_ip_packet_requests::response::InfoLevel;
+use nym_ip_packet_requests::v7::request::IpPacketRequestData;
 use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec,
-    request::{IpPacketRequest, IpPacketRequestData},
-    response::{
-        DynamicConnectFailureReason, InfoResponseReply, IpPacketResponse,
+    v6::response::{
+        DynamicConnectFailureReason, InfoLevel, InfoResponseReply, IpPacketResponse,
         StaticConnectFailureReason,
+    },
+    v7::request::{
+        DataRequest, DisconnectRequest, DynamicConnectRequest, IpPacketRequest,
+        StaticConnectRequest,
     },
     IpPair,
 };
@@ -257,7 +260,7 @@ impl Drop for CloseTx {
     }
 }
 
-type PacketHandleResult = Result<Option<IpPacketResponse>>;
+type PacketHandleResult = Result<Option<nym_ip_packet_requests::v6::response::IpPacketResponse>>;
 
 #[cfg(target_os = "linux")]
 pub(crate) struct MixnetListener {
@@ -287,7 +290,7 @@ impl MixnetListener {
     // if it's available. If it's not available, we send a failure response.
     async fn on_static_connect_request(
         &mut self,
-        connect_request: nym_ip_packet_requests::request::StaticConnectRequest,
+        connect_request: StaticConnectRequest,
     ) -> PacketHandleResult {
         log::info!(
             "Received static connect request from {sender_address}",
@@ -369,7 +372,7 @@ impl MixnetListener {
 
     async fn on_dynamic_connect_request(
         &mut self,
-        connect_request: nym_ip_packet_requests::request::DynamicConnectRequest,
+        connect_request: DynamicConnectRequest,
     ) -> PacketHandleResult {
         log::info!(
             "Received dynamic connect request from {sender_address}",
@@ -436,10 +439,7 @@ impl MixnetListener {
         )))
     }
 
-    fn on_disconnect_request(
-        &self,
-        _disconnect_request: nym_ip_packet_requests::request::DisconnectRequest,
-    ) -> PacketHandleResult {
+    fn on_disconnect_request(&self, _disconnect_request: DisconnectRequest) -> PacketHandleResult {
         log::info!("Received disconnect request: not implemented, dropping");
         Ok(None)
     }
@@ -498,7 +498,7 @@ impl MixnetListener {
 
     async fn on_data_request(
         &mut self,
-        data_request: nym_ip_packet_requests::request::DataRequest,
+        data_request: DataRequest,
     ) -> Result<Vec<PacketHandleResult>> {
         let mut responses = Vec::new();
         let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
@@ -544,26 +544,66 @@ impl MixnetListener {
         );
 
         // Check version of request
-        if let Some(version) = reconstructed.message.first() {
-            // The idea is that in the future we can add logic here to parse older versions to stay
-            // backwards compatible.
-            if *version != nym_ip_packet_requests::CURRENT_VERSION {
-                log::info!("Received packet with invalid version: v{version}");
-                return Ok(vec![self.on_version_mismatch(*version, &reconstructed)]);
-            }
-        }
+        // let version = if let Some(version) = reconstructed.message.first() {
+        //     // The idea is that in the future we can add logic here to parse older versions to stay
+        //     // backwards compatible.
+        //     if *version != nym_ip_packet_requests::CURRENT_VERSION
+        //         && *version != nym_ip_packet_requests::CURRENT_VERSION + 1
+        //     {
+        //         log::info!("Received packet with invalid version: v{version}");
+        //         return Ok(vec![self.on_version_mismatch(*version, &reconstructed)]);
+        //     }
+        //     *version
+        // };
 
-        let request = IpPacketRequest::from_reconstructed_message(&reconstructed)
-            .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?;
+        // Make sure the current version is set to something that we can handle
+        const _: () = assert!(
+            nym_ip_packet_requests::CURRENT_VERSION == 6
+                || nym_ip_packet_requests::CURRENT_VERSION == 7
+        );
+
+        let version = *reconstructed
+            .message
+            .first()
+            .ok_or(IpPacketRouterError::EmptyPacket)?;
+
+        // Check version of request
+        let request = if version == 6 {
+            nym_ip_packet_requests::v6::request::IpPacketRequest::from_reconstructed_message(
+                &reconstructed,
+            )
+            .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?
+            .into()
+        } else if version == 7 {
+            nym_ip_packet_requests::v7::request::IpPacketRequest::from_reconstructed_message(
+                &reconstructed,
+            )
+            .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?
+        } else {
+            log::info!("Received packet with invalid version: v{version}");
+            return Ok(vec![self.on_version_mismatch(version, &reconstructed)]);
+        };
 
         match request.data {
-            IpPacketRequestData::StaticConnect(connect_request) => {
+            IpPacketRequestData::StaticConnect(signed_connect_request) => {
+                if let Some(_signature) = signed_connect_request.signature {
+                    // TODO: verify the signature
+                }
+                let connect_request = signed_connect_request.request;
                 Ok(vec![self.on_static_connect_request(connect_request).await])
             }
-            IpPacketRequestData::DynamicConnect(connect_request) => {
+            IpPacketRequestData::DynamicConnect(signed_connect_request) => {
+                if let Some(_signature) = signed_connect_request.signature {
+                    // TODO: verify the signature
+                }
+                let connect_request = signed_connect_request.request;
                 Ok(vec![self.on_dynamic_connect_request(connect_request).await])
             }
             IpPacketRequestData::Disconnect(disconnect_request) => {
+                if let Some(_signature) = disconnect_request.signature {
+                    // TODO: verify the signature
+                }
+                let disconnect_request = disconnect_request.request;
                 Ok(vec![self.on_disconnect_request(disconnect_request)])
             }
             IpPacketRequestData::Data(data_request) => self.on_data_request(data_request).await,

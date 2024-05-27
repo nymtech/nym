@@ -2,7 +2,9 @@ use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::{make_bincode_serializer, IpPair, CURRENT_VERSION};
+use crate::{make_bincode_serializer, IpPair};
+
+use super::VERSION;
 
 fn generate_random() -> u64 {
     use rand::RngCore;
@@ -27,7 +29,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::StaticConnect(SignedStaticConnectRequest {
                     request: StaticConnectRequest {
                         request_id,
@@ -54,7 +56,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::DynamicConnect(SignedDynamicConnectRequest {
                     request: DynamicConnectRequest {
                         request_id,
@@ -75,7 +77,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::Disconnect(SignedDisconnectRequest {
                     request: DisconnectRequest {
                         request_id,
@@ -91,7 +93,7 @@ impl IpPacketRequest {
 
     pub fn new_data_request(ip_packets: bytes::Bytes) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketRequestData::Data(DataRequest { ip_packets }),
         }
     }
@@ -100,7 +102,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::Ping(PingRequest {
                     request_id,
                     reply_to,
@@ -115,7 +117,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::Health(HealthRequest {
                     request_id,
                     reply_to,

@@ -88,6 +88,9 @@ pub enum IpPacketRouterError {
 
     #[error(transparent)]
     NymIdError(#[from] NymIdError),
+
+    #[error("received empty packet")]
+    EmptyPacket,
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

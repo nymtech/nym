@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use bytes::Bytes;
-use nym_ip_packet_requests::{codec::MultiIpPacketCodec, response::IpPacketResponse};
+use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v6::response::IpPacketResponse};
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 
 use crate::{

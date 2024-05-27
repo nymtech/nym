@@ -27,6 +27,10 @@ nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"] 
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false }
 
+
+[dev-dependencies]
+serde_json.workspace = true
+
 [features]
 default = []
 generate-ts = ["ts-rs", "nym-mixnet-contract-common/generate-ts"]

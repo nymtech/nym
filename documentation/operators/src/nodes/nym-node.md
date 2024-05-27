@@ -26,7 +26,7 @@ Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-no
 
 During the testing events series [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) as default features,  only a fragment of Exit Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
-Below is a fast - ten commands - deployment for seasoned operators to migrate and setup the node, configure networking and connectivity and verify that it all works as it should by getting two free jokes through the Mixnet.
+Below is a fast - *ten command* - deployment for seasoned operators to migrate and setup the node, configure networking and connectivity and verify that it all works as it should by getting two free jokes through the Mixnet.
 
 ```admonish caution
 If you are not well familiar with `nym-node` setup, automation, and `nymtun0` configuration, follow the [steps above](#steps-for-nym-node-operators) page by page. You can use this flow as a reference later on.

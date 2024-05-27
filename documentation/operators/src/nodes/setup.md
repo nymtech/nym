@@ -54,7 +54,11 @@ https://<DOMAIN>/api/v1/swagger/#/
 
 ### Help Command
 
-There are a few changes from the individual binaries used in the past. For example by default `run` command does `init` function as well, local node `--id` will be set by default unless specified otherwise etcetera.
+There are a few changes from the individual binaries used in the past. For example by default `run` command does `init` function as well, local node `--id` will be set by default unless specified otherwise etcetera. 
+
+```admonish info
+You can always use `--help` flag to see the commands or arguments associated with a given command. 
+```
 
 Run `./nym-node --help` to see all available commands:
 
@@ -63,31 +67,6 @@ Run `./nym-node --help` to see all available commands:
 <!-- cmdrun ../../../../target/release/nym-node --help -->
 ```
 ~~~
-
-<!--
-IN CASE CMD-RUN DOESN'T WORK HAR PASTE THIS:
-
-Usage: nym-node [OPTIONS] <COMMAND>
-
-Commands:
-  build-info           Show build information of this binary
-  bonding-information  Show bonding information of this node depending on its currently selected mode
-  node-details         Show details of this node
-  migrate              Attempt to migrate an existing mixnode or gateway into a nym-node
-  run                  Start this nym-node
-  sign                 Use identity key of this node to sign provided message
-  help                 Print this message or the help of the given subcommand(s)
-
-Options:
-  -c, --config-env-file <CONFIG_ENV_FILE>
-          Path pointing to an env file that configures the nym-node and overrides any preconfigured values [env: NYMNODE_CONFIG_ENV_FILE_ARG=]
-      --no-banner
-          Flag used for disabling the printed banner in tty [env: NYMNODE_NO_BANNER=]
-  -h, --help
-          Print help
-  -V, --version
-          Print version
--->
 
 To list all available flags for each command, run `./nym-node <COMMAND> --help` for example `./nym-node run --help`:
 
@@ -192,7 +171,9 @@ Some of the most useful flags and their explanation:
 - `--expose-crypto-hardware <true/false>`: Sets your crypto hardware info visibility on the network.
 
 
-## Commands & Examples
+## Usage
+
+### Commands & Examples
 
 **`nym-node` introduces a default human readible ID (local only) `default-nym-node`, which is used if there is not an explicit custom `--id <ID>` specified. All configuration is stored in `~/.nym/nym-nodes/default-nym-node/config/config.toml` or `~/.nym/nym-nodes/<ID>/config/config.toml` respectively.**
 
@@ -216,22 +197,34 @@ To prevent over-flooding of our documentation we cannot provide with every singl
 
 As part of the transition, `allowed.list` on Exit Gateway embedded Network Requester was depreciated.
 
-**Initialise and run:**
+**Initialise and run** in one command:
 ```sh
 # simple default
 ./nym-node  run  --mode exit-gateway
 
 # with other options
-./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --wireguard-enabled true
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --wireguard-enabled false
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# keep wireguard disabled
 ```
 
-Initialise only with a custom `--id` and `--init-only` command :
+**Initialise only** without running the node with `--init-only` command :
 
 ```sh
-./nym-node run --id <ID> --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --wireguard-enabled true
+# simple default
+./nym-node run --init-only --mode exit-gateway
+
+# with a custom `--id` and other options
+./nym-node run --id <ID> --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <COUNTRY_FULL_NAME> --wireguard-enabled false
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# keep wireguard disabled
 ```
 
-Run the node with custom `--id` without initialising
+Run the node with custom `--id` without initialising, using `--deny-init` command
 ```sh
 ./nym-node run --id <ID> --deny-init --mode exit-gateway
 ```

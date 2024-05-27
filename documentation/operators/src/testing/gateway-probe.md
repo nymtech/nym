@@ -34,7 +34,7 @@ cargo build --release -p nym-gateway-probe
 ```sh
 ./target/release/nym-gateway-probe --help
 ```
-~~~admonish collapsible=true
+~~~admonish example collapsible=true title="`nym-gateway-probe --help`"
 ```
 Usage: nym-gateway-probe [OPTIONS]
 

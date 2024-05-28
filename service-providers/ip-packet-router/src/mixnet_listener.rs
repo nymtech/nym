@@ -570,9 +570,6 @@ impl MixnetListener {
             }
         };
 
-        // Once we start to require clients to send v7 requests, we will enfore checking
-        // signatures. Until then, we only check if they are present.
-
         match request.data {
             IpPacketRequestData::StaticConnect(signed_connect_request) => {
                 verify_signed_request(&signed_connect_request)?;
@@ -705,6 +702,8 @@ impl MixnetListener {
 
 fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {
     if let Err(err) = request.verify() {
+        // Once we start to require clients to send v7 requests, we will enfore checking
+        // signatures. Until then, we only check if they are present.
         if !matches!(err, SignatureError::MissingSignature) {
             return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
         }

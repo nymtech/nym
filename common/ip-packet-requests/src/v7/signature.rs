@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use nym_crypto::asymmetric::{ed25519::Ed25519RecoveryError, identity};
 
 #[derive(thiserror::Error, Debug)]
@@ -17,6 +19,9 @@ pub enum SignatureError {
         error: Box<bincode::ErrorKind>,
     },
 
+    #[error("signature verification failed: request out of date")]
+    RequestOutOfDate,
+
     #[error("signature verification failed")]
     VerificationFailed {
         message: String,
@@ -31,8 +36,15 @@ pub trait SignedRequest {
 
     fn signature(&self) -> Option<&Vec<u8>>;
 
+    fn timestamp(&self) -> time::OffsetDateTime;
+
     fn verify(&self) -> Result<(), SignatureError> {
         if let Some(signature) = self.signature() {
+            // First check that the request is recent enough
+            if time::OffsetDateTime::now_utc() - self.timestamp() > Duration::from_secs(10) {
+                return Err(SignatureError::RequestOutOfDate);
+            }
+
             let request_as_bytes = self.request()?;
             let signature = identity::Signature::from_bytes(signature).map_err(|error| {
                 SignatureError::SignatureParseError {

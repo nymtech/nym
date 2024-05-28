@@ -257,6 +257,10 @@ impl SignedRequest for SignedStaticConnectRequest {
     fn signature(&self) -> Option<&Vec<u8>> {
         self.signature.as_ref()
     }
+
+    fn timestamp(&self) -> OffsetDateTime {
+        self.request.timestamp
+    }
 }
 
 // A dynamic connect request is when the client does not provide the internal IP address it will use
@@ -314,6 +318,10 @@ impl SignedRequest for SignedDynamicConnectRequest {
     fn signature(&self) -> Option<&Vec<u8>> {
         self.signature.as_ref()
     }
+
+    fn timestamp(&self) -> OffsetDateTime {
+        self.request.timestamp
+    }
 }
 
 // A disconnect request is when the client wants to disconnect from the ip packet router and free
@@ -358,6 +366,10 @@ impl SignedRequest for SignedDisconnectRequest {
 
     fn signature(&self) -> Option<&Vec<u8>> {
         self.signature.as_ref()
+    }
+
+    fn timestamp(&self) -> OffsetDateTime {
+        self.request.timestamp
     }
 }
 

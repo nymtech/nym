@@ -575,29 +575,17 @@ impl MixnetListener {
 
         match request.data {
             IpPacketRequestData::StaticConnect(signed_connect_request) => {
-                if let Err(err) = signed_connect_request.verify() {
-                    if !matches!(err, SignatureError::MissingSignature) {
-                        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
-                    }
-                }
+                verify_signed_request(&signed_connect_request)?;
                 let connect_request = signed_connect_request.request;
                 Ok(vec![self.on_static_connect_request(connect_request).await])
             }
             IpPacketRequestData::DynamicConnect(signed_connect_request) => {
-                if let Err(err) = signed_connect_request.verify() {
-                    if !matches!(err, SignatureError::MissingSignature) {
-                        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
-                    }
-                }
+                verify_signed_request(&signed_connect_request)?;
                 let connect_request = signed_connect_request.request;
                 Ok(vec![self.on_dynamic_connect_request(connect_request).await])
             }
             IpPacketRequestData::Disconnect(signed_disconnect_request) => {
-                if let Err(err) = signed_disconnect_request.verify() {
-                    if !matches!(err, SignatureError::MissingSignature) {
-                        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
-                    }
-                }
+                verify_signed_request(&signed_disconnect_request)?;
                 let disconnect_request = signed_disconnect_request.request;
                 Ok(vec![self.on_disconnect_request(disconnect_request)])
             }
@@ -713,6 +701,15 @@ impl MixnetListener {
         log::debug!("IpPacketRouter: stopping");
         Ok(())
     }
+}
+
+fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {
+    if let Err(err) = request.verify() {
+        if !matches!(err, SignatureError::MissingSignature) {
+            return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
+        }
+    }
+    Ok(())
 }
 
 pub(crate) enum ConnectedClientEvent {

@@ -22,6 +22,7 @@ nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
 nym-exit-policy = { path = "../../common/exit-policy" }
+nym-id = { path = "../../common/nym-id" }
 nym-ip-packet-requests = { path = "../../common/ip-packet-requests" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-network-requester = { path = "../network-requester" }
@@ -33,13 +34,13 @@ nym-tun = { path = "../../common/tun" }
 nym-types = { path = "../../common/types" }
 nym-wireguard = { path = "../../common/wireguard" }
 nym-wireguard-types = { path = "../../common/wireguard-types" }
-nym-id = { path = "../../common/nym-id" }
 rand = "0.8.5"
 reqwest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tap.workspace = true
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-util = { workspace = true, features = ["codec"] }
 url.workspace = true

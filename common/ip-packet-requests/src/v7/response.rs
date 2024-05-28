@@ -277,6 +277,8 @@ pub enum StaticConnectFailureReason {
     RequestedIpAlreadyInUse,
     #[error("requested nym-address is already in use")]
     RequestedNymAddressAlreadyInUse,
+    #[error("request timestamp is out of date")]
+    OutOfDateTimestamp,
     #[error("{0}")]
     Other(String),
 }

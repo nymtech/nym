@@ -6,7 +6,7 @@ use crate::node_status_api::models::{
 };
 use crate::node_status_api::ONE_DAY;
 use crate::storage::NymApiStorage;
-use log::error;
+use log::{error, info, trace, warn};
 use nym_task::{TaskClient, TaskManager};
 use std::time::Duration;
 use time::{OffsetDateTime, PrimitiveDateTime, Time};

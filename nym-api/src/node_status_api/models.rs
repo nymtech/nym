@@ -3,6 +3,7 @@
 
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
+use log::error;
 use nym_api_requests::models::{
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
     MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, NodePerformance, RequestError,

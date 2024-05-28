@@ -3,7 +3,7 @@
 
 use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::error::CoconutError;
-use log::debug;
+use log::{debug, info};
 use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
 use thiserror::Error;

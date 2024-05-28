@@ -3,6 +3,7 @@
 
 use self::data::CirculatingSupplyCacheData;
 use cosmwasm_std::Addr;
+use log::error;
 use nym_api_requests::models::CirculatingSupplyResponse;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;

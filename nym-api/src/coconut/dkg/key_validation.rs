@@ -6,6 +6,7 @@ use crate::coconut::error::CoconutError;
 use crate::coconut::state::bandwidth_credential_params;
 use cosmwasm_std::Addr;
 use cw3::Vote;
+use log::{debug, error, info, warn};
 use nym_coconut::{check_vk_pairing, Base58, VerificationKey};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_dkg_common::verification_key::ContractVKShare;

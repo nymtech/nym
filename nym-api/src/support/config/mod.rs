@@ -7,6 +7,7 @@ use crate::support::config::persistence::{
 use crate::support::config::r#override::OverrideConfig;
 use crate::support::config::template::CONFIG_TEMPLATE;
 use anyhow::bail;
+use log::debug;
 use nym_config::defaults::mainnet::read_parsed_var_if_not_default;
 use nym_config::defaults::var_names::{CONFIGURED, NYXD};
 use nym_config::serde_helpers::de_maybe_stringified;
@@ -16,6 +17,7 @@ use nym_config::{
 };
 use serde::{Deserialize, Serialize};
 use std::io;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
@@ -225,6 +227,17 @@ impl Config {
     }
 }
 
+fn default_http_socket_addr() -> SocketAddr {
+    // replicate rocket behaviour
+    cfg_if::cfg_if! {
+        if #[cfg(debug_assertions)] {
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080)
+        } else {
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8080)
+        }
+    }
+}
+
 // we only really care about the mnemonic being zeroized
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Zeroize, ZeroizeOnDrop)]
 pub struct Base {
@@ -233,6 +246,12 @@ pub struct Base {
 
     #[zeroize(skip)]
     pub local_validator: Url,
+
+    /// Socket address this api will use for binding its http API.
+    /// default: `0.0.0.0:8080`
+    #[zeroize(skip)]
+    #[serde(default = "default_http_socket_addr")]
+    pub bind_address: SocketAddr,
 
     /// Mnemonic used for rewarding and/or multisig operations
     // TODO: similarly to the note in gateway, this should get moved to a separate file
@@ -256,6 +275,7 @@ impl Base {
             storage_paths: NymApiPaths::new_default(&id),
             id,
             local_validator: default_validator,
+            bind_address: default_http_socket_addr(),
             mnemonic: None,
         }
     }

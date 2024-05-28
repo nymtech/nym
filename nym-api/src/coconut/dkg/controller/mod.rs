@@ -8,6 +8,7 @@ use crate::coconut::keys::KeyPair as CoconutKeyPair;
 use crate::nyxd;
 use crate::support::config;
 use anyhow::{bail, Result};
+use log::{debug, error, info, trace, warn};
 use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState};
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;

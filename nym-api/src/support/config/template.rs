@@ -15,6 +15,10 @@ id = '{{ base.id }}'
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
 
+# Socket address this api will use for binding its http API.
+# default: `0.0.0.0:8080`
+bind_address = '{{ base.bind_address }}'
+
 # Mnemonic used for rewarding and validator interaction
 mnemonic = '{{ base.mnemonic }}'
 

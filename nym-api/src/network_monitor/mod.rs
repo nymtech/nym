@@ -15,6 +15,7 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::{config, nyxd};
 use futures::channel::mpsc;
+use log::info;
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};

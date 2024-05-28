@@ -1,15 +1,8 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::ops::Deref;
-
 use k256::ecdsa::signature::Verifier;
-use rand::rngs::OsRng;
-use rand::RngCore;
-use rocket::serde::json::Json;
-use rocket::State as RocketState;
-use time::OffsetDateTime;
-
+use log::{debug, error, trace};
 use nym_api_requests::coconut::models::{
     CredentialsRequestBody, EpochCredentialsResponse, FreePassNonceResponse, FreePassRequest,
     IssuedCredentialResponse, IssuedCredentialsResponse,
@@ -26,6 +19,12 @@ use nym_credentials::coconut::bandwidth::{
     bandwidth_credential_params, CredentialType, IssuanceBandwidthCredential,
 };
 use nym_validator_client::nyxd::Coin;
+use rand::rngs::OsRng;
+use rand::RngCore;
+use rocket::serde::json::Json;
+use rocket::{get, post, State as RocketState};
+use std::ops::Deref;
+use time::OffsetDateTime;
 
 use crate::coconut::api_routes::helpers::build_credentials_response;
 use crate::coconut::error::{CoconutError, Result};

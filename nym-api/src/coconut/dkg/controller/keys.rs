@@ -5,6 +5,7 @@ use crate::coconut::client::Client;
 use crate::coconut::keys::KeyPairWithEpoch;
 use crate::support::{config, nyxd};
 use anyhow::{anyhow, bail, Context};
+use log::warn;
 use nym_coconut_dkg_common::types::{EpochId, EpochState};
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::{CryptoRng, RngCore};

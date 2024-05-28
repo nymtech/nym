@@ -7,6 +7,7 @@ use crate::nyxd::Client;
 use crate::support::caching::CacheNotification;
 use anyhow::Result;
 use futures::future::join_all;
+use log::{error, info, trace, warn};
 use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::{

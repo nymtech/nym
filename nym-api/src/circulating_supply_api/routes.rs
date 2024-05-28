@@ -7,7 +7,7 @@ use nym_api_requests::models::CirculatingSupplyResponse;
 use nym_validator_client::nyxd::Coin;
 use rocket::http::Status;
 use rocket::serde::json::Json;
-use rocket::State;
+use rocket::{get, State};
 use rocket_okapi::openapi;
 
 // TODO: this is not the best place to put it, it should be more centralised,

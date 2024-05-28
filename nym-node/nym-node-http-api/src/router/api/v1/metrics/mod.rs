@@ -8,24 +8,30 @@ use crate::state::metrics::MetricsAppState;
 use axum::extract::FromRef;
 use axum::routing::get;
 use axum::Router;
+use nym_http_api_common::middleware::BearerAuthLayer;
 use nym_node_requests::routes::api::v1::metrics;
 
 pub mod mixing;
 pub mod prometheus;
 pub mod verloc;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Config {
-    //
+    pub prometheus_token: String,
 }
 
-pub(super) fn routes<S>(_config: Config) -> Router<S>
+pub(super) fn routes<S>(config: Config) -> Router<S>
 where
     S: Send + Sync + 'static + Clone,
     MetricsAppState: FromRef<S>,
 {
+    let auth_middleware = BearerAuthLayer::new_raw(config.prometheus_token);
+
     Router::new()
         .route(metrics::MIXING, get(mixing_stats))
         .route(metrics::VERLOC, get(verloc_stats))
-        .route(metrics::PROMETHEUS, get(prometheus_metrics))
+        .route(
+            metrics::PROMETHEUS,
+            get(prometheus_metrics).layer(auth_middleware),
+        )
 }

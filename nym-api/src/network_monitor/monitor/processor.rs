@@ -7,7 +7,7 @@ use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
-use log::warn;
+use log::{debug, error, trace, warn};
 use nym_crypto::asymmetric::encryption;
 use nym_node_tester_utils::error::NetworkTestingError;
 use nym_node_tester_utils::processor::TestPacketProcessor;

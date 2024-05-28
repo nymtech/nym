@@ -18,6 +18,7 @@ use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
 use error::RewardingError;
 pub(crate) use helpers::MixnodeWithPerformance;
+use log::{error, info, trace, warn};
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
 use nym_task::{TaskClient, TaskManager};
 use std::collections::HashSet;

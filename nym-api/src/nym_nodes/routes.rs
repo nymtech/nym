@@ -6,7 +6,7 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
 use nym_api_requests::models::DescribedGateway;
 use rocket::serde::json::Json;
-use rocket::State;
+use rocket::{get, State};
 use rocket_okapi::openapi;
 use std::ops::Deref;
 

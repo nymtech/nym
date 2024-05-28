@@ -4,6 +4,7 @@
 use crate::coconut::error::Result;
 use crate::nyxd;
 use crate::support::nyxd::ClientInner;
+use async_trait::async_trait;
 use nym_coconut::VerificationKey;
 use nym_coconut_dkg_common::types::{Epoch, EpochId};
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;

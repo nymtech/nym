@@ -9,7 +9,6 @@ use nym_task::TaskClient;
 use std::net::SocketAddr;
 use tracing::{debug, error, info};
 
-pub mod middleware;
 pub mod router;
 pub mod state;
 

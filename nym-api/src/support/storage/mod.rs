@@ -13,6 +13,7 @@ use crate::storage::models::{NodeStatus, TestingRoute};
 use crate::support::storage::models::{
     GatewayDetails, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
 };
+use log::{error, info, warn};
 use nym_mixnet_contract_common::MixId;
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;

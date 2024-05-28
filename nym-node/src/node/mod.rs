@@ -540,7 +540,8 @@ impl NymNode {
             .with_ip_packet_router_details(ipr_details)
             .with_used_exit_policy(exit_policy_details)
             .with_description(self.description.clone())
-            .with_auxiliary_details(auxiliary_details);
+            .with_auxiliary_details(auxiliary_details)
+            .with_metrics_token(self.config.http.access_token.clone());
 
         if self.config.http.expose_system_info {
             config = config.with_system_info(get_system_info(
@@ -560,8 +561,7 @@ impl NymNode {
 
         let app_state = AppState::new()
             .with_mixing_stats(self.mixnode.mixing_stats.clone())
-            .with_verloc_stats(self.verloc_stats.clone())
-            .with_metrics_key(self.config.http.access_token.clone());
+            .with_verloc_stats(self.verloc_stats.clone());
 
         Ok(NymNodeRouter::new(config, Some(app_state), Some(wg_state))
             .build_server(&self.config.http.bind_address)

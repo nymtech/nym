@@ -12,6 +12,7 @@ license.workspace = true
 bincode = { workspace = true }
 bytes = { workspace = true }
 nym-bin-common = { path = "../bin-common" }
+nym-crypto = { path = "../crypto" }
 nym-sphinx = { path = "../nymsphinx" }
 rand = "0.8.5"
 serde = { workspace = true, features = ["derive"] }

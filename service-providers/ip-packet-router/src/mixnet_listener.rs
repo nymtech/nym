@@ -4,16 +4,19 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
-use nym_ip_packet_requests::v7::request::IpPacketRequestData;
+use nym_ip_packet_requests::v7::signature::SignatureError;
 use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec,
     v6::response::{
         DynamicConnectFailureReason, InfoLevel, InfoResponseReply, IpPacketResponse,
         StaticConnectFailureReason,
     },
-    v7::request::{
-        DataRequest, DisconnectRequest, DynamicConnectRequest, IpPacketRequest,
-        StaticConnectRequest,
+    v7::{
+        request::{
+            DataRequest, DisconnectRequest, DynamicConnectRequest, IpPacketRequest,
+            IpPacketRequestData, StaticConnectRequest,
+        },
+        signature::SignedRequest,
     },
     IpPair,
 };
@@ -543,67 +546,59 @@ impl MixnetListener {
             reconstructed.sender_tag
         );
 
-        // Check version of request
-        // let version = if let Some(version) = reconstructed.message.first() {
-        //     // The idea is that in the future we can add logic here to parse older versions to stay
-        //     // backwards compatible.
-        //     if *version != nym_ip_packet_requests::CURRENT_VERSION
-        //         && *version != nym_ip_packet_requests::CURRENT_VERSION + 1
-        //     {
-        //         log::info!("Received packet with invalid version: v{version}");
-        //         return Ok(vec![self.on_version_mismatch(*version, &reconstructed)]);
-        //     }
-        //     *version
-        // };
-
-        // Make sure the current version is set to something that we can handle
-        const _: () = assert!(
-            nym_ip_packet_requests::CURRENT_VERSION == 6
-                || nym_ip_packet_requests::CURRENT_VERSION == 7
-        );
-
-        let version = *reconstructed
+        let request_version = *reconstructed
             .message
             .first()
             .ok_or(IpPacketRouterError::EmptyPacket)?;
 
-        // Check version of request
-        let request = if version == 6 {
-            nym_ip_packet_requests::v6::request::IpPacketRequest::from_reconstructed_message(
+        // Check version of the request and convert to the latest version if necessary
+        let request = match request_version {
+            6 => nym_ip_packet_requests::v6::request::IpPacketRequest::from_reconstructed_message(
                 &reconstructed,
             )
             .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?
-            .into()
-        } else if version == 7 {
-            nym_ip_packet_requests::v7::request::IpPacketRequest::from_reconstructed_message(
+            .into(),
+            7 => nym_ip_packet_requests::v7::request::IpPacketRequest::from_reconstructed_message(
                 &reconstructed,
             )
-            .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?
-        } else {
-            log::info!("Received packet with invalid version: v{version}");
-            return Ok(vec![self.on_version_mismatch(version, &reconstructed)]);
+            .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?,
+            _ => {
+                log::info!("Received packet with invalid version: v{request_version}");
+                return Ok(vec![
+                    self.on_version_mismatch(request_version, &reconstructed)
+                ]);
+            }
         };
+
+        // Once we start to require clients to send v7 requests, we will enfore checking
+        // signatures. Until then, we only check if they are present.
 
         match request.data {
             IpPacketRequestData::StaticConnect(signed_connect_request) => {
-                if let Some(_signature) = signed_connect_request.signature {
-                    // TODO: verify the signature
+                if let Err(err) = signed_connect_request.verify() {
+                    if !matches!(err, SignatureError::MissingSignature) {
+                        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
+                    }
                 }
                 let connect_request = signed_connect_request.request;
                 Ok(vec![self.on_static_connect_request(connect_request).await])
             }
             IpPacketRequestData::DynamicConnect(signed_connect_request) => {
-                if let Some(_signature) = signed_connect_request.signature {
-                    // TODO: verify the signature
+                if let Err(err) = signed_connect_request.verify() {
+                    if !matches!(err, SignatureError::MissingSignature) {
+                        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
+                    }
                 }
                 let connect_request = signed_connect_request.request;
                 Ok(vec![self.on_dynamic_connect_request(connect_request).await])
             }
-            IpPacketRequestData::Disconnect(disconnect_request) => {
-                if let Some(_signature) = disconnect_request.signature {
-                    // TODO: verify the signature
+            IpPacketRequestData::Disconnect(signed_disconnect_request) => {
+                if let Err(err) = signed_disconnect_request.verify() {
+                    if !matches!(err, SignatureError::MissingSignature) {
+                        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
+                    }
                 }
-                let disconnect_request = disconnect_request.request;
+                let disconnect_request = signed_disconnect_request.request;
                 Ok(vec![self.on_disconnect_request(disconnect_request)])
             }
             IpPacketRequestData::Data(data_request) => self.on_data_request(data_request).await,

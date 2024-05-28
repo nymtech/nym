@@ -4781,6 +4781,7 @@ dependencies = [
  "bincode",
  "bytes",
  "nym-bin-common",
+ "nym-crypto",
  "nym-sphinx",
  "rand 0.8.5",
  "serde",

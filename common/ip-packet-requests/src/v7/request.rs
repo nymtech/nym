@@ -1,10 +1,14 @@
+use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
 use crate::{make_bincode_serializer, IpPair};
 
-use super::VERSION;
+use super::{
+    signature::{SignatureError, SignedRequest},
+    VERSION,
+};
 
 fn generate_random() -> u64 {
     use rand::RngCore;
@@ -236,6 +240,25 @@ pub struct SignedStaticConnectRequest {
     pub signature: Option<Vec<u8>>,
 }
 
+impl SignedRequest for SignedStaticConnectRequest {
+    fn identity(&self) -> &identity::PublicKey {
+        self.request.reply_to.identity()
+    }
+
+    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+        self.request
+            .to_bytes()
+            .map_err(|error| SignatureError::RequestSerializationError {
+                message: "failed to serialize request to binary".to_string(),
+                error,
+            })
+    }
+
+    fn signature(&self) -> Option<&Vec<u8>> {
+        self.signature.as_ref()
+    }
+}
+
 // A dynamic connect request is when the client does not provide the internal IP address it will use
 // on the ip packet router, and instead requests one to be assigned to it.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -274,6 +297,25 @@ pub struct SignedDynamicConnectRequest {
     pub signature: Option<Vec<u8>>,
 }
 
+impl SignedRequest for SignedDynamicConnectRequest {
+    fn identity(&self) -> &identity::PublicKey {
+        self.request.reply_to.identity()
+    }
+
+    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+        self.request
+            .to_bytes()
+            .map_err(|error| SignatureError::RequestSerializationError {
+                message: "failed to serialize request to binary".to_string(),
+                error,
+            })
+    }
+
+    fn signature(&self) -> Option<&Vec<u8>> {
+        self.signature.as_ref()
+    }
+}
+
 // A disconnect request is when the client wants to disconnect from the ip packet router and free
 // up the allocated IP address.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -298,6 +340,25 @@ impl DisconnectRequest {
 pub struct SignedDisconnectRequest {
     pub request: DisconnectRequest,
     pub signature: Option<Vec<u8>>,
+}
+
+impl SignedRequest for SignedDisconnectRequest {
+    fn identity(&self) -> &identity::PublicKey {
+        self.request.reply_to.identity()
+    }
+
+    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+        self.request
+            .to_bytes()
+            .map_err(|error| SignatureError::RequestSerializationError {
+                message: "failed to serialize request to binary".to_string(),
+                error,
+            })
+    }
+
+    fn signature(&self) -> Option<&Vec<u8>> {
+        self.signature.as_ref()
+    }
 }
 
 // A data request is when the client wants to send an IP packet to a destination.

@@ -5121,6 +5121,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.7.5",
  "axum-extra",
+ "base64 0.21.7",
  "colored",
  "dashmap",
  "fastrand 2.1.0",
@@ -5860,7 +5861,9 @@ dependencies = [
  "dashmap",
  "hmac 0.12.1",
  "log",
+ "nym-config",
  "nym-crypto",
+ "nym-network-defaults",
  "rand 0.7.3",
  "serde",
  "serde_json",

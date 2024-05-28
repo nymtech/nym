@@ -80,7 +80,6 @@ macro_rules! get_state {
 #[derive(Clone)]
 pub(crate) struct WireguardAppStateInner {
     wireguard_gateway_data: WireguardGatewayData,
-
     registration_in_progress: Arc<PendingRegistrations>,
     binding_port: u16,
     free_private_network_ips: Arc<PrivateIPs>,

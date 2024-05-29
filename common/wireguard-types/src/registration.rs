@@ -17,7 +17,7 @@ use nym_crypto::asymmetric::encryption::PrivateKey;
 use sha2::Sha256;
 
 pub type GatewayClientRegistry = DashMap<PeerPublicKey, GatewayClient>;
-pub type PendingRegistrations = DashMap<PeerPublicKey, Nonce>;
+pub type PendingRegistrations = DashMap<PeerPublicKey, RegistrationData>;
 pub type PrivateIPs = DashMap<IpAddr, Free>;
 
 #[cfg(feature = "verify")]
@@ -56,14 +56,16 @@ impl InitMessage {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ClientRegistrationResponse {
-    PendingRegistration {
-        nonce: u64,
-        gateway_data: GatewayClient,
-        wg_port: u16,
-    },
-    Registered {
-        success: bool,
-    },
+    PendingRegistration(RegistrationData),
+    Registered,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct RegistrationData {
+    pub nonce: u64,
+    pub gateway_data: GatewayClient,
+    pub wg_port: u16,
 }
 
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.

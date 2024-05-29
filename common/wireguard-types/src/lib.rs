@@ -88,7 +88,15 @@ impl WireguardGatewayData {
         let msg = PeerControlMessage::AddPeer(peer);
         self.peer_tx
             .send(msg)
-            .map_err(|source| Error::PeerAddingStopped { source })
+            .map_err(|source| Error::PeerModifyStopped { source })
+    }
+
+    pub fn remove_peer(&self, client: &GatewayClient) -> Result<(), Error> {
+        let key = Key::new(client.pub_key().to_bytes());
+        let msg = PeerControlMessage::RemovePeer(key);
+        self.peer_tx
+            .send(msg)
+            .map_err(|source| Error::PeerModifyStopped { source })
     }
 }
 

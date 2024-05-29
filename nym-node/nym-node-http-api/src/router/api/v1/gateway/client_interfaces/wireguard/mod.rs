@@ -114,6 +114,7 @@ mod test {
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
     use nym_wireguard_types::registration::HmacSha256;
+    use nym_wireguard_types::registration::RegistrationData;
     use nym_wireguard_types::WireguardGatewayData;
     use std::net::IpAddr;
     use std::str::FromStr;
@@ -219,11 +220,11 @@ mod test {
         assert_eq!(response.status(), StatusCode::OK);
         assert!(!registration_in_progress.is_empty());
 
-        let ClientRegistrationResponse::PendingRegistration {
+        let ClientRegistrationResponse::PendingRegistration(RegistrationData {
             nonce,
             gateway_data,
             wg_port: 8080,
-        } = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+        }) = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
             .unwrap()
         else {
             panic!("invalid response")

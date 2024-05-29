@@ -324,10 +324,10 @@ impl ExecuteMsg {
             ExecuteMsg::AdvanceCurrentEpoch { .. } => "advancing current epoch".into(),
             ExecuteMsg::ReconcileEpochEvents { .. } => "reconciling epoch events".into(),
             ExecuteMsg::BondMixnode { mix_node, .. } => {
-                format!("bonding mixnode {}", mix_node.identity_key)
+                format!("bonding mixnode {}, accepted https://nymtech.net/terms-and-conditions/operators/v1.0.0", mix_node.identity_key)
             }
             ExecuteMsg::BondMixnodeOnBehalf { mix_node, .. } => {
-                format!("bonding mixnode {} on behalf", mix_node.identity_key)
+                format!("bonding mixnode {} on behalf, accepted https://nymtech.net/terms-and-conditions/operators/v1.0.0", mix_node.identity_key)
             }
             ExecuteMsg::PledgeMore {} => "pledging additional tokens".into(),
             ExecuteMsg::PledgeMoreOnBehalf { .. } => "pledging additional tokens on behalf".into(),
@@ -346,10 +346,10 @@ impl ExecuteMsg {
                 "updating mixnode configuration on behalf".into()
             }
             ExecuteMsg::BondGateway { gateway, .. } => {
-                format!("bonding gateway {}", gateway.identity_key)
+                format!("bonding gateway {}, accepted https://nymtech.net/terms-and-conditions/operators/v1.0.0", gateway.identity_key)
             }
             ExecuteMsg::BondGatewayOnBehalf { gateway, .. } => {
-                format!("bonding gateway {} on behalf", gateway.identity_key)
+                format!("bonding gateway {} on behalf, accepted https://nymtech.net/terms-and-conditions/operators/v1.0.0", gateway.identity_key)
             }
             ExecuteMsg::UnbondGateway { .. } => "unbonding gateway".into(),
             ExecuteMsg::UnbondGatewayOnBehalf { .. } => "unbonding gateway on behalf".into(),

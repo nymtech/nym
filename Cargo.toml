@@ -117,7 +117,7 @@ members = [
     "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
-    #    "wasm/full-nym-wasm",
+    # "wasm/full-nym-wasm",  # If we uncomment this again, remember to also uncomment the profile settings below
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
@@ -356,9 +356,12 @@ opt-level = 'z'
 # lto = true
 opt-level = 'z'
 
-[profile.release.package.nym-wasm-sdk]
-# lto = true
-opt-level = 'z'
+# Commented out since the crate is also commented out from the inclusion in the
+# workspace above. We should uncomment this if we re-include it in the
+# workspace
+#[profile.release.package.nym-wasm-sdk]
+## lto = true
+#opt-level = 'z'
 
 [profile.release.package.mix-fetch-wasm]
 # lto = true

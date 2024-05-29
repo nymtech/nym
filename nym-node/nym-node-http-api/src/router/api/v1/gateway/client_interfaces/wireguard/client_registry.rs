@@ -36,16 +36,15 @@ async fn process_final_message(
     client: GatewayClient,
     state: &WireguardAppStateInner,
 ) -> Result<ClientRegistrationResponse, RequestError> {
-    let registration_data = {
-        if let Some(registration_data) = state.registration_in_progress.get(&client.pub_key()) {
-            registration_data
-        } else {
-            return Err(RequestError::from_err(
-                WireguardError::RegistrationNotInProgress,
-                StatusCode::BAD_REQUEST,
-            ));
-        }
-    };
+    let registration_data = state
+        .registration_in_progress
+        .get(&client.pub_key())
+        .ok_or(RequestError::from_err(
+            WireguardError::RegistrationNotInProgress,
+            StatusCode::BAD_REQUEST,
+        ))?
+        .value()
+        .clone();
 
     if client
         .verify(

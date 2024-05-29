@@ -6,6 +6,7 @@ import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyForm
 import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
 import { mixnodeValidationSchema } from './mixnodeValidationSchema';
 import { MixnodeData } from '../../../pages/bonding/types';
+import { TermsAndConditions, TermsAndConditionsHelp } from './TermsAndConditions';
 
 const MixnodeInitForm = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (data: any) => void }) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -15,6 +16,7 @@ const MixnodeInitForm = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; on
     formState: { errors },
     handleSubmit,
     setValue,
+    setError,
   } = useForm({ resolver: yupResolver(mixnodeValidationSchema), defaultValues: mixnodeData });
 
   const handleRequestValidation = (event: { detail: { step: number } }) => {
@@ -24,7 +26,11 @@ const MixnodeInitForm = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; on
           ...data,
           version: clean(data.version),
         };
-        onNext(validatedData);
+        if (!validatedData.acceptedTermsAndConditions) {
+          setError('acceptedTermsAndConditions', { message: 'You must accept the terms and conditions' });
+        } else {
+          onNext(validatedData);
+        }
       })();
     }
   };
@@ -110,6 +116,17 @@ const MixnodeInitForm = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; on
           />
         </Stack>
       )}
+      <FormControlLabel
+        {...register('acceptedTermsAndConditions')}
+        name="acceptedTermsAndConditions"
+        required
+        control={<Checkbox />}
+        label={<TermsAndConditions error={Boolean(errors.acceptedTermsAndConditions)} />}
+      />
+      <TermsAndConditionsHelp
+        error={Boolean(errors.acceptedTermsAndConditions)}
+        helperText={errors.acceptedTermsAndConditions?.message}
+      />
     </Stack>
   );
 };

@@ -6,6 +6,7 @@ import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyForm
 import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
 import { GatewayData } from '../../../pages/bonding/types';
 import { gatewayValidationSchema } from './gatewayValidationSchema';
+import { TermsAndConditions, TermsAndConditionsHelp } from './TermsAndConditions';
 
 const GatewayInitForm = ({
   gatewayData,
@@ -21,6 +22,7 @@ const GatewayInitForm = ({
     formState: { errors },
     handleSubmit,
     setValue,
+    setError,
   } = useForm({ resolver: yupResolver(gatewayValidationSchema), defaultValues: gatewayData });
 
   const handleRequestValidation = (event: { detail: { step: number } }) => {
@@ -30,7 +32,11 @@ const GatewayInitForm = ({
           ...data,
           version: clean(data.version) as string,
         };
-        onNext(validatedData);
+        if (!validatedData.acceptedTermsAndConditions) {
+          setError('acceptedTermsAndConditions', { message: 'You must accept the terms and conditions' });
+        } else {
+          onNext(validatedData);
+        }
       })();
     }
   };
@@ -117,6 +123,17 @@ const GatewayInitForm = ({
           />
         </Stack>
       )}
+      <FormControlLabel
+        {...register('acceptedTermsAndConditions')}
+        name="acceptedTermsAndConditions"
+        required
+        control={<Checkbox />}
+        label={<TermsAndConditions error={Boolean(errors.acceptedTermsAndConditions)} />}
+      />
+      <TermsAndConditionsHelp
+        error={Boolean(errors.acceptedTermsAndConditions)}
+        helperText={errors.acceptedTermsAndConditions?.message}
+      />
     </Stack>
   );
 };

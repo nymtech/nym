@@ -11,6 +11,7 @@ export type NodeIdentity = {
   host: string;
   version: string;
   mixPort: number;
+  acceptedTermsAndConditions?: boolean;
 };
 
 export type MixnodeData = NodeIdentity & {

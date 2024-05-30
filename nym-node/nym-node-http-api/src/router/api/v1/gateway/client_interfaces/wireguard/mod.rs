@@ -113,6 +113,7 @@ mod test {
         PeerPublicKey,
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+    use nym_wireguard_types::peer_controller::PeerControlMessage;
     use nym_wireguard_types::registration::HmacSha256;
     use nym_wireguard_types::registration::RegistrationData;
     use nym_wireguard_types::WireguardGatewayData;
@@ -176,7 +177,7 @@ mod test {
                 .collect(),
         );
         let client_private_ip = IpAddr::from_str("10.1.0.42").unwrap();
-        let (wireguard_gateway_data, _) = WireguardGatewayData::new(
+        let (wireguard_gateway_data, mut peer_rx) = WireguardGatewayData::new(
             nym_wireguard_types::Config {
                 bind_address: "0.0.0.0:51822".parse().unwrap(),
                 private_ip: "10.1.0.1".parse().unwrap(),
@@ -258,7 +259,9 @@ mod test {
             .call(final_request)
             .await
             .unwrap();
+        let msg = peer_rx.recv().await.unwrap();
 
+        assert!(matches!(msg, PeerControlMessage::AddPeer(_)));
         assert_eq!(response.status(), StatusCode::OK);
         assert!(!wireguard_gateway_data.client_registry().is_empty());
 

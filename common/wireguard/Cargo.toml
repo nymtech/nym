@@ -12,7 +12,7 @@ license.workspace = true
 
 [dependencies]
 base64 = "0.21.3"
-defguard_wireguard_rs = { git = "https://github.com/neacsu/wireguard-rs.git", rev = "c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed" }
+defguard_wireguard_rs = { workspace = true }
 # The latest version on crates.io at the time of writing this (6.0.0) has a
 # version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
 # latest commit. So pick that for now.

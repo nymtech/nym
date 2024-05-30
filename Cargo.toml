@@ -197,7 +197,7 @@ ctr = "0.9.1"
 cupid = "0.6.1"
 curve25519-dalek = "3.2"
 dashmap = "5.5.3"
-defguard_wireguard_rs = { git = "https://github.com/neacsu/wireguard-rs.git", rev = "c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed" }
+defguard_wireguard_rs = "0.4.2"
 doc-comment = "0.3"
 dotenvy = "0.15.6"
 ecdsa = "0.16"

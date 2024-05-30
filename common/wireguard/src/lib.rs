@@ -3,8 +3,6 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use std::sync::Arc;
-
 const WG_TUN_NAME: &str = "nymwg";
 
 /// Start wireguard device
@@ -13,12 +11,12 @@ pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
     wireguard_data: nym_wireguard_types::WireguardData,
 ) -> Result<
-    Arc<nym_wireguard_types::WgApiWrapper>,
+    std::sync::Arc<nym_wireguard_types::WgApiWrapper>,
     Box<dyn std::error::Error + Send + Sync + 'static>,
 > {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{
-        host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WGApi, WireguardInterfaceApi,
+        host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WireguardInterfaceApi,
     };
     use nym_wireguard_types::peer_controller::PeerController;
 
@@ -31,7 +29,7 @@ pub async fn start_wireguard(
     }
 
     let ifname = String::from(WG_TUN_NAME);
-    let wg_api = WGApi::new(ifname.clone(), false)?;
+    let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
@@ -43,7 +41,7 @@ pub async fn start_wireguard(
     wg_api.configure_interface(&interface_config)?;
     // wgapi.configure_peer_routing(&peers)?;
 
-    let wg_api = Arc::new(nym_wireguard_types::WgApiWrapper::new(wg_api));
+    let wg_api = std::sync::Arc::new(nym_wireguard_types::WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(wg_api.clone(), wireguard_data.peer_rx);
     tokio::spawn(async move { controller.run(task_client).await });
 

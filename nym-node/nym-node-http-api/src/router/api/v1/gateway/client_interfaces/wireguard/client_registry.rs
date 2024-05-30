@@ -28,7 +28,7 @@ fn remove_from_registry(
     state
         .wireguard_gateway_data
         .client_registry()
-        .remove(&remote_public);
+        .remove(remote_public);
     Ok(())
 }
 

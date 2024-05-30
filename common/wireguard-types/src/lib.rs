@@ -86,17 +86,13 @@ impl WireguardGatewayData {
         peer.allowed_ips
             .push(IpAddrMask::new(client.private_ip, 32));
         let msg = PeerControlMessage::AddPeer(peer);
-        self.peer_tx
-            .send(msg)
-            .map_err(|source| Error::PeerModifyStopped { source })
+        self.peer_tx.send(msg).map_err(|_| Error::PeerModifyStopped)
     }
 
     pub fn remove_peer(&self, client: &GatewayClient) -> Result<(), Error> {
         let key = Key::new(client.pub_key().to_bytes());
         let msg = PeerControlMessage::RemovePeer(key);
-        self.peer_tx
-            .send(msg)
-            .map_err(|source| Error::PeerModifyStopped { source })
+        self.peer_tx.send(msg).map_err(|_| Error::PeerModifyStopped)
     }
 }
 

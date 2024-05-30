@@ -33,8 +33,6 @@ pub enum Error {
         source: hmac::digest::MacError,
     },
 
-    #[error("peers can't be modified anymore: {source}")]
-    PeerModifyStopped {
-        source: tokio::sync::mpsc::error::SendError<crate::peer_controller::PeerControlMessage>,
-    },
+    #[error("peers can't be modified anymore")]
+    PeerModifyStopped,
 }

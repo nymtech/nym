@@ -229,7 +229,7 @@ impl<C, St> GatewayClient<C, St> {
             Err(error) => {
                 return Err(GatewayClientError::NetworkConnectionFailed {
                     address: self.gateway_address.clone(),
-                    error,
+                    source: error,
                 })
             }
         };

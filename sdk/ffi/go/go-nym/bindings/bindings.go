@@ -1,7 +1,6 @@
 package bindings
 
 // #include <bindings.h>
-// #cgo LDFLAGS: -L../../target/release -lnym_go_ffi
 import "C"
 
 import (
@@ -328,7 +327,6 @@ func readFloat64(reader io.Reader) float64 {
 }
 
 func init() {
-
 	uniffiCheckChecksums()
 }
 
@@ -546,12 +544,14 @@ func (err GoWrapError) Unwrap() error {
 }
 
 // Err* are used for checking error type with `errors.Is`
-var ErrGoWrapErrorClientInitError = fmt.Errorf("GoWrapErrorClientInitError")
-var ErrGoWrapErrorClientUninitialisedError = fmt.Errorf("GoWrapErrorClientUninitialisedError")
-var ErrGoWrapErrorSelfAddrError = fmt.Errorf("GoWrapErrorSelfAddrError")
-var ErrGoWrapErrorSendMsgError = fmt.Errorf("GoWrapErrorSendMsgError")
-var ErrGoWrapErrorReplyError = fmt.Errorf("GoWrapErrorReplyError")
-var ErrGoWrapErrorListenError = fmt.Errorf("GoWrapErrorListenError")
+var (
+	ErrGoWrapErrorClientInitError          = fmt.Errorf("GoWrapErrorClientInitError")
+	ErrGoWrapErrorClientUninitialisedError = fmt.Errorf("GoWrapErrorClientUninitialisedError")
+	ErrGoWrapErrorSelfAddrError            = fmt.Errorf("GoWrapErrorSelfAddrError")
+	ErrGoWrapErrorSendMsgError             = fmt.Errorf("GoWrapErrorSendMsgError")
+	ErrGoWrapErrorReplyError               = fmt.Errorf("GoWrapErrorReplyError")
+	ErrGoWrapErrorListenError              = fmt.Errorf("GoWrapErrorListenError")
+)
 
 // Variant structs
 type GoWrapErrorClientInitError struct {
@@ -694,7 +694,6 @@ func (c FfiConverterTypeGoWrapError) Read(reader io.Reader) error {
 	default:
 		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeGoWrapError.Read()", errorID))
 	}
-
 }
 
 func (c FfiConverterTypeGoWrapError) Write(writer io.Writer, value *GoWrapError) {

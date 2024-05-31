@@ -1,4 +1,4 @@
-module github.com/nymtech/nym/sdk/ffi/go 
+module github.com/nymtech/nym/sdk/ffi/go/nymffi 
 
 // module nymffi
 

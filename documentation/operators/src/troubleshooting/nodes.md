@@ -124,13 +124,13 @@ nym-node 103349 root   57u  IPv6 1333229976      0t0  TCP [2a03:b0c0:3:d0::ff3:f
 
 ##### Query `systemd` journal with `journalctl`
 
-```
+```sh
 sudo journalctl -u nym-node -o cat | grep "Since startup mixed"
 ```
 
 If you have created `nym-node.service` file (i.e. you are running your Ny, Node via `systemd`) then this command shows you how many packets have you mixed so far, and should return a list of messages like this:
 
-```
+```sh
 2021-05-18T12:35:24.057Z INFO  nym_node::node::metrics                      > Since startup mixed 233639 packets!
 2021-05-18T12:38:02.178Z INFO  nym_node::node::metrics                      > Since startup mixed 233739 packets!
 2021-05-18T12:40:32.344Z INFO  nym_node::node::metrics                      > Since startup mixed 233837 packets!
@@ -146,7 +146,7 @@ A `build-info` command prints the build information like commit hash, rust versi
 
 For example `./target/debug/nym-node --no-banner build-info --output json` will return:
 
-```
+```sh
 {"binary_name":"nym-network-requester","build_timestamp":"2023-07-24T15:38:37.00657Z","build_version":"1.1.23","commit_sha":"c70149400206dce24cf20babb1e64f22202672dd","commit_timestamp":"2023-07-24T14:45:45Z","commit_branch":"feature/simplify-cli-parsing","rustc_version":"1.71.0","rustc_channel":"stable","cargo_profile":"debug"}
 ```
 
@@ -154,13 +154,13 @@ For example `./target/debug/nym-node --no-banner build-info --output json` will 
 
 ##### Scan ports with `nmap`:
 
-```
+```sh
 nmap -p 1789 <IP ADDRESS> -Pn
 ```
 
 If your Nym Node is configured properly it should output something like this:
 
-```
+```sh
 bob@desktop:~$ nmap -p 1789 95.296.134.220 -Pn
 
 Host is up (0.053s latency).
@@ -169,9 +169,16 @@ PORT     STATE SERVICE
 1789/tcp open  hello
 ```
 
+##### Check with `telnet`
+
+Your node should connect to telnet when running:
+```sh
+telnet <IP_ADDRESS> <PORT>
+```
+
 ##### Query online nodes:
 
-```
+```sh
 curl --location --request GET 'https://validator.nymtech.net/api/v1/mixnodes/'
 ```
 
@@ -183,6 +190,15 @@ You can query Gateways by replacing `nym-mixnodes` with `nym-gateways` in the ab
 #### Check with Network API
 
 We currently have an API set up returning our metrics tests of the network. There are two endpoints to ping for information about your Mix Node, `report` and `history`. Find more information about this in the [Mixnodes metrics documentation](../nodes/maintenance.md#metrics--api-endpoints).
+
+For more information about available endpoints and their status, you can refer to:
+```sh
+# for http
+http://<IP>:8080/api/v1/swagger/#/
+
+# for https reversed proxy
+https://<DOMAIN>/api/v1/swagger/#/
+```
 
 ### Why is my node not mixing any packets?
 
@@ -229,12 +245,6 @@ Check that you have provided the correct information when bonding your Nym Node 
 
 > All delegated stake will be lost when un-bonding! However the Nym Node must be operational in the first place for the delegation to have any effect.
 
-#### Missing `announce-host` flag
-
-On certain cloud providers such as AWS and Google Cloud, you need to do some additional configuration of your firewall and use `--host` with your **local ip** and `--announce-host` with the **public ip** of your Mix Node host.
-
-If the difference between the two is unclear, contact the help desk of your VPS provider.
-
 ### Running on a local machine behind NAT with no fixed IP address
 
 Your ISP has to be IPv6 ready if you want to run a Nym Node on your local machine. Sadly, in 2020, most of them are not and you won't get an IPv6 address by default from your ISP. Usually it is an extra paid service or they simply don't offer it.
@@ -262,43 +272,7 @@ Most of the `ERROR` and `WARN` messages in your node logs are benign - as long a
 
 More specific errors and warnings are covered below.
 
-#### `tokio runtime worker` error
 
-If you are running into issues with an error including the following:
-
-```
-thread 'tokio-runtime-worker' panicked at 'Failed to create TCP listener: Os { code: 99, kind: AddrNotAvailable, message: "Cannot assign requested address" }'
-```
-
-Then you need to `--announce-host <PUBLIC_IP>` and `--host <LOCAL_IP>` on startup. This issue is addressed [above](#missing-`announce-host`-flag)
-<!-- NEEDS TO BE REWORKED AND ADD WARNING TO NOT CHANGE OTHER PORTS FOR API
-### Can I use a port other than 1789?
-
-Yes! Here is what you will need to do:
-
-Assuming you would like to use port `1337` for your Nym Node, you need to open the new port (and close the old one):
-
-```
-sudo ufw allow 1337
-sudo ufw deny 1789
-```
-
-And then edit the node's `config.toml`.
-
-> If you want to change the port for an already running node, you need to stop the process before editing your config file.
-
-The config file is located at `~/.nym/nym-nodes/<ID>/config/config.toml`.
-
-For example, assuming `<YOUR_ID>` was chosen to be `alice-node`:
-
-```
-nano ~/.nym/nym-nodes/alice-node/config/config.toml
-```
-
-You will need to edit two parts of the file. `announce_address` and `listening_address` in the `config.toml` file. Simply replace `:1789` (the default port) with `:1337` (your new port) after your IP address.
-
-Finally, restart your node. You should see if the Mix Node is using the port you have changed in the config.toml file right after you run the node.
--->
 ### What is `verloc` and do I have to configure my Nym Node to implement it?
 
 `verloc` is short for _verifiable location_. Mix Nodes and Gateways now measure speed-of-light distances to each other, in an attempt to verify how far apart they are. In later releases, this will allow us to algorithmically verify node locations in a non-fake-able and trustworthy manner.
@@ -322,16 +296,68 @@ Nym API measures performance by routing traffic through the Mixnet. If the avera
 In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/api/v1/gateways/blacklisted), it's because there is some flaw in the configuration. The most common sources of problems are:
 
 - Bonding before starting the node/service
-- Bonding before opening [the needed ports](../nodes/vps-setup.md#configure-your-firewall)
+- Bonding before opening [needed ports](../nodes/vps-setup.md#configure-your-firewall)
 - VPS restarted without operator having a [systemd automation](../nodes/configuration.md#systemd) or some alert notification flow setup
 
 What to do:
 
-- Make sure your node is running and do not stop it if there is no need
-- Open all needed ports
-- Wait until your node gets above 50% of performance (average of last 24h) - this will likely take several hours, up to a day. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
+1. Make sure your node is running and do not stop it if there is no need
+2. Open all needed [needed ports](../nodes/vps-setup.md#configure-your-firewall)
+3. Check your `config.toml` - often people have filled `hostname` without such hostname being configured or a wrong IP address after moving their node.
+4. [Check Gateway Connectivity](#check-gateway-connectivity)
+5. See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
+  - If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
+6. 
+7. When all problems addressed:Wait until your node gets above 50% of performance (average of last 24h) - this will likely take several hours, up to a day. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
 
 **Do not restart your Nym Node without reason, your routing score will only get worse!**
+
+### Check Gateway connectivity
+
+**1. Check out the API endpoints**
+
+Start with checking if your Gateway IPR and NR is active. To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
+```
+# for http
+http://<IP_ADDRESS>:8080/api/v1/roles
+
+# for https reversed proxy
+https://<DOMAIN>/api/v1/roles
+```
+
+Everything necessary will exist on your node by default. For instance, if you're running a mixnode, you'll find that a NR (Network Requester) and IPR (IP Packet Router) address exist, but they will be ignored in `mixnode` mode.
+
+For more information about available endpoints and their status, you can refer to:
+```sh
+# for http
+http://<IP>:8080/api/v1/swagger/#/
+
+# for https reversed proxy
+https://<DOMAIN>/api/v1/swagger/#/
+```
+
+**2. Configure IPv4 and IPv6 tables and rules**
+
+- In case you haven't, follow the steps in the node [configuration](../nodes/configuration.md) chapter [connectivity test and configurastion](../nodes/configuration.md#connectivity-test-and-configuration).
+
+
+**3. Test connectivity**
+
+- Telnet - from your local machine try to connect to your VPS bu running:
+
+```sh
+telnet <IP_ADDRESS> <PORT>
+``` 
+
+- [Websocket wcat](https://github.com/websockets/wscat):
+  - Install on your local machine:
+```sh
+sudo apt install node-ws  
+```
+  - Run `wscat` pointing to the IP of your VPS with port `9000`:
+```
+wscat -c ws://<IP>:<PORT>
+```
 
 ### My exit Gateway "is still not online..."
 

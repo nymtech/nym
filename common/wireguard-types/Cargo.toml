@@ -17,7 +17,7 @@ futures = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] } # async runtime
+tokio = { workspace = true } # async runtime
 
 nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }

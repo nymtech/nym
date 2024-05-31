@@ -1804,8 +1804,9 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
 name = "defguard_wireguard_rs"
-version = "0.3.0"
-source = "git+https://github.com/neacsu/wireguard-rs.git?rev=c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed#c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba16f17698d4b389907310af018b0c3a80b025bba9c38d947cbc6dd70921743"
 dependencies = [
  "base64 0.21.7",
  "libc",

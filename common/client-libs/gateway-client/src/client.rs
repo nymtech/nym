@@ -220,9 +220,18 @@ impl<C, St> GatewayClient<C, St> {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
+        debug!(
+            "Attemting to establish connection to gateway at: {}",
+            self.gateway_address
+        );
         let ws_stream = match connect_async(&self.gateway_address).await {
             Ok((ws_stream, _)) => ws_stream,
-            Err(e) => return Err(GatewayClientError::NetworkError(e)),
+            Err(error) => {
+                return Err(GatewayClientError::NetworkConnectionFailed {
+                    address: self.gateway_address.clone(),
+                    error,
+                })
+            }
         };
 
         self.connection = SocketState::Available(Box::new(ws_stream));

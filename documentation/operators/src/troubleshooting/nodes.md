@@ -307,8 +307,7 @@ What to do:
 4. [Check Gateway Connectivity](#check-gateway-connectivity)
 5. See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
   - If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
-6. 
-7. When all problems addressed:Wait until your node gets above 50% of performance (average of last 24h) - this will likely take several hours, up to a day. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
+6. When all problems addressed:Wait until your node gets above 50% of performance (average of last 24h) - this will likely take several hours, up to a day. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
 
 **Do not restart your Nym Node without reason, your routing score will only get worse!**
 
@@ -347,12 +346,12 @@ https://<DOMAIN>/api/v1/swagger/#/
 
 ```sh
 telnet <IP_ADDRESS> <PORT>
-``` 
+```
 
 - [Websocket wcat](https://github.com/websockets/wscat):
   - Install on your local machine:
 ```sh
-sudo apt install node-ws  
+sudo apt install node-ws
 ```
   - Run `wscat` pointing to the IP of your VPS with port `9000`:
 ```

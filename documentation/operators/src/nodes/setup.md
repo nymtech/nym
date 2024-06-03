@@ -54,10 +54,10 @@ https://<DOMAIN>/api/v1/swagger/#/
 
 ### Help Command
 
-There are a few changes from the individual binaries used in the past. For example by default `run` command does `init` function as well, local node `--id` will be set by default unless specified otherwise etcetera. 
+There are a few changes from the individual binaries used in the past. For example by default `run` command does `init` function as well, local node `--id` will be set by default unless specified otherwise etcetera.
 
 ```admonish info
-You can always use `--help` flag to see the commands or arguments associated with a given command. 
+You can always use `--help` flag to see the commands or arguments associated with a given command.
 ```
 
 Run `./nym-node --help` to see all available commands:
@@ -153,7 +153,11 @@ Options:
           Print help
 -->
 
-The Wireguard flags currently have limited functionality, with `--wireguard-enabled` being the most relevant, enabling or disabling wireguard functionality.
+```admonish bug
+The Wireguard flags currently have limited functionality. This feature is under development and testing.
+
+**Keep Wireguard disabled for the time being!**
+```
 
 #### Flags Summary
 

@@ -28,7 +28,7 @@ Currently `nym-node` binary enables to run only one `--mode` at a time. In the f
 
 Every `exit-gateway` mode is basically an `entry-gateway` with NR (Network Requester) and IPR (IP Packet Router) enabled. This means that every `exit-gateway` is automatically seen as an `entry-gateway` but not the opposite.
 
-Gateway operators can check out the performance, connectivity and much more in our new tool [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+Gateway operators can check out the node performance, connectivity and much more in our new tool [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
 To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
 ```

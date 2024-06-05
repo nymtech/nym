@@ -3,11 +3,11 @@
 
 use crate::asymmetric::encryption;
 use crate::hkdf;
+#[cfg(feature = "rand")]
+use cipher::crypto_common::rand_core::{CryptoRng, RngCore};
 use cipher::{Key, KeyIvInit, StreamCipher};
 use digest::crypto_common::BlockSizeUser;
 use digest::Digest;
-#[cfg(feature = "rand")]
-use rand::{CryptoRng, RngCore};
 
 /// Generate an ephemeral encryption keypair and perform diffie-hellman to establish
 /// shared key with the remote.

@@ -34,7 +34,7 @@ mod tests {
         let mix_secret = randombytes(32);
         let mix_secret_scalar =
             Scalar::from_bytes_mod_order(mix_secret.clone().try_into().unwrap());
-        let mix_public_key = (&ED25519_BASEPOINT_TABLE * &mix_secret_scalar).to_montgomery();
+        let mix_public_key = (ED25519_BASEPOINT_TABLE * &mix_secret_scalar).to_montgomery();
 
         let routing = [0; 32];
         let destination = [0; 32];

@@ -421,7 +421,7 @@ impl BinaryResponse {
         let message_bytes = &raw_req[mac_size..];
 
         if !recompute_keyed_hmac_and_verify_tag::<GatewayIntegrityHmacAlgorithm>(
-            shared_keys.mac_key(),
+            shared_keys.mac_key().as_slice(),
             message_bytes,
             mac_tag,
         ) {

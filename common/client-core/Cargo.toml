@@ -18,6 +18,7 @@ futures = { workspace = true }
 humantime-serde = { workspace = true }
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand_chacha = { version = "0.2.1" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = "0.10.6"
@@ -47,7 +48,9 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
-nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"] }
+nym-client-core-config-types = { path = "./config-types", features = [
+    "disk-persistence",
+] }
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 

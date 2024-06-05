@@ -735,9 +735,9 @@ dependencies = [
 
 [[package]]
 name = "camino"
-version = "1.1.6"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c59e92b5a388f549b863a7bea62612c09f24c8393560709a54558a9abdfb3b9c"
+checksum = "e0ec6b951b160caa93cc0c7b209e5a3bff7aae9062213451ac99493cd844c239"
 dependencies = [
  "serde",
 ]
@@ -1794,6 +1794,7 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core 0.9.10",
+ "serde",
 ]
 
 [[package]]
@@ -2295,6 +2296,12 @@ name = "finl_unicode"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fcfdc7a0362c9f4444381a9e697c79d435fe65b52a37466fc2c1184cee9edc6"
+
+[[package]]
+name = "fixedbitset"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
 name = "flate2"
@@ -4246,6 +4253,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.7.3",
+ "rand_chacha 0.2.2",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -5006,6 +5014,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-network-monitor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum 0.7.5",
+ "clap 4.5.4",
+ "dashmap",
+ "futures",
+ "log",
+ "nym-bin-common",
+ "nym-network-defaults",
+ "nym-sdk",
+ "nym-sphinx",
+ "nym-topology",
+ "petgraph",
+ "rand 0.7.3",
+ "rand_chacha 0.2.2",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "utoipa",
+ "utoipa-swagger-ui",
+]
+
+[[package]]
 name = "nym-network-requester"
 version = "1.1.36"
 dependencies = [
@@ -5186,6 +5220,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "rand 0.7.3",
+ "rand_chacha 0.2.2",
  "serde",
  "serde_json",
  "thiserror",
@@ -5470,6 +5505,7 @@ version = "0.1.0"
 dependencies = [
  "log",
  "nym-crypto",
+ "nym-metrics",
  "nym-mixnet-contract-common",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
@@ -5483,6 +5519,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-topology",
  "rand 0.7.3",
+ "rand_chacha 0.2.2",
  "rand_distr",
  "thiserror",
  "tokio",
@@ -5539,12 +5576,18 @@ dependencies = [
 name = "nym-sphinx-chunking"
 version = "0.1.0"
 dependencies = [
+ "dashmap",
+ "lazy_static",
  "log",
+ "nym-crypto",
+ "nym-metrics",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
  "rand 0.7.3",
+ "serde",
  "thiserror",
+ "utoipa",
 ]
 
 [[package]]
@@ -6308,6 +6351,16 @@ dependencies = [
  "once_cell",
  "pest",
  "sha2 0.10.8",
+]
+
+[[package]]
+name = "petgraph"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
+dependencies = [
+ "fixedbitset",
+ "indexmap 2.2.6",
 ]
 
 [[package]]
@@ -7412,9 +7465,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-version = "1.0.16"
+version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "092474d1a01ea8278f69e6a358998405fae5b8b963ddaeb2b0b04a128bf1dfb0"
+checksum = "955d28af4278de8121b7ebeb796b6a45735dc01436d898801014aced2773a3d6"
 
 [[package]]
 name = "ryu"
@@ -7491,7 +7544,7 @@ checksum = "185f2b7aa7e02d418e453790dde16890256bbd2bcd04b7dc5348811052b53f49"
 dependencies = [
  "proc-macro2",
  "quote",
- "serde_derive_internals 0.29.0",
+ "serde_derive_internals 0.29.1",
  "syn 2.0.63",
 ]
 
@@ -7599,9 +7652,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.201"
+version = "1.0.202"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "780f1cebed1629e4753a1a38a3c72d30b97ec044f0aef68cb26650a3c5cf363c"
+checksum = "226b61a0d411b2ba5ff6d7f73a476ac4f8bb900373459cd00fab8512828ba395"
 dependencies = [
  "serde_derive",
 ]
@@ -7648,9 +7701,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.201"
+version = "1.0.202"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5e405930b9796f1c00bee880d03fc7e0bb4b9a11afc776885ffe84320da2865"
+checksum = "6048858004bcff69094cd972ed40a32500f153bd3be9f716b2eed2e8217c4838"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7670,9 +7723,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive_internals"
-version = "0.29.0"
+version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "330f01ce65a3a5fe59a60c82f3c9a024b573b8a6e875bd233fe5f934e71d54e3"
+checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
 dependencies = [
  "proc-macro2",
  "quote",

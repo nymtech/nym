@@ -458,7 +458,7 @@ impl PacketStatisticsControl {
 
     fn report_rates(&self) {
         if let Some((_, rates)) = self.rates.back() {
-            log::info!("{}", rates.summary());
+            log::debug!("{}", rates.summary());
             log::debug!("{}", rates.detailed_summary());
         }
     }
@@ -486,7 +486,7 @@ impl PacketStatisticsControl {
             // Check what the number of retransmissions was during the recording window
             if let Some((_, start_stats)) = self.history.front() {
                 let delta = self.stats.clone() - start_stats.clone();
-                log::info!(
+                log::debug!(
                     "mix packet retransmissions/real mix packets: {}/{}",
                     delta.retransmissions_queued,
                     delta.real_packets_queued,

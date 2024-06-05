@@ -103,6 +103,7 @@ members = [
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
     "service-providers/network-statistics",
+    "nym-network-monitor",
     "nym-api",
     "nym-browser-extension/storage",
     "nym-api/nym-api-requests",
@@ -136,7 +137,7 @@ default-members = [
     "tools/nymvisor",
     "explorer-api",
     "nym-validator-rewarder",
-    "nym-node"
+    "nym-node",
 ]
 
 exclude = [

@@ -9,6 +9,7 @@ license.workspace = true
 [dependencies]
 futures = { workspace = true }
 rand = "0.7.3"
+rand_chacha = "0.2.1"
 
 serde = { workspace = true }
 serde_json = { workspace = true }

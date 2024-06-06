@@ -2178,6 +2178,16 @@
           "description": "Provides the build version, for example `0.1.0-9-g46f83e1`.",
           "type": "string"
         },
+        "cargo_debug": {
+          "description": "Provides the cargo debug mode that was used for the build.",
+          "default": "unknown",
+          "type": "string"
+        },
+        "cargo_opt_level": {
+          "description": "Provides the opt value set by cargo during the build",
+          "default": "unknown",
+          "type": "string"
+        },
         "commit_branch": {
           "description": "Provides the name of the git branch that was used for the build, for example `master`.",
           "type": "string"
@@ -2188,6 +2198,11 @@
         },
         "commit_timestamp": {
           "description": "Provides the timestamp of the commit that was used for the build, for example `2021-02-23T08:08:02-05:00`.",
+          "type": "string"
+        },
+        "contract_name": {
+          "description": "Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.",
+          "default": "unknown",
           "type": "string"
         },
         "rustc_version": {

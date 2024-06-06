@@ -520,7 +520,7 @@
                   }
                 },
                 "label": {
-                  "description": "A human-readbale label for the contract",
+                  "description": "A human-readable label for the contract.\n\nValid values should: - not be empty - not be bigger than 128 bytes (or some chain-specific limit) - not start / end with whitespace",
                   "type": "string"
                 },
                 "msg": {

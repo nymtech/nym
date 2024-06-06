@@ -39,20 +39,22 @@ If you are not well familiar with `nym-node` setup, automation, and `nymtun0` co
 curl -o network_tunnel_manager.sh -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/9d785d6ee3aa2970553633eccbd89a827f49fab5/network_tunnel_manager.sh && chmod +x network_tunnel_manager.sh
 ```
 
-3. If you have a running `nym-node` or `nym-gateway` (alone or service), stop the process
-  - In case your node was a `nym-gateway`, [**migrate to `nym-node`**](setup.md#migrate) now!
+3. In case you had a`nym-gateway` running, stop the process (directly or systemd service), and [**migrate to `nym-node`**](setup.md#migrate) now!
 
-4. Check Nymtun IP tables:
+4. Apply the rules:
+```sh
+sudo ./network_tunnel_manager.sh apply_iptables_rules
+```
+5. Check Nymtun IP tables:
 ```sh
 sudo ./network_tunnel_manager.sh check_nymtun_iptables
 ```
- - if there's no process running it shouldn't get anything
 
-5. Display IPv6:
+6. Display IPv6:
 ```sh
 sudo ./network_tunnel_manager.sh fetch_and_display_ipv6
 ```
- - If you have a `global ipv6` address this is good, if not the next step should fix it
+ - You should see a `global ipv6` address:
 ~~~admonish example collapsible=true title="Correct `./network_tunnel_manager.sh fetch_and_display_ipv6` output:"
 ```sh
 iptables-persistent is already installed.
@@ -61,21 +63,18 @@ operation fetch_ipv6_address_nym_tun completed successfully.
 ```
 ~~~
 
-6. Apply the rules:
-```sh
-sudo ./network_tunnel_manager.sh apply_iptables_rules
-```
-  - and check them again like in point 4.
-
 7. (If you didn't have a `nym-node` service yet) Create `systemd` [automation and configuration file](configuration.md#systemd), reload and enable the service
 
 8. Start `nym-node` service:
 ```sh
 sudo service nym-node start && journalctl -u nym-node -f -n 100
 ```
+9. Upgrade your node version in the smart contract, [using Nym wallet](manual-upgrade.md#step-2-updating-your-node-information-in-the-smart-contract)
   - If you don't run this as an upgrade but started a fresh new node, you need to [bond](bonding.md) the gateway now. After that finish the verification steps below.
 
-9. After a minute of running properly, check `nymtun0`:
+10. After a minute of running properly, validate your `nymtun0` routing:
+
+  - Display the address 
 ```sh
 ip addr show nymtun0
 ```
@@ -94,9 +93,8 @@ ip addr show nymtun0
 ```
 ~~~
 
-10. Validate your IPv6 and IPv4 networking by running a joke via Mixnet:
+  - Run a joke through the Mixnet - you should get two jokes (IPv4 and IPv6 routing):
+
 ```sh
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 ```
-
-Make sure that you get the validation of IPv4 and IPv6 connectivity, in case of problems, check [troubleshooting page](../troubleshooting/vps-isp.md#incorrect-gateway-network-check). After proceed to [bonding](bonding.md).

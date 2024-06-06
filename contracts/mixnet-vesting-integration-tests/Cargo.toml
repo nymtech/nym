@@ -25,7 +25,7 @@ nym-vesting-contract = { path = "../vesting" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 
 # external dependencies
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 
 [[test]]
 name = "mixnet-vesting-test"

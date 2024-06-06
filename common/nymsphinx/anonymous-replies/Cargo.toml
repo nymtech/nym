@@ -8,7 +8,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 bs58 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
@@ -24,4 +24,4 @@ nym-topology = { path = "../../topology" }
 version = "0.2.83"
 
 [dev-dependencies]
-rand_chacha = "0.2"
+rand_chacha = "0.3"

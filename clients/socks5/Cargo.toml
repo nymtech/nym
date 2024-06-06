@@ -16,7 +16,7 @@ serde_json = { workspace = true }
 tap = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
-rand = "0.7.3"
+rand = { workspace = true }
 time = { workspace = true }
 url = { workspace = true }
 zeroize = { workspace = true }

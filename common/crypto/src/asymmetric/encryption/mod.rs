@@ -56,7 +56,7 @@ pub struct KeyPair {
 impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        let private_key = x25519_dalek::StaticSecret::new(rng);
+        let private_key = x25519_dalek::StaticSecret::random_from_rng(rng);
         let public_key = (&private_key).into();
 
         KeyPair {
@@ -211,7 +211,7 @@ impl FromStr for PrivateKey {
 impl PrivateKey {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        let x25519_secret = x25519_dalek::StaticSecret::new(rng);
+        let x25519_secret = x25519_dalek::StaticSecret::random_from_rng(rng);
 
         PrivateKey(x25519_secret)
     }
@@ -358,16 +358,23 @@ mod sphinx_key_conversion {
             let private = &keys.private_key;
             let public = &keys.public_key;
 
-            let private_bytes = private.to_bytes();
+            let dummy_remote = KeyPair::new(&mut rng);
+            let dh1 = private.diffie_hellman(&dummy_remote.public_key);
+
             let public_bytes = public.to_bytes();
 
             let sphinx_private: nym_sphinx_types::PrivateKey = private.into();
             let recovered_private = PrivateKey::from(sphinx_private);
 
+            let dh2 = recovered_private.diffie_hellman(&dummy_remote.public_key);
+
             let sphinx_public: nym_sphinx_types::PublicKey = public.into();
             let recovered_public = PublicKey::from(sphinx_public);
-            assert_eq!(private_bytes, recovered_private.to_bytes());
             assert_eq!(public_bytes, recovered_public.to_bytes());
+
+            // even though the byte representation of the private key changed, the resultant DH is the same
+            // which is what matters
+            assert_eq!(dh1, dh2);
         }
     }
 

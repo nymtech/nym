@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 anyhow = { workspace = true }
 futures = { workspace = true }
 js-sys = { workspace = true }
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde-wasm-bindgen = { workspace = true }

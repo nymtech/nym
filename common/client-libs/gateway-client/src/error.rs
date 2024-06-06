@@ -23,6 +23,9 @@ pub enum GatewayClientError {
     #[error("There was a network error: {0}")]
     NetworkErrorWasm(#[from] JsError),
 
+    #[error("connection failed: {address}: {source}")]
+    NetworkConnectionFailed { address: String, source: WsError },
+
     #[error("Invalid URL: {0}")]
     InvalidURL(String),
 

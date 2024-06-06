@@ -9,9 +9,9 @@ use axum::routing::{get, post};
 use axum::Router;
 use ipnetwork::IpNetwork;
 use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+use nym_wireguard::WireguardGatewayData;
 use nym_wireguard_types::registration::PendingRegistrations;
 use nym_wireguard_types::registration::PrivateIPs;
-use nym_wireguard_types::WireguardGatewayData;
 use std::sync::Arc;
 
 pub(crate) mod client_registry;
@@ -113,10 +113,8 @@ mod test {
         PeerPublicKey,
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
-    use nym_wireguard_types::peer_controller::PeerControlMessage;
-    use nym_wireguard_types::registration::HmacSha256;
-    use nym_wireguard_types::registration::RegistrationData;
-    use nym_wireguard_types::WireguardGatewayData;
+    use nym_wireguard::{peer_controller::PeerControlMessage, WireguardGatewayData};
+    use nym_wireguard_types::registration::{HmacSha256, RegistrationData};
     use std::net::IpAddr;
     use std::str::FromStr;
     use std::sync::Arc;

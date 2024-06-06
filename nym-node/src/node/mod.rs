@@ -33,8 +33,7 @@ use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{TaskClient, TaskManager};
-use nym_wireguard_types::peer_controller::PeerControlMessage;
-use nym_wireguard_types::WireguardGatewayData;
+use nym_wireguard::{peer_controller::PeerControlMessage, WireguardGatewayData};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
@@ -283,9 +282,9 @@ impl WireguardData {
     }
 }
 
-impl From<WireguardData> for nym_wireguard_types::WireguardData {
+impl From<WireguardData> for nym_wireguard::WireguardData {
     fn from(value: WireguardData) -> Self {
-        nym_wireguard_types::WireguardData {
+        nym_wireguard::WireguardData {
             inner: value.inner,
             peer_rx: value.peer_rx,
         }
@@ -483,6 +482,7 @@ impl NymNode {
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
+        #[cfg(all(feature = "wireguard", target_os = "linux"))]
         entry_gateway.set_wireguard_data(self.wireguard.into());
 
         tokio::spawn(async move {
@@ -509,6 +509,7 @@ impl NymNode {
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
+        #[cfg(all(feature = "wireguard", target_os = "linux"))]
         exit_gateway.set_wireguard_data(self.wireguard.into());
 
         tokio::spawn(async move {

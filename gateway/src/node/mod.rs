@@ -27,7 +27,6 @@ use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
-use nym_wireguard_types::WireguardData;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -128,7 +127,8 @@ pub struct Gateway<St = PersistentStorage> {
 
     storage: St,
 
-    wireguard_data: Option<WireguardData>,
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    wireguard_data: Option<nym_wireguard::WireguardData>,
 
     run_http_server: bool,
     task_client: Option<TaskClient>,
@@ -149,6 +149,7 @@ impl<St> Gateway<St> {
             config,
             network_requester_opts,
             ip_packet_router_opts,
+            #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
             task_client: None,
@@ -170,6 +171,7 @@ impl<St> Gateway<St> {
             identity_keypair,
             sphinx_keypair,
             storage,
+            #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
             task_client: None,
@@ -184,7 +186,8 @@ impl<St> Gateway<St> {
         self.task_client = Some(task_client)
     }
 
-    pub fn set_wireguard_data(&mut self, wireguard_data: WireguardData) {
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    pub fn set_wireguard_data(&mut self, wireguard_data: nym_wireguard::WireguardData) {
         self.wireguard_data = Some(wireguard_data)
     }
 

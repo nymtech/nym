@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 nym-coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 
 cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
@@ -23,7 +24,6 @@ cw-controllers = { workspace = true }
 cw2 = { workspace = true }
 cw4 = { workspace = true }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-semver = { workspace = true, default-features = false }
 thiserror = { workspace = true }
 
 [dev-dependencies]

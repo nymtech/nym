@@ -6,13 +6,11 @@ use crate::nym_contract_cache::cache::data::{CachedContractInfo, CachedContracts
 use crate::nyxd::Client;
 use crate::support::caching::CacheNotification;
 use anyhow::Result;
-use futures::future::join_all;
 use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, NymContractsProvider, VestingQueryClient,
 };
-use nym_validator_client::nyxd::CosmWasmClient;
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
 use tokio::sync::watch;
 use tokio::time;
@@ -59,81 +57,48 @@ impl NymContractCacheRefresher {
         let group = query_guard!(client_guard, group_contract_address());
         let multisig = query_guard!(client_guard, multisig_contract_address());
 
-        // get cw2 versions
-        let mixnet_cw2_future = query_guard!(client_guard, get_mixnet_contract_cw2_version());
-        let vesting_cw2_future = query_guard!(client_guard, get_vesting_contract_cw2_version());
+        for (address, name) in [
+            (mixnet, "nym-mixnet-contract"),
+            (vesting, "nym-vesting-contract"),
+            (coconut_bandwidth, "nym-coconut-bandwidth-contract"),
+            (coconut_dkg, "nym-coconut-dkg-contract"),
+            (group, "nym-cw4-group-contract"),
+            (multisig, "nym-cw3-multisig-contract"),
+        ] {
+            let (cw2, build_info) = if let Some(address) = address {
+                let cw2 = query_guard!(client_guard, get_cw2_contract_version(address).await)?;
+                let mut build_info =
+                    query_guard!(client_guard, get_contract_build_information(address).await)?;
 
-        // group and multisig contract save that information in their storage but don't expose it via queries
-        // so a temporary workaround...
-        let multisig_cw2 = if let Some(multisig_contract) = multisig {
-            query_guard!(
-                client_guard,
-                query_contract_raw(multisig_contract, b"contract_info".to_vec())
-                    .await
-                    .map(|r| serde_json::from_slice(&r).ok())
-                    .ok()
-                    .flatten()
-            )
-        } else {
-            None
-        };
-        let group_cw2 = if let Some(group_contract) = group {
-            query_guard!(
-                client_guard,
-                query_contract_raw(group_contract, b"contract_info".to_vec())
-                    .await
-                    .map(|r| serde_json::from_slice(&r).ok())
-                    .ok()
-                    .flatten()
-            )
-        } else {
-            None
-        };
+                // for backwards compatibility until we migrate the contracts
+                if build_info.is_none() {
+                    match name {
+                        "nym-mixnet-contract" => {
+                            build_info = Some(query_guard!(
+                                client_guard,
+                                get_mixnet_contract_version().await
+                            )?)
+                        }
+                        "nym-vesting-contract" => {
+                            build_info = Some(query_guard!(
+                                client_guard,
+                                get_vesting_contract_version().await
+                            )?)
+                        }
+                        _ => (),
+                    }
+                }
 
-        let mut cw2_info = join_all(vec![mixnet_cw2_future, vesting_cw2_future]).await;
+                (cw2, build_info)
+            } else {
+                (None, None)
+            };
 
-        // get detailed build info
-        let mixnet_detailed_future = query_guard!(client_guard, get_mixnet_contract_version());
-        let vesting_detailed_future = query_guard!(client_guard, get_vesting_contract_version());
-
-        let mut build_info = join_all(vec![mixnet_detailed_future, vesting_detailed_future]).await;
-
-        // the below unwraps are fine as we definitely have the specified number of entries
-        // Note to whoever updates this code in the future: `pop` removes **LAST** element,
-        // so make sure you call them in correct order, depending on what's specified in the `join_all`
-        updated.insert(
-            "nym-vesting-contract".to_string(),
-            CachedContractInfo::new(
-                vesting,
-                cw2_info.pop().unwrap().ok(),
-                build_info.pop().unwrap().ok(),
-            ),
-        );
-        updated.insert(
-            "nym-mixnet-contract".to_string(),
-            CachedContractInfo::new(
-                mixnet,
-                cw2_info.pop().unwrap().ok(),
-                build_info.pop().unwrap().ok(),
-            ),
-        );
-
-        updated.insert(
-            "nym-coconut-bandwidth-contract".to_string(),
-            CachedContractInfo::new(coconut_bandwidth, None, None),
-        );
-        updated.insert(
-            "nym-coconut-dkg-contract".to_string(),
-            CachedContractInfo::new(coconut_dkg, None, None),
-        );
-        updated.insert(
-            "nym-cw3-multisig-contract".to_string(),
-            CachedContractInfo::new(multisig, multisig_cw2, None),
-        );
-        updated.insert(
-            "nym-cw4-group-contract".to_string(),
-            CachedContractInfo::new(group, group_cw2, None),
-        );
+            updated.insert(
+                name.to_string(),
+                CachedContractInfo::new(address, cw2, build_info),
+            );
+        }
 
         Ok(updated)
     }

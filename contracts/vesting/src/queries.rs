@@ -5,7 +5,7 @@ use crate::storage;
 use crate::storage::{account_from_address, BlockTimestampSecs, ACCOUNTS, DELEGATIONS, MIX_DENOM};
 use crate::traits::VestingAccount;
 use crate::vesting::StorableVestingAccountExt;
-use contracts_common::ContractBuildInformation;
+use contracts_common::{get_build_information, ContractBuildInformation};
 use cosmwasm_std::{Coin, Deps, Env, Order, StdResult, Timestamp, Uint128};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::MixId;
@@ -49,21 +49,7 @@ pub fn try_get_account(address: &str, deps: Deps<'_>) -> Result<Account, Vesting
 
 /// Gets build information of this contract.
 pub fn get_contract_version() -> ContractBuildInformation {
-    // as per docs
-    // env! macro will expand to the value of the named environment variable at
-    // compile time, yielding an expression of type `&'static str`
-    ContractBuildInformation {
-        build_timestamp: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
-        build_version: env!("VERGEN_BUILD_SEMVER").to_string(),
-        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("NONE").to_string(),
-        commit_timestamp: option_env!("VERGEN_GIT_COMMIT_TIMESTAMP")
-            .unwrap_or("NONE")
-            .to_string(),
-        commit_branch: option_env!("VERGEN_GIT_BRANCH")
-            .unwrap_or("NONE")
-            .to_string(),
-        rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
-    }
+    get_build_information!()
 }
 
 pub fn try_get_all_accounts(

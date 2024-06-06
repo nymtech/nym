@@ -17,6 +17,7 @@ use cw3_fixed_multisig::state::{next_id, BALLOTS, PROPOSALS};
 use cw4::{Cw4Contract, MemberChangedHookMsg, MemberDiff};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration, ThresholdResponse};
+use nym_contracts_common::set_build_information;
 
 use nym_multisig_contract_common::error::ContractError;
 use nym_multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -53,6 +54,7 @@ pub fn instantiate(
         .transpose()?;
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    set_build_information!(deps.storage)?;
 
     let cfg = Config {
         threshold: msg.threshold,
@@ -488,6 +490,9 @@ fn list_voters(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    set_build_information!(deps.storage)?;
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     let mut cfg = CONFIG.load(deps.storage)?;
     cfg.coconut_bandwidth_addr = deps.api.addr_validate(&msg.coconut_bandwidth_address)?;
     cfg.coconut_dkg_addr = deps.api.addr_validate(&msg.coconut_dkg_address)?;

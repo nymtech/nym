@@ -20,12 +20,8 @@ cw-utils = { workspace = true }
 cw2 = { workspace = true }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", version = "0.5.0" }
 nym-service-provider-directory-common = { path = "../../common/cosmwasm-smart-contracts/service-provider-directory" }
-semver = { workspace = true, default-features = false }
 serde = { version = "1.0.155", default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
-
-[build-dependencies]
-vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }
 
 [dev-dependencies]
 anyhow = "1.0.40"

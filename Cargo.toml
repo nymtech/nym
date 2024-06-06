@@ -289,7 +289,7 @@ tungstenite = { version = "0.20.1", default-features = false }
 url = "2.4"
 utoipa = "4.2.0"
 utoipa-swagger-ui = "6.0.0"
-vergen = { version = "=8.2.6", default-features = false }
+vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"
 wasm-bindgen-test = "0.3.36"
 zeroize = "1.6.0"

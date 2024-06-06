@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 use nym_coconut_dkg_common::dealing::{
     DealerDealingsStatusResponse, DealingChunkInfo, DealingMetadata, DealingStatusResponse,
     PartialContractDealing,
@@ -21,8 +22,6 @@ use nym_coconut_dkg_common::{
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
-
-use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;

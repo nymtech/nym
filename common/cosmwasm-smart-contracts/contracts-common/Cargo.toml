@@ -11,9 +11,13 @@ repository = { workspace = true }
 bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
+cw-storage-plus = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+
+[build-dependencies]
+vergen = { version = "=8.3.1", features = ["build", "git", "gitcl", "rustc", "cargo"] }

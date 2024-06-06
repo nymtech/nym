@@ -95,16 +95,11 @@ pub struct WireguardData {
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
-    wireguard_data: nym_wireguard_types::WireguardData,
-) -> Result<
-    std::sync::Arc<nym_wireguard_types::WgApiWrapper>,
-    Box<dyn std::error::Error + Send + Sync + 'static>,
-> {
+    wireguard_data: WireguardData,
+) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
-    use defguard_wireguard_rs::{
-        host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WireguardInterfaceApi,
-    };
-    use nym_wireguard_types::peer_controller::PeerController;
+    use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
+    use peer_controller::PeerController;
 
     let mut peers = vec![];
     for peer_client in wireguard_data.inner.client_registry().iter() {
@@ -127,7 +122,7 @@ pub async fn start_wireguard(
     wg_api.configure_interface(&interface_config)?;
     // wgapi.configure_peer_routing(&peers)?;
 
-    let wg_api = std::sync::Arc::new(nym_wireguard_types::WgApiWrapper::new(wg_api));
+    let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(wg_api.clone(), wireguard_data.peer_rx);
     tokio::spawn(async move { controller.run(task_client).await });
 

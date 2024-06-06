@@ -36,6 +36,14 @@ pub(crate) struct Args {
     )]
     pub(crate) init_only: bool,
 
+    /// Flag specifying this node will be running in a local setting.
+    #[clap(
+        long,
+        default_value_t = false,
+        env = NYMNODE_LOCAL_ARG
+    )]
+    local: bool,
+
     /// Specifies the current mode of this nym-node.
     #[clap(
         long,

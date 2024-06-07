@@ -4,7 +4,7 @@ use crate::mixnet::stream::{MixnetListener, MixnetStream};
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
-use futures::{ready, Stream, StreamExt};
+use futures::{ready, AsyncRead, Stream, StreamExt};
 use log::{debug, error};
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::mix_traffic::ClientRequestSender;
@@ -76,6 +76,24 @@ pub struct MixnetClient {
 
     /// How long a stream can be idle before the router cleans it up.
     pub(crate) stream_idle_timeout: Duration,
+
+    // internal state used for the `AsyncRead` implementation
+    _read: ReadBuffer,
+}
+
+#[derive(Debug, Default)]
+struct ReadBuffer {
+    buffer: Vec<u8>,
+}
+
+impl ReadBuffer {
+    fn clear(&mut self) {
+        self.buffer.clear();
+    }
+
+    fn pending(&self) -> bool {
+        !self.buffer.is_empty()
+    }
 }
 
 impl MixnetClient {
@@ -109,6 +127,7 @@ impl MixnetClient {
             stream_mode: Arc::new(AtomicBool::new(false)),
             streams: None,
             stream_idle_timeout: super::stream::DEFAULT_STREAM_IDLE_TIMEOUT,
+            _read: ReadBuffer::default(),
         }
     }
 
@@ -329,6 +348,25 @@ impl MixnetClient {
     pub fn listener(&mut self) -> Result<MixnetListener> {
         super::stream::listener(self)
     }
+
+    fn read_buffer_to_slice(
+        &mut self,
+        buf: &mut [u8],
+        cx: &mut Context<'_>,
+    ) -> Poll<std::result::Result<usize, std::io::Error>> {
+        if self._read.buffer.len() < buf.len() {
+            let written = self._read.buffer.len();
+            buf[..written].copy_from_slice(&self._read.buffer);
+            self._read.clear();
+            Poll::Ready(Ok(written))
+        } else {
+            let written = buf.len();
+            buf.copy_from_slice(&self._read.buffer[..written]);
+            self._read.buffer = self._read.buffer[written..].to_vec();
+            cx.waker().wake_by_ref();
+            Poll::Ready(Ok(written))
+        }
+    }
 }
 
 pub struct MixnetClientSender {
@@ -344,6 +382,28 @@ impl Clone for MixnetClientSender {
             packet_type: self.packet_type,
             stream_mode: self.stream_mode.clone(),
         }
+    }
+}
+
+impl AsyncRead for MixnetClient {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut [u8],
+    ) -> Poll<std::result::Result<usize, std::io::Error>> {
+        if self._read.pending() {
+            return self.read_buffer_to_slice(buf, cx);
+        }
+
+        let msg = match self.as_mut().poll_next(cx) {
+            Poll::Ready(Some(msg)) => msg,
+            Poll::Ready(None) => return Poll::Ready(Ok(0)),
+            Poll::Pending => return Poll::Pending,
+        };
+
+        self._read.buffer = msg.message;
+
+        self.read_buffer_to_slice(buf, cx)
     }
 }
 

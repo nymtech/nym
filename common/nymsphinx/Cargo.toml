@@ -12,6 +12,8 @@ log = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+bincode = { workspace = true }
 
 nym-sphinx-acknowledgements = { path = "acknowledgements" }
 nym-sphinx-addressing = { path = "addressing" }
@@ -30,7 +32,9 @@ nym-topology = { path = "../topology" }
 
 [dev-dependencies]
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-nym-crypto = { path = "../crypto", version = "0.4.0", features = ["asymmetric"] }
+nym-crypto = { path = "../crypto", version = "0.4.0", features = [
+    "asymmetric",
+] }
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2
@@ -43,5 +47,13 @@ features = ["sync"]
 
 [features]
 default = ["sphinx"]
-sphinx = ["nym-crypto/sphinx", "nym-sphinx-params/sphinx", "nym-sphinx-types/sphinx"]
-outfox = ["nym-crypto/outfox", "nym-sphinx-params/outfox", "nym-sphinx-types/outfox"]
+sphinx = [
+    "nym-crypto/sphinx",
+    "nym-sphinx-params/sphinx",
+    "nym-sphinx-types/sphinx",
+]
+outfox = [
+    "nym-crypto/outfox",
+    "nym-sphinx-params/outfox",
+    "nym-sphinx-types/outfox",
+]

@@ -179,19 +179,19 @@ pub enum IpPacketRequestData {
 }
 
 impl IpPacketRequestData {
-    pub fn add_signature(&mut self, signature: Vec<u8>) -> Option<Vec<u8>> {
+    pub fn add_signature(&mut self, signature: identity::Signature) -> Option<identity::Signature> {
         match self {
             IpPacketRequestData::StaticConnect(request) => {
                 request.signature = Some(signature);
-                request.signature.clone()
+                request.signature
             }
             IpPacketRequestData::DynamicConnect(request) => {
                 request.signature = Some(signature);
-                request.signature.clone()
+                request.signature
             }
             IpPacketRequestData::Disconnect(request) => {
                 request.signature = Some(signature);
-                request.signature.clone()
+                request.signature
             }
             IpPacketRequestData::Data(_)
             | IpPacketRequestData::Ping(_)
@@ -237,7 +237,7 @@ impl StaticConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedStaticConnectRequest {
     pub request: StaticConnectRequest,
-    pub signature: Option<Vec<u8>>,
+    pub signature: Option<identity::Signature>,
 }
 
 impl SignedRequest for SignedStaticConnectRequest {
@@ -254,7 +254,7 @@ impl SignedRequest for SignedStaticConnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&Vec<u8>> {
+    fn signature(&self) -> Option<&identity::Signature> {
         self.signature.as_ref()
     }
 
@@ -298,7 +298,7 @@ impl DynamicConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDynamicConnectRequest {
     pub request: DynamicConnectRequest,
-    pub signature: Option<Vec<u8>>,
+    pub signature: Option<identity::Signature>,
 }
 
 impl SignedRequest for SignedDynamicConnectRequest {
@@ -315,7 +315,7 @@ impl SignedRequest for SignedDynamicConnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&Vec<u8>> {
+    fn signature(&self) -> Option<&identity::Signature> {
         self.signature.as_ref()
     }
 
@@ -347,7 +347,7 @@ impl DisconnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDisconnectRequest {
     pub request: DisconnectRequest,
-    pub signature: Option<Vec<u8>>,
+    pub signature: Option<identity::Signature>,
 }
 
 impl SignedRequest for SignedDisconnectRequest {
@@ -364,7 +364,7 @@ impl SignedRequest for SignedDisconnectRequest {
             })
     }
 
-    fn signature(&self) -> Option<&Vec<u8>> {
+    fn signature(&self) -> Option<&identity::Signature> {
         self.signature.as_ref()
     }
 

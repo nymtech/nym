@@ -95,7 +95,7 @@ nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
-nym-api-requests = { path = "nym-api-requests" }
+nym-api-requests = { path = "nym-api-requests", features = ["request-parsing"] }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }

@@ -10,6 +10,7 @@ use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::routes::unstable;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
+use crate::nym_nodes::nym_node_routes_next;
 use crate::status::{api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
@@ -50,6 +51,10 @@ pub(crate) async fn setup_rocket(
         "/network" => network_routes(&openapi_settings),
         "/api-status" => api_status_routes(&openapi_settings),
         "" => nym_node_routes(&openapi_settings),
+
+        // => when we move those routes, we'll need to add a redirection for backwards compatibility
+        "/unstable/nym-nodes" => nym_node_routes_next(&openapi_settings)
+
     }
 
     let rocket = rocket

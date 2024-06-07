@@ -78,11 +78,9 @@ impl std::fmt::Debug for Node {
 
 impl Node {
     pub fn parse_host(raw: &str) -> Result<NetworkAddress, GatewayConversionError> {
-        raw.parse()
-            .map_err(|err| GatewayConversionError::InvalidAddress {
-                value: raw.to_owned(),
-                source: err,
-            })
+        // safety: this conversion is infallible
+        // (but we retain result return type for legacy reasons)
+        Ok(raw.parse().unwrap())
     }
 
     pub fn extract_mix_host(

@@ -167,7 +167,7 @@ pub(crate) async fn _get_mixnode_reward_estimation(
             estimation: reward_estimation,
             reward_params,
             epoch: current_interval,
-            as_at,
+            as_at: as_at.unix_timestamp(),
         })
     } else {
         Err(ErrorResponse::new(
@@ -252,7 +252,7 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
             estimation: reward_estimation,
             reward_params,
             epoch: current_interval,
-            as_at,
+            as_at: as_at.unix_timestamp(),
         })
     } else {
         Err(ErrorResponse::new(
@@ -286,7 +286,7 @@ pub(crate) async fn _get_mixnode_stake_saturation(
                 .mixnode_details
                 .rewarding_details
                 .uncapped_bond_saturation(&rewarding_params),
-            as_at,
+            as_at: as_at.unix_timestamp(),
         })
     } else {
         Err(ErrorResponse::new(
@@ -350,7 +350,7 @@ pub(crate) async fn _get_mixnode_inclusion_probabilities(
             elapsed: prob.elapsed,
             delta_max: prob.delta_max,
             delta_l2: prob.delta_l2,
-            as_at,
+            as_at: as_at.unix_timestamp(),
         })
     } else {
         Err(ErrorResponse::new(

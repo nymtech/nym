@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod coconut;
 pub mod models;
+pub mod nym_nodes;
 pub mod pagination;
 
 pub trait Deprecatable {

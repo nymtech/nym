@@ -126,6 +126,10 @@ pub struct MixNodeBondAnnotated {
     pub estimated_delegators_apy: Decimal,
     pub family: Option<FamilyHead>,
     pub blacklisted: bool,
+
+    // a rather temporary thing until we query self-described endpoints of mixnodes
+    #[serde(default)]
+    pub ip_addresses: Vec<IpAddr>,
 }
 
 impl MixNodeBondAnnotated {
@@ -157,6 +161,9 @@ pub struct GatewayBondAnnotated {
     pub performance: Performance,
     pub node_performance: NodePerformance,
     pub blacklisted: bool,
+
+    #[serde(default)]
+    pub ip_addresses: Vec<IpAddr>,
 }
 
 impl GatewayBondAnnotated {

@@ -14,6 +14,7 @@ use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::SliceRandom;
 use rand::{CryptoRng, Rng};
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 
 use std::fmt::{self, Display, Formatter};
 use std::io;
@@ -93,7 +94,7 @@ impl NetworkAddress {
 }
 
 impl FromStr for NetworkAddress {
-    type Err = std::io::Error;
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(ip_addr) = s.parse() {

@@ -10,11 +10,11 @@ license.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-bincode = "1.3.3"
+bincode = { workspace = true }
 bs58 = { workspace = true }
-bytes = "1.5.0"
+bytes = { workspace = true }
 clap.workspace = true
-etherparse = "0.13.0"
+etherparse = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 nym-bin-common = { path = "../../common/bin-common" }

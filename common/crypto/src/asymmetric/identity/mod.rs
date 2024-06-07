@@ -1,8 +1,8 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
 pub use ed25519_dalek::SignatureError;
+use ed25519_dalek::{Signer, SigningKey};
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Display, Formatter};
@@ -29,6 +29,9 @@ use serde_bytes::{ByteBuf as SerdeByteBuf, Bytes as SerdeBytes};
 pub enum Ed25519RecoveryError {
     #[error(transparent)]
     MalformedBytes(#[from] SignatureError),
+
+    #[error(transparent)]
+    BytesLengthError(#[from] std::array::TryFromSliceError),
 
     #[error("the base58 representation of the public key was malformed - {source}")]
     MalformedPublicKeyString {
@@ -64,11 +67,11 @@ pub struct KeyPair {
 impl KeyPair {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        let ed25519_keypair = ed25519_dalek::Keypair::generate(rng);
+        let ed25519_signing_key = ed25519_dalek::SigningKey::generate(rng);
 
         KeyPair {
-            private_key: PrivateKey(ed25519_keypair.secret),
-            public_key: PublicKey(ed25519_keypair.public),
+            private_key: PrivateKey(ed25519_signing_key.to_bytes()),
+            public_key: PublicKey(ed25519_signing_key.verifying_key()),
         }
     }
 
@@ -109,7 +112,7 @@ impl PemStorableKeyPair for KeyPair {
 
 /// ed25519 EdDSA Public Key
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct PublicKey(ed25519_dalek::PublicKey);
+pub struct PublicKey(ed25519_dalek::VerifyingKey);
 
 impl Display for PublicKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -135,7 +138,9 @@ impl PublicKey {
     }
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, Ed25519RecoveryError> {
-        Ok(PublicKey(ed25519_dalek::PublicKey::from_bytes(b)?))
+        Ok(PublicKey(ed25519_dalek::VerifyingKey::from_bytes(
+            b.try_into()?,
+        )?))
     }
 
     pub fn to_base58_string(self) -> String {
@@ -189,7 +194,7 @@ impl<'d> Deserialize<'d> for PublicKey {
     where
         D: Deserializer<'d>,
     {
-        Ok(PublicKey(ed25519_dalek::PublicKey::deserialize(
+        Ok(PublicKey(ed25519_dalek::VerifyingKey::deserialize(
             deserializer,
         )?))
     }
@@ -223,14 +228,22 @@ impl Display for PrivateKey {
 
 impl<'a> From<&'a PrivateKey> for PublicKey {
     fn from(pk: &'a PrivateKey) -> Self {
-        PublicKey((&pk.0).into())
+        PublicKey(SigningKey::from_bytes(&pk.0).verifying_key())
+    }
+}
+
+impl FromStr for PrivateKey {
+    type Err = Ed25519RecoveryError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PrivateKey::from_base58_string(s)
     }
 }
 
 impl PrivateKey {
     #[cfg(feature = "rand")]
     pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        let ed25519_secret = ed25519_dalek::SecretKey::generate(rng);
+        let ed25519_secret = ed25519_dalek::SigningKey::generate(rng).to_bytes();
 
         PrivateKey(ed25519_secret)
     }
@@ -240,11 +253,11 @@ impl PrivateKey {
     }
 
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_LENGTH] {
-        self.0.to_bytes()
+        self.0
     }
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, Ed25519RecoveryError> {
-        Ok(PrivateKey(ed25519_dalek::SecretKey::from_bytes(b)?))
+        Ok(PrivateKey(b.try_into()?))
     }
 
     pub fn to_base58_string(&self) -> String {
@@ -259,9 +272,8 @@ impl PrivateKey {
     }
 
     pub fn sign<M: AsRef<[u8]>>(&self, message: M) -> Signature {
-        let expanded_secret_key = ed25519_dalek::ExpandedSecretKey::from(&self.0);
-        let public_key: PublicKey = self.into();
-        let sig = expanded_secret_key.sign(message.as_ref(), &public_key.0);
+        let signing_key: SigningKey = self.0.into();
+        let sig = signing_key.sign(message.as_ref());
         Signature(sig)
     }
 
@@ -330,7 +342,9 @@ impl Signature {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Ed25519RecoveryError> {
-        Ok(Signature(ed25519_dalek::Signature::from_bytes(bytes)?))
+        Ok(Signature(ed25519_dalek::Signature::from_bytes(
+            bytes.try_into()?,
+        )))
     }
 }
 

@@ -4,7 +4,7 @@
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::comm::APICommunicationChannel;
 use crate::coconut::deposit::validate_deposit_tx;
-use crate::coconut::error::Result;
+use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::keys::KeyPair;
 use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
@@ -17,6 +17,7 @@ use nym_validator_client::nyxd::{AccountId, Hash, TxResponse};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::sync::Arc;
+use time::{Duration, OffsetDateTime};
 use tokio::sync::{OnceCell, RwLock};
 
 pub use nym_credentials::coconut::bandwidth::bandwidth_credential_params;
@@ -30,6 +31,25 @@ pub struct State {
     pub(crate) comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     pub(crate) storage: NymApiStorage,
     pub(crate) freepass_nonce: Arc<RwLock<[u8; 16]>>,
+    pub(crate) authorised_freepass_requester: Arc<RwLock<AuthorisedFreepassRequester>>,
+}
+
+const FREEPASS_REQUESTER_TTL: Duration = Duration::hours(1);
+const AUTHORISED_FREEPASS_REQUESTER_ENDPOINT: &str =
+    "https://nymtech.net/.wellknown/authorised-freepass-requester.txt";
+
+pub struct AuthorisedFreepassRequester {
+    address: Option<AccountId>,
+    refreshed_at: OffsetDateTime,
+}
+
+impl Default for AuthorisedFreepassRequester {
+    fn default() -> Self {
+        AuthorisedFreepassRequester {
+            address: None,
+            refreshed_at: OffsetDateTime::UNIX_EPOCH,
+        }
+    }
 }
 
 impl State {
@@ -60,6 +80,7 @@ impl State {
             comm_channel,
             storage,
             freepass_nonce: Arc::new(RwLock::new(nonce)),
+            authorised_freepass_requester: Arc::new(Default::default()),
         }
     }
 
@@ -81,6 +102,58 @@ impl State {
         self.bandwidth_contract_admin
             .get_or_try_init(|| async { self.client.bandwidth_contract_admin().await })
             .await
+    }
+
+    async fn try_get_authorised_freepass_requester(&self) -> Result<AccountId> {
+        let address = reqwest::Client::builder()
+            .user_agent(format!(
+                "nym-api / {} identity: {}",
+                env!("CARGO_PKG_VERSION"),
+                self.identity_keypair.public_key().to_base58_string()
+            ))
+            .build()?
+            .get(AUTHORISED_FREEPASS_REQUESTER_ENDPOINT)
+            .send()
+            .await?
+            .text()
+            .await?;
+        let trimmed = address.trim();
+
+        address.parse().map_err(
+            |_| CoconutError::MalformedAuthorisedFreepassRequesterAddress {
+                address: trimmed.to_string(),
+            },
+        )
+    }
+
+    pub async fn get_authorised_freepass_requester(&self) -> Option<AccountId> {
+        {
+            let cached = self.authorised_freepass_requester.read().await;
+
+            // the entry hasn't expired
+            if cached.refreshed_at + FREEPASS_REQUESTER_TTL >= OffsetDateTime::now_utc() {
+                if let Some(cached_address) = cached.address.as_ref() {
+                    return Some(cached_address.clone());
+                }
+            }
+        }
+
+        // refresh cache
+        let mut cache = self.authorised_freepass_requester.write().await;
+
+        // whatever happens, update refresh time
+        cache.refreshed_at = OffsetDateTime::now_utc();
+
+        let refreshed = match self.try_get_authorised_freepass_requester().await {
+            Ok(upstream) => upstream,
+            Err(err) => {
+                warn!("failed to obtain authorised freepass requester address: {err}");
+                return None;
+            }
+        };
+
+        cache.address = Some(refreshed.clone());
+        Some(refreshed)
     }
 
     pub async fn validate_request(

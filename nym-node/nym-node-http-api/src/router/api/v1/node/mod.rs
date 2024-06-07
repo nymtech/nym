@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::api::v1::node::auxiliary::auxiliary;
 use crate::api::v1::node::build_information::build_information;
 use crate::api::v1::node::description::description;
 use crate::api::v1::node::hardware::host_system;
@@ -11,6 +12,7 @@ use axum::Router;
 use nym_node_requests::api::v1::node::models;
 use nym_node_requests::routes::api::v1;
 
+pub mod auxiliary;
 pub mod build_information;
 pub mod description;
 pub mod hardware;
@@ -24,6 +26,7 @@ pub struct Config {
     pub system_info: Option<models::HostSystem>,
     pub roles: models::NodeRoles,
     pub description: models::NodeDescription,
+    pub auxiliary_details: models::AuxiliaryDetails,
 }
 
 pub(super) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {
@@ -61,6 +64,13 @@ pub(super) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router
             get({
                 let node_description = config.description;
                 move |query| description(node_description, query)
+            }),
+        )
+        .route(
+            v1::AUXILIARY,
+            get({
+                let auxiliary_details = config.auxiliary_details;
+                move |query| auxiliary(auxiliary_details, query)
             }),
         )
 }

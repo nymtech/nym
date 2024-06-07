@@ -1,10 +1,14 @@
 # Node Setup for Performance Testing Event
 
+```admonish info
+For the moment we paused Fast and Furious `perf` environment. Nym Mainnet environment will be used for future tests, please wait for further instructions. 
+```
+
 To join the [Performance testing event]({{performance_testing_webpage}}) node operators need to do proceed with the following tasks:
 
 1. **[Sign their node]({{performance_testing_webpage}}) into the testing environment**
 2. **[Configure their node](#node-configuration) for the test**
-3. (*Not mandatory*) [Setup metric monitoring system](templates.md) to observe node performance at any time
+3. (*Not mandatory*) [Setup metric monitoring system](performance.md#monitoring) to observe node performance at any time
 
 ## Node Configuration
 

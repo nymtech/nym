@@ -10,6 +10,7 @@ use nym_client_core::client::{
     inbound_messages::InputMessage,
     received_buffer::ReconstructedMessagesReceiver,
 };
+use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_task::{
@@ -18,12 +19,15 @@ use nym_task::{
 };
 use nym_topology::NymTopology;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
+
+    pub(crate) identity_keys: Arc<identity::KeyPair>,
 
     /// Input to the client from the users perspective. This can be either data to send or control
     /// messages.
@@ -50,8 +54,10 @@ pub struct MixnetClient {
 }
 
 impl MixnetClient {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         nym_address: Recipient,
+        identity_keys: Arc<identity::KeyPair>,
         client_input: ClientInput,
         client_output: ClientOutput,
         client_state: ClientState,
@@ -61,6 +67,7 @@ impl MixnetClient {
     ) -> Self {
         Self {
             nym_address,
+            identity_keys,
             client_input,
             client_output,
             client_state,
@@ -96,6 +103,17 @@ impl MixnetClient {
     /// client identity, the client encryption key, and the gateway identity.
     pub fn nym_address(&self) -> &Recipient {
         &self.nym_address
+    }
+
+    /// Sign a message with the client's private identity key.
+    pub fn sign(&self, data: &[u8]) -> identity::Signature {
+        self.identity_keys.private_key().sign(data)
+    }
+
+    /// Sign a message with the client's private identity key and return it as a base58 encoded
+    /// signature.
+    pub fn sign_text(&self, text: &str) -> String {
+        self.identity_keys.private_key().sign_text(text)
     }
 
     /// Get gateway connection information, like the file descriptor of the WebSocket

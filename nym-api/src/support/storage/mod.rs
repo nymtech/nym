@@ -10,6 +10,9 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, TestingRoute};
+use crate::support::storage::models::{
+    GatewayDetails, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
+};
 use nym_mixnet_contract_common::MixId;
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
@@ -715,5 +718,67 @@ impl NymApiStorage {
             .purge_old_gateway_statuses(until)
             .await
             .map_err(|err| err.into())
+    }
+
+    pub(crate) async fn get_mixnode_details_by_db_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<MixnodeDetails>, NymApiStorageError> {
+        Ok(self.manager.get_mixnode_details_by_db_id(id).await?)
+    }
+
+    pub(crate) async fn get_gateway_details_by_db_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<GatewayDetails>, NymApiStorageError> {
+        Ok(self.manager.get_gateway_details_by_db_id(id).await?)
+    }
+
+    pub(crate) async fn get_mixnode_detailed_statuses_count(
+        &self,
+        db_id: i64,
+    ) -> Result<usize, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_mixnode_statuses_count(db_id)
+            .await?
+            .try_into()
+            .unwrap_or(usize::MAX))
+    }
+
+    pub(crate) async fn get_mixnode_detailed_statuses(
+        &self,
+        mix_id: MixId,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<TestedMixnodeStatus>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_mixnode_statuses(mix_id, limit, offset)
+            .await?)
+    }
+
+    pub(crate) async fn get_gateway_detailed_statuses_count(
+        &self,
+        db_id: i64,
+    ) -> Result<usize, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_gateway_statuses_count(db_id)
+            .await?
+            .try_into()
+            .unwrap_or(usize::MAX))
+    }
+
+    pub(crate) async fn get_gateway_detailed_statuses(
+        &self,
+        gateway_identity: &str,
+        limit: u32,
+        offset: u32,
+    ) -> Result<Vec<TestedGatewayStatus>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_gateway_statuses(gateway_identity, limit, offset)
+            .await?)
     }
 }

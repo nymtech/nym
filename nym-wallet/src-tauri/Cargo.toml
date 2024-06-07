@@ -40,7 +40,7 @@ strum = { version = "0.23", features = ["derive"] }
 tap = "1"
 tauri = { version = "=1.2.3", features = ["clipboard-all", "shell-open", "updater", "window-maximize", "window-print"] }
 #tendermint-rpc = "0.23.0"
-time = { version = "0.3.17", features = ["local-offset"] }
+time = { version = "0.3.30", features = ["local-offset"] }
 thiserror = "1.0"
 tokio = { version = "1.10", features = ["full"] }
 toml = "0.5.8"
@@ -64,7 +64,7 @@ nym-store-cipher = { path = "../../common/store-cipher", features = ["json"] }
 
 [dev-dependencies]
 nym-crypto = { path = "../../common/crypto", features = ["rand"] }
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 tempfile = "3.3.0"
 ts-rs = "7.0.0"
 

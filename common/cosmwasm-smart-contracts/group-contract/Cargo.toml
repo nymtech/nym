@@ -10,5 +10,5 @@ license.workspace = true
 cosmwasm-schema = { workspace = true }
 cw4 = { workspace = true }
 cw-controllers = { workspace = true }
-schemars = "0.8"
+schemars = { workspace = true }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

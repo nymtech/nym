@@ -1,0 +1,40 @@
+[package]
+name = "nym-name-service"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bs58 = { workspace = true }
+cosmwasm-schema = { workspace = true, optional = true }
+cosmwasm-std = { workspace = true }
+cw-controllers = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-utils = { workspace = true }
+cw2 = { workspace = true }
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", version = "0.5.0" }
+nym-name-service-common = { path = "../../common/cosmwasm-smart-contracts/name-service" }
+semver = { workspace = true, default-features = false }
+serde = { version = "1.0.155", default-features = false, features = ["derive"] }
+thiserror = { workspace = true }
+
+[build-dependencies]
+vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }
+
+[dev-dependencies]
+anyhow = "1.0.40"
+cw-multi-test = { workspace = true }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+nym-sphinx-addressing = { path = "../../common/nymsphinx/addressing" }
+rand = "0.8.5"
+rand_chacha = "0.3"
+rstest = "0.17.0"
+
+[features]
+schema-gen = ["nym-name-service-common/schema", "cosmwasm-schema"]

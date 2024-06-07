@@ -1,0 +1,46 @@
+[package]
+name = "zknym-lib"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+async-trait.workspace = true
+bs58.workspace = true
+getrandom = { version = "0.2", features = ["js"] }
+js-sys.workspace = true
+wasm-bindgen.workspace = true
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+tsify = { workspace = true, features = ["js"] }
+uuid = { version = "*", features = ["serde"] }
+reqwest = { workspace = true }
+wasmtimer = { workspace = true }
+zeroize.workspace = true
+
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+
+
+nym-bin-common = { path = "../../common/bin-common" }
+nym-coconut = { path = "../../common/nymcoconut", features = ["key-zeroize"] }
+nym-credentials = { path = "../../common/credentials" }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
+nym-http-api-client = { path = "../../common/http-api-client" }
+wasm-utils = { path = "../../common/wasm/utils" }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

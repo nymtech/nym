@@ -10,7 +10,7 @@ license.workspace = true
 
 [dependencies]
 base64 = "0.13"
-colored = "2.0"
+colored = { workspace = true }
 
 nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
@@ -46,14 +46,14 @@ tendermint-rpc = { workspace = true }
 # of cargo's feature unification we'd get `bip32/std` meaning we'd get `std::error::Error` for the re-exported (via cosmrs) bip32::Error type
 bip32 = { workspace = true, default-features = false, features = ["std"] }
 
-eyre = { version = "0.6" }
+eyre = { workspace = true }
 cw-utils = { workspace = true }
 cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
 cw-controllers = { workspace = true }
 prost = { workspace = true, default-features = false }
-flate2 = { version = "1.0.20" }
+flate2 = { workspace = true }
 sha2 = { version = "0.9.5" }
 itertools = { version = "0.10" }
 zeroize = { workspace = true, features = ["zeroize_derive"] }

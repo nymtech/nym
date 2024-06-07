@@ -7,9 +7,9 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1"
+anyhow = { workspace = true }
 ts-rs = { workspace = true }
-walkdir = "2"
+walkdir = { workspace = true }
 
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
     "generate-ts"

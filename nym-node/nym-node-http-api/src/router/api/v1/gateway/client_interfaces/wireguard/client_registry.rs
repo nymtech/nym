@@ -10,7 +10,6 @@ use crate::router::types::RequestError;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
     ClientMessage, ClientRegistrationResponse, GatewayClient, InitMessage, Nonce, PeerPublicKey,
 };
@@ -31,7 +30,10 @@ async fn process_final_message(
         }
     };
 
-    if client.verify(&state.private_key, preshared_nonce).is_ok() {
+    if client
+        .verify(state.keypair.private_key(), preshared_nonce)
+        .is_ok()
+    {
         state.registration_in_progress.remove(&client.pub_key());
         state.client_registry.insert(client.pub_key(), client);
 
@@ -86,8 +88,7 @@ pub(crate) async fn register_client(
 
     match payload {
         ClientMessage::Initial(init) => {
-            let remote_public = PublicKey::from_bytes(init.pub_key().as_bytes())
-                .map_err(|_| RequestError::new_status(StatusCode::BAD_REQUEST))?;
+            let remote_public = init.pub_key().inner();
             let nonce = process_init_message(init, state).await;
             let mut private_ip_ref = state
                 .free_private_network_ips
@@ -101,7 +102,7 @@ pub(crate) async fn register_client(
             // mark it as used, even though it's not final
             *private_ip_ref = false;
             let gateway_data = GatewayClient::new(
-                &state.private_key,
+                state.keypair.private_key(),
                 remote_public,
                 *private_ip_ref.key(),
                 nonce,

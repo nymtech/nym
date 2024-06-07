@@ -4,7 +4,7 @@ import { Callout } from 'nextra/components'
 
 An easy way to secure parts or all of your web app is to replace calls to [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) with `mixFetch`:
 
-MixFetch works the same as vanilla `fetch` as it's a proxied wrapper around the original function. 
+MixFetch works the same as vanilla `fetch` as it's a proxied wrapper around the original function.
 Sounds great, are there any catches? Well, there are a few (for now):
 
 1. Currently, the operators of Network Requesters that make the final request at the egress part of the Nym mixnet to
@@ -16,15 +16,23 @@ in combination with their own configuration. If you are trying to access somethi
 3. If you are using `mixFetch` in a web app with HTTPS you will need to use a gateway that has Secure Websockets to
 avoid getting a [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) error.
 
-4. For now, mixfetch doesn't work with SURBS, altough this may change in the future. 
+4. For now, mixfetch doesn't work with SURBS, altough this may change in the future.
 
 
 Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via-the-mixnet-82acfd435c62) to learn more about mixFetch.
 
 <Callout type="info" emoji="ℹ️">
-  We are currently working on a feature that adds a Secure Websocket (WSS) listener with HTTPS (automatically generated with LetsEncrypt) to Nym's
-  gateways.
-  While we are adding this feature, you can use a gateway that has Caddy providing HTTPS/WSS by adding this to the options when setting up `mixFetch`:
+  Right now Gateways are not required to run a Secure Websocket (WSS) listener, so only a subset of nodes running in Gateway mode have configured their nodes to do so.
+
+  For the moment you have to select a Gateway that has WSS enabled from [this list](https://harbourmaster.nymtech.net/v1/services?wss=true).
+
+  You can also find WSS-enabled nodes by querying the `gateways/described` endpoint on the Nym API, either via the [Swagger webpage](https://validator.nymtech.net/api/swagger/index.html) or with `curl`:
+
+  ```
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/gateways/described' \
+  -H 'accept: application/json'
+  ```
 </Callout>
 
 ```ts
@@ -32,14 +40,14 @@ Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via
 import type { SetupMixFetchOps } from '@nymproject/mix-fetch';
 
 const mixFetchOptions: SetupMixFetchOps = {
-  preferredGateway: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM', // with WSS
+  preferredGateway: '983r9LKDT9UUxx4Zsn2AH49poJ7Ep24ueR8ENfWFgCX6', // with WSS
   preferredNetworkRequester:
-    'GiRjFWrMxt58pEMuusm4yT3RxoMD1MMPrR9M2N4VWRJP.3CNZBPq4vg7v7qozjGjdPMXcvDmkbWPCgbGCjQVw9n6Z@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW',
+    'DxAc9J4eqREc8hYfDobkSc81JLkmmrhJ77zJvHShUPoi.92bnebXtBuwKiYycrpioaAiYgta5hHWkys5aSGBQg5av@983r9LKDT9UUxx4Zsn2AH49poJ7Ep24ueR8ENfWFgCX6',
   mixFetchOverride: {
     requestTimeoutMs: 60_000,
   },
   forceTls: true, // force WSS
-  extra: {}, 
+  extra: {},
 };
 ```
 
@@ -53,7 +61,7 @@ npm create vite@latest
 During the environment setup, choose React and subsequently opt for Typescript if you want your application to function smoothly following this tutorial. Next, navigate to your application directory and run the following commands:
 ```bash
 cd < YOUR_APP >
-npm i 
+npm i
 npm run dev
 ```
 
@@ -74,7 +82,7 @@ import { mixFetch } from "@nymproject/mix-fetch-full-fat";
 
 ##### Example: using the `mixFetch` client:
 
-`Get` and `Post` outputs will be observable from your console. 
+`Get` and `Post` outputs will be observable from your console.
 
 ```ts
 import "./App.css";
@@ -82,9 +90,9 @@ import { mixFetch, SetupMixFetchOps } from '@nymproject/mix-fetch-full-fat';
 import React from 'react';
 
 const mixFetchOptions: SetupMixFetchOps = {
-  preferredGateway: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM', // with WSS
+  preferredGateway: '983r9LKDT9UUxx4Zsn2AH49poJ7Ep24ueR8ENfWFgCX6', // with WSS
   preferredNetworkRequester:
-    'GiRjFWrMxt58pEMuusm4yT3RxoMD1MMPrR9M2N4VWRJP.3CNZBPq4vg7v7qozjGjdPMXcvDmkbWPCgbGCjQVw9n6Z@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW',
+    'DxAc9J4eqREc8hYfDobkSc81JLkmmrhJ77zJvHShUPoi.92bnebXtBuwKiYycrpioaAiYgta5hHWkys5aSGBQg5av@983r9LKDT9UUxx4Zsn2AH49poJ7Ep24ueR8ENfWFgCX6',
   mixFetchOverride: {
     requestTimeoutMs: 60_000,
   },
@@ -113,7 +121,7 @@ export function HttpGET() {
 export function HttpPOST() {
     async function post () {
        //Make sure the URL is whitelisted (see 'standard allowed list') otherwise you will get a network requester filter check error
-      const apiResponse = await mixFetch('https://postman-echo.com/post', {
+      const apiResponse = await mixFetch('https://httpbin.org/post', {
         method: 'POST',
         body: JSON.stringify({ foo: 'bar' }),
   headers: { 'Content-Type': 'application/json' }

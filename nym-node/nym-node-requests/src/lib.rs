@@ -6,7 +6,6 @@
 
 pub mod api;
 pub mod error;
-
 macro_rules! absolute_route {
     ( $name:ident, $parent:expr, $suffix:expr ) => {
         pub fn $name() -> String {
@@ -34,6 +33,7 @@ pub mod routes {
             pub const HOST_INFO: &str = "/host-information";
             pub const SYSTEM_INFO: &str = "/system-info";
             pub const NODE_DESCRIPTION: &str = "/description";
+            pub const AUXILIARY: &str = "/auxiliary-details";
             pub const HEALTH: &str = "/health";
             pub const SWAGGER: &str = "/swagger";
 
@@ -50,6 +50,7 @@ pub mod routes {
             absolute_route!(host_info_absolute, v1_absolute(), HOST_INFO);
             absolute_route!(system_info_absolute, v1_absolute(), SYSTEM_INFO);
             absolute_route!(description_absolute, v1_absolute(), NODE_DESCRIPTION);
+            absolute_route!(auxiliary_absolute, v1_absolute(), AUXILIARY);
 
             absolute_route!(gateway_absolute, v1_absolute(), GATEWAY);
             absolute_route!(mixnode_absolute, v1_absolute(), MIXNODE);

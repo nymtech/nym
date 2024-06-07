@@ -1,12 +1,15 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut::api_routes::helpers::build_credentials_response;
-use crate::coconut::error::{CoconutError, Result};
-use crate::coconut::helpers::{accepted_vote_err, blind_sign};
-use crate::coconut::state::State;
-use crate::coconut::storage::CoconutStorageExt;
+use std::ops::Deref;
+
 use k256::ecdsa::signature::Verifier;
+use rand::rngs::OsRng;
+use rand::RngCore;
+use rocket::serde::json::Json;
+use rocket::State as RocketState;
+use time::OffsetDateTime;
+
 use nym_api_requests::coconut::models::{
     CredentialsRequestBody, EpochCredentialsResponse, FreePassNonceResponse, FreePassRequest,
     IssuedCredentialResponse, IssuedCredentialsResponse,
@@ -23,12 +26,12 @@ use nym_credentials::coconut::bandwidth::{
     bandwidth_credential_params, CredentialType, IssuanceBandwidthCredential,
 };
 use nym_validator_client::nyxd::Coin;
-use rand::rngs::OsRng;
-use rand::RngCore;
-use rocket::serde::json::Json;
-use rocket::State as RocketState;
-use std::ops::Deref;
-use time::OffsetDateTime;
+
+use crate::coconut::api_routes::helpers::build_credentials_response;
+use crate::coconut::error::{CoconutError, Result};
+use crate::coconut::helpers::{accepted_vote_err, blind_sign};
+use crate::coconut::state::State;
+use crate::coconut::storage::CoconutStorageExt;
 
 mod helpers;
 
@@ -98,17 +101,30 @@ pub async fn post_free_pass(
 
     validate_freepass_public_attributes(&freepass_request_body)?;
 
-    // grab the admin of the bandwidth contract
-    let Some(authorised_admin) = state.get_bandwidth_contract_admin().await? else {
-        error!("our bandwidth contract does not have an admin set! We won't be able to migrate the contract! We should redeploy it ASAP");
-        return Err(CoconutError::MissingBandwidthContractAdmin);
+    // check for explicit admin
+    let explicit_admin = state.get_authorised_freepass_requester().await;
+
+    // otherwise fallback to bandwidth contract admin
+    let bandwidth_contract_admin = state
+        .get_bandwidth_contract_admin()
+        .await
+        .cloned()
+        .inspect_err(|_| error!("our bandwidth contract does not have an admin set! We won't be able to migrate the contract! We should redeploy it ASAP"))
+        .ok()
+        .flatten();
+
+    // extract account prefix
+    let prefix = match (&explicit_admin, &bandwidth_contract_admin) {
+        (None, None) => {
+            error!("neither explicit admin nor bandwidth contract admin has been set!");
+            return Err(CoconutError::MissingBandwidthContractAddress);
+        }
+        (Some(addr), _) => addr.prefix(),
+        (None, Some(addr)) => addr.prefix(),
     };
 
     // derive the address out of the provided pubkey
-    let requester = match freepass_request_body
-        .cosmos_pubkey
-        .account_id(authorised_admin.prefix())
-    {
+    let requester = match freepass_request_body.cosmos_pubkey.account_id(prefix) {
         Ok(address) => address,
         Err(err) => {
             return Err(CoconutError::AdminAccountDerivationFailure {
@@ -116,12 +132,16 @@ pub async fn post_free_pass(
             })
         }
     };
-    debug!("derived the following address out of the provided public key: {requester}. Going to check it against the authorised admin ({authorised_admin})");
+    debug!("derived the following address out of the provided public key: {requester}. Going to check it against the authorised admin ({explicit_admin:?}) and fallback to bandwidth contract admin: {bandwidth_contract_admin:?}");
 
-    if &requester != authorised_admin {
+    // check if request matches any address
+    if Some(&requester) != explicit_admin.as_ref()
+        && Some(&requester) != bandwidth_contract_admin.as_ref()
+    {
         return Err(CoconutError::UnauthorisedFreePassAccount {
             requester,
-            authorised_admin: authorised_admin.clone(),
+            explicit_admin,
+            bandwidth_contract_admin,
         });
     }
 

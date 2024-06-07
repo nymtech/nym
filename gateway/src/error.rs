@@ -38,7 +38,6 @@ pub enum GatewayError {
     ConfigLoadFailure {
         id: String,
         path: PathBuf,
-        #[source]
         source: io::Error,
     },
 
@@ -48,7 +47,6 @@ pub enum GatewayError {
     NetworkRequesterConfigLoadFailure {
         id: String,
         path: PathBuf,
-        #[source]
         source: io::Error,
     },
 
@@ -59,7 +57,16 @@ pub enum GatewayError {
     IpPacketRouterConfigLoadFailure {
         id: String,
         path: PathBuf,
-        #[source]
+        source: io::Error,
+    },
+
+    #[error(
+        "failed to load config file for wireguard (gateway-id: '{id}') using path '{}'. detailed message: {source}",
+        path.display()
+    )]
+    WireguardConfigLoadFailure {
+        id: String,
+        path: PathBuf,
         source: io::Error,
     },
 
@@ -69,7 +76,6 @@ pub enum GatewayError {
     ConfigSaveFailure {
         id: String,
         path: PathBuf,
-        #[source]
         source: io::Error,
     },
 
@@ -80,10 +86,7 @@ pub enum GatewayError {
     },
 
     #[error("could not obtain the information about current gateways on the network: {source}")]
-    NetworkGatewaysQueryFailure {
-        #[source]
-        source: ValidatorClientError,
-    },
+    NetworkGatewaysQueryFailure { source: ValidatorClientError },
 
     #[error("address {account} has an invalid bech32 prefix. it uses '{actual_prefix}' while '{expected_prefix}' was expected")]
     InvalidBech32AccountPrefix {
@@ -145,7 +148,6 @@ pub enum GatewayError {
 
     #[error("failed to catch an interrupt: {source}")]
     ShutdownFailure {
-        #[source]
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 
@@ -167,6 +169,16 @@ pub enum GatewayError {
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     #[error("failed to remove wireguard interface: {0}")]
     WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
+
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("wireguard not set")]
+    WireguardNotSet,
+
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("failed to catch an interrupt: {source}")]
+    StdError {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 impl From<ClientCoreError> for GatewayError {

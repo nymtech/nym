@@ -11,7 +11,7 @@ repository = "https://github.com/nymtech/nym"
 [dependencies]
 async-trait = { workspace = true }
 js-sys = { workspace = true }
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
 thiserror = { workspace = true }
@@ -41,7 +41,7 @@ wasm-storage = { path = "../storage" }
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
-console_error_panic_hook = { version = "0.1", optional = true }
+console_error_panic_hook = { workspace = true, optional = true }
 
 [features]
 default = ["console_error_panic_hook"]

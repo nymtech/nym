@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
@@ -9,7 +10,7 @@ use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
-use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
+use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, BinaryBuildInformationOwned};
 use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
@@ -419,15 +420,110 @@ where
     Ok(time::serde::rfc3339::deserialize(deserializer).unwrap_or_else(|_| unix_epoch()))
 }
 
+pub(crate) mod overengineered_offset_date_time_serde {
+    use crate::models::unix_epoch;
+    use serde::de::Visitor;
+    use serde::ser::Error;
+    use serde::{Deserializer, Serialize, Serializer};
+    use std::fmt::Formatter;
+    use time::format_description::well_known::Rfc3339;
+    use time::format_description::{modifier, BorrowedFormatItem, Component};
+    use time::OffsetDateTime;
+
+    struct OffsetDateTimeVisitor;
+
+    // copied from time library because they keep it private -.-
+    const DEFAULT_OFFSET_DATE_TIME_FORMAT: &[BorrowedFormatItem<'_>] = &[
+        BorrowedFormatItem::Compound(DATE_FORMAT),
+        BorrowedFormatItem::Literal(b" "),
+        BorrowedFormatItem::Compound(TIME_FORMAT),
+        BorrowedFormatItem::Literal(b" "),
+        BorrowedFormatItem::Compound(UTC_OFFSET_FORMAT),
+    ];
+
+    const DATE_FORMAT: &[BorrowedFormatItem<'_>] = &[
+        BorrowedFormatItem::Component(Component::Year(modifier::Year::default())),
+        BorrowedFormatItem::Literal(b"-"),
+        BorrowedFormatItem::Component(Component::Month(modifier::Month::default())),
+        BorrowedFormatItem::Literal(b"-"),
+        BorrowedFormatItem::Component(Component::Day(modifier::Day::default())),
+    ];
+
+    const TIME_FORMAT: &[BorrowedFormatItem<'_>] = &[
+        BorrowedFormatItem::Component(Component::Hour(modifier::Hour::default())),
+        BorrowedFormatItem::Literal(b":"),
+        BorrowedFormatItem::Component(Component::Minute(modifier::Minute::default())),
+        BorrowedFormatItem::Literal(b":"),
+        BorrowedFormatItem::Component(Component::Second(modifier::Second::default())),
+        BorrowedFormatItem::Literal(b"."),
+        BorrowedFormatItem::Component(Component::Subsecond(modifier::Subsecond::default())),
+    ];
+
+    const UTC_OFFSET_FORMAT: &[BorrowedFormatItem<'_>] = &[
+        BorrowedFormatItem::Component(Component::OffsetHour({
+            let mut m = modifier::OffsetHour::default();
+            m.sign_is_mandatory = true;
+            m
+        })),
+        BorrowedFormatItem::Optional(&BorrowedFormatItem::Compound(&[
+            BorrowedFormatItem::Literal(b":"),
+            BorrowedFormatItem::Component(Component::OffsetMinute(
+                modifier::OffsetMinute::default(),
+            )),
+            BorrowedFormatItem::Optional(&BorrowedFormatItem::Compound(&[
+                BorrowedFormatItem::Literal(b":"),
+                BorrowedFormatItem::Component(Component::OffsetSecond(
+                    modifier::OffsetSecond::default(),
+                )),
+            ])),
+        ])),
+    ];
+
+    impl<'de> Visitor<'de> for OffsetDateTimeVisitor {
+        type Value = OffsetDateTime;
+
+        fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+            formatter.write_str("an rfc3339 or human-readable `OffsetDateTime`")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            // first try rfc3339, if that fails use default human-readable impl from time,
+            // finally fallback to default unix epoch
+            Ok(OffsetDateTime::parse(v, &Rfc3339).unwrap_or_else(|_| {
+                OffsetDateTime::parse(v, &DEFAULT_OFFSET_DATE_TIME_FORMAT)
+                    .unwrap_or_else(|_| unix_epoch())
+            }))
+        }
+    }
+
+    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<OffsetDateTime, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(OffsetDateTimeVisitor)
+    }
+
+    pub(crate) fn serialize<S>(datetime: &OffsetDateTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // serialize it with human-readable format for compatibility with eclipse and nutella clients
+        // in the future change it back to rfc3339
+        datetime
+            .format(&DEFAULT_OFFSET_DATE_TIME_FORMAT)
+            .map_err(S::Error::custom)?
+            .serialize(serializer)
+    }
+}
+
 // for all intents and purposes it's just OffsetDateTime, but we need JsonSchema...
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct OffsetDateTimeJsonSchemaWrapper(
-    #[serde(
-        default = "unix_epoch",
-        serialize_with = "time::serde::rfc3339::serialize",
-        deserialize_with = "de_rfc3339_or_default"
-    )]
-    pub OffsetDateTime,
+    #[serde(default = "unix_epoch", with = "overengineered_offset_date_time_serde")]
+    pub  OffsetDateTime,
 );
 
 impl Default for OffsetDateTimeJsonSchemaWrapper {
@@ -482,12 +578,16 @@ impl JsonSchema for OffsetDateTimeJsonSchemaWrapper {
     }
 }
 
+// this struct is getting quite bloated...
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NymNodeDescription {
     #[serde(default)]
     pub last_polled: OffsetDateTimeJsonSchemaWrapper,
 
     pub host_information: HostInformation,
+
+    #[serde(default)]
+    pub auxiliary_details: AuxiliaryDetails,
 
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,
@@ -568,4 +668,59 @@ pub struct SignerInformationResponse {
     pub announce_address: String,
 
     pub verification_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, Default)]
+pub struct TestNode {
+    pub node_id: Option<u32>,
+    pub identity_key: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct TestRoute {
+    pub gateway: TestNode,
+    pub layer1: TestNode,
+    pub layer2: TestNode,
+    pub layer3: TestNode,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct PartialTestResult {
+    pub monitor_run_id: i64,
+    pub timestamp: i64,
+    pub overall_reliability_for_all_routes_in_monitor_run: Option<u8>,
+    pub test_routes: TestRoute,
+}
+
+pub type MixnodeTestResultResponse = PaginatedResponse<PartialTestResult>;
+pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn offset_date_time_json_schema_wrapper_serde_backwards_compat() {
+        let mut dummy = OffsetDateTimeJsonSchemaWrapper::default();
+        dummy.0 += Duration::from_millis(1);
+        let ser = serde_json::to_string(&dummy).unwrap();
+
+        assert_eq!("\"1970-01-01 00:00:00.001 +00:00:00\"", ser);
+
+        let human_readable = "\"2024-05-23 07:41:02.756283766 +00:00:00\"";
+        let rfc3339 = "\"2002-10-02T15:00:00Z\"";
+        let rfc3339_offset = "\"2002-10-02T10:00:00-05:00\"";
+
+        let de = serde_json::from_str::<OffsetDateTimeJsonSchemaWrapper>(human_readable).unwrap();
+        assert_eq!(de.0.unix_timestamp(), 1716450062);
+
+        let de = serde_json::from_str::<OffsetDateTimeJsonSchemaWrapper>(rfc3339).unwrap();
+        assert_eq!(de.0.unix_timestamp(), 1033570800);
+
+        let de = serde_json::from_str::<OffsetDateTimeJsonSchemaWrapper>(rfc3339_offset).unwrap();
+        assert_eq!(de.0.unix_timestamp(), 1033570800);
+
+        let de = serde_json::from_str::<OffsetDateTimeJsonSchemaWrapper>("\"nonsense\"").unwrap();
+        assert_eq!(de.0.unix_timestamp(), 0);
+    }
 }

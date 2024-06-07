@@ -14,7 +14,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_topology::{gateway, mix};
-use rand_07::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
+use rand::{rngs::ThreadRng, seq::SliceRandom, thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
 
 use std::fmt::{self, Display, Formatter};

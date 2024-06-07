@@ -16,14 +16,14 @@ headers.workspace = true
 thiserror.workspace = true
 time = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["macros"] }
-tower-http = { version = "0.5.2", features = ["fs"] }
+tower-http = { workspace = true, features = ["fs"] }
 tracing.workspace = true
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
-colored = "2"
+colored = { workspace = true }
 ipnetwork = "0.16"
-rand = "0.7.3"
+rand = { workspace = true }
 
 # Wireguard:
 fastrand = "2"
@@ -38,12 +38,13 @@ nym-wireguard = { path = "../../common/wireguard" }
 nym-wireguard-types = { path = "../../common/wireguard-types", features = ["verify"] }
 
 [dev-dependencies]
+base64 = { workspace = true }
 hyper.workspace = true
 dashmap.workspace = true
 serde_json.workspace = true
 
-hmac = "0.12.1"
-tower = { version = "0.4.13" }
+hmac = { workspace = true }
+tower = { workspace = true }
 x25519-dalek = { version = "2.0.0" }
 
 nym-crypto = { path = "../../common/crypto", features = ["rand"] }

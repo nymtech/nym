@@ -7027,6 +7027,8 @@ dependencies = [
 name = "nym-sphinx"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "log",
  "nym-crypto",
  "nym-metrics",
  "nym-mixnet-contract-common",
@@ -7044,6 +7046,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_distr",
+ "serde",
  "thiserror 2.0.12",
  "tokio",
  "tracing",

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
-use log::warn;
 use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::recompute_shared_key;
@@ -17,11 +16,10 @@ use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
     DEFAULT_NUM_MIX_HOPS,
 };
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 // TODO: should this live in this file?
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct ReconstructedMessage {
     /// The actual plaintext message that was received.
     pub message: Vec<u8>,
@@ -29,30 +27,6 @@ pub struct ReconstructedMessage {
     /// Optional ephemeral sender tag indicating pseudo-identity of the party who sent us the message
     /// (alongside any reply SURBs)
     pub sender_tag: Option<AnonymousSenderTag>,
-}
-
-impl From<ReconstructedMessage> for Vec<u8> {
-    fn from(msg: ReconstructedMessage) -> Vec<u8> {
-        match bincode::serialize(&msg) {
-            Ok(serialized) => serialized,
-            Err(err) => {
-                warn!("failed to serialize reconstructed message - {:?}", err);
-                Vec::new()
-            }
-        }
-    }
-}
-
-impl From<&ReconstructedMessage> for Vec<u8> {
-    fn from(msg: &ReconstructedMessage) -> Vec<u8> {
-        match bincode::serialize(msg) {
-            Ok(serialized) => serialized,
-            Err(err) => {
-                warn!("failed to serialize reconstructed message - {:?}", err);
-                Vec::new()
-            }
-        }
-    }
 }
 
 impl From<ReconstructedMessage> for (Vec<u8>, Option<AnonymousSenderTag>) {

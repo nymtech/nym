@@ -4,7 +4,6 @@
 use crate::{ReplySurb, ReplySurbError};
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use rand::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::mem;
 use thiserror::Error;
@@ -25,7 +24,7 @@ pub enum InvalidAnonymousSenderTagRepresentation {
     InvalidLength { received: usize, expected: usize },
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct AnonymousSenderTag([u8; SENDER_TAG_SIZE]);
 

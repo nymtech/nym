@@ -8,11 +8,10 @@ use crate::error::NymNodeHttpError;
 use axum::routing::{get, post};
 use axum::Router;
 use ipnetwork::IpNetwork;
-use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+use nym_wireguard::WireguardGatewayData;
+use nym_wireguard_types::registration::PendingRegistrations;
 use nym_wireguard_types::registration::PrivateIPs;
-use nym_wireguard_types::registration::{GatewayClientRegistry, PendingRegistrations};
-use nym_wireguard_types::WireguardGatewayData;
 use std::sync::Arc;
 
 pub(crate) mod client_registry;
@@ -27,15 +26,14 @@ pub struct WireguardAppState {
 
 impl WireguardAppState {
     pub fn new(
-        wireguard_gateway_data: &WireguardGatewayData,
+        wireguard_gateway_data: WireguardGatewayData,
         registration_in_progress: Arc<PendingRegistrations>,
         binding_port: u16,
         private_ip_network: IpNetwork,
     ) -> Result<Self, NymNodeHttpError> {
         Ok(WireguardAppState {
             inner: Some(WireguardAppStateInner {
-                keypair: wireguard_gateway_data.keypair().clone(),
-                client_registry: wireguard_gateway_data.client_registry().clone(),
+                wireguard_gateway_data,
                 registration_in_progress,
                 binding_port,
                 free_private_network_ips: Arc::new(
@@ -81,8 +79,7 @@ macro_rules! get_state {
 
 #[derive(Clone)]
 pub(crate) struct WireguardAppStateInner {
-    keypair: Arc<KeyPair>,
-    client_registry: Arc<GatewayClientRegistry>,
+    wireguard_gateway_data: WireguardGatewayData,
     registration_in_progress: Arc<PendingRegistrations>,
     binding_port: u16,
     free_private_network_ips: Arc<PrivateIPs>,
@@ -116,7 +113,8 @@ mod test {
         PeerPublicKey,
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
-    use nym_wireguard_types::registration::HmacSha256;
+    use nym_wireguard::{peer_controller::PeerControlMessage, WireguardGatewayData};
+    use nym_wireguard_types::registration::{HmacSha256, RegistrationData};
     use std::net::IpAddr;
     use std::str::FromStr;
     use std::sync::Arc;
@@ -169,7 +167,6 @@ mod test {
         let client_dh = client_static_private.diffie_hellman(&gateway_static_public);
 
         let registration_in_progress = Arc::new(DashMap::new());
-        let client_registry = Arc::new(DashMap::new());
         let free_private_network_ips = Arc::new(
             IpNetwork::from_str("10.1.0.0/24")
                 .unwrap()
@@ -178,11 +175,19 @@ mod test {
                 .collect(),
         );
         let client_private_ip = IpAddr::from_str("10.1.0.42").unwrap();
+        let (wireguard_gateway_data, mut peer_rx) = WireguardGatewayData::new(
+            nym_wireguard_types::Config {
+                bind_address: "0.0.0.0:51822".parse().unwrap(),
+                private_ip: "10.1.0.1".parse().unwrap(),
+                announced_port: 51822,
+                private_network_prefix: 16,
+            },
+            Arc::new(gateway_key_pair),
+        );
 
         let state = WireguardAppState {
             inner: Some(WireguardAppStateInner {
-                client_registry: Arc::clone(&client_registry),
-                keypair: Arc::new(gateway_key_pair),
+                wireguard_gateway_data: wireguard_gateway_data.clone(),
                 registration_in_progress: Arc::clone(&registration_in_progress),
                 binding_port: 8080,
                 free_private_network_ips,
@@ -214,11 +219,11 @@ mod test {
         assert_eq!(response.status(), StatusCode::OK);
         assert!(!registration_in_progress.is_empty());
 
-        let ClientRegistrationResponse::PendingRegistration {
+        let ClientRegistrationResponse::PendingRegistration(RegistrationData {
             nonce,
             gateway_data,
             wg_port: 8080,
-        } = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+        }) = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
             .unwrap()
         else {
             panic!("invalid response")
@@ -252,9 +257,11 @@ mod test {
             .call(final_request)
             .await
             .unwrap();
+        let msg = peer_rx.recv().await.unwrap();
 
+        assert!(matches!(msg, PeerControlMessage::AddPeer(_)));
         assert_eq!(response.status(), StatusCode::OK);
-        assert!(!client_registry.is_empty());
+        assert!(!wireguard_gateway_data.client_registry().is_empty());
 
         let clients_request = Request::builder()
             .method("GET")
@@ -278,7 +285,8 @@ mod test {
         assert!(!clients.is_empty());
 
         assert_eq!(
-            client_registry
+            wireguard_gateway_data
+                .client_registry()
                 .iter()
                 .map(|c| c.value().pub_key())
                 .collect::<Vec<PeerPublicKey>>(),

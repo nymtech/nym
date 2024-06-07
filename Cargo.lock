@@ -5031,6 +5031,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-task",
  "nym-types",
+ "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.8.5",
  "semver 1.0.23",
@@ -5773,9 +5774,11 @@ name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
+ "dashmap",
  "defguard_wireguard_rs",
  "ip_network",
  "log",
+ "nym-crypto",
  "nym-network-defaults",
  "nym-task",
  "nym-wireguard-types",

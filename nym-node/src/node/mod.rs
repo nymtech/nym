@@ -33,11 +33,12 @@ use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{TaskClient, TaskManager};
-use nym_wireguard_types::WireguardGatewayData;
+use nym_wireguard::{peer_controller::PeerControlMessage, WireguardGatewayData};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use std::sync::Arc;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
 
@@ -252,16 +253,19 @@ impl ExitGatewayData {
 }
 
 pub struct WireguardData {
-    x25519_wireguard_keys: Arc<x25519::KeyPair>,
+    inner: WireguardGatewayData,
+    peer_rx: UnboundedReceiver<PeerControlMessage>,
 }
 
 impl WireguardData {
     pub(crate) fn new(config: &Wireguard) -> Result<Self, NymNodeError> {
-        Ok(WireguardData {
-            x25519_wireguard_keys: Arc::new(load_x25519_wireguard_keypair(
+        let (inner, peer_rx) = WireguardGatewayData::new(
+            config.clone().into(),
+            Arc::new(load_x25519_wireguard_keypair(
                 config.storage_paths.x25519_wireguard_storage_paths(),
             )?),
-        })
+        );
+        Ok(WireguardData { inner, peer_rx })
     }
 
     pub(crate) fn initialise(config: &Wireguard) -> Result<(), ExitGatewayError> {
@@ -275,6 +279,15 @@ impl WireguardData {
         )?;
 
         Ok(())
+    }
+}
+
+impl From<WireguardData> for nym_wireguard::WireguardData {
+    fn from(value: WireguardData) -> Self {
+        nym_wireguard::WireguardData {
+            inner: value.inner,
+            peer_rx: value.peer_rx,
+        }
     }
 }
 
@@ -358,10 +371,6 @@ impl NymNode {
 
     pub(crate) async fn new(config: Config) -> Result<Self, NymNodeError> {
         let wireguard_data = WireguardData::new(&config.wireguard)?;
-        let wireguard_gateway_data = WireguardGatewayData::new(
-            config.wireguard.clone().into(),
-            wireguard_data.x25519_wireguard_keys.clone(),
-        );
         Ok(NymNode {
             ed25519_identity_keys: Arc::new(load_ed25519_identity_keypair(
                 config.storage_paths.keys.ed25519_identity_storage_paths(),
@@ -375,8 +384,11 @@ impl NymNode {
             description: load_node_description(&config.storage_paths.description)?,
             verloc_stats: Default::default(),
             mixnode: MixnodeData::new(&config.mixnode)?,
-            entry_gateway: EntryGatewayData::new(&config.entry_gateway, wireguard_gateway_data)
-                .await?,
+            entry_gateway: EntryGatewayData::new(
+                &config.entry_gateway,
+                wireguard_data.inner.clone(),
+            )
+            .await?,
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
             wireguard: wireguard_data,
             config,
@@ -400,7 +412,7 @@ impl NymNode {
     }
 
     fn x25519_wireguard_key(&self) -> &x25519::PublicKey {
-        self.wireguard.x25519_wireguard_keys.public_key()
+        self.wireguard.inner.keypair().public_key()
     }
 
     pub(crate) fn display_details(&self) -> DisplayDetails {
@@ -432,7 +444,7 @@ impl NymNode {
         self.x25519_noise_keys.public_key()
     }
 
-    fn start_mixnode(&self, task_client: TaskClient) -> Result<(), NymNodeError> {
+    fn start_mixnode(self, task_client: TaskClient) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in MIXNODE mode");
 
         let config = ephemeral_mixnode_config(self.config.clone())?;
@@ -455,15 +467,11 @@ impl NymNode {
         Ok(())
     }
 
-    fn start_entry_gateway(&self, task_client: TaskClient) -> Result<(), NymNodeError> {
+    fn start_entry_gateway(self, task_client: TaskClient) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in ENTRY GATEWAY mode");
 
         let config =
             ephemeral_entry_gateway_config(self.config.clone(), &self.entry_gateway.mnemonic)?;
-        let wireguard_data = Arc::new(WireguardGatewayData::new(
-            self.config.wireguard.clone().into(),
-            self.wireguard.x25519_wireguard_keys.clone(),
-        ));
         let mut entry_gateway = Gateway::new_loaded(
             config,
             None,
@@ -474,7 +482,8 @@ impl NymNode {
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
-        entry_gateway.set_wireguard_data(wireguard_data);
+        #[cfg(all(feature = "wireguard", target_os = "linux"))]
+        entry_gateway.set_wireguard_data(self.wireguard.into());
 
         tokio::spawn(async move {
             if let Err(err) = entry_gateway.run().await {
@@ -484,15 +493,11 @@ impl NymNode {
         Ok(())
     }
 
-    fn start_exit_gateway(&self, task_client: TaskClient) -> Result<(), NymNodeError> {
+    fn start_exit_gateway(self, task_client: TaskClient) -> Result<(), NymNodeError> {
         info!("going to start the nym-node in EXIT GATEWAY mode");
 
         let config =
             ephemeral_exit_gateway_config(self.config.clone(), &self.entry_gateway.mnemonic)?;
-        let wireguard_data = Arc::new(WireguardGatewayData::new(
-            self.config.wireguard.clone().into(),
-            self.wireguard.x25519_wireguard_keys.clone(),
-        ));
 
         let mut exit_gateway = Gateway::new_loaded(
             config.gateway,
@@ -504,7 +509,8 @@ impl NymNode {
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
-        exit_gateway.set_wireguard_data(wireguard_data);
+        #[cfg(all(feature = "wireguard", target_os = "linux"))]
+        exit_gateway.set_wireguard_data(self.wireguard.into());
 
         tokio::spawn(async move {
             if let Err(err) = exit_gateway.run().await {
@@ -585,7 +591,7 @@ impl NymNode {
         )?;
 
         let wg_state = WireguardAppState::new(
-            &self.entry_gateway.wireguard_data,
+            self.entry_gateway.wireguard_data.clone(),
             Default::default(),
             self.config.wireguard.bind_address.port(),
             wireguard_private_network,

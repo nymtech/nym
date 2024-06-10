@@ -99,6 +99,7 @@ pub async fn start_wireguard(
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
+    use ip_network::IpNetwork;
     use peer_controller::PeerController;
 
     let mut peers = vec![];
@@ -120,7 +121,18 @@ pub async fn start_wireguard(
         peers,
     };
     wg_api.configure_interface(&interface_config)?;
-    // wgapi.configure_peer_routing(&peers)?;
+
+    // Use a dummy peer to create routing rule for the entire network space
+    let mut catch_all_peer = Peer::new(Key::new([0; 32]));
+    let network = IpNetwork::new_truncate(
+        wireguard_data.inner.config().private_ip,
+        wireguard_data.inner.config().private_network_prefix,
+    )?;
+    catch_all_peer.set_allowed_ips(vec![IpAddrMask::new(
+        network.network_address(),
+        network.netmask(),
+    )]);
+    wg_api.configure_peer_routing(&[catch_all_peer])?;
 
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(wg_api.clone(), wireguard_data.peer_rx);

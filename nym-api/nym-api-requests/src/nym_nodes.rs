@@ -5,6 +5,7 @@ use crate::models::{
     GatewayBondAnnotated, MixNodeBondAnnotated, NymNodeDescription, OffsetDateTimeJsonSchemaWrapper,
 };
 use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::MixId;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
@@ -54,11 +55,15 @@ pub struct BasicEntryInformation {
     pub wss_port: Option<u16>,
 }
 
+type NodeId = MixId;
+
 // the bare minimum information needed to construct sphinx packets
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct SkimmedNode {
     // in directory v3 all nodes (mixnodes AND gateways) will have a unique id
-    // pub node_id: NodeId,
+    // but to keep structure consistent, introduce this field now
+    pub node_id: NodeId,
+
     pub ed25519_identity_pubkey: String,
     pub ip_addresses: Vec<IpAddr>,
 
@@ -103,6 +108,7 @@ impl SkimmedNode {
 impl<'a> From<&'a MixNodeBondAnnotated> for SkimmedNode {
     fn from(value: &'a MixNodeBondAnnotated) -> Self {
         SkimmedNode {
+            node_id: value.mix_id(),
             ed25519_identity_pubkey: value.identity_key().to_string(),
             ip_addresses: value.ip_addresses.clone(),
             mix_port: value.mix_node().mix_port,
@@ -119,6 +125,7 @@ impl<'a> From<&'a MixNodeBondAnnotated> for SkimmedNode {
 impl<'a> From<&'a GatewayBondAnnotated> for SkimmedNode {
     fn from(value: &'a GatewayBondAnnotated) -> Self {
         SkimmedNode {
+            node_id: MixId::MAX,
             ip_addresses: value.ip_addresses.clone(),
             ed25519_identity_pubkey: value.gateway_bond.identity().clone(),
             mix_port: value.gateway_bond.gateway.mix_port,

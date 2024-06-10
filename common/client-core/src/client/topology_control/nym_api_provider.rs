@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use log::{error, warn};
+use log::{debug, error, warn};
 use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::{nym_topology_from_detailed, NymTopology, NymTopologyError};
+use nym_topology::{NymTopology, NymTopologyError};
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use url::Url;
@@ -102,6 +102,12 @@ impl NymApiTopologyProvider {
             }
             Ok(gateways) => gateways,
         };
+
+        debug!(
+            "there are {} mixnodes and {} gateways in total (before performance filtering)",
+            mixnodes.len(),
+            gateways.len()
+        );
 
         let topology = NymTopology::from_unordered(
             mixnodes.iter().filter(|m| {

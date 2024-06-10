@@ -41,7 +41,7 @@ impl<'a> From<&'a mix::Node> for TestableNode {
     fn from(value: &'a mix::Node) -> Self {
         TestableNode {
             encoded_identity: value.identity_key.to_base58_string(),
-            owner: value.owner.clone(),
+            owner: value.owner.as_ref().cloned().unwrap_or_default(),
             typ: NodeType::Mixnode {
                 mix_id: value.mix_id,
             },
@@ -53,7 +53,7 @@ impl<'a> From<&'a gateway::Node> for TestableNode {
     fn from(value: &'a gateway::Node) -> Self {
         TestableNode {
             encoded_identity: value.identity_key.to_base58_string(),
-            owner: value.owner.clone(),
+            owner: value.owner.as_ref().cloned().unwrap_or_default(),
             typ: NodeType::Gateway,
         }
     }

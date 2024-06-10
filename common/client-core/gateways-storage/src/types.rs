@@ -65,7 +65,7 @@ impl GatewayDetails {
     pub fn new_remote(
         gateway_id: identity::PublicKey,
         derived_aes128_ctr_blake3_hmac_keys: Arc<SharedKeys>,
-        gateway_owner_address: AccountId,
+        gateway_owner_address: Option<AccountId>,
         gateway_listener: Url,
         wg_tun_address: Option<Url>,
     ) -> Self {
@@ -170,7 +170,7 @@ pub struct RegisteredGateway {
 pub struct RawRemoteGatewayDetails {
     pub gateway_id_bs58: String,
     pub derived_aes128_ctr_blake3_hmac_keys_bs58: String,
-    pub gateway_owner_address: String,
+    pub gateway_owner_address: Option<String>,
     pub gateway_listener: String,
     pub wg_tun_address: Option<String>,
 }
@@ -195,14 +195,19 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
                 })?,
         );
 
-        let gateway_owner_address =
-            AccountId::from_str(&value.gateway_owner_address).map_err(|source| {
-                BadGateway::MalformedGatewayOwnerAccountAddress {
-                    gateway_id: value.gateway_id_bs58.clone(),
-                    raw_owner: value.gateway_owner_address.clone(),
-                    source,
-                }
-            })?;
+        let gateway_owner_address = value
+            .gateway_owner_address
+            .as_ref()
+            .map(|raw_owner| {
+                AccountId::from_str(&raw_owner).map_err(|source| {
+                    BadGateway::MalformedGatewayOwnerAccountAddress {
+                        gateway_id: value.gateway_id_bs58.clone(),
+                        raw_owner: raw_owner.clone(),
+                        source,
+                    }
+                })
+            })
+            .transpose()?;
 
         let gateway_listener = Url::parse(&value.gateway_listener).map_err(|source| {
             BadGateway::MalformedListener {
@@ -241,7 +246,7 @@ impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
             derived_aes128_ctr_blake3_hmac_keys_bs58: value
                 .derived_aes128_ctr_blake3_hmac_keys
                 .to_base58_string(),
-            gateway_owner_address: value.gateway_owner_address.to_string(),
+            gateway_owner_address: value.gateway_owner_address.as_ref().map(|o| o.to_string()),
             gateway_listener: value.gateway_listener.to_string(),
             wg_tun_address: value.wg_tun_address.as_ref().map(|addr| addr.to_string()),
         }
@@ -256,7 +261,7 @@ pub struct RemoteGatewayDetails {
     // the keys will be zeroized
     pub derived_aes128_ctr_blake3_hmac_keys: Arc<SharedKeys>,
 
-    pub gateway_owner_address: AccountId,
+    pub gateway_owner_address: Option<AccountId>,
 
     pub gateway_listener: Url,
 

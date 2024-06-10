@@ -388,7 +388,10 @@ where
 
             let cfg = GatewayConfig::new(
                 details.gateway_id,
-                Some(details.gateway_owner_address.to_string()),
+                details
+                    .gateway_owner_address
+                    .as_ref()
+                    .map(|o| o.to_string()),
                 gateway_listener,
             );
             GatewayClient::new(

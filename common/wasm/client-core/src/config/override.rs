@@ -244,6 +244,16 @@ pub struct TopologyWasmOverride {
     /// Supersedes `topology_refresh_rate_ms`.
     #[tsify(optional)]
     pub disable_refreshing: Option<bool>,
+
+    /// Specifies a minimum performance of a mixnode that is used on route construction.
+    /// This setting is only applicable when `NymApi` topology is used.
+    #[tsify(optional)]
+    pub minimum_mixnode_performance: Option<u8>,
+
+    /// Specifies a minimum performance of a gateway that is used on route construction.
+    /// This setting is only applicable when `NymApi` topology is used.
+    #[tsify(optional)]
+    pub minimum_gateway_performance: Option<u8>,
 }
 
 impl From<TopologyWasmOverride> for TopologyWasm {
@@ -261,6 +271,12 @@ impl From<TopologyWasmOverride> for TopologyWasm {
                 .max_startup_gateway_waiting_period_ms
                 .unwrap_or(def.max_startup_gateway_waiting_period_ms),
             disable_refreshing: value.disable_refreshing.unwrap_or(def.disable_refreshing),
+            minimum_mixnode_performance: value
+                .minimum_mixnode_performance
+                .unwrap_or(def.minimum_mixnode_performance),
+            minimum_gateway_performance: value
+                .minimum_gateway_performance
+                .unwrap_or(def.minimum_gateway_performance),
         }
     }
 }

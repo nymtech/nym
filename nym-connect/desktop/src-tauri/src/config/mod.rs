@@ -252,7 +252,9 @@ fn print_saved_config(config: &Config, gateway_details: &RemoteGatewayDetails) {
         config.default_location().display()
     );
     log::info!("Gateway id: {}", gateway_details.gateway_id);
-    log::info!("Gateway owner: {}", gateway_details.gateway_owner_address);
+    if let Some(owner) = gateway_details.gateway_owner_address.as_ref() {
+        log::info!("Gateway owner: {owner}");
+    }
     log::info!("Gateway listener: {}", gateway_details.gateway_listener);
     log::info!(
         "Service provider address: {}",

@@ -9,17 +9,21 @@ use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use url::Url;
 
+// the same values as our current (10.06.24) blacklist
+pub const DEFAULT_MIN_MIXNODE_PERFORMANCE: u8 = 50;
+pub const DEFAULT_MIN_GATEWAY_PERFORMANCE: u8 = 50;
+
 pub(crate) struct Config {
-    pub min_mixnode_performance: u8,
-    pub min_gateway_performance: u8,
+    pub(crate) min_mixnode_performance: u8,
+    pub(crate) min_gateway_performance: u8,
 }
 
 impl Default for Config {
     fn default() -> Self {
         // old values that decided on blacklist membership
         Config {
-            min_mixnode_performance: 50,
-            min_gateway_performance: 50,
+            min_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
+            min_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
         }
     }
 }

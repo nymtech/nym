@@ -49,7 +49,6 @@ pub enum NodeRole {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct BasicEntryInformation {
     pub hostname: Option<String>,
-    pub ed25519_identity_pubkey: String,
 
     pub ws_port: u16,
     pub wss_port: Option<u16>,
@@ -60,6 +59,7 @@ pub struct BasicEntryInformation {
 pub struct SkimmedNode {
     // in directory v3 all nodes (mixnodes AND gateways) will have a unique id
     // pub node_id: NodeId,
+    pub ed25519_identity_pubkey: String,
     pub ip_addresses: Vec<IpAddr>,
 
     // TODO: to be deprecated in favour of well-known hardcoded port for everyone
@@ -103,6 +103,7 @@ impl SkimmedNode {
 impl<'a> From<&'a MixNodeBondAnnotated> for SkimmedNode {
     fn from(value: &'a MixNodeBondAnnotated) -> Self {
         SkimmedNode {
+            ed25519_identity_pubkey: value.identity_key().to_string(),
             ip_addresses: value.ip_addresses.clone(),
             mix_port: value.mix_node().mix_port,
             x25519_sphinx_pubkey: value.mix_node().sphinx_key.clone(),
@@ -119,12 +120,12 @@ impl<'a> From<&'a GatewayBondAnnotated> for SkimmedNode {
     fn from(value: &'a GatewayBondAnnotated) -> Self {
         SkimmedNode {
             ip_addresses: value.ip_addresses.clone(),
+            ed25519_identity_pubkey: value.gateway_bond.identity().clone(),
             mix_port: value.gateway_bond.gateway.mix_port,
             x25519_sphinx_pubkey: value.gateway_bond.gateway.sphinx_key.clone(),
             role: NodeRole::EntryGateway,
             entry: Some(BasicEntryInformation {
                 hostname: None,
-                ed25519_identity_pubkey: value.gateway_bond.identity().clone(),
                 ws_port: value.gateway_bond.gateway.clients_port,
                 wss_port: None,
             }),
@@ -139,6 +140,7 @@ impl<'a> From<&'a GatewayBondAnnotated> for SkimmedNode {
 pub struct SemiSkimmedNode {
     pub basic: SkimmedNode,
     pub x25519_noise_pubkey: String,
+    // pub location:
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]

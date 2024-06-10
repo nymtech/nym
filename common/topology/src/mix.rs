@@ -8,6 +8,7 @@ use nym_mixnet_contract_common::{MixId, MixNodeBond};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
 
+use nym_api_requests::nym_nodes::SkimmedNode;
 use std::fmt::Formatter;
 use std::io;
 use std::net::SocketAddr;
@@ -27,6 +28,9 @@ pub enum MixnodeConversionError {
         #[source]
         source: io::Error,
     },
+
+    #[error("provided node is not a mixnode in this epoch!")]
+    NotMixnode,
 }
 
 #[derive(Clone)]
@@ -115,6 +119,24 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
             layer: bond.layer,
             version: bond.mix_node.version.as_str().into(),
         })
+    }
+}
+
+impl<'a> TryFrom<&'a SkimmedNode> for Node {
+    type Error = MixnodeConversionError;
+
+    fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
+        todo!()
+        // Ok(Node {
+        //     owner: "".to_string(),
+        //     host: (),
+        //     mix_host: (),
+        //     clients_ws_port: 0,
+        //     clients_wss_port: None,
+        //     identity_key: (),
+        //     sphinx_key: (),
+        //     version: Default::default(),
+        // })
     }
 }
 

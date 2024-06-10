@@ -8,6 +8,7 @@ use crate::support::caching::cache::SharedCache;
 use nym_api_requests::nym_nodes::{
     CachedNodesResponse, FullFatNode, NodeRoleQueryParam, SemiSkimmedNode, SkimmedNode,
 };
+use nym_bin_common::version_checker;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -32,17 +33,20 @@ use std::ops::Deref;
 */
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/skimmed?<role>")]
+#[get("/skimmed?<role>&<semver_compatibility>")]
 pub async fn nodes_basic(
     status_cache: &State<NodeStatusCache>,
     describe_cache: &State<SharedCache<DescribedNodes>>,
     role: Option<NodeRoleQueryParam>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<SkimmedNode>>, ErrorResponse> {
     if let Some(role) = role {
         match role {
-            NodeRoleQueryParam::ActiveMixnode => return mixnodes_basic(status_cache).await,
+            NodeRoleQueryParam::ActiveMixnode => {
+                return mixnodes_basic(status_cache, semver_compatibility).await
+            }
             NodeRoleQueryParam::EntryGateway => {
-                return gateways_basic(status_cache, describe_cache).await
+                return gateways_basic(status_cache, describe_cache, semver_compatibility).await
             }
             _ => {}
         }
@@ -52,15 +56,20 @@ pub async fn nodes_basic(
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/semi-skimmed?<role>")]
+#[get("/semi-skimmed?<role>&<semver_compatibility>")]
 pub async fn nodes_expanded(
     cache: &State<NodeStatusCache>,
     role: Option<NodeRoleQueryParam>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, ErrorResponse> {
     if let Some(role) = role {
         match role {
-            NodeRoleQueryParam::ActiveMixnode => return mixnodes_expanded(cache).await,
-            NodeRoleQueryParam::EntryGateway => return gateways_expanded(cache).await,
+            NodeRoleQueryParam::ActiveMixnode => {
+                return mixnodes_expanded(cache, semver_compatibility).await
+            }
+            NodeRoleQueryParam::EntryGateway => {
+                return gateways_expanded(cache, semver_compatibility).await
+            }
             _ => {}
         }
     }
@@ -69,15 +78,20 @@ pub async fn nodes_expanded(
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/full-fat?<role>")]
+#[get("/full-fat?<role>&<semver_compatibility>")]
 pub async fn nodes_detailed(
     cache: &State<NodeStatusCache>,
     role: Option<NodeRoleQueryParam>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<FullFatNode>>, ErrorResponse> {
     if let Some(role) = role {
         match role {
-            NodeRoleQueryParam::ActiveMixnode => return mixnodes_detailed(cache).await,
-            NodeRoleQueryParam::EntryGateway => return gateways_detailed(cache).await,
+            NodeRoleQueryParam::ActiveMixnode => {
+                return mixnodes_detailed(cache, semver_compatibility).await
+            }
+            NodeRoleQueryParam::EntryGateway => {
+                return gateways_detailed(cache, semver_compatibility).await
+            }
             _ => {}
         }
     }
@@ -86,10 +100,11 @@ pub async fn nodes_detailed(
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/gateways/skimmed")]
+#[get("/gateways/skimmed?<semver_compatibility>")]
 pub async fn gateways_basic(
     status_cache: &State<NodeStatusCache>,
     describe_cache: &State<SharedCache<DescribedNodes>>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<SkimmedNode>>, ErrorResponse> {
     let gateways_cache = status_cache
         .gateways_cache()
@@ -122,6 +137,16 @@ pub async fn gateways_basic(
         refreshed_at: refreshed_at.into(),
         nodes: gateways_cache
             .values()
+            .filter(|annotated_bond| {
+                if let Some(semver_compatibility) = semver_compatibility.as_ref() {
+                    version_checker::is_minor_version_compatible(
+                        &annotated_bond.gateway_bond.gateway.version,
+                        semver_compatibility,
+                    )
+                } else {
+                    true
+                }
+            })
             .map(|annotated_bond| {
                 SkimmedNode::from_described_gateway(
                     annotated_bond,
@@ -133,27 +158,32 @@ pub async fn gateways_basic(
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/gateways/semi-skimmed")]
+#[get("/gateways/semi-skimmed?<semver_compatibility>")]
 pub async fn gateways_expanded(
     cache: &State<NodeStatusCache>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, ErrorResponse> {
     let _ = cache;
+    let _ = semver_compatibility;
     Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/gateways/full-fat")]
+#[get("/gateways/full-fat?<semver_compatibility>")]
 pub async fn gateways_detailed(
     cache: &State<NodeStatusCache>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<FullFatNode>>, ErrorResponse> {
     let _ = cache;
+    let _ = semver_compatibility;
     Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/mixnodes/skimmed")]
+#[get("/mixnodes/skimmed?<semver_compatibility>")]
 pub async fn mixnodes_basic(
     cache: &State<NodeStatusCache>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<SkimmedNode>>, ErrorResponse> {
     let mixnodes_cache = cache
         .active_mixnodes_cache()
@@ -164,24 +194,45 @@ pub async fn mixnodes_basic(
         ))?;
     Ok(Json(CachedNodesResponse {
         refreshed_at: mixnodes_cache.timestamp().into(),
-        nodes: mixnodes_cache.iter().map(Into::into).collect(),
+        nodes: mixnodes_cache
+            .iter()
+            .filter(|annotated_bond| {
+                if let Some(semver_compatibility) = semver_compatibility.as_ref() {
+                    version_checker::is_minor_version_compatible(
+                        &annotated_bond
+                            .mixnode_details
+                            .bond_information
+                            .mix_node
+                            .version,
+                        semver_compatibility,
+                    )
+                } else {
+                    true
+                }
+            })
+            .map(Into::into)
+            .collect(),
     }))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/mixnodes/semi-skimmed")]
+#[get("/mixnodes/semi-skimmed?<semver_compatibility>")]
 pub async fn mixnodes_expanded(
     cache: &State<NodeStatusCache>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, ErrorResponse> {
     let _ = cache;
+    let _ = semver_compatibility;
     Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
-#[get("/mixnodes/full-fat")]
+#[get("/mixnodes/full-fat?<semver_compatibility>")]
 pub async fn mixnodes_detailed(
     cache: &State<NodeStatusCache>,
+    semver_compatibility: Option<String>,
 ) -> Result<Json<CachedNodesResponse<FullFatNode>>, ErrorResponse> {
     let _ = cache;
+    let _ = semver_compatibility;
     Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
 }

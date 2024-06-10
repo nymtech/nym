@@ -6,7 +6,7 @@
 
 use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
-use log::warn;
+use log::{debug, warn};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -136,6 +136,38 @@ impl NymTopology {
         }
 
         NymTopology { mixes, gateways }
+    }
+
+    pub fn from_unordered<MI, GI, M, G>(unordered_mixes: MI, unordered_gateways: GI) -> Self
+    where
+        MI: Iterator<Item = M>,
+        GI: Iterator<Item = G>,
+        G: TryInto<gateway::Node>,
+        M: TryInto<mix::Node>,
+        <G as TryInto<gateway::Node>>::Error: Display,
+        <M as TryInto<mix::Node>>::Error: Display,
+    {
+        let mut mixes = BTreeMap::new();
+        let mut gateways = Vec::new();
+
+        for node in unordered_mixes.into_iter() {
+            match node.try_into() {
+                Ok(mixnode) => mixes
+                    .entry(mixnode.layer as MixLayer)
+                    .or_insert_with(Vec::new)
+                    .push(mixnode),
+                Err(err) => debug!("malformed mixnode: {err}"),
+            }
+        }
+
+        for node in unordered_gateways.into_iter() {
+            match node.try_into() {
+                Ok(gateway) => gateways.push(gateway),
+                Err(err) => debug!("malformed gateway: {err}"),
+            }
+        }
+
+        NymTopology::new(mixes, gateways)
     }
 
     #[cfg(feature = "serializable")]

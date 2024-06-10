@@ -516,6 +516,14 @@ pub struct Topology {
 
     /// Specifies the mixnode topology to be used for sending packets.
     pub topology_structure: TopologyStructure,
+
+    /// Specifies a minimum performance of a mixnode that is used on route construction.
+    /// This setting is only applicable when `NymApi` topology is used.
+    pub minimum_mixnode_performance: u8,
+
+    /// Specifies a minimum performance of a gateway that is used on route construction.
+    /// This setting is only applicable when `NymApi` topology is used.
+    pub minimum_gateway_performance: u8,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -550,6 +558,8 @@ impl Default for Topology {
             disable_refreshing: false,
             max_startup_gateway_waiting_period: DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD,
             topology_structure: TopologyStructure::default(),
+            minimum_mixnode_performance: 50,
+            minimum_gateway_performance: 50,
         }
     }
 }

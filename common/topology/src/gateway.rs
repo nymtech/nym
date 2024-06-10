@@ -8,6 +8,7 @@ use nym_mixnet_contract_common::GatewayBond;
 use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nym_sphinx_types::Node as SphinxNode;
 
+use nym_api_requests::nym_nodes::SkimmedNode;
 use std::fmt;
 use std::fmt::Formatter;
 use std::io;
@@ -40,6 +41,9 @@ pub enum GatewayConversionError {
         #[source]
         err: AddrParseError,
     },
+
+    #[error("provided node is not an entry gateway in this epoch!")]
+    NotGateway,
 }
 
 #[derive(Clone)]
@@ -214,6 +218,24 @@ impl<'a> TryFrom<&'a DescribedGateway> for Node {
                 .as_str()
                 .into(),
         })
+    }
+}
+
+impl<'a> TryFrom<&'a SkimmedNode> for Node {
+    type Error = GatewayConversionError;
+
+    fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
+        todo!()
+        // Ok(Node {
+        //     owner: "".to_string(),
+        //     host: (),
+        //     mix_host: (),
+        //     clients_ws_port: 0,
+        //     clients_wss_port: None,
+        //     identity_key: (),
+        //     sphinx_key: (),
+        //     version: Default::default(),
+        // })
     }
 }
 

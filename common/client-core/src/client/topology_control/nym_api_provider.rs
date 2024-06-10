@@ -9,7 +9,24 @@ use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use url::Url;
 
+pub(crate) struct Config {
+    pub min_mixnode_performance: u8,
+    pub min_gateway_performance: u8,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        // old values that decided on blacklist membership
+        Config {
+            min_mixnode_performance: 50,
+            min_gateway_performance: 50,
+        }
+    }
+}
+
 pub(crate) struct NymApiTopologyProvider {
+    config: Config,
+
     validator_client: nym_validator_client::client::NymApiClient,
     nym_api_urls: Vec<Url>,
 
@@ -18,10 +35,11 @@ pub(crate) struct NymApiTopologyProvider {
 }
 
 impl NymApiTopologyProvider {
-    pub(crate) fn new(mut nym_api_urls: Vec<Url>, client_version: String) -> Self {
+    pub(crate) fn new(config: Config, mut nym_api_urls: Vec<Url>, client_version: String) -> Self {
         nym_api_urls.shuffle(&mut thread_rng());
 
         NymApiTopologyProvider {
+            config,
             validator_client: nym_validator_client::client::NymApiClient::new(
                 nym_api_urls[0].clone(),
             ),
@@ -61,7 +79,11 @@ impl NymApiTopologyProvider {
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
-        let mixnodes = match self.validator_client.get_cached_active_mixnodes().await {
+        let mixnodes = match self
+            .validator_client
+            .get_basic_mixnodes(Some(self.client_version.clone()))
+            .await
+        {
             Err(err) => {
                 error!("failed to get network mixnodes - {err}");
                 return None;
@@ -69,7 +91,11 @@ impl NymApiTopologyProvider {
             Ok(mixes) => mixes,
         };
 
-        let gateways = match self.validator_client.get_cached_described_gateways().await {
+        let gateways = match self
+            .validator_client
+            .get_basic_gateways(Some(self.client_version.clone()))
+            .await
+        {
             Err(err) => {
                 error!("failed to get network gateways - {err}");
                 return None;
@@ -77,8 +103,14 @@ impl NymApiTopologyProvider {
             Ok(gateways) => gateways,
         };
 
-        let topology = nym_topology_from_detailed(mixnodes, gateways)
-            .filter_system_version(&self.client_version);
+        let topology = NymTopology::from_unordered(
+            mixnodes.iter().filter(|m| {
+                m.performance.round_to_integer() >= self.config.min_mixnode_performance
+            }),
+            gateways.iter().filter(|g| {
+                g.performance.round_to_integer() >= self.config.min_gateway_performance
+            }),
+        );
 
         if let Err(err) = self.check_layer_distribution(&topology) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used: {err}");

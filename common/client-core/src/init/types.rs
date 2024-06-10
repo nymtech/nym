@@ -88,7 +88,7 @@ impl SelectedGateway {
             .owner
             .as_ref()
             .map(|raw_owner| {
-                AccountId::from_str(&raw_owner).map_err(|source| {
+                AccountId::from_str(raw_owner).map_err(|source| {
                     ClientCoreError::MalformedGatewayOwnerAccountAddress {
                         gateway_id: node.identity_key.to_base58_string(),
                         raw_owner: raw_owner.clone(),

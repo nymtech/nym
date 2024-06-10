@@ -55,7 +55,7 @@ async fn main() {
         3,
         vec![mix::Node {
             mix_id: 66,
-            owner: "n1ae2pjd7q9p0dea65pqkvcm4x9s264v4fktpyru".to_string(),
+            owner: None,
             host: "139.162.247.97".parse().unwrap(),
             mix_host: "139.162.247.97:1789".parse().unwrap(),
             identity_key: "66UngapebhJRni3Nj52EW1qcNsWYiuonjkWJzHFsmyYY"

@@ -199,7 +199,7 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
             .gateway_owner_address
             .as_ref()
             .map(|raw_owner| {
-                AccountId::from_str(&raw_owner).map_err(|source| {
+                AccountId::from_str(raw_owner).map_err(|source| {
                     BadGateway::MalformedGatewayOwnerAccountAddress {
                         gateway_id: value.gateway_id_bs58.clone(),
                         raw_owner: raw_owner.clone(),

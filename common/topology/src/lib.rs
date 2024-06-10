@@ -524,7 +524,7 @@ mod converting_mixes_to_vec {
         fn returns_a_vec_with_hashmap_values() {
             let node1 = mix::Node {
                 mix_id: 42,
-                owner: "N/A".to_string(),
+                owner: Some("N/A".to_string()),
                 host: "3.3.3.3".parse().unwrap(),
                 mix_host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -540,12 +540,12 @@ mod converting_mixes_to_vec {
             };
 
             let node2 = mix::Node {
-                owner: "Alice".to_string(),
+                owner: Some("Alice".to_string()),
                 ..node1.clone()
             };
 
             let node3 = mix::Node {
-                owner: "Bob".to_string(),
+                owner: Some("Bob".to_string()),
                 ..node1.clone()
             };
 
@@ -555,7 +555,9 @@ mod converting_mixes_to_vec {
 
             let topology = NymTopology::new(mixes, vec![]);
             let mixvec = topology.mixes_as_vec();
-            assert!(mixvec.iter().any(|node| node.owner == "N/A"));
+            assert!(mixvec
+                .iter()
+                .any(|node| node.owner.as_ref() == Some(&"N/A".to_string())));
         }
     }
 

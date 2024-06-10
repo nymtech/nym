@@ -36,13 +36,13 @@ impl PeerController {
                 msg = self.peer_rx.recv() => {
                     match msg {
                         Some(PeerControlMessage::AddPeer(peer)) => {
-                            if self.wg_api.inner.configure_peer(&peer).is_err() {
-                                log::error!("Could not configure peer {:?}", peer);
+                            if let Err(e) = self.wg_api.inner.configure_peer(&peer) {
+                                log::error!("Could not configure peer: {:?}", e);
                             }
                         }
                         Some(PeerControlMessage::RemovePeer(peer_pubkey)) => {
-                            if self.wg_api.inner.remove_peer(&peer_pubkey).is_err() {
-                                log::error!("Could not remove peer with key {:?}", peer_pubkey);
+                            if let Err(e) = self.wg_api.inner.remove_peer(&peer_pubkey) {
+                                log::error!("Could not remove peer: {:?}", e);
                             }
                         }
                         None => {

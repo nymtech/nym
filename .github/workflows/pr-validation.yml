@@ -12,6 +12,8 @@ on:
       - reopened
       - synchronize
       - edited
+      - milestoned
+      - demilestoned
 
 env:
   LABELS: ${{ join( github.event.pull_request.labels.*.name, ' ' ) }}

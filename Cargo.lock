@@ -526,8 +526,6 @@ dependencies = [
  "bs58 0.5.1",
  "hmac",
  "k256",
- "once_cell",
- "pbkdf2",
  "rand_core 0.6.4",
  "ripemd",
  "sha2 0.10.8",
@@ -2204,7 +2202,6 @@ version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
 dependencies = [
- "bitvec",
  "rand_core 0.6.4",
  "subtle 2.5.0",
 ]
@@ -6088,16 +6085,6 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
-name = "pbkdf2"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
-dependencies = [
- "digest 0.10.7",
- "hmac",
-]
 
 [[package]]
 name = "pear"

@@ -117,7 +117,7 @@ members = [
     "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
-    #    "wasm/full-nym-wasm",
+    # "wasm/full-nym-wasm",  # If we uncomment this again, remember to also uncomment the profile settings below
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
@@ -300,9 +300,9 @@ prometheus = { version = "0.13.0" }
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
-bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch = "feature/gt-serialization-0.8.0" }
-group = "0.13.0"
-ff = "0.13.0"
+bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false,  branch = "feature/gt-serialization-0.8.0" }
+group = { version = "0.13.0", default-features = false }
+ff = { version = "0.13.0", default-features = false }
 
 # cosmwasm-related
 cosmwasm-derive = "=1.4.3"
@@ -321,14 +321,14 @@ cw4 = { version = "=1.1.2" }
 cw-controllers = { version = "=1.1.0" }
 
 # cosmrs-related
-bip32 = "0.5.1"
+bip32 = { version = "0.5.1", default-features = false }
 
 # temporarily using a fork again (yay.) because we need staking and slashing support
 cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" }
 #cosmrs = {  git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" } # unfortuntely we need a fork by yours truly to get the staking support
 tendermint = "0.34"     # same version as used by cosmrs
 tendermint-rpc = "0.34" # same version as used by cosmrs
-prost = "0.12"
+prost = { version = "0.12", default-features = false }
 
 # wasm-related dependencies
 gloo-utils = "0.2.0"
@@ -356,9 +356,12 @@ opt-level = 'z'
 # lto = true
 opt-level = 'z'
 
-[profile.release.package.nym-wasm-sdk]
-# lto = true
-opt-level = 'z'
+# Commented out since the crate is also commented out from the inclusion in the
+# workspace above. We should uncomment this if we re-include it in the
+# workspace
+#[profile.release.package.nym-wasm-sdk]
+## lto = true
+#opt-level = 'z'
 
 [profile.release.package.mix-fetch-wasm]
 # lto = true

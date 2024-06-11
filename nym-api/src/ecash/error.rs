@@ -3,7 +3,6 @@
 
 use crate::node_status_api::models::NymApiStorageError;
 use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
-use nym_credentials::coconut::bandwidth::{CredentialType, UnknownCredentialType};
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
@@ -12,7 +11,6 @@ use nym_dkg::error::DkgError;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::coconut::CoconutApiError;
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::AccountId;
 use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
 use rocket::{response, Request, Response};
@@ -20,7 +18,6 @@ use std::io::Cursor;
 use std::num::ParseIntError;
 use thiserror::Error;
 use time::error::ComponentRange;
-use time::OffsetDateTime;
 
 pub type Result<T> = std::result::Result<T, CoconutError>;
 
@@ -38,42 +35,8 @@ pub enum CoconutError {
     #[error("failed to derive the admin account from the provided public key: {formatted_source}")]
     AdminAccountDerivationFailure { formatted_source: String },
 
-    #[error("failed to query for the authorised freepass requester address: {source}")]
-    FreepassAuthorisedFreepassRequesterQueryFailure {
-        #[from]
-        source: reqwest::Error,
-    },
-
-    #[error("the provided authorised freepass requester address ({address}) is not a valid cosmos address")]
-    MalformedAuthorisedFreepassRequesterAddress { address: String },
-
-    #[error("the requester of the free pass ({requester}) is not authorised. the only allowed account is {explicit_admin:?} or {bandwidth_contract_admin:?}.")]
-    UnauthorisedFreePassAccount {
-        requester: AccountId,
-        explicit_admin: Option<AccountId>,
-        bandwidth_contract_admin: Option<AccountId>,
-    },
-
-    #[error("failed to verify signature on the provided free pass request")]
-    FreePassSignatureVerificationFailure,
-
-    #[error("the provided signing nonce is invalid. the current value is: {current:?}. got {received:?} instead")]
-    InvalidNonce {
-        current: [u8; 16],
-        received: [u8; 16],
-    },
-
     #[error("only secp256k1 keys are supported for free pass issuance")]
     UnsupportedNonSecp256k1Key,
-
-    #[error("received credential request for an unknown type: {0}")]
-    UnknownCredentialType(#[from] UnknownCredentialType),
-
-    #[error("the provided free pass request had an unexpected number of public attributes. got {got} but expected {expected}")]
-    InvalidFreePassAttributes { got: usize, expected: usize },
-
-    #[error("the provided free pass request had an invalid type attribute (got: '{got}')")]
-    InvalidFreePassTypeAttribute { got: CredentialType },
 
     #[error("failed to parse the free pass expiry date: {source}")]
     ExpiryDateParsingFailure {
@@ -91,18 +54,11 @@ pub enum CoconutError {
         source: ComponentRange,
     },
 
-    #[error(
-        "the provided free pass request has too long expiry (expiry is set to on {expiry_date})"
-    )]
-    TooLongFreePass { expiry_date: OffsetDateTime },
+    #[error("explicit free passes can no longer be issued")]
+    DisabledFreePass,
 
     #[error("the received bandwidth voucher did not contain deposit value")]
     MissingBandwidthValue,
-
-    #[error(
-        "the received bandwidth credential is not a bandwidth voucher. the encoded type is: {typ}"
-    )]
-    NotABandwidthVoucher { typ: CredentialType },
 
     #[error("failed to parse the bandwidth voucher value: {source}")]
     VoucherValueParsingFailure {
@@ -155,9 +111,6 @@ pub enum CoconutError {
 
     #[error("inconsistent public attributes")]
     InconsistentPublicAttributes,
-
-    #[error("the provided deposit value is inconsistent. got '{request}' while the value on chain is '{on_chain}'")]
-    InconsistentDepositValue { request: String, on_chain: String },
 
     #[error("the provided deposit info is inconsistent. got '{request}' while the value on chain is '{on_chain}'")]
     InconsistentDepositInfo { request: String, on_chain: String },

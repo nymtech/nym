@@ -110,8 +110,6 @@ pub trait CoconutStorageManagerExt {
         &self,
         serial_number: String,
     ) -> Result<Option<SpentCredential>, sqlx::Error>;
-
-    async fn increment_issued_freepasses(&self) -> Result<(), sqlx::Error>;
 }
 
 #[async_trait]
@@ -403,13 +401,6 @@ impl CoconutStorageManagerExt for StorageManager {
         )
         .fetch_optional(&self.connection_pool)
         .await
-    }
-
-    async fn increment_issued_freepasses(&self) -> Result<(), sqlx::Error> {
-        sqlx::query!("UPDATE issued_freepass SET issued = issued + 1",)
-            .execute(&self.connection_pool)
-            .await?;
-        Ok(())
     }
 }
 

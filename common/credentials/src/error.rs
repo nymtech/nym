@@ -59,9 +59,6 @@ pub enum Error {
     #[error("the provided issuance data wasn't prepared for a bandwidth voucher")]
     NotABandwdithVoucher,
 
-    #[error("the provided issuance data wasn't prepared for a free pass")]
-    NotAFreePass,
-
     #[error("failed to create a secp256k1 signature")]
     Secp256k1SignFailure,
 }

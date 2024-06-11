@@ -21,15 +21,14 @@ pub trait EcashSigningClient {
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError>;
 
-    async fn deposit(
+    async fn make_ticketbook_deposit(
         &self,
-        info: String,
-        verification_key: String,
+        public_key: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = EcashExecuteMsg::DepositFunds {
-            deposit_info: info,
-            identity_key: verification_key,
+            deposit_info: "TicketBook".to_string(),
+            identity_key: public_key,
         };
         let amount = Coin::new(TICKET_BOOK_VALUE, "unym");
         self.execute_ecash_contract(fee, req, "Ecash::Deposit".to_string(), vec![amount])
@@ -107,10 +106,10 @@ mod tests {
     ) {
         match msg {
             EcashExecuteMsg::DepositFunds {
-                deposit_info,
+                deposit_info: _,
                 identity_key,
             } => client
-                .deposit(deposit_info.to_string(), identity_key.to_string(), None)
+                .make_ticketbook_deposit(identity_key.to_string(), None)
                 .ignore(),
             EcashExecuteMsg::PrepareCredential {
                 serial_number,

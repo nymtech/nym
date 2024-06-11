@@ -8,7 +8,7 @@ use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION};
 use log::error;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
-use nym_credentials_interface::{CompactEcashError, UnknownCredentialType};
+use nym_credentials_interface::CompactEcashError;
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use nym_crypto::symmetric::stream_cipher;
@@ -130,9 +130,6 @@ pub enum GatewayRequestsError {
 
     #[error("failed to deserialize provided credential: malformed string: {0}")]
     CredentialDeserializationFailureMalformedString(#[from] FromUtf8Error),
-
-    #[error("failed to deserialize provided credential: {0}")]
-    CredentialDeserializationFailureUnknownType(#[from] UnknownCredentialType),
 
     #[error("the provided [v1] credential has invalid number of parameters - {0}")]
     InvalidNumberOfEmbededParameters(u32),

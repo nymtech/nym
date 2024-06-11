@@ -1,9 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::ecash::error::CoconutError;
-use nym_api_requests::coconut::models::FreePassRequest;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_compact_ecash::scheme::coin_indices_signatures::{sign_coin_indices, CoinIndexSignature};
 use nym_compact_ecash::scheme::expiration_date_signatures::{
@@ -13,6 +11,7 @@ use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
 use nym_compact_ecash::BlindedSignature;
 use nym_compact_ecash::{PublicKeyUser, VerificationKeyAuth, WithdrawalRequest};
 use nym_validator_client::nyxd::error::NyxdError::AbciError;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
 
 // If the result is already established, the vote might be redundant and
@@ -36,20 +35,6 @@ pub(crate) trait CredentialRequest {
 }
 
 impl CredentialRequest for BlindSignRequestBody {
-    fn withdrawal_request(&self) -> &WithdrawalRequest {
-        &self.inner_sign_request
-    }
-
-    fn expiration_date_timestamp(&self) -> u64 {
-        self.expiration_date.unix_timestamp() as u64
-    }
-
-    fn ecash_pubkey(&self) -> PublicKeyUser {
-        self.ecash_pubkey.clone()
-    }
-}
-
-impl CredentialRequest for FreePassRequest {
     fn withdrawal_request(&self) -> &WithdrawalRequest {
         &self.inner_sign_request
     }

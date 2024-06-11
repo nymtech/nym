@@ -104,16 +104,14 @@ async fn issued_credential() {
     let voucher2 = voucher_fixture(Some(deposit_id2));
 
     let signing_data1 = voucher1.prepare_for_signing();
-    let voucher_data1 = voucher1.get_variant_data().voucher_data().unwrap();
-    let request1 = voucher_data1.create_blind_sign_request_body(&signing_data1);
+    let request1 = voucher1.create_blind_sign_request_body(&signing_data1);
 
     let signing_data2 = voucher2.prepare_for_signing();
-    let voucher_data2 = voucher2.get_variant_data().voucher_data().unwrap();
-    let request2 = voucher_data2.create_blind_sign_request_body(&signing_data2);
+    let request2 = voucher2.create_blind_sign_request_body(&signing_data2);
 
     let test_fixture = TestFixture::new().await;
-    test_fixture.add_deposit(voucher_data1);
-    test_fixture.add_deposit(voucher_data2);
+    test_fixture.add_deposit(&voucher1);
+    test_fixture.add_deposit(&voucher2);
 
     // random credential that was never issued
     let response = test_fixture.rocket.get(route(42)).dispatch().await;
@@ -142,7 +140,7 @@ async fn issued_credential() {
     // TODO: currently we have no signature checks
     assert_eq!(1, issued1.credential.id);
     assert_eq!(1, issued1.credential.epoch_id);
-    assert_eq!(voucher_data1.deposit_id(), issued1.credential.deposit_id);
+    assert_eq!(voucher1.deposit_id(), issued1.credential.deposit_id);
     assert_eq!(
         cred1.to_bytes(),
         issued1.credential.blinded_partial_credential.to_bytes()
@@ -161,7 +159,7 @@ async fn issued_credential() {
 
     assert_eq!(2, issued2.credential.id);
     assert_eq!(3, issued2.credential.epoch_id);
-    assert_eq!(voucher_data2.deposit_id(), issued2.credential.deposit_id);
+    assert_eq!(voucher2.deposit_id(), issued2.credential.deposit_id);
     assert_eq!(
         cred2.to_bytes(),
         issued2.credential.blinded_partial_credential.to_bytes()

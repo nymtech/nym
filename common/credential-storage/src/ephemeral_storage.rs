@@ -42,7 +42,6 @@ impl Storage for EphemeralStorage {
     ) -> Result<(), StorageError> {
         self.coconut_credential_manager
             .insert_issued_credential(
-                bandwidth_credential.credential_type,
                 bandwidth_credential.serialization_revision,
                 bandwidth_credential.credential_data,
                 bandwidth_credential.epoch_id,
@@ -54,15 +53,6 @@ impl Storage for EphemeralStorage {
     async fn get_next_unspent_credential(
         &self,
     ) -> Result<Option<StoredIssuedCredential>, Self::StorageError> {
-        // first try to get a free pass if available, otherwise fallback to bandwidth voucher
-        let maybe_freepass = self
-            .coconut_credential_manager
-            .get_next_unspent_freepass()
-            .await;
-        if maybe_freepass.is_some() {
-            return Ok(maybe_freepass);
-        }
-
         Ok(self
             .coconut_credential_manager
             .get_next_unspent_ticketbook()

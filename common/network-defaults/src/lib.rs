@@ -427,12 +427,6 @@ pub const BYTES_PER_UTOKEN: u64 = 1024;
 /// How much bandwidth (in bytes) one ticket can buy
 pub const TICKET_BANDWIDTH_VALUE: u64 = 100 * 1024 * 1024; // 100 MB
 
-/// How much bandwidth (in bytes) one freepass provides
-pub const BYTES_PER_FREEPASS: u64 = 10 * 1024 * 1024; // 10 MB
-
-/// Freepass validity period in days
-pub const FREEPASS_VALIDITY_PERIOD: u64 = 7;
-
 ///Tickets to spend per payment
 pub const SPEND_TICKETS: u64 = 1;
 /// Threshold for claiming more bandwidth: 1 MB

@@ -81,8 +81,6 @@ pub trait CoconutStorageExt {
         &self,
         serial_number_bs58: String,
     ) -> Result<Option<CredentialSpendingData>, NymApiStorageError>;
-
-    async fn increment_issued_freepasses(&self) -> Result<(), NymApiStorageError>;
 }
 
 #[async_trait]
@@ -216,9 +214,5 @@ impl CoconutStorageExt for NymApiStorage {
                 })
             })
             .transpose()
-    }
-
-    async fn increment_issued_freepasses(&self) -> Result<(), NymApiStorageError> {
-        Ok(self.manager.increment_issued_freepasses().await?)
     }
 }

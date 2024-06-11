@@ -131,22 +131,19 @@ impl BandwidthManager {
     /// # Arguments
     ///
     /// * `blinded_serial_number_bs58`: the unique blinded serial number embedded in the credential
-    /// * `was_freepass`: indicates whether the spent credential was a freepass
     /// * `client_address_bs58`: address of the client that spent the credential
     pub(crate) async fn insert_spent_credential(
         &self,
         blinded_serial_number_bs58: &str,
-        was_freepass: bool,
         client_address_bs58: &str,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 INSERT INTO spent_credential
-                (blinded_serial_number_bs58, was_freepass, client_address_bs58)
-                VALUES (?, ?, ?)
+                (blinded_serial_number_bs58, client_address_bs58)
+                VALUES (?, ?)
             "#,
             blinded_serial_number_bs58,
-            was_freepass,
             client_address_bs58
         )
         .execute(&self.connection_pool)

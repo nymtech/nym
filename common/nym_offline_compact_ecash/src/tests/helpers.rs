@@ -29,7 +29,7 @@ pub fn generate_expiration_date_signatures(
     indices: &[u64],
 ) -> Result<Vec<ExpirationDateSignature>> {
     let mut edt_partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
-        Vec::with_capacity(constants::CRED_VALIDITY_PERIOD as usize);
+        Vec::with_capacity(constants::CRED_VALIDITY_PERIOD_DAYS as usize);
     for sk_auth in secret_keys_authorities.iter() {
         //Test helpers
         #[allow(clippy::unwrap_used)]

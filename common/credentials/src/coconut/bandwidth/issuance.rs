@@ -1,22 +1,19 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coconut::bandwidth::freepass::FreePassIssuanceData;
-use crate::coconut::bandwidth::issued::IssuedBandwidthCredential;
-use crate::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
-use crate::coconut::bandwidth::{CredentialSigningData, CredentialType};
-use crate::coconut::utils::{cred_exp_date, freepass_exp_date};
+use crate::coconut::bandwidth::issued::IssuedTicketBook;
+use crate::coconut::bandwidth::CredentialSigningData;
+use crate::coconut::utils::cred_exp_date;
 use crate::error::Error;
-use log::error;
+use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_credentials_interface::{
-    aggregate_wallets, generate_keypair_user, generate_keypair_user_from_seed, issue_verify,
-    withdrawal_request, BlindedSignature, ExpirationDateSignature, KeyPairUser, PartialWallet,
-    VerificationKeyAuth, Wallet,
+    aggregate_wallets, generate_keypair_user_from_seed, issue_verify, withdrawal_request,
+    BlindedSignature, ExpirationDateSignature, KeyPairUser, PartialWallet, VerificationKeyAuth,
+    Wallet, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::nym_api::EpochId;
-use nym_validator_client::signing::AccountData;
 use serde::{Deserialize, Serialize};
 use time::macros::time;
 use time::OffsetDateTime;
@@ -24,92 +21,35 @@ use time::OffsetDateTime;
 pub use nym_validator_client::nyxd::{Coin, Hash};
 
 #[derive(Serialize, Deserialize)]
-pub enum BandwidthCredentialIssuanceDataVariant {
-    TicketBook(BandwidthVoucherIssuanceData),
-    FreePass,
-}
+pub struct IssuanceTicketBook {
+    /// the id of the associated deposit
+    deposit_id: DepositId,
 
-impl From<BandwidthVoucherIssuanceData> for BandwidthCredentialIssuanceDataVariant {
-    fn from(value: BandwidthVoucherIssuanceData) -> Self {
-        BandwidthCredentialIssuanceDataVariant::TicketBook(value)
-    }
-}
+    /// base58 encoded private key ensuring the depositer requested these attributes
+    signing_key: identity::PrivateKey,
 
-impl BandwidthCredentialIssuanceDataVariant {
-    pub fn info(&self) -> CredentialType {
-        match self {
-            BandwidthCredentialIssuanceDataVariant::TicketBook(..) => CredentialType::TicketBook,
-            BandwidthCredentialIssuanceDataVariant::FreePass => CredentialType::FreePass,
-        }
-    }
-
-    pub fn voucher_data(&self) -> Option<&BandwidthVoucherIssuanceData> {
-        match self {
-            BandwidthCredentialIssuanceDataVariant::TicketBook(voucher) => Some(voucher),
-            _ => None,
-        }
-    }
-}
-
-// all types of bandwidth credentials contain serial number and binding number
-#[derive(Serialize, Deserialize)]
-pub struct IssuanceBandwidthCredential {
-    /// data specific to given bandwidth credential, for example a value for bandwidth voucher and expiry date for the free pass
-    variant_data: BandwidthCredentialIssuanceDataVariant,
-
-    ///ecash keypair related to the credential
+    /// ecash keypair related to the credential
     ecash_keypair: KeyPairUser,
 
     ///expiration_date of that credential
     expiration_date: OffsetDateTime,
 }
 
-impl IssuanceBandwidthCredential {
-    pub fn new<B: Into<BandwidthCredentialIssuanceDataVariant>>(
-        variant_data: B,
-        identifier: Option<&[u8]>,
-        expiration_date: OffsetDateTime,
-    ) -> Self {
-        let variant_data = variant_data.into();
-        let ecash_keypair = if let Some(id) = identifier {
-            generate_keypair_user_from_seed(id)
-        } else {
-            generate_keypair_user()
-        };
-        //this expiration date will get fed to the ecash library, force midnight to be set
-        IssuanceBandwidthCredential {
-            variant_data,
-            ecash_keypair,
-            expiration_date: expiration_date.replace_time(time!(0:00)),
-        }
-    }
-
-    pub fn new_voucher(
+impl IssuanceTicketBook {
+    pub fn new<M: AsRef<[u8]>>(
         deposit_id: DepositId,
-        identifier: &[u8],
+        identifier: M,
         signing_key: identity::PrivateKey,
     ) -> Self {
-        Self::new(
-            BandwidthVoucherIssuanceData::new(deposit_id, signing_key),
-            Some(identifier),
-            cred_exp_date(),
-        )
-    }
+        let ecash_keypair = generate_keypair_user_from_seed(identifier);
 
-    pub fn new_freepass(expiration_date: OffsetDateTime) -> Self {
-        let final_expiration_date = if expiration_date > freepass_exp_date() {
-            error!(
-                "the provided free pass request has too long expiry, setting it to max possible"
-            );
-            freepass_exp_date()
-        } else {
-            expiration_date
-        };
-        Self::new(
-            BandwidthCredentialIssuanceDataVariant::FreePass,
-            None,
-            final_expiration_date,
-        )
+        //this expiration date will get fed to the ecash library, force midnight to be set
+        IssuanceTicketBook {
+            deposit_id,
+            signing_key,
+            ecash_keypair,
+            expiration_date: cred_exp_date().replace_time(time!(0:00)),
+        }
     }
 
     pub fn ecash_pubkey_bs58(&self) -> String {
@@ -118,32 +58,55 @@ impl IssuanceBandwidthCredential {
         self.ecash_keypair.public_key().to_bs58()
     }
 
-    pub fn typ(&self) -> CredentialType {
-        self.variant_data.info()
-    }
-
     pub fn expiration_date(&self) -> OffsetDateTime {
         self.expiration_date
     }
 
-    pub fn get_variant_data(&self) -> &BandwidthCredentialIssuanceDataVariant {
-        &self.variant_data
+    pub fn request_plaintext(request: &WithdrawalRequest, deposit_id: DepositId) -> Vec<u8> {
+        let mut message = request.to_bytes();
+        message.extend_from_slice(&deposit_id.to_be_bytes());
+        message
     }
 
-    pub fn value(&self) -> u128 {
-        if let BandwidthCredentialIssuanceDataVariant::TicketBook(data) = &self.variant_data {
-            data.value()
-        } else {
-            0_u128
-        }
+    fn request_signature(&self, signing_request: &CredentialSigningData) -> identity::Signature {
+        let message = Self::request_plaintext(&signing_request.withdrawal_request, self.deposit_id);
+        self.signing_key.sign(message)
+    }
+
+    pub fn create_blind_sign_request_body(
+        &self,
+        signing_request: &CredentialSigningData,
+    ) -> BlindSignRequestBody {
+        let request_signature = self.request_signature(signing_request);
+
+        BlindSignRequestBody::new(
+            signing_request.withdrawal_request.clone(),
+            self.deposit_id,
+            request_signature,
+            signing_request.ecash_pub_key.clone(),
+            signing_request.expiration_date,
+        )
+    }
+
+    pub async fn obtain_blinded_credential(
+        &self,
+        client: &nym_validator_client::client::NymApiClient,
+        request_body: &BlindSignRequestBody,
+    ) -> Result<BlindedSignature, Error> {
+        let server_response = client.blind_sign(request_body).await?;
+        Ok(server_response.blinded_signature)
+    }
+
+    pub fn deposit_id(&self) -> DepositId {
+        self.deposit_id
+    }
+
+    pub fn identity_key(&self) -> &identity::PrivateKey {
+        &self.signing_key
     }
 
     pub fn check_expiration_date(&self) -> bool {
-        let new_expiration_date = match self.get_variant_data() {
-            BandwidthCredentialIssuanceDataVariant::TicketBook(_) => cred_exp_date(),
-            BandwidthCredentialIssuanceDataVariant::FreePass => freepass_exp_date(),
-        };
-        self.expiration_date != new_expiration_date
+        self.expiration_date != cred_exp_date()
     }
 
     pub fn prepare_for_signing(&self) -> CredentialSigningData {
@@ -159,7 +122,6 @@ impl IssuanceBandwidthCredential {
             withdrawal_request,
             request_info,
             ecash_pub_key: self.ecash_keypair.public_key(),
-            typ: self.typ(),
             expiration_date: self.expiration_date,
         }
     }
@@ -182,30 +144,6 @@ impl IssuanceBandwidthCredential {
         Ok(unblinded_signature)
     }
 
-    pub async fn obtain_partial_freepass_credential(
-        &self,
-        client: &nym_validator_client::client::NymApiClient,
-        signer_index: u64,
-        account_data: &AccountData,
-        validator_vk: &VerificationKeyAuth,
-        signing_data: CredentialSigningData,
-    ) -> Result<PartialWallet, Error> {
-        // We need signing data, because they will be use at the aggregation step
-
-        let blinded_signature = match &self.variant_data {
-            BandwidthCredentialIssuanceDataVariant::FreePass => {
-                FreePassIssuanceData::request_blinded_credential(
-                    &signing_data,
-                    account_data,
-                    client,
-                )
-                .await?
-            }
-            _ => return Err(Error::NotAFreePass),
-        };
-        self.unblind_signature(validator_vk, &signing_data, blinded_signature, signer_index)
-    }
-
     // ideally this would have been generic over credential type, but we really don't need secp256k1 keys for bandwidth vouchers
     pub async fn obtain_partial_bandwidth_voucher_credential(
         &self,
@@ -214,16 +152,10 @@ impl IssuanceBandwidthCredential {
         validator_vk: &VerificationKeyAuth,
         signing_data: CredentialSigningData,
     ) -> Result<PartialWallet, Error> {
-        // We need signing data, because they will be use at the aggregation step
+        // We need signing data, because they will be used at the aggregation step
 
-        let blinded_signature = match &self.variant_data {
-            BandwidthCredentialIssuanceDataVariant::TicketBook(voucher) => {
-                // TODO: the request can be re-used between different apis
-                let request = voucher.create_blind_sign_request_body(&signing_data);
-                voucher.obtain_blinded_credential(client, &request).await?
-            }
-            _ => return Err(Error::NotABandwdithVoucher),
-        };
+        let request = self.create_blind_sign_request_body(&signing_data);
+        let blinded_signature = self.obtain_blinded_credential(client, &request).await?;
         self.unblind_signature(validator_vk, &signing_data, blinded_signature, signer_index)
     }
 
@@ -255,7 +187,7 @@ impl IssuanceBandwidthCredential {
         wallet: Wallet,
         exp_date_signatures: Vec<ExpirationDateSignature>,
         epoch_id: EpochId,
-    ) -> IssuedBandwidthCredential {
+    ) -> IssuedTicketBook {
         self.to_issued_credential(wallet, exp_date_signatures, epoch_id)
     }
 
@@ -264,10 +196,9 @@ impl IssuanceBandwidthCredential {
         wallet: Wallet,
         exp_date_signatures: Vec<ExpirationDateSignature>,
         epoch_id: EpochId,
-    ) -> IssuedBandwidthCredential {
-        IssuedBandwidthCredential::new(
+    ) -> IssuedTicketBook {
+        IssuedTicketBook::new(
             wallet,
-            (&self.variant_data).into(),
             epoch_id,
             self.ecash_keypair.secret_key().clone(),
             exp_date_signatures,

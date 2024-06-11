@@ -21,38 +21,18 @@ impl CoconutCredentialManager {
 
     pub async fn insert_issued_credential(
         &self,
-        credential_type: String,
         serialization_revision: u8,
         credential_data: &[u8],
         epoch_id: u32,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO ecash_credentials(serialization_revision, credential_type, credential_data, epoch_id, expired, consumed)
-                VALUES (?, ?, ?, ?, false, false)
+                INSERT INTO ecash_credentials(serialization_revision, credential_data, epoch_id, expired, consumed)
+                VALUES (?, ?, ?, false, false)
             "#,
-            serialization_revision, credential_type, credential_data, epoch_id
+            serialization_revision, credential_data, epoch_id
         ).execute(&self.connection_pool).await?;
         Ok(())
-    }
-
-    pub async fn get_next_unspent_freepass(
-        &self,
-    ) -> Result<Option<StoredIssuedCredential>, sqlx::Error> {
-        // get a credential of freepass type
-        sqlx::query_as(
-            r#"
-                SELECT * 
-                FROM ecash_credentials
-                WHERE credential_type == "FreeBandwidthPass" 
-                AND expired = false
-                AND consumed = false
-                ORDER BY id ASC
-                LIMIT 1
-            "#,
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
     }
 
     pub async fn get_next_unspent_ticketbook(

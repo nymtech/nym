@@ -4,11 +4,11 @@
 use crate::error::BandwidthControllerError;
 use nym_credential_storage::models::StoredIssuedCredential;
 use nym_credentials::coconut::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
-use nym_credentials::coconut::bandwidth::IssuedBandwidthCredential;
+use nym_credentials::coconut::bandwidth::IssuedTicketBook;
 
 pub fn stored_credential_to_issued_bandwidth(
     cred: StoredIssuedCredential,
-) -> Result<IssuedBandwidthCredential, BandwidthControllerError> {
+) -> Result<IssuedTicketBook, BandwidthControllerError> {
     if cred.serialization_revision != CURRENT_SERIALIZATION_REVISION {
         return Err(
             BandwidthControllerError::UnsupportedCredentialStorageRevision {
@@ -18,5 +18,5 @@ pub fn stored_credential_to_issued_bandwidth(
         );
     }
 
-    Ok(IssuedBandwidthCredential::unpack_v1(&cred.credential_data)?)
+    Ok(IssuedTicketBook::unpack_v1(&cred.credential_data)?)
 }

@@ -1,9 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coconut::bandwidth::issuance::BandwidthCredentialIssuanceDataVariant;
-use crate::coconut::bandwidth::voucher::BandwidthVoucherIssuedData;
-use crate::coconut::bandwidth::{CredentialSpendingData, CredentialType};
+use crate::coconut::bandwidth::CredentialSpendingData;
 use crate::coconut::utils::today;
 use crate::error::Error;
 use nym_credentials_interface::{
@@ -18,48 +16,11 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub const CURRENT_SERIALIZATION_REVISION: u8 = 1;
 
-#[derive(Debug, Zeroize, Serialize, Deserialize)]
-pub enum BandwidthCredentialIssuedDataVariant {
-    TicketBook(BandwidthVoucherIssuedData),
-    FreePass,
-}
-
-impl<'a> From<&'a BandwidthCredentialIssuanceDataVariant> for BandwidthCredentialIssuedDataVariant {
-    fn from(value: &'a BandwidthCredentialIssuanceDataVariant) -> Self {
-        match value {
-            BandwidthCredentialIssuanceDataVariant::TicketBook(voucher) => {
-                BandwidthCredentialIssuedDataVariant::TicketBook(voucher.into())
-            }
-            BandwidthCredentialIssuanceDataVariant::FreePass => {
-                BandwidthCredentialIssuedDataVariant::FreePass
-            }
-        }
-    }
-}
-
-impl From<BandwidthVoucherIssuedData> for BandwidthCredentialIssuedDataVariant {
-    fn from(value: BandwidthVoucherIssuedData) -> Self {
-        BandwidthCredentialIssuedDataVariant::TicketBook(value)
-    }
-}
-
-impl BandwidthCredentialIssuedDataVariant {
-    pub fn info(&self) -> CredentialType {
-        match self {
-            BandwidthCredentialIssuedDataVariant::TicketBook(..) => CredentialType::TicketBook,
-            BandwidthCredentialIssuedDataVariant::FreePass => CredentialType::FreePass,
-        }
-    }
-}
-
 // the only important thing to zeroize here are the private attributes, the rest can be made fully public for what we're concerned
 #[derive(Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
-pub struct IssuedBandwidthCredential {
+pub struct IssuedTicketBook {
     /// the underlying wallet
     wallet: Wallet,
-
-    /// data specific to given bandwidth credential, for example a value for bandwidth voucher and expiry date for the free pass
-    variant_data: BandwidthCredentialIssuedDataVariant, //SW NOTE: freepass has no info, maybe put value directly here
 
     /// Specifies the (DKG) epoch id when this credential has been issued
     epoch_id: EpochId,
@@ -76,18 +37,16 @@ pub struct IssuedBandwidthCredential {
     expiration_date: OffsetDateTime,
 }
 
-impl IssuedBandwidthCredential {
+impl IssuedTicketBook {
     pub fn new(
         wallet: Wallet,
-        variant_data: BandwidthCredentialIssuedDataVariant,
         epoch_id: EpochId,
         ecash_secret_key: SecretKeyUser,
         exp_date_signatures: Vec<ExpirationDateSignature>,
         expiration_date: OffsetDateTime,
     ) -> Self {
-        IssuedBandwidthCredential {
+        IssuedTicketBook {
             wallet,
-            variant_data,
             epoch_id,
             ecash_secret_key,
             exp_date_signatures,
@@ -106,10 +65,6 @@ impl IssuedBandwidthCredential {
 
     pub fn epoch_id(&self) -> EpochId {
         self.epoch_id
-    }
-
-    pub fn variant_data(&self) -> &BandwidthCredentialIssuedDataVariant {
-        &self.variant_data
     }
 
     pub fn current_serialization_revision(&self) -> u8 {
@@ -150,10 +105,6 @@ impl IssuedBandwidthCredential {
             })
     }
 
-    pub fn typ(&self) -> CredentialType {
-        self.variant_data.info()
-    }
-
     pub fn prepare_for_spending(
         &mut self,
         verification_key: &VerificationKeyAuth,
@@ -174,19 +125,10 @@ impl IssuedBandwidthCredential {
             date_scalar(spend_date.unix_timestamp() as u64),
         )?;
 
-        let value = match &self.variant_data {
-            BandwidthCredentialIssuedDataVariant::FreePass => 0u64,
-            BandwidthCredentialIssuedDataVariant::TicketBook(voucher) => {
-                SPEND_TICKETS * voucher.value() as u64 / params.get_total_coins()
-            }
-        };
-
         Ok(CredentialSpendingData {
             payment,
             pay_info,
             spend_date,
-            value,
-            typ: self.typ(),
             epoch_id: self.epoch_id,
         })
     }
@@ -209,7 +151,7 @@ mod tests {
 
     #[test]
     fn credential_is_zeroized() {
-        assert_zeroize::<IssuedBandwidthCredential>();
-        assert_zeroize_on_drop::<IssuedBandwidthCredential>();
+        assert_zeroize::<IssuedTicketBook>();
+        assert_zeroize_on_drop::<IssuedTicketBook>();
     }
 }

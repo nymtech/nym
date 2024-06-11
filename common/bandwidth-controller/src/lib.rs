@@ -15,7 +15,7 @@ use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::CredentialSpendingData;
 use nym_credentials::coconut::utils::signatures_from_string;
 use nym_credentials::obtain_aggregate_verification_key;
-use nym_credentials::IssuedBandwidthCredential;
+use nym_credentials::IssuedTicketBook;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
@@ -43,11 +43,11 @@ pub struct PreparedCredential {
     pub credential_id: i64,
 
     ///the updated credential after the payment
-    pub updated_credential: IssuedBandwidthCredential,
+    pub updated_credential: IssuedTicketBook,
 }
 
 pub struct RetrievedCredential {
-    pub credential: IssuedBandwidthCredential,
+    pub credential: IssuedTicketBook,
     pub credential_id: i64,
 }
 
@@ -191,7 +191,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
     pub async fn update_ecash_wallet(
         &self,
-        credential: IssuedBandwidthCredential,
+        credential: IssuedTicketBook,
         id: i64,
     ) -> Result<(), BandwidthControllerError>
     where
@@ -206,7 +206,6 @@ impl<C, St: Storage> BandwidthController<C, St> {
         let storable = StorableIssuedCredential {
             serialization_revision: credential.current_serialization_revision(),
             credential_data: credential_data.as_ref(),
-            credential_type: credential.typ().to_string(),
             epoch_id: credential
                 .epoch_id()
                 .try_into()

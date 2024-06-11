@@ -56,7 +56,5 @@ pub struct SpentCredential {
     #[allow(dead_code)]
     pub(crate) blinded_serial_number_bs58: String,
     #[allow(dead_code)]
-    pub(crate) was_freepass: bool,
-    #[allow(dead_code)]
     pub(crate) client_address_bs58: String,
 }

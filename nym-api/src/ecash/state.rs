@@ -29,39 +29,17 @@ use nym_validator_client::nyxd::AccountId;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::sync::Arc;
-use time::{Duration, OffsetDateTime};
-use tokio::sync::{OnceCell, RwLock};
+use tokio::sync::RwLock;
 
 pub struct State {
     pub(crate) client: Arc<dyn LocalClient + Send + Sync>,
-    pub(crate) bandwidth_contract_admin: OnceCell<Option<AccountId>>,
     pub(crate) ecash_keypair: KeyPair,
     pub(crate) identity_keypair: identity::KeyPair,
     pub(crate) comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     pub(crate) storage: NymApiStorage,
     coin_indices_sigs_cache: Arc<CoinIndexSignatureCache>,
     exp_date_sigs_cache: Arc<ExpirationDateSignatureCache>,
-    pub(crate) freepass_nonce: Arc<RwLock<[u8; 16]>>,
     spent_credentials: Arc<RwLock<Bloom<String>>>,
-    pub(crate) authorised_freepass_requester: Arc<RwLock<AuthorisedFreepassRequester>>,
-}
-
-const FREEPASS_REQUESTER_TTL: Duration = Duration::hours(1);
-const AUTHORISED_FREEPASS_REQUESTER_ENDPOINT: &str =
-    "https://nymtech.net/.wellknown/authorised-freepass-requester.txt";
-
-pub struct AuthorisedFreepassRequester {
-    address: Option<AccountId>,
-    refreshed_at: OffsetDateTime,
-}
-
-impl Default for AuthorisedFreepassRequester {
-    fn default() -> Self {
-        AuthorisedFreepassRequester {
-            address: None,
-            refreshed_at: OffsetDateTime::UNIX_EPOCH,
-        }
-    }
 }
 
 impl State {
@@ -87,16 +65,13 @@ impl State {
             Bloom::from_existing(&bitmap, BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS);
         Self {
             client,
-            bandwidth_contract_admin: OnceCell::new(),
             ecash_keypair: key_pair,
             identity_keypair,
             comm_channel,
             storage,
             coin_indices_sigs_cache: Arc::new(CoinIndexSignatureCache::new()),
             exp_date_sigs_cache: Arc::new(ExpirationDateSignatureCache::new()),
-            freepass_nonce: Arc::new(RwLock::new(nonce)),
             spent_credentials: Arc::new(RwLock::new(bloom_filter)),
-            authorised_freepass_requester: Arc::new(Default::default()),
         }
     }
 
@@ -118,64 +93,6 @@ impl State {
             .ok_or(CoconutError::NonExistentDeposit { deposit_id })
     }
 
-    pub async fn get_bandwidth_contract_admin(&self) -> Result<&Option<AccountId>> {
-        self.bandwidth_contract_admin
-            .get_or_try_init(|| async { self.client.bandwidth_contract_admin().await })
-            .await
-    }
-
-    async fn try_get_authorised_freepass_requester(&self) -> Result<AccountId> {
-        let address = reqwest::Client::builder()
-            .user_agent(format!(
-                "nym-api / {} identity: {}",
-                env!("CARGO_PKG_VERSION"),
-                self.identity_keypair.public_key().to_base58_string()
-            ))
-            .build()?
-            .get(AUTHORISED_FREEPASS_REQUESTER_ENDPOINT)
-            .send()
-            .await?
-            .text()
-            .await?;
-        let trimmed = address.trim();
-
-        address.parse().map_err(
-            |_| CoconutError::MalformedAuthorisedFreepassRequesterAddress {
-                address: trimmed.to_string(),
-            },
-        )
-    }
-
-    pub async fn get_authorised_freepass_requester(&self) -> Option<AccountId> {
-        {
-            let cached = self.authorised_freepass_requester.read().await;
-
-            // the entry hasn't expired
-            if cached.refreshed_at + FREEPASS_REQUESTER_TTL >= OffsetDateTime::now_utc() {
-                if let Some(cached_address) = cached.address.as_ref() {
-                    return Some(cached_address.clone());
-                }
-            }
-        }
-
-        // refresh cache
-        let mut cache = self.authorised_freepass_requester.write().await;
-
-        // whatever happens, update refresh time
-        cache.refreshed_at = OffsetDateTime::now_utc();
-
-        let refreshed = match self.try_get_authorised_freepass_requester().await {
-            Ok(upstream) => upstream,
-            Err(err) => {
-                warn!("failed to obtain authorised freepass requester address: {err}");
-                return None;
-            }
-        };
-
-        cache.address = Some(refreshed.clone());
-        Some(refreshed)
-    }
-
     pub async fn validate_request(
         &self,
         request: &BlindSignRequestBody,
@@ -186,62 +103,57 @@ impl State {
 
     pub(crate) async fn accept_and_execute_proposal(
         &self,
-        proposal_id: Option<u64>,
+        proposal_id: u64,
         serial_number_bs58: String,
     ) -> Result<()> {
-        if let Some(id) = proposal_id {
-            let proposal = self.client.get_proposal(id).await?;
+        let proposal = self.client.get_proposal(proposal_id).await?;
 
-            // Proposal description is the blinded serial number
-            if serial_number_bs58 != proposal.description {
-                return Err(CoconutError::IncorrectProposal {
-                    reason: String::from("incorrect blinded serial number in description"),
-                });
-            }
-            if !check_proposal(proposal.msgs) {
-                return Err(CoconutError::IncorrectProposal {
-                    reason: String::from("action is not to spend_credential"),
-                });
-            }
-            let client = self.client.clone();
-            tokio::spawn(async move {
-                let ret = client.vote_proposal(id, true, None).await;
-                //SW NOTE: What to do if this fails
-                if let Err(e) = accepted_vote_err(ret) {
-                    log::debug!("failed to vote on proposal {id} - {e}");
-                }
-
-                if let Ok(proposal) = client.get_proposal(id).await {
-                    if proposal.status == Status::Passed {
-                        //SW NOTE: What to do if this fails
-                        if let Err(e) = client.execute_proposal(id).await {
-                            log::debug!("failed to execute proposal {id} - {e}");
-                        }
-                    }
-                }
+        // Proposal description is the blinded serial number
+        if serial_number_bs58 != proposal.description {
+            return Err(CoconutError::IncorrectProposal {
+                reason: String::from("incorrect blinded serial number in description"),
             });
         }
+        if !check_proposal(proposal.msgs) {
+            return Err(CoconutError::IncorrectProposal {
+                reason: String::from("action is not to spend_credential"),
+            });
+        }
+        let client = self.client.clone();
+        tokio::spawn(async move {
+            let ret = client.vote_proposal(proposal_id, true, None).await;
+            //SW NOTE: What to do if this fails
+            if let Err(err) = accepted_vote_err(ret) {
+                log::debug!("failed to vote on proposal {proposal_id}: {err}");
+            }
+
+            if let Ok(proposal) = client.get_proposal(proposal_id).await {
+                if proposal.status == Status::Passed {
+                    //SW NOTE: What to do if this fails
+                    if let Err(err) = client.execute_proposal(proposal_id).await {
+                        log::debug!("failed to execute proposal {proposal_id}: {err}");
+                    }
+                }
+            }
+        });
+
         Ok(())
     }
 
-    pub(crate) async fn refuse_proposal(&self, proposal_id: Option<u64>) {
-        if let Some(id) = proposal_id {
-            let client = self.client.clone();
-            tokio::spawn(async move {
-                //whatever is in the proposal, we can refuse it anyway
-                if let Err(e) = client.vote_proposal(id, false, None).await {
-                    log::debug!("failed to refuse proposal {id} - {e}")
-                }
-            });
-        }
+    pub(crate) async fn refuse_proposal(&self, proposal_id: u64) {
+        let client = self.client.clone();
+        tokio::spawn(async move {
+            //whatever is in the proposal, we can refuse it anyway
+            if let Err(err) = client.vote_proposal(proposal_id, false, None).await {
+                log::debug!("failed to refuse proposal {proposal_id}: {err}")
+            }
+        });
     }
 
-    pub(crate) async fn refuse_proposal_online(&self, proposal_id: Option<u64>) {
-        if let Some(id) = proposal_id {
-            //whatever is in the proposal, we can refuse it anyway
-            if let Err(e) = self.client.vote_proposal(id, false, None).await {
-                log::debug!("failed to refuse proposal {id} - {e}")
-            }
+    pub(crate) async fn refuse_proposal_online(&self, proposal_id: u64) {
+        //whatever is in the proposal, we can refuse it anyway
+        if let Err(err) = self.client.vote_proposal(proposal_id, false, None).await {
+            log::debug!("failed to refuse proposal {proposal_id}: {err}")
         }
     }
 

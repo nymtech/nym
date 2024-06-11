@@ -562,7 +562,7 @@ pub fn generate_keypair_user() -> KeyPairUser {
     }
 }
 
-pub fn generate_keypair_user_from_seed(seed: &[u8]) -> KeyPairUser {
+pub fn generate_keypair_user_from_seed<M: AsRef<[u8]>>(seed: M) -> KeyPairUser {
     let params = ecash_group_parameters();
     let sk_user = SecretKeyUser {
         sk: hash_to_scalar(seed),

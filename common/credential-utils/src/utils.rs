@@ -5,7 +5,6 @@ use nym_bandwidth_controller::acquire::state::State;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_validator_client::nyxd::contract_traits::{
     dkg_query_client::EpochState, DkgQueryClient, EcashSigningClient,
 };
@@ -26,14 +25,11 @@ where
     block_until_coconut_is_available(client).await?;
     info!("Starting to deposit funds, don't kill the process");
 
-    if let Ok(recovered_amount) =
+    if let Ok(recovered_tickets) =
         recover_credentials(client, &recovery_storage, persistent_storage).await
     {
-        if recovered_amount != 0 {
-            info!(
-                "Recovered credentials in the amount of {}",
-                recovered_amount
-            );
+        if recovered_tickets != 0 {
+            info!("managed to recover {recovered_tickets} tickets",);
             return Ok(());
         }
     };
@@ -113,21 +109,12 @@ pub async fn recover_credentials<C>(
     client: &C,
     recovery_storage: &RecoveryStorage,
     shared_storage: &PersistentStorage,
-) -> Result<u128>
+) -> Result<usize>
 where
     C: DkgQueryClient + Send + Sync,
 {
-    let mut recovered_amount: u128 = 0;
+    let mut recovered_tickets = 0;
     for voucher in recovery_storage.unconsumed_vouchers()? {
-        let voucher_value = match voucher.typ() {
-            CredentialType::TicketBook => voucher.value(),
-            CredentialType::FreePass => {
-                error!("unimplemented recovery of free pass credentials");
-                continue;
-            }
-        };
-        recovered_amount += voucher_value;
-
         let voucher_name = RecoveryStorage::voucher_filename(&voucher);
 
         if voucher.check_expiration_date() {
@@ -149,8 +136,9 @@ where
             if let Err(err) = recovery_storage.remove_voucher(voucher_name) {
                 warn!("Could not remove recovery data: {err}");
             }
+            recovered_tickets += 1;
         }
     }
 
-    Ok(recovered_amount)
+    Ok(recovered_tickets)
 }

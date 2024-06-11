@@ -3,15 +3,15 @@
 
 use crate::ecash::error::{CoconutError, Result};
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_credentials::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
-use nym_credentials::coconut::bandwidth::CredentialType;
+use nym_credentials::IssuanceTicketBook;
+use nym_credentials_interface::ECASH_INFO_TYPE;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::Deposit;
 
 pub async fn validate_deposit(request: &BlindSignRequestBody, deposit: Deposit) -> Result<()> {
-    if deposit.info != CredentialType::TicketBook.to_string() {
+    if deposit.info != ECASH_INFO_TYPE {
         return Err(CoconutError::InconsistentDepositInfo {
-            request: CredentialType::TicketBook.to_string(),
+            request: ECASH_INFO_TYPE.to_string(),
             on_chain: deposit.info,
         });
     }
@@ -19,10 +19,8 @@ pub async fn validate_deposit(request: &BlindSignRequestBody, deposit: Deposit) 
 
     // verify signature
     let ed25519 = ed25519::PublicKey::from_base58_string(deposit.bs58_encoded_ed25519)?;
-    let plaintext = BandwidthVoucherIssuanceData::request_plaintext(
-        &request.inner_sign_request,
-        request.deposit_id,
-    );
+    let plaintext =
+        IssuanceTicketBook::request_plaintext(&request.inner_sign_request, request.deposit_id);
     ed25519.verify(plaintext, &request.signature)?;
 
     Ok(())
@@ -33,19 +31,18 @@ mod test {
     use super::*;
     use crate::ecash::tests::voucher_fixture;
     use nym_compact_ecash::{generate_keypair_user, scheme::withdrawal::WithdrawalRequest};
-    use nym_credentials::coconut::bandwidth::CredentialType;
     use rand::rngs::OsRng;
     use time::OffsetDateTime;
 
     #[tokio::test]
     async fn validate_deposit_test() {
+        let mut rng = OsRng;
         let deposit_id = 42;
         let voucher = voucher_fixture(Some(deposit_id));
         let signing_data = voucher.prepare_for_signing();
-        let voucher_data = voucher.get_variant_data().voucher_data().unwrap();
-        let correct_request = voucher_data.create_blind_sign_request_body(&signing_data);
+        let correct_request = voucher.create_blind_sign_request_body(&signing_data);
 
-        let valid_ed25519 = ed25519::KeyPair::new(&mut OsRng);
+        let valid_ed25519 = ed25519::KeyPair::new(&mut rng);
         let bs58_encoded_ed25519 = valid_ed25519.public_key().to_base58_string();
 
         let inconsistent_deposit = Deposit {
@@ -61,13 +58,13 @@ mod test {
             err.to_string(),
             CoconutError::InconsistentDepositInfo {
                 on_chain: "definitely-not-a-valid-ticket-book".to_string(),
-                request: CredentialType::TicketBook.to_string(),
+                request: ECASH_INFO_TYPE.to_string(),
             }
             .to_string(),
         );
 
         let malformed_deposit = Deposit {
-            info: CredentialType::TicketBook.to_string(),
+            info: ECASH_INFO_TYPE.to_string(),
             amount: 12345,
             bs58_encoded_ed25519: "invalided25519pubkey".to_string(),
         };
@@ -84,7 +81,7 @@ mod test {
         ));
 
         let wrong_deposit = Deposit {
-            info: CredentialType::TicketBook.to_string(),
+            info: ECASH_INFO_TYPE.to_string(),
             amount: 12345,
             bs58_encoded_ed25519,
         };
@@ -131,7 +128,7 @@ mod test {
         );
 
         let good_deposit = Deposit {
-            info: CredentialType::TicketBook.to_string(),
+            info: ECASH_INFO_TYPE.to_string(),
             amount: 12345,
             bs58_encoded_ed25519: "JDTnyotGw3TtbohEamWNjhvGpj3tJz2C4X2Au9PrSTEx".to_string(),
         };

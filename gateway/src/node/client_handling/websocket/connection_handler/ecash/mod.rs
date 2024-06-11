@@ -1,22 +1,15 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::authenticated::RequestHandlingError;
 use crate::node::storage::Storage;
-
+use credential_sender::CredentialSender;
+use double_spending::DoubleSpendingDetector;
 use futures::channel::mpsc::{self, UnboundedSender};
 use log::*;
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Arc;
-use time::OffsetDateTime;
-use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
-
-use super::authenticated::RequestHandlingError;
 use nym_api_requests::coconut::models::VerifyEcashCredentialResponse;
 use nym_credentials::CredentialSpendingData;
-use nym_credentials_interface::{
-    CompactEcashError, CredentialType, NymPayInfo, VerificationKeyAuth,
-};
+use nym_credentials_interface::{CompactEcashError, NymPayInfo, VerificationKeyAuth};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
@@ -31,9 +24,11 @@ use nym_validator_client::{
     },
     CoconutApiClient, DirectSigningHttpRpcNyxdClient,
 };
-
-use credential_sender::CredentialSender;
-use double_spending::DoubleSpendingDetector;
+use std::collections::HashMap;
+use std::ops::Deref;
+use std::sync::Arc;
+use time::OffsetDateTime;
+use tokio::sync::{Mutex, RwLock, RwLockReadGuard};
 
 pub use credential_sender::PendingCredential;
 
@@ -51,7 +46,7 @@ pub struct EcashVerifier {
 
     // keys never change during epochs
     master_keys: RwLock<HashMap<EpochId, VerificationKeyAuth>>,
-    pk_bytes: [u8; 32], //bytes represenation of a pub key representing the verifier
+    pk_bytes: [u8; 32], //bytes representation of a pub key representing the verifier
     pay_infos: Mutex<Vec<NymPayInfo>>,
     cred_sender: UnboundedSender<PendingCredential>,
     double_spend_detector: Option<DoubleSpendingDetector>,
@@ -389,39 +384,34 @@ impl EcashVerifier {
         credential: &CredentialSpendingRequest,
     ) -> Result<(), RequestHandlingError> {
         let serial_number = credential.data.payment.serial_number_bs58();
-        let proposal_id = match credential.data.typ {
-            CredentialType::TicketBook => {
-                let res = self
-                    .nyxd_client
-                    .write()
-                    .await
-                    .prepare_credential(serial_number, self.address.to_string(), None)
-                    .await?;
-                let proposal_id = find_attribute(&res.logs, "wasm", BANDWIDTH_PROPOSAL_ID)
-                    .ok_or(RequestHandlingError::ProposalIdError {
-                        reason: String::from("proposal id not found"),
-                    })?
-                    .value
-                    .parse::<u64>()
-                    .map_err(|_| RequestHandlingError::ProposalIdError {
-                        reason: String::from("proposal id could not be parsed to u64"),
-                    })?;
 
-                let proposal = self
-                    .nyxd_client
-                    .read()
-                    .await
-                    .query_proposal(proposal_id)
-                    .await?;
-                if !credential.matches_serial_number(&proposal.description)? {
-                    return Err(RequestHandlingError::ProposalIdError {
-                        reason: String::from("proposal has different serial number"),
-                    });
-                }
-                Some(proposal_id)
-            }
-            CredentialType::FreePass => None,
-        };
+        let res = self
+            .nyxd_client
+            .write()
+            .await
+            .prepare_credential(serial_number, self.address.to_string(), None)
+            .await?;
+        let proposal_id = find_attribute(&res.logs, "wasm", BANDWIDTH_PROPOSAL_ID)
+            .ok_or(RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal id not found"),
+            })?
+            .value
+            .parse::<u64>()
+            .map_err(|_| RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal id could not be parsed to u64"),
+            })?;
+
+        let proposal = self
+            .nyxd_client
+            .read()
+            .await
+            .query_proposal(proposal_id)
+            .await?;
+        if !credential.matches_serial_number(&proposal.description)? {
+            return Err(RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal has different serial number"),
+            });
+        }
 
         let req = nym_api_requests::coconut::VerifyEcashCredentialBody::new(
             credential.data.clone(),
@@ -444,26 +434,24 @@ impl EcashVerifier {
             }
         }
 
-        if let Some(proposal_id) = proposal_id {
-            if self
-                .nyxd_client
-                .read()
-                .await
-                .query_proposal(proposal_id)
-                .await?
-                .status
-                == nym_validator_client::nyxd::cw3::Status::Rejected
-            {
-                return Err(RequestHandlingError::InvalidBandwidthCredential(
-                    "Refused by validators".to_string(),
-                ));
-            }
-            self.nyxd_client
-                .write()
-                .await
-                .execute_proposal(proposal_id, None)
-                .await?;
+        if self
+            .nyxd_client
+            .read()
+            .await
+            .query_proposal(proposal_id)
+            .await?
+            .status
+            == nym_validator_client::nyxd::cw3::Status::Rejected
+        {
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                "Refused by validators".to_string(),
+            ));
         }
+        self.nyxd_client
+            .write()
+            .await
+            .execute_proposal(proposal_id, None)
+            .await?;
 
         Ok(())
     }

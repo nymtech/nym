@@ -54,7 +54,7 @@ pub fn sign_expiration_date(
 
     let sign_expiration = |l: u64| {
         let valid_date = expiration_date
-            - ((constants::CRED_VALIDITY_PERIOD - l - 1) * constants::SECONDS_PER_DAY);
+            - ((constants::CRED_VALIDITY_PERIOD_DAYS - l - 1) * constants::SECONDS_PER_DAY);
         let m1: Scalar = Scalar::from(valid_date);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
@@ -72,12 +72,12 @@ pub fn sign_expiration_date(
         if #[cfg(feature = "par_signing")] {
             use rayon::prelude::*;
 
-            Ok((0..constants::CRED_VALIDITY_PERIOD)
+            Ok((0..constants::CRED_VALIDITY_PERIOD_DAYS)
                 .into_par_iter()
                 .map(sign_expiration)
                 .collect())
         } else {
-           Ok((0..constants::CRED_VALIDITY_PERIOD).map(sign_expiration).collect())
+           Ok((0..constants::CRED_VALIDITY_PERIOD_DAYS).map(sign_expiration).collect())
         }
     }
 }
@@ -112,7 +112,7 @@ pub fn verify_valid_dates_signatures(
     for (i, sig) in signatures.iter().enumerate() {
         let l = i as u64;
         let valid_date = expiration_date
-            - ((constants::CRED_VALIDITY_PERIOD - l - 1) * constants::SECONDS_PER_DAY);
+            - ((constants::CRED_VALIDITY_PERIOD_DAYS - l - 1) * constants::SECONDS_PER_DAY);
         let m1: Scalar = Scalar::from(valid_date);
 
         // Compute the hash
@@ -200,13 +200,13 @@ fn _aggregate_expiration_signatures(
 
     // Pre-allocate vectors
     let mut aggregated_date_signatures: Vec<ExpirationDateSignature> =
-        Vec::with_capacity(constants::CRED_VALIDITY_PERIOD as usize);
+        Vec::with_capacity(constants::CRED_VALIDITY_PERIOD_DAYS as usize);
 
     let m0: Scalar = Scalar::from(expiration_date);
 
-    for l in 0..constants::CRED_VALIDITY_PERIOD {
+    for l in 0..constants::CRED_VALIDITY_PERIOD_DAYS {
         let valid_date = expiration_date
-            - ((constants::CRED_VALIDITY_PERIOD - l - 1) * constants::SECONDS_PER_DAY);
+            - ((constants::CRED_VALIDITY_PERIOD_DAYS - l - 1) * constants::SECONDS_PER_DAY);
         let m1: Scalar = Scalar::from(valid_date);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
@@ -304,11 +304,11 @@ pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> 
     let spend_date = u64::from_le_bytes(spend_date_bytes[..8].try_into().unwrap());
 
     let start_date =
-        expiration_date - ((constants::CRED_VALIDITY_PERIOD - 1) * constants::SECONDS_PER_DAY);
+        expiration_date - ((constants::CRED_VALIDITY_PERIOD_DAYS - 1) * constants::SECONDS_PER_DAY);
 
     if spend_date >= start_date {
         let index_a = ((spend_date - start_date) / constants::SECONDS_PER_DAY) as usize;
-        if index_a as u64 >= constants::CRED_VALIDITY_PERIOD {
+        if index_a as u64 >= constants::CRED_VALIDITY_PERIOD_DAYS {
             Err(CompactEcashError::SpendDateTooLate)
         } else {
             Ok(index_a)
@@ -332,18 +332,18 @@ mod tests {
     fn test_find_index() {
         let expiration_date = 1701993600; // Dec 8 2023
         let expiration_date_scalar = Scalar::from(expiration_date);
-        for i in 0..constants::CRED_VALIDITY_PERIOD {
+        for i in 0..constants::CRED_VALIDITY_PERIOD_DAYS {
             let current_spend_date = expiration_date - i * 86400;
             assert_eq!(
                 find_index(Scalar::from(current_spend_date), expiration_date_scalar).unwrap(),
-                (constants::CRED_VALIDITY_PERIOD - 1 - i) as usize
+                (constants::CRED_VALIDITY_PERIOD_DAYS - 1 - i) as usize
             )
         }
 
         let late_spend_date = expiration_date + 86400;
         assert!(find_index(Scalar::from(late_spend_date), expiration_date_scalar).is_err());
 
-        let early_spend_date = expiration_date - (constants::CRED_VALIDITY_PERIOD) * 86400;
+        let early_spend_date = expiration_date - (constants::CRED_VALIDITY_PERIOD_DAYS) * 86400;
         assert!(find_index(Scalar::from(early_spend_date), expiration_date_scalar).is_err());
     }
 
@@ -382,7 +382,7 @@ mod tests {
             aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
 
         let mut edt_partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
-            Vec::with_capacity(constants::CRED_VALIDITY_PERIOD as usize);
+            Vec::with_capacity(constants::CRED_VALIDITY_PERIOD_DAYS as usize);
         for sk_auth in secret_keys_authorities.iter() {
             let sign = sign_expiration_date(sk_auth, expiration_date).unwrap();
             edt_partial_signatures.push(sign);

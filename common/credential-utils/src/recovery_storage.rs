@@ -3,7 +3,7 @@
 
 use crate::errors::Result;
 use log::error;
-use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
+use nym_credentials::coconut::bandwidth::IssuanceTicketBook;
 use std::fs::{create_dir_all, read_dir, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -20,7 +20,7 @@ impl RecoveryStorage {
         Ok(Self { recovery_dir })
     }
 
-    pub fn unconsumed_vouchers(&self) -> Result<Vec<IssuanceBandwidthCredential>> {
+    pub fn unconsumed_vouchers(&self) -> Result<Vec<IssuanceTicketBook>> {
         let entries = read_dir(&self.recovery_dir)?;
 
         let mut paths = vec![];
@@ -38,7 +38,7 @@ impl RecoveryStorage {
             if let Ok(mut file) = File::open(&path) {
                 let mut buff = Vec::new();
                 if file.read_to_end(&mut buff).is_ok() {
-                    match IssuanceBandwidthCredential::try_from_recovered_bytes(&buff) {
+                    match IssuanceTicketBook::try_from_recovered_bytes(&buff) {
                         Ok(voucher) => vouchers.push(voucher),
                         Err(err) => {
                             error!("failed to parse the voucher at {}: {err}", path.display())
@@ -51,13 +51,12 @@ impl RecoveryStorage {
         Ok(vouchers)
     }
 
-    pub fn voucher_filename(voucher: &IssuanceBandwidthCredential) -> String {
-        let prefix = voucher.typ().to_string();
+    pub fn voucher_filename(voucher: &IssuanceTicketBook) -> String {
         let suffix = voucher.ecash_pubkey_bs58();
-        format!("{prefix}-{suffix}.{DUMPED_VOUCHER_EXTENSION}")
+        format!("ecash-ticketbook-{suffix}.{DUMPED_VOUCHER_EXTENSION}")
     }
 
-    pub fn insert_voucher(&self, voucher: &IssuanceBandwidthCredential) -> Result<PathBuf> {
+    pub fn insert_voucher(&self, voucher: &IssuanceTicketBook) -> Result<PathBuf> {
         let file_name = Self::voucher_filename(voucher);
         let file_path = self.recovery_dir.join(file_name);
         let mut file = File::create(&file_path)?;

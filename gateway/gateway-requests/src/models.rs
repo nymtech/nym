@@ -54,15 +54,20 @@ mod tests {
         tests::helpers::{generate_coin_indices_signatures, generate_expiration_date_signatures},
         ttp_keygen, PayInfo,
     };
-    use nym_credentials::coconut::utils::freepass_exp_date;
-    use nym_credentials::IssuanceBandwidthCredential;
+    use nym_credentials::IssuanceTicketBook;
+    use nym_crypto::asymmetric::ed25519;
+    use rand::rngs::OsRng;
 
     #[test]
     fn credential_roundtrip() {
         // make valid request
         let keypair = ttp_keygen(1, 1).unwrap().remove(0);
 
-        let issuance = IssuanceBandwidthCredential::new_freepass(freepass_exp_date());
+        let mut rng = OsRng;
+        let signing_key = ed25519::PrivateKey::new(&mut rng);
+
+        let issuance = IssuanceTicketBook::new(42, [], signing_key);
+        let expiration_date = issuance.expiration_date();
         let sig_req = issuance.prepare_for_signing();
         let exp_date_sigs = generate_expiration_date_signatures(
             sig_req.expiration_date.unix_timestamp() as u64,
@@ -76,7 +81,7 @@ mod tests {
             keypair.secret_key(),
             sig_req.ecash_pub_key.clone(),
             &sig_req.withdrawal_request,
-            freepass_exp_date().unix_timestamp() as u64,
+            expiration_date.unix_timestamp() as u64,
         )
         .unwrap();
 

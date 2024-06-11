@@ -4,7 +4,7 @@
 use crate::error::{Error, Result};
 use nym_bandwidth_controller::acquire::state::State;
 use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::IssuanceBandwidthCredential;
+use nym_credentials::coconut::bandwidth::IssuanceTicketBook;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use zeroize::Zeroizing;
@@ -70,7 +70,7 @@ where
     /// In case of an error in the mid of the acquire process, this function should be used for
     /// later retries to recover the bandwidth credential, either immediately or after some time.
     pub async fn recover(&self, voucher_blob: &VoucherBlob) -> Result<()> {
-        let voucher = IssuanceBandwidthCredential::try_from_recovered_bytes(voucher_blob)
+        let voucher = IssuanceTicketBook::try_from_recovered_bytes(voucher_blob)
             .map_err(|_| Error::InvalidVoucherBlob)?;
         let state = State::new(voucher);
         nym_bandwidth_controller::acquire::get_bandwidth_voucher(

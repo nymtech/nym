@@ -3,9 +3,6 @@
 
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
-use thiserror::Error;
 use time::OffsetDateTime;
 
 pub use nym_compact_ecash::{
@@ -30,61 +27,6 @@ pub use nym_compact_ecash::{
 };
 
 pub const ECASH_INFO_TYPE: &str = "TicketBook";
-pub const FREE_PASS_INFO_TYPE: &str = "FreeBandwidthPass";
-
-// pub trait NymCredential {
-//     fn prove_credential(&self) -> Result<(), ()>;
-// }
-
-#[derive(Debug, Error)]
-#[error("{0} is not a valid credential type")]
-pub struct UnknownCredentialType(String);
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub enum CredentialType {
-    TicketBook,
-    FreePass,
-}
-
-impl FromStr for CredentialType {
-    type Err = UnknownCredentialType;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == ECASH_INFO_TYPE {
-            Ok(CredentialType::TicketBook)
-        } else if s == FREE_PASS_INFO_TYPE {
-            Ok(CredentialType::FreePass)
-        } else {
-            Err(UnknownCredentialType(s.to_string()))
-        }
-    }
-}
-
-impl CredentialType {
-    pub fn validate(&self, type_plain: &str) -> bool {
-        match self {
-            CredentialType::TicketBook => type_plain == ECASH_INFO_TYPE,
-            CredentialType::FreePass => type_plain == FREE_PASS_INFO_TYPE,
-        }
-    }
-
-    pub fn is_free_pass(&self) -> bool {
-        matches!(self, CredentialType::FreePass)
-    }
-
-    pub fn is_ticketbook(&self) -> bool {
-        matches!(self, CredentialType::TicketBook)
-    }
-}
-
-impl Display for CredentialType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CredentialType::TicketBook => ECASH_INFO_TYPE.fmt(f),
-            CredentialType::FreePass => FREE_PASS_INFO_TYPE.fmt(f),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
@@ -95,8 +37,6 @@ pub struct CredentialSigningData {
     pub ecash_pub_key: PublicKeyUser,
 
     pub expiration_date: OffsetDateTime,
-
-    pub typ: CredentialType,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -107,10 +47,7 @@ pub struct CredentialSpendingData {
 
     pub spend_date: OffsetDateTime,
 
-    pub value: u64,
-
-    pub typ: CredentialType,
-
+    // pub value: u64,
     /// The (DKG) epoch id under which the credential has been issued so that the verifier could use correct verification key for validation.
     pub epoch_id: u64,
 }
@@ -136,33 +73,29 @@ impl CredentialSpendingData {
         // TODO: change it to a standard format instead
         let mut bytes = Vec::new();
         let payment_bytes = self.payment.to_bytes();
-        let typ = self.typ.to_string();
-        let typ_bytes = typ.as_bytes();
 
         bytes.extend_from_slice(&(payment_bytes.len() as u32).to_be_bytes());
         bytes.extend_from_slice(&payment_bytes);
         bytes.extend_from_slice(&self.pay_info.pay_info_bytes); //this is 72 bytes long
         bytes.extend_from_slice(&self.spend_date.unix_timestamp().to_be_bytes());
-        bytes.extend_from_slice(&self.value.to_be_bytes());
-        bytes.extend_from_slice(&(typ_bytes.len() as u32).to_be_bytes());
-        bytes.extend_from_slice(typ_bytes);
         bytes.extend_from_slice(&self.epoch_id.to_be_bytes());
 
         bytes
     }
 
     pub fn try_from_bytes(raw: &[u8]) -> Result<Self, CompactEcashError> {
-        if raw.len() < 72 + 8 + 8 + 8 + 4 + 4 {
+        // minimum length: 72 (pay_info) + 8 (epoch_id) + 8 (spend date TS) + 4 (payment length prefix)
+        if raw.len() < 72 + 8 + 8 + 4 {
             return Err(CompactEcashError::DeserializationFailure {
                 object: "EcashCredential".into(),
             });
         }
         let mut index = 0;
-        //SAFETY : casting a slice of lenght 4 into an array of size 4
+        //SAFETY : casting a slice of length 4 into an array of size 4
         let payment_len = u32::from_be_bytes(raw[index..index + 4].try_into().unwrap()) as usize;
         index += 4;
 
-        if raw[index..].len() < payment_len {
+        if raw[index..].len() != payment_len + 88 {
             return Err(CompactEcashError::DeserializationFailure {
                 object: "EcashCredential".into(),
             });
@@ -170,19 +103,13 @@ impl CredentialSpendingData {
         let payment = Payment::try_from(&raw[index..index + payment_len])?;
         index += payment_len;
 
-        if raw[index..].len() < 72 + 8 + 8 + 8 + 4 {
-            return Err(CompactEcashError::DeserializationFailure {
-                object: "EcashCredential".into(),
-            });
-        }
-
         let pay_info = PayInfo {
-            //SAFETY : casting a slice of lenght 72 into an array of size 72
+            //SAFETY : casting a slice of length 72 into an array of size 72
             pay_info_bytes: raw[index..index + 72].try_into().unwrap(),
         };
         index += 72;
 
-        //SAFETY : casting a slice of lenght 8 into an array of size 8
+        //SAFETY : casting a slice of length 8 into an array of size 8
         let spend_date_timestamp = i64::from_be_bytes(raw[index..index + 8].try_into().unwrap());
         let spend_date =
             OffsetDateTime::from_unix_timestamp(spend_date_timestamp).map_err(|_| {
@@ -192,41 +119,19 @@ impl CredentialSpendingData {
             })?;
         index += 8;
 
-        //SAFETY : casting a slice of lenght 8 into an array of size 8
-        let value = u64::from_be_bytes(raw[index..index + 8].try_into().unwrap());
-        index += 8;
-
-        //SAFETY : casting a slice of lenght 4 into an array of size 4
-        let typ_len = u32::from_be_bytes(raw[index..index + 4].try_into().unwrap()) as usize;
-        index += 4;
-
-        if raw[index..].len() != typ_len + 8 {
+        if raw[index..].len() != 8 {
             return Err(CompactEcashError::DeserializationFailure {
                 object: "EcashCredential".into(),
             });
         }
 
-        let raw_typ = String::from_utf8(raw[index..index + typ_len].to_vec()).map_err(|_| {
-            CompactEcashError::DeserializationFailure {
-                object: "Credential type".into(),
-            }
-        })?;
-        let typ = raw_typ
-            .parse()
-            .map_err(|_| CompactEcashError::DeserializationFailure {
-                object: "Credential type".into(),
-            })?;
-        index += typ_len;
-
-        //SAFETY : casting a slice of lenght 8 into an array of size 8
+        //SAFETY : casting a slice of length 8 into an array of size 8
         let epoch_id = u64::from_be_bytes(raw[index..index + 8].try_into().unwrap());
 
         Ok(CredentialSpendingData {
             payment,
             pay_info,
             spend_date,
-            value,
-            typ,
             epoch_id,
         })
     }

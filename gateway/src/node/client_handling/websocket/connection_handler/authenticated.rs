@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::bandwidth::{Bandwidth, BandwidthError};
@@ -20,7 +20,6 @@ use futures::{
     FutureExt, StreamExt,
 };
 use log::*;
-use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_credentials::coconut::utils::today;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
@@ -112,9 +111,6 @@ pub enum RequestHandlingError {
 
     #[error("the provided credential did not have a bandwidth attribute")]
     MissingBandwidthAttribute,
-
-    #[error("attempted to claim a bandwidth voucher for an account using a free pass (it expires on {expiration})")]
-    BandwidthVoucherForFreePassAccount { expiration: OffsetDateTime },
 
     #[error("attempted to claim another free pass for the account while another free pass is still active (it expires on {expiration})")]
     PreexistingFreePass { expiration: OffsetDateTime },
@@ -342,71 +338,43 @@ where
                 .check_payment(&credential.data, &aggregated_verification_key)
                 .await?;
         }
-        let was_freepass = match credential.data.typ {
-            CredentialType::TicketBook => {
-                trace!("the credential is a bandwidth voucher");
-                let api_clients = self
-                    .inner
+
+        trace!("the credential is a bandwidth voucher");
+        {
+            let api_clients = self
+                .inner
+                .shared_state
+                .ecash_verifier
+                .api_clients(credential.data.epoch_id)
+                .await?;
+
+            if self.inner.shared_state.offline_credential_verification {
+                self.inner
                     .shared_state
                     .ecash_verifier
-                    .api_clients(credential.data.epoch_id)
+                    .post_credential(&api_clients, credential.clone())
                     .await?;
 
-                if self.inner.shared_state.offline_credential_verification {
-                    self.inner
-                        .shared_state
-                        .ecash_verifier
-                        .post_credential(&api_clients, credential.clone())
-                        .await?;
-
-                    self.inner
-                        .storage
-                        .insert_credential(credential.clone())
-                        .await?;
-                } else {
-                    self.inner
-                        .shared_state
-                        .ecash_verifier
-                        .spend_online_credential(&api_clients, &credential)
-                        .await?;
-                }
-                false
-            }
-            CredentialType::FreePass => {
-                info!("received a free pass credential");
-                // we're still sending it to the api to add it to the distributed bloom filter
-                // we don't store it cause it doesn't give reward
-                let api_clients = self
-                    .inner
+                self.inner
+                    .storage
+                    .insert_credential(credential.clone())
+                    .await?;
+            } else {
+                self.inner
                     .shared_state
                     .ecash_verifier
-                    .api_clients(credential.data.epoch_id)
+                    .spend_online_credential(&api_clients, &credential)
                     .await?;
-
-                if self.inner.shared_state.offline_credential_verification {
-                    self.inner
-                        .shared_state
-                        .ecash_verifier
-                        .post_credential(&api_clients, credential.clone())
-                        .await?;
-                } else {
-                    self.inner
-                        .shared_state
-                        .ecash_verifier
-                        .spend_online_credential(&api_clients, &credential)
-                        .await?;
-                }
-                true
             }
-        };
+        }
 
         trace!("storing serial number information");
         self.inner
             .storage
-            .insert_spent_credential(serial_number_bs58, was_freepass, self.client.address)
+            .insert_spent_credential(serial_number_bs58, self.client.address)
             .await?;
 
-        let bandwidth = Bandwidth::get_for_type(credential.data.typ);
+        let bandwidth = Bandwidth::ticket_amount();
 
         self.increase_bandwidth(bandwidth, spend_date).await?;
 

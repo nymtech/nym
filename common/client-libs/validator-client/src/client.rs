@@ -8,13 +8,10 @@ use crate::{
     nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
     ReqwestRpcClient, ValidatorClientError,
 };
-use nym_api_requests::coconut::models::{
-    FreePassNonceResponse, SpentCredentialsResponse, VerifyEcashCredentialResponse,
-};
+use nym_api_requests::coconut::models::{SpentCredentialsResponse, VerifyEcashCredentialResponse};
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest,
-    PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
-    VerifyEcashCredentialBody,
+    BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
+    PartialExpirationDateSignatureResponse, VerifyEcashCredentialBody,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -407,16 +404,5 @@ impl NymApiClient {
         &self,
     ) -> Result<PartialCoinIndicesSignatureResponse, ValidatorClientError> {
         Ok(self.nym_api.coin_indices_signatures().await?)
-    }
-
-    pub async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, ValidatorClientError> {
-        Ok(self.nym_api.free_pass_nonce().await?)
-    }
-
-    pub async fn issue_free_pass_credential(
-        &self,
-        request: &FreePassRequest,
-    ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.nym_api.free_pass(request).await?)
     }
 }

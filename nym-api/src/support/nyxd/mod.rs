@@ -354,20 +354,6 @@ impl crate::ecash::client::Client for Client {
         )
     }
 
-    async fn bandwidth_contract_admin(&self) -> crate::ecash::error::Result<Option<AccountId>> {
-        let guard = self.inner.read().await;
-
-        let bandwidth_contract = query_guard!(
-            guard,
-            coconut_bandwidth_contract_address()
-                .ok_or(CoconutError::MissingBandwidthContractAddress)
-        )?;
-
-        let contract = query_guard!(guard, get_contract(bandwidth_contract)).await?;
-
-        Ok(contract.contract_info.admin)
-    }
-
     async fn get_deposit(
         &self,
         deposit_id: DepositId,

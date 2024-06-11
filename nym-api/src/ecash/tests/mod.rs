@@ -31,13 +31,13 @@ use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyS
 use nym_compact_ecash::BlindedSignature;
 use nym_compact_ecash::{ttp_keygen, VerificationKeyAuth};
 use nym_contracts_common::IdentityKey;
-use nym_credentials::coconut::bandwidth::voucher::BandwidthVoucherIssuanceData;
-use nym_credentials::IssuanceBandwidthCredential;
-use nym_credentials_interface::CredentialType;
+use nym_credentials::IssuanceTicketBook;
+use nym_credentials_interface::ECASH_INFO_TYPE;
 use nym_crypto::asymmetric::identity;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
+use nym_ecash_contract_common::events::TICKET_BOOK_VALUE;
 use nym_ecash_contract_common::spend_credential::{
     EcashSpentCredential, EcashSpentCredentialResponse,
 };
@@ -282,7 +282,6 @@ impl FakeMultisigContractState {
 #[derive(Debug)]
 pub(crate) struct FakeBandwidthContractState {
     pub(crate) address: Addr,
-    pub(crate) admin: Option<AccountId>,
     pub(crate) spent_credentials: HashMap<String, EcashSpentCredential>,
     pub(crate) deposits: HashMap<DepositId, Deposit>,
     pub(crate) blacklist: HashMap<String, Blacklisting>,
@@ -323,11 +322,6 @@ impl Default for FakeChainState {
         let bandwidth_contract =
             Addr::unchecked("n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l");
 
-        let bandwidth_contract_admin =
-            "n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a"
-                .parse()
-                .unwrap();
-
         FakeChainState {
             _counters: Default::default(),
 
@@ -361,7 +355,6 @@ impl Default for FakeChainState {
             },
             bandwidth_contract: FakeBandwidthContractState {
                 address: bandwidth_contract,
-                admin: Some(bandwidth_contract_admin),
                 spent_credentials: Default::default(),
                 deposits: Default::default(),
                 blacklist: Default::default(),
@@ -525,10 +518,6 @@ impl super::client::Client for DummyClient {
 
     async fn dkg_contract_address(&self) -> Result<AccountId> {
         Ok(self.state.lock().unwrap().dkg_contract.address.clone())
-    }
-
-    async fn bandwidth_contract_admin(&self) -> Result<Option<AccountId>> {
-        Ok(self.state.lock().unwrap().bandwidth_contract.admin.clone())
     }
 
     async fn get_deposit(&self, deposit_id: DepositId) -> Result<DepositResponse> {
@@ -1152,7 +1141,7 @@ pub fn deposit_fixture() -> Deposit {
     let identity_keypair = identity::KeyPair::new(&mut rng);
 
     Deposit {
-        info: CredentialType::TicketBook.to_string(),
+        info: ECASH_INFO_TYPE.to_string(),
         amount: 1234,
         bs58_encoded_ed25519: identity_keypair.public_key().to_base58_string(),
     }
@@ -1195,7 +1184,7 @@ pub fn blinded_signature_fixture() -> BlindedSignature {
     BlindedSignature::from_bytes(&dummy_bytes).unwrap()
 }
 
-pub fn voucher_fixture(deposit_id: Option<DepositId>) -> IssuanceBandwidthCredential {
+pub fn voucher_fixture(deposit_id: Option<DepositId>) -> IssuanceTicketBook {
     let mut rng = OsRng;
     let deposit_id = deposit_id.unwrap_or(69);
 
@@ -1205,7 +1194,7 @@ pub fn voucher_fixture(deposit_id: Option<DepositId>) -> IssuanceBandwidthCreden
         identity::PrivateKey::from_bytes(&identity_keypair.private_key().to_bytes()).unwrap();
     let identifier = [44u8; 32];
     // (voucher, request)
-    IssuanceBandwidthCredential::new_voucher(deposit_id, &identifier, id_priv)
+    IssuanceTicketBook::new(deposit_id, identifier, id_priv)
 }
 
 fn dummy_signature() -> identity::Signature {
@@ -1282,11 +1271,11 @@ impl TestFixture {
         self.chain_state.lock().unwrap().txs.insert(hash, tx);
     }
 
-    fn add_deposit(&self, voucher_data: &BandwidthVoucherIssuanceData) {
+    fn add_deposit(&self, voucher_data: &IssuanceTicketBook) {
         let mut chain = self.chain_state.lock().unwrap();
         let deposit = Deposit {
-            info: CredentialType::TicketBook.to_string(),
-            amount: voucher_data.value(),
+            info: ECASH_INFO_TYPE.to_string(),
+            amount: TICKET_BOOK_VALUE,
             bs58_encoded_ed25519: voucher_data.identity_key().public_key().to_base58_string(),
         };
         let existing = chain
@@ -1303,10 +1292,9 @@ impl TestFixture {
         let voucher = voucher_fixture(Some(deposit_id));
 
         let signing_data = voucher.prepare_for_signing();
-        let voucher_data = voucher.get_variant_data().voucher_data().unwrap();
-        let req = voucher_data.create_blind_sign_request_body(&signing_data);
+        let req = voucher.create_blind_sign_request_body(&signing_data);
 
-        self.add_deposit(voucher_data);
+        self.add_deposit(&voucher);
         self.issue_credential(req).await;
     }
 
@@ -1363,13 +1351,12 @@ mod credential_tests {
     async fn already_issued() {
         let voucher = voucher_fixture(None);
         let signing_data = voucher.prepare_for_signing();
-        let voucher_data = voucher.get_variant_data().voucher_data().unwrap();
-        let request_body = voucher_data.create_blind_sign_request_body(&signing_data);
+        let request_body = voucher.create_blind_sign_request_body(&signing_data);
 
         let deposit_id = request_body.deposit_id;
 
         let test_fixture = TestFixture::new().await;
-        test_fixture.add_deposit(voucher_data);
+        test_fixture.add_deposit(&voucher);
 
         let sig = blinded_signature_fixture();
         let commitments = request_body.encode_commitments();
@@ -1452,8 +1439,7 @@ mod credential_tests {
 
         let voucher = voucher_fixture(None);
         let signing_data = voucher.prepare_for_signing();
-        let voucher_data = voucher.get_variant_data().voucher_data().unwrap();
-        let request_body = voucher_data.create_blind_sign_request_body(&signing_data);
+        let request_body = voucher.create_blind_sign_request_body(&signing_data);
 
         let commitments = request_body.encode_commitments();
         let expiration_date = request_body.expiration_date;
@@ -1539,9 +1525,9 @@ mod credential_tests {
 
         let identity_keypair = identity::KeyPair::new(&mut rng);
         let identifier = [42u8; 32];
-        let voucher = IssuanceBandwidthCredential::new_voucher(
+        let voucher = IssuanceTicketBook::new(
             deposit_id,
-            &identifier,
+            identifier,
             identity::PrivateKey::from_base58_string(
                 identity_keypair.private_key().to_base58_string(),
             )
@@ -1555,19 +1541,18 @@ mod credential_tests {
             .unwrap();
 
         let chain = init_chain();
-        let voucher_data = voucher.get_variant_data().voucher_data().unwrap();
 
         let deposit = Deposit {
-            info: CredentialType::TicketBook.to_string(),
-            amount: voucher_data.value(),
-            bs58_encoded_ed25519: voucher_data.identity_key().public_key().to_base58_string(),
+            info: ECASH_INFO_TYPE.to_string(),
+            amount: TICKET_BOOK_VALUE,
+            bs58_encoded_ed25519: voucher.identity_key().public_key().to_base58_string(),
         };
         chain
             .lock()
             .unwrap()
             .bandwidth_contract
             .deposits
-            .insert(voucher_data.deposit_id(), deposit);
+            .insert(voucher.deposit_id(), deposit);
 
         let nyxd_client = DummyClient::new(
             AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
@@ -1596,8 +1581,7 @@ mod credential_tests {
             .expect("valid rocket instance");
 
         let signing_data = voucher.prepare_for_signing();
-        let voucher_data = voucher.get_variant_data().voucher_data().unwrap();
-        let request_body = voucher_data.create_blind_sign_request_body(&signing_data);
+        let request_body = voucher.create_blind_sign_request_body(&signing_data);
 
         let response = client
             .post(format!(
@@ -1735,7 +1719,7 @@ mod credential_tests {
         let req = VerifyEcashCredentialBody::new(
             spending.clone(),
             gateway_cosmos_addr.clone(),
-            Some(proposal_id),
+            proposal_id,
         );
 
         // Test endpoint with not proposal for the proposal id
@@ -1838,7 +1822,7 @@ mod credential_tests {
         let bad_req = VerifyEcashCredentialBody::new(
             bad_spending.clone(),
             gateway_cosmos_addr.clone(),
-            Some(proposal_id),
+            proposal_id,
         );
         chain.lock().unwrap().reset_votes();
         chain
@@ -1948,7 +1932,7 @@ mod credential_tests {
         let double_spend_req = VerifyEcashCredentialBody::new(
             double_spending.clone(),
             gateway_cosmos_addr.clone(),
-            Some(proposal_id),
+            proposal_id,
         );
         chain.lock().unwrap().reset_votes();
         let response = client

@@ -142,7 +142,7 @@ impl PartialWallet {
 /// A `Wallet` includes a Pointcheval-Sanders signature (`sig`),
 /// a scalar value (`v`) representing the wallet's secret, an optional
 /// `SignerIndex` (`idx`) indicating the signer's index, and an expiration date (`expiration_date`)
-/// and the a u64 value ('l') indicating the remaining number of coins in the wallet.
+/// and an u64 ('l') indicating the total number of spent coins.
 ///
 #[derive(Debug, Clone, PartialEq, Zeroize, ZeroizeOnDrop, Serialize, Deserialize)]
 pub struct Wallet {

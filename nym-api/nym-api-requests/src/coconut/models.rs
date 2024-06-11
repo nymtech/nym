@@ -20,15 +20,15 @@ pub struct VerifyEcashCredentialBody {
     /// Cosmos address of the sender of the credential
     pub gateway_cosmos_addr: AccountId,
 
-    /// Multisig proposal for releasing funds for the provided bandwidth credential, None for freepasses
-    pub proposal_id: Option<u64>,
+    /// Multisig proposal for releasing funds for the provided bandwidth credential
+    pub proposal_id: u64,
 }
 
 impl VerifyEcashCredentialBody {
     pub fn new(
         credential: CredentialSpendingData,
         gateway_cosmos_addr: AccountId,
-        proposal_id: Option<u64>,
+        proposal_id: u64,
     ) -> VerifyEcashCredentialBody {
         VerifyEcashCredentialBody {
             credential,
@@ -120,11 +120,6 @@ impl BlindSignRequestBody {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct FreePassNonceResponse {
-    pub current_nonce: [u8; 16],
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct BlindedSignatureResponse {
     pub blinded_signature: BlindedSignature,
 }
@@ -151,50 +146,6 @@ impl BlindedSignatureResponse {
         Ok(BlindedSignatureResponse {
             blinded_signature: BlindedSignature::from_bytes(bytes)?,
         })
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FreePassRequest {
-    // secp256k1 key associated with the admin account
-    pub cosmos_pubkey: cosmrs::crypto::PublicKey,
-
-    pub inner_sign_request: WithdrawalRequest,
-
-    // we need to include a nonce here to prevent replay attacks
-    // (and not making the nym-api store the serial numbers of all issued credential)
-    pub used_nonce: [u8; 16],
-
-    /// Signature on the nonce
-    /// to prove the possession of the cosmos key/address
-    pub nonce_signature: cosmrs::crypto::secp256k1::Signature,
-
-    pub ecash_pubkey: PublicKeyUser,
-
-    pub expiration_date: OffsetDateTime,
-}
-
-impl FreePassRequest {
-    pub fn new(
-        cosmos_pubkey: cosmrs::crypto::PublicKey,
-        inner_sign_request: WithdrawalRequest,
-        used_nonce: [u8; 16],
-        nonce_signature: cosmrs::crypto::secp256k1::Signature,
-        ecash_pubkey: PublicKeyUser,
-        expiration_date: OffsetDateTime,
-    ) -> Self {
-        FreePassRequest {
-            cosmos_pubkey,
-            inner_sign_request,
-            used_nonce,
-            nonce_signature,
-            ecash_pubkey,
-            expiration_date,
-        }
-    }
-
-    pub fn tendermint_pubkey(&self) -> tendermint::PublicKey {
-        self.cosmos_pubkey.into()
     }
 }
 

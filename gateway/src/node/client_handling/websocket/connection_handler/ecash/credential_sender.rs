@@ -76,10 +76,6 @@ where
             log::trace!("Proposal already created");
             return Ok(());
         }
-        if pending.credential.data.typ.is_free_pass() {
-            //no proposal for freepasses
-            return Ok(());
-        }
         let res = self
             .nyxd_client
             .write()
@@ -111,15 +107,16 @@ where
     }
 
     async fn send_credential(pending: &mut PendingCredential) -> Result<(), RequestHandlingError> {
-        if pending.credential.data.typ.is_ticketbook() && pending.proposal_id.is_none() {
+        let Some(proposal_id) = pending.proposal_id else {
             return Err(RequestHandlingError::ProposalIdError {
                 reason: "proposal id is absent".to_string(),
             });
-        }
+        };
+
         let request = VerifyEcashCredentialBody::new(
             pending.credential.data.clone(),
             pending.address.clone(),
-            pending.proposal_id,
+            proposal_id,
         );
         let mut failed_api = Vec::new();
         for client in &pending.api_clients {

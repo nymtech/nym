@@ -36,7 +36,6 @@ impl CoconutCredentialManager {
 
     pub async fn insert_issued_credential(
         &self,
-        credential_type: String,
         serialization_revision: u8,
         credential_data: &[u8],
         epoch_id: u32,
@@ -47,7 +46,6 @@ impl CoconutCredentialManager {
             id,
             serialization_revision,
             credential_data: credential_data.to_vec(),
-            credential_type,
             epoch_id,
             expired: false,
             consumed: false,
@@ -57,25 +55,7 @@ impl CoconutCredentialManager {
     /// Tries to retrieve one of the stored, unused credentials.
     pub async fn get_next_unspent_ticketbook(&self) -> Option<StoredIssuedCredential> {
         let guard = self.inner.read().await;
-        for credential in guard
-            .credentials
-            .iter()
-            .filter(|c| c.credential_type == "TicketBook")
-        {
-            if !credential.consumed && !credential.expired {
-                return Some(credential.clone());
-            }
-        }
-        None
-    }
-
-    pub async fn get_next_unspent_freepass(&self) -> Option<StoredIssuedCredential> {
-        let guard = self.inner.read().await;
-        for credential in guard
-            .credentials
-            .iter()
-            .filter(|c| c.credential_type == "FreeBandwidthPass")
-        {
+        for credential in guard.credentials.iter() {
             if !credential.consumed && !credential.expired {
                 return Some(credential.clone());
             }

@@ -4,7 +4,7 @@
 use crate::NymIdError;
 use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
-use nym_credentials::IssuedBandwidthCredential;
+use nym_credentials::IssuedTicketBook;
 use time::OffsetDateTime;
 use tracing::{debug, warn};
 use zeroize::Zeroizing;
@@ -21,14 +21,13 @@ where
     let raw_credential = Zeroizing::new(raw_credential);
 
     // note: the type itself implements ZeroizeOnDrop
-    let credential = IssuedBandwidthCredential::try_unpack(&raw_credential, credential_version)
+    let credential = IssuedTicketBook::try_unpack(&raw_credential, credential_version)
         .map_err(|source| NymIdError::CredentialDeserializationFailure { source })?;
 
     debug!(
-        "attempting to import credential of type {}",
-        credential.typ()
+        "attempting to import credential with expiration date at {}",
+        credential.expiration_date()
     );
-    debug!("with expiration date at {}", credential.expiration_date());
 
     if credential.expired() {
         warn!("the credential has already expired!");
@@ -47,7 +46,6 @@ where
     let storable = StorableIssuedCredential {
         serialization_revision: credential.current_serialization_revision(),
         credential_data: &raw_credential,
-        credential_type: credential.typ().to_string(),
         epoch_id: credential
             .epoch_id()
             .try_into()

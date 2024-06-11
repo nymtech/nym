@@ -24,7 +24,7 @@ fn bench_partial_sign_expiration_date(c: &mut Criterion) {
     group.bench_function(
         &format!(
             "[IssuingAuthority] sign_expiration_date_{}_validity_period",
-            constants::CRED_VALIDITY_PERIOD,
+            constants::CRED_VALIDITY_PERIOD_DAYS,
         ),
         |b| b.iter(|| sign_expiration_date(sk_i_auth, expiration_date)),
     );
@@ -34,7 +34,7 @@ fn bench_partial_sign_expiration_date(c: &mut Criterion) {
     group.bench_function(
         &format!(
             "[Client] verify_valid_dates_signatures_{}_validity_period",
-            constants::CRED_VALIDITY_PERIOD,
+            constants::CRED_VALIDITY_PERIOD_DAYS,
         ),
         |b| b.iter(|| verify_valid_dates_signatures(&vk_i_auth, &partial_exp_sig, expiration_date)),
     );
@@ -61,7 +61,7 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion) {
         aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
 
     let mut partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
-        Vec::with_capacity(constants::CRED_VALIDITY_PERIOD as usize);
+        Vec::with_capacity(constants::CRED_VALIDITY_PERIOD_DAYS as usize);
     for sk in secret_keys_authorities.iter() {
         let sign = sign_expiration_date(sk, expiration_date).unwrap();
         partial_signatures.push(sign);
@@ -81,7 +81,7 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion) {
     group.bench_function(
         &format!(
             "[Client] aggregate_expiration_signatures_from_{}_issuing_authorities_{}_validity_period",
-            constants::CRED_VALIDITY_PERIOD, authorities_keypairs.len(),
+            constants::CRED_VALIDITY_PERIOD_DAYS, authorities_keypairs.len(),
         ),
         |b| {
             b.iter(|| {

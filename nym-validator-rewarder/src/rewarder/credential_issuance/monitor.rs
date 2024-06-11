@@ -14,7 +14,6 @@ use bip39::rand::thread_rng;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::withdrawal::verify_partial_blind_signature;
 use nym_compact_ecash::{Attribute, Base58, G1Projective, VerificationKeyAuth};
-use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::{IssuedCredential, IssuedCredentialBody, NymApiClientExt};
@@ -111,12 +110,12 @@ impl CredentialIssuanceMonitor {
         trace!("deposit exists");
 
         // check if the deposit values match
-        let credential_info = CredentialType::TicketBook.to_string();
+        let credential_info = "TicketBook";
 
         if credential_info != deposit.info {
             return Err(NymRewarderError::InconsistentDepositInfo {
                 deposit_id,
-                request: Some(credential_info),
+                request: Some(credential_info.to_string()),
                 on_chain: deposit.info,
             });
         }

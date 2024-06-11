@@ -196,7 +196,6 @@ pub trait Storage: Send + Sync {
     async fn insert_spent_credential(
         &self,
         blinded_serial_number: String,
-        was_freepass: bool,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError>;
 
@@ -419,15 +418,10 @@ impl Storage for PersistentStorage {
     async fn insert_spent_credential(
         &self,
         blinded_serial_number: String,
-        was_freepass: bool,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
-            .insert_spent_credential(
-                &blinded_serial_number,
-                was_freepass,
-                &client_address.as_base58_string(),
-            )
+            .insert_spent_credential(&blinded_serial_number, &client_address.as_base58_string())
             .await?;
         Ok(())
     }
@@ -597,7 +591,6 @@ impl Storage for InMemStorage {
     async fn insert_spent_credential(
         &self,
         _blinded_serial_number: String,
-        _was_freepass: bool,
         _client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
         todo!()

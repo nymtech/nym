@@ -30,8 +30,7 @@ use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 pub mod error;
 pub mod routes;
 
-use nym_api_requests::coconut::models::{FreePassNonceResponse, VerifyEcashCredentialResponse};
-use nym_api_requests::coconut::FreePassRequest;
+use nym_api_requests::coconut::models::VerifyEcashCredentialResponse;
 use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
 pub use nym_http_api_client::Client;
 
@@ -417,36 +416,6 @@ pub trait NymApiClientExt: ApiClient {
                 routes::AVG_UPTIME,
             ],
             NO_PARAMS,
-        )
-        .await
-    }
-
-    async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_FREE_PASS_NONCE,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    async fn free_pass(
-        &self,
-        request: &FreePassRequest,
-    ) -> Result<BlindedSignatureResponse, NymAPIError> {
-        self.post_json(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_FREE_PASS,
-            ],
-            NO_PARAMS,
-            request,
         )
         .await
     }

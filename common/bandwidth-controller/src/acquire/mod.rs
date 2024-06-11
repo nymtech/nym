@@ -4,7 +4,7 @@
 use crate::error::BandwidthControllerError;
 use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::{CredentialType, IssuanceBandwidthCredential};
+use nym_credentials::coconut::bandwidth::IssuanceTicketBook;
 use nym_credentials::coconut::utils::{
     obtain_aggregate_wallet, obtain_coin_indices_signatures, obtain_expiration_date_signatures,
     signatures_to_string,
@@ -30,11 +30,7 @@ where
     let signing_key = identity::PrivateKey::new(&mut rng);
 
     let raw_deposit_id = client
-        .deposit(
-            CredentialType::TicketBook.to_string(),
-            signing_key.public_key().to_base58_string(),
-            None,
-        )
+        .make_ticketbook_deposit(signing_key.public_key().to_base58_string(), None)
         .await?
         .data;
 
@@ -45,7 +41,7 @@ where
     #[allow(clippy::unwrap_used)]
     let deposit_id = DepositId::from_be_bytes(raw_deposit_id.try_into().unwrap());
 
-    let voucher = IssuanceBandwidthCredential::new_voucher(deposit_id, client_id, signing_key);
+    let voucher = IssuanceTicketBook::new(deposit_id, client_id, signing_key);
 
     let state = State { voucher };
 
@@ -62,9 +58,6 @@ where
     St: Storage,
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
-    // temporary
-    assert!(state.voucher.typ().is_ticketbook());
-
     let epoch_id = client.get_current_epoch().await?.epoch_id;
     let threshold = client
         .get_current_epoch_threshold()
@@ -117,7 +110,6 @@ where
     let storable = StorableIssuedCredential {
         serialization_revision: issued.current_serialization_revision(),
         credential_data: credential_data.as_ref(),
-        credential_type: issued.typ().to_string(),
         epoch_id: epoch_id
             .try_into()
             .expect("our epoch id has run over u32::MAX!"),

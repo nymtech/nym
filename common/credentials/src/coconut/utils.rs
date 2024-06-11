@@ -1,7 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coconut::bandwidth::IssuanceBandwidthCredential;
+use crate::coconut::bandwidth::IssuanceTicketBook;
 use crate::error::Error;
 use log::{debug, warn};
 use nym_credentials_interface::{
@@ -19,12 +19,7 @@ pub fn today() -> OffsetDateTime {
 
 pub fn cred_exp_date() -> OffsetDateTime {
     //count today as well
-    today() + Duration::days(constants::CRED_VALIDITY_PERIOD as i64 - 1)
-}
-
-pub fn freepass_exp_date() -> OffsetDateTime {
-    //count today as well
-    today() + Duration::days(nym_network_defaults::FREEPASS_VALIDITY_PERIOD as i64 - 1)
+    today() + Duration::days(constants::CRED_VALIDITY_PERIOD_DAYS as i64 - 1)
 }
 
 pub fn obtain_aggregate_verification_key(
@@ -138,7 +133,7 @@ pub async fn obtain_coin_indices_signatures(
 }
 
 pub async fn obtain_aggregate_wallet(
-    voucher: &IssuanceBandwidthCredential,
+    voucher: &IssuanceTicketBook,
     ecash_api_clients: &[CoconutApiClient],
     threshold: u64,
 ) -> Result<Wallet, Error> {

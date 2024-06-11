@@ -77,7 +77,7 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     if config.host.public_ips.is_empty() {
         return Err(NymNodeError::NoPublicIps);
     }
-    check_public_ips(&config.host.public_ips, local);
+    check_public_ips(&config.host.public_ips, local)?;
 
     let nym_node = NymNode::new(config).await?;
 

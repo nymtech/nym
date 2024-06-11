@@ -18,6 +18,17 @@ pub(crate) struct Args {
     #[clap(flatten)]
     pub(crate) config: ConfigArgs,
 
+    /// Explicitly specify whether you agree with the terms and conditions of a nym node operator
+    /// as defined at <https://nymtech.net/terms-and-conditions/operators/v1.0.0>
+    #[clap(
+        long,
+        env = NYMNODE_ACCEPT_TOC,
+        alias = "accept-toc",
+        alias = "accept-t&c",
+        alias = "accept-operator-terms-and-conditions"
+    )]
+    pub(crate) accept_operator_terms: bool,
+
     /// Forbid a new node from being initialised if configuration file for the provided specification doesn't already exist
     #[clap(
         long,

@@ -293,6 +293,8 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
 
 pub(crate) struct NymNode {
     config: Config,
+    accepted_toc: bool,
+
     description: NodeDescription,
 
     // TODO: currently we're only making measurements in 'mixnode' mode; this should be changed
@@ -392,7 +394,13 @@ impl NymNode {
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
             wireguard: wireguard_data,
             config,
+            accepted_toc: false,
         })
+    }
+
+    pub(crate) fn with_accepted_toc(mut self, accepted_toc: bool) -> Self {
+        self.accepted_toc = accepted_toc;
+        self
     }
 
     fn exit_network_requester_address(&self) -> Recipient {
@@ -530,6 +538,7 @@ impl NymNode {
 
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
             location: self.config.host.location,
+            accepted_toc: self.accepted_toc,
         };
 
         // mixnode info

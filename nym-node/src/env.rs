@@ -18,6 +18,8 @@ pub mod vars {
 
     pub const NYMNODE_MODE_ARG: &str = "NYMNODE_MODE";
 
+    pub const NYMNODE_ACCEPT_TOC: &str = "NYMNODE_ACCEPT_TOC";
+
     // host:
     pub const NYMNODE_PUBLIC_IPS_ARG: &str = "NYMNODE_PUBLIC_IPS";
     pub const NYMNODE_HOSTNAME_ARG: &str = "NYMNODE_HOSTNAME";

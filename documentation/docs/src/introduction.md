@@ -18,9 +18,9 @@ If you're specifically looking for TypeScript/JavaScript related information suc
 * [Rust SDK](sdk/rust/rust.md)
 
 **Nyx**
-* [Interacting with the Nyx chain](./nyx/interacting-with-chain.md)
-* [Ledger Live setup](./nyx/ledger-live.md)
-* [RPC Node](./nyx/rpc-node.md)
+* [Interacting with the Nyx chain](../../dev-portal/src/nyx/interacting-with-chain.md)
+* [Ledger Live setup](../../dev-portal/src/nyx/ledger-live.md)
+* [RPC Node](../../dev-portal/src/nyx/rpc-node.md)
 
 **Client setup and usage guides:**
 * [Websocket client](./clients/websocket-client.md)

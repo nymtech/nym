@@ -52,9 +52,6 @@ pub(crate) struct Args {
     /// default: None - config value will be used instead
     #[clap(long)]
     pub(crate) monitor_credentials_mode: Option<bool>,
-    // /// Ephemera configuration arguments.
-    // #[command(flatten)]
-    // pub(crate) ephemera_args: ephemera::cli::init::Cmd,
 }
 
 pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {

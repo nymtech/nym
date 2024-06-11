@@ -24,7 +24,6 @@ pub const MULTISIG_CONTRACT_ADDRESS: &str =
     "n1txayqfz5g9qww3rlflpg025xd26m9payz96u54x4fe3s2ktz39xqk67gzx";
 pub const COCONUT_DKG_CONTRACT_ADDRESS: &str =
     "n19604yflqggs9mk2z26mqygq43q2kr3n932egxx630svywd5mpxjsztfpvx";
-pub const EPHEMERA_CONTRACT_ADDRESS: &str = "";
 
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
@@ -108,10 +107,6 @@ pub fn export_to_env() {
         COCONUT_DKG_CONTRACT_ADDRESS,
     );
     set_var_to_default(
-        var_names::EPHEMERA_CONTRACT_ADDRESS,
-        EPHEMERA_CONTRACT_ADDRESS,
-    );
-    set_var_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
@@ -155,10 +150,6 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(
         var_names::COCONUT_DKG_CONTRACT_ADDRESS,
         COCONUT_DKG_CONTRACT_ADDRESS,
-    );
-    set_var_conditionally_to_default(
-        var_names::EPHEMERA_CONTRACT_ADDRESS,
-        EPHEMERA_CONTRACT_ADDRESS,
     );
     set_var_conditionally_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,

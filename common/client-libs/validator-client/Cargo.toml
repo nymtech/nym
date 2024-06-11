@@ -14,7 +14,6 @@ colored = { workspace = true }
 
 nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
-nym-ephemera-common = { path = "../../cosmwasm-smart-contracts/ephemera" }
 nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
@@ -22,7 +21,7 @@ nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-nym-http-api-client = { path = "../../../common/http-api-client"}
+nym-http-api-client = { path = "../../../common/http-api-client" }
 thiserror = { workspace = true }
 log = { workspace = true }
 url = { workspace = true, features = ["serde"] }

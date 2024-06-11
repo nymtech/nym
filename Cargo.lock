@@ -3940,6 +3940,7 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-node-requests",
+ "rocket",
  "schemars",
  "serde",
  "serde_json",

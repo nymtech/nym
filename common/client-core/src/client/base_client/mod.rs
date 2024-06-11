@@ -25,7 +25,7 @@ use crate::client::replies::reply_storage::{
 };
 use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
-    TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
+    nym_api_provider, TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
@@ -388,7 +388,10 @@ where
 
             let cfg = GatewayConfig::new(
                 details.gateway_id,
-                Some(details.gateway_owner_address.to_string()),
+                details
+                    .gateway_owner_address
+                    .as_ref()
+                    .map(|o| o.to_string()),
                 gateway_listener,
             );
             GatewayClient::new(
@@ -462,12 +465,16 @@ where
 
     fn setup_topology_provider(
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-        provider_from_config: config::TopologyStructure,
+        config_topology: config::Topology,
         nym_api_urls: Vec<Url>,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
-        custom_provider.unwrap_or_else(|| match provider_from_config {
+        custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
             config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
+                nym_api_provider::Config {
+                    min_mixnode_performance: config_topology.minimum_mixnode_performance,
+                    min_gateway_performance: config_topology.minimum_gateway_performance,
+                },
                 nym_api_urls,
                 env!("CARGO_PKG_VERSION").to_string(),
             )),
@@ -680,7 +687,7 @@ where
 
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
-            self.config.debug.topology.topology_structure,
+            self.config.debug.topology,
             self.config.get_nym_api_endpoints(),
         );
 

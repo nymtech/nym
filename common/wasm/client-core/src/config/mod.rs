@@ -362,6 +362,14 @@ pub struct TopologyWasm {
     /// the first valid instance.
     /// Supersedes `topology_refresh_rate_ms`.
     pub disable_refreshing: bool,
+
+    /// Specifies a minimum performance of a mixnode that is used on route construction.
+    /// This setting is only applicable when `NymApi` topology is used.
+    pub minimum_mixnode_performance: u8,
+
+    /// Specifies a minimum performance of a gateway that is used on route construction.
+    /// This setting is only applicable when `NymApi` topology is used.
+    pub minimum_gateway_performance: u8,
 }
 
 impl Default for TopologyWasm {
@@ -382,6 +390,8 @@ impl From<TopologyWasm> for ConfigTopology {
                 topology.max_startup_gateway_waiting_period_ms as u64,
             ),
             topology_structure: Default::default(),
+            minimum_mixnode_performance: topology.minimum_mixnode_performance,
+            minimum_gateway_performance: topology.minimum_gateway_performance,
         }
     }
 }
@@ -395,6 +405,8 @@ impl From<ConfigTopology> for TopologyWasm {
                 .max_startup_gateway_waiting_period
                 .as_millis() as u32,
             disable_refreshing: topology.disable_refreshing,
+            minimum_mixnode_performance: topology.minimum_mixnode_performance,
+            minimum_gateway_performance: topology.minimum_gateway_performance,
         }
     }
 }

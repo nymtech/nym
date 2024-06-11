@@ -197,7 +197,7 @@ impl NymNodeTesterBuilder {
             } else {
                 let cfg = GatewayConfig::new(
                     gateway_info.gateway_id,
-                    Some(gateway_info.gateway_owner_address.to_string()),
+                    gateway_info.gateway_owner_address.map(|a| a.to_string()),
                     gateway_info.gateway_listener.to_string(),
                 );
                 GatewayClient::new(

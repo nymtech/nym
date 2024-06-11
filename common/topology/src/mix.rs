@@ -8,6 +8,9 @@ use nym_mixnet_contract_common::{MixId, MixNodeBond};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
 
+use nym_api_requests::nym_nodes::{NodeRole, SkimmedNode};
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::fmt::Formatter;
 use std::io;
 use std::net::SocketAddr;
@@ -27,12 +30,20 @@ pub enum MixnodeConversionError {
         #[source]
         source: io::Error,
     },
+
+    #[error("invalid mix layer")]
+    InvalidLayer,
+
+    #[error("'{mixnode}' has not provided any valid ip addresses")]
+    NoIpAddressesProvided { mixnode: String },
+
+    #[error("provided node is not a mixnode in this epoch!")]
+    NotMixnode,
 }
 
 #[derive(Clone)]
 pub struct Node {
     pub mix_id: MixId,
-    pub owner: String,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
@@ -40,7 +51,10 @@ pub struct Node {
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub layer: Layer,
+
+    // to be removed:
     pub version: NodeVersion,
+    pub owner: Option<String>,
 }
 
 impl std::fmt::Debug for Node {
@@ -60,11 +74,9 @@ impl std::fmt::Debug for Node {
 
 impl Node {
     pub fn parse_host(raw: &str) -> Result<NetworkAddress, MixnodeConversionError> {
-        raw.parse()
-            .map_err(|err| MixnodeConversionError::InvalidAddress {
-                value: raw.to_owned(),
-                source: err,
-            })
+        // safety: this conversion is infallible
+        // (but we retain result return type for legacy reasons)
+        Ok(raw.parse().unwrap())
     }
 
     pub fn extract_mix_host(
@@ -109,13 +121,49 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
 
         Ok(Node {
             mix_id: bond.mix_id,
-            owner: bond.owner.as_str().to_owned(),
+            owner: Some(bond.owner.as_str().to_owned()),
             host,
             mix_host,
             identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
             layer: bond.layer,
             version: bond.mix_node.version.as_str().into(),
+        })
+    }
+}
+
+impl<'a> TryFrom<&'a SkimmedNode> for Node {
+    type Error = MixnodeConversionError;
+
+    fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
+        if value.ip_addresses.is_empty() {
+            return Err(MixnodeConversionError::NoIpAddressesProvided {
+                mixnode: value.ed25519_identity_pubkey.clone(),
+            });
+        }
+
+        let layer = match value.role {
+            NodeRole::Mixnode { layer } => layer
+                .try_into()
+                .map_err(|_| MixnodeConversionError::InvalidLayer)?,
+            _ => return Err(MixnodeConversionError::NotMixnode),
+        };
+
+        // safety: we just checked the slice is not empty
+        #[allow(clippy::unwrap_used)]
+        let ip = value.ip_addresses.choose(&mut thread_rng()).unwrap();
+
+        let host = NetworkAddress::IpAddr(*ip);
+
+        Ok(Node {
+            mix_id: value.node_id,
+            host,
+            mix_host: SocketAddr::new(*ip, value.mix_port),
+            identity_key: value.ed25519_identity_pubkey.parse()?,
+            sphinx_key: value.x25519_sphinx_pubkey.parse()?,
+            layer,
+            owner: None,
+            version: NodeVersion::Unknown,
         })
     }
 }

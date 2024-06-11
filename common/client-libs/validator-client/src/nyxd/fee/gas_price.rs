@@ -140,6 +140,6 @@ mod tests {
 
         let fee = &gas_price * gas_limit;
         // the failing behaviour was result value of 3937
-        assert_eq!(fee.amount, 3938u64.into());
+        assert_eq!(fee.amount, 3938u128);
     }
 }

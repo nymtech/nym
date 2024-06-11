@@ -6,7 +6,7 @@
 
 use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
-use log::warn;
+use log::{debug, warn};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -14,6 +14,7 @@ use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::SliceRandom;
 use rand::{CryptoRng, Rng};
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 
 use std::fmt::{self, Display, Formatter};
 use std::io;
@@ -93,7 +94,7 @@ impl NetworkAddress {
 }
 
 impl FromStr for NetworkAddress {
-    type Err = std::io::Error;
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(ip_addr) = s.parse() {
@@ -135,6 +136,38 @@ impl NymTopology {
         }
 
         NymTopology { mixes, gateways }
+    }
+
+    pub fn from_unordered<MI, GI, M, G>(unordered_mixes: MI, unordered_gateways: GI) -> Self
+    where
+        MI: Iterator<Item = M>,
+        GI: Iterator<Item = G>,
+        G: TryInto<gateway::Node>,
+        M: TryInto<mix::Node>,
+        <G as TryInto<gateway::Node>>::Error: Display,
+        <M as TryInto<mix::Node>>::Error: Display,
+    {
+        let mut mixes = BTreeMap::new();
+        let mut gateways = Vec::new();
+
+        for node in unordered_mixes.into_iter() {
+            match node.try_into() {
+                Ok(mixnode) => mixes
+                    .entry(mixnode.layer as MixLayer)
+                    .or_insert_with(Vec::new)
+                    .push(mixnode),
+                Err(err) => debug!("malformed mixnode: {err}"),
+            }
+        }
+
+        for node in unordered_gateways.into_iter() {
+            match node.try_into() {
+                Ok(gateway) => gateways.push(gateway),
+                Err(err) => debug!("malformed gateway: {err}"),
+            }
+        }
+
+        NymTopology::new(mixes, gateways)
     }
 
     #[cfg(feature = "serializable")]
@@ -491,7 +524,7 @@ mod converting_mixes_to_vec {
         fn returns_a_vec_with_hashmap_values() {
             let node1 = mix::Node {
                 mix_id: 42,
-                owner: "N/A".to_string(),
+                owner: Some("N/A".to_string()),
                 host: "3.3.3.3".parse().unwrap(),
                 mix_host: "3.3.3.3:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -507,12 +540,12 @@ mod converting_mixes_to_vec {
             };
 
             let node2 = mix::Node {
-                owner: "Alice".to_string(),
+                owner: Some("Alice".to_string()),
                 ..node1.clone()
             };
 
             let node3 = mix::Node {
-                owner: "Bob".to_string(),
+                owner: Some("Bob".to_string()),
                 ..node1.clone()
             };
 
@@ -522,7 +555,9 @@ mod converting_mixes_to_vec {
 
             let topology = NymTopology::new(mixes, vec![]);
             let mixvec = topology.mixes_as_vec();
-            assert!(mixvec.iter().any(|node| node.owner == "N/A"));
+            assert!(mixvec
+                .iter()
+                .any(|node| node.owner.as_ref() == Some(&"N/A".to_string())));
         }
     }
 

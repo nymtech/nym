@@ -103,6 +103,12 @@ impl NodeStatusCache {
         }
     }
 
+    pub(crate) async fn active_mixnodes_cache(
+        &self,
+    ) -> Option<RwLockReadGuard<Cache<Vec<MixNodeBondAnnotated>>>> {
+        self.get(|c| &c.active_set_annotated).await
+    }
+
     pub(crate) async fn mixnodes_annotated_full(&self) -> Option<Vec<MixNodeBondAnnotated>> {
         let mixnodes = self.get(|c| &c.mixnodes_annotated).await?;
 
@@ -128,6 +134,12 @@ impl NodeStatusCache {
     pub(crate) async fn active_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
         self.get_owned(|c| c.active_set_annotated.clone_cache())
             .await
+    }
+
+    pub(crate) async fn gateways_cache(
+        &self,
+    ) -> Option<RwLockReadGuard<Cache<HashMap<IdentityKey, GatewayBondAnnotated>>>> {
+        self.get(|c| &c.gateways_annotated).await
     }
 
     pub(crate) async fn gateways_annotated_full(&self) -> Option<Vec<GatewayBondAnnotated>> {

@@ -9,7 +9,10 @@ use nym_mixnet_contract_common::{reward_params::Performance, Interval, MixId};
 use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
 };
+use nym_topology::NetworkAddress;
 use std::collections::{HashMap, HashSet};
+use std::net::ToSocketAddrs;
+use std::str::FromStr;
 
 pub(super) fn to_rewarded_set_node_status(
     rewarded_set: &[MixNodeDetails],
@@ -131,6 +134,22 @@ pub(super) async fn annotate_nodes_with_details(
         }
         .unwrap_or_default();
 
+        // safety: this conversion is infallible
+        let ip_addresses =
+            match NetworkAddress::from_str(&mixnode.bond_information.mix_node.host).unwrap() {
+                NetworkAddress::IpAddr(ip) => vec![ip],
+                NetworkAddress::Hostname(hostname) => {
+                    // try to resolve it
+                    (
+                        hostname.as_str(),
+                        mixnode.bond_information.mix_node.mix_port,
+                    )
+                        .to_socket_addrs()
+                        .map(|iter| iter.map(|s| s.ip()).collect::<Vec<_>>())
+                        .unwrap_or_default()
+                }
+            };
+
         let (estimated_operator_apy, estimated_delegators_apy) =
             compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
 
@@ -150,6 +169,7 @@ pub(super) async fn annotate_nodes_with_details(
                 estimated_operator_apy,
                 estimated_delegators_apy,
                 family,
+                ip_addresses,
             },
         );
     }
@@ -183,6 +203,18 @@ pub(crate) async fn annotate_gateways_with_details(
         }
         .unwrap_or_default();
 
+        // safety: this conversion is infallible
+        let ip_addresses = match NetworkAddress::from_str(&gateway_bond.gateway.host).unwrap() {
+            NetworkAddress::IpAddr(ip) => vec![ip],
+            NetworkAddress::Hostname(hostname) => {
+                // try to resolve it
+                (hostname.as_str(), gateway_bond.gateway.mix_port)
+                    .to_socket_addrs()
+                    .map(|iter| iter.map(|s| s.ip()).collect::<Vec<_>>())
+                    .unwrap_or_default()
+            }
+        };
+
         annotated.insert(
             gateway_bond.identity().to_string(),
             GatewayBondAnnotated {
@@ -191,6 +223,7 @@ pub(crate) async fn annotate_gateways_with_details(
                 self_described: None,
                 performance,
                 node_performance,
+                ip_addresses,
             },
         );
     }

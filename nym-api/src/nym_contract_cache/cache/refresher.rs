@@ -66,9 +66,11 @@ impl NymContractCacheRefresher {
             (multisig, "nym-cw3-multisig-contract"),
         ] {
             let (cw2, build_info) = if let Some(address) = address {
-                let cw2 = query_guard!(client_guard, get_cw2_contract_version(address).await)?;
-                let mut build_info =
-                    query_guard!(client_guard, get_contract_build_information(address).await)?;
+                let cw2 = query_guard!(client_guard, try_get_cw2_contract_version(address).await);
+                let mut build_info = query_guard!(
+                    client_guard,
+                    try_get_contract_build_information(address).await
+                );
 
                 // for backwards compatibility until we migrate the contracts
                 if build_info.is_none() {

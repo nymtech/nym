@@ -331,29 +331,31 @@ where
             .map(|block| block.block_id.hash)
     }
 
-    pub async fn get_cw2_contract_version(
+    pub async fn try_get_cw2_contract_version(
         &self,
         contract_address: &AccountId,
-    ) -> Result<Option<cw2::ContractVersion>, NyxdError> {
+    ) -> Option<cw2::ContractVersion> {
         let raw_info = self
             .query_contract_raw(contract_address, b"contract_info".to_vec())
-            .await?;
+            .await
+            .ok()?;
 
-        Ok(serde_json::from_slice(&raw_info).ok())
+        serde_json::from_slice(&raw_info).ok()
     }
 
-    pub async fn get_contract_build_information(
+    pub async fn try_get_contract_build_information(
         &self,
         contract_address: &AccountId,
-    ) -> Result<Option<ContractBuildInformation>, NyxdError> {
+    ) -> Option<ContractBuildInformation> {
         let raw_info = self
             .query_contract_raw(
                 contract_address,
                 CONTRACT_BUILD_INFO_STORAGE_KEY.as_bytes().to_vec(),
             )
-            .await?;
+            .await
+            .ok()?;
 
-        Ok(serde_json::from_slice(&raw_info).ok())
+        serde_json::from_slice(&raw_info).ok()
     }
 }
 

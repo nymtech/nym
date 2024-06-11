@@ -10,8 +10,8 @@ homepage = "https://cosmwasm.com"
 documentation = "https://docs.cosmwasm.com"
 
 exclude = [
-  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
-  "artifacts/*",
+    # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
+    "artifacts/*",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -31,6 +31,7 @@ library = []
 
 [dependencies]
 nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
+nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
 
 cw-utils = { workspace = true }
 cw2 = { workspace = true }

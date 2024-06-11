@@ -34,7 +34,8 @@ cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
 
 nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
-nym-multisig-contract-common = { path= "../../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-multisig-contract-common = { path = "../../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
 
 [dev-dependencies]
 cw4-group = { path = "../cw4-group", version = "1.0.0" }

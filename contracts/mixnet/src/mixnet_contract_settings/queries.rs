@@ -4,6 +4,7 @@
 use super::storage;
 use cosmwasm_std::{Deps, StdResult};
 use mixnet_contract_common::{ContractBuildInformation, ContractState, ContractStateParams};
+use nym_contracts_common::get_build_information;
 
 pub(crate) fn query_contract_state(deps: Deps<'_>) -> StdResult<ContractState> {
     storage::CONTRACT_STATE.load(deps.storage)
@@ -22,21 +23,7 @@ pub(crate) fn query_rewarding_validator_address(deps: Deps<'_>) -> StdResult<Str
 }
 
 pub(crate) fn query_contract_version() -> ContractBuildInformation {
-    // as per docs
-    // env! macro will expand to the value of the named environment variable at
-    // compile time, yielding an expression of type `&'static str`
-    ContractBuildInformation {
-        build_timestamp: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
-        build_version: env!("VERGEN_BUILD_SEMVER").to_string(),
-        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("NONE").to_string(),
-        commit_timestamp: option_env!("VERGEN_GIT_COMMIT_TIMESTAMP")
-            .unwrap_or("NONE")
-            .to_string(),
-        commit_branch: option_env!("VERGEN_GIT_BRANCH")
-            .unwrap_or("NONE")
-            .to_string(),
-        rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
-    }
+    get_build_information!()
 }
 
 #[cfg(test)]

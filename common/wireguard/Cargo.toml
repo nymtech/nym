@@ -25,3 +25,4 @@ nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
+tokio-stream = { workspace = true }

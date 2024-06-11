@@ -5750,6 +5750,7 @@ dependencies = [
  "nym-task",
  "nym-wireguard-types",
  "tokio",
+ "tokio-stream",
  "x25519-dalek",
 ]
 

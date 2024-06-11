@@ -88,6 +88,14 @@ pub enum IpPacketRouterError {
 
     #[error(transparent)]
     NymIdError(#[from] NymIdError),
+
+    #[error("received empty packet")]
+    EmptyPacket,
+
+    #[error("failed to verify request: {source}")]
+    FailedToVerifyRequest {
+        source: nym_ip_packet_requests::v7::signature::SignatureError,
+    },
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

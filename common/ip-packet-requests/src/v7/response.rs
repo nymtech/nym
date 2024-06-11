@@ -1,7 +1,9 @@
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 
-use crate::{make_bincode_serializer, IpPair, CURRENT_VERSION};
+use crate::{make_bincode_serializer, IpPair};
+
+use super::VERSION;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IpPacketResponse {
@@ -12,7 +14,7 @@ pub struct IpPacketResponse {
 impl IpPacketResponse {
     pub fn new_static_connect_success(request_id: u64, reply_to: Recipient) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
                 request_id,
                 reply_to,
@@ -27,7 +29,7 @@ impl IpPacketResponse {
         reason: StaticConnectFailureReason,
     ) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
                 request_id,
                 reply_to,
@@ -38,7 +40,7 @@ impl IpPacketResponse {
 
     pub fn new_dynamic_connect_success(request_id: u64, reply_to: Recipient, ips: IpPair) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
                 request_id,
                 reply_to,
@@ -53,7 +55,7 @@ impl IpPacketResponse {
         reason: DynamicConnectFailureReason,
     ) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
                 request_id,
                 reply_to,
@@ -64,7 +66,7 @@ impl IpPacketResponse {
 
     pub fn new_disconnect_success(request_id: u64, reply_to: Recipient) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::Disconnect(DisconnectResponse {
                 request_id,
                 reply_to,
@@ -79,7 +81,7 @@ impl IpPacketResponse {
         reason: DisconnectFailureReason,
     ) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::Disconnect(DisconnectResponse {
                 request_id,
                 reply_to,
@@ -93,7 +95,7 @@ impl IpPacketResponse {
         reason: UnrequestedDisconnectReason,
     ) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::UnrequestedDisconnect(UnrequestedDisconnect {
                 reply_to,
                 reason,
@@ -103,7 +105,7 @@ impl IpPacketResponse {
 
     pub fn new_ip_packet(ip_packet: bytes::Bytes) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::Data(DataResponse { ip_packet }),
         }
     }
@@ -115,7 +117,7 @@ impl IpPacketResponse {
         our_version: u8,
     ) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::Info(InfoResponse {
                 request_id,
                 reply_to,
@@ -134,7 +136,7 @@ impl IpPacketResponse {
         level: InfoLevel,
     ) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::Info(InfoResponse {
                 request_id: 0,
                 reply_to,
@@ -146,7 +148,7 @@ impl IpPacketResponse {
 
     pub fn new_pong(request_id: u64, reply_to: Recipient) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::Pong(PongResponse {
                 request_id,
                 reply_to,
@@ -161,7 +163,7 @@ impl IpPacketResponse {
         routable: Option<bool>,
     ) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketResponseData::Health(HealthResponse {
                 request_id,
                 reply_to,
@@ -275,6 +277,8 @@ pub enum StaticConnectFailureReason {
     RequestedIpAlreadyInUse,
     #[error("requested nym-address is already in use")]
     RequestedNymAddressAlreadyInUse,
+    #[error("request timestamp is out of date")]
+    OutOfDateTimestamp,
     #[error("{0}")]
     Other(String),
 }

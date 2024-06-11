@@ -1,8 +1,14 @@
+use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
-use crate::{make_bincode_serializer, IpPair, CURRENT_VERSION};
+use crate::{make_bincode_serializer, IpPair};
+
+use super::{
+    signature::{SignatureError, SignedRequest},
+    VERSION,
+};
 
 fn generate_random() -> u64 {
     use rand::RngCore;
@@ -27,7 +33,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::StaticConnect(SignedStaticConnectRequest {
                     request: StaticConnectRequest {
                         request_id,
@@ -54,7 +60,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::DynamicConnect(SignedDynamicConnectRequest {
                     request: DynamicConnectRequest {
                         request_id,
@@ -75,7 +81,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::Disconnect(SignedDisconnectRequest {
                     request: DisconnectRequest {
                         request_id,
@@ -91,7 +97,7 @@ impl IpPacketRequest {
 
     pub fn new_data_request(ip_packets: bytes::Bytes) -> Self {
         Self {
-            version: CURRENT_VERSION,
+            version: VERSION,
             data: IpPacketRequestData::Data(DataRequest { ip_packets }),
         }
     }
@@ -100,7 +106,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::Ping(PingRequest {
                     request_id,
                     reply_to,
@@ -115,7 +121,7 @@ impl IpPacketRequest {
         let request_id = generate_random();
         (
             Self {
-                version: CURRENT_VERSION,
+                version: VERSION,
                 data: IpPacketRequestData::Health(HealthRequest {
                     request_id,
                     reply_to,
@@ -173,19 +179,19 @@ pub enum IpPacketRequestData {
 }
 
 impl IpPacketRequestData {
-    pub fn add_signature(&mut self, signature: Vec<u8>) -> Option<Vec<u8>> {
+    pub fn add_signature(&mut self, signature: identity::Signature) -> Option<identity::Signature> {
         match self {
             IpPacketRequestData::StaticConnect(request) => {
                 request.signature = Some(signature);
-                request.signature.clone()
+                request.signature
             }
             IpPacketRequestData::DynamicConnect(request) => {
                 request.signature = Some(signature);
-                request.signature.clone()
+                request.signature
             }
             IpPacketRequestData::Disconnect(request) => {
                 request.signature = Some(signature);
-                request.signature.clone()
+                request.signature
             }
             IpPacketRequestData::Data(_)
             | IpPacketRequestData::Ping(_)
@@ -231,7 +237,30 @@ impl StaticConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedStaticConnectRequest {
     pub request: StaticConnectRequest,
-    pub signature: Option<Vec<u8>>,
+    pub signature: Option<identity::Signature>,
+}
+
+impl SignedRequest for SignedStaticConnectRequest {
+    fn identity(&self) -> &identity::PublicKey {
+        self.request.reply_to.identity()
+    }
+
+    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+        self.request
+            .to_bytes()
+            .map_err(|error| SignatureError::RequestSerializationError {
+                message: "failed to serialize request to binary".to_string(),
+                error,
+            })
+    }
+
+    fn signature(&self) -> Option<&identity::Signature> {
+        self.signature.as_ref()
+    }
+
+    fn timestamp(&self) -> OffsetDateTime {
+        self.request.timestamp
+    }
 }
 
 // A dynamic connect request is when the client does not provide the internal IP address it will use
@@ -269,7 +298,30 @@ impl DynamicConnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDynamicConnectRequest {
     pub request: DynamicConnectRequest,
-    pub signature: Option<Vec<u8>>,
+    pub signature: Option<identity::Signature>,
+}
+
+impl SignedRequest for SignedDynamicConnectRequest {
+    fn identity(&self) -> &identity::PublicKey {
+        self.request.reply_to.identity()
+    }
+
+    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+        self.request
+            .to_bytes()
+            .map_err(|error| SignatureError::RequestSerializationError {
+                message: "failed to serialize request to binary".to_string(),
+                error,
+            })
+    }
+
+    fn signature(&self) -> Option<&identity::Signature> {
+        self.signature.as_ref()
+    }
+
+    fn timestamp(&self) -> OffsetDateTime {
+        self.request.timestamp
+    }
 }
 
 // A disconnect request is when the client wants to disconnect from the ip packet router and free
@@ -295,7 +347,30 @@ impl DisconnectRequest {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SignedDisconnectRequest {
     pub request: DisconnectRequest,
-    pub signature: Option<Vec<u8>>,
+    pub signature: Option<identity::Signature>,
+}
+
+impl SignedRequest for SignedDisconnectRequest {
+    fn identity(&self) -> &identity::PublicKey {
+        self.request.reply_to.identity()
+    }
+
+    fn request(&self) -> Result<Vec<u8>, SignatureError> {
+        self.request
+            .to_bytes()
+            .map_err(|error| SignatureError::RequestSerializationError {
+                message: "failed to serialize request to binary".to_string(),
+                error,
+            })
+    }
+
+    fn signature(&self) -> Option<&identity::Signature> {
+        self.signature.as_ref()
+    }
+
+    fn timestamp(&self) -> OffsetDateTime {
+        self.request.timestamp
+    }
 }
 
 // A data request is when the client wants to send an IP packet to a destination.

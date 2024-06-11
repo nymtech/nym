@@ -62,10 +62,9 @@ Quite a bit of stuff gets built. The key working parts are:
 * [nym-cli tool](https://nymtech.net/docs/tools/nym-cli.html): `nym-cli`
 * [nym-api](../nodes/nym-api.md): `nym-api`
 * [nymvisor](../nodes/nymvisor-upgrade.md): `nymvisor`
- 
+
 The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
 * [Nym Wallet](https://nymtech.net/docs/wallet/desktop-wallet.html)
-* [Nym Connect](https://nymtech.net/developers/quickstart/nymconnect-gui.html)
 * [Network Explorer UI](https://nymtech.net/docs/explorers/mixnet-explorer.html)
 
 > You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.

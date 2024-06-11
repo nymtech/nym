@@ -15,7 +15,6 @@
 - [Chat demo (webapp)](quickstart/chat-demo.md)
 - [Coconut Credential Playground (webapp)](quickstart/cred-playground.md)
 - [SOCKS Proxy (CLI)](quickstart/socks-proxy.md)
-- [NymConnect Beta (GUI)](quickstart/nymconnect-gui.md)
 
 # User Manuals
 
@@ -72,11 +71,13 @@
 [//]: # (- [A Note on Infrastructure]&#40;shipyard/infra.md&#41;)
 [//]: # (- [Submission Guidelines]&#40;shipyard/guidelines.md&#41;)
 
+<!-- Commenting out as a lot of the stuff is deprecated, can be purged as a part of the large overhaul
 # Events
 
 - [Web3Privacy Now](./events/web3-privacy.md)
 - [HCPP23-serinko](./events/hcpp23-serinko.md)
 - [HCPP23-max](./events/hcpp23-max.md)
+-->
 
 # FAQ
 - [General](faq/general-faq.md)

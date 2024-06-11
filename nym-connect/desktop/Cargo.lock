@@ -4184,19 +4184,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-name-service-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "nym-contracts-common",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
@@ -4270,18 +4257,6 @@ name = "nym-pemstore"
 version = "0.3.0"
 dependencies = [
  "pem",
-]
-
-[[package]]
-name = "nym-service-provider-directory-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "nym-contracts-common",
- "thiserror",
 ]
 
 [[package]]
@@ -4570,9 +4545,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-network-defaults",
- "nym-service-provider-directory-common",
  "nym-vesting-contract-common",
  "prost",
  "reqwest 0.12.4",

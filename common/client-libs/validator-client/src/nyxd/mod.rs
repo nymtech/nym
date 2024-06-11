@@ -246,12 +246,6 @@ impl<C, S> NyxdClient<C, S> {
         self.config.contracts.multisig_contract_address = Some(address);
     }
 
-    pub fn set_service_provider_contract_address(&mut self, address: AccountId) {
-        self.config
-            .contracts
-            .service_provider_directory_contract_address = Some(address);
-    }
-
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.config.simulated_gas_multiplier = multiplier;
     }
@@ -287,17 +281,6 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
 
     fn ephemera_contract_address(&self) -> Option<&AccountId> {
         self.config.contracts.ephemera_contract_address.as_ref()
-    }
-
-    fn name_service_contract_address(&self) -> Option<&AccountId> {
-        self.config.contracts.name_service_contract_address.as_ref()
-    }
-
-    fn service_provider_contract_address(&self) -> Option<&AccountId> {
-        self.config
-            .contracts
-            .service_provider_directory_contract_address
-            .as_ref()
     }
 }
 

@@ -14,8 +14,6 @@ pub mod ephemera_query_client;
 pub mod group_query_client;
 pub mod mixnet_query_client;
 pub mod multisig_query_client;
-pub mod name_service_query_client;
-pub mod sp_directory_query_client;
 pub mod vesting_query_client;
 
 // signing clients
@@ -25,8 +23,6 @@ pub mod ephemera_signing_client;
 pub mod group_signing_client;
 pub mod mixnet_signing_client;
 pub mod multisig_signing_client;
-pub mod name_service_signing_client;
-pub mod sp_directory_signing_client;
 pub mod vesting_signing_client;
 
 // re-export query traits
@@ -38,8 +34,6 @@ pub use ephemera_query_client::{EphemeraQueryClient, PagedEphemeraQueryClient};
 pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
 pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
-pub use name_service_query_client::{NameServiceQueryClient, PagedNameServiceQueryClient};
-pub use sp_directory_query_client::{PagedSpDirectoryQueryClient, SpDirectoryQueryClient};
 pub use vesting_query_client::{PagedVestingQueryClient, VestingQueryClient};
 
 // re-export signing traits
@@ -49,8 +43,6 @@ pub use ephemera_signing_client::EphemeraSigningClient;
 pub use group_signing_client::GroupSigningClient;
 pub use mixnet_signing_client::MixnetSigningClient;
 pub use multisig_signing_client::MultisigSigningClient;
-pub use name_service_signing_client::NameServiceSigningClient;
-pub use sp_directory_signing_client::SpDirectorySigningClient;
 pub use vesting_signing_client::VestingSigningClient;
 
 // helper for providing blanket implementation for query clients
@@ -67,10 +59,6 @@ pub trait NymContractsProvider {
 
     // ephemera-related
     fn ephemera_contract_address(&self) -> Option<&AccountId>;
-
-    // SPs
-    fn name_service_contract_address(&self) -> Option<&AccountId>;
-    fn service_provider_contract_address(&self) -> Option<&AccountId>;
 }
 
 #[derive(Debug, Clone)]
@@ -84,9 +72,6 @@ pub struct TypedNymContracts {
     pub coconut_dkg_contract_address: Option<AccountId>,
 
     pub ephemera_contract_address: Option<AccountId>,
-
-    pub service_provider_directory_contract_address: Option<AccountId>,
-    pub name_service_contract_address: Option<AccountId>,
 }
 
 impl TryFrom<NymContracts> for TypedNymContracts {
@@ -120,14 +105,6 @@ impl TryFrom<NymContracts> for TypedNymContracts {
                 .transpose()?,
             ephemera_contract_address: value
                 .ephemera_contract_address
-                .map(|addr| addr.parse())
-                .transpose()?,
-            service_provider_directory_contract_address: value
-                .service_provider_directory_contract_address
-                .map(|addr| addr.parse())
-                .transpose()?,
-            name_service_contract_address: value
-                .name_service_contract_address
                 .map(|addr| addr.parse())
                 .transpose()?,
         })

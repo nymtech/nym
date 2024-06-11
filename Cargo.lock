@@ -3898,11 +3898,9 @@ dependencies = [
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-node-requests",
  "nym-node-tester-utils",
  "nym-pemstore",
- "nym-service-provider-directory-common",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
@@ -4081,10 +4079,8 @@ dependencies = [
  "nym-id",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-network-defaults",
  "nym-pemstore",
- "nym-service-provider-directory-common",
  "nym-sphinx",
  "nym-types",
  "nym-validator-client",
@@ -4908,20 +4904,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-name-service-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "cw2",
- "nym-contracts-common",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
@@ -5248,19 +5230,6 @@ dependencies = [
  "tokio-util",
  "toml 0.5.11",
  "url",
-]
-
-[[package]]
-name = "nym-service-provider-directory-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "cw2",
- "nym-contracts-common",
- "thiserror",
 ]
 
 [[package]]
@@ -5686,9 +5655,7 @@ dependencies = [
  "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-network-defaults",
- "nym-service-provider-directory-common",
  "nym-vesting-contract-common",
  "prost 0.12.4",
  "reqwest 0.12.4",

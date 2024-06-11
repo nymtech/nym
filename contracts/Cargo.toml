@@ -8,8 +8,6 @@ members = [
     "mixnet-vesting-integration-tests",
     "multisig/cw3-flex-multisig",
     "multisig/cw4-group",
-    "name-service",
-    "service-provider-directory",
     "vesting",
 ]
 

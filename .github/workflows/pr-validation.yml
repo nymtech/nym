@@ -1,0 +1,25 @@
+name: pr-validation
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - 'release/**'
+    types:
+      - labeled
+      - unlabeled
+      - opened
+      - reopened
+      - synchronize
+      - edited
+
+env:
+  LABELS: ${{ join( github.event.pull_request.labels.*.name, ' ' ) }}
+
+jobs:
+  check-milestone:
+    name: Check Milestone
+    runs-on: ubuntu-latest
+    steps:
+      - if: github.event.pull_request.milestone == null && contains( env.LABELS, 'no-milestone' ) == false
+        run: exit 1

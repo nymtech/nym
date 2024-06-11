@@ -10,7 +10,6 @@ use std::str::FromStr;
 // query clients
 pub mod coconut_bandwidth_query_client;
 pub mod dkg_query_client;
-pub mod ephemera_query_client;
 pub mod group_query_client;
 pub mod mixnet_query_client;
 pub mod multisig_query_client;
@@ -19,7 +18,6 @@ pub mod vesting_query_client;
 // signing clients
 pub mod coconut_bandwidth_signing_client;
 pub mod dkg_signing_client;
-pub mod ephemera_signing_client;
 pub mod group_signing_client;
 pub mod mixnet_signing_client;
 pub mod multisig_signing_client;
@@ -30,7 +28,6 @@ pub use coconut_bandwidth_query_client::{
     CoconutBandwidthQueryClient, PagedCoconutBandwidthQueryClient,
 };
 pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
-pub use ephemera_query_client::{EphemeraQueryClient, PagedEphemeraQueryClient};
 pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
 pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
@@ -39,7 +36,6 @@ pub use vesting_query_client::{PagedVestingQueryClient, VestingQueryClient};
 // re-export signing traits
 pub use coconut_bandwidth_signing_client::CoconutBandwidthSigningClient;
 pub use dkg_signing_client::DkgSigningClient;
-pub use ephemera_signing_client::EphemeraSigningClient;
 pub use group_signing_client::GroupSigningClient;
 pub use mixnet_signing_client::MixnetSigningClient;
 pub use multisig_signing_client::MultisigSigningClient;
@@ -56,9 +52,6 @@ pub trait NymContractsProvider {
     fn dkg_contract_address(&self) -> Option<&AccountId>;
     fn group_contract_address(&self) -> Option<&AccountId>;
     fn multisig_contract_address(&self) -> Option<&AccountId>;
-
-    // ephemera-related
-    fn ephemera_contract_address(&self) -> Option<&AccountId>;
 }
 
 #[derive(Debug, Clone)]
@@ -70,8 +63,6 @@ pub struct TypedNymContracts {
     pub group_contract_address: Option<AccountId>,
     pub multisig_contract_address: Option<AccountId>,
     pub coconut_dkg_contract_address: Option<AccountId>,
-
-    pub ephemera_contract_address: Option<AccountId>,
 }
 
 impl TryFrom<NymContracts> for TypedNymContracts {
@@ -101,10 +92,6 @@ impl TryFrom<NymContracts> for TypedNymContracts {
                 .transpose()?,
             coconut_dkg_contract_address: value
                 .coconut_dkg_contract_address
-                .map(|addr| addr.parse())
-                .transpose()?,
-            ephemera_contract_address: value
-                .ephemera_contract_address
                 .map(|addr| addr.parse())
                 .transpose()?,
         })

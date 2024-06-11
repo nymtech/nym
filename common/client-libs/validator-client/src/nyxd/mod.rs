@@ -278,10 +278,6 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
     fn multisig_contract_address(&self) -> Option<&AccountId> {
         self.config.contracts.multisig_contract_address.as_ref()
     }
-
-    fn ephemera_contract_address(&self) -> Option<&AccountId> {
-        self.config.contracts.ephemera_contract_address.as_ref()
-    }
 }
 
 // queries

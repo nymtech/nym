@@ -31,7 +31,6 @@ pub struct NymContracts {
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
-    pub ephemera_contract_address: Option<String>,
     pub service_provider_directory_contract_address: Option<String>,
     pub name_service_contract_address: Option<String>,
 }
@@ -128,7 +127,6 @@ impl NymNetworkDetails {
             .with_group_contract(get_optional_env(var_names::GROUP_CONTRACT_ADDRESS))
             .with_multisig_contract(get_optional_env(var_names::MULTISIG_CONTRACT_ADDRESS))
             .with_coconut_dkg_contract(get_optional_env(var_names::COCONUT_DKG_CONTRACT_ADDRESS))
-            .with_ephemera_contract(get_optional_env(var_names::EPHEMERA_CONTRACT_ADDRESS))
             .with_service_provider_directory_contract(get_optional_env(
                 var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ))
@@ -161,7 +159,6 @@ impl NymNetworkDetails {
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
-                ephemera_contract_address: parse_optional_str(mainnet::EPHEMERA_CONTRACT_ADDRESS),
                 service_provider_directory_contract_address: None,
                 name_service_contract_address: None,
             },
@@ -266,12 +263,6 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_coconut_dkg_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.coconut_dkg_contract_address = contract.map(Into::into);
-        self
-    }
-
-    #[must_use]
-    pub fn with_ephemera_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
-        self.contracts.ephemera_contract_address = contract.map(Into::into);
         self
     }
 

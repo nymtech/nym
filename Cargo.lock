@@ -4458,16 +4458,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-ephemera-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-utils",
- "nym-contracts-common",
-]
-
-[[package]]
 name = "nym-execute"
 version = "0.1.0"
 dependencies = [
@@ -5648,7 +5638,6 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-config",
  "nym-contracts-common",
- "nym-ephemera-common",
  "nym-group-contract-common",
  "nym-http-api-client",
  "nym-mixnet-contract-common",

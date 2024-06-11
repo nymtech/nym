@@ -42,7 +42,7 @@ pub(crate) struct Args {
         default_value_t = false,
         env = NYMNODE_LOCAL_ARG
     )]
-    local: bool,
+    pub(crate) local: bool,
 
     /// Specifies the current mode of this nym-node.
     #[clap(

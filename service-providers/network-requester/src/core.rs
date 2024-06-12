@@ -341,7 +341,7 @@ impl NRServiceProvider {
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
-        mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+        mut mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
         packet_type: PacketType,
     ) {

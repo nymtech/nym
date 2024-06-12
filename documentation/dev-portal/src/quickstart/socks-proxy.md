@@ -19,7 +19,7 @@ To initialise your `nym-socks5-client` you need to have an address of a Network 
 Use the following command to initialise `nym-socs5-client` where `<ID>` can be anything you want (it's only for local config file storage) and `<PROVIDER>` is suplemented with a NR address:
 
 ```
-./nym-socks5-client init --id <ID> --provider
+./nym-socks5-client init --id <ID> --provider <PROVIDER>
 ```
 
 ~~~admonish tip

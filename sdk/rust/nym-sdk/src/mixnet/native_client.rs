@@ -379,7 +379,7 @@ impl MixnetMessageSender for MixnetClient {
         self.packet_type
     }
 
-    async fn send(&self, message: InputMessage) -> Result<()> {
+    async fn send(&mut self, message: InputMessage) -> Result<()> {
         self.client_input
             .send(message)
             .await
@@ -393,7 +393,7 @@ impl MixnetMessageSender for MixnetClientSender {
         self.packet_type
     }
 
-    async fn send(&self, message: InputMessage) -> Result<()> {
+    async fn send(&mut self, message: InputMessage) -> Result<()> {
         self.client_input
             .send(message)
             .await

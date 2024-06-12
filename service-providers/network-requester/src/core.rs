@@ -36,8 +36,7 @@ use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::ShutdownTracker;
-// use nym_task::manager::TaskHandle;
-// use nym_task::TaskClient;
+
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio_util::sync::PollSender;
@@ -341,7 +340,7 @@ impl NRServiceProvider {
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
-        mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+        mut mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
         packet_type: PacketType,
     ) {

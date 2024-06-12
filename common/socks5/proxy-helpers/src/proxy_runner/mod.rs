@@ -5,11 +5,11 @@ use crate::connection_controller::ConnectionReceiver;
 use crate::ordered_sender::OrderedMessageSender;
 use nym_socks5_requests::{ConnectionId, SocketData};
 use nym_task::connections::LaneQueueLengths;
-use nym_task::ShutdownTracker;
-use tokio_util::sync::PollSender;
+<<<<<<< HEAD
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
 use tokio::{net::TcpStream, sync::Notify};
+use tokio_util::sync::PollSender;
 
 mod inbound;
 mod outbound;

@@ -3,6 +3,7 @@
 
 use crate::proxy_runner::MixProxySender;
 use bytes::Bytes;
+use futures::SinkExt;
 use log::{debug, error};
 use nym_socks5_requests::{ConnectionId, SocketData};
 use std::io;
@@ -55,11 +56,9 @@ where
         (self.mix_message_adapter)(data)
     }
 
-    async fn send_message(&self, message: S) {
-        if let Some(sender) = self.mixnet_sender.get_ref() {
-            if sender.send(message).await.is_err() {
-                panic!("BatchRealMessageReceiver has stopped receiving!")
-            }
+    async fn send_message(&mut self, message: S) {
+        if self.mixnet_sender.send(message).await.is_err() {
+            panic!("BatchRealMessageReceiver has stopped receiving!")
         }
     }
 

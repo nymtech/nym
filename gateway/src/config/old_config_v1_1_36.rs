@@ -125,9 +125,6 @@ impl From<ConfigV1_1_36> for Config {
                 nym_api_urls: value.gateway.nym_api_urls,
                 nyxd_urls: value.gateway.nyxd_urls,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
-                // \/ ADDED
-                offline_credential_verification: false,
-                // /\ ADDED
             },
             storage_paths: GatewayPaths {
                 keys: KeysPaths {

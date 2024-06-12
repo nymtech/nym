@@ -406,7 +406,6 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
             config::EntryGatewayConfig {
                 storage_paths: config::persistence::EntryGatewayPaths::new(&data_dir),
                 enforce_zk_nyms: cfg.gateway.only_coconut_credentials,
-                offline_zk_nyms: cfg.gateway.offline_credential_verification,
                 bind_address: SocketAddr::new(ip, cfg.gateway.clients_port),
                 announce_ws_port: None,
                 announce_wss_port: cfg.gateway.clients_wss_port,

@@ -347,8 +347,6 @@ where
         Ok(())
     }
 
-    // deprecated so that I'd take another look at it to possible remove the online variant
-    #[deprecated]
     async fn spend_received_credential(
         &self,
         credential: CredentialSpendingRequest,
@@ -360,23 +358,16 @@ where
             .api_clients(credential.data.epoch_id)
             .await?;
 
-        if self.inner.shared_state.offline_credential_verification {
-            self.inner
-                .shared_state
-                .ecash_verifier
-                .post_credential(&api_clients, credential.clone())?;
+        self.inner
+            .shared_state
+            .ecash_verifier
+            .post_credential(&api_clients, credential.clone())?;
 
-            self.inner
-                .storage
-                .insert_credential(credential.clone())
-                .await?;
-        } else {
-            self.inner
-                .shared_state
-                .ecash_verifier
-                .spend_online_credential(&api_clients, &credential)
-                .await?;
-        }
+        self.inner
+            .storage
+            .insert_credential(credential.clone())
+            .await?;
+
         Ok(())
     }
 

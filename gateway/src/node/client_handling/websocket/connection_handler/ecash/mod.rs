@@ -8,23 +8,15 @@ use crate::GatewayError;
 use credential_sender::CredentialSender;
 use double_spending::DoubleSpendingDetector;
 use futures::channel::mpsc::{self, UnboundedSender};
-use log::*;
-use nym_api_requests::coconut::models::VerifyEcashCredentialResponse;
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::{CompactEcashError, NymPayInfo, VerificationKeyAuth};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_validator_client::nym_api::EpochId;
-use nym_validator_client::{
-    nyxd::cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
-    CoconutApiClient, DirectSigningHttpRpcNyxdClient,
-};
+use nym_validator_client::{CoconutApiClient, DirectSigningHttpRpcNyxdClient};
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLockReadGuard};
 
 pub use credential_sender::PendingCredential;
-use nym_validator_client::nyxd::contract_traits::{
-    EcashSigningClient, MultisigQueryClient, MultisigSigningClient,
-};
 
 mod credential_sender;
 mod double_spending;
@@ -38,37 +30,25 @@ pub struct EcashManager {
     pk_bytes: [u8; 32], // bytes representation of a pub key representing the verifier
     pay_infos: Mutex<Vec<NymPayInfo>>,
     cred_sender: UnboundedSender<PendingCredential>,
-    double_spend_detector: Option<DoubleSpendingDetector>,
+    double_spend_detector: DoubleSpendingDetector,
 }
 
 impl EcashManager {
     pub async fn new<St: Storage + 'static>(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
-        only_coconut_credentials: bool,
         pk_bytes: [u8; 32],
-        mut shutdown: nym_task::TaskClient,
+        shutdown: nym_task::TaskClient,
         storage: St,
-        offline_verification: bool,
     ) -> Result<Self, GatewayError> {
         let shared_state = SharedState::new(nyxd_client).await?;
 
-        let double_spend_detector = if offline_verification {
-            let inner = DoubleSpendingDetector::new(shared_state.clone());
-            inner.clone().start(shutdown.clone());
-            Some(inner)
-        } else {
-            None
-        };
+        let double_spend_detector = DoubleSpendingDetector::new(shared_state.clone());
+        double_spend_detector.clone().start(shutdown.clone());
 
         let (cred_sender, cred_receiver) = mpsc::unbounded();
 
-        //initialize a credential sender only if we are in offline mode
-        if offline_verification {
-            let cs = CredentialSender::new(cred_receiver, storage, shared_state.clone());
-            cs.start(shutdown);
-        } else {
-            shutdown.mark_as_success();
-        }
+        let cs = CredentialSender::new(cred_receiver, storage, shared_state.clone());
+        cs.start(shutdown);
 
         Ok(EcashManager {
             shared_state,
@@ -183,11 +163,7 @@ impl EcashManager {
     }
 
     pub async fn check_double_spend(&self, serial_number_bs58: &String) -> bool {
-        if let Some(double_spend_detector) = &self.double_spend_detector {
-            double_spend_detector.check(serial_number_bs58).await
-        } else {
-            false
-        }
+        self.double_spend_detector.check(serial_number_bs58).await
     }
 
     pub fn post_credential(
@@ -205,81 +181,5 @@ impl EcashManager {
                     .collect(),
             ))
             .map_err(|_| RequestHandlingError::InternalError)
-    }
-
-    pub async fn spend_online_credential(
-        &self,
-        api_clients: &[CoconutApiClient],
-        credential: &CredentialSpendingRequest,
-    ) -> Result<(), RequestHandlingError> {
-        let serial_number = credential.data.payment.serial_number_bs58();
-
-        let res = self
-            .shared_state
-            .start_tx()
-            .await
-            .prepare_credential(serial_number, self.shared_state.address.to_string(), None)
-            .await?;
-        let proposal_id = find_attribute(&res.logs, "wasm", BANDWIDTH_PROPOSAL_ID)
-            .ok_or(RequestHandlingError::ProposalIdError {
-                reason: String::from("proposal id not found"),
-            })?
-            .value
-            .parse::<u64>()
-            .map_err(|_| RequestHandlingError::ProposalIdError {
-                reason: String::from("proposal id could not be parsed to u64"),
-            })?;
-
-        let proposal = self
-            .shared_state
-            .start_query()
-            .await
-            .query_proposal(proposal_id)
-            .await?;
-        if !credential.matches_serial_number(&proposal.description)? {
-            return Err(RequestHandlingError::ProposalIdError {
-                reason: String::from("proposal has different serial number"),
-            });
-        }
-
-        let req = nym_api_requests::coconut::VerifyEcashCredentialBody::new(
-            credential.data.clone(),
-            self.shared_state.address.clone(),
-            proposal_id,
-        );
-        for client in api_clients {
-            let ret = client.api_client.verify_online_credential(&req).await;
-            let client_url = client.api_client.nym_api.current_url();
-            match ret {
-                Ok(VerifyEcashCredentialResponse::Accepted) => {
-                    debug!("Validator at {client_url} accepted the credential");
-                }
-                Ok(response) => {
-                    debug!("Validator at {client_url} didn't accept the credential. Reason : {response}");
-                }
-                Err(err) => {
-                    warn!("Validator at {client_url} could not be reached. There might be a problem with the coconut endpoint: {err}");
-                }
-            }
-        }
-
-        if self
-            .shared_state
-            .start_query()
-            .await
-            .query_proposal(proposal_id)
-            .await?
-            .status
-            == nym_validator_client::nyxd::cw3::Status::Rejected
-        {
-            return Err(RequestHandlingError::RejectedProposal);
-        }
-        self.shared_state
-            .start_tx()
-            .await
-            .execute_proposal(proposal_id, None)
-            .await?;
-
-        Ok(())
     }
 }

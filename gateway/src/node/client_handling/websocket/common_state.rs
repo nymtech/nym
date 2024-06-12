@@ -12,6 +12,5 @@ pub(crate) struct CommonHandlerState {
     pub(crate) ecash_verifier: Arc<EcashManager>,
     pub(crate) local_identity: Arc<identity::KeyPair>,
     pub(crate) only_coconut_credentials: bool,
-    pub(crate) offline_credential_verification: bool,
     pub(crate) bandwidth_cfg: BandwidthFlushingBehaviourConfig,
 }

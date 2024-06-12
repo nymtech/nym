@@ -258,7 +258,6 @@ impl<St> Gateway<St> {
             ecash_verifier,
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
-            offline_credential_verification: self.config.gateway.offline_credential_verification,
             bandwidth_cfg: (&self.config).into(),
         };
 
@@ -497,11 +496,9 @@ impl<St> Gateway<St> {
             let nyxd_client = self.random_nyxd_client()?;
             EcashManager::new(
                 nyxd_client,
-                self.config.gateway.only_coconut_credentials,
                 self.identity_keypair.public_key().to_bytes(),
                 shutdown.fork("EcashVerifier"),
                 self.storage.clone(),
-                self.config.gateway.offline_credential_verification,
             )
             .await
         }?;

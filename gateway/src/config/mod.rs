@@ -225,15 +225,6 @@ impl Config {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
     }
-
-    pub fn with_offline_credential_verification(
-        mut self,
-        offline_credential_verification: bool,
-    ) -> Self {
-        self.gateway.offline_credential_verification = offline_credential_verification;
-        self
-    }
-
     pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
         self.gateway.nym_api_urls = nym_api_urls;
         self
@@ -347,10 +338,6 @@ pub struct Gateway {
     #[serde(default)]
     pub only_coconut_credentials: bool,
 
-    /// Indicates whether this gateway is using offline mode for credential verification
-    #[serde(default)]
-    pub offline_credential_verification: bool,
-
     /// Address to which this mixnode will bind to and will be listening for packets.
     #[zeroize(skip)]
     pub listening_address: IpAddr,
@@ -392,7 +379,6 @@ impl Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: id.into(),
             only_coconut_credentials: false,
-            offline_credential_verification: false,
             listening_address: inaddr_any(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             clients_port: DEFAULT_CLIENT_LISTENING_PORT,

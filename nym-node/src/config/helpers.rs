@@ -44,7 +44,6 @@ pub fn ephemeral_gateway_config(
         version: format!("{}-nym-node", crate_version!()),
         id: config.id,
         only_coconut_credentials: config.entry_gateway.enforce_zk_nyms,
-        offline_credential_verification: config.entry_gateway.offline_zk_nyms,
         listening_address: clients_bind_ip,
         mix_port: config.mixnet.bind_address.port(),
         clients_port: config.entry_gateway.bind_address.port(),

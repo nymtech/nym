@@ -7,7 +7,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 
-pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
+pub type InputMessageSender = tokio_util::sync::PollSender<InputMessage>;
 pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 
 #[derive(Debug)]

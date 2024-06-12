@@ -25,6 +25,7 @@ sha2 = { workspace = true }
 si-scale = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+tokio-util = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros"] }
 tracing = { workspace = true }

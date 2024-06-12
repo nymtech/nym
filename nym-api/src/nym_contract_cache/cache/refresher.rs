@@ -52,18 +52,18 @@ impl NymContractCacheRefresher {
 
         let mixnet = query_guard!(client_guard, mixnet_contract_address());
         let vesting = query_guard!(client_guard, vesting_contract_address());
-        let coconut_bandwidth = query_guard!(client_guard, coconut_bandwidth_contract_address());
         let coconut_dkg = query_guard!(client_guard, dkg_contract_address());
         let group = query_guard!(client_guard, group_contract_address());
         let multisig = query_guard!(client_guard, multisig_contract_address());
+        let ecash = query_guard!(client_guard, ecash_contract_address());
 
         for (address, name) in [
             (mixnet, "nym-mixnet-contract"),
             (vesting, "nym-vesting-contract"),
-            (coconut_bandwidth, "nym-coconut-bandwidth-contract"),
             (coconut_dkg, "nym-coconut-dkg-contract"),
             (group, "nym-cw4-group-contract"),
             (multisig, "nym-cw3-multisig-contract"),
+            (ecash, "nym-ecash-contract"),
         ] {
             let (cw2, build_info) = if let Some(address) = address {
                 let cw2 = query_guard!(client_guard, try_get_cw2_contract_version(address).await);

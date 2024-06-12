@@ -12,6 +12,7 @@ use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
 use nym_contracts_common::events::try_find_attribute;
+use nym_contracts_common::set_build_information;
 use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, Blacklisting, PagedBlacklistedAccountResponse,
 };
@@ -77,7 +78,9 @@ impl NymEcashContract<'_> {
         };
 
         self.config.save(ctx.deps.storage, &cfg)?;
+
         cw2::set_contract_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+        set_build_information!(ctx.deps.storage)?;
 
         Ok(Response::default())
     }
@@ -366,29 +369,8 @@ impl NymEcashContract<'_> {
     =====================*/
     #[msg(migrate)]
     pub fn migrate(&self, ctx: MigrateCtx) -> Result<Response, EcashContractError> {
-        // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
-        let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
-            EcashContractError::SemVerFailure {
-                value: CONTRACT_VERSION.to_string(),
-                error_message: error.to_string(),
-            }
-        })?;
-
-        let storage_version_raw = cw2::get_contract_version(ctx.deps.storage)?.version;
-        let storage_version: Version =
-            storage_version_raw
-                .parse()
-                .map_err(|error: semver::Error| EcashContractError::SemVerFailure {
-                    value: storage_version_raw,
-                    error_message: error.to_string(),
-                })?;
-
-        if storage_version < version {
-            cw2::set_contract_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-            // If state structure changed in any contract version in the way migration is needed, it
-            // should occur here, for example anything from `crate::queued_migrations::`
-        }
+        set_build_information!(ctx.deps.storage)?;
+        cw2::ensure_from_older_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
         Ok(Response::new())
     }

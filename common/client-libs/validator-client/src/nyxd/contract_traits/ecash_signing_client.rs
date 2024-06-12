@@ -74,8 +74,8 @@ where
         memo: String,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let coconut_bandwidth_contract_address = self
-            .coconut_bandwidth_contract_address()
+        let ecash_contract_address = self
+            .ecash_contract_address()
             .ok_or_else(|| NyxdError::unavailable_contract_address("coconut bandwidth contract"))?;
 
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
@@ -83,7 +83,7 @@ where
 
         self.execute(
             signer_address,
-            coconut_bandwidth_contract_address,
+            ecash_contract_address,
             &msg,
             fee,
             memo,

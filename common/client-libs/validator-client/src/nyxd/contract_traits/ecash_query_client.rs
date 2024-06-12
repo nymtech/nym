@@ -105,7 +105,7 @@ where
         for<'a> T: Deserialize<'a>,
     {
         let ecash_contract_address = self
-            .coconut_bandwidth_contract_address()
+            .ecash_contract_address()
             .ok_or_else(|| NyxdError::unavailable_contract_address("coconut bandwidth contract"))?;
         self.query_contract_smart(ecash_contract_address, &query)
             .await

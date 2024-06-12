@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
+use log::info;
 use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::IssuanceTicketBook;
@@ -50,6 +51,8 @@ where
     // SAFETY: we just checked for the correct length
     #[allow(clippy::unwrap_used)]
     let deposit_id = DepositId::from_be_bytes(raw_deposit_id.try_into().unwrap());
+
+    info!("our ticketbook deposit has been stored under id {deposit_id}");
 
     let voucher = IssuanceTicketBook::new(deposit_id, client_id, signing_key);
 

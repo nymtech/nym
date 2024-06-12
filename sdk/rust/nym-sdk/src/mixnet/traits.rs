@@ -18,7 +18,7 @@ pub trait MixnetMessageSender {
 
     /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
     /// full customization.
-    async fn send(&self, message: InputMessage) -> Result<()>;
+    async fn send(&mut self, message: InputMessage) -> Result<()>;
 
     /// Sends data to the supplied Nym address with the default surb behaviour.
     ///
@@ -35,7 +35,7 @@ pub trait MixnetMessageSender {
     ///     client.send_plain_message(recipient, "hi").await.unwrap();
     /// }
     /// ```
-    async fn send_plain_message<M>(&self, address: Recipient, message: M) -> Result<()>
+    async fn send_plain_message<M>(&mut self, address: Recipient, message: M) -> Result<()>
     where
         M: AsRef<[u8]> + Send,
     {
@@ -61,7 +61,7 @@ pub trait MixnetMessageSender {
     /// }
     /// ```
     async fn send_message<M>(
-        &self,
+        &mut self,
         address: Recipient,
         message: M,
         surbs: IncludedSurbs,
@@ -103,7 +103,7 @@ pub trait MixnetMessageSender {
     ///     client.send_reply(tag, b"hi").await.unwrap();
     /// }
     /// ```
-    async fn send_reply<M>(&self, recipient_tag: AnonymousSenderTag, message: M) -> Result<()>
+    async fn send_reply<M>(&mut self, recipient_tag: AnonymousSenderTag, message: M) -> Result<()>
     where
         M: AsRef<[u8]> + Send,
     {

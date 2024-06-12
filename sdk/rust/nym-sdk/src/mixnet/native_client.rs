@@ -453,7 +453,7 @@ impl MixnetMessageSender for MixnetClient {
         self.packet_type
     }
 
-    async fn send(&self, message: InputMessage) -> Result<()> {
+    async fn send(&mut self, message: InputMessage) -> Result<()> {
         if self.stream_mode.load(Ordering::SeqCst) {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);
@@ -471,7 +471,7 @@ impl MixnetMessageSender for MixnetClientSender {
         self.packet_type
     }
 
-    async fn send(&self, message: InputMessage) -> Result<()> {
+    async fn send(&mut self, message: InputMessage) -> Result<()> {
         if self.stream_mode.load(Ordering::SeqCst) {
             tracing::warn!("send() called after stream mode activated");
             return Err(Error::StreamModeActive);

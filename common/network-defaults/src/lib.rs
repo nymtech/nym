@@ -421,7 +421,6 @@ pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
     }
 }
 
-
 /// How much bandwidth (in bytes) one token can buy
 pub const BYTES_PER_UTOKEN: u64 = 1024;
 /// How much bandwidth (in bytes) one freepass provides

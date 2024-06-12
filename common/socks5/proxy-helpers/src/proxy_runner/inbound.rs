@@ -74,7 +74,7 @@ async fn wait_for_lane(
     }
 }
 
-pub(super) async fn run_inbound<F, S>(
+pub(super) async fn run_inbound<F, S: Send>(
     mut reader: OwnedReadHalf,
     mut message_sender: OrderedMessageSender<F, S>,
     connection_id: ConnectionId,

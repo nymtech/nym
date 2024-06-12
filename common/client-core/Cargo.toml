@@ -26,6 +26,7 @@ si-scale = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["macros"] }
+tokio-util = { workspace = true }
 time = { workspace = true }
 tracing = { workspace = true }
 zeroize = { workspace = true }

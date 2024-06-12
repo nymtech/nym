@@ -5168,6 +5168,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "tokio-util",
  "tracing",
  "tungstenite 0.20.1",
  "url",
@@ -6130,6 +6131,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-tungstenite",
+ "tokio-util",
  "url",
  "zeroize",
 ]
@@ -6592,6 +6594,7 @@ dependencies = [
  "tap",
  "thiserror 2.0.12",
  "tokio",
+ "tokio-util",
  "url",
 ]
 

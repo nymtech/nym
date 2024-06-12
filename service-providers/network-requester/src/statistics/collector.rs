@@ -5,6 +5,7 @@ use super::error::StatsError;
 use crate::core::new_legacy_request_version;
 use crate::reply::MixnetMessage;
 use async_trait::async_trait;
+use futures::SinkExt;
 use log::*;
 use nym_service_providers_common::interface::RequestVersion;
 use nym_socks5_proxy_helpers::proxy_runner::MixProxySender;
@@ -165,7 +166,7 @@ impl StatisticsCollector for ServiceStatisticsCollector {
     }
 
     async fn send_stats_message(
-        &self,
+        &mut self,
         stats_message: StatsMessage,
     ) -> Result<(), CommonStatsError> {
         let msg = build_statistics_request_bytes(stats_message)?;

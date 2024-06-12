@@ -20,7 +20,7 @@ anyhow = { workspace = true }
 addr = { workspace = true }
 async-trait = { workspace = true }
 bs58 = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"]}
+clap = { workspace = true, features = ["cargo", "derive"] }
 dirs = "4.0"
 futures = { workspace = true }
 humantime-serde = { workspace = true }
@@ -33,19 +33,26 @@ regex = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "chrono"]}
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "chrono"] }
 tap = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }
+tokio = { workspace = true, features = ["net", "rt-multi-thread", "macros"] }
 tokio-tungstenite = { workspace = true }
+tokio-util = { workspace = true }
 url = { workspace = true }
 time = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
 nym-async-file-watcher = { path = "../../common/async-file-watcher" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
-nym-client-core = { path = "../../common/client-core", features = ["cli", "fs-gateways-storage", "fs-surb-storage"] }
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "output_format",
+] }
+nym-client-core = { path = "../../common/client-core", features = [
+    "cli",
+    "fs-gateways-storage",
+    "fs-surb-storage",
+] }
 nym-client-websocket-requests = { path = "../../clients/native/websocket-requests" }
 nym-config = { path = "../../common/config" }
 nym-credentials = { path = "../../common/credentials" }

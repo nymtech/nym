@@ -4180,6 +4180,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "tokio-util",
  "tungstenite",
  "url",
  "wasm-bindgen",
@@ -4956,6 +4957,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-tungstenite",
+ "tokio-util",
  "url",
  "zeroize",
 ]
@@ -5300,6 +5302,7 @@ dependencies = [
  "tap",
  "thiserror",
  "tokio",
+ "tokio-util",
  "url",
 ]
 

@@ -19,7 +19,7 @@ pub trait StatisticsCollector {
         interval: Duration,
         timestamp: DateTime<Utc>,
     ) -> StatsMessage;
-    async fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError>;
+    async fn send_stats_message(&mut self, stats_message: StatsMessage) -> Result<(), StatsError>;
     async fn reset_stats(&mut self);
 }
 

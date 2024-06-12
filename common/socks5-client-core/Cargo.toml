@@ -19,6 +19,7 @@ serde = { workspace = true, features = ["derive"] } # for config serialization/d
 tap = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
+tokio-util = { workspace = true }
 url = { workspace = true }
 
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }

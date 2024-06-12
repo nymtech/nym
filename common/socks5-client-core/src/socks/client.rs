@@ -7,6 +7,7 @@ use super::{SocksVersion, RESERVED, SOCKS4_VERSION, SOCKS5_VERSION};
 use crate::config;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
+use futures::SinkExt;
 use log::*;
 use nym_client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use nym_service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};

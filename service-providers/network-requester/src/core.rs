@@ -10,6 +10,7 @@ use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
+use futures::SinkExt;
 use log::{debug, warn};
 use nym_bin_common::bin_info_owned;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
@@ -38,6 +39,7 @@ use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::manager::TaskHandle;
 use nym_task::TaskClient;
+use tokio_util::sync::PollSender;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -284,6 +286,8 @@ impl NRServiceProviderBuilder {
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);
 
+        let mix_input_sender = PollSender::new(mix_input_sender);
+
         // Controller for managing all active connections.
         let (mut active_connections_controller, controller_sender) = Controller::new(
             mixnet_client.connection_command_sender(),
@@ -443,7 +447,7 @@ impl NRServiceProvider {
         return_address: reply::MixnetAddress,
         biggest_packet_size: PacketSize,
         controller_sender: ControllerSender,
-        mix_input_sender: MixProxySender<MixnetMessage>,
+        mut mix_input_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
         mut shutdown: TaskClient,
     ) {
@@ -537,7 +541,7 @@ impl NRServiceProvider {
             .unwrap_or(traffic_config.primary_packet_size);
 
         let controller_sender_clone = self.controller_sender.clone();
-        let mix_input_sender_clone = self.mix_input_sender.clone();
+        let mut mix_input_sender_clone = self.mix_input_sender.clone();
         let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
         let mut shutdown = self.shutdown.get_handle();
 

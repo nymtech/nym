@@ -59,6 +59,7 @@ use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
+use tokio_util::sync::PollSender;
 use url::Url;
 
 #[cfg(all(
@@ -82,7 +83,11 @@ impl ClientInput {
         &self,
         message: InputMessage,
     ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
-        self.input_sender.send(message).await
+        if let Some(channel) = self.input_sender.get_ref() {
+            channel.send(message).await
+        } else {
+            Err(tokio::sync::mpsc::error::SendError(message))
+        }
     }
 }
 
@@ -804,7 +809,7 @@ where
             client_input: ClientInputStatus::AwaitingProducer {
                 client_input: ClientInput {
                     connection_command_sender: client_connection_tx,
-                    input_sender,
+                    input_sender: PollSender::new(input_sender),
                 },
             },
             client_output: ClientOutputStatus::AwaitingConsumer {

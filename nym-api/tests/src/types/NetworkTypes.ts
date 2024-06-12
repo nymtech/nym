@@ -30,9 +30,6 @@ export interface Contracts {
     group_contract_address: string;
     multisig_contract_address: string;
     coconut_dkg_contract_address: string;
-    ephemera_contract_address: string;
-    service_provider_directory_contract_address: string;
-    name_service_contract_address: string;
 }
 
 export interface Endpoint {

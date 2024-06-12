@@ -954,7 +954,7 @@ impl super::client::Client for DummyClient {
                 events: vec![cosmwasm_std::Event::new("wasm")
                     .add_attribute(NODE_INDEX, assigned_index.to_string())],
             }],
-            data: Default::default(),
+            msg_responses: Default::default(),
             transaction_hash,
             gas_info: Default::default(),
         })
@@ -987,7 +987,7 @@ impl super::client::Client for DummyClient {
 
         Ok(ExecuteResult {
             logs: vec![],
-            data: Default::default(),
+            msg_responses: Default::default(),
             transaction_hash,
             gas_info: Default::default(),
         })
@@ -1021,7 +1021,7 @@ impl super::client::Client for DummyClient {
 
         Ok(ExecuteResult {
             logs: vec![],
-            data: Default::default(),
+            msg_responses: Default::default(),
             transaction_hash,
             gas_info: Default::default(),
         })
@@ -1097,7 +1097,7 @@ impl super::client::Client for DummyClient {
                 events: vec![cosmwasm_std::Event::new("wasm")
                     .add_attribute(DKG_PROPOSAL_ID, proposal_id.to_string())],
             }],
-            data: Default::default(),
+            msg_responses: Default::default(),
             transaction_hash,
             gas_info: Default::default(),
         })
@@ -1345,7 +1345,10 @@ mod credential_tests {
         tests::helpers::{generate_coin_indices_signatures, generate_expiration_date_signatures},
         ttp_keygen, PayInfo,
     };
+    use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
     use nym_validator_client::nym_api::routes::ECASH_VERIFY_ONLINE_CREDENTIAL;
+    use nym_validator_client::nyxd::contract_traits::EcashQueryClient;
+    use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
 
     #[tokio::test]
     async fn already_issued() {
@@ -1952,5 +1955,18 @@ mod credential_tests {
             verify_credential_response,
             VerifyEcashCredentialResponse::DoubleSpend
         );
+    }
+
+    #[test]
+    fn blind_sign_request_body_serde() {
+        let deposit_id = 123;
+        let issuance = voucher_fixture(Some(deposit_id));
+        let signing_data = issuance.prepare_for_signing();
+        let request = issuance.create_blind_sign_request_body(&signing_data);
+
+        let json_bytes = serde_json::to_vec(&request).unwrap();
+        let recovered: BlindSignRequestBody = serde_json::from_slice(&json_bytes).unwrap();
+
+        assert_eq!(recovered, request)
     }
 }

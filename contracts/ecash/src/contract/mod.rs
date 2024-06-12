@@ -25,11 +25,13 @@ use nym_ecash_contract_common::spend_credential::{
     EcashSpentCredential, EcashSpentCredentialResponse, PagedEcashSpentCredentialResponse,
 };
 use nym_ecash_contract_common::EcashContractError;
-use semver::Version;
 use sylvia::types::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx, ReplyCtx};
 use sylvia::{contract, entry_points};
 
 mod helpers;
+
+#[cfg(test)]
+mod test;
 
 pub struct NymEcashContract<'a> {
     pub(crate) multisig: Admin<'a>,

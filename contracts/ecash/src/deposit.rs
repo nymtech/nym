@@ -87,7 +87,7 @@ impl<'a> DepositStorage<'a> {
 
         Ok(Some(Deposit {
             info,
-            amount: compressed_deposit.amount,
+            amount: compressed_deposit.amount.into(),
             bs58_encoded_ed25519: compressed_deposit.bs58_encoded_ed25519,
         }))
     }
@@ -131,7 +131,7 @@ impl<'a> DepositStorage<'a> {
                             deposit_id,
                             Deposit {
                                 info,
-                                amount: compressed_deposit.amount,
+                                amount: compressed_deposit.amount.into(),
                                 bs58_encoded_ed25519: compressed_deposit.bs58_encoded_ed25519,
                             },
                         )
@@ -286,7 +286,7 @@ mod tests {
             let bs58_encoded_ed25519 = ed25519_keypair.public_key().to_base58_string();
             expected.push(Deposit {
                 info: info.clone(),
-                amount,
+                amount: amount.into(),
                 bs58_encoded_ed25519: bs58_encoded_ed25519.clone(),
             });
 

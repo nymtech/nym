@@ -3,6 +3,7 @@
 
 use crate::error::EcashContractError;
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Uint128;
 
 pub type DepositId = u32;
 
@@ -10,7 +11,7 @@ pub type DepositId = u32;
 pub struct Deposit {
     pub info: String,
 
-    pub amount: u128,
+    pub amount: Uint128,
 
     pub bs58_encoded_ed25519: String,
 }

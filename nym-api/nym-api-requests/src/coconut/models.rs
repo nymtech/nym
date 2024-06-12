@@ -76,7 +76,7 @@ impl Display for VerifyEcashCredentialResponse {
 }
 
 //  All strings are base58 encoded representations of structs
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct BlindSignRequestBody {
     pub inner_sign_request: WithdrawalRequest,
 

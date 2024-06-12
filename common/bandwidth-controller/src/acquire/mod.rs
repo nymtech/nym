@@ -15,6 +15,7 @@ use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::contract_traits::EcashSigningClient;
+use nym_validator_client::nyxd::cosmwasm_client::ToContractResponseData;
 use rand::rngs::OsRng;
 use state::State;
 use std::mem;
@@ -29,11 +30,20 @@ where
     let mut rng = OsRng;
     let signing_key = identity::PrivateKey::new(&mut rng);
 
-    let raw_deposit_id = client
+    let msg_responses = client
         .make_ticketbook_deposit(signing_key.public_key().to_base58_string(), None)
         .await?
-        .data;
+        .msg_responses;
 
+    if msg_responses.len() != 1 {
+        return Err(
+            BandwidthControllerError::UnexpectedNumberOfDepositMsgResponses {
+                got: msg_responses.len(),
+            },
+        );
+    }
+
+    let raw_deposit_id = msg_responses[0].to_contract_response_data()?;
     if raw_deposit_id.len() != mem::size_of::<DepositId>() {
         return Err(BandwidthControllerError::MalformedDepositId);
     }

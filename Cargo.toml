@@ -103,7 +103,7 @@ members = [
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "nym-api",
-    "nym-browser-extension/storage",
+    #    "nym-browser-extension/storage",
     "nym-api/nym-api-requests",
     "nym-node",
     "nym-node/nym-node-http-api",
@@ -220,7 +220,6 @@ humantime = "2.1.0"
 humantime-serde = "1.1.1"
 http = "1"
 hyper = "1.3.1"
-indexed_db_futures = "0.3.0"
 inquire = "0.6.2"
 ip_network = "0.4.1"
 isocountry = "0.3.2"
@@ -324,16 +323,22 @@ cw-controllers = { version = "=1.1.0" }
 # cosmrs-related
 bip32 = { version = "0.5.1", default-features = false }
 
-# temporarily using a fork again (yay.) because we need staking and slashing support
-cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" }
-#cosmrs = {  git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" } # unfortuntely we need a fork by yours truly to get the staking support
-tendermint = "0.34"     # same version as used by cosmrs
-tendermint-rpc = "0.34" # same version as used by cosmrs
+# temporarily using a fork again (yay.) because we need staking and slashing support (which are already on main but not released)
+# plus response message parsing (which is, as of the time of writing this message, waiting to get merged)
+#cosmrs = { path = "../cosmos-rust-fork/cosmos-rust/cosmrs" }
+cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch = "jstuczyn/tx_msg_data_parsing" } # unfortuntely we need a fork by yours truly to get the staking support
+tendermint = "0.37.0"     # same version as used by cosmrs
+tendermint-rpc = "0.37.0" # same version as used by cosmrs
 prost = { version = "0.12", default-features = false }
 
 # wasm-related dependencies
 gloo-utils = "0.2.0"
 gloo-net = "0.5.0"
+
+# use a separate branch due to feature unification failures
+# this is blocked until the upstream removes outdates `wasm_bindgen` feature usage
+# indexed_db_futures = "0.4.1"
+indexed_db_futures = { git = "https://github.com/TiemenSch/rust-indexed-db", branch = "update-uuid" }
 js-sys = "0.3.69"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"

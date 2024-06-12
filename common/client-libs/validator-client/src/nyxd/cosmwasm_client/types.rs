@@ -30,6 +30,7 @@ use prost::Message;
 use serde::Serialize;
 
 pub use cosmrs::abci::GasInfo;
+pub use cosmrs::abci::MsgResponse;
 
 pub type ContractCodeId = u64;
 
@@ -299,7 +300,7 @@ pub struct MigrateResult {
 pub struct ExecuteResult {
     pub logs: Vec<Log>,
 
-    pub data: Vec<u8>,
+    pub msg_responses: Vec<MsgResponse>,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,

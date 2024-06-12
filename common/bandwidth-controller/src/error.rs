@@ -52,6 +52,9 @@ pub enum BandwidthControllerError {
     #[error("can't handle recovering storage with revision {stored}. {expected} was expected")]
     UnsupportedCredentialStorageRevision { stored: u8, expected: u8 },
 
+    #[error("the deposit transaction returned unexpected, {got}, number of MsgResponse. Expected to receive a single one")]
+    UnexpectedNumberOfDepositMsgResponses { got: usize },
+
     #[error("could not recover deposit_id from the transaction data")]
     MalformedDepositId,
 }

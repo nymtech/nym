@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::cosmwasm_client::client_traits::CosmWasmClient;
-use crate::nyxd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
+use crate::nyxd::cosmwasm_client::helpers::{
+    compress_wasm_code, parse_msg_responses, CheckResponse,
+};
 use crate::nyxd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nyxd::cosmwasm_client::types::*;
 use crate::nyxd::error::NyxdError;
@@ -13,6 +15,7 @@ use crate::signing::tx_signer::TxSigner;
 use crate::signing::SignerData;
 use async_trait::async_trait;
 use cosmrs::bank::MsgSend;
+use cosmrs::cosmwasm::{MsgClearAdmin, MsgUpdateAdmin};
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
 use cosmrs::feegrant::{
     AllowedMsgAllowance, BasicAllowance, MsgGrantAllowance, MsgRevokeAllowance,
@@ -25,7 +28,6 @@ use log::debug;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
-
 use std::time::SystemTime;
 use tendermint_rpc::endpoint::broadcast;
 
@@ -212,7 +214,7 @@ where
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ChangeAdminResult, NyxdError> {
-        let change_admin_msg = sealed::cosmwasm::MsgUpdateAdmin {
+        let change_admin_msg = MsgUpdateAdmin {
             sender: sender_address.clone(),
             new_admin: new_admin.clone(),
             contract: contract_address.clone(),
@@ -243,7 +245,7 @@ where
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ChangeAdminResult, NyxdError> {
-        let change_admin_msg = sealed::cosmwasm::MsgClearAdmin {
+        let change_admin_msg = MsgClearAdmin {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
         }
@@ -333,9 +335,12 @@ where
             gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
             gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
         };
+
+        println!("execute");
+
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
-            data: tx_res.tx_result.data.into(),
+            msg_responses: parse_msg_responses(tx_res.tx_result.data),
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -378,7 +383,7 @@ where
         };
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
-            data: tx_res.tx_result.data.into(),
+            msg_responses: parse_msg_responses(tx_res.tx_result.data),
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -705,169 +710,5 @@ where
             memo,
             signer_data,
         )?)
-    }
-}
-
-// a temporary bypass until https://github.com/cosmos/cosmos-rust/pull/419 is merged
-mod sealed {
-    pub mod cosmwasm {
-        use cosmrs::{proto, tx::Msg, AccountId, ErrorReport, Result};
-
-        /// MsgUpdateAdmin sets a new admin for a smart contract
-        #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-        pub struct MsgUpdateAdmin {
-            /// Sender is the that actor that signed the messages
-            pub sender: AccountId,
-
-            /// NewAdmin address to be set
-            pub new_admin: AccountId,
-
-            /// Contract is the address of the smart contract
-            pub contract: AccountId,
-        }
-
-        impl Msg for MsgUpdateAdmin {
-            type Proto = proto::cosmwasm::wasm::v1::MsgUpdateAdmin;
-        }
-
-        impl TryFrom<proto::cosmwasm::wasm::v1::MsgUpdateAdmin> for MsgUpdateAdmin {
-            type Error = ErrorReport;
-
-            fn try_from(
-                proto: proto::cosmwasm::wasm::v1::MsgUpdateAdmin,
-            ) -> Result<MsgUpdateAdmin> {
-                MsgUpdateAdmin::try_from(&proto)
-            }
-        }
-
-        impl TryFrom<&proto::cosmwasm::wasm::v1::MsgUpdateAdmin> for MsgUpdateAdmin {
-            type Error = ErrorReport;
-
-            fn try_from(
-                proto: &proto::cosmwasm::wasm::v1::MsgUpdateAdmin,
-            ) -> Result<MsgUpdateAdmin> {
-                Ok(MsgUpdateAdmin {
-                    sender: proto.sender.parse()?,
-                    new_admin: proto.new_admin.parse()?,
-                    contract: proto.contract.parse()?,
-                })
-            }
-        }
-
-        impl From<MsgUpdateAdmin> for proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
-            fn from(msg: MsgUpdateAdmin) -> proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
-                proto::cosmwasm::wasm::v1::MsgUpdateAdmin::from(&msg)
-            }
-        }
-
-        impl From<&MsgUpdateAdmin> for proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
-            fn from(msg: &MsgUpdateAdmin) -> proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
-                proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
-                    sender: msg.sender.to_string(),
-                    new_admin: msg.new_admin.to_string(),
-                    contract: msg.contract.to_string(),
-                }
-            }
-        }
-
-        /// MsgUpdateAdminResponse returns empty data
-        #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
-        pub struct MsgUpdateAdminResponse {}
-
-        impl Msg for MsgUpdateAdminResponse {
-            type Proto = proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse;
-        }
-
-        impl TryFrom<proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse> for MsgUpdateAdminResponse {
-            type Error = ErrorReport;
-
-            fn try_from(
-                _proto: proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse,
-            ) -> Result<MsgUpdateAdminResponse> {
-                Ok(MsgUpdateAdminResponse {})
-            }
-        }
-
-        impl From<MsgUpdateAdminResponse> for proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse {
-            fn from(
-                _msg: MsgUpdateAdminResponse,
-            ) -> proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse {
-                proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse {}
-            }
-        }
-
-        /// MsgClearAdmin removes any admin stored for a smart contract
-        #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-        pub struct MsgClearAdmin {
-            /// Sender is the that actor that signed the messages
-            pub sender: AccountId,
-
-            /// Contract is the address of the smart contract
-            pub contract: AccountId,
-        }
-
-        impl Msg for MsgClearAdmin {
-            type Proto = proto::cosmwasm::wasm::v1::MsgClearAdmin;
-        }
-
-        impl TryFrom<proto::cosmwasm::wasm::v1::MsgClearAdmin> for MsgClearAdmin {
-            type Error = ErrorReport;
-
-            fn try_from(proto: proto::cosmwasm::wasm::v1::MsgClearAdmin) -> Result<MsgClearAdmin> {
-                MsgClearAdmin::try_from(&proto)
-            }
-        }
-
-        impl TryFrom<&proto::cosmwasm::wasm::v1::MsgClearAdmin> for MsgClearAdmin {
-            type Error = ErrorReport;
-
-            fn try_from(proto: &proto::cosmwasm::wasm::v1::MsgClearAdmin) -> Result<MsgClearAdmin> {
-                Ok(MsgClearAdmin {
-                    sender: proto.sender.parse()?,
-                    contract: proto.contract.parse()?,
-                })
-            }
-        }
-
-        impl From<MsgClearAdmin> for proto::cosmwasm::wasm::v1::MsgClearAdmin {
-            fn from(msg: MsgClearAdmin) -> proto::cosmwasm::wasm::v1::MsgClearAdmin {
-                proto::cosmwasm::wasm::v1::MsgClearAdmin::from(&msg)
-            }
-        }
-
-        impl From<&MsgClearAdmin> for proto::cosmwasm::wasm::v1::MsgClearAdmin {
-            fn from(msg: &MsgClearAdmin) -> proto::cosmwasm::wasm::v1::MsgClearAdmin {
-                proto::cosmwasm::wasm::v1::MsgClearAdmin {
-                    sender: msg.sender.to_string(),
-                    contract: msg.contract.to_string(),
-                }
-            }
-        }
-
-        /// MsgClearAdminResponse returns empty data
-        #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
-        pub struct MsgClearAdminResponse {}
-
-        impl Msg for MsgClearAdminResponse {
-            type Proto = proto::cosmwasm::wasm::v1::MsgClearAdminResponse;
-        }
-
-        impl TryFrom<proto::cosmwasm::wasm::v1::MsgClearAdminResponse> for MsgClearAdminResponse {
-            type Error = ErrorReport;
-
-            fn try_from(
-                _proto: proto::cosmwasm::wasm::v1::MsgClearAdminResponse,
-            ) -> Result<MsgClearAdminResponse> {
-                Ok(MsgClearAdminResponse {})
-            }
-        }
-
-        impl From<MsgClearAdminResponse> for proto::cosmwasm::wasm::v1::MsgClearAdminResponse {
-            fn from(
-                _msg: MsgClearAdminResponse,
-            ) -> proto::cosmwasm::wasm::v1::MsgClearAdminResponse {
-                proto::cosmwasm::wasm::v1::MsgClearAdminResponse {}
-            }
-        }
     }
 }

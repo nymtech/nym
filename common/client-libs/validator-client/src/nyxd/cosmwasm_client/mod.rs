@@ -18,6 +18,8 @@ use tendermint_rpc::endpoint::*;
 use tendermint_rpc::query::Query;
 use tendermint_rpc::{Error as TendermintRpcError, Order, Paging, SimpleRequest};
 
+pub use helpers::ToContractResponseData;
+
 #[cfg(feature = "http-client")]
 use crate::http_client;
 #[cfg(feature = "http-client")]

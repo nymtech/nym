@@ -16,7 +16,7 @@ async fn main() {
     let our_address = *client.nym_address();
     println!("Our client nym address is: {our_address}");
 
-    let sender = client.split_sender();
+    let mut sender = client.split_sender();
 
     // receiving task
     let receiving_task_handle = tokio::spawn(async move {

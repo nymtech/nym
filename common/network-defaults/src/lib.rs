@@ -421,22 +421,14 @@ pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
     }
 }
 
-// Name of the event triggered by the eth contract. If the event name is changed,
-// this would also need to be changed; It is currently tested against the json abi
-pub const ETH_EVENT_NAME: &str = "BBCredentialPurchased";
-pub const ETH_BURN_FUNCTION_NAME: &str = "generateBasicBandwidthCredential";
-pub const ETH_ERC20_APPROVE_FUNCTION_NAME: &str = "approve";
 
-// Ethereum constants used for token bridge
 /// How much bandwidth (in bytes) one token can buy
 pub const BYTES_PER_UTOKEN: u64 = 1024;
-
 /// How much bandwidth (in bytes) one freepass provides
 pub const BYTES_PER_FREEPASS: u64 = 1024 * 1024 * 1024; // 1GB
-
 /// Threshold for claiming more bandwidth: 1 MB
 pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
-/// How many ERC20 tokens should be burned to buy bandwidth
+/// How many tokens should be burned to buy bandwidth
 pub const TOKENS_TO_BURN: u64 = 1;
 /// How many ERC20 utokens should be burned to buy bandwidth
 pub const UTOKENS_TO_BURN: u64 = TOKENS_TO_BURN * 1000000;

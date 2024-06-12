@@ -15,13 +15,14 @@ name = "nym-proxy-client"
 path = "src/tcp_proxy/bin/proxy_client.rs"
 
 [dependencies]
-async-trait = { workspace = true }
-bip39 = { workspace = true }
 nym-client-core = { path = "../../../common/client-core", features = [
     "fs-credentials-storage",
     "fs-surb-storage",
     "fs-gateways-storage",
 ] }
+async-trait = { workspace = true }
+bip39 = { workspace = true }
+
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-requests = { path = "../../../common/gateway-requests" }
 nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }

@@ -10,7 +10,8 @@ license.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-base64 = { workspace = true }
+bincode = { workspace = true }
+base64 = "0.21.2"
 bs58 = { workspace = true }
 clap = { workspace = true, optional = true }
 cfg-if = { workspace = true }
@@ -25,7 +26,7 @@ sha2 = { workspace = true }
 si-scale = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-tokio-util = { workspace = true }
+tokio-util = { workspace = true, features = ["codec"] }
 time = { workspace = true }
 tokio = { workspace = true, features = ["sync", "macros"] }
 tracing = { workspace = true }

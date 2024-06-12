@@ -23,7 +23,7 @@ Use the following command to initialise `nym-socs5-client` where `<ID>` can be a
 ```
 
 ~~~admonish tip
-Another option to find a NR address associated with a Gateway is to query nodes *Self Described* API endpoint where the NR address is noted like in this example:
+Another option to find a NR address associated with a Gateway is to query nodes [*Self Described* API endpoint](https://validator.nymtech.net/api/v1/gateways/described) where the NR address is noted like in this example:
 ```sh
 "network_requester": {
     "address": "CyuN49nkyeuiLohSpV5A1MbSqcugHLJQ95B5HooCpjv8.CguTh45Vp99QuGWZRBKpBjZDQbsJaHaXqAMGyc4Qhkzp@2w5RduXRqxKgHt1wtp4qGA4AfXaBj8TuUj1LvcPe2Ea1",
@@ -64,7 +64,7 @@ Any application which can be redirected over Socks5 proxy should work. Nym commu
 - ircd chat
 - Blockstream Green
 
-Keep in mind that Nym has been developing a new client (GUI and CLI) which *routes all users traffic* through the Mixnet, called [NymVPN](https://nymvpn.com).
+Keep in mind that Nym has been developing a new client **[NymVPN](https://nymvpn.com) (GUI and CLI) routing all users traffic through the Mixnet.**
 
 ## Further reading
 

@@ -63,7 +63,7 @@ use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
-use tokio_util::sync::PollSender;
+use tokio_util::sync::{PollSendError, PollSender};
 use url::Url;
 
 #[cfg(all(
@@ -83,15 +83,8 @@ pub struct ClientInput {
 }
 
 impl ClientInput {
-    pub async fn send(
-        &self,
-        message: InputMessage,
-    ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
-        if let Some(channel) = self.input_sender.get_ref() {
-            channel.send(message).await
-        } else {
-            Err(tokio::sync::mpsc::error::SendError(message))
-        }
+    pub async fn send(&mut self, message: InputMessage) -> Result<(), PollSendError<InputMessage>> {
+        self.input_sender.send(message).await
     }
 }
 

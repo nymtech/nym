@@ -23,7 +23,6 @@ use log::*;
 use nym_credentials::coconut::utils::today;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
-    iv::{IVConversionError, IV},
     types::{BinaryRequest, ServerResponse},
     ClientControlRequest, GatewayRequestsError,
 };
@@ -47,9 +46,6 @@ pub enum RequestHandlingError {
     )]
     MissingClientBandwidthEntry { client_address: String },
 
-    #[error("Provided bandwidth IV is malformed - {0}")]
-    MalformedIV(#[from] IVConversionError),
-
     #[error("Provided binary request was malformed - {0}")]
     InvalidBinaryRequest(#[from] GatewayRequestsError),
 
@@ -59,8 +55,14 @@ pub enum RequestHandlingError {
     #[error("The received request is not valid in the current context: {additional_context}")]
     IllegalRequest { additional_context: String },
 
-    #[error("Provided bandwidth credential did not verify correctly on {0}")]
-    InvalidBandwidthCredential(String),
+    #[error("the provided credential failed to get verified")]
+    MalformedCredential,
+
+    #[error("failed to verify provided credential due to invalid expiration date signatures")]
+    MalformedCredentialInvalidDateSignatures,
+
+    #[error("credential has been rejected by the validators")]
+    RejectedProposal,
 
     #[error(
         "the provided credential has an invalid spending date. got {got} but expected {expected}"
@@ -362,8 +364,7 @@ where
             self.inner
                 .shared_state
                 .ecash_verifier
-                .post_credential(&api_clients, credential.clone())
-                .await?;
+                .post_credential(&api_clients, credential.clone())?;
 
             self.inner
                 .storage
@@ -405,7 +406,6 @@ where
     ) -> Result<ServerResponse, RequestHandlingError> {
         debug!("handling ecash bandwidth request");
 
-        let iv = IV::try_from_bytes(&iv)?;
         let credential = ClientControlRequest::try_from_enc_ecash_credential(
             enc_credential,
             &self.client.shared_keys,

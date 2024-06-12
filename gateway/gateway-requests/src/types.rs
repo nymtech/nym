@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
-use crate::iv::IV;
+use crate::iv::{IVConversionError, IV};
 use crate::models::CredentialSpendingRequest;
 use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION};
@@ -91,6 +91,9 @@ pub enum GatewayRequestsError {
 
     #[error("provided MAC is invalid")]
     InvalidMac,
+
+    #[error("Provided bandwidth IV is malformed: {0}")]
+    MalformedIV(#[from] IVConversionError),
 
     #[error("address field was incorrectly encoded: {source}")]
     IncorrectlyEncodedAddress {
@@ -226,8 +229,9 @@ impl ClientControlRequest {
     pub fn try_from_enc_ecash_credential(
         enc_credential: Vec<u8>,
         shared_key: &SharedKeys,
-        iv: IV,
+        iv: Vec<u8>,
     ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
+        let iv = IV::try_from_bytes(&iv)?;
         let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
         CredentialSpendingRequest::try_from_bytes(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)

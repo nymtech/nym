@@ -1,25 +1,19 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::sync::Arc;
-
 use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
+use crate::node::client_handling::websocket::connection_handler::ecash::state::SharedState;
 use crate::node::storage::Storage;
-
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::StreamExt;
 use nym_api_requests::coconut::models::VerifyEcashCredentialResponse;
 use nym_api_requests::coconut::VerifyEcashCredentialBody;
-
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_validator_client::nyxd::contract_traits::{EcashSigningClient, MultisigQueryClient};
 use nym_validator_client::nyxd::cosmwasm_client::logs::find_proposal_id;
+use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::NymApiClient;
-use nym_validator_client::{nyxd::AccountId, DirectSigningHttpRpcNyxdClient};
-use tokio::{
-    sync::RwLock,
-    time::{interval, Duration},
-};
+use tokio::time::{interval, Duration};
 
 const CRED_SENDING_INTERVAL: u64 = 300;
 
@@ -49,7 +43,7 @@ impl PendingCredential {
 pub(crate) struct CredentialSender<St: Storage> {
     cred_receiver: UnboundedReceiver<PendingCredential>,
     storage: St,
-    nyxd_client: Arc<RwLock<DirectSigningHttpRpcNyxdClient>>,
+    shared_state: SharedState,
 }
 
 impl<St> CredentialSender<St>
@@ -59,12 +53,12 @@ where
     pub(crate) fn new(
         cred_receiver: UnboundedReceiver<PendingCredential>,
         storage: St,
-        nyxd_client: Arc<RwLock<DirectSigningHttpRpcNyxdClient>>,
+        shared_state: SharedState,
     ) -> Self {
         CredentialSender {
             cred_receiver,
             storage,
-            nyxd_client,
+            shared_state,
         }
     }
 
@@ -77,8 +71,8 @@ where
             return Ok(());
         }
         let res = self
-            .nyxd_client
-            .write()
+            .shared_state
+            .start_tx()
             .await
             .prepare_credential(
                 pending.credential.data.serial_number_b58(),
@@ -89,8 +83,8 @@ where
         let proposal_id = find_proposal_id(&res.logs)?;
 
         let proposal = self
-            .nyxd_client
-            .read()
+            .shared_state
+            .start_query()
             .await
             .query_proposal(proposal_id)
             .await?;

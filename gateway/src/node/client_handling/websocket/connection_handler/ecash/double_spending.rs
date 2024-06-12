@@ -1,29 +1,33 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::error::RequestHandlingError;
+use crate::node::client_handling::websocket::connection_handler::ecash::state::SharedState;
 use bloomfilter::reexports::bit_vec::BitVec;
 use bloomfilter::Bloom;
+use log::warn;
 use nym_network_defaults::{BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS};
 use nym_task::TaskClient;
-use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::CoconutApiClient;
+use std::ops::Deref;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::time::{interval, Duration};
+
 #[derive(Clone)]
 pub(crate) struct DoubleSpendingDetector {
     spent_serial_numbers: Arc<RwLock<Bloom<String>>>,
-    ecash_clients: Arc<RwLock<(EpochId, Vec<CoconutApiClient>)>>,
+    shared_state: SharedState,
 }
 
 impl DoubleSpendingDetector {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(shared_state: SharedState) -> Self {
         let bitmap = [0u8; (BLOOM_BITMAP_SIZE / 8) as usize];
         let bloom_filter =
             Bloom::from_existing(&bitmap, BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS);
         DoubleSpendingDetector {
             spent_serial_numbers: Arc::new(RwLock::new(bloom_filter)),
-            ecash_clients: Default::default(),
+            shared_state,
         }
     }
 
@@ -34,10 +38,25 @@ impl DoubleSpendingDetector {
             .check(serial_number_bs58)
     }
 
-    async fn update(&self) {
+    async fn latest_api_endpoints(
+        &self,
+    ) -> Result<RwLockReadGuard<Vec<CoconutApiClient>>, RequestHandlingError> {
+        let epoch_id = self.shared_state.current_epoch_id().await?;
+        self.shared_state.api_clients(epoch_id).await
+    }
+
+    async fn refresh_bloomfilter(&self) {
         //here be api query and union of different results
         let mut bit_vec = BitVec::from_elem(BLOOM_BITMAP_SIZE as usize, false);
-        for ecash_client in &self.ecash_clients.read().await.1 {
+        let api_clients = match self.latest_api_endpoints().await {
+            Ok(clients) => clients,
+            Err(err) => {
+                warn!("failed to obtain current api clients: {err}");
+                return;
+            }
+        };
+
+        for ecash_client in api_clients.deref().iter() {
             match ecash_client.api_client.spent_credentials_filter().await {
                 Ok(response) => {
                     if response.bitmap.len() != (BLOOM_BITMAP_SIZE / 8) as usize {
@@ -55,18 +74,6 @@ impl DoubleSpendingDetector {
         let mut filter = self.spent_serial_numbers.write().await;
         *filter = Bloom::from_bit_vec(bit_vec, BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS);
     }
-    pub(crate) async fn update_api_client(
-        &self,
-        epoch_id: EpochId,
-        api_client: Vec<CoconutApiClient>,
-    ) {
-        let mut current_clients = self.ecash_clients.write().await;
-        if epoch_id >= current_clients.0 {
-            current_clients.1 = api_client;
-        }
-        drop(current_clients);
-        self.update().await;
-    }
 
     async fn run(&self, mut shutdown: TaskClient) {
         log::info!("Starting Ecash DoubleSpendingDetector");
@@ -78,7 +85,7 @@ impl DoubleSpendingDetector {
                 _ = shutdown.recv() => {
                     log::trace!("ecash_verifier::DoubleSpendingDetector : received shutdown");
                 },
-                _ = interval.tick() => self.update().await,
+                _ = interval.tick() => self.refresh_bloomfilter().await,
 
             }
         }

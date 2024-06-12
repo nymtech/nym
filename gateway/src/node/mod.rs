@@ -12,7 +12,7 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::ecash::EcashVerifier;
+use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
@@ -243,7 +243,7 @@ impl<St> Gateway<St> {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-        ecash_verifier: Arc<EcashVerifier>,
+        ecash_verifier: Arc<EcashManager>,
     ) where
         St: Storage + Clone + 'static,
     {
@@ -495,7 +495,7 @@ impl<St> Gateway<St> {
 
         let ecash_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
-            EcashVerifier::new(
+            EcashManager::new(
                 nyxd_client,
                 self.config.gateway.only_coconut_credentials,
                 self.identity_keypair.public_key().to_bytes(),

@@ -21,6 +21,7 @@ use futures::{
 };
 use log::*;
 use nym_credentials::coconut::utils::today;
+use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     types::{BinaryRequest, ServerResponse},
@@ -60,6 +61,14 @@ pub enum RequestHandlingError {
 
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
+
+    #[error(
+        "the provided credential has an invalid spending date. got {got} but expected {expected}"
+    )]
+    InvalidCredentialSpendingDate {
+        got: OffsetDateTime,
+        expected: OffsetDateTime,
+    },
 
     #[error("provided payinfo's public key does not match provider's")]
     InvalidPayInfoPublicKey,
@@ -268,6 +277,120 @@ where
         }
     }
 
+    async fn check_local_db_for_double_spending(
+        &self,
+        serial_number_bs58: &str,
+    ) -> Result<(), RequestHandlingError> {
+        let spent = self
+            .inner
+            .storage
+            .contains_credential(serial_number_bs58)
+            .await?;
+        if spent {
+            trace!("the credential has already been spent before at this gateway");
+            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
+        }
+        Ok(())
+    }
+
+    async fn check_bloomfilter(
+        &self,
+        serial_number_bs58: &String,
+    ) -> Result<(), RequestHandlingError> {
+        let spent = self
+            .inner
+            .shared_state
+            .ecash_verifier
+            .check_double_spend(serial_number_bs58)
+            .await;
+
+        if spent {
+            trace!("the credential has already been spent before at some gateway before (bloomfilter failure)");
+            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
+        }
+        Ok(())
+    }
+
+    fn check_credential_spending_date(
+        &self,
+        proposed: OffsetDateTime,
+        today: OffsetDateTime,
+    ) -> Result<(), RequestHandlingError> {
+        if today != proposed {
+            trace!("invalid credential spending date. received {proposed}");
+            return Err(RequestHandlingError::InvalidCredentialSpendingDate {
+                got: proposed,
+                expected: today,
+            });
+        }
+        Ok(())
+    }
+
+    async fn cryptographically_verify_credential(
+        &self,
+        credential: &CredentialSpendingRequest,
+    ) -> Result<(), RequestHandlingError> {
+        let aggregated_verification_key = self
+            .inner
+            .shared_state
+            .ecash_verifier
+            .verification_key(credential.data.epoch_id)
+            .await?;
+
+        self.inner
+            .shared_state
+            .ecash_verifier
+            .check_payment(&credential.data, &aggregated_verification_key)
+            .await?;
+        Ok(())
+    }
+
+    // deprecated so that I'd take another look at it to possible remove the online variant
+    #[deprecated]
+    async fn spend_received_credential(
+        &self,
+        credential: CredentialSpendingRequest,
+    ) -> Result<(), RequestHandlingError> {
+        let api_clients = self
+            .inner
+            .shared_state
+            .ecash_verifier
+            .api_clients(credential.data.epoch_id)
+            .await?;
+
+        if self.inner.shared_state.offline_credential_verification {
+            self.inner
+                .shared_state
+                .ecash_verifier
+                .post_credential(&api_clients, credential.clone())
+                .await?;
+
+            self.inner
+                .storage
+                .insert_credential(credential.clone())
+                .await?;
+        } else {
+            self.inner
+                .shared_state
+                .ecash_verifier
+                .spend_online_credential(&api_clients, &credential)
+                .await?;
+        }
+        Ok(())
+    }
+
+    async fn store_spent_credential(
+        &self,
+        serial_number_bs58: String,
+    ) -> Result<(), RequestHandlingError> {
+        trace!("storing serial number information");
+        self.inner
+            .storage
+            .insert_spent_credential(serial_number_bs58, self.client.address)
+            .await?;
+        Ok(())
+    }
+
     /// Tries to handle the received bandwidth request by checking correctness of the received data
     /// and if successful, increases client's bandwidth by an appropriate amount.
     ///
@@ -294,85 +417,17 @@ where
         let serial_number_bs58 = credential.data.serial_number_b58();
         trace!("processing credential {}", serial_number_bs58);
 
-        let already_spent_storage = self
-            .inner
-            .storage
-            .contains_credential(&serial_number_bs58)
+        self.check_credential_spending_date(credential.data.spend_date, spend_date)?;
+        self.check_bloomfilter(&serial_number_bs58).await?;
+        self.check_local_db_for_double_spending(&serial_number_bs58)
             .await?;
 
-        let already_spent_api = self
-            .inner
-            .shared_state
-            .ecash_verifier
-            .check_double_spend(&serial_number_bs58)
-            .await;
-
-        if already_spent_storage || already_spent_api {
-            trace!("the credential has already been spent before");
-            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
-        }
-
-        // check if the spending date is correct
-        if spend_date != credential.data.spend_date {
-            trace!("The provided spend date is incorrect");
-            return Err(RequestHandlingError::InvalidBandwidthCredential(
-                "Invalid spending date".to_string(),
-            ));
-        }
-
-        trace!(
-            "attempting to obtain aggregate verification key for epoch {}",
-            credential.data.epoch_id
-        );
-        {
-            let aggregated_verification_key = self
-                .inner
-                .shared_state
-                .ecash_verifier
-                .verification_key(credential.data.epoch_id)
-                .await?;
-
-            self.inner
-                .shared_state
-                .ecash_verifier
-                .check_payment(&credential.data, &aggregated_verification_key)
-                .await?;
-        }
-
-        trace!("the credential is a bandwidth voucher");
-        {
-            let api_clients = self
-                .inner
-                .shared_state
-                .ecash_verifier
-                .api_clients(credential.data.epoch_id)
-                .await?;
-
-            if self.inner.shared_state.offline_credential_verification {
-                self.inner
-                    .shared_state
-                    .ecash_verifier
-                    .post_credential(&api_clients, credential.clone())
-                    .await?;
-
-                self.inner
-                    .storage
-                    .insert_credential(credential.clone())
-                    .await?;
-            } else {
-                self.inner
-                    .shared_state
-                    .ecash_verifier
-                    .spend_online_credential(&api_clients, &credential)
-                    .await?;
-            }
-        }
-
-        trace!("storing serial number information");
-        self.inner
-            .storage
-            .insert_spent_credential(serial_number_bs58, self.client.address)
+        self.cryptographically_verify_credential(&credential)
             .await?;
+
+        // TODO: change it to batching instead
+        self.spend_received_credential(credential).await?;
+        self.store_spent_credential(serial_number_bs58).await?;
 
         let bandwidth = Bandwidth::ticket_amount();
 

@@ -2,7 +2,7 @@ use crate::mixnet::client::MixnetClientBuilder;
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
-use futures::{ready, AsyncRead, Stream, StreamExt};
+use futures::{ready, AsyncRead, Sink, SinkExt, Stream, StreamExt};
 use log::error;
 use nym_client_core::client::base_client::GatewayConnection;
 use nym_client_core::client::{
@@ -255,6 +255,30 @@ impl AsyncRead for MixnetClient {
         self._read.buffer = msg.message;
 
         self.read_buffer_to_slice(buf, cx)
+    }
+}
+
+impl Sink<InputMessage> for MixnetClient {
+    type Error = Error;
+
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        match self.client_input.input_sender.poll_ready_unpin(cx) {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
+            Poll::Ready(Err(_)) => Poll::Ready(Err(Error::MessageSendingFailure)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+
+    fn start_send(mut self: Pin<&mut Self>, item: InputMessage) -> Result<()> {
+        self.client_input.input_sender.start_send_unpin(item).map_err(|_| Error::MessageSendingFailure)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        self.client_input.input_sender.poll_flush_unpin(cx).map_err(|_| Error::MessageSendingFailure)
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Result<()>> {
+        self.client_input.input_sender.poll_close_unpin(cx).map_err(|_| Error::MessageSendingFailure)
     }
 }
 

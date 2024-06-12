@@ -9,7 +9,10 @@ license.workspace = true
 [dependencies]
 async-trait = { workspace = true }
 bip39 = { workspace = true }
-nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage"] }
+nym-client-core = { path = "../../../common/client-core", features = [
+    "fs-surb-storage",
+    "fs-gateways-storage",
+] }
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
@@ -21,7 +24,9 @@ nym-sphinx = { path = "../../../common/nymsphinx" }
 nym-task = { path = "../../../common/task" }
 nym-topology = { path = "../../../common/topology" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
-nym-validator-client = { path = "../../../common/client-libs/validator-client", features = ["http-client"] }
+nym-validator-client = { path = "../../../common/client-libs/validator-client", features = [
+    "http-client",
+] }
 nym-socks5-requests = { path = "../../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../../common/socks5/ordered-buffer" }
 nym-service-providers-common = { path = "../../../service-providers/common" }

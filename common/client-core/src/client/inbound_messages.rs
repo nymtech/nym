@@ -1,16 +1,20 @@
+use hyper::body::Buf;
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
+use serde::{Deserialize, Serialize};
+use tokio_util::{bytes::BytesMut, codec::{Decoder, Encoder}};
+
+use crate::error::ClientCoreError;
 
 pub type InputMessageSender = tokio_util::sync::PollSender<InputMessage>;
 pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum InputMessage {
     /// Fire an already prepared mix packets into the network.
     /// No guarantees are made about it. For example no retransmssion
@@ -196,5 +200,48 @@ impl InputMessage {
             | InputMessage::Premade { lane, .. } => lane,
             InputMessage::MessageWrapper { message, .. } => message.lane(),
         }
+    }
+}
+
+
+// TODO: Tests
+pub struct InputMessageCodec;
+
+impl Encoder<InputMessage> for InputMessageCodec {
+    type Error = ClientCoreError;
+
+    fn encode(&mut self, item: InputMessage, buf: &mut BytesMut) -> Result<(), Self::Error> {
+        let encoded = bincode::serialize(&item).expect("failed to serialize InputMessage");
+        let encoded_len = encoded.len() as u32;
+        let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
+        encoded_with_len.extend(encoded);
+        buf.reserve(encoded_with_len.len());
+        buf.extend_from_slice(&encoded_with_len);
+        Ok(())
+    }
+}
+
+impl Decoder for InputMessageCodec {
+    type Item = InputMessage;
+    type Error = ClientCoreError;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        if buf.len() < 4 {
+            return Ok(None);
+        }
+
+        let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
+        if buf.len() < len + 4 {
+            return Ok(None);
+        }
+
+        let decoded = match bincode::deserialize(&buf[4..len]) {
+            Ok(decoded) => decoded,
+            Err(_) => return Ok(None)
+        };
+
+        buf.advance(len + 4);
+
+        Ok(Some(decoded))
     }
 }

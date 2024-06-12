@@ -4138,6 +4138,7 @@ version = "1.1.15"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
+ "bincode",
  "bs58 0.5.1",
  "cfg-if",
  "clap 4.5.4",
@@ -5466,6 +5467,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "serde",
  "thiserror",
 ]
 
@@ -5543,6 +5545,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "log",
+ "serde",
  "thiserror",
  "tokio",
  "wasm-bindgen",

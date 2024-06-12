@@ -4,6 +4,7 @@
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_params::{PacketSize, PacketType};
 use nym_sphinx_types::{NymPacket, NymPacketError};
+use serde::{de::{self, Visitor}, Deserialize, Deserializer, Serialize, Serializer};
 
 use std::fmt::{self, Debug, Formatter};
 use thiserror::Error;
@@ -109,6 +110,39 @@ impl MixPacket {
             .chain(self.next_hop.as_bytes())
             .chain(self.packet.to_bytes()?)
             .collect())
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, MixPacketFormattingError> {
+        Ok(std::iter::once(self.packet_type as u8)
+            .chain(self.next_hop.as_bytes())
+            .chain(self.packet.to_bytes()?)
+            .collect())
+    }
+}
+
+impl Serialize for MixPacket {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_bytes(&self.to_bytes().map_err(serde::ser::Error::custom)?)
+    }
+}
+
+struct MixPacketVisitor;
+
+impl <'de> Visitor<'de> for MixPacketVisitor {
+    type Value = MixPacket;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a byte array representing a mix packet")
+    }
+
+    fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+        MixPacket::try_from_bytes(v).map_err(serde::de::Error::custom)
+    }
+}
+
+impl <'de> Deserialize <'de> for MixPacket {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_bytes(MixPacketVisitor)
     }
 }
 

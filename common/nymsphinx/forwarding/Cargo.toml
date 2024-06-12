@@ -13,3 +13,4 @@ nym-sphinx-params = { path = "../params" }
 nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
 nym-sphinx-anonymous-replies = { path = "../anonymous-replies" }
 thiserror = { workspace = true }
+serde = { workspace = true }

@@ -39,9 +39,9 @@ use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::manager::TaskHandle;
 use nym_task::TaskClient;
-use tokio_util::sync::PollSender;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio_util::sync::PollSender;
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
@@ -404,7 +404,7 @@ impl NRServiceProvider {
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
-        mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+        mut mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
         stats_collector: Option<ServiceStatisticsCollector>,
         packet_type: PacketType,

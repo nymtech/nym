@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::io;
+
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
 use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use nym_crypto::asymmetric::encryption;
@@ -16,10 +18,13 @@ use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
     DEFAULT_NUM_MIX_HOPS,
 };
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio_util::bytes::{Buf, BytesMut};
+use tokio_util::codec::{Decoder, Encoder};
 
 // TODO: should this live in this file?
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ReconstructedMessage {
     /// The actual plaintext message that was received.
     pub message: Vec<u8>,
@@ -57,6 +62,48 @@ impl From<PlainMessage> for ReconstructedMessage {
     }
 }
 
+pub struct ReconstructedMessageCodec;
+
+impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
+    type Error = MessageRecoveryError;
+
+    fn encode(&mut self, item: ReconstructedMessage, buf: &mut BytesMut) -> Result<(), Self::Error> {
+        let encoded = bincode::serialize(&item).expect("failed to serialize ReconstructedMessage");
+        let encoded_len = encoded.len() as u32;
+        let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
+        encoded_with_len.extend(encoded);
+        buf.reserve(encoded_with_len.len());
+        buf.extend_from_slice(&encoded_with_len);
+        Ok(())
+    }
+}
+
+impl Decoder for ReconstructedMessageCodec {
+    type Item = ReconstructedMessage;
+    type Error = MessageRecoveryError;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        if buf.len() < 4 {
+            return Ok(None);
+        }
+
+        let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
+        if buf.len() < len + 4 {
+            return Ok(None);
+        }
+
+        let decoded = match bincode::deserialize(&buf[4..len]) {
+            Ok(decoded) => decoded,
+            Err(_) => return Ok(None)
+        };
+
+        buf.advance(len + 4);
+
+        Ok(Some(decoded))
+    }
+}
+
+
 #[derive(Debug, Error)]
 pub enum MessageRecoveryError {
     #[error("The received message did not contain enough bytes to recover the ephemeral public key. Got {provided}. required: {required}")]
@@ -74,6 +121,9 @@ pub enum MessageRecoveryError {
 
     #[error("Failed to recover message fragment - {0}")]
     FragmentRecoveryError(#[from] ChunkingError),
+
+    #[error("Failed to recover message fragment - {0}")]
+    MessageRecoveryError(#[from] io::Error),
 }
 
 pub trait MessageReceiver {

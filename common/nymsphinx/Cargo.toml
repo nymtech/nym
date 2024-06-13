@@ -12,6 +12,9 @@ log = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 thiserror = { workspace = true }
+serde = { workspace = true }
+bincode = { workspace = true }
+tokio-util = { workspace = true, features = ["codec"] }
 
 nym-sphinx-acknowledgements = { path = "acknowledgements" }
 nym-sphinx-addressing = { path = "addressing" }

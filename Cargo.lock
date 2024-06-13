@@ -5363,6 +5363,7 @@ dependencies = [
 name = "nym-sphinx"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "log",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -5379,8 +5380,10 @@ dependencies = [
  "nym-topology",
  "rand 0.8.5",
  "rand_distr",
+ "serde",
  "thiserror",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

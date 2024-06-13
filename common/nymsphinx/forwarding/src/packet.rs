@@ -4,7 +4,10 @@
 use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nym_sphinx_params::{PacketSize, PacketType};
 use nym_sphinx_types::{NymPacket, NymPacketError};
-use serde::{de::{self, Visitor}, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{
+    de::{self, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 use std::fmt::{self, Debug, Formatter};
 use thiserror::Error;
@@ -128,7 +131,7 @@ impl Serialize for MixPacket {
 
 struct MixPacketVisitor;
 
-impl <'de> Visitor<'de> for MixPacketVisitor {
+impl<'de> Visitor<'de> for MixPacketVisitor {
     type Value = MixPacket;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -140,7 +143,7 @@ impl <'de> Visitor<'de> for MixPacketVisitor {
     }
 }
 
-impl <'de> Deserialize <'de> for MixPacket {
+impl<'de> Deserialize<'de> for MixPacket {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         deserializer.deserialize_bytes(MixPacketVisitor)
     }

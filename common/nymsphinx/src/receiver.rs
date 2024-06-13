@@ -63,11 +63,16 @@ impl From<PlainMessage> for ReconstructedMessage {
 }
 
 pub struct ReconstructedMessageCodec;
+const OFFSET: usize = 4;
 
 impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
     type Error = MessageRecoveryError;
 
-    fn encode(&mut self, item: ReconstructedMessage, buf: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(
+        &mut self,
+        item: ReconstructedMessage,
+        buf: &mut BytesMut,
+    ) -> Result<(), Self::Error> {
         let encoded = bincode::serialize(&item).expect("failed to serialize ReconstructedMessage");
         let encoded_len = encoded.len() as u32;
         let mut encoded_with_len = encoded_len.to_le_bytes().to_vec();
@@ -83,18 +88,33 @@ impl Decoder for ReconstructedMessageCodec {
     type Error = MessageRecoveryError;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if buf.len() < 4 {
+        println!("decoder called with buf: {:?}", buf.to_vec());
+        if buf.len() < OFFSET {
             return Ok(None);
         }
 
-        let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
-        if buf.len() < len + 4 {
+        let len = u32::from_le_bytes(
+            buf[0..OFFSET]
+                .try_into()
+                .expect("We know that we have at least OFFSET bytes in there"),
+        ) as usize;
+
+        println!("len to decode {}", len);
+        println!("buf len {}", buf.len());
+
+        if buf.len() < len + OFFSET {
             return Ok(None);
         }
 
-        let decoded = match bincode::deserialize(&buf[4..len]) {
-            Ok(decoded) => decoded,
-            Err(_) => return Ok(None)
+        let decoded = match bincode::deserialize(&buf[OFFSET..len + OFFSET]) {
+            Ok(decoded) => {
+                println!("decoded: {:?}", decoded);
+                decoded
+            }
+            Err(e) => {
+                println!("error: {:?}", e);
+                return Ok(None);
+            }
         };
 
         buf.advance(len + 4);
@@ -102,7 +122,6 @@ impl Decoder for ReconstructedMessageCodec {
         Ok(Some(decoded))
     }
 }
-
 
 #[derive(Debug, Error)]
 pub enum MessageRecoveryError {

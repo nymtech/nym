@@ -17,7 +17,7 @@ use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_client_core::HardcodedTopologyProvider;
 use nym_network_defaults::NymNetworkDetails;
-use nym_sdk::mixnet::{MixnetMessageSender, TopologyProvider};
+use nym_sdk::mixnet::TopologyProvider;
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
@@ -429,7 +429,7 @@ impl NRServiceProvider {
                         }
 
                         let response_message = msg.into_input_message(packet_type);
-                        mixnet_client_sender.send(response_message).await.unwrap();
+                        nym_sdk::mixnet::MixnetMessageSender::send(&mut mixnet_client_sender, response_message).await.unwrap();
                     } else {
                         log::error!("Exiting: channel closed!");
                         break;

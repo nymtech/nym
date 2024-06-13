@@ -7,7 +7,10 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use serde::{Deserialize, Serialize};
-use tokio_util::{bytes::BytesMut, codec::{Decoder, Encoder}};
+use tokio_util::{
+    bytes::BytesMut,
+    codec::{Decoder, Encoder},
+};
 
 use crate::error::ClientCoreError;
 
@@ -68,6 +71,10 @@ pub enum InputMessage {
 }
 
 impl InputMessage {
+    pub fn simple(data: &[u8], recipient: Recipient) -> Self {
+        InputMessage::new_regular(recipient, data.to_vec(), TransmissionLane::General, None)
+    }
+
     pub fn new_premade(
         msgs: Vec<MixPacket>,
         lane: TransmissionLane,
@@ -201,8 +208,11 @@ impl InputMessage {
             InputMessage::MessageWrapper { message, .. } => message.lane(),
         }
     }
-}
 
+    pub fn serialized_size(&self) -> u64 {
+        bincode::serialized_size(self).expect("failed to get serialized InputMessage size") + 4
+    }
+}
 
 // TODO: Tests
 pub struct InputMessageCodec;
@@ -235,9 +245,9 @@ impl Decoder for InputMessageCodec {
             return Ok(None);
         }
 
-        let decoded = match bincode::deserialize(&buf[4..len]) {
+        let decoded = match bincode::deserialize(&buf[4..len + 4]) {
             Ok(decoded) => decoded,
-            Err(_) => return Ok(None)
+            Err(_) => return Ok(None),
         };
 
         buf.advance(len + 4);

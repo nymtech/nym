@@ -8,6 +8,7 @@ use serde::{
     de::{self, Visitor},
     Deserialize, Deserializer, Serialize, Serializer,
 };
+use std::fmt;
 
 use nym_sphinx_anonymous_replies::reply_surb::AppliedReplySurb;
 use nym_sphinx_params::key_rotation::InvalidSphinxKeyRotation;
@@ -178,7 +179,7 @@ impl MixPacket {
         })
     }
 
-    pub fn into_v2_bytes(self) -> Result<Vec<u8>, MixPacketFormattingError> {
+    pub fn into_v2_bytes(&self) -> Result<Vec<u8>, MixPacketFormattingError> {
         Ok(std::iter::once(self.packet_type as u8)
             .chain(std::iter::once(self.key_rotation as u8))
             .chain(self.next_hop.as_bytes())

@@ -3,7 +3,7 @@
 
 - [Introduction](introduction.md)
 - [Changelog](changelog.md)
-
+- [Release Cycle](release-cycle.md)
 # Binaries
 
 - [Pre-built Binaries](binaries/pre-built-binaries.md)

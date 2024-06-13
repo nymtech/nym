@@ -106,20 +106,9 @@ impl CredentialIssuanceMonitor {
         let deposit_id = issued_credential.credential.deposit_id;
 
         //not using value anymore, but it should still be there
-        let deposit = self.nyxd_client.get_deposit_details(deposit_id).await?;
+        let _ = self.nyxd_client.get_deposit_details(deposit_id).await?;
         trace!("deposit exists");
 
-        // check if the deposit values match
-        let credential_info = "TicketBook";
-
-        if credential_info != deposit.info {
-            return Err(NymRewarderError::InconsistentDepositInfo {
-                deposit_id,
-                request: Some(credential_info.to_string()),
-                on_chain: deposit.info,
-            });
-        }
-        trace!("credential info matches the deposit");
         Ok(())
     }
 

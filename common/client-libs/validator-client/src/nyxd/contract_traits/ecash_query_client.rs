@@ -6,6 +6,7 @@ use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
+use cosmwasm_std::Coin;
 use nym_ecash_contract_common::msg::QueryMsg as EcashQueryMsg;
 use serde::Deserialize;
 
@@ -57,6 +58,11 @@ pub trait EcashQueryClient {
         limit: Option<u32>,
     ) -> Result<PagedBlacklistedAccountResponse, NyxdError> {
         self.query_ecash_contract(EcashQueryMsg::GetBlacklistPaged { start_after, limit })
+            .await
+    }
+
+    async fn get_required_deposit_amount(&self) -> Result<Coin, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetRequiredDepositAmount {})
             .await
     }
 
@@ -141,6 +147,7 @@ mod tests {
             QueryMsg::GetDepositsPaged { limit, start_after } => {
                 client.get_deposits_paged(start_after, limit).ignore()
             }
+            QueryMsg::GetRequiredDepositAmount {} => client.get_required_deposit_amount().ignore(),
         };
     }
 }

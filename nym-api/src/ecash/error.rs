@@ -109,15 +109,6 @@ pub enum CoconutError {
     #[error("signature didn't verify correctly")]
     SignatureVerificationError(#[from] SignatureError),
 
-    #[error("inconsistent public attributes")]
-    InconsistentPublicAttributes,
-
-    #[error("the provided deposit info is inconsistent. got '{request}' while the value on chain is '{on_chain}'")]
-    InconsistentDepositInfo { request: String, on_chain: String },
-
-    #[error("public attributes in request differ from the ones in deposit: Expected {0}, got {1}")]
-    DifferentPublicAttributes(String, String),
-
     #[error("storage error: {0}")]
     StorageError(#[from] NymApiStorageError),
 
@@ -126,9 +117,6 @@ pub enum CoconutError {
 
     #[error("incorrect credential proposal description: {reason}")]
     IncorrectProposal { reason: String },
-
-    #[error("invalid status of credential: {status}")]
-    InvalidCredentialStatus { status: String },
 
     #[error("DKG error: {0}")]
     DkgError(#[from] DkgError),

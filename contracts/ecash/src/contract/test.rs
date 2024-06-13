@@ -68,17 +68,13 @@ mod tests {
         let deps = test.deps.as_mut();
         let deposit_id = test.contract.deposits.save_deposit(
             deps.storage,
-            1000,
-            "info-string".to_string(),
             "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
         )?;
 
         // deposit exists
         let res = test.contract.get_deposit(test.query_ctx(), deposit_id)?;
         let expected = Deposit {
-            info: "info-string".to_string(),
-            amount: 1000u128.into(),
-            bs58_encoded_ed25519: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
+            bs58_encoded_ed25519_pubkey: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK".to_string(),
         };
 
         assert_eq!(expected, res.deposit.unwrap());

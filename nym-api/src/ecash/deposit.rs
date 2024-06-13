@@ -1,24 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::error::{CoconutError, Result};
+use crate::ecash::error::Result;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_credentials::IssuanceTicketBook;
-use nym_credentials_interface::ECASH_INFO_TYPE;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::Deposit;
 
 pub async fn validate_deposit(request: &BlindSignRequestBody, deposit: Deposit) -> Result<()> {
-    if deposit.info != ECASH_INFO_TYPE {
-        return Err(CoconutError::InconsistentDepositInfo {
-            request: ECASH_INFO_TYPE.to_string(),
-            on_chain: deposit.info,
-        });
-    }
-    // no need to check deposit amount as the contract itself should forbid invalid values
-
-    // verify signature
-    let ed25519 = ed25519::PublicKey::from_base58_string(deposit.bs58_encoded_ed25519)?;
+    // verify signature with the pubkey used in deposit
+    let ed25519 = ed25519::PublicKey::from_base58_string(deposit.bs58_encoded_ed25519_pubkey)?;
     let plaintext =
         IssuanceTicketBook::request_plaintext(&request.inner_sign_request, request.deposit_id);
     ed25519.verify(plaintext, &request.signature)?;
@@ -29,6 +20,7 @@ pub async fn validate_deposit(request: &BlindSignRequestBody, deposit: Deposit) 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::ecash::error::CoconutError;
     use crate::ecash::tests::voucher_fixture;
     use nym_compact_ecash::{generate_keypair_user, scheme::withdrawal::WithdrawalRequest};
     use rand::rngs::OsRng;
@@ -45,28 +37,8 @@ mod test {
         let valid_ed25519 = ed25519::KeyPair::new(&mut rng);
         let bs58_encoded_ed25519 = valid_ed25519.public_key().to_base58_string();
 
-        let inconsistent_deposit = Deposit {
-            info: "definitely-not-a-valid-ticket-book".to_string(),
-            amount: 12345,
-            bs58_encoded_ed25519: bs58_encoded_ed25519.clone(),
-        };
-
-        let err = validate_deposit(&correct_request, inconsistent_deposit)
-            .await
-            .unwrap_err();
-        assert_eq!(
-            err.to_string(),
-            CoconutError::InconsistentDepositInfo {
-                on_chain: "definitely-not-a-valid-ticket-book".to_string(),
-                request: ECASH_INFO_TYPE.to_string(),
-            }
-            .to_string(),
-        );
-
         let malformed_deposit = Deposit {
-            info: ECASH_INFO_TYPE.to_string(),
-            amount: 12345,
-            bs58_encoded_ed25519: "invalided25519pubkey".to_string(),
+            bs58_encoded_ed25519_pubkey: "invalided25519pubkey".to_string(),
         };
 
         let err = validate_deposit(&correct_request, malformed_deposit)
@@ -81,9 +53,7 @@ mod test {
         ));
 
         let wrong_deposit = Deposit {
-            info: ECASH_INFO_TYPE.to_string(),
-            amount: 12345,
-            bs58_encoded_ed25519,
+            bs58_encoded_ed25519_pubkey: bs58_encoded_ed25519,
         };
 
         let err = validate_deposit(&correct_request, wrong_deposit)
@@ -128,9 +98,7 @@ mod test {
         );
 
         let good_deposit = Deposit {
-            info: ECASH_INFO_TYPE.to_string(),
-            amount: 12345,
-            bs58_encoded_ed25519: "JDTnyotGw3TtbohEamWNjhvGpj3tJz2C4X2Au9PrSTEx".to_string(),
+            bs58_encoded_ed25519_pubkey: "JDTnyotGw3TtbohEamWNjhvGpj3tJz2C4X2Au9PrSTEx".to_string(),
         };
 
         let res = validate_deposit(&correct_request, good_deposit).await;

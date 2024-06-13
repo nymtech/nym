@@ -26,7 +26,7 @@ pub trait EcashSigningClient {
         public_key: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = EcashExecuteMsg::DepositFunds {
+        let req = EcashExecuteMsg::DepositTicketBookFunds {
             deposit_info: "TicketBook".to_string(),
             identity_key: public_key,
         };
@@ -105,7 +105,7 @@ mod tests {
         msg: EcashExecuteMsg,
     ) {
         match msg {
-            EcashExecuteMsg::DepositFunds {
+            EcashExecuteMsg::DepositTicketBookFunds {
                 deposit_info: _,
                 identity_key,
             } => client

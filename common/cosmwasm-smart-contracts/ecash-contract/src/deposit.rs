@@ -3,20 +3,22 @@
 
 use crate::error::EcashContractError;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{StdError, StdResult};
 
 pub type DepositId = u32;
 
 #[cw_serde]
 pub struct Deposit {
-    pub info: String,
-
-    pub amount: Uint128,
-
-    pub bs58_encoded_ed25519: String,
+    pub bs58_encoded_ed25519_pubkey: String,
 }
 
 impl Deposit {
+    pub fn new(bs58_encoded_ed25519_pubkey: String) -> Self {
+        Deposit {
+            bs58_encoded_ed25519_pubkey,
+        }
+    }
+
     pub fn get_ed25519_pubkey_bytes(raw: &str) -> Result<[u8; 32], EcashContractError> {
         let mut ed25519_pubkey_bytes = [0u8; 32];
         bs58::decode(raw)
@@ -30,8 +32,18 @@ impl Deposit {
         bs58::encode(raw).into_string()
     }
 
-    pub fn ed25519_pubkey_bytes(&self) -> Result<[u8; 32], EcashContractError> {
-        Self::get_ed25519_pubkey_bytes(&self.bs58_encoded_ed25519)
+    pub fn to_bytes(&self) -> Result<[u8; 32], EcashContractError> {
+        Self::get_ed25519_pubkey_bytes(&self.bs58_encoded_ed25519_pubkey)
+    }
+
+    pub fn try_from_bytes(bytes: &[u8]) -> StdResult<Self> {
+        if bytes.len() != 32 {
+            return Err(StdError::generic_err("malformed deposit data"));
+        }
+
+        Ok(Deposit {
+            bs58_encoded_ed25519_pubkey: Self::encode_pubkey_bytes(bytes),
+        })
     }
 }
 

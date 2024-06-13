@@ -11,6 +11,8 @@ use crate::deposit::{DepositResponse, PagedDepositsResponse};
 use crate::spend_credential::{EcashSpentCredentialResponse, PagedEcashSpentCredentialResponse};
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
+#[cfg(feature = "schema")]
+use cosmwasm_std::Coin;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -21,7 +23,7 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    DepositFunds {
+    DepositTicketBookFunds {
         deposit_info: String,
         identity_key: String,
     },
@@ -61,6 +63,9 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<String>,
     },
+
+    #[cfg_attr(feature = "schema", returns(Coin))]
+    GetRequiredDepositAmount {},
 
     #[cfg_attr(feature = "schema", returns(DepositResponse))]
     GetDeposit { deposit_id: u32 },

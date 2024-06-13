@@ -32,12 +32,10 @@ use nym_compact_ecash::BlindedSignature;
 use nym_compact_ecash::{ttp_keygen, VerificationKeyAuth};
 use nym_contracts_common::IdentityKey;
 use nym_credentials::IssuanceTicketBook;
-use nym_credentials_interface::ECASH_INFO_TYPE;
 use nym_crypto::asymmetric::identity;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
-use nym_ecash_contract_common::events::TICKET_BOOK_VALUE;
 use nym_ecash_contract_common::spend_credential::{
     EcashSpentCredential, EcashSpentCredentialResponse,
 };
@@ -1141,9 +1139,7 @@ pub fn deposit_fixture() -> Deposit {
     let identity_keypair = identity::KeyPair::new(&mut rng);
 
     Deposit {
-        info: ECASH_INFO_TYPE.to_string(),
-        amount: 1234,
-        bs58_encoded_ed25519: identity_keypair.public_key().to_base58_string(),
+        bs58_encoded_ed25519_pubkey: identity_keypair.public_key().to_base58_string(),
     }
 }
 
@@ -1274,9 +1270,10 @@ impl TestFixture {
     fn add_deposit(&self, voucher_data: &IssuanceTicketBook) {
         let mut chain = self.chain_state.lock().unwrap();
         let deposit = Deposit {
-            info: ECASH_INFO_TYPE.to_string(),
-            amount: TICKET_BOOK_VALUE,
-            bs58_encoded_ed25519: voucher_data.identity_key().public_key().to_base58_string(),
+            bs58_encoded_ed25519_pubkey: voucher_data
+                .identity_key()
+                .public_key()
+                .to_base58_string(),
         };
         let existing = chain
             .bandwidth_contract
@@ -1345,10 +1342,7 @@ mod credential_tests {
         tests::helpers::{generate_coin_indices_signatures, generate_expiration_date_signatures},
         ttp_keygen, PayInfo,
     };
-    use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
     use nym_validator_client::nym_api::routes::ECASH_VERIFY_ONLINE_CREDENTIAL;
-    use nym_validator_client::nyxd::contract_traits::EcashQueryClient;
-    use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
 
     #[tokio::test]
     async fn already_issued() {
@@ -1546,9 +1540,7 @@ mod credential_tests {
         let chain = init_chain();
 
         let deposit = Deposit {
-            info: ECASH_INFO_TYPE.to_string(),
-            amount: TICKET_BOOK_VALUE,
-            bs58_encoded_ed25519: voucher.identity_key().public_key().to_base58_string(),
+            bs58_encoded_ed25519_pubkey: voucher.identity_key().public_key().to_base58_string(),
         };
         chain
             .lock()

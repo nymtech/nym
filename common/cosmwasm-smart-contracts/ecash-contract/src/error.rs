@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::StdError;
+use cosmwasm_std::{Coin, StdError};
 use cw_controllers::AdminError;
 use cw_utils::PaymentError;
 use thiserror::Error;
@@ -56,4 +56,7 @@ pub enum EcashContractError {
 
     #[error("the provided ed25519 identity was malformed")]
     MalformedEd25519Identity,
+
+    #[error("the required deposit amount has changed since the contract was created! This was not expected! It used to be {at_init} but it's {current} now! Please let the developers know ASAP!")]
+    DepositAmountChanged { at_init: Coin, current: Coin },
 }

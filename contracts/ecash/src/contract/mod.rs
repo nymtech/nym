@@ -36,6 +36,8 @@ mod test;
 pub struct NymEcashContract<'a> {
     pub(crate) multisig: Admin<'a>,
     pub(crate) config: Item<'a, Config>,
+    pub(crate) expected_deposit: Item<'a, Coin>,
+
     pub(crate) spent_credentials: Map<'a, SerialNumber, EcashSpentCredential>,
     pub(crate) blacklist: Map<'a, BlacklistKey, Blacklisting>,
 
@@ -51,6 +53,7 @@ impl NymEcashContract<'_> {
         Self {
             multisig: Admin::new("multisig"),
             config: Item::new("config"),
+            expected_deposit: Item::new("expected_deposit"),
             spent_credentials: Map::new("spent_credentials"),
             blacklist: Map::new("blacklist"),
             deposits: DepositStorage::new(),
@@ -74,11 +77,14 @@ impl NymEcashContract<'_> {
 
         self.multisig
             .set(ctx.deps.branch(), Some(multisig_addr.clone()))?;
+
+        self.expected_deposit
+            .save(ctx.deps.storage, &Coin::new(TICKET_BOOK_VALUE, &mix_denom))?;
+
         let cfg = Config {
             group_addr,
             mix_denom,
         };
-
         self.config.save(ctx.deps.storage, &cfg)?;
 
         cw2::set_contract_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -175,6 +181,21 @@ impl NymEcashContract<'_> {
     }
 
     #[msg(query)]
+    pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> Result<Coin, EcashContractError> {
+        let mix_denom = self.config.load(ctx.deps.storage)?.mix_denom;
+        let expected_deposit = self.expected_deposit.load(ctx.deps.storage)?;
+        let current = Coin::new(TICKET_BOOK_VALUE, mix_denom);
+        if expected_deposit != current {
+            return Err(EcashContractError::DepositAmountChanged {
+                at_init: expected_deposit,
+                current,
+            });
+        }
+
+        Ok(current)
+    }
+
+    #[msg(query)]
     pub fn get_deposit(
         &self,
         ctx: QueryCtx,
@@ -219,15 +240,22 @@ impl NymEcashContract<'_> {
     =====================*/
 
     #[msg(exec)]
-    pub fn deposit_funds(
+    pub fn deposit_ticket_book_funds(
         &self,
         ctx: ExecCtx,
-        deposit_info: String,
         identity_key: String,
     ) -> Result<Response, EcashContractError> {
         let mix_denom = self.config.load(ctx.deps.storage)?.mix_denom;
         let voucher_value = cw_utils::must_pay(&ctx.info, &mix_denom)?;
         let amount = voucher_value.u128();
+
+        let expected_deposit = self.expected_deposit.load(ctx.deps.storage)?;
+        if expected_deposit.amount.u128() != TICKET_BOOK_VALUE {
+            return Err(EcashContractError::DepositAmountChanged {
+                at_init: expected_deposit,
+                current: Coin::new(TICKET_BOOK_VALUE, mix_denom),
+            });
+        }
 
         if amount != TICKET_BOOK_VALUE {
             return Err(EcashContractError::WrongAmount {
@@ -236,9 +264,7 @@ impl NymEcashContract<'_> {
             });
         }
 
-        let deposit_id =
-            self.deposits
-                .save_deposit(ctx.deps.storage, amount, deposit_info, identity_key)?;
+        let deposit_id = self.deposits.save_deposit(ctx.deps.storage, identity_key)?;
 
         Ok(Response::new()
             .add_event(

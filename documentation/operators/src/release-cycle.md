@@ -21,6 +21,17 @@ Frequency of releases to mainnet is aimed to be every ~14 days. This time time w
 | merge to sandbox after QA approval | canary -> sandbox | release -> master | QA |
 | promote to mainnet after 3-5 days | sandbox -> mainnet | master | QA |
 
+<!--
+FEEDBACK FROM bn:
+
+Might be easier to understand to have like:
+| development work | local/canary | feature branches | devs |
+| cut and test release | canary | release branch | QA |
+| bug fixing | canary | directly on release branch | QA & devs |
+| put release on sandbox | sandbox | release -> master/develop | QA |
+| promote release to mainnet after 3-5 days | mainnet | master | QA |
+-->
+
 ```ascii
                    ▲                          ▲
                    │                          │
@@ -99,16 +110,11 @@ Feature tickets need explicit (while concise) wording because that title is even
 
 ## Sandbox Token Faucet
 
-<!--
-sach:
+To run your nodes in the sandbox environment, you need testnet version of NYM token, that can be aquired at [faucet.nymtech.net](https://faucet.nymtech.net).
 
-https://faucet.nymtech.net/
-To prevent abuse, the faucet is rate-limited with the following rules :
+To prevent abuse, the faucet is rate-limited with the following rules:
 
-1 request per wallet every 24 hours
-2 requests per IP address every 24 hours (so that people can request funds to run mixnode & gw from unique wallet addresses)
-Request will fail if the requesting wallet already has >101 NYM tokens
-
-- ADD WHY
-
--->
+- A request grants 101 testing NYM token (100 is a bonding minimum + fees)
+- 1 request per wallet every 24 hours
+- 2 requests per IP address every 24 hours (so that people can request funds to bond two nodes, one `nym-node` running as Mixnode & and one running as Gateway from unique wallet addresses)
+- Request will fail if the requesting wallet already has more than 101 NYM tokens

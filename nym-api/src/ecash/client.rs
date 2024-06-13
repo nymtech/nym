@@ -20,7 +20,6 @@ use nym_contracts_common::IdentityKey;
 use nym_dkg::Threshold;
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
-use nym_ecash_contract_common::spend_credential::EcashSpentCredentialResponse;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, Fee};
 
@@ -37,11 +36,6 @@ pub trait Client {
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>>;
 
     async fn get_vote(&self, proposal_id: u64, voter: String) -> Result<VoteResponse>;
-
-    async fn get_spent_credential(
-        &self,
-        blinded_serial_number: String,
-    ) -> Result<EcashSpentCredentialResponse>;
 
     async fn propose_for_blacklist(&self, public_key: String) -> Result<ExecuteResult>;
     async fn get_blacklisted_account(

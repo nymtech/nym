@@ -4,7 +4,7 @@
 use crate::config::Config;
 use crate::node::storage::Storage;
 use log::{trace, warn};
-use nym_credentials::coconut::utils::today;
+use nym_credentials::coconut::utils::ecash_today;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
@@ -145,7 +145,7 @@ pub(crate) struct AvailableBandwidth {
 
 impl AvailableBandwidth {
     pub(crate) fn expired(&self) -> bool {
-        self.expiration < today()
+        self.expiration < ecash_today()
     }
 }
 

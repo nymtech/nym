@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::client::Client;
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use cw3::{ProposalResponse, Status, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse};
@@ -38,19 +38,19 @@ impl DkgClient {
         self.inner.address().await
     }
 
-    pub(crate) async fn dkg_contract_address(&self) -> Result<AccountId, CoconutError> {
+    pub(crate) async fn dkg_contract_address(&self) -> Result<AccountId, EcashError> {
         self.inner.dkg_contract_address().await
     }
 
-    pub(crate) async fn get_current_epoch(&self) -> Result<Epoch, CoconutError> {
+    pub(crate) async fn get_current_epoch(&self) -> Result<Epoch, EcashError> {
         self.inner.get_current_epoch().await
     }
 
-    pub(crate) async fn get_contract_state(&self) -> Result<ContractState, CoconutError> {
+    pub(crate) async fn get_contract_state(&self) -> Result<ContractState, EcashError> {
         self.inner.contract_state().await
     }
 
-    pub(crate) async fn group_member(&self) -> Result<MemberResponse, CoconutError> {
+    pub(crate) async fn group_member(&self) -> Result<MemberResponse, EcashError> {
         self.inner
             .group_member(self.get_address().await.to_string())
             .await
@@ -58,13 +58,13 @@ impl DkgClient {
 
     pub(crate) async fn get_current_epoch_threshold(
         &self,
-    ) -> Result<Option<Threshold>, CoconutError> {
+    ) -> Result<Option<Threshold>, EcashError> {
         self.inner.get_current_epoch_threshold().await
     }
 
     pub(crate) async fn get_self_registered_dealer_details(
         &self,
-    ) -> Result<DealerDetailsResponse, CoconutError> {
+    ) -> Result<DealerDetailsResponse, EcashError> {
         self.inner.get_self_registered_dealer_details().await
     }
 
@@ -72,14 +72,14 @@ impl DkgClient {
         &self,
         epoch_id: EpochId,
         dealer: String,
-    ) -> Result<bool, CoconutError> {
+    ) -> Result<bool, EcashError> {
         self.inner
             .get_registered_dealer_details(epoch_id, dealer)
             .await
             .map(|d| d.details.is_some())
     }
 
-    pub(crate) async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>, CoconutError> {
+    pub(crate) async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>, EcashError> {
         self.inner.get_current_dealers().await
     }
 
@@ -87,7 +87,7 @@ impl DkgClient {
         &self,
         epoch_id: EpochId,
         dealer: String,
-    ) -> Result<DealerDealingsStatusResponse, CoconutError> {
+    ) -> Result<DealerDealingsStatusResponse, EcashError> {
         self.inner
             .get_dealer_dealings_status(epoch_id, dealer)
             .await
@@ -99,11 +99,11 @@ impl DkgClient {
         dealer: &str,
         dealing_index: DealingIndex,
         chunk_index: ChunkIndex,
-    ) -> Result<PartialContractDealingData, CoconutError> {
+    ) -> Result<PartialContractDealingData, EcashError> {
         self.inner
             .get_dealing_chunk(epoch_id, dealer, dealing_index, chunk_index)
             .await?
-            .ok_or(CoconutError::MissingDealingChunk {
+            .ok_or(EcashError::MissingDealingChunk {
                 epoch_id,
                 dealer: dealer.to_string(),
                 dealing_index,
@@ -115,7 +115,7 @@ impl DkgClient {
         &self,
         epoch_id: EpochId,
         address: S,
-    ) -> Result<Option<ContractVKShare>, CoconutError> {
+    ) -> Result<Option<ContractVKShare>, EcashError> {
         self.inner
             .get_verification_key_share(epoch_id, address.into())
             .await
@@ -124,7 +124,7 @@ impl DkgClient {
     pub(crate) async fn get_verification_own_key_share(
         &self,
         epoch_id: EpochId,
-    ) -> Result<Option<ContractVKShare>, CoconutError> {
+    ) -> Result<Option<ContractVKShare>, EcashError> {
         let address = self.inner.address().await;
         self.get_verification_key_share(epoch_id, address).await
     }
@@ -132,31 +132,28 @@ impl DkgClient {
     pub(crate) async fn get_verification_key_shares(
         &self,
         epoch_id: EpochId,
-    ) -> Result<Vec<ContractVKShare>, CoconutError> {
+    ) -> Result<Vec<ContractVKShare>, EcashError> {
         self.inner.get_verification_key_shares(epoch_id).await
     }
 
-    pub(crate) async fn get_vote(&self, proposal_id: u64) -> Result<VoteResponse, CoconutError> {
+    pub(crate) async fn get_vote(&self, proposal_id: u64) -> Result<VoteResponse, EcashError> {
         let address = self.get_address().await.to_string();
         self.inner.get_vote(proposal_id, address).await
     }
 
-    pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, CoconutError> {
+    pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, EcashError> {
         self.inner.list_proposals().await
     }
 
-    pub(crate) async fn get_proposal_status(
-        &self,
-        proposal_id: u64,
-    ) -> Result<Status, CoconutError> {
+    pub(crate) async fn get_proposal_status(&self, proposal_id: u64) -> Result<Status, EcashError> {
         self.inner.get_proposal(proposal_id).await.map(|p| p.status)
     }
 
-    pub(crate) async fn advance_epoch_state(&self) -> Result<(), CoconutError> {
+    pub(crate) async fn advance_epoch_state(&self) -> Result<(), EcashError> {
         self.inner.advance_epoch_state().await
     }
 
-    pub(crate) async fn can_advance_epoch_state(&self) -> Result<bool, CoconutError> {
+    pub(crate) async fn can_advance_epoch_state(&self) -> Result<bool, EcashError> {
         self.inner.can_advance_epoch_state().await
     }
 
@@ -166,18 +163,18 @@ impl DkgClient {
         identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
-    ) -> Result<NodeIndex, CoconutError> {
+    ) -> Result<NodeIndex, EcashError> {
         let res = self
             .inner
             .register_dealer(bte_key, identity_key, announce_address, resharing)
             .await?;
         let node_index = find_attribute(&res.logs, "wasm", NODE_INDEX)
-            .ok_or(CoconutError::NodeIndexRecoveryError {
+            .ok_or(EcashError::NodeIndexRecoveryError {
                 reason: String::from("node index not found"),
             })?
             .value
             .parse::<NodeIndex>()
-            .map_err(|_| CoconutError::NodeIndexRecoveryError {
+            .map_err(|_| EcashError::NodeIndexRecoveryError {
                 reason: String::from("node index could not be parsed"),
             })?;
 
@@ -189,7 +186,7 @@ impl DkgClient {
         dealing_index: DealingIndex,
         chunks: Vec<DealingChunkInfo>,
         resharing: bool,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), EcashError> {
         self.inner
             .submit_dealing_metadata(dealing_index, chunks, resharing)
             .await?;
@@ -199,7 +196,7 @@ impl DkgClient {
     pub(crate) async fn submit_dealing_chunk(
         &self,
         chunk: PartialContractDealing,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), EcashError> {
         self.inner.submit_dealing_chunk(chunk).await?;
         Ok(())
     }
@@ -208,7 +205,7 @@ impl DkgClient {
         &self,
         share: VerificationKeyShare,
         resharing: bool,
-    ) -> Result<ExecuteResult, CoconutError> {
+    ) -> Result<ExecuteResult, EcashError> {
         self.inner
             .submit_verification_key_share(share.clone(), resharing)
             .await
@@ -218,14 +215,14 @@ impl DkgClient {
         &self,
         proposal_id: u64,
         vote_yes: bool,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), EcashError> {
         self.inner.vote_proposal(proposal_id, vote_yes, None).await
     }
 
     pub(crate) async fn execute_verification_key_share(
         &self,
         proposal_id: u64,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), EcashError> {
         self.inner.execute_proposal(proposal_id).await
     }
 }

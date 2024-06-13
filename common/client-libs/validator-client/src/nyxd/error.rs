@@ -148,6 +148,12 @@ pub enum NyxdError {
 
     #[error("Account had an unexpected bech32 prefix. Expected: {expected}, got: {got}")]
     UnexpectedBech32Prefix { got: String, expected: String },
+
+    #[error("the transaction returned unexpected, {got}, number of MsgResponse. Expected to receive a single one")]
+    UnexpectedNumberOfMsgResponses { got: usize },
+
+    #[error("the response data has invalid size. got {got} bytes, but expected {expected} bytes instead")]
+    MalformedResponseData { got: usize, expected: usize },
 }
 
 // The purpose of parsing the abci query result is that we want to generate the `pretty_log` if

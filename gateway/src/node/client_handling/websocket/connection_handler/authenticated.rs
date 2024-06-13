@@ -20,7 +20,7 @@ use futures::{
     FutureExt, StreamExt,
 };
 use log::*;
-use nym_credentials::coconut::utils::today;
+use nym_credentials::coconut::utils::ecash_today;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
@@ -29,6 +29,7 @@ use nym_gateway_requests::{
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::CoconutApiError;
+use nym_validator_client::nym_api::EpochId;
 use rand::{CryptoRng, Rng};
 use std::{process, time::Duration};
 use thiserror::Error;
@@ -128,6 +129,9 @@ pub enum RequestHandlingError {
 
     #[error("the DKG contract is unavailable")]
     UnavailableDkgContract,
+
+    #[error("the DKG threshold value for epoch {epoch_id} is currently unavailable. we're probably mid-epoch transition")]
+    DKGThresholdUnavailable { epoch_id: EpochId },
 }
 
 impl RequestHandlingError {
@@ -351,17 +355,10 @@ where
         &self,
         credential: CredentialSpendingRequest,
     ) -> Result<(), RequestHandlingError> {
-        let api_clients = self
-            .inner
-            .shared_state
-            .ecash_verifier
-            .api_clients(credential.data.epoch_id)
-            .await?;
-
         self.inner
             .shared_state
             .ecash_verifier
-            .post_credential(&api_clients, credential.clone())?;
+            .post_credential(credential.clone())?;
 
         self.inner
             .storage
@@ -395,18 +392,18 @@ where
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        debug!("handling ecash bandwidth request");
+        debug!("handling e-cash bandwidth request");
 
         let credential = ClientControlRequest::try_from_enc_ecash_credential(
             enc_credential,
             &self.client.shared_keys,
             iv,
         )?;
-        let spend_date = today();
+        let spend_date = ecash_today();
 
         // check if the credential hasn't been spent before
         let serial_number_bs58 = credential.data.serial_number_b58();
-        trace!("processing credential {}", serial_number_bs58);
+        trace!("processing credential {serial_number_bs58}");
 
         self.check_credential_spending_date(credential.data.spend_date, spend_date)?;
         self.check_bloomfilter(&serial_number_bs58).await?;
@@ -418,6 +415,8 @@ where
 
         // TODO: change it to batching instead
         self.spend_received_credential(credential).await?;
+
+        // TODO: double storing?
         self.store_spent_credential(serial_number_bs58).await?;
 
         let bandwidth = Bandwidth::ticket_amount();
@@ -438,7 +437,7 @@ where
             return Err(RequestHandlingError::OnlyCoconutCredentials);
         }
 
-        self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE, today())
+        self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE, ecash_today())
             .await?;
         let available_total = self.client_bandwidth.bandwidth.bytes;
 

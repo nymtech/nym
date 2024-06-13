@@ -2,12 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::NymEcashContract;
-use crate::helpers::{create_blacklist_proposal, create_spend_proposal, ProposalId};
-use cosmwasm_std::{to_binary, Addr, CosmosMsg, Deps, SubMsg};
+use crate::helpers::{create_batch_redemption_proposal, create_blacklist_proposal, ProposalId};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{to_binary, Addr, Coin, Deps, SubMsg};
 use cw3::ProposalResponse;
 use nym_ecash_contract_common::EcashContractError;
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
 use sylvia::types::ExecCtx;
+
+#[cw_serde]
+pub(crate) struct Invariants {
+    pub(crate) ticket_book_value: Coin,
+    pub(crate) ticket_value: Coin,
+}
 
 impl NymEcashContract<'_> {
     fn must_get_multisig_addr(&self, deps: Deps) -> Result<Addr, EcashContractError> {
@@ -20,18 +27,18 @@ impl NymEcashContract<'_> {
             .expect("multisig admin must always be set on initialisation"))
     }
 
-    pub(crate) fn create_spend_proposal(
+    pub(crate) fn create_redemption_proposal(
         &self,
         ctx: ExecCtx,
-        serial_number: String,
-        gateway_cosmos_address: String,
-    ) -> Result<CosmosMsg, EcashContractError> {
-        let gateway_cosmos_address = ctx.deps.api.addr_validate(&gateway_cosmos_address)?;
+        commitment_bs58: String,
+        number_of_tickets: u16,
+    ) -> Result<SubMsg, EcashContractError> {
         let multisig_addr = self.must_get_multisig_addr(ctx.deps.as_ref())?;
 
-        create_spend_proposal(
-            serial_number,
-            gateway_cosmos_address.into_string(),
+        create_batch_redemption_proposal(
+            commitment_bs58,
+            ctx.info.sender.into_string(),
+            number_of_tickets,
             ctx.env.contract.address.into_string(),
             multisig_addr.into_string(),
         )

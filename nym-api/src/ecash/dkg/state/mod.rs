@@ -7,7 +7,7 @@ use crate::ecash::dkg::state::key_derivation::KeyDerivationState;
 use crate::ecash::dkg::state::key_finalization::FinalizationState;
 use crate::ecash::dkg::state::key_validation::ValidationState;
 use crate::ecash::dkg::state::registration::{DkgParticipant, ParticipantState, RegistrationState};
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use crate::ecash::keys::{KeyPair as CoconutKeyPair, KeyPairWithEpoch};
 use cosmwasm_std::Addr;
 use log::debug;
@@ -58,13 +58,13 @@ impl From<&State> for PersistentState {
 }
 
 impl PersistentState {
-    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), CoconutError> {
+    pub fn save_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), EcashError> {
         debug!("persisting the dkg state");
         std::fs::write(path, serde_json::to_string(self)?)?;
         Ok(())
     }
 
-    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, CoconutError> {
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, EcashError> {
         Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
     }
 }
@@ -134,7 +134,7 @@ impl State {
         }
     }
 
-    pub fn persist(&self) -> Result<(), CoconutError> {
+    pub fn persist(&self) -> Result<(), EcashError> {
         PersistentState::from(self).save_to_file(self.persistent_state_path())
     }
 
@@ -156,7 +156,7 @@ impl State {
     pub fn valid_epoch_receivers(
         &self,
         epoch_id: EpochId,
-    ) -> Result<Vec<(Addr, NodeIndex)>, CoconutError> {
+    ) -> Result<Vec<(Addr, NodeIndex)>, EcashError> {
         Ok(self
             .dealing_exchange_state(epoch_id)?
             .dealers
@@ -175,7 +175,7 @@ impl State {
     pub fn valid_epoch_receivers_keys(
         &self,
         epoch_id: EpochId,
-    ) -> Result<BTreeMap<NodeIndex, bte::PublicKey>, CoconutError> {
+    ) -> Result<BTreeMap<NodeIndex, bte::PublicKey>, EcashError> {
         Ok(self
             .dealing_exchange_state(epoch_id)?
             .dealers
@@ -184,157 +184,151 @@ impl State {
             .collect())
     }
 
-    pub fn dkg_state(&self, epoch_id: EpochId) -> Result<&DkgState, CoconutError> {
+    pub fn dkg_state(&self, epoch_id: EpochId) -> Result<&DkgState, EcashError> {
         self.dkg_instances
             .get(&epoch_id)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
-    pub fn dkg_state_mut(&mut self, epoch_id: EpochId) -> Result<&mut DkgState, CoconutError> {
+    pub fn dkg_state_mut(&mut self, epoch_id: EpochId) -> Result<&mut DkgState, EcashError> {
         self.dkg_instances
             .get_mut(&epoch_id)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
-    pub fn registration_state(
-        &self,
-        epoch_id: EpochId,
-    ) -> Result<&RegistrationState, CoconutError> {
+    pub fn registration_state(&self, epoch_id: EpochId) -> Result<&RegistrationState, EcashError> {
         self.dkg_instances
             .get(&epoch_id)
             .map(|state| &state.registration)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn registration_state_mut(
         &mut self,
         epoch_id: EpochId,
-    ) -> Result<&mut RegistrationState, CoconutError> {
+    ) -> Result<&mut RegistrationState, EcashError> {
         self.dkg_instances
             .get_mut(&epoch_id)
             .map(|state| &mut state.registration)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
-    pub fn in_progress_state(&self, epoch_id: EpochId) -> Result<&InProgressState, CoconutError> {
+    pub fn in_progress_state(&self, epoch_id: EpochId) -> Result<&InProgressState, EcashError> {
         self.dkg_instances
             .get(&epoch_id)
             .map(|state| &state.in_progress)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn in_progress_state_mut(
         &mut self,
         epoch_id: EpochId,
-    ) -> Result<&mut InProgressState, CoconutError> {
+    ) -> Result<&mut InProgressState, EcashError> {
         self.dkg_instances
             .get_mut(&epoch_id)
             .map(|state| &mut state.in_progress)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn dealing_exchange_state(
         &self,
         epoch_id: EpochId,
-    ) -> Result<&DealingExchangeState, CoconutError> {
+    ) -> Result<&DealingExchangeState, EcashError> {
         self.dkg_instances
             .get(&epoch_id)
             .map(|state| &state.dealing_exchange)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn dealing_exchange_state_mut(
         &mut self,
         epoch_id: EpochId,
-    ) -> Result<&mut DealingExchangeState, CoconutError> {
+    ) -> Result<&mut DealingExchangeState, EcashError> {
         self.dkg_instances
             .get_mut(&epoch_id)
             .map(|state| &mut state.dealing_exchange)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn key_derivation_state(
         &self,
         epoch_id: EpochId,
-    ) -> Result<&KeyDerivationState, CoconutError> {
+    ) -> Result<&KeyDerivationState, EcashError> {
         self.dkg_instances
             .get(&epoch_id)
             .map(|state| &state.key_generation)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn key_derivation_state_mut(
         &mut self,
         epoch_id: EpochId,
-    ) -> Result<&mut KeyDerivationState, CoconutError> {
+    ) -> Result<&mut KeyDerivationState, EcashError> {
         self.dkg_instances
             .get_mut(&epoch_id)
             .map(|state| &mut state.key_generation)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
-    pub fn key_validation_state(
-        &self,
-        epoch_id: EpochId,
-    ) -> Result<&ValidationState, CoconutError> {
+    pub fn key_validation_state(&self, epoch_id: EpochId) -> Result<&ValidationState, EcashError> {
         self.dkg_instances
             .get(&epoch_id)
             .map(|state| &state.key_validation)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn key_validation_state_mut(
         &mut self,
         epoch_id: EpochId,
-    ) -> Result<&mut ValidationState, CoconutError> {
+    ) -> Result<&mut ValidationState, EcashError> {
         self.dkg_instances
             .get_mut(&epoch_id)
             .map(|state| &mut state.key_validation)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn key_finalization_state(
         &self,
         epoch_id: EpochId,
-    ) -> Result<&FinalizationState, CoconutError> {
+    ) -> Result<&FinalizationState, EcashError> {
         self.dkg_instances
             .get(&epoch_id)
             .map(|state| &state.key_finalization)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
     pub fn key_finalization_state_mut(
         &mut self,
         epoch_id: EpochId,
-    ) -> Result<&mut FinalizationState, CoconutError> {
+    ) -> Result<&mut FinalizationState, EcashError> {
         self.dkg_instances
             .get_mut(&epoch_id)
             .map(|state| &mut state.key_finalization)
-            .ok_or(CoconutError::MissingDkgState { epoch_id })
+            .ok_or(EcashError::MissingDkgState { epoch_id })
     }
 
-    pub fn threshold(&self, epoch_id: EpochId) -> Result<Threshold, CoconutError> {
+    pub fn threshold(&self, epoch_id: EpochId) -> Result<Threshold, EcashError> {
         self.key_derivation_state(epoch_id)?
             .expected_threshold
-            .ok_or(CoconutError::UnavailableThreshold { epoch_id })
+            .ok_or(EcashError::UnavailableThreshold { epoch_id })
     }
 
-    pub fn assigned_index(&self, epoch_id: EpochId) -> Result<NodeIndex, CoconutError> {
+    pub fn assigned_index(&self, epoch_id: EpochId) -> Result<NodeIndex, EcashError> {
         self.registration_state(epoch_id)?
             .assigned_index
-            .ok_or(CoconutError::UnavailableAssignedIndex { epoch_id })
+            .ok_or(EcashError::UnavailableAssignedIndex { epoch_id })
     }
 
-    pub fn receiver_index(&self, epoch_id: EpochId) -> Result<usize, CoconutError> {
+    pub fn receiver_index(&self, epoch_id: EpochId) -> Result<usize, EcashError> {
         self.dealing_exchange_state(epoch_id)?
             .receiver_index
-            .ok_or(CoconutError::UnavailableReceiverIndex { epoch_id })
+            .ok_or(EcashError::UnavailableReceiverIndex { epoch_id })
     }
 
-    pub fn proposal_id(&self, epoch_id: EpochId) -> Result<u64, CoconutError> {
+    pub fn proposal_id(&self, epoch_id: EpochId) -> Result<u64, EcashError> {
         self.key_derivation_state(epoch_id)?
             .proposal_id
-            .ok_or(CoconutError::UnavailableProposalId { epoch_id })
+            .ok_or(EcashError::UnavailableProposalId { epoch_id })
     }
 
     pub fn persistent_state_path(&self) -> &Path {

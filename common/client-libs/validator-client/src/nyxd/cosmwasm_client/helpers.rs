@@ -9,6 +9,7 @@ use log::error;
 use prost::bytes::Bytes;
 use tendermint_rpc::endpoint::broadcast;
 
+use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 pub use cosmrs::abci::MsgResponse;
 
 pub fn parse_msg_responses(data: Bytes) -> Vec<MsgResponse> {
@@ -28,6 +29,47 @@ pub fn parse_msg_responses(data: Bytes) -> Vec<MsgResponse> {
             error!("failed to parse tx responses - has the chain been upgraded and introduced some breaking changes? the error was {err}");
             Vec::new()
         }
+    }
+}
+
+// requires there's a single response message
+pub trait ToSingletonContractData: Sized {
+    fn parse_singleton_u32_contract_data(&self) -> Result<u32, NyxdError> {
+        let b = self.to_singleton_contract_data()?;
+        if b.len() != 4 {
+            return Err(NyxdError::MalformedResponseData {
+                got: b.len(),
+                expected: 4,
+            });
+        }
+        Ok(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+    }
+
+    fn parse_singleton_u64_contract_data(&self) -> Result<u64, NyxdError> {
+        let b = self.to_singleton_contract_data()?;
+        if b.len() != 8 {
+            return Err(NyxdError::MalformedResponseData {
+                got: b.len(),
+                expected: 8,
+            });
+        }
+        Ok(u64::from_be_bytes([
+            b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+        ]))
+    }
+
+    fn to_singleton_contract_data(&self) -> Result<Vec<u8>, NyxdError>;
+}
+
+impl ToSingletonContractData for ExecuteResult {
+    fn to_singleton_contract_data(&self) -> Result<Vec<u8>, NyxdError> {
+        if self.msg_responses.len() != 1 {
+            return Err(NyxdError::UnexpectedNumberOfMsgResponses {
+                got: self.msg_responses.len(),
+            });
+        }
+
+        self.msg_responses[0].to_contract_response_data()
     }
 }
 

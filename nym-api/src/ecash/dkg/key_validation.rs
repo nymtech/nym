@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::dkg::controller::DkgController;
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use cosmwasm_std::Addr;
 use cw3::Vote;
 use nym_coconut_dkg_common::types::EpochId;
@@ -25,7 +25,7 @@ fn vote_matches(voted_yes: bool, chain_vote: Vote) -> bool {
 #[derive(Debug, Error)]
 pub enum KeyValidationError {
     #[error(transparent)]
-    CoconutError(#[from] CoconutError),
+    CoconutError(#[from] EcashError),
 
     #[error("can't complete key validation without key derivation")]
     IncompleteKeyDerivation,

@@ -16,7 +16,7 @@ use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::{nyxd, storage};
 use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::Coin;
 use rocket::http::Method;
@@ -103,8 +103,14 @@ pub(crate) async fn setup_rocket(
             coconut_keypair: coconut_keypair.clone(),
         });
 
+        let ecash_contract = nyxd_client
+            .get_ecash_contract_address()
+            .await
+            .context("e-cash contract address is required to setup the zk-nym signer")?;
+
         let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
         rocket.attach(ecash::stage(
+            ecash_contract,
             nyxd_client.clone(),
             identity_keypair,
             coconut_keypair,

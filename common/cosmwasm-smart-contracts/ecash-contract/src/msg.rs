@@ -8,7 +8,7 @@ use crate::blacklist::{BlacklistedAccountResponse, PagedBlacklistedAccountRespon
 #[cfg(feature = "schema")]
 use crate::deposit::{DepositResponse, PagedDepositsResponse};
 #[cfg(feature = "schema")]
-use crate::spend_credential::{EcashSpentCredentialResponse, PagedEcashSpentCredentialResponse};
+use crate::redeem_credential::{EcashSpentCredentialResponse, PagedEcashSpentCredentialResponse};
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
 #[cfg(feature = "schema")]
@@ -23,18 +23,26 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    /// Used by clients to request ticket books from the signers
     DepositTicketBookFunds {
-        deposit_info: String,
         identity_key: String,
     },
-    PrepareCredential {
-        serial_number: String,
-        gateway_cosmos_address: String,
+
+    /// Used by gateways to batch redeem tokens from the spent tickets
+    RequestRedemption {
+        commitment_bs58: String,
+        number_of_tickets: u16,
     },
-    SpendCredential {
-        serial_number: String,
-        gateway_cosmos_address: String,
+
+    /// The actual message that gets executed, after multisig votes, that transfers the ticket tokens into gateway's (and the holding) account
+    RedeemTickets {
+        n: u16,
+        gw: String,
     },
+    // SpendCredential {
+    //     serial_number: String,
+    //     gateway_cosmos_address: String,
+    // },
     ProposeToBlacklist {
         public_key: String,
     },
@@ -51,15 +59,6 @@ pub enum QueryMsg {
 
     #[cfg_attr(feature = "schema", returns(PagedBlacklistedAccountResponse))]
     GetBlacklistPaged {
-        limit: Option<u32>,
-        start_after: Option<String>,
-    },
-
-    #[cfg_attr(feature = "schema", returns(EcashSpentCredentialResponse))]
-    GetSpentCredential { serial_number: String },
-
-    #[cfg_attr(feature = "schema", returns(PagedEcashSpentCredentialResponse))]
-    GetAllSpentCredentialsPaged {
         limit: Option<u32>,
         start_after: Option<String>,
     },

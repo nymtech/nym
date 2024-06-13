@@ -16,9 +16,6 @@ pub use nym_ecash_contract_common::blacklist::{
 pub use nym_ecash_contract_common::deposit::{
     Deposit, DepositData, DepositId, DepositResponse, PagedDepositsResponse,
 };
-pub use nym_ecash_contract_common::spend_credential::{
-    EcashSpentCredential, EcashSpentCredentialResponse, PagedEcashSpentCredentialResponse,
-};
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -26,23 +23,6 @@ pub trait EcashQueryClient {
     async fn query_ecash_contract<T>(&self, query: EcashQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>;
-
-    async fn get_spent_credential(
-        &self,
-        serial_number: String,
-    ) -> Result<EcashSpentCredentialResponse, NyxdError> {
-        self.query_ecash_contract(EcashQueryMsg::GetSpentCredential { serial_number })
-            .await
-    }
-
-    async fn get_all_spent_credential_paged(
-        &self,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> Result<PagedEcashSpentCredentialResponse, NyxdError> {
-        self.query_ecash_contract(EcashQueryMsg::GetAllSpentCredentialsPaged { limit, start_after })
-            .await
-    }
 
     async fn get_blacklisted_account(
         &self,
@@ -84,10 +64,6 @@ pub trait EcashQueryClient {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedEcashQueryClient: EcashQueryClient {
-    async fn get_all_spent_credentials(&self) -> Result<Vec<EcashSpentCredential>, NyxdError> {
-        collect_paged!(self, get_all_spent_credential_paged, spend_credentials)
-    }
-
     async fn get_all_blacklisted_accounts(&self) -> Result<Vec<BlacklistedAccount>, NyxdError> {
         collect_paged!(self, get_blacklist_paged, accounts)
     }
@@ -131,12 +107,6 @@ mod tests {
         msg: EcashQueryMsg,
     ) {
         match msg {
-            EcashQueryMsg::GetSpentCredential { serial_number } => {
-                client.get_spent_credential(serial_number).ignore()
-            }
-            EcashQueryMsg::GetAllSpentCredentialsPaged { limit, start_after } => client
-                .get_all_spent_credential_paged(start_after, limit)
-                .ignore(),
             EcashQueryMsg::GetBlacklistedAccount { public_key } => {
                 client.get_blacklisted_account(public_key).ignore()
             }

@@ -400,20 +400,21 @@ impl Storage for PersistentStorage {
         &self,
         pending: PendingCredential,
     ) -> Result<(), StorageError> {
-        self.credential_manager
-            .insert_pending_credential(
-                pending.credential.to_bs58(),
-                pending.address.into(),
-                pending
-                    .api_clients
-                    .iter()
-                    .map(|client| client.api_url().to_string())
-                    .collect::<Vec<_>>()
-                    .join(","),
-                pending.proposal_id.map(|id| id as i64),
-            )
-            .await?;
-        Ok(())
+        todo!()
+        // self.credential_manager
+        //     .insert_pending_credential(
+        //         pending.credential.to_bs58(),
+        //         pending.address.into(),
+        //         pending
+        //             .api_clients
+        //             .iter()
+        //             .map(|client| client.api_url().to_string())
+        //             .collect::<Vec<_>>()
+        //             .join(","),
+        //         pending.proposal_id.map(|id| id as i64),
+        //     )
+        //     .await?;
+        // Ok(())
     }
     async fn insert_spent_credential(
         &self,
@@ -436,38 +437,39 @@ impl Storage for PersistentStorage {
     async fn get_all_pending_credential(
         &self,
     ) -> Result<Vec<(i64, PendingCredential)>, StorageError> {
-        let credentials: Vec<_> = self
-            .credential_manager
-            .get_all_pending_credential()
-            .await?
-            .into_iter()
-            .map(|stored_pending| {
-                let credential =
-                    CredentialSpendingRequest::try_from_bs58(stored_pending.credential)
-                        .map_err(|err| StorageError::DataCorruption(err.to_string()))?;
-                let urls = stored_pending
-                    .api_urls
-                    .split(',')
-                    .map(|url| {
-                        Url::from_str(url)
-                            .map_err(|err| StorageError::DataCorruption(err.to_string()))
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-
-                let proposal_id = stored_pending.proposal_id.map(|id| id as u64);
-                Ok((
-                    stored_pending.id,
-                    PendingCredential {
-                        credential,
-                        address: AccountId::from_str(&stored_pending.gateway_address)
-                            .map_err(|err| StorageError::DataCorruption(err.to_string()))?,
-                        api_clients: urls.into_iter().map(NymApiClient::new).collect(),
-                        proposal_id,
-                    },
-                ))
-            })
-            .collect();
-        credentials.into_iter().collect()
+        todo!()
+        // let credentials: Vec<_> = self
+        //     .credential_manager
+        //     .get_all_pending_credential()
+        //     .await?
+        //     .into_iter()
+        //     .map(|stored_pending| {
+        //         let credential =
+        //             CredentialSpendingRequest::try_from_bs58(stored_pending.credential)
+        //                 .map_err(|err| StorageError::DataCorruption(err.to_string()))?;
+        //         let urls = stored_pending
+        //             .api_urls
+        //             .split(',')
+        //             .map(|url| {
+        //                 Url::from_str(url)
+        //                     .map_err(|err| StorageError::DataCorruption(err.to_string()))
+        //             })
+        //             .collect::<Result<Vec<_>, _>>()?;
+        //
+        //         let proposal_id = stored_pending.proposal_id.map(|id| id as u64);
+        //         Ok((
+        //             stored_pending.id,
+        //             PendingCredential {
+        //                 credential,
+        //                 address: AccountId::from_str(&stored_pending.gateway_address)
+        //                     .map_err(|err| StorageError::DataCorruption(err.to_string()))?,
+        //                 api_clients: urls.into_iter().map(NymApiClient::new).collect(),
+        //                 proposal_id,
+        //             },
+        //         ))
+        //     })
+        //     .collect();
+        // credentials.into_iter().collect()
     }
 
     async fn contains_credential(&self, blinded_serial_number: &str) -> Result<bool, StorageError> {

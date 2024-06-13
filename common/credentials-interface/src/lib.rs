@@ -26,8 +26,6 @@ pub use nym_compact_ecash::{
     SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
 
-pub const ECASH_INFO_TYPE: &str = "TicketBook";
-
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
     pub withdrawal_request: WithdrawalRequest,
@@ -53,10 +51,7 @@ pub struct CredentialSpendingData {
 }
 
 impl CredentialSpendingData {
-    pub fn verify(
-        &self,
-        verification_key: &VerificationKeyAuth,
-    ) -> Result<bool, CompactEcashError> {
+    pub fn verify(&self, verification_key: &VerificationKeyAuth) -> Result<(), CompactEcashError> {
         self.payment.spend_verify(
             verification_key,
             &self.pay_info,

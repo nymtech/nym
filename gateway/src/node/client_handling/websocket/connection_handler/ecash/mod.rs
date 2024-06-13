@@ -168,17 +168,12 @@ impl EcashManager {
 
     pub fn post_credential(
         &self,
-        api_clients: &[CoconutApiClient],
         credential: CredentialSpendingRequest,
     ) -> Result<(), RequestHandlingError> {
         self.cred_sender
             .unbounded_send(PendingCredential::new(
                 credential.clone(),
                 self.shared_state.address.clone(),
-                api_clients
-                    .iter()
-                    .map(|client| client.api_client.clone())
-                    .collect(),
             ))
             .map_err(|_| RequestHandlingError::InternalError)
     }

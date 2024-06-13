@@ -124,7 +124,7 @@ mod tests {
 
         assert!(payment
             .spend_verify(&verification_key, &pay_info, spend_date)
-            .unwrap());
+            .is_ok());
 
         let payment_bytes = payment.to_bytes();
         let payment2 = Payment::try_from(&payment_bytes[..]).unwrap();

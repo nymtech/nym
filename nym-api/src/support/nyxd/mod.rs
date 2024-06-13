@@ -1,7 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use crate::epoch_operations::MixnodeWithPerformance;
 use crate::support::config::Config;
 use anyhow::Result;
@@ -23,7 +23,6 @@ use nym_coconut_dkg_common::{
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
 use nym_ecash_contract_common::blacklist::BlacklistedAccountResponse;
 use nym_ecash_contract_common::deposit::{DepositId, DepositResponse};
-use nym_ecash_contract_common::spend_credential::EcashSpentCredentialResponse;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
@@ -153,6 +152,15 @@ impl Client {
 
     pub(crate) async fn chain_details(&self) -> ChainDetails {
         nyxd_query!(self, current_chain_details().clone())
+    }
+
+    pub(crate) async fn get_ecash_contract_address(&self) -> Result<AccountId, EcashError> {
+        nyxd_query!(
+            self,
+            ecash_contract_address()
+                .cloned()
+                .ok_or_else(|| NyxdError::unavailable_contract_address("ecash contract").into())
+        )
     }
 
     pub(crate) async fn get_rewarding_validator_address(&self) -> Result<AccountId, NyxdError> {
@@ -345,7 +353,7 @@ impl crate::ecash::client::Client for Client {
         self.client_address().await
     }
 
-    async fn dkg_contract_address(&self) -> Result<AccountId, CoconutError> {
+    async fn dkg_contract_address(&self) -> Result<AccountId, EcashError> {
         nyxd_query!(
             self,
             dkg_contract_address()
@@ -378,16 +386,6 @@ impl crate::ecash::client::Client for Client {
         voter: String,
     ) -> crate::ecash::error::Result<VoteResponse> {
         Ok(nyxd_query!(self, query_vote(proposal_id, voter).await?))
-    }
-
-    async fn get_spent_credential(
-        &self,
-        blinded_serial_number: String,
-    ) -> crate::ecash::error::Result<EcashSpentCredentialResponse> {
-        Ok(nyxd_query!(
-            self,
-            get_spent_credential(blinded_serial_number).await?
-        ))
     }
 
     async fn propose_for_blacklist(
@@ -510,14 +508,14 @@ impl crate::ecash::client::Client for Client {
         &self,
         epoch_id: EpochId,
         dealer: String,
-    ) -> Result<Option<ContractVKShare>, CoconutError> {
+    ) -> Result<Option<ContractVKShare>, EcashError> {
         Ok(nyxd_query!(self, get_vk_share(epoch_id, dealer).await?).share)
     }
 
     async fn get_verification_key_shares(
         &self,
         epoch_id: EpochId,
-    ) -> Result<Vec<ContractVKShare>, CoconutError> {
+    ) -> Result<Vec<ContractVKShare>, EcashError> {
         Ok(nyxd_query!(
             self,
             get_all_verification_key_shares(epoch_id).await?
@@ -529,7 +527,7 @@ impl crate::ecash::client::Client for Client {
         proposal_id: u64,
         vote_yes: bool,
         fee: Option<Fee>,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<(), EcashError> {
         nyxd_signing!(self, vote_proposal(proposal_id, vote_yes, fee).await?);
         Ok(())
     }
@@ -554,7 +552,7 @@ impl crate::ecash::client::Client for Client {
         identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
-    ) -> Result<ExecuteResult, CoconutError> {
+    ) -> Result<ExecuteResult, EcashError> {
         Ok(nyxd_signing!(
             self,
             register_dealer(bte_key, identity_key, announce_address, resharing, None).await?
@@ -576,7 +574,7 @@ impl crate::ecash::client::Client for Client {
     async fn submit_dealing_chunk(
         &self,
         chunk: PartialContractDealing,
-    ) -> Result<ExecuteResult, CoconutError> {
+    ) -> Result<ExecuteResult, EcashError> {
         Ok(nyxd_signing!(
             self,
             submit_dealing_chunk(chunk, None).await?

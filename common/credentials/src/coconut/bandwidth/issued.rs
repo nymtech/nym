@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::bandwidth::CredentialSpendingData;
-use crate::coconut::utils::today;
+use crate::coconut::utils::ecash_today;
 use crate::error::Error;
 use nym_credentials_interface::{
     date_scalar, CoinIndexSignature, ExpirationDateSignature, PayInfo, SecretKeyUser,
@@ -76,7 +76,7 @@ impl IssuedTicketBook {
     }
 
     pub fn expired(&self) -> bool {
-        self.expiration_date < today()
+        self.expiration_date < ecash_today()
     }
 
     pub fn exp_date_sigs(&self) -> &Vec<ExpirationDateSignature> {
@@ -112,7 +112,7 @@ impl IssuedTicketBook {
         coin_indices_signatures: &[CoinIndexSignature],
     ) -> Result<CredentialSpendingData, Error> {
         let params = nym_credentials_interface::ecash_parameters();
-        let spend_date = today();
+        let spend_date = ecash_today();
         let expiration_date_signatures = self.exp_date_sigs().clone();
         let payment = self.wallet.spend(
             params,

@@ -300,7 +300,7 @@ prometheus = { version = "0.13.0" }
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
 # plus to make our live easier we need serde support from https://github.com/zkcrypto/bls12_381/pull/125
-bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false,  branch = "temp/experimental-serdect" }
+bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect" }
 group = { version = "0.13.0", default-features = false }
 ff = { version = "0.13.0", default-features = false }
 
@@ -326,7 +326,7 @@ bip32 = { version = "0.5.1", default-features = false }
 # temporarily using a fork again (yay.) because we need staking and slashing support (which are already on main but not released)
 # plus response message parsing (which is, as of the time of writing this message, waiting to get merged)
 #cosmrs = { path = "../cosmos-rust-fork/cosmos-rust/cosmrs" }
-cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch = "jstuczyn/tx_msg_data_parsing" } # unfortuntely we need a fork by yours truly to get the staking support
+cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev = "4b1332e6d8258ac845cef71589c8d362a669675a" } # unfortuntely we need a fork by yours truly to get the staking support
 tendermint = "0.37.0"     # same version as used by cosmrs
 tendermint-rpc = "0.37.0" # same version as used by cosmrs
 prost = { version = "0.12", default-features = false }

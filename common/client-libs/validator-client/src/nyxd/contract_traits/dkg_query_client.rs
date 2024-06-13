@@ -51,6 +51,11 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
+    async fn get_epoch_threshold(&self, epoch_id: EpochId) -> Result<Option<u64>, NyxdError> {
+        let request = DkgQueryMsg::GetEpochThreshold { epoch_id };
+        self.query_dkg_contract(request).await
+    }
+
     async fn get_registered_dealer_details(
         &self,
         address: &AccountId,
@@ -255,6 +260,9 @@ mod tests {
             DkgQueryMsg::CanAdvanceState {} => client.can_advance_state().ignore(),
             DkgQueryMsg::GetCurrentEpochThreshold {} => {
                 client.get_current_epoch_threshold().ignore()
+            }
+            DkgQueryMsg::GetEpochThreshold { epoch_id } => {
+                client.get_epoch_threshold(epoch_id).ignore()
             }
             DkgQueryMsg::GetRegisteredDealer {
                 dealer_address,

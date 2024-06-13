@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::dkg::controller::DkgController;
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use cw3::{ProposalResponse, Status};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use nym_validator_client::nyxd::AccountId;
@@ -29,7 +29,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
 
     pub(crate) async fn get_validation_proposals(
         &self,
-    ) -> Result<HashMap<String, u64>, CoconutError> {
+    ) -> Result<HashMap<String, u64>, EcashError> {
         let dkg_contract = self.dkg_client.dkg_contract_address().await?;
 
         // FUTURE OPTIMIZATION: don't query for ALL proposals. say if we're in epoch 50,

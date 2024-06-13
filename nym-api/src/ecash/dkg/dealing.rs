@@ -4,7 +4,7 @@
 use crate::ecash::dkg;
 use crate::ecash::dkg::controller::keys::archive_coconut_keypair;
 use crate::ecash::dkg::controller::DkgController;
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use crate::ecash::keys::KeyPairWithEpoch;
 use log::debug;
 use nym_coconut_dkg_common::dealing::{chunk_dealing, DealingChunkInfo, MAX_DEALING_CHUNK_SIZE};
@@ -39,7 +39,7 @@ impl Debug for DealingGeneration {
 #[derive(Debug, Error)]
 pub enum DealingGenerationError {
     #[error(transparent)]
-    CoconutError(#[from] CoconutError),
+    CoconutError(#[from] EcashError),
 
     #[error("can't complete dealing exchange without registering public keys")]
     IncompletePublicKeyRegistration,
@@ -70,7 +70,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         spec: DealingGeneration,
     ) -> Result<HashMap<DealingIndex, Dealing>, DealingGenerationError> {
         let threshold = self.dkg_client.get_current_epoch_threshold().await?.ok_or(
-            CoconutError::UnrecoverableState {
+            EcashError::UnrecoverableState {
                 reason: String::from("Threshold should have been set"),
             },
         )?;
@@ -79,7 +79,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             .state
             .registration_state(epoch_id)?
             .assigned_index
-            .ok_or(CoconutError::UnrecoverableState {
+            .ok_or(EcashError::UnrecoverableState {
                 reason: String::from("Node index should have been set"),
             })?;
 

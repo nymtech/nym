@@ -7,6 +7,6 @@ pub mod error;
 pub mod event_attributes;
 pub mod events;
 pub mod msg;
-pub mod spend_credential;
+pub mod redeem_credential;
 
 pub use error::EcashContractError;

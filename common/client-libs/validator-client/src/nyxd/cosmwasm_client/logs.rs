@@ -3,7 +3,7 @@
 
 use crate::nyxd::error::NyxdError;
 use itertools::Itertools;
-use nym_ecash_contract_common::events::BLACKLIST_PROPOSAL_ID;
+use nym_ecash_contract_common::events::PROPOSAL_ID_ATTRIBUTE_NAME;
 use serde::{Deserialize, Serialize};
 
 pub use nym_coconut_dkg_common::event_attributes::*;
@@ -48,7 +48,7 @@ pub fn find_proposal_id(logs: &[Log]) -> Result<u64, NyxdError> {
         .ok_or(NyxdError::ComswasmEventNotFound)?
         .attributes
         .iter()
-        .find(|attr| attr.key == BLACKLIST_PROPOSAL_ID);
+        .find(|attr| attr.key == PROPOSAL_ID_ATTRIBUTE_NAME);
     let attribute = maybe_attributes.ok_or(NyxdError::ComswasmAttributeNotFound)?;
 
     attribute

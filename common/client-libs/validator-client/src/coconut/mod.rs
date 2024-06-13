@@ -8,6 +8,7 @@ use nym_coconut_dkg_common::types::{EpochId, NodeIndex};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use nym_compact_ecash::error::CompactEcashError;
 use nym_compact_ecash::{Base58, VerificationKeyAuth};
+use std::fmt::{Display, Formatter};
 use thiserror::Error;
 use url::Url;
 
@@ -18,6 +19,18 @@ pub struct CoconutApiClient {
     pub verification_key: VerificationKeyAuth,
     pub node_id: NodeIndex,
     pub cosmos_address: cosmrs::AccountId,
+}
+
+impl Display for CoconutApiClient {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "[id_{}] {} @ {}",
+            self.node_id,
+            self.cosmos_address,
+            self.api_client.api_url()
+        )
+    }
 }
 
 // TODO: this should be using the coconut error

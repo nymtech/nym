@@ -20,7 +20,7 @@ pub async fn validate_deposit(request: &BlindSignRequestBody, deposit: Deposit) 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::ecash::error::CoconutError;
+    use crate::ecash::error::EcashError;
     use crate::ecash::tests::voucher_fixture;
     use nym_compact_ecash::{generate_keypair_user, scheme::withdrawal::WithdrawalRequest};
     use rand::rngs::OsRng;
@@ -47,7 +47,7 @@ mod test {
 
         assert!(matches!(
             err,
-            CoconutError::Ed25519ParseError(
+            EcashError::Ed25519ParseError(
                 nym_crypto::asymmetric::identity::Ed25519RecoveryError::MalformedPublicKeyString { .. }
             )
         ));
@@ -59,7 +59,7 @@ mod test {
         let err = validate_deposit(&correct_request, wrong_deposit)
             .await
             .unwrap_err();
-        assert!(matches!(err, CoconutError::SignatureVerificationError(..)));
+        assert!(matches!(err, EcashError::SignatureVerificationError(..)));
 
         //hard-coded values, that generate a correct signature
         let blind_sign_req = WithdrawalRequest::from_bytes(&[

@@ -5,13 +5,15 @@ use super::helpers::{accepted_vote_err, CoinIndexSignatureCache, ExpirationDateS
 use crate::ecash::client::Client as LocalClient;
 use crate::ecash::comm::APICommunicationChannel;
 use crate::ecash::deposit::validate_deposit;
-use crate::ecash::error::{CoconutError, Result};
+use crate::ecash::error::{EcashError, RedemptionError, Result};
 use crate::ecash::keys::KeyPair;
 use crate::ecash::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
 use bloomfilter::Bloom;
+use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use cw3::Status;
 use nym_api_requests::coconut::helpers::issued_credential_plaintext;
+use nym_api_requests::coconut::models::BatchRedeemTicketsBody;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::{
@@ -23,7 +25,8 @@ use nym_config::defaults::{BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS};
 use nym_credentials::{coconut::utils::cred_exp_date, CredentialSpendingData};
 use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::{Deposit, DepositId};
-use nym_ecash_contract_common::spend_credential::check_proposal;
+use nym_ecash_contract_common::msg::ExecuteMsg;
+use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_validator_client::nyxd::cosmwasm_client::logs::find_proposal_id;
 use nym_validator_client::nyxd::AccountId;
 use rand::rngs::OsRng;
@@ -32,6 +35,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct State {
+    contract_address: AccountId,
     pub(crate) client: Arc<dyn LocalClient + Send + Sync>,
     pub(crate) ecash_keypair: KeyPair,
     pub(crate) identity_keypair: identity::KeyPair,
@@ -44,6 +48,7 @@ pub struct State {
 
 impl State {
     pub(crate) fn new<C, D>(
+        contract_address: AccountId,
         client: C,
         identity_keypair: identity::KeyPair,
         key_pair: KeyPair,
@@ -64,6 +69,7 @@ impl State {
         let bloom_filter =
             Bloom::from_existing(&bitmap, BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS);
         Self {
+            contract_address,
             client,
             ecash_keypair: key_pair,
             identity_keypair,
@@ -90,7 +96,7 @@ impl State {
             .get_deposit(deposit_id)
             .await?
             .deposit
-            .ok_or(CoconutError::NonExistentDeposit { deposit_id })
+            .ok_or(EcashError::NonExistentDeposit { deposit_id })
     }
 
     pub async fn validate_request(
@@ -101,44 +107,155 @@ impl State {
         validate_deposit(request, deposit).await
     }
 
-    pub(crate) async fn accept_and_execute_proposal(
+    pub(crate) async fn validate_redemption_proposal(
         &self,
-        proposal_id: u64,
-        serial_number_bs58: String,
-    ) -> Result<()> {
-        let proposal = self.client.get_proposal(proposal_id).await?;
+        request: &BatchRedeemTicketsBody,
+    ) -> std::result::Result<(), RedemptionError> {
+        let proposal_id = request.proposal_id;
 
-        // Proposal description is the blinded serial number
-        if serial_number_bs58 != proposal.description {
-            return Err(CoconutError::IncorrectProposal {
-                reason: String::from("incorrect blinded serial number in description"),
+        // retrieve the proposal itself
+        let mut proposal = self
+            .client
+            .get_proposal(proposal_id)
+            .await
+            .map_err(|_| RedemptionError::ProposalRetrievalFailure { proposal_id })?;
+
+        if proposal.title != BATCH_REDEMPTION_PROPOSAL_TITLE {
+            return Err(RedemptionError::InvalidProposalTitle {
+                proposal_id,
+                received: proposal.title,
             });
         }
-        if !check_proposal(proposal.msgs) {
-            return Err(CoconutError::IncorrectProposal {
-                reason: String::from("action is not to spend_credential"),
+
+        // make sure you can still vote on it
+        match proposal.status {
+            Status::Pending => return Err(RedemptionError::StillPending { proposal_id }),
+            Status::Open => {}
+            Status::Rejected => return Err(RedemptionError::AlreadyRejected { proposal_id }),
+
+            // TODO: need to double check with the multisig whether it wouldn't always be thrown on threshold
+            // i.e. whether after the 2+/3 vote, the remaining 1-/3 would return this error
+            Status::Passed => return Err(RedemptionError::AlreadyPassed { proposal_id }),
+            Status::Executed => return Err(RedemptionError::AlreadyExecuted { proposal_id }),
+        }
+
+        let encoded_digest = bs58::encode(&request.digest).into_string();
+
+        // check if the description matches the expected digest
+        if encoded_digest != proposal.description {
+            return Err(RedemptionError::InvalidProposalDescription {
+                proposal_id,
+                received: proposal.description,
+                expected: encoded_digest,
             });
         }
-        let client = self.client.clone();
-        tokio::spawn(async move {
-            let ret = client.vote_proposal(proposal_id, true, None).await;
-            //SW NOTE: What to do if this fails
-            if let Err(err) = accepted_vote_err(ret) {
-                log::debug!("failed to vote on proposal {proposal_id}: {err}");
-            }
 
-            if let Ok(proposal) = client.get_proposal(proposal_id).await {
-                if proposal.status == Status::Passed {
-                    //SW NOTE: What to do if this fails
-                    if let Err(err) = client.execute_proposal(proposal_id).await {
-                        log::debug!("failed to execute proposal {proposal_id}: {err}");
-                    }
-                }
-            }
-        });
+        // check if it was actually created by the ecash contract
+        if proposal.proposer != self.contract_address.as_ref() {
+            return Err(RedemptionError::InvalidProposer {
+                proposal_id,
+                received: proposal.proposer.into_string(),
+                expected: self.contract_address.clone(),
+            });
+        }
+
+        // check if contains exactly the content we expect,
+        // i.e. single `RedeemTickets` message with no funds, etc.
+        if proposal.msgs.len() != 1 {
+            return Err(RedemptionError::TooManyMessages { proposal_id });
+        }
+
+        // SAFETY: we just checked we have exactly one message
+        #[allow(clippy::unwrap_used)]
+        let msg = proposal.msgs.pop().unwrap();
+        let CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg,
+            funds,
+        }) = msg
+        else {
+            return Err(RedemptionError::InvalidMessage { proposal_id });
+        };
+
+        if !funds.is_empty() {
+            return Err(RedemptionError::InvalidMessage { proposal_id });
+        }
+
+        if contract_addr != self.contract_address.as_ref() {
+            return Err(RedemptionError::InvalidContract { proposal_id });
+        }
+
+        let Ok(ExecuteMsg::RedeemTickets { n, gw }) = from_binary(&msg) else {
+            return Err(RedemptionError::InvalidMessage { proposal_id });
+        };
+
+        if gw != request.gateway_cosmos_addr {
+            return Err(RedemptionError::InvalidRedemptionTarget {
+                proposal_id,
+                proposed: gw,
+                received: request.gateway_cosmos_addr.clone(),
+            });
+        }
+
+        if n as usize != request.included_serial_numbers.len() {
+            return Err(RedemptionError::InvalidRedemptionTicketCount {
+                proposal_id,
+                proposed: n,
+                received: request.included_serial_numbers.len() as u16,
+            });
+        }
 
         Ok(())
     }
+
+    pub(crate) async fn accept_proposal(&self, proposal_id: u64) -> Result<()> {
+        //SW NOTE: What to do if this fails
+        if let Err(err) = self.client.vote_proposal(proposal_id, true, None).await {
+            log::debug!("failed to vote on proposal {proposal_id}: {err}");
+        }
+
+        Ok(())
+    }
+    //
+    // pub(crate) async fn accept_and_execute_proposal(
+    //     &self,
+    //     proposal_id: u64,
+    //     expected_digest: Vec<u8>,
+    // ) -> Result<()> {
+    //     let proposal = self.client.get_proposal(proposal_id).await?;
+    //     let encoded_digest = bs58::encode(&expected_digest).into_string();
+    //
+    //     // Proposal description is the blinded serial number
+    //     if encoded_digest != proposal.description {
+    //         return Err(EcashError::IncorrectProposal {
+    //             reason: String::from("incorrect blinded serial number in description"),
+    //         });
+    //     }
+    //     if !check_proposal(proposal.msgs) {
+    //         return Err(EcashError::IncorrectProposal {
+    //             reason: String::from("action is not to spend_credential"),
+    //         });
+    //     }
+    //     let client = self.client.clone();
+    //     tokio::spawn(async move {
+    //         let ret = client.vote_proposal(proposal_id, true, None).await;
+    //         //SW NOTE: What to do if this fails
+    //         if let Err(err) = accepted_vote_err(ret) {
+    //             log::debug!("failed to vote on proposal {proposal_id}: {err}");
+    //         }
+    //
+    //         if let Ok(proposal) = client.get_proposal(proposal_id).await {
+    //             if proposal.status == Status::Passed {
+    //                 //SW NOTE: What to do if this fails
+    //                 if let Err(err) = client.execute_proposal(proposal_id).await {
+    //                     log::debug!("failed to execute proposal {proposal_id}: {err}");
+    //                 }
+    //             }
+    //         }
+    //     });
+    //
+    //     Ok(())
+    // }
 
     pub(crate) async fn refuse_proposal(&self, proposal_id: u64) {
         let client = self.client.clone();
@@ -148,13 +265,6 @@ impl State {
                 log::debug!("failed to refuse proposal {proposal_id}: {err}")
             }
         });
-    }
-
-    pub(crate) async fn refuse_proposal_online(&self, proposal_id: u64) {
-        //whatever is in the proposal, we can refuse it anyway
-        if let Err(err) = self.client.vote_proposal(proposal_id, false, None).await {
-            log::debug!("failed to refuse proposal {proposal_id}: {err}")
-        }
     }
 
     pub(crate) async fn blacklist(&self, public_key: String) {
@@ -167,7 +277,7 @@ impl State {
             let proposal = client.get_proposal(proposal_id).await?;
             if proposal.status == Status::Open {
                 if public_key != proposal.description {
-                    return Err(CoconutError::IncorrectProposal {
+                    return Err(EcashError::IncorrectProposal {
                         reason: String::from("incorrect publickey in description"),
                     });
                 }
@@ -248,6 +358,14 @@ impl State {
             .await
     }
 
+    pub async fn store_verified_credential(
+        &self,
+        credential: &CredentialSpendingData,
+        gateway_addr: &AccountId,
+    ) -> Result<()> {
+        todo!()
+    }
+
     pub async fn store_credential(
         &self,
         credential: &CredentialSpendingData,
@@ -263,6 +381,13 @@ impl State {
             )
             .await
             .map_err(|err| err.into())
+    }
+
+    pub async fn get_verified_tickets(
+        &self,
+        gateway_cosmos_address: String,
+    ) -> Result<Vec<String>> {
+        todo!()
     }
 
     pub async fn get_credential_by_sn(
@@ -287,10 +412,10 @@ impl State {
                 let verification_key = self.verification_key(current_epoch).await?;
                 let maybe_keypair_guard = self.ecash_keypair.get().await;
                 let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
-                    return Err(CoconutError::KeyPairNotDerivedYet);
+                    return Err(EcashError::KeyPairNotDerivedYet);
                 };
                 let Some(signing_key) = keypair_guard.as_ref() else {
-                    return Err(CoconutError::KeyPairNotDerivedYet);
+                    return Err(EcashError::KeyPairNotDerivedYet);
                 };
                 self.coin_indices_sigs_cache
                     .refresh_signatures(
@@ -315,10 +440,10 @@ impl State {
             None => {
                 let maybe_keypair_guard = self.ecash_keypair.get().await;
                 let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
-                    return Err(CoconutError::KeyPairNotDerivedYet);
+                    return Err(EcashError::KeyPairNotDerivedYet);
                 };
                 let Some(signing_key) = keypair_guard.as_ref() else {
-                    return Err(CoconutError::KeyPairNotDerivedYet);
+                    return Err(EcashError::KeyPairNotDerivedYet);
                 };
                 self.exp_date_sigs_cache
                     .refresh_signatures(current_epoch, expiration_ts, signing_key.keys.secret_key())
@@ -334,10 +459,10 @@ impl State {
     ) -> Result<Vec<ExpirationDateSignature>> {
         let maybe_keypair_guard = self.ecash_keypair.get().await;
         let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
-            return Err(CoconutError::KeyPairNotDerivedYet);
+            return Err(EcashError::KeyPairNotDerivedYet);
         };
         let Some(signing_key) = keypair_guard.as_ref() else {
-            return Err(CoconutError::KeyPairNotDerivedYet);
+            return Err(EcashError::KeyPairNotDerivedYet);
         };
 
         Ok(sign_expiration_date(
@@ -346,12 +471,19 @@ impl State {
         )?)
     }
 
-    pub async fn add_spent_credentials(&self, serial_number_bs58: &String) {
+    pub async fn check_bloomfilter(&self, serial_number_bs58: &String) -> bool {
+        self.spent_credentials
+            .read()
+            .await
+            .check(serial_number_bs58)
+    }
+
+    pub async fn update_bloomfilter(&self, serial_number_bs58: &String) {
         let mut filter = self.spent_credentials.write().await;
         filter.set(serial_number_bs58);
     }
 
-    pub async fn export_spent_credentials(&self) -> Vec<u8> {
+    pub async fn export_bloomfilter(&self) -> Vec<u8> {
         let filter = self.spent_credentials.read().await;
         filter.bitmap()
     }

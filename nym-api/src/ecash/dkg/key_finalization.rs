@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::dkg::controller::DkgController;
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use cw3::Status;
 use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
@@ -11,7 +11,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum KeyFinalizationError {
     #[error(transparent)]
-    CoconutError(#[from] CoconutError),
+    CoconutError(#[from] EcashError),
 
     #[error("our proposal for key verification is still open (or is pending) (proposal id: {proposal_id}) ")]
     UnresolvedProposal { proposal_id: u64 },

@@ -4,6 +4,18 @@
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
+use nym_api_requests::coconut::models::{
+    BatchRedeemTicketsBody, EcachBatchTicketRedemptionResponse, EcachTicketVerificationResponse,
+    VerifyEcashTicketBody,
+};
+use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
+use nym_http_api_client::{ApiClient, NO_PARAMS};
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+
+pub mod error;
+pub mod routes;
+
 pub use nym_api_requests::{
     coconut::{
         models::{
@@ -23,15 +35,6 @@ pub use nym_api_requests::{
     },
 };
 pub use nym_coconut_dkg_common::types::EpochId;
-use nym_http_api_client::{ApiClient, NO_PARAMS};
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-
-pub mod error;
-pub mod routes;
-
-use nym_api_requests::coconut::models::VerifyEcashCredentialResponse;
-use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
 pub use nym_http_api_client::Client;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -437,16 +440,16 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn verify_offline_credential(
+    async fn verify_ecash_ticket(
         &self,
-        request_body: &VerifyEcashCredentialBody,
-    ) -> Result<VerifyEcashCredentialResponse, NymAPIError> {
+        request_body: &VerifyEcashTicketBody,
+    ) -> Result<EcachTicketVerificationResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
-                routes::ECASH_VERIFY_OFFLINE_CREDENTIAL,
+                routes::VERIFY_ECASH_TICKET,
             ],
             NO_PARAMS,
             request_body,
@@ -454,16 +457,16 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn verify_online_credential(
+    async fn batch_redeem_ecash_tickets(
         &self,
-        request_body: &VerifyEcashCredentialBody,
-    ) -> Result<VerifyEcashCredentialResponse, NymAPIError> {
+        request_body: &BatchRedeemTicketsBody,
+    ) -> Result<EcachBatchTicketRedemptionResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
-                routes::ECASH_VERIFY_ONLINE_CREDENTIAL,
+                routes::BATCH_REDEEM_ECASH_TICKETS,
             ],
             NO_PARAMS,
             request_body,

@@ -163,12 +163,12 @@ mod tests {
 
         assert!(payment1
             .spend_verify(&verification_key, &pay_info1, spend_date)
-            .unwrap());
+            .is_ok());
 
         let payment2 = payment1.clone();
         assert!(payment2
             .spend_verify(&verification_key, &pay_info1, spend_date)
-            .unwrap());
+            .is_ok());
 
         let identify_result = identify(&payment1, &payment2, pay_info1, pay_info1);
         assert_eq!(identify_result, IdentifyResult::DuplicatePayInfo(pay_info1));
@@ -270,7 +270,7 @@ mod tests {
 
         assert!(payment1
             .spend_verify(&verification_key, &pay_info1, spend_date)
-            .unwrap());
+            .is_ok());
 
         let pay_info2 = PayInfo {
             pay_info_bytes: [7u8; 72],
@@ -290,7 +290,7 @@ mod tests {
 
         assert!(payment2
             .spend_verify(&verification_key, &pay_info2, spend_date)
-            .unwrap());
+            .is_ok());
 
         let identify_result = identify(&payment1, &payment2, pay_info1, pay_info2);
         assert_eq!(identify_result, IdentifyResult::NotADuplicatePayment);
@@ -403,7 +403,7 @@ mod tests {
 
         assert!(payment1
             .spend_verify(&verification_key, &pay_info1, spend_date)
-            .unwrap());
+            .is_ok());
 
         // let's reverse the spending counter in the wallet to create a double spending payment
         aggr_wallet.l -= 1;
@@ -427,7 +427,7 @@ mod tests {
 
         assert!(payment2
             .spend_verify(&verification_key, &pay_info2, spend_date)
-            .unwrap());
+            .is_ok());
 
         let identify_result = identify(&payment1, &payment2, pay_info1, pay_info2);
         assert_eq!(
@@ -544,7 +544,7 @@ mod tests {
 
         assert!(payment1
             .spend_verify(&verification_key, &pay_info1, spend_date)
-            .unwrap());
+            .is_ok());
 
         // let's reverse the spending counter in the wallet to create a double spending payment
         aggr_wallet.l -= 10;

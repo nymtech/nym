@@ -9,8 +9,20 @@ use nym_credentials_interface::{
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fmt::Display};
+use sha2::Digest;
+use std::collections::BTreeMap;
+use std::ops::Deref;
+use thiserror::Error;
 use time::OffsetDateTime;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct VerifyEcashTicketBody {
+    /// The cryptographic material required for spending the underlying credential.
+    pub credential: CredentialSpendingData,
+
+    /// Cosmos address of the sender of the credential
+    pub gateway_cosmos_addr: AccountId,
+}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct VerifyEcashCredentialBody {
@@ -38,41 +50,36 @@ impl VerifyEcashCredentialBody {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum VerifyEcashCredentialResponse {
-    InvalidFormat(String),
-    DoubleSpend,
-    AlreadySent,
-    SubmittedTooLate {
-        expected_until: OffsetDateTime,
-        actual: OffsetDateTime,
-    },
-    Refused,
-    Accepted,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EcachTicketVerificationResponse {
+    pub verified: Result<(), EcachTicketVerificationRejection>,
 }
 
-impl Display for VerifyEcashCredentialResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::InvalidFormat(reason) => {
-                write!(f, "invalid format : {:?}", reason)
-            }
-            Self::DoubleSpend => write!(f, "credential was already spent"),
-            Self::AlreadySent => write!(f, "this credential was already sent"),
-            Self::SubmittedTooLate {
-                expected_until,
-                actual,
-            } => {
-                write!(
-                    f,
-                    "credential spent too late. Accepted from {:#?}, spent on {:#?}",
-                    expected_until, actual,
-                )
-            }
-            Self::Refused => write!(f, "credential failed to validate"),
-            Self::Accepted => write!(f, "credential was accepted"),
+impl EcachTicketVerificationResponse {
+    pub fn reject(reason: EcachTicketVerificationRejection) -> Self {
+        EcachTicketVerificationResponse {
+            verified: Err(reason),
         }
     }
+}
+
+#[derive(Debug, Error, Serialize, Deserialize)]
+pub enum EcachTicketVerificationRejection {
+    #[error("invalid ticket spent date. expected either today's or yesterday's date ({today} or {yesterday}) but got {received} instead")]
+    InvalidSpentDate {
+        today: OffsetDateTime,
+        yesterday: OffsetDateTime,
+        received: OffsetDateTime,
+    },
+
+    #[error("this ticket has already been received before")]
+    ReplayedTicket,
+
+    #[error("this ticket has already been spent before")]
+    DoubleSpend,
+
+    #[error("failed to verify the provided ticket")]
+    InvalidTicket,
 }
 
 //  All strings are base58 encoded representations of structs
@@ -219,6 +226,50 @@ pub struct CredentialsRequestBody {
 
     /// Pagination settings for retrieving credentials. Note: it can't be set alongside explicit ids.
     pub pagination: Option<Pagination<i64>>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct BatchRedeemTicketsBody {
+    pub digest: Vec<u8>,
+    pub included_serial_numbers: Vec<String>,
+    pub proposal_id: u64,
+    pub gateway_cosmos_addr: String,
+}
+
+impl BatchRedeemTicketsBody {
+    pub fn make_digest(serial_numbers: Vec<String>) -> Vec<u8> {
+        let joined = serial_numbers.join("");
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(&joined);
+        hasher.finalize().to_vec()
+    }
+
+    pub fn new(
+        digest: Vec<u8>,
+        proposal_id: u64,
+        serial_numbers: Vec<String>,
+        redeemer: String,
+    ) -> Self {
+        BatchRedeemTicketsBody {
+            digest,
+            included_serial_numbers: serial_numbers,
+            proposal_id,
+            gateway_cosmos_addr: redeemer,
+        }
+    }
+
+    pub fn verify_digest(&self) -> bool {
+        let joined = self.included_serial_numbers.join("");
+        let mut hasher = sha2::Sha256::new();
+        hasher.update(&joined);
+        let digest = hasher.finalize();
+        digest.deref() == self.digest
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EcachBatchTicketRedemptionResponse {
+    pub proposal_accepted: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]

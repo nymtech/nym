@@ -1,28 +1,24 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::contract::helpers::Invariants;
 use crate::deposit::DepositStorage;
 use crate::helpers::{
-    BlacklistKey, Config, SerialNumber, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
+    BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
     CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
-    SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT, SPEND_CREDENTIAL_PAGE_MAX_LIMIT,
 };
-use cosmwasm_std::{BankMsg, Coin, Event, Order, Reply, Response, StdError, StdResult};
+use cosmwasm_std::{BankMsg, Coin, Decimal, Event, Order, Reply, Response, StdResult, Uint128};
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
-use nym_contracts_common::events::try_find_attribute;
 use nym_contracts_common::set_build_information;
 use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, Blacklisting, PagedBlacklistedAccountResponse,
 };
 use nym_ecash_contract_common::deposit::{DepositData, DepositResponse, PagedDepositsResponse};
 use nym_ecash_contract_common::events::{
-    BLACKLIST_PROPOSAL_ID, BLACKLIST_PROPOSAL_REPLY_ID, DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID,
-    TICKET_BOOK_VALUE, TICKET_VALUE, WASM_EVENT_NAME,
-};
-use nym_ecash_contract_common::spend_credential::{
-    EcashSpentCredential, EcashSpentCredentialResponse, PagedEcashSpentCredentialResponse,
+    BLACKLIST_PROPOSAL_REPLY_ID, DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID,
+    PROPOSAL_ID_ATTRIBUTE_NAME, REDEMPTION_PROPOSAL_REPLY_ID, TICKET_BOOK_VALUE, TICKET_VALUE,
 };
 use nym_ecash_contract_common::EcashContractError;
 use sylvia::types::{ExecCtx, InstantiateCtx, MigrateCtx, QueryCtx, ReplyCtx};
@@ -36,9 +32,8 @@ mod test;
 pub struct NymEcashContract<'a> {
     pub(crate) multisig: Admin<'a>,
     pub(crate) config: Item<'a, Config>,
-    pub(crate) expected_deposit: Item<'a, Coin>,
+    pub(crate) expected_invariants: Item<'a, Invariants>,
 
-    pub(crate) spent_credentials: Map<'a, SerialNumber, EcashSpentCredential>,
     pub(crate) blacklist: Map<'a, BlacklistKey, Blacklisting>,
 
     pub(crate) deposits: DepositStorage<'a>,
@@ -53,8 +48,7 @@ impl NymEcashContract<'_> {
         Self {
             multisig: Admin::new("multisig"),
             config: Item::new("config"),
-            expected_deposit: Item::new("expected_deposit"),
-            spent_credentials: Map::new("spent_credentials"),
+            expected_invariants: Item::new("expected_invariants"),
             blacklist: Map::new("blacklist"),
             deposits: DepositStorage::new(),
         }
@@ -64,11 +58,13 @@ impl NymEcashContract<'_> {
     pub fn instantiate(
         &self,
         mut ctx: InstantiateCtx,
+        holding_account: String,
         multisig_addr: String,
         group_addr: String,
         mix_denom: String,
     ) -> Result<Response, EcashContractError> {
         let multisig_addr = ctx.deps.api.addr_validate(&multisig_addr)?;
+        let holding_account = ctx.deps.api.addr_validate(&holding_account)?;
         let group_addr = Cw4Contract(ctx.deps.api.addr_validate(&group_addr).map_err(|_| {
             EcashContractError::InvalidGroup {
                 addr: group_addr.clone(),
@@ -78,12 +74,20 @@ impl NymEcashContract<'_> {
         self.multisig
             .set(ctx.deps.branch(), Some(multisig_addr.clone()))?;
 
-        self.expected_deposit
-            .save(ctx.deps.storage, &Coin::new(TICKET_BOOK_VALUE, &mix_denom))?;
+        self.expected_invariants.save(
+            ctx.deps.storage,
+            &Invariants {
+                ticket_book_value: Coin::new(TICKET_BOOK_VALUE, &mix_denom),
+                ticket_value: Coin::new(TICKET_VALUE, &mix_denom),
+            },
+        )?;
 
         let cfg = Config {
             group_addr,
             mix_denom,
+            holding_account,
+
+            redemption_gateway_share: Decimal::percent(5),
         };
         self.config.save(ctx.deps.storage, &cfg)?;
 
@@ -96,49 +100,6 @@ impl NymEcashContract<'_> {
     /*==================
     ======QUERIES=======
     ==================*/
-    #[msg(query)]
-    pub fn get_all_spent_credentials_paged(
-        &self,
-        ctx: QueryCtx,
-        limit: Option<u32>,
-        start_after: Option<String>,
-    ) -> StdResult<PagedEcashSpentCredentialResponse> {
-        let limit = limit
-            .unwrap_or(SPEND_CREDENTIAL_PAGE_DEFAULT_LIMIT)
-            .min(SPEND_CREDENTIAL_PAGE_MAX_LIMIT) as usize;
-
-        let start = start_after.as_deref().map(Bound::exclusive);
-
-        let nodes = self
-            .spent_credentials
-            .range(ctx.deps.storage, start, None, Order::Ascending)
-            .take(limit)
-            .map(|res| res.map(|item| item.1))
-            .collect::<StdResult<Vec<EcashSpentCredential>>>()?;
-
-        let start_next_after = nodes
-            .last()
-            .map(|spend_credential| spend_credential.serial_number().to_string());
-
-        Ok(PagedEcashSpentCredentialResponse::new(
-            nodes,
-            limit,
-            start_next_after,
-        ))
-    }
-
-    #[msg(query)]
-    pub fn get_spent_credential(
-        &self,
-        ctx: QueryCtx,
-        serial_number: String,
-    ) -> StdResult<EcashSpentCredentialResponse> {
-        let spend_credential = self
-            .spent_credentials
-            .may_load(ctx.deps.storage, serial_number)?;
-        Ok(EcashSpentCredentialResponse::new(spend_credential))
-    }
-
     #[msg(query)]
     pub fn get_blacklist_paged(
         &self,
@@ -183,7 +144,10 @@ impl NymEcashContract<'_> {
     #[msg(query)]
     pub fn get_required_deposit_amount(&self, ctx: QueryCtx) -> Result<Coin, EcashContractError> {
         let mix_denom = self.config.load(ctx.deps.storage)?.mix_denom;
-        let expected_deposit = self.expected_deposit.load(ctx.deps.storage)?;
+        let expected_deposit = self
+            .expected_invariants
+            .load(ctx.deps.storage)?
+            .ticket_book_value;
         let current = Coin::new(TICKET_BOOK_VALUE, mix_denom);
         if expected_deposit != current {
             return Err(EcashContractError::DepositAmountChanged {
@@ -249,7 +213,10 @@ impl NymEcashContract<'_> {
         let voucher_value = cw_utils::must_pay(&ctx.info, &mix_denom)?;
         let amount = voucher_value.u128();
 
-        let expected_deposit = self.expected_deposit.load(ctx.deps.storage)?;
+        let expected_deposit = self
+            .expected_invariants
+            .load(ctx.deps.storage)?
+            .ticket_book_value;
         if expected_deposit.amount.u128() != TICKET_BOOK_VALUE {
             return Err(EcashContractError::DepositAmountChanged {
                 at_init: expected_deposit,
@@ -274,46 +241,70 @@ impl NymEcashContract<'_> {
             .set_data(deposit_id.to_be_bytes()))
     }
 
-    #[msg(exec)]
-    pub fn prepare_credential(
+    pub fn request_redemption(
         &self,
         ctx: ExecCtx,
-        serial_number: String,
-        gateway_cosmos_address: String,
+        commitment_bs58: String,
+        number_of_tickets: u16,
     ) -> Result<Response, EcashContractError> {
-        let msg = self.create_spend_proposal(ctx, serial_number, gateway_cosmos_address)?;
+        // basic validation of commitment to make sure it's a valid sha256 digest
+        let Ok(digest) = bs58::decode(&commitment_bs58).into_vec() else {
+            return Err(EcashContractError::MalformedRedemptionCommitment);
+        };
+        if digest.len() != 32 {
+            return Err(EcashContractError::MalformedRedemptionCommitment);
+        }
 
-        Ok(Response::new().add_message(msg))
+        let msg = self.create_redemption_proposal(ctx, commitment_bs58, number_of_tickets)?;
+        Ok(Response::new().add_submessage(msg))
     }
 
     #[msg(exec)]
-    pub fn spend_credential(
+    pub fn redeem_tickets(
         &self,
         ctx: ExecCtx,
-        serial_number: String,
-        gateway_cosmos_address: String,
+        n: u16,
+        gw: String,
     ) -> Result<Response, EcashContractError> {
-        //only a mutlisig proposal can do that
+        // only a mutlisig proposal can do that
         self.multisig
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
-        let mix_denom = self.config.load(ctx.deps.storage)?.mix_denom;
-        let ticket_fund = Coin::new(TICKET_VALUE, mix_denom.clone());
+        let config = self.config.load(ctx.deps.storage)?;
+        let denom = &config.mix_denom;
 
-        let return_tokens = BankMsg::Send {
-            to_address: gateway_cosmos_address.clone(),
-            amount: vec![ticket_fund],
-        };
+        let expected_ticket = self
+            .expected_invariants
+            .load(ctx.deps.storage)?
+            .ticket_value;
+        let current = Coin::new(TICKET_VALUE, denom);
+        if expected_ticket != current {
+            return Err(EcashContractError::TicketValueChanged {
+                at_init: expected_ticket,
+                current,
+            });
+        }
 
-        self.spent_credentials.save(
-            ctx.deps.storage,
-            serial_number.clone(),
-            &EcashSpentCredential::new(serial_number, gateway_cosmos_address),
-        )?;
+        // TODO: we need unit tests for this
+        let return_amount = Uint128::new(TICKET_VALUE * n as u128);
+        let gw_share = config.redemption_gateway_share * return_amount;
+        let holding_share = return_amount - gw_share;
 
-        let response = Response::new().add_message(return_tokens);
-
-        Ok(response)
+        Ok(Response::new()
+            .add_message(BankMsg::Send {
+                to_address: gw,
+                amount: vec![Coin {
+                    denom: denom.to_owned(),
+                    amount: gw_share,
+                }],
+            })
+            .add_message(BankMsg::Send {
+                to_address: config.holding_account.to_string(),
+                amount: vec![Coin {
+                    denom: denom.to_owned(),
+                    amount: holding_share,
+                }],
+            }))
     }
 
     #[msg(exec)]
@@ -332,8 +323,10 @@ impl NymEcashContract<'_> {
             .may_load(ctx.deps.storage, public_key.clone())?
         {
             // return existing proposal id
-            Ok(Response::new()
-                .add_attribute(BLACKLIST_PROPOSAL_ID, blacklisted.proposal_id.to_string()))
+            Ok(Response::new().add_attribute(
+                PROPOSAL_ID_ATTRIBUTE_NAME,
+                blacklisted.proposal_id.to_string(),
+            ))
         } else {
             let msg = self.create_blacklist_proposal(ctx, public_key)?;
             Ok(Response::new().add_submessage(msg))
@@ -364,8 +357,11 @@ impl NymEcashContract<'_> {
     #[msg(reply)]
     pub fn reply(&self, ctx: ReplyCtx, msg: Reply) -> Result<Response, EcashContractError> {
         match msg.id {
-            BLACKLIST_PROPOSAL_REPLY_ID => self.handle_blacklist_proposal_reply(ctx, msg),
-            id => Err(EcashContractError::InvalidReplyId { id }),
+            n if n == BLACKLIST_PROPOSAL_REPLY_ID => self.handle_blacklist_proposal_reply(ctx, msg),
+            n if n == REDEMPTION_PROPOSAL_REPLY_ID => {
+                self.handle_redemption_proposal_reply(ctx, msg)
+            }
+            other => Err(EcashContractError::InvalidReplyId { id: other }),
         }
     }
 
@@ -374,11 +370,7 @@ impl NymEcashContract<'_> {
         ctx: ReplyCtx,
         msg: Reply,
     ) -> Result<Response, EcashContractError> {
-        let reply = msg.result.into_result().map_err(StdError::generic_err)?;
-        let proposal_id: u64 =
-            try_find_attribute(&reply.events, WASM_EVENT_NAME, BLACKLIST_PROPOSAL_ID)
-                .ok_or(EcashContractError::MissingProposalId)?
-                .map_err(|_| EcashContractError::MalformedProposalId)?;
+        let proposal_id = msg.multisig_proposal_id()?;
 
         let proposal = self.query_multisig_proposal(ctx.deps.as_ref(), proposal_id)?;
         let public_key = proposal.description;
@@ -389,7 +381,20 @@ impl NymEcashContract<'_> {
         )?;
 
         // TODO: that `BLACKLIST_PROPOSAL_ID` might be redundant since it should be available from cw3 event
-        Ok(Response::new().add_attribute(BLACKLIST_PROPOSAL_ID, proposal_id.to_string()))
+        Ok(Response::new().add_attribute(PROPOSAL_ID_ATTRIBUTE_NAME, proposal_id.to_string()))
+    }
+
+    fn handle_redemption_proposal_reply(
+        &self,
+        _ctx: ReplyCtx,
+        msg: Reply,
+    ) -> Result<Response, EcashContractError> {
+        let proposal_id = msg.multisig_proposal_id()?;
+
+        // emit the proposal_id in the response data for easy client access and to make sure it can't be tampered with
+        // (since it's included as part of block hash)
+
+        Ok(Response::new().set_data(proposal_id.to_be_bytes()))
     }
 
     /*=====================

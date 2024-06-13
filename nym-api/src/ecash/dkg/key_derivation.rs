@@ -5,7 +5,7 @@ use crate::ecash::dkg;
 use crate::ecash::dkg::controller::keys::persist_coconut_keypair;
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::dkg::state::key_derivation::{DealerRejectionReason, DerivationFailure};
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use crate::ecash::keys::KeyPairWithEpoch;
 use cosmwasm_std::Addr;
 use log::debug;
@@ -28,7 +28,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum KeyDerivationError {
     #[error(transparent)]
-    CoconutError(#[from] CoconutError),
+    CoconutError(#[from] EcashError),
 
     #[error("can't complete key derivation without dealing exchange")]
     IncompleteDealingExchange,

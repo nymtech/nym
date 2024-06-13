@@ -1175,7 +1175,7 @@ dependencies = [
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.22.0-pre"
-source = "git+https://github.com/jstuczyn/cosmos-rust?branch=jstuczyn/tx_msg_data_parsing#c41f4e90b8e482f82b1e00c58695375db9cf2a54"
+source = "git+https://github.com/cosmos/cosmos-rust?rev=4b1332e6d8258ac845cef71589c8d362a669675a#4b1332e6d8258ac845cef71589c8d362a669675a"
 dependencies = [
  "prost 0.12.6",
  "prost-types 0.12.6",
@@ -1205,7 +1205,7 @@ dependencies = [
 [[package]]
 name = "cosmrs"
 version = "0.17.0-pre"
-source = "git+https://github.com/jstuczyn/cosmos-rust?branch=jstuczyn/tx_msg_data_parsing#c41f4e90b8e482f82b1e00c58695375db9cf2a54"
+source = "git+https://github.com/cosmos/cosmos-rust?rev=4b1332e6d8258ac845cef71589c8d362a669675a#4b1332e6d8258ac845cef71589c8d362a669675a"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto 0.22.0-pre",
@@ -4181,7 +4181,9 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "tendermint 0.37.0",
+ "thiserror",
  "time",
  "ts-rs",
 ]

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_compact_ecash::scheme::coin_indices_signatures::{sign_coin_indices, CoinIndexSignature};
 use nym_compact_ecash::scheme::expiration_date_signatures::{
@@ -16,8 +16,8 @@ use tokio::sync::RwLock;
 
 // If the result is already established, the vote might be redundant and
 // thus the transaction might fail
-pub(crate) fn accepted_vote_err(ret: Result<(), CoconutError>) -> Result<(), CoconutError> {
-    if let Err(CoconutError::NyxdError(AbciError { ref log, .. })) = ret {
+pub(crate) fn accepted_vote_err(ret: Result<(), EcashError>) -> Result<(), EcashError> {
+    if let Err(EcashError::NyxdError(AbciError { ref log, .. })) = ret {
         let accepted_err =
             nym_multisig_contract_common::error::ContractError::NotOpen {}.to_string();
         // If redundant voting is not the case, error out on all other error variants
@@ -51,7 +51,7 @@ impl CredentialRequest for BlindSignRequestBody {
 pub(crate) fn blind_sign<C: CredentialRequest>(
     request: &C,
     signing_key: &SecretKeyAuth,
-) -> Result<BlindedSignature, CoconutError> {
+) -> Result<BlindedSignature, EcashError> {
     Ok(nym_compact_ecash::scheme::withdrawal::issue(
         signing_key,
         request.ecash_pubkey().clone(),
@@ -91,7 +91,7 @@ impl CoinIndexSignatureCache {
         expected_epoch_id: u64,
         verification_key: &VerificationKeyAuth,
         secret_key: &SecretKeyAuth,
-    ) -> Result<Vec<CoinIndexSignature>, CoconutError> {
+    ) -> Result<Vec<CoinIndexSignature>, EcashError> {
         let mut signatures = self.signatures.write().await;
 
         //if this fails, it means someone else updated the signatures in the meantime
@@ -146,7 +146,7 @@ impl ExpirationDateSignatureCache {
         expected_epoch_id: u64,
         expected_exp_date: u64,
         secret_key: &SecretKeyAuth,
-    ) -> Result<Vec<ExpirationDateSignature>, CoconutError> {
+    ) -> Result<Vec<ExpirationDateSignature>, EcashError> {
         let mut signatures = self.signatures.write().await;
 
         //if this fails, it means someone else updated the signatures in the meantime

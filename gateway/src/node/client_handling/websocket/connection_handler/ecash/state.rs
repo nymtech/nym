@@ -72,6 +72,7 @@ impl SharedState {
                 EpochState {
                     api_clients: epoch_api_clients,
                     master_key: aggregated_verification_key,
+                    threshold: threshold as u64,
                 },
             );
         }
@@ -87,16 +88,16 @@ impl SharedState {
         &self,
         epoch_id: EpochId,
     ) -> Result<RwLockWriteGuard<BTreeMap<EpochId, EpochState>>, RequestHandlingError> {
+        let Some(threshold) = self.threshold(epoch_id).await? else {
+            return Err(RequestHandlingError::DKGThresholdUnavailable { epoch_id });
+        };
+
         let api_clients = self.query_api_clients(epoch_id).await?;
 
-        // EDGE CASE:
-        // if this epoch is from the past, we can't query for its threshold
-        // we can only hope that enough valid keys were submitted
-        // the best we can do is check if we have at least a single api
-        if api_clients.is_empty() {
+        if api_clients.len() < threshold as usize {
             return Err(RequestHandlingError::NotEnoughNymAPIs {
-                received: 0,
-                needed: 1,
+                received: api_clients.len(),
+                needed: threshold as usize,
             });
         }
 
@@ -109,6 +110,7 @@ impl SharedState {
             EpochState {
                 api_clients,
                 master_key: aggregated_verification_key,
+                threshold,
             },
         );
         Ok(guard)
@@ -119,6 +121,18 @@ impl SharedState {
         epoch_id: EpochId,
     ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
         Ok(all_ecash_api_clients(self.nyxd_client.read().await.deref(), epoch_id).await?)
+    }
+
+    pub(crate) async fn threshold(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<Option<u64>, RequestHandlingError> {
+        Ok(self
+            .nyxd_client
+            .read()
+            .await
+            .get_epoch_threshold(epoch_id)
+            .await?)
     }
 
     pub(crate) async fn api_clients(
@@ -190,4 +204,5 @@ pub(crate) struct EpochState {
     // note: **CURRENTLY** api client addresses don't change during the epochs
     pub(crate) api_clients: Vec<CoconutApiClient>,
     pub(crate) master_key: VerificationKeyAuth,
+    pub(crate) threshold: u64,
 }

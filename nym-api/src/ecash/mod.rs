@@ -9,6 +9,7 @@ use keys::KeyPair;
 use nym_config::defaults::NYM_API_VERSION;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
+use nym_validator_client::nyxd::AccountId;
 use rocket::fairing::AdHoc;
 
 pub(crate) mod api_routes;
@@ -25,9 +26,10 @@ pub(crate) mod storage;
 pub(crate) mod tests;
 
 // equivalent of 10nym
-pub(crate) const MINIMUM_BALANCE: u128 = 10_000000;
+pub(crate) const MINIMUM_BALANCE: u128 = 100_000000;
 
 pub fn stage<C, D>(
+    contract_address: AccountId,
     client: C,
     identity_keypair: identity::KeyPair,
     key_pair: KeyPair,
@@ -38,17 +40,23 @@ where
     C: LocalClient + Send + Sync + 'static,
     D: APICommunicationChannel + Send + Sync + 'static,
 {
-    let state = State::new(client, identity_keypair, key_pair, comm_channel, storage);
+    let state = State::new(
+        contract_address,
+        client,
+        identity_keypair,
+        key_pair,
+        comm_channel,
+        storage,
+    );
     AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
         rocket.manage(state).mount(
-            // this format! is so ugly...
             format!("/{NYM_API_VERSION}/{COCONUT_ROUTES}/{BANDWIDTH}"),
             routes![
                 api_routes::get_current_free_pass_nonce,
                 api_routes::post_free_pass,
                 api_routes::post_blind_sign,
-                api_routes::verify_online_credential,
-                api_routes::verify_offline_credential,
+                api_routes::verify_ticket,
+                api_routes::batch_redeem_tickets,
                 api_routes::expiration_date_signatures,
                 api_routes::expiration_date_signatures_timestamp,
                 api_routes::coin_indices_signatures,

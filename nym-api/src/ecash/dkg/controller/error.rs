@@ -6,7 +6,7 @@ use crate::ecash::dkg::key_derivation::KeyDerivationError;
 use crate::ecash::dkg::key_finalization::KeyFinalizationError;
 use crate::ecash::dkg::key_validation::KeyValidationError;
 use crate::ecash::dkg::public_key::PublicKeySubmissionError;
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -16,25 +16,25 @@ pub enum DkgError {
     StatePersistenceFailure {
         path: PathBuf,
         #[source]
-        source: CoconutError,
+        source: EcashError,
     },
 
     #[error("failed to query for the current DKG epoch state: {source}")]
     EpochQueryFailure {
         #[source]
-        source: CoconutError,
+        source: EcashError,
     },
 
     #[error("failed to query for the epoch state status: {source}")]
     StateStatusQueryFailure {
         #[source]
-        source: CoconutError,
+        source: EcashError,
     },
 
     #[error("failed to query the CW4 group contract for the membership status: {source}")]
     GroupQueryFailure {
         #[source]
-        source: CoconutError,
+        source: EcashError,
     },
 
     #[error("this API is currently not member of the DKG group and thus can't participate in the process")]
@@ -73,6 +73,6 @@ pub enum DkgError {
     #[error("failed to advance the DKG state: {source}")]
     StateAdvancementFailure {
         #[source]
-        source: CoconutError,
+        source: EcashError,
     },
 }

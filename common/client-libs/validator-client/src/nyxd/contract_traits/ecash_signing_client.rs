@@ -27,7 +27,6 @@ pub trait EcashSigningClient {
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = EcashExecuteMsg::DepositTicketBookFunds {
-            deposit_info: "TicketBook".to_string(),
             identity_key: public_key,
         };
         let amount = Coin::new(TICKET_BOOK_VALUE, "unym");
@@ -35,17 +34,17 @@ pub trait EcashSigningClient {
             .await
     }
 
-    async fn prepare_credential(
+    async fn request_ticket_redemption(
         &self,
-        serial_number: String,
-        gateway_cosmos_address: String,
+        commitment_bs58: String,
+        number_of_tickets: u16,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = EcashExecuteMsg::PrepareCredential {
-            serial_number,
-            gateway_cosmos_address,
+        let req = EcashExecuteMsg::RequestRedemption {
+            commitment_bs58,
+            number_of_tickets,
         };
-        self.execute_ecash_contract(fee, req, "Ecash::PrepareCredential".to_string(), vec![])
+        self.execute_ecash_contract(fee, req, Default::default(), vec![])
             .await
     }
 
@@ -97,6 +96,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use nym_ecash_contract_common::msg::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -105,30 +105,20 @@ mod tests {
         msg: EcashExecuteMsg,
     ) {
         match msg {
-            EcashExecuteMsg::DepositTicketBookFunds {
-                deposit_info: _,
-                identity_key,
-            } => client
+            EcashExecuteMsg::DepositTicketBookFunds { identity_key } => client
                 .make_ticketbook_deposit(identity_key.to_string(), None)
                 .ignore(),
-            EcashExecuteMsg::PrepareCredential {
-                serial_number,
-                gateway_cosmos_address,
-            } => client
-                .prepare_credential(
-                    serial_number.to_string(),
-                    gateway_cosmos_address.to_string(),
-                    None,
-                )
-                .ignore(),
-            EcashExecuteMsg::SpendCredential {
-                serial_number: _,
-                gateway_cosmos_address: _,
-            } => unimplemented!(), //no spend credential method for the client
             EcashExecuteMsg::AddToBlacklist { public_key: _ } => unimplemented!(), //no add to blacklist method on client
             EcashExecuteMsg::ProposeToBlacklist { public_key } => {
                 client.propose_for_blacklist(public_key, None).ignore()
             }
+            ExecuteMsg::RequestRedemption {
+                commitment_bs58,
+                number_of_tickets,
+            } => client
+                .request_ticket_redemption(commitment_bs58, number_of_tickets, None)
+                .ignore(),
+            ExecuteMsg::RedeemTickets { .. } => unimplemented!(), // no redeem tickets method for the client
         };
     }
 }

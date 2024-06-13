@@ -8,10 +8,13 @@ use crate::{
     nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
     ReqwestRpcClient, ValidatorClientError,
 };
-use nym_api_requests::coconut::models::{SpentCredentialsResponse, VerifyEcashCredentialResponse};
+use nym_api_requests::coconut::models::{
+    BatchRedeemTicketsBody, EcachBatchTicketRedemptionResponse, EcachTicketVerificationResponse,
+    SpentCredentialsResponse, VerifyEcashTicketBody,
+};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
-    PartialExpirationDateSignatureResponse, VerifyEcashCredentialBody,
+    PartialExpirationDateSignatureResponse,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -364,18 +367,21 @@ impl NymApiClient {
         Ok(self.nym_api.blind_sign(request_body).await?)
     }
 
-    pub async fn verify_offline_credential(
+    pub async fn verify_ecash_ticket(
         &self,
-        request_body: &VerifyEcashCredentialBody,
-    ) -> Result<VerifyEcashCredentialResponse, ValidatorClientError> {
-        Ok(self.nym_api.verify_offline_credential(request_body).await?)
+        request_body: &VerifyEcashTicketBody,
+    ) -> Result<EcachTicketVerificationResponse, ValidatorClientError> {
+        Ok(self.nym_api.verify_ecash_ticket(request_body).await?)
     }
 
-    pub async fn verify_online_credential(
+    pub async fn batch_redeem_ecash_tickets(
         &self,
-        request_body: &VerifyEcashCredentialBody,
-    ) -> Result<VerifyEcashCredentialResponse, ValidatorClientError> {
-        Ok(self.nym_api.verify_online_credential(request_body).await?)
+        request_body: &BatchRedeemTicketsBody,
+    ) -> Result<EcachBatchTicketRedemptionResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .batch_redeem_ecash_tickets(request_body)
+            .await?)
     }
 
     pub async fn spent_credentials_filter(

@@ -1,7 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::error::{CoconutError, Result};
+use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::State;
 use crate::ecash::storage::CoconutStorageExt;
@@ -36,7 +36,7 @@ use nym_crypto::asymmetric::identity;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
-use nym_ecash_contract_common::spend_credential::{
+use nym_ecash_contract_common::redeem_credential::{
     EcashSpentCredential, EcashSpentCredentialResponse,
 };
 use nym_validator_client::nym_api::routes::{
@@ -541,7 +541,7 @@ impl super::client::Client for DummyClient {
             .proposals
             .get(&proposal_id)
             .cloned()
-            .ok_or(CoconutError::IncorrectProposal {
+            .ok_or(EcashError::IncorrectProposal {
                 reason: String::from("proposal not found"),
             })?;
 
@@ -842,7 +842,7 @@ impl super::client::Client for DummyClient {
         let voter = self.validator_address.to_string();
         let mut chain = self.state.lock().unwrap();
         if !chain.multisig_contract.proposals.contains_key(&proposal_id) {
-            return Err(CoconutError::IncorrectProposal {
+            return Err(EcashError::IncorrectProposal {
                 reason: String::from("proposal not found"),
             });
         }
@@ -888,7 +888,7 @@ impl super::client::Client for DummyClient {
         let multisig_address: AccountId = chain.multisig_contract.address.as_str().parse().unwrap();
 
         let Some(proposal) = chain.multisig_contract.proposals.get_mut(&proposal_id) else {
-            return Err(CoconutError::ProposalIdError {
+            return Err(EcashError::ProposalIdError {
                 reason: String::from("proposal id not found"),
             });
         };
@@ -1036,7 +1036,7 @@ impl super::client::Client for DummyClient {
         let epoch_id = chain.dkg_contract.epoch.epoch_id;
         let Some(dealer_details) = chain.dkg_contract.get_dealer_details(&address, epoch_id) else {
             // Just throw some error, not really the correct one
-            return Err(CoconutError::DepositInfoNotFound);
+            return Err(EcashError::DepositInfoNotFound);
         };
 
         let dkg_contract = chain.dkg_contract.address.clone();
@@ -1342,7 +1342,6 @@ mod credential_tests {
         tests::helpers::{generate_coin_indices_signatures, generate_expiration_date_signatures},
         ttp_keygen, PayInfo,
     };
-    use nym_validator_client::nym_api::routes::ECASH_VERIFY_ONLINE_CREDENTIAL;
 
     #[tokio::test]
     async fn already_issued() {
@@ -1598,355 +1597,356 @@ mod credential_tests {
 
     #[tokio::test]
     async fn verification_of_bandwidth_credential() {
-        // Setup variables
-        let chain = init_chain();
-        let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
-        chain
-            .lock()
-            .unwrap()
-            .add_member(validator_address.as_ref(), 100);
-
-        let nyxd_client = DummyClient::new(validator_address.clone(), chain.clone());
-        let db_dir = tempdir().unwrap();
-
-        // generate all the credential requests
-        let key_pair = ttp_keygen(1, 1).unwrap().remove(0);
-        let epoch = 1;
-
-        let issuance = voucher_fixture(None);
-        let sig_req = issuance.prepare_for_signing();
-        let exp_date_sigs = generate_expiration_date_signatures(
-            sig_req.expiration_date.unix_timestamp() as u64,
-            &[key_pair.secret_key()],
-            &vec![key_pair.verification_key()],
-            &key_pair.verification_key(),
-            &[key_pair.index.unwrap()],
-        )
-        .unwrap();
-
-        let blind_sig = issue(
-            key_pair.secret_key(),
-            sig_req.ecash_pub_key.clone(),
-            &sig_req.withdrawal_request,
-            sig_req.expiration_date.unix_timestamp() as u64,
-        )
-        .unwrap();
-        let partial_wallet = issuance
-            .unblind_signature(
-                &key_pair.verification_key(),
-                &sig_req,
-                blind_sig,
-                key_pair.index.unwrap(),
-            )
-            .unwrap();
-
-        let wallet = issuance
-            .aggregate_signature_shares(
-                &key_pair.verification_key(),
-                &vec![partial_wallet],
-                sig_req,
-            )
-            .unwrap();
-
-        let mut issued =
-            issuance.to_issued_credential(wallet.clone(), exp_date_sigs.clone(), epoch);
-        let mut issued2 = issuance.to_issued_credential(wallet, exp_date_sigs, epoch);
-
-        let coin_indices_signatures = generate_coin_indices_signatures(
-            ecash_parameters(),
-            &[key_pair.secret_key()],
-            &vec![key_pair.verification_key()],
-            &key_pair.verification_key(),
-            &[key_pair.index.unwrap()],
-        )
-        .unwrap();
-        let pay_info = PayInfo {
-            pay_info_bytes: [6u8; 72],
-        };
-        let pay_info2 = PayInfo {
-            pay_info_bytes: [7u8; 72],
-        };
-        let spending = issued
-            .prepare_for_spending(
-                &key_pair.verification_key(),
-                pay_info,
-                &coin_indices_signatures,
-            )
-            .unwrap();
-        let double_spending = issued2
-            .prepare_for_spending(
-                &key_pair.verification_key(),
-                pay_info2,
-                &coin_indices_signatures,
-            )
-            .unwrap();
-
-        let storage1 = NymApiStorage::init(db_dir.path().join("storage.db"))
-            .await
-            .unwrap();
-        let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
-        let staged_key_pair = crate::ecash::KeyPair::new();
-        staged_key_pair
-            .set(KeyPairWithEpoch {
-                keys: key_pair,
-                issued_for_epoch: epoch,
-            })
-            .await;
-        staged_key_pair.validate();
-        let mut rng = OsRng;
-        let identity = identity::KeyPair::new(&mut rng);
-
-        let rocket = rocket::build().attach(crate::ecash::stage(
-            nyxd_client.clone(),
-            identity,
-            staged_key_pair,
-            comm_channel.clone(),
-            storage1.clone(),
-        ));
-
-        let client = Client::tracked(rocket)
-            .await
-            .expect("valid rocket instance");
-
-        let proposal_id = 42;
-        // The address is not used, so we can use a duplicate
-        let gateway_cosmos_addr = validator_address.clone();
-        let req = VerifyEcashCredentialBody::new(
-            spending.clone(),
-            gateway_cosmos_addr.clone(),
-            proposal_id,
-        );
-
-        // Test endpoint with not proposal for the proposal id
-        let response = client
-            .post(format!(
-                "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
-            ))
-            .json(&req)
-            .dispatch()
-            .await;
-        assert_eq!(response.status(), Status::BadRequest);
-        assert_eq!(
-            response.into_string().await.unwrap(),
-            CoconutError::IncorrectProposal {
-                reason: "proposal not found".to_string()
-            }
-            .to_string()
-        );
-
-        let mut proposal = Proposal {
-            title: String::new(),
-            description: String::from(
-                "65TETnK13g1sSUVgrMHcwMUBmu2xUyEXQiCiREJxXpacFoR5GbniRHwqdo4VwWv7Sd",
-            ),
-            msgs: vec![],
-            status: cw3::Status::Open,
-            expires: cw_utils::Expiration::Never {},
-            threshold: cw_utils::Threshold::AbsolutePercentage {
-                percentage: Decimal::from_ratio(2u32, 3u32),
-            },
-            total_weight: chain.lock().unwrap().total_group_weight(),
-            votes: Votes::yes(0),
-            proposer: Addr::unchecked("proposer"),
-            deposit: None,
-            start_height: 0,
-        };
-
-        // Test the endpoint with a different blinded serial number in the description
-
-        chain
-            .lock()
-            .unwrap()
-            .multisig_contract
-            .proposals
-            .insert(proposal_id, proposal.clone());
-        let response = client
-            .post(format!(
-                "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
-            ))
-            .json(&req)
-            .dispatch()
-            .await;
-        assert_eq!(response.status(), Status::Ok);
-        let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
-            &response.into_string().await.unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            verify_credential_response,
-            VerifyEcashCredentialResponse::InvalidFormat(
-                "incorrect blinded serial number in description".to_string()
-            )
-        );
-
-        // Test the endpoint with no msg in the proposal action
-        proposal.description = spending.payment.serial_number_bs58();
-        chain.lock().unwrap().reset_votes();
-        chain
-            .lock()
-            .unwrap()
-            .multisig_contract
-            .proposals
-            .insert(proposal_id, proposal.clone());
-        let response = client
-            .post(format!(
-                "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
-            ))
-            .json(&req)
-            .dispatch()
-            .await;
-        assert_eq!(response.status(), Status::Ok);
-        let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
-            &response.into_string().await.unwrap(),
-        )
-        .unwrap();
-        assert_eq!(
-            verify_credential_response,
-            VerifyEcashCredentialResponse::InvalidFormat(
-                "action is not to spend_credential".to_string()
-            )
-        );
-
-        // Test the endpoint with a credential that doesn't verify correctly
-        let mut bad_spending = spending.clone();
-        bad_spending.payment.kappa = bad_spending.payment.kappa + bad_spending.payment.kappa;
-        let bad_req = VerifyEcashCredentialBody::new(
-            bad_spending.clone(),
-            gateway_cosmos_addr.clone(),
-            proposal_id,
-        );
-        chain.lock().unwrap().reset_votes();
-        chain
-            .lock()
-            .unwrap()
-            .multisig_contract
-            .proposals
-            .insert(proposal_id, proposal.clone());
-
-        let response = client
-            .post(format!(
-                "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
-            ))
-            .json(&bad_req)
-            .dispatch()
-            .await;
-        assert_eq!(response.status(), Status::Ok);
-        let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
-            &response.into_string().await.unwrap(),
-        )
-        .unwrap();
-        assert_eq!(
-            verify_credential_response,
-            VerifyEcashCredentialResponse::Refused
-        );
-        assert_eq!(
-            cw3::Status::Rejected,
-            chain
-                .lock()
-                .unwrap()
-                .multisig_contract
-                .proposals
-                .get(&proposal_id)
-                .unwrap()
-                .status
-        );
-
-        // Test the endpoint with every dependency met
-        let msg = nym_ecash_contract_common::msg::ExecuteMsg::SpendCredential {
-            serial_number: spending.payment.serial_number_bs58(),
-            gateway_cosmos_address: gateway_cosmos_addr.to_string(),
-        };
-        let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: String::new(),
-            msg: to_binary(&msg).unwrap(),
-            funds: vec![],
-        });
-        proposal.msgs = vec![cosmos_msg];
-        chain.lock().unwrap().reset_votes();
-        chain
-            .lock()
-            .unwrap()
-            .multisig_contract
-            .proposals
-            .insert(proposal_id, proposal.clone());
-        let response = client
-            .post(format!(
-                "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
-            ))
-            .json(&req)
-            .dispatch()
-            .await;
-        assert_eq!(response.status(), Status::Ok);
-        let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
-            &response.into_string().await.unwrap(),
-        )
-        .unwrap();
-        assert_eq!(
-            verify_credential_response,
-            VerifyEcashCredentialResponse::Accepted
-        );
-        assert_eq!(
-            cw3::Status::Passed,
-            chain
-                .lock()
-                .unwrap()
-                .multisig_contract
-                .proposals
-                .get(&proposal_id)
-                .unwrap()
-                .status
-        );
-
-        // Test the endpoint with the credential already sent
-        chain.lock().unwrap().reset_votes();
-        let response = client
-            .post(format!(
-                "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
-            ))
-            .json(&req)
-            .dispatch()
-            .await;
-        assert_eq!(response.status(), Status::Ok);
-        let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
-            &response.into_string().await.unwrap(),
-        )
-        .unwrap();
-        assert_eq!(
-            verify_credential_response,
-            VerifyEcashCredentialResponse::AlreadySent
-        );
-
-        // Test the endpoint with the credential already spent
-        let double_spend_req = VerifyEcashCredentialBody::new(
-            double_spending.clone(),
-            gateway_cosmos_addr.clone(),
-            proposal_id,
-        );
-        chain.lock().unwrap().reset_votes();
-        let response = client
-            .post(format!(
-                "/{}/{}/{}/{}",
-                API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
-            ))
-            .json(&double_spend_req)
-            .dispatch()
-            .await;
-        assert_eq!(response.status(), Status::Ok);
-        let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
-            &response.into_string().await.unwrap(),
-        )
-        .unwrap();
-        assert_eq!(
-            verify_credential_response,
-            VerifyEcashCredentialResponse::DoubleSpend
-        );
+        todo!()
+        // // Setup variables
+        // let chain = init_chain();
+        // let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
+        // chain
+        //     .lock()
+        //     .unwrap()
+        //     .add_member(validator_address.as_ref(), 100);
+        //
+        // let nyxd_client = DummyClient::new(validator_address.clone(), chain.clone());
+        // let db_dir = tempdir().unwrap();
+        //
+        // // generate all the credential requests
+        // let key_pair = ttp_keygen(1, 1).unwrap().remove(0);
+        // let epoch = 1;
+        //
+        // let issuance = voucher_fixture(None);
+        // let sig_req = issuance.prepare_for_signing();
+        // let exp_date_sigs = generate_expiration_date_signatures(
+        //     sig_req.expiration_date.unix_timestamp() as u64,
+        //     &[key_pair.secret_key()],
+        //     &vec![key_pair.verification_key()],
+        //     &key_pair.verification_key(),
+        //     &[key_pair.index.unwrap()],
+        // )
+        // .unwrap();
+        //
+        // let blind_sig = issue(
+        //     key_pair.secret_key(),
+        //     sig_req.ecash_pub_key.clone(),
+        //     &sig_req.withdrawal_request,
+        //     sig_req.expiration_date.unix_timestamp() as u64,
+        // )
+        // .unwrap();
+        // let partial_wallet = issuance
+        //     .unblind_signature(
+        //         &key_pair.verification_key(),
+        //         &sig_req,
+        //         blind_sig,
+        //         key_pair.index.unwrap(),
+        //     )
+        //     .unwrap();
+        //
+        // let wallet = issuance
+        //     .aggregate_signature_shares(
+        //         &key_pair.verification_key(),
+        //         &vec![partial_wallet],
+        //         sig_req,
+        //     )
+        //     .unwrap();
+        //
+        // let mut issued =
+        //     issuance.to_issued_credential(wallet.clone(), exp_date_sigs.clone(), epoch);
+        // let mut issued2 = issuance.to_issued_credential(wallet, exp_date_sigs, epoch);
+        //
+        // let coin_indices_signatures = generate_coin_indices_signatures(
+        //     ecash_parameters(),
+        //     &[key_pair.secret_key()],
+        //     &vec![key_pair.verification_key()],
+        //     &key_pair.verification_key(),
+        //     &[key_pair.index.unwrap()],
+        // )
+        // .unwrap();
+        // let pay_info = PayInfo {
+        //     pay_info_bytes: [6u8; 72],
+        // };
+        // let pay_info2 = PayInfo {
+        //     pay_info_bytes: [7u8; 72],
+        // };
+        // let spending = issued
+        //     .prepare_for_spending(
+        //         &key_pair.verification_key(),
+        //         pay_info,
+        //         &coin_indices_signatures,
+        //     )
+        //     .unwrap();
+        // let double_spending = issued2
+        //     .prepare_for_spending(
+        //         &key_pair.verification_key(),
+        //         pay_info2,
+        //         &coin_indices_signatures,
+        //     )
+        //     .unwrap();
+        //
+        // let storage1 = NymApiStorage::init(db_dir.path().join("storage.db"))
+        //     .await
+        //     .unwrap();
+        // let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
+        // let staged_key_pair = crate::ecash::KeyPair::new();
+        // staged_key_pair
+        //     .set(KeyPairWithEpoch {
+        //         keys: key_pair,
+        //         issued_for_epoch: epoch,
+        //     })
+        //     .await;
+        // staged_key_pair.validate();
+        // let mut rng = OsRng;
+        // let identity = identity::KeyPair::new(&mut rng);
+        //
+        // let rocket = rocket::build().attach(crate::ecash::stage(
+        //     nyxd_client.clone(),
+        //     identity,
+        //     staged_key_pair,
+        //     comm_channel.clone(),
+        //     storage1.clone(),
+        // ));
+        //
+        // let client = Client::tracked(rocket)
+        //     .await
+        //     .expect("valid rocket instance");
+        //
+        // let proposal_id = 42;
+        // // The address is not used, so we can use a duplicate
+        // let gateway_cosmos_addr = validator_address.clone();
+        // let req = VerifyEcashCredentialBody::new(
+        //     spending.clone(),
+        //     gateway_cosmos_addr.clone(),
+        //     proposal_id,
+        // );
+        //
+        // // Test endpoint with not proposal for the proposal id
+        // let response = client
+        //     .post(format!(
+        //         "/{}/{}/{}/{}",
+        //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
+        //     ))
+        //     .json(&req)
+        //     .dispatch()
+        //     .await;
+        // assert_eq!(response.status(), Status::BadRequest);
+        // assert_eq!(
+        //     response.into_string().await.unwrap(),
+        //     CoconutError::IncorrectProposal {
+        //         reason: "proposal not found".to_string()
+        //     }
+        //     .to_string()
+        // );
+        //
+        // let mut proposal = Proposal {
+        //     title: String::new(),
+        //     description: String::from(
+        //         "65TETnK13g1sSUVgrMHcwMUBmu2xUyEXQiCiREJxXpacFoR5GbniRHwqdo4VwWv7Sd",
+        //     ),
+        //     msgs: vec![],
+        //     status: cw3::Status::Open,
+        //     expires: cw_utils::Expiration::Never {},
+        //     threshold: cw_utils::Threshold::AbsolutePercentage {
+        //         percentage: Decimal::from_ratio(2u32, 3u32),
+        //     },
+        //     total_weight: chain.lock().unwrap().total_group_weight(),
+        //     votes: Votes::yes(0),
+        //     proposer: Addr::unchecked("proposer"),
+        //     deposit: None,
+        //     start_height: 0,
+        // };
+        //
+        // // Test the endpoint with a different blinded serial number in the description
+        //
+        // chain
+        //     .lock()
+        //     .unwrap()
+        //     .multisig_contract
+        //     .proposals
+        //     .insert(proposal_id, proposal.clone());
+        // let response = client
+        //     .post(format!(
+        //         "/{}/{}/{}/{}",
+        //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
+        //     ))
+        //     .json(&req)
+        //     .dispatch()
+        //     .await;
+        // assert_eq!(response.status(), Status::Ok);
+        // let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
+        //     &response.into_string().await.unwrap(),
+        // )
+        // .unwrap();
+        //
+        // assert_eq!(
+        //     verify_credential_response,
+        //     VerifyEcashCredentialResponse::InvalidFormat(
+        //         "incorrect blinded serial number in description".to_string()
+        //     )
+        // );
+        //
+        // // Test the endpoint with no msg in the proposal action
+        // proposal.description = spending.payment.serial_number_bs58();
+        // chain.lock().unwrap().reset_votes();
+        // chain
+        //     .lock()
+        //     .unwrap()
+        //     .multisig_contract
+        //     .proposals
+        //     .insert(proposal_id, proposal.clone());
+        // let response = client
+        //     .post(format!(
+        //         "/{}/{}/{}/{}",
+        //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
+        //     ))
+        //     .json(&req)
+        //     .dispatch()
+        //     .await;
+        // assert_eq!(response.status(), Status::Ok);
+        // let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
+        //     &response.into_string().await.unwrap(),
+        // )
+        // .unwrap();
+        // assert_eq!(
+        //     verify_credential_response,
+        //     VerifyEcashCredentialResponse::InvalidFormat(
+        //         "action is not to spend_credential".to_string()
+        //     )
+        // );
+        //
+        // // Test the endpoint with a credential that doesn't verify correctly
+        // let mut bad_spending = spending.clone();
+        // bad_spending.payment.kappa = bad_spending.payment.kappa + bad_spending.payment.kappa;
+        // let bad_req = VerifyEcashCredentialBody::new(
+        //     bad_spending.clone(),
+        //     gateway_cosmos_addr.clone(),
+        //     proposal_id,
+        // );
+        // chain.lock().unwrap().reset_votes();
+        // chain
+        //     .lock()
+        //     .unwrap()
+        //     .multisig_contract
+        //     .proposals
+        //     .insert(proposal_id, proposal.clone());
+        //
+        // let response = client
+        //     .post(format!(
+        //         "/{}/{}/{}/{}",
+        //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
+        //     ))
+        //     .json(&bad_req)
+        //     .dispatch()
+        //     .await;
+        // assert_eq!(response.status(), Status::Ok);
+        // let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
+        //     &response.into_string().await.unwrap(),
+        // )
+        // .unwrap();
+        // assert_eq!(
+        //     verify_credential_response,
+        //     VerifyEcashCredentialResponse::Refused
+        // );
+        // assert_eq!(
+        //     cw3::Status::Rejected,
+        //     chain
+        //         .lock()
+        //         .unwrap()
+        //         .multisig_contract
+        //         .proposals
+        //         .get(&proposal_id)
+        //         .unwrap()
+        //         .status
+        // );
+        //
+        // // Test the endpoint with every dependency met
+        // let msg = nym_ecash_contract_common::msg::ExecuteMsg::SpendCredential {
+        //     serial_number: spending.payment.serial_number_bs58(),
+        //     gateway_cosmos_address: gateway_cosmos_addr.to_string(),
+        // };
+        // let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        //     contract_addr: String::new(),
+        //     msg: to_binary(&msg).unwrap(),
+        //     funds: vec![],
+        // });
+        // proposal.msgs = vec![cosmos_msg];
+        // chain.lock().unwrap().reset_votes();
+        // chain
+        //     .lock()
+        //     .unwrap()
+        //     .multisig_contract
+        //     .proposals
+        //     .insert(proposal_id, proposal.clone());
+        // let response = client
+        //     .post(format!(
+        //         "/{}/{}/{}/{}",
+        //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
+        //     ))
+        //     .json(&req)
+        //     .dispatch()
+        //     .await;
+        // assert_eq!(response.status(), Status::Ok);
+        // let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
+        //     &response.into_string().await.unwrap(),
+        // )
+        // .unwrap();
+        // assert_eq!(
+        //     verify_credential_response,
+        //     VerifyEcashCredentialResponse::Accepted
+        // );
+        // assert_eq!(
+        //     cw3::Status::Passed,
+        //     chain
+        //         .lock()
+        //         .unwrap()
+        //         .multisig_contract
+        //         .proposals
+        //         .get(&proposal_id)
+        //         .unwrap()
+        //         .status
+        // );
+        //
+        // // Test the endpoint with the credential already sent
+        // chain.lock().unwrap().reset_votes();
+        // let response = client
+        //     .post(format!(
+        //         "/{}/{}/{}/{}",
+        //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
+        //     ))
+        //     .json(&req)
+        //     .dispatch()
+        //     .await;
+        // assert_eq!(response.status(), Status::Ok);
+        // let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
+        //     &response.into_string().await.unwrap(),
+        // )
+        // .unwrap();
+        // assert_eq!(
+        //     verify_credential_response,
+        //     VerifyEcashCredentialResponse::AlreadySent
+        // );
+        //
+        // // Test the endpoint with the credential already spent
+        // let double_spend_req = VerifyEcashCredentialBody::new(
+        //     double_spending.clone(),
+        //     gateway_cosmos_addr.clone(),
+        //     proposal_id,
+        // );
+        // chain.lock().unwrap().reset_votes();
+        // let response = client
+        //     .post(format!(
+        //         "/{}/{}/{}/{}",
+        //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_ONLINE_CREDENTIAL
+        //     ))
+        //     .json(&double_spend_req)
+        //     .dispatch()
+        //     .await;
+        // assert_eq!(response.status(), Status::Ok);
+        // let verify_credential_response = serde_json::from_str::<VerifyEcashCredentialResponse>(
+        //     &response.into_string().await.unwrap(),
+        // )
+        // .unwrap();
+        // assert_eq!(
+        //     verify_credential_response,
+        //     VerifyEcashCredentialResponse::DoubleSpend
+        // );
     }
 
     #[test]

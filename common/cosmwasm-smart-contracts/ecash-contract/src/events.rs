@@ -13,5 +13,6 @@ pub const TICKET_BOOK_VALUE: u128 = 50_000_000;
 pub const TICKET_VALUE: u128 = 50_000;
 
 pub const WASM_EVENT_NAME: &str = "wasm";
-pub const BLACKLIST_PROPOSAL_ID: &str = "proposal_id";
+pub const PROPOSAL_ID_ATTRIBUTE_NAME: &str = "proposal_id";
 pub const BLACKLIST_PROPOSAL_REPLY_ID: u64 = 7759;
+pub const REDEMPTION_PROPOSAL_REPLY_ID: u64 = 2137;

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use nym_api_requests::coconut::models::{
     EpochCredentialsResponse, IssuedCredential as ApiIssuedCredential,
     IssuedCredentialBody as ApiIssuedCredentialInner,
@@ -58,7 +58,7 @@ pub struct IssuedCredential {
 }
 
 impl TryFrom<IssuedCredential> for ApiIssuedCredentialInner {
-    type Error = CoconutError;
+    type Error = EcashError;
 
     fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
         Ok(ApiIssuedCredentialInner {
@@ -80,7 +80,7 @@ impl TryFrom<IssuedCredential> for ApiIssuedCredentialInner {
 }
 
 impl TryFrom<IssuedCredential> for BlindedSignatureResponse {
-    type Error = CoconutError;
+    type Error = EcashError;
 
     fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
         Ok(BlindedSignatureResponse {
@@ -90,7 +90,7 @@ impl TryFrom<IssuedCredential> for BlindedSignatureResponse {
 }
 
 impl TryFrom<IssuedCredential> for BlindedSignature {
-    type Error = CoconutError;
+    type Error = EcashError;
 
     fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
         Ok(BlindedSignature::try_from_bs58(

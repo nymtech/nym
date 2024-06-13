@@ -32,6 +32,10 @@ impl CredentialSpendingRequest {
             data: CredentialSpendingData::try_from_bytes(raw)?,
         })
     }
+
+    pub fn serial_number_bs58(&self) -> String {
+        self.data.serial_number_b58()
+    }
 }
 
 impl Bytable for CredentialSpendingRequest {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::dkg::controller::DkgController;
-use crate::ecash::error::CoconutError;
+use crate::ecash::error::EcashError;
 use log::debug;
 use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
@@ -11,7 +11,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum PublicKeySubmissionError {
     #[error(transparent)]
-    CoconutError(#[from] CoconutError),
+    CoconutError(#[from] EcashError),
 }
 
 impl<R: RngCore + CryptoRng> DkgController<R> {

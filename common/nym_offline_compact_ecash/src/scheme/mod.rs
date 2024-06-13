@@ -765,35 +765,12 @@ impl Payment {
         Ok(())
     }
 
-    /// Verifies the validity of a spend transaction, including signature checks,
-    /// expiration date signature checks, serial number uniqueness, coin index signature checks,
-    /// and zero-knowledge proof verification.
-    ///
-    /// # Arguments
-    ///
-    /// * `params` - The cryptographic parameters.
-    /// * `verification_key` - The verification key used for validation.
-    /// * `pay_info` - The pay information associated with the transaction.
-    /// * `spend_date` - The date at which the spending transaction occurs.
-    ///
-    /// # Returns
-    ///
-    /// Returns `Ok(true)` if the spend transaction is valid; otherwise, returns an error.
-    pub fn spend_verify(
+    /// Checks the validity of the attached zk proof of spending.
+    pub fn verify_spend_proof(
         &self,
         verification_key: &VerificationKeyAuth,
         pay_info: &PayInfo,
-        spend_date: Scalar,
-    ) -> Result<bool> {
-        // check if all serial numbers are different
-        self.no_duplicate_serial_numbers()?;
-        // Verify whether the payment signature and kappa are correct
-        self.check_signature_validity()?;
-        // Verify whether the expiration date signature and kappa_e are correct
-        self.check_exp_signature_validity(verification_key, spend_date)?;
-        // Verify whether the coin indices signatures and kappa_k are correct
-        self.batch_check_coin_index_signatures(verification_key)?;
-
+    ) -> Result<()> {
         // Compute pay_info hash for each coin
         let mut rr = Vec::with_capacity(self.spend_value as usize);
         for k in 0..self.spend_value {
@@ -821,7 +798,41 @@ impl Payment {
             return Err(CompactEcashError::SpendZKProofVerification);
         }
 
-        Ok(true)
+        Ok(())
+    }
+
+    /// Verifies the validity of a spend transaction, including signature checks,
+    /// expiration date signature checks, serial number uniqueness, coin index signature checks,
+    /// and zero-knowledge proof verification.
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - The cryptographic parameters.
+    /// * `verification_key` - The verification key used for validation.
+    /// * `pay_info` - The pay information associated with the transaction.
+    /// * `spend_date` - The date at which the spending transaction occurs.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(true)` if the spend transaction is valid; otherwise, returns an error.
+    pub fn spend_verify(
+        &self,
+        verification_key: &VerificationKeyAuth,
+        pay_info: &PayInfo,
+        spend_date: Scalar,
+    ) -> Result<()> {
+        // check if all serial numbers are different
+        self.no_duplicate_serial_numbers()?;
+        // verify the zk proof
+        self.verify_spend_proof(verification_key, pay_info)?;
+        // Verify whether the payment signature and kappa are correct
+        self.check_signature_validity()?;
+        // Verify whether the expiration date signature and kappa_e are correct
+        self.check_exp_signature_validity(verification_key, spend_date)?;
+        // Verify whether the coin indices signatures and kappa_k are correct
+        self.batch_check_coin_index_signatures(verification_key)?;
+
+        Ok(())
     }
 
     pub fn serial_number_bs58(&self) -> String {

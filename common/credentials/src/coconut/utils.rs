@@ -10,18 +10,31 @@ use nym_credentials_interface::{
     ExpirationDateSignatureShare, VerificationKeyAuth, Wallet,
 };
 use nym_validator_client::client::CoconutApiClient;
-use time::{macros::time, Duration, OffsetDateTime};
+use time::{Duration, OffsetDateTime, Time};
 
-pub fn today() -> OffsetDateTime {
+pub fn ecash_today() -> OffsetDateTime {
     let now_utc = OffsetDateTime::now_utc();
-    now_utc.replace_time(time!(0:00))
+    now_utc.replace_time(Time::MIDNIGHT)
+}
+
+// no point in supporting more than i8 variance
+pub fn ecash_date_offset(offset: i8) -> OffsetDateTime {
+    let today = ecash_today();
+
+    let day = today + Duration::days(offset as i64);
+
+    // make sure to correct the time in case of DST
+    day.replace_time(Time::MIDNIGHT)
 }
 
 pub fn cred_exp_date() -> OffsetDateTime {
     //count today as well
-    today() + Duration::days(constants::CRED_VALIDITY_PERIOD_DAYS as i64 - 1)
+    ecash_date_offset(constants::CRED_VALIDITY_PERIOD_DAYS as i8 - 1)
+    // ecash_today() + Duration::days(constants::CRED_VALIDITY_PERIOD_DAYS as i64 - 1)
 }
 
+// TODO: obtain it directly from some API instead
+#[deprecated]
 pub fn obtain_aggregate_verification_key(
     api_clients: &[CoconutApiClient],
 ) -> Result<VerificationKeyAuth, Error> {

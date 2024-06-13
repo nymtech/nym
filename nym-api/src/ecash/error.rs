@@ -9,8 +9,10 @@ use nym_crypto::asymmetric::{
 };
 use nym_dkg::error::DkgError;
 use nym_ecash_contract_common::deposit::DepositId;
+use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_validator_client::coconut::CoconutApiError;
 use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::AccountId;
 use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
 use rocket::{response, Request, Response};
@@ -19,10 +21,10 @@ use std::num::ParseIntError;
 use thiserror::Error;
 use time::error::ComponentRange;
 
-pub type Result<T> = std::result::Result<T, CoconutError>;
+pub type Result<T> = std::result::Result<T, EcashError>;
 
 #[derive(Debug, Error)]
-pub enum CoconutError {
+pub enum EcashError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 
@@ -167,9 +169,24 @@ pub enum CoconutError {
 
     #[error("could not find ecash deposit associated with id {deposit_id}")]
     NonExistentDeposit { deposit_id: DepositId },
+
+    #[error("the provided request digest does not match the hash of attached serial numbers")]
+    MismatchedRequestDigest,
+
+    #[error("the on chain proposal digest does not match the attached request digest")]
+    MismatchedOnChainDigest,
+
+    #[error("one of the attached tickets {serial_number_bs58} has not been verified before")]
+    TicketNotVerified { serial_number_bs58: String },
+
+    #[error("the provided ticket(s) redemption proposal is invalid: {source}")]
+    RedemptionProposalFailure {
+        #[from]
+        source: RedemptionError,
+    },
 }
 
-impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {
+impl<'r, 'o: 'r> Responder<'r, 'o> for EcashError {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'o> {
         let err_msg = self.to_string();
         Response::build()
@@ -178,4 +195,67 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {
             .status(Status::BadRequest)
             .ok()
     }
+}
+
+#[derive(Debug, Error)]
+pub enum RedemptionError {
+    #[error("failed to retrieve proposal {proposal_id} from the chain")]
+    ProposalRetrievalFailure { proposal_id: u64 },
+
+    #[error(
+        "the proposal {proposal_id} has invalid title. got {received} but expected {}",
+        BATCH_REDEMPTION_PROPOSAL_TITLE
+    )]
+    InvalidProposalTitle { proposal_id: u64, received: String },
+
+    #[error("the proposal {proposal_id} has invalid description. got {received} but expected {expected}")]
+    InvalidProposalDescription {
+        proposal_id: u64,
+        received: String,
+        expected: String,
+    },
+
+    #[error("the proposal {proposal_id} is still pending")]
+    StillPending { proposal_id: u64 },
+
+    #[error("the proposal {proposal_id} has already been executed")]
+    AlreadyExecuted { proposal_id: u64 },
+
+    #[error("the proposal {proposal_id} has already been rejected")]
+    AlreadyRejected { proposal_id: u64 },
+
+    #[error("the proposal {proposal_id} has already been passed")]
+    AlreadyPassed { proposal_id: u64 },
+
+    #[error("the proposal {proposal_id} was proposed by an unexpected address {received}. expected the ecash contract at {expected}")]
+    InvalidProposer {
+        proposal_id: u64,
+        received: String,
+        expected: AccountId,
+    },
+
+    #[error(
+        "the proposal {proposal_id} did not contain exactly a single contract execution message"
+    )]
+    TooManyMessages { proposal_id: u64 },
+
+    #[error("the proposal {proposal_id} did not contain the correct redemption execution message")]
+    InvalidMessage { proposal_id: u64 },
+
+    #[error("the proposal {proposal_id} has not been made against the expected e-cash contract")]
+    InvalidContract { proposal_id: u64 },
+
+    #[error("the proposal {proposal_id} proposes redemption of tickets for gateway {proposed}, but the request has been sent by {received}")]
+    InvalidRedemptionTarget {
+        proposal_id: u64,
+        proposed: String,
+        received: String,
+    },
+
+    #[error("the proposal {proposal_id} proposes redemption of {proposed} tickets, but the request has been sent for {received} instead")]
+    InvalidRedemptionTicketCount {
+        proposal_id: u64,
+        proposed: u16,
+        received: u16,
+    },
 }

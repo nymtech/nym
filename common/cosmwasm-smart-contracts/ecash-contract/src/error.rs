@@ -59,4 +59,10 @@ pub enum EcashContractError {
 
     #[error("the required deposit amount has changed since the contract was created! This was not expected! It used to be {at_init} but it's {current} now! Please let the developers know ASAP!")]
     DepositAmountChanged { at_init: Coin, current: Coin },
+
+    #[error("the e-cash ticket value has changed since the contract was created! This was not expected! It used to be {at_init} but it's {current} now! Please let the developers know ASAP!")]
+    TicketValueChanged { at_init: Coin, current: Coin },
+
+    #[error("the provided tickets redemption commitment is malformed")]
+    MalformedRedemptionCommitment,
 }

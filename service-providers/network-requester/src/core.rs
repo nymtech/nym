@@ -350,7 +350,7 @@ impl NRServiceProvider {
                 socks5_msg = mix_input_reader.recv() => {
                     if let Some(msg) = socks5_msg {
                         let response_message = msg.into_input_message(packet_type);
-                        mixnet_client_sender.send(response_message).await.unwrap();
+                        nym_sdk::mixnet::MixnetMessageSender::send(&mut mixnet_client_sender, response_message).await.unwrap();
                     } else {
                         log::error!("Exiting: channel closed!");
                         break;

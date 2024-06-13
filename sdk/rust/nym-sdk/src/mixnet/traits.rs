@@ -16,6 +16,8 @@ pub trait MixnetMessageSender {
         None
     }
 
+    fn sender(&mut self) -> &mut tokio_util::sync::PollSender<InputMessage>;
+
     /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
     /// full customization.
     async fn send(&mut self, message: InputMessage) -> Result<()>;

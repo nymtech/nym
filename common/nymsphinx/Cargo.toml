@@ -16,6 +16,7 @@ thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 bincode = { workspace = true }
 log = { workspace = true }
+tokio-util = { workspace = true, features = ["codec"] }
 
 nym-sphinx-acknowledgements = { path = "acknowledgements" }
 nym-sphinx-addressing = { path = "addressing" }

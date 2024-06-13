@@ -96,6 +96,7 @@ members = [
     "mixnode",
     "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
+    "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",

@@ -92,11 +92,23 @@ Feature tickets need explicit (while concise) wording because that title is even
 
 ### Sanbox Environment Setup
 
+<!--
 - WHY
-- HOW
+- HOW -> env setup
+-->
 
 ## Sandbox Token Faucet
 
-- LINK
-- WHY
-- HOW (rules)
+<!--
+sach:
+
+https://faucet.nymtech.net/
+To prevent abuse, the faucet is rate-limited with the following rules :
+
+1 request per wallet every 24 hours
+2 requests per IP address every 24 hours (so that people can request funds to run mixnode & gw from unique wallet addresses)
+Request will fail if the requesting wallet already has >101 NYM tokens
+
+- ADD WHY
+
+-->

@@ -6,31 +6,20 @@ The core team therefore established a flow with different environments:
 
 - ***local***: Developers use their local environments for feature building
 - ***canary***: Nym internal testing environment managed by Qualty Assurance team (QA)
-- ***sandbox***: Public testnet, including testnet NYM token available in the [faucet](#sandbox-token-faucet)
+- [***sandbox***](sandbox.md): Public testnet, including testnet NYM token available in the [faucet](sandbox.md#sandbox-token-faucet)
 - ***mainnet***: Nym Mixnet - the production version of Nym network
 
 ## Release Flow
 
 Frequency of releases to mainnet is aimed to be every ~14 days. This time time window is an optimal compromise between periodicity and qualty assurance/testing, key factors playing an essential role in the development.
 
-|**Action** | **Environment** | **Branch** | **Ownership** |
-| :-- | :-- | :--: | :--: |
-| features development -> meged to develop | local/canary | feature branches | devs |
-| cut off develop -> QA testing | canary | release branch | QA |
-| bug fixing | canary |directly on release branch | QA & devs |
-| merge to sandbox after QA approval | canary -> sandbox | release -> master | QA |
-| promote to mainnet after 3-5 days | sandbox -> mainnet | master | QA |
-
-<!--
-FEEDBACK FROM bn:
-
-Might be easier to understand to have like:
-| development work | local/canary | feature branches | devs |
-| cut and test release | canary | release branch | QA |
-| bug fixing | canary | directly on release branch | QA & devs |
-| put release on sandbox | sandbox | release -> master/develop | QA |
-| promote release to mainnet after 3-5 days | mainnet | master | QA |
--->
+| **Stage**                                 | **Environment** | **Branch**                 | **Ownership |
+| :--                                       | :--             | :--                        | :--         |
+| development work                          | local/canary    | feature branches           | devs        |
+| cut and test release                      | canary          | release branch             | QA          |
+| bug fixing                                | canary          | directly on release branch | QA & devs   |
+| put release on sandbox                    | sandbox         | release -> master/develop  | QA          |
+| promote release to mainnet after 3-5 days | mainnet         | master                     | QA          |
 
 ```ascii
                    ▲                          ▲
@@ -97,24 +86,6 @@ In case you want to propose changes or resolve some of the existing [issues](htt
 
 ```tip
 Feature tickets need explicit (while concise) wording because that title is eventually added to the changelog. Keep in mind that bad ticket naming results in bad changelog.
+
+If you want to run in the testing environment, follow our [Sandbox testnet](sandbox.md) guide.
 ```
-
-## Sandbox Testnet
-
-### Sanbox Environment Setup
-
-<!--
-- WHY
-- HOW -> env setup
--->
-
-## Sandbox Token Faucet
-
-To run your nodes in the sandbox environment, you need testnet version of NYM token, that can be aquired at [faucet.nymtech.net](https://faucet.nymtech.net).
-
-To prevent abuse, the faucet is rate-limited with the following rules:
-
-- A request grants 101 testing NYM token (100 is a bonding minimum + fees)
-- 1 request per wallet every 24 hours
-- 2 requests per IP address every 24 hours (so that people can request funds to bond two nodes, one `nym-node` running as Mixnode & and one running as Gateway from unique wallet addresses)
-- Request will fail if the requesting wallet already has more than 101 NYM tokens

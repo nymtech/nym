@@ -167,7 +167,7 @@ IPv6 routing is not only a case for gateways. Imagine a rare occassion when you 
 ```ascii
 [client] -> [entry-gateway] -> [mixnode layer 1] -> [your mixnode] -> [IPv6 mixnode layer3] -> [exit-gateway]
 ```
-In this (unusual) case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down. For that reason it's befetial to have IPv6 enabled when running a `mixnode` functionality.
+In this (unusual) case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down. For that reason it's beneficial to have IPv6 enabled when running a `mixnode` functionality.
 
 ### Quick IPv6 Check
 

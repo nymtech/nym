@@ -13,13 +13,13 @@ The core team therefore established a flow with different environments:
 
 Frequency of releases to mainnet is aimed to be every ~14 days. This time time window is an optimal compromise between periodicity and qualty assurance/testing, key factors playing an essential role in the development.
 
-| **Stage**                                 | **Environment** | **Branch**                 | **Ownership |
-| :--                                       | :--             | :--                        | :--         |
-| development work                          | local/canary    | feature branches           | devs        |
-| cut and test release                      | canary          | release branch             | QA          |
-| bug fixing                                | canary          | directly on release branch | QA & devs   |
-| put release on sandbox                    | sandbox         | release -> master/develop  | QA          |
-| promote release to mainnet after 3-5 days | mainnet         | master                     | QA          |
+| **Stage**                                 | **Environment** | **Branch**                 | **Ownership** |
+| :--                                       | :--             | :--                        | :--           |
+| development work                          | local/canary    | feature branches           | devs          |
+| cut and test release                      | canary          | release branch             | QA            |
+| bug fixing                                | canary          | directly on release branch | QA & devs     |
+| put release on sandbox                    | sandbox         | release -> master/develop  | QA            |
+| promote release to mainnet after 3-5 days | mainnet         | master                     | QA            |
 
 ```ascii
                    ▲                          ▲

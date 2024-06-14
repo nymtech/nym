@@ -8,7 +8,7 @@ This page displays a full list of all the changes during our release cycle from 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.5-ragusa)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.5-ragusa/CHANGELOG.md)
 - [`nym-node`](nodes/nym-node.md) version `1.1.2`
-~~~admonish example collapsible=true title="CHANGELOG.md"
+~~~admonish example collapsible=true title='CHANGELOG.md'
 - Feature/nym node api location ([#4605])
 - Add optional signature to IPR request/response ([#4604])
 - Feature/unstable tested nodes endpoint ([#4601])
@@ -52,7 +52,7 @@ This page displays a full list of all the changes during our release cycle from 
     2. For new nodes: Initialise the node with `--location` flag, where they have to provide the country info. Either full country name (e.g. 'Jamaica'), two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
     3. For existing nodes: It's also possible to use exactly the same `--location` argument as above, but make sure to also provide `--write-changes` (or `-w`) flag to persist those changes!
 - [Feature/unstable tested nodes endpoint](https://github.com/nymtech/nym/pull/4601): Adds new data structures (`TestNode`, `TestRoute`, `PartialTestResult`) to handle test results for Mixnodes and Gateways. With the inclusion of pagination to handle large API responses efficiently. Lastly, introducing a new route with the tag `unstable` thus meaning not to be consumed without a user risk, prefixes in endpoints with unstable, are what it says on the tin.
-~~~admonish example collapsible=true title="Testing steps performed"
+~~~admonish example collapsible=true title='Testing steps performed'
 - Deploy new api changes to sandbox environment
 - Ensure current operations are transactional and standed operations are working
 - Run a script to ensure that the new endpoints are working as expected with pagination
@@ -60,7 +60,7 @@ This page displays a full list of all the changes during our release cycle from 
 ~~~
 
 - [`nym-api`: make report/avg_uptime endpoints ignore blacklist](https://github.com/nymtech/nym/pull/4599): When querying for node specific data, it's no longer going to go through the entire list of all cached (and filtered nodes) to find it; instead it will attempt to retrieve a single unfiltered entry.
-~~~admonish example collapsible=true title="Testing steps performed"
+~~~admonish example collapsible=true title='Testing steps performed'
 - Build the project and deployed it in a test environment.
 - Manually test API endpoints for mixnode and gateway data.
 - Verify that the endpoints return the expected data and handle blacklists correctly.
@@ -74,7 +74,7 @@ curl -X 'GET' 'https://validator.nymtech.net/api/v1/status/gateway/Fo4f4SQLdoyoG
 
 - [Use rfc3339 for last_polled in described nym-api endpoint](https://github.com/nymtech/nym/pull/4591): Fix issue where the validator-client can't parse the nym-api response for the described endpoint, in particular the `latest_polled` field that was recently added, by making the field use `rfc3339`
     - **Note:** This will require upgrading `nym-api` and everything that depends on the described endpoint.
-~~~admonish example collapsible=true title="Testing steps performed"
+~~~admonish example collapsible=true title='Testing steps performed'
 - Update a `nym-api` to the binary built from this branch, then restart the api
 - Check the `journalctl` for error messages
 - Connected via client and could not see the error messages, this is backwards compatible
@@ -94,7 +94,7 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
     - Run cargo autoinherit in the root
     - Merge in the new workspace deps in the main list
     - We made sure to not mix in other changes as well - all features flags for all crates should be the same as before
-~~~admonish example collapsible=true title="Testing steps performed"
+~~~admonish example collapsible=true title='Testing steps performed'
 - Run `cargo autoinherit` in the root directory to move dependencies to the workspace level
 - Merge the new workspace dependencies into the main list
 - Ensure no other changes were mixed in during the process
@@ -111,7 +111,7 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 #### Crypto
 
 - [Remove blocking for coconut in the final epoch state](https://github.com/nymtech/nym/pull/4598)
-~~~admonish example collapsible=true title="Testing steps performed"
+~~~admonish example collapsible=true title='Testing steps performed'
 - Build the project to ensure no compilation errors
 - Run tests to verify the functionality of the `issue_credential` function
 - Execute integration tests to check the behaviour during an epoch transition.
@@ -121,7 +121,7 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 - [Explicitly handle constraint unique violation when importing credential](https://github.com/nymtech/nym/pull/4588): Add a strong type for when a duplicate credential is imported so the vpn lib can handle this.
 - [Feature/wasm coconut](https://github.com/nymtech/nym/pull/4584): This pull request requires [\#4585](https://github.com/nymtech/nym/pull/4585) to be merged first
 - [Feature/nyxd scraper pruning](https://github.com/nymtech/nym/pull/4564): This PR introduces storage pruning to `nyxd` scraper which is then used by the validators rewarder.
-~~~admonish example collapsible=true title="Testing steps performed"
+~~~admonish example collapsible=true title='Testing steps performed'
 - Add a `main.rs` file in the `nyxd` scraper dir, underneath `lib.rs`, amend `config.pruning_options.validate()?;` to be `let _ = config.pruning_options.validate();` in the mod.rs file
 - Test the different variations of `pruning_options`:
     - Check the *default* option: `pruning_options: PruningOptions::default()`
@@ -140,7 +140,7 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 - [`noop` flag for `nym-api` for `nymvisor` compatibility](https://github.com/nymtech/nym/pull/4586)
     - The application starts correctly and logs the starting message
     - The `--no_banner` flag works as intended, providing compatibility with `nymvisor`
-~~~admonish example collapsible=true title="Testing steps performed"
+~~~admonish example collapsible=true title='Testing steps performed'
 - Build the project to ensure no compilation errors
 - Run the binary with different command-line arguments to verify the CLI functionality
 - Test with and without the `--no_banner` flag to ensure compatibility and expected behavior

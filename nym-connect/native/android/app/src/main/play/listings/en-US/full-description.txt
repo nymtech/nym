@@ -1,7 +1,0 @@
-Nyms5 is an easy to use interface that allows you to
-connect other applications to the Nym mixnet for privacy
-protection.
-
-Nym mixnet hides your IP address or other unique identifiers
-from your internet packets so snoopers on the internet can
-not see what applications you are using.

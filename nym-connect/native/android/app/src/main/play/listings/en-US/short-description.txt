@@ -1,1 +1,0 @@
-Nyms5 is a socks5 proxy to connect to the Nym mixnet for privacy protection

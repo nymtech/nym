@@ -24,6 +24,7 @@ wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 thiserror = { workspace = true }
 tsify = { workspace = true, features = ["js"] }
+tokio = { workspace = true, default-features = false, features = ["sync"] }
 
 nym-bin-common = { path = "../../common/bin-common" }
 wasm-client-core = { path = "../../common/wasm/client-core" }

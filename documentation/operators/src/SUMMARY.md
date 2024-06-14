@@ -3,6 +3,8 @@
 
 - [Introduction](introduction.md)
 - [Changelog](changelog.md)
+- [Release Cycle](release-cycle.md)
+- [Sandbox Testnet](sandbox.md)
 
 # Binaries
 

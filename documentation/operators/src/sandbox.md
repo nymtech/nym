@@ -18,13 +18,13 @@ To run Nym binaries in Sandbox Testnet you need to get the `.env` configuration 
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```
 
-2. Run your `nym-node` with all the commands as always with an additional flag `--config-file` with a path to `sanbox.env` file. For example:
+2. Run your `nym-node` with all the commands as always with an additional flag `-c` or `--config-env-file` with a path to `sanbox.env` file. For example:
 ```sh
 # this example is for mixnode mode
-./nym-node run --mode mixnode --config-file <PATH/TO/sandbox.env>
+./nym-node run --mode mixnode --config-env-file <PATH/TO/sandbox.env>
 
 # this example is for exit-gateway mode
-./nym-node run --id <ID> --config-file <PATH/TO/sandbox.env> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <COUNTRY_FULL_NAME>
+./nym-node run --mode exit-gateway --id <ID> --config-env-file <PATH/TO/sandbox.env> --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <COUNTRY_FULL_NAME>
 ```
 
 3. Bond your node to Nym Sandbox environment:
@@ -35,11 +35,11 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 ![](images/sandbox.png)
 
 ~~~admonish tip
-1. If you [built Nym from source](building-nym.md), you already have `sanbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env ../../envs/sandbox.env`
+1. If you [built Nym from source](building-nym.md), you already have `sanbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`
 
 2. You can export the path to `sanbox.env` to your enviromental variables:
 ```sh
-export NYMNODE_CONFIG=<PATH/TO/sandbox.env>
+export NYMNODE_CONFIG_ENV_FILE_ARG=<PATH/TO/sandbox.env>
 ```
 ~~~
 

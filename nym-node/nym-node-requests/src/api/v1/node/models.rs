@@ -179,5 +179,5 @@ pub struct AuxiliaryDetails {
     /// as defined at <https://nymtech.net/terms-and-conditions/operators/v1.0.0>
     // make sure to include the default deserialisation as this field hasn't existed when the struct was first created
     #[serde(default)]
-    pub accepted_toc: bool,
+    pub accepted_operator_terms_and_conditions: bool,
 }

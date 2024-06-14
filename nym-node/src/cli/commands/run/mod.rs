@@ -46,9 +46,9 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     let bonding_info_path = args.bonding_information_output.clone();
     let init_only = args.init_only;
     let local = args.local;
-    let accepted_toc = args.accept_operator_terms;
+    let accepted_operator_terms_and_conditions = args.accept_operator_terms_and_conditions;
 
-    if !accepted_toc {
+    if !accepted_operator_terms_and_conditions {
         warn!("you don't seem to have accepted the terms and conditions of a Nym node operator");
         warn!("please familiarise yourself with <https://nymtech.net/terms-and-conditions/operators/v1.0.0> and run the binary with '--accept-toc' flag if you agree with them");
     }
@@ -85,7 +85,9 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
     }
     check_public_ips(&config.host.public_ips, local)?;
 
-    let nym_node = NymNode::new(config).await?.with_accepted_toc(accepted_toc);
+    let nym_node = NymNode::new(config)
+        .await?
+        .with_accepted_operator_terms_and_conditions(accepted_operator_terms_and_conditions);
 
     // if requested, write bonding info
     if let Some(bonding_info_path) = bonding_info_path {

@@ -14,6 +14,7 @@ use crate::response_pusher::ResponsePusher;
 use js_sys::Promise;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tokio::sync::RwLock;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
@@ -50,7 +51,7 @@ pub(crate) const NODE_TESTER_CLIENT_ID: &str = "_nym-node-tester-client";
 #[wasm_bindgen]
 pub struct NymClient {
     self_address: String,
-    client_input: Arc<ClientInput>,
+    client_input: Arc<RwLock<ClientInput>>,
     client_state: Arc<ClientState>,
 
     // keep track of the "old" topology for the purposes of node tester
@@ -196,7 +197,7 @@ impl NymClientBuilder {
 
         Ok(NymClient {
             self_address,
-            client_input: Arc::new(client_input),
+            client_input: Arc::new(RwLock::new(client_input)),
             client_state: Arc::new(started_client.client_state),
             _full_topology: None,
             // this cannot failed as we haven't passed an external task manager

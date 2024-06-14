@@ -1,4 +1,3 @@
-use hyper::body::Buf;
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use nym_sphinx::addressing::clients::Recipient;
@@ -8,6 +7,7 @@ use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use serde::{Deserialize, Serialize};
 use tokio_util::{
+    bytes::Buf,
     bytes::BytesMut,
     codec::{Decoder, Encoder},
 };

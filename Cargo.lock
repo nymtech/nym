@@ -4255,6 +4255,7 @@ dependencies = [
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
  "thiserror",
+ "tokio",
  "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",

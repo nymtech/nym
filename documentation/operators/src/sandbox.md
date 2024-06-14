@@ -18,13 +18,13 @@ To run Nym binaries in Sandbox Testnet you need to get the `.env` configuration 
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```
 
-2. Run your `nym-node` with all the commands as always with an additional flag `-c` or `--config-env-file` with a path to `sanbox.env` file. For example:
+2. Run your `nym-node` with an additional flag `-c` or `--config-env-file` with a path to `sanbox.env` file followed by all needed commands and options. For example:
 ```sh
 # this example is for mixnode mode
-./nym-node run --mode mixnode --config-env-file <PATH/TO/sandbox.env>
+./nym-node --config-env-file <PATH/TO/>sandbox.env run --mode mixnode
 
 # this example is for exit-gateway mode
-./nym-node run --mode exit-gateway --id <ID> --config-env-file <PATH/TO/sandbox.env> --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <COUNTRY_FULL_NAME>
+./nym-node --config-file-env <PATH/TO/>sandbox.env run --mode exit-gateway --id <ID> --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <COUNTRY_FULL_NAME>
 ```
 
 3. Bond your node to Nym Sandbox environment:

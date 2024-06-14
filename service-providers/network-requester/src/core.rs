@@ -51,6 +51,7 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
     }
 }
 
+#[allow(dead_code)]
 pub struct OnStartData {
     // to add more fields as required
     pub address: Recipient,

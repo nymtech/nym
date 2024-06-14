@@ -38,6 +38,7 @@ pub trait HarbourMasterApiClientExt: ApiClient {
 impl HarbourMasterApiClientExt for Client {}
 
 // https://gitlab.nymte.ch/nym/shipyard-test-and-earn/-/blob/main/harbour-master/src/http/mod.rs#L13
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct PagedResult<T> {
     pub page: u32,
@@ -47,6 +48,7 @@ pub struct PagedResult<T> {
 }
 
 // https://gitlab.nymte.ch/nym/shipyard-test-and-earn/-/blob/main/harbour-master/src/http/services.rs#L32
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct ServiceNew {
     pub service_provider_client_id: String,

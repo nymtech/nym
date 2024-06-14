@@ -64,7 +64,6 @@ use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 
 use std::ops::Range;
-use std::u8;
 
 use crate::constants::groupelementbytes;
 use crate::constants::tagbytes;

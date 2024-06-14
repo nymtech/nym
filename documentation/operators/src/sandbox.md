@@ -29,9 +29,10 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 
 3. Bond your node to Nym Sandbox environment:
 	- Open [Nym Wallet](https://nymtech.net/download/wallet) and switch to testnet
-![](images/sandbox.png)
 	- Go to [faucet.nymtech.net](https://faucet.nymtech.net) and aquire 101 testnet NYM tokens
 	- Follow the steps on the [bonding page](nodes/bonding.md)
+
+![](images/sandbox.png)
 
 ~~~admonish tip
 1. If you [built Nym from source](building-nym.md), you already have `sanbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env ../../envs/sandbox.env`

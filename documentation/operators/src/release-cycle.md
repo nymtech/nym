@@ -84,7 +84,7 @@ To track changes easily, builders and operators can visit one of the following:
 
 In case you want to propose changes or resolve some of the existing [issues](https://github.com/nymtech/nym/issues), start [here](https://github.com/nymtech/nym/issues/new/choose). If you want to add content to the Operators Guide, visit [this page](legal/add-content.md).
 
-```tip
+```admonish tip
 Feature tickets need explicit (while concise) wording because that title is eventually added to the changelog. Keep in mind that bad ticket naming results in bad changelog.
 
 If you want to run in the testing environment, follow our [Sandbox testnet](sandbox.md) guide.

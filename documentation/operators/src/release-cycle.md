@@ -1,6 +1,6 @@
 # Release Cycle
 
-Nym operators community grows in quality and quantity. With node operators and developers joining the efforts to build Mixnet more robust and scalable, testing new features, sharing integration pull requests and generally taking an active part in Nym development, more transparency on the release cycle is required.
+Nym operators community grows in quality and quantity. With node operators and developers joining the effort to build Mixnet more robust and scalable, testing new features, sharing integration pull requests and generally taking an active part in Nym development, more transparency on the release cycle is required.
 
 The core team therefore established a flow with different environments:
 
@@ -11,7 +11,7 @@ The core team therefore established a flow with different environments:
 
 ## Release Flow
 
-Frequency of releases to mainnet is aimed to be every ~14 days. This time time window is an optimal compromise between periodicity and qualty assurance/testing, key factors playing an essential role in the development.
+Frequency of releases to mainnet is aimed to be every ~14 days. This time window is an optimal compromise between periodicity and quality assurance/testing, key factors playing an essential role in development.
 
 | **Stage**                                 | **Environment** | **Branch**                 | **Ownership** |
 | :--                                       | :--             | :--                        | :--           |
@@ -80,7 +80,7 @@ ENVs
 To track changes easily, builders and operators can visit one of the following:
 
 - [*CHANGELOG.md*](https://github.com/nymtech/nym/blob/master/CHANGELOG.md): Raw changelog of the merged feauters in Nym's monorepo, managed by devs and QA.
-- [*Changelog page*](changelog.md): A copy of *CHANGELOG.md* with more detailed explanation, testing steps and update on documentation changes, managed by devrels.
+- [*Changelog page*](changelog.md): A copy of *CHANGELOG.md* with more detailed explanation, testing steps and updated summary of documentation changes, managed by devrels.
 
 In case you want to propose changes or resolve some of the existing [issues](https://github.com/nymtech/nym/issues), start [here](https://github.com/nymtech/nym/issues/new/choose). If you want to add content to the Operators Guide, visit [this page](legal/add-content.md).
 

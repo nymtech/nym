@@ -50,7 +50,7 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
 
     if !accepted_operator_terms_and_conditions {
         warn!("you don't seem to have accepted the terms and conditions of a Nym node operator");
-        warn!("please familiarise yourself with <https://nymtech.net/terms-and-conditions/operators/v1.0.0> and run the binary with '--accept-toc' flag if you agree with them");
+        warn!("please familiarise yourself with <https://nymtech.net/terms-and-conditions/operators/v1.0.0> and run the binary with '--accept-operator-terms-and-conditions' flag if you agree with them");
     }
 
     let config = if !config_path.exists() {

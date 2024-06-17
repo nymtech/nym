@@ -26,7 +26,6 @@ pub(crate) struct Args {
         alias = "accept-t&c",
         alias = "accept-operator-terms",
         alias = "accept-operator-t&c",
-        alias = "accept-operator-terms-and-conditions"
     )]
     pub(crate) accept_operator_terms_and_conditions: bool,
 

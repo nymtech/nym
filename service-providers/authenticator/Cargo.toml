@@ -1,0 +1,14 @@
+[package]
+name = "mixnet-authenticator"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+
+nym-bin-common = { path = "../../common/bin-common" }
+nym-client-core = { path = "../../common/client-core" }

@@ -3631,6 +3631,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mixnet-authenticator"
+version = "0.0.0"
+dependencies = [
+ "nym-bin-common",
+ "nym-client-core",
+ "serde",
+]
+
+[[package]]
 name = "multer"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

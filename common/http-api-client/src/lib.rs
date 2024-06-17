@@ -329,6 +329,8 @@ impl Client {
                 .await?
         };
 
+        info!(res);
+
         parse_response(res, false).await
     }
 

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::warn;
+use tracing::{info, warn};
 use url::Url;
 
 pub use reqwest::IntoUrl;
@@ -512,6 +512,8 @@ where
     E: DeserializeOwned + Display,
 {
     let status = res.status();
+    info!(status);
+    info!(res);
 
     if !allow_empty {
         if let Some(0) = res.content_length() {

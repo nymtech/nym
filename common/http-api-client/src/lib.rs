@@ -512,6 +512,7 @@ where
     E: DeserializeOwned + Display,
 {
     let status = res.status();
+    info!("test");
     info!(status);
     info!(res);
 

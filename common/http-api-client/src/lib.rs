@@ -520,7 +520,7 @@ where
     }
 
     if res.status().is_success() {
-        let text = res.text().await?;
+        let text = res.text()?.await;
         info!("{:#?}", res);
         info!("{:#?}", text);
         let json: Vec<String> = serde_json::from_str(&text)?;

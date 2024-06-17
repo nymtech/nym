@@ -293,7 +293,7 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
 
 pub(crate) struct NymNode {
     config: Config,
-    accepted_toc: bool,
+    accepted_operator_terms_and_conditions: bool,
 
     description: NodeDescription,
 
@@ -394,12 +394,15 @@ impl NymNode {
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
             wireguard: wireguard_data,
             config,
-            accepted_toc: false,
+            accepted_operator_terms_and_conditions: false,
         })
     }
 
-    pub(crate) fn with_accepted_toc(mut self, accepted_toc: bool) -> Self {
-        self.accepted_toc = accepted_toc;
+    pub(crate) fn with_accepted_operator_terms_and_conditions(
+        mut self,
+        accepted_operator_terms_and_conditions: bool,
+    ) -> Self {
+        self.accepted_operator_terms_and_conditions = accepted_operator_terms_and_conditions;
         self
     }
 
@@ -538,7 +541,7 @@ impl NymNode {
 
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
             location: self.config.host.location,
-            accepted_toc: self.accepted_toc,
+            accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
         };
 
         // mixnode info

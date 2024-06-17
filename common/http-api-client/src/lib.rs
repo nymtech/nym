@@ -520,8 +520,11 @@ where
     }
 
     if res.status().is_success() {
-        info!(res);
-        Ok(res.json().await?)
+        let text = res.text().await?;
+        info!("{:#?}", res);
+        info!("{:#?}", text);
+        let json: Vec<String> = serde_json::from_str(&text)?;
+        Ok(json)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {

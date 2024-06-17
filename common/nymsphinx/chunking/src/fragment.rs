@@ -300,8 +300,8 @@ impl Fragment {
 #[derive(PartialEq, Clone, Debug)]
 pub(crate) struct FragmentHeader {
     /// ID associated with `FragmentSet` to which this particular `Fragment` belongs.
-    /// Its value is restricted to (0, i32::max_value()].
-    /// Note that it *excludes* 0, but *includes* i32::max_value().
+    /// Its value is restricted to (0, i32::MAX].
+    /// Note that it *excludes* 0, but *includes* i32::MAX.
     /// This allows the field to be represented using 31 bits.
     id: i32,
 
@@ -319,7 +319,7 @@ pub(crate) struct FragmentHeader {
     previous_fragments_set_id: Option<i32>,
 
     /// Optional ID of next `FragmentSet` into which the original message was split.
-    /// Note, this option is only valid of `current_fragment == total_fragments == u8::max_value()`
+    /// Note, this option is only valid of `current_fragment == total_fragments == u8::MAX`
     next_fragments_set_id: Option<i32>,
 }
 
@@ -414,7 +414,7 @@ impl FragmentHeader {
 
             if current_fragment == 1 {
                 previous_fragments_set_id = Some(linked_id);
-            } else if total_fragments == current_fragment && current_fragment == u8::max_value() {
+            } else if total_fragments == current_fragment && current_fragment == u8::MAX {
                 next_fragments_set_id = Some(linked_id);
             } else {
                 return Err(ChunkingError::MalformedHeaderError);
@@ -585,14 +585,7 @@ mod fragment_tests {
         rng.fill_bytes(&mut msg);
 
         let fragment = Fragment {
-            header: FragmentHeader::try_new(
-                12345,
-                u8::max_value(),
-                u8::max_value(),
-                None,
-                Some(1234),
-            )
-            .unwrap(),
+            header: FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(1234)).unwrap(),
             payload: msg,
         };
         let packet_bytes = fragment.clone().into_bytes();
@@ -602,14 +595,7 @@ mod fragment_tests {
         rng.fill_bytes(&mut msg);
 
         let fragment = Fragment {
-            header: FragmentHeader::try_new(
-                12345,
-                u8::max_value(),
-                u8::max_value(),
-                None,
-                Some(1234),
-            )
-            .unwrap(),
+            header: FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(1234)).unwrap(),
             payload: msg,
         };
         let packet_bytes = fragment.clone().into_bytes();
@@ -822,8 +808,8 @@ mod fragment_tests {
         assert!(Fragment::try_new(
             &full_payload,
             id,
-            u8::max_value(),
-            u8::max_value(),
+            u8::MAX,
+            u8::MAX,
             None,
             Some(link_id),
             max_plaintext_size(),
@@ -884,8 +870,8 @@ mod fragment_tests {
         assert!(Fragment::try_new(
             &non_full_payload,
             id,
-            u8::max_value(),
-            u8::max_value(),
+            u8::MAX,
+            u8::MAX,
             None,
             Some(link_id),
             max_plaintext_size(),
@@ -894,8 +880,8 @@ mod fragment_tests {
         assert!(Fragment::try_new(
             &non_full_payload2,
             id,
-            u8::max_value(),
-            u8::max_value(),
+            u8::MAX,
+            u8::MAX,
             None,
             Some(link_id),
             max_plaintext_size(),
@@ -905,8 +891,8 @@ mod fragment_tests {
         assert!(Fragment::try_new(
             &too_much_payload,
             id,
-            u8::max_value(),
-            u8::max_value(),
+            u8::MAX,
+            u8::MAX,
             None,
             Some(link_id),
             max_plaintext_size(),
@@ -1008,14 +994,7 @@ mod fragment_header {
         fn fragmented_header_cannot_be_created_with_zero_id() {
             assert!(FragmentHeader::try_new(0, 10, 5, None, None).is_err());
             assert!(FragmentHeader::try_new(12345, 10, 5, Some(0), None).is_err());
-            assert!(FragmentHeader::try_new(
-                12345,
-                u8::max_value(),
-                u8::max_value(),
-                None,
-                Some(0),
-            )
-            .is_err());
+            assert!(FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(0),).is_err());
         }
 
         #[test]
@@ -1066,14 +1045,7 @@ mod fragment_header {
         #[test]
         fn can_only_be_post_linked_for_last_fragment() {
             assert!(FragmentHeader::try_new(12345, 10, 10, None, Some(1234)).is_ok());
-            assert!(FragmentHeader::try_new(
-                12345,
-                u8::max_value(),
-                u8::max_value(),
-                None,
-                Some(1234),
-            )
-            .is_ok());
+            assert!(FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(1234),).is_ok());
             assert!(FragmentHeader::try_new(12345, 10, 2, Some(1234), None).is_err());
         }
 
@@ -1117,8 +1089,7 @@ mod fragment_header {
         #[test]
         fn post_linked_can_be_converted_to_and_from_bytes_for_exact_number_of_bytes_provided() {
             let fragmented_header =
-                FragmentHeader::try_new(12345, u8::max_value(), u8::max_value(), None, Some(1234))
-                    .unwrap();
+                FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(1234)).unwrap();
 
             let header_bytes = fragmented_header.to_bytes();
             let (recovered_header, bytes_used) =
@@ -1130,8 +1101,7 @@ mod fragment_header {
         #[test]
         fn post_linked_can_be_converted_to_and_from_bytes_for_more_than_required_number_of_bytes() {
             let fragmented_header =
-                FragmentHeader::try_new(12345, u8::max_value(), u8::max_value(), None, Some(1234))
-                    .unwrap();
+                FragmentHeader::try_new(12345, u8::MAX, u8::MAX, None, Some(1234)).unwrap();
 
             let mut header_bytes = fragmented_header.to_bytes();
             header_bytes.append(vec![1, 2, 3, 4, 5].as_mut());

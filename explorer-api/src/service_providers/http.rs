@@ -15,7 +15,9 @@ const HM_SIZE: u8 = 100;
 
 #[derive(Debug)]
 pub enum GetSpError {
+    #[allow(dead_code)]
     ReqwestError(ReqwestError),
+    #[allow(dead_code)]
     Error(String),
 }
 

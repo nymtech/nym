@@ -84,7 +84,9 @@ impl From<GatewayDetails> for TestNode {
 
 pub struct TestedMixnodeStatus {
     pub db_id: i64,
+    #[allow(dead_code)]
     pub mix_id: i64,
+    #[allow(dead_code)]
     pub identity_key: String,
     pub reliability: Option<u8>,
     pub timestamp: i64,
@@ -98,6 +100,7 @@ pub struct TestedMixnodeStatus {
 
 pub struct TestedGatewayStatus {
     pub db_id: i64,
+    #[allow(dead_code)]
     pub identity_key: String,
     pub reliability: Option<u8>,
     pub timestamp: i64,

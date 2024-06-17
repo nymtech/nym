@@ -6,6 +6,7 @@ import sys
 import pandas as pd
 import json
 from json import JSONDecodeError
+from tabulate import tabulate
 
 class MainFunctions:
 
@@ -193,11 +194,64 @@ class MainFunctions:
         df = pd.json_normalize(json)
         return df
 
+
+class VersionCount()
+
+    def __init__(self):
+        self.functions = MainFunctions()
+        self.mixnode_version_column = 'mixnode_details.bond_information.mix_node.version'
+        self.gateways_version_column = 'gateway_bond.gateway.version'
+
+
+    def display_results(self, args):
+
+        gateways_unfiltered, mixnodes_unfiltered = self.functions.get_unfiltered_data()
+        df_gateways = self.functions._json_to_dataframe(gateways_unfiltered)
+        df_mixnodes = self.functions._json_to_dataframe(mixnodes_unfiltered)
+        versions = list(args.version)
+        mixnode_sum = self.version_count(df_mixnodes, self.mixnodes_version_column, versions, "mixnode")
+        gateways_sum = self.version_count(df_gateways. self.gateways_version_column, versions, "gateway")
+        df_final = self.final_summary(mixnodes_sum, gateways_sum)
+        if args.markdown:
+            table = df_final.to_markdown(index=False)
+        else:
+            table = tabulate(df_final)
+        #if args.output:
+        print(table)
+
+    def version_count(self, df, column, versions, mode):
+        count_all = []
+        for version in versions:
+            version_sum = df[f'{column}'].value_counts()[f'{version}']
+            result = {"Node type": mode, "Version": version, "Summary":version_sum)
+            count_all.append(result)
+        return count_all
+
+    def final_summary(self, mixnodes_sum, gateways_sum, versions):
+        list_final = mixnodes_sum + gateways_sum
+        df_final = pd.DataFrame(list_final)
+        #mixnodes_total =
+        #gateways_total =
+        #nym-node each versions total =
+        #all together count
+        #append these totals to the d
+        return df_final
+
+    def count_total(self, df):
+
+
+#    def apply_function(self,df,column):
+#
+#    def _convert_string_to_integer(self,string):
+#
+
+
 class ArgParser:
 
     def __init__(self):
         """init for parser"""
         self.functions = MainFunctions()
+        self.version_count = VersionCount()
 
     def parser_main(self):
         """Main function initializing ArgumentParser, storing arguments and executing commands."""
@@ -211,15 +265,19 @@ class ArgParser:
         # sub-command parsers
         subparsers = parser.add_subparsers()
         parser_pull_stats = subparsers.add_parser('pull_stats',help='Run with node identity key', aliases=['p'])
+        parser_version_count = subparsers.add_parser('version_count', help='Sum of nodes in given version', aliases='v','V')
 
         # pull_stats arguments
         parser_pull_stats.add_argument("id", help="supply nym-node identity key")
         parser_pull_stats.add_argument("-n","--no_routing_history", help="Display node stats without routing history", action="store_true")
         parser_pull_stats.add_argument("-m","--markdown",help="Display node stats in markdown format", action="store_true")
         parser_pull_stats.add_argument("-o","--output",help="Save results to file")
-
-
         parser_pull_stats.set_defaults(func=self.functions.display_results)
+
+
+        # version_count arguments
+        parser_version_count.add_adrgument('version', help="supply node versions separated with space", nargs='+')
+        parser_version_count.set_defaults(func=self.version_count.display_results)
 
         args = parser.parse_args()
 

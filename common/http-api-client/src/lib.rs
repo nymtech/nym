@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{info, warn};
+use tracing::warn;
 use url::Url;
 
 pub use reqwest::IntoUrl;
@@ -520,11 +520,7 @@ where
     }
 
     if res.status().is_success() {
-        let text = res.text()?.await;
-        info!("{:#?}", res);
-        info!("{:#?}", text);
-        let json: Vec<String> = serde_json::from_str(&text)?;
-        Ok(json)
+        Ok(res.json().await?)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {

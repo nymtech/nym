@@ -1,6 +1,6 @@
 # Release Cycle
 
-Nym operators community grows in quality and quantity. With node operators and developers joining the effort to build Mixnet more robust and scalable, testing new features, sharing integration pull requests and generally taking an active part in Nym development, more transparency on the release cycle is required.
+The Nym operator community is growing in quality and quantity. With node operators and developers joining the effort to make the Mixnet more robust and scalable, testing new features, sharing integration pull requests and generally taking an active part in Nym development, more transparency on the release cycle is required.
 
 The core team therefore established a flow with different environments:
 

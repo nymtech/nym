@@ -12,8 +12,7 @@ This page is for Nym node operators. If you want to run NymVPN CLI over Sandbox 
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-To run Nym binaries in Sandbox Testnet you need to get `sandbox.env` configuration file and point your binary to it. Follow the steps below:
-
+To run Nym binaries in Sandbox testnet, you need to get `sandbox.env` configuration file and point your binary to it. Follow the steps below:
 
 1. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your binaries:
 ```sh
@@ -22,7 +21,7 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 # In case you want to save the file elswhere, change the path in '-o' flag
 ```
 
-2. Run your `nym-node` with an additional flag `-c` or `--config-env-file` with a path to `sanbox.env` file followed by all needed commands and options. For example:
+2. Run your `nym-node` with an additional flag `-c` or `--config-env-file` with a path to `sandbox.env` file followed by all needed commands and options. For example:
 ```sh
 # this example is for nym-node in mixnode mode
 ./nym-node --config-env-file <PATH/TO/>sandbox.env run --mode mixnode
@@ -30,7 +29,7 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 # this example is for nym-node in exit-gateway mode
 ./nym-node --config-file-env <PATH/TO/>sandbox.env run --mode exit-gateway --id <ID> --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 true --location <COUNTRY_FULL_NAME>
 
-# In case you downloaded sandvbox.env to the same directory, <PATH> is not needed
+# In case you downloaded sandbox.env to the same directory, <PATH> is not needed
 ```
 
 3. Bond your node to Nym Sandbox environment:

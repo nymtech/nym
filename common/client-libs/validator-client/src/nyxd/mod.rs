@@ -376,6 +376,14 @@ where
         }
     }
 
+    pub fn mix_coin(&self, amount: u128) -> Coin {
+        Coin::new(amount, &self.config.chain_details.mix_denom.base)
+    }
+
+    pub fn mix_coins(&self, amount: u128) -> Vec<Coin> {
+        vec![self.mix_coin(amount)]
+    }
+
     pub fn cw_address(&self) -> Addr {
         // the call to unchecked is fine here as we're converting directly from `AccountId`
         // which must have been a valid bech32 address

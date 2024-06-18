@@ -121,7 +121,7 @@ members = [
     # "wasm/full-nym-wasm",  # If we uncomment this again, remember to also uncomment the profile settings below
     "wasm/mix-fetch",
     "wasm/node-tester",
-    "wasm/zknym-lib",
+    "wasm/zknym-lib", "tools/internal/network-manager",
 ]
 
 default-members = [

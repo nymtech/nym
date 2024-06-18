@@ -239,7 +239,7 @@ pub struct UploadResult {
     pub gas_info: GasInfo,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InstantiateOptions {
     /// The funds that are transferred from the sender to the newly created contract.
     /// The funds are transferred as part of the message execution after the contract address is
@@ -260,6 +260,11 @@ impl InstantiateOptions {
             funds: funds.into_iter().map(Into::into).collect(),
             admin,
         }
+    }
+
+    pub fn with_admin(mut self, admin: AccountId) -> Self {
+        self.admin = Some(admin);
+        self
     }
 }
 

@@ -8,14 +8,13 @@ use crate::blacklist::{BlacklistedAccountResponse, PagedBlacklistedAccountRespon
 #[cfg(feature = "schema")]
 use crate::deposit::{DepositResponse, PagedDepositsResponse};
 #[cfg(feature = "schema")]
-use crate::redeem_credential::{EcashSpentCredentialResponse, PagedEcashSpentCredentialResponse};
-#[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
 #[cfg(feature = "schema")]
 use cosmwasm_std::Coin;
 
 #[cw_serde]
 pub struct InstantiateMsg {
+    pub holding_account: String,
     pub multisig_addr: String,
     pub group_addr: String,
     pub mix_denom: String,

@@ -5,6 +5,7 @@ import argparse
 import sys
 import pandas as pd
 import json
+import urllib3
 from json import JSONDecodeError
 from tabulate import tabulate
 
@@ -110,23 +111,24 @@ class MainFunctions:
                 api_data[endpoint] = value
             routing_history = api_data[f"/status/gateway/{identity}/history"]["history"]
             del api_data[f"/status/gateway/{identity}/history"]["history"]
-            for key in swagger:
-                try:
-                    url = f"http://{host}:8080/api/v1{key}"
-                    value = r.get(url).json()
-                    swagger_data[key] = value
-                except r.exceptions.ConnectionError:
-                    url = f"https://{host}/api/v1{key}"
-                    value = r.get(url).json()
-                    swagger_data[key] = value
-                except r.exceptions.ConnectionError:
-                    url = f"http://{host}/api/v1{key}"
-                    value = r.get(url).json()
-                    swagger_data[key] = value
-                except r.exceptions.ConnectionError as e:
-                    print(f"The request to pull data from /api/v1/{key} returns {e}!")
-                except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError):
-                    print(f"Endpoint {url} results in 404: Not Found!\n")
+            swagger_data = self.get_swagger_data(host,swagger,swagger_data)
+#            for key in swagger:
+#                try:
+#                    url = f"http://{host}:8080/api/v1{key}"
+#                    value = r.get(url).json()
+#                    swagger_data[key] = value
+#                except r.exceptions.ConnectionError:
+#                    url = f"https://{host}/api/v1{key}"
+#                    value = r.get(url).json()
+#                    swagger_data[key] = value
+#                except r.exceptions.ConnectionError:
+#                    url = f"http://{host}/api/v1{key}"
+#                    value = r.get(url).json()
+#                    swagger_data[key] = value
+#                except r.exceptions.ConnectionError as e:
+#                    print(f"The request to pull data from /api/v1/{key} returns {e}!")
+#                except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError):
+#                    print(f"Endpoint {url} results in 404: Not Found!\n")
             if swagger_data["/roles"]["network_requester_enabled"]== True and swagger_data["/roles"]["ip_packet_router_enabled"] == True:
                 role = "exit-gateway"
             else:
@@ -145,6 +147,8 @@ class MainFunctions:
             version = node_dict["mixnode_details"]["bond_information"]["mix_node"]["version"]
             routing_history = api_data[f"/status/mixnode/{mix_id}/history"]["history"]
             del api_data[f"/status/mixnode/{mix_id}/history"]["history"]
+            #Need a solution to be resolved for endless quesry on outdated mixnodes
+            #swagger_data = self.get_swagger_data(host,swagger,swagger_data)
         else:
             print(f"The mode type {mode} is not recognized!")
             sys.exit(-1)
@@ -156,6 +160,31 @@ class MainFunctions:
             routing_history = routing_history
 
         return host, version, mix_id, role, api_data, swagger_data, routing_history
+
+    def get_swagger_data(self,host,swagger,swagger_data):
+        for key in swagger:
+            try:
+                url = f"http://{host}:8080/api/v1{key}"
+                value = r.get(url).json()
+                swagger_data[key] = value
+            except r.exceptions.ConnectionError:
+                url = f"https://{host}/api/v1{key}"
+                value = r.get(url).json()
+                swagger_data[key] = value
+            except r.exceptions.ConnectionError:
+                url = f"http://{host}/api/v1{key}"
+                value = r.get(url).json()
+                swagger_data[key] = value
+            except r.exceptions.ConnectionError as e:
+                print(f"The request to pull data from /api/v1/{key} returns {e}!")
+            except urllib3.exceptions.ProtocolError as e:
+                print(f"The request to pull data from /api/v1/{key} returns {e}!")
+            except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError, r.exceptions.ConnectionError) as e:
+                print(f"Swagger endpoint {url} results in 404: Not Found! {e}\n")
+            #devtool excepption delete for production
+            except Exception as e:
+                print(e)
+        return swagger_data
 
     def _set_index_to_empty(self, df):
         index_len = pd.RangeIndex(len(df.index))
@@ -236,14 +265,15 @@ class VersionCount():
         df_final = pd.DataFrame(list_final)
         col_names = df_final.columns
         total_summary = df_final['Summary'].sum()
-        mixnodes_total = df_final.loc[df_final['Node type'] == 'mixnode', 'Summary'].sum()
-        gateways_total = df_final.loc[df_final['Node type'] == 'gateway', 'Summary'].sum()
-        df_append = pd.DataFrame([["mixnodes",f"versions: {versions}", f"{mixnodes_total}"],["gateways",f"versions: {versions}",f"{gateways_total}"]],columns=col_names)
-        df_final = pd.concat([df_final, df_append], ignore_index=True)
-        for version in versions:
-            version_total = df_final.loc[df_final['Version'] == f'{version}', 'Summary'].sum()
-            df_append = pd.DataFrame([["all nodes",f"{version}", f"{version_total}"]],columns=col_names)
+        if len(versions) > 1:
+            mixnodes_total = df_final.loc[df_final['Node type'] == 'mixnode', 'Summary'].sum()
+            gateways_total = df_final.loc[df_final['Node type'] == 'gateway', 'Summary'].sum()
+            df_append = pd.DataFrame([["mixnodes",f"versions: {versions}", f"{mixnodes_total}"],["gateways",f"versions: {versions}",f"{gateways_total}"]],columns=col_names)
             df_final = pd.concat([df_final, df_append], ignore_index=True)
+            for version in versions:
+                version_total = df_final.loc[df_final['Version'] == f'{version}', 'Summary'].sum()
+                df_append = pd.DataFrame([["all nodes",f"{version}", f"{version_total}"]],columns=col_names)
+                df_final = pd.concat([df_final, df_append], ignore_index=True)
         df_append = pd.DataFrame([["TOTAL SUMMARY",f"{versions}", f"{total_summary}"]],columns=col_names)
         df_final = pd.concat([df_final, df_append], ignore_index=True)
         return df_final
@@ -263,24 +293,24 @@ class ArgParser:
                 prog= "Nym-node API check",
                 description='''Run through all endpoints and print results.'''
             )
-        parser.add_argument("-V","--version", action="version", version='%(prog)s 0.1.0')
+        parser.add_argument("-V","--version", action="version", version='%(prog)s 0.1.1')
 
         # sub-command parsers
         subparsers = parser.add_subparsers()
-        parser_pull_stats = subparsers.add_parser('pull_stats',help='Run with node identity key', aliases=['p'])
-        parser_version_count = subparsers.add_parser('version_count', help='Sum of nodes in given version', aliases=['v'])
+        parser_pull_stats = subparsers.add_parser('node_stats',help='Run with node identity key', aliases=['n','node'])
+        parser_version_count = subparsers.add_parser('version_count', help='Sum of nodes in given version', aliases=['v','version'])
 
         # pull_stats arguments
         parser_pull_stats.add_argument("id", help="supply nym-node identity key")
         parser_pull_stats.add_argument("-n","--no_routing_history", help="Display node stats without routing history", action="store_true")
-        parser_pull_stats.add_argument("-m","--markdown",help="Display node stats in markdown format", action="store_true")
+        parser_pull_stats.add_argument("-m","--markdown",help="Display results in markdown format", action="store_true")
         parser_pull_stats.add_argument("-o","--output",help="Save results to file")
         parser_pull_stats.set_defaults(func=self.functions.display_results)
 
 
         # version_count arguments
         parser_version_count.add_argument('version', help="supply node versions separated with space", nargs='+')
-        parser_version_count.add_argument("-m","--markdown",help="Display node stats in markdown format", action="store_true")
+        parser_version_count.add_argument("-m","--markdown",help="Display results in markdown format", action="store_true")
         parser_version_count.set_defaults(func=self.version_count.display_results)
 
         args = parser.parse_args()

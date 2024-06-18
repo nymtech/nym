@@ -88,7 +88,6 @@ impl Decoder for ReconstructedMessageCodec {
     type Error = MessageRecoveryError;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        println!("decoder called with buf: {:?}", buf.to_vec());
         if buf.len() < OFFSET {
             return Ok(None);
         }
@@ -99,20 +98,15 @@ impl Decoder for ReconstructedMessageCodec {
                 .expect("We know that we have at least OFFSET bytes in there"),
         ) as usize;
 
-        println!("len to decode {}", len);
-        println!("buf len {}", buf.len());
-
         if buf.len() < len + OFFSET {
             return Ok(None);
         }
 
         let decoded = match bincode::deserialize(&buf[OFFSET..len + OFFSET]) {
             Ok(decoded) => {
-                println!("decoded: {:?}", decoded);
                 decoded
             }
             Err(e) => {
-                println!("error: {:?}", e);
                 return Ok(None);
             }
         };

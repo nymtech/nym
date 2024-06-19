@@ -4,6 +4,7 @@
 use std::io;
 
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
+use log::debug;
 use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use nym_crypto::asymmetric::x25519;
 use nym_crypto::shared_key::recompute_shared_key;
@@ -106,6 +107,7 @@ impl Decoder for ReconstructedMessageCodec {
                 decoded
             }
             Err(e) => {
+                debug!("Failed to decode the message - {:?}", e);
                 return Ok(None);
             }
         };

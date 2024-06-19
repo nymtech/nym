@@ -12,7 +12,7 @@ use tokio::pin;
 use tokio::time::interval;
 
 pub(crate) fn default_storage_dir() -> PathBuf {
-    must_get_home().join(NYM_DIR).join("network-manager")
+    must_get_home().join(NYM_DIR).join("testnet-manager")
 }
 
 pub(crate) fn default_db_file() -> PathBuf {

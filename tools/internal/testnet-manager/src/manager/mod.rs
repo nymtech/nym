@@ -98,7 +98,7 @@ impl NetworkManager {
         path: P,
     ) -> Result<UploadResult, NetworkManagerError> {
         let wasm = wasm_code(path)?;
-        let upload_future = admin.upload(wasm, "contract upload from network-manager", None);
+        let upload_future = admin.upload(wasm, "contract upload from testnet-manager", None);
 
         async_with_progress(upload_future, pb)
             .await

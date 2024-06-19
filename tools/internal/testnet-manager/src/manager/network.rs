@@ -1,5 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
+
 use crate::error::NetworkManagerError;
 use crate::manager::contract::{Account, LoadedNymContracts, NymContracts};
 use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
@@ -62,6 +63,18 @@ pub(crate) struct LoadedNetwork {
     pub(crate) contracts: LoadedNymContracts,
 
     pub(crate) auxiliary_addresses: SpecialAddresses,
+}
+
+impl From<Network> for LoadedNetwork {
+    fn from(value: Network) -> Self {
+        LoadedNetwork {
+            name: value.name,
+            rpc_endpoint: value.rpc_endpoint,
+            created_at: value.created_at,
+            contracts: value.contracts.into(),
+            auxiliary_addresses: value.auxiliary_addresses,
+        }
+    }
 }
 
 impl<'a> From<&'a LoadedNetwork> for nym_config::defaults::NymNetworkDetails {

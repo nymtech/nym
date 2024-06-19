@@ -122,8 +122,8 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
-    "tools/internal/network-manager",
-    "tools/internal/network-manager/dkg-bypass-contract",
+    "tools/internal/testnet-manager",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
 ]
 
 default-members = [

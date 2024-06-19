@@ -391,7 +391,7 @@ impl NetworkManager {
 
         let send_future =
             ctx.admin
-                .send_multiple(receivers, "admin token transfer from network-manager", None);
+                .send_multiple(receivers, "admin token transfer from testnet-manager", None);
         let res = ctx.async_with_progress(send_future).await?;
 
         pb.println(format!(
@@ -422,7 +422,7 @@ impl NetworkManager {
             code_id,
             &init_msg,
             format!("{name} contract"),
-            "contract instantiation from network-manager",
+            "contract instantiation from testnet-manager",
             Some(InstantiateOptions::default().with_admin(admin)),
             None,
         );
@@ -444,7 +444,7 @@ impl NetworkManager {
             code_id,
             &init_msg,
             format!("{name} contract"),
-            "contract instantiation from network-manager",
+            "contract instantiation from testnet-manager",
             Some(InstantiateOptions::default().with_admin(admin)),
             None,
         );
@@ -466,7 +466,7 @@ impl NetworkManager {
             code_id,
             &init_msg,
             format!("{name} contract"),
-            "contract instantiation from network-manager",
+            "contract instantiation from testnet-manager",
             Some(InstantiateOptions::default().with_admin(admin)),
             None,
         );
@@ -488,7 +488,7 @@ impl NetworkManager {
             code_id,
             &init_msg,
             format!("{name} contract"),
-            "contract instantiation from network-manager",
+            "contract instantiation from testnet-manager",
             Some(InstantiateOptions::default().with_admin(admin)),
             None,
         );
@@ -510,7 +510,7 @@ impl NetworkManager {
             code_id,
             &init_msg,
             format!("{name} contract"),
-            "contract instantiation from network-manager",
+            "contract instantiation from testnet-manager",
             Some(InstantiateOptions::default().with_admin(admin)),
             None,
         );
@@ -532,7 +532,7 @@ impl NetworkManager {
             code_id,
             &init_msg,
             format!("{name} contract"),
-            "contract instantiation from network-manager",
+            "contract instantiation from testnet-manager",
             Some(InstantiateOptions::default().with_admin(admin)),
             None,
         );
@@ -567,7 +567,7 @@ impl NetworkManager {
             address,
             code_id,
             &migrate_msg,
-            "contract migration from network-manager",
+            "contract migration from testnet-manager",
             None,
         );
         let migrate_res = ctx.async_with_progress(migrate_fut).await?;
@@ -586,7 +586,7 @@ impl NetworkManager {
             address,
             code_id,
             &migrate_msg,
-            "contract migration from network-manager",
+            "contract migration from testnet-manager",
             None,
         );
         let migrate_res = ctx.async_with_progress(migrate_fut).await?;

@@ -297,7 +297,7 @@ impl NetworkManager {
             ctx.dkg_contract(),
             code_id,
             &migrate_msg,
-            "migrating bypass DKG contract from network-manager",
+            "migrating bypass DKG contract from testnet-manager",
             None,
         );
         ctx.async_with_progress(migrate_fut).await?;
@@ -324,7 +324,7 @@ impl NetworkManager {
             ctx.dkg_contract(),
             code_id,
             &migrate_msg,
-            "migrating initial DKG contract from network-manager",
+            "migrating initial DKG contract from testnet-manager",
             None,
         );
         ctx.async_with_progress(migrate_fut).await?;
@@ -379,7 +379,7 @@ impl NetworkManager {
 
         let send_future = admin.send_multiple(
             receivers,
-            "signers token transfer from network-manager",
+            "signers token transfer from testnet-manager",
             None,
         );
         let res = ctx.async_with_progress(send_future).await?;

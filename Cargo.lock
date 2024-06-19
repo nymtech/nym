@@ -4012,41 +4012,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "network-manager"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bip39",
- "clap 4.5.7",
- "console",
- "cw-utils",
- "dkg-bypass-contract",
- "indicatif",
- "nym-bin-common",
- "nym-coconut-dkg-common",
- "nym-compact-ecash",
- "nym-config",
- "nym-crypto",
- "nym-ecash-contract-common",
- "nym-group-contract-common",
- "nym-mixnet-contract-common",
- "nym-multisig-contract-common",
- "nym-pemstore",
- "nym-validator-client",
- "nym-vesting-contract-common",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror",
- "time",
- "tokio",
- "tracing",
- "url",
- "zeroize",
-]
-
-[[package]]
 name = "newline-converter"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8763,6 +8728,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "testnet-manager"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bip39",
+ "clap 4.5.7",
+ "console",
+ "cw-utils",
+ "dkg-bypass-contract",
+ "indicatif",
+ "nym-bin-common",
+ "nym-coconut-dkg-common",
+ "nym-compact-ecash",
+ "nym-config",
+ "nym-crypto",
+ "nym-ecash-contract-common",
+ "nym-group-contract-common",
+ "nym-mixnet-contract-common",
+ "nym-multisig-contract-common",
+ "nym-pemstore",
+ "nym-validator-client",
+ "nym-vesting-contract-common",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
+ "zeroize",
 ]
 
 [[package]]

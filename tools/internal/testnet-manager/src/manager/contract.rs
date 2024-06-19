@@ -20,6 +20,19 @@ pub(crate) struct LoadedNymContracts {
     pub(crate) dkg: LoadedContract,
 }
 
+impl From<NymContracts> for LoadedNymContracts {
+    fn from(value: NymContracts) -> Self {
+        LoadedNymContracts {
+            mixnet: value.mixnet.into(),
+            vesting: value.vesting.into(),
+            ecash: value.ecash.into(),
+            cw3_multisig: value.cw3_multisig.into(),
+            cw4_group: value.cw4_group.into(),
+            dkg: value.dkg.into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct NymContracts {
     pub(crate) mixnet: Contract,
@@ -185,6 +198,18 @@ pub(crate) struct LoadedContract {
     pub(crate) address: AccountId,
     pub(crate) admin_address: AccountId,
     pub(crate) admin_mnemonic: bip39::Mnemonic,
+}
+
+impl From<Contract> for LoadedContract {
+    fn from(value: Contract) -> Self {
+        let admin = value.admin.expect("no admin set");
+        LoadedContract {
+            name: value.name,
+            address: value.init_info.expect("uninitialised").contract_address,
+            admin_address: admin.address,
+            admin_mnemonic: admin.mnemonic,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

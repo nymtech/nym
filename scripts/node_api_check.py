@@ -3,6 +3,7 @@
 import requests as r
 import argparse
 import sys
+import os
 import pandas as pd
 import json
 import urllib3
@@ -15,14 +16,16 @@ class MainFunctions:
         self.api_url = "https://validator.nymtech.net/api/v1"
         #self.api_existing_endpoints_url = "https://validator.nymtech.net/api/v1/openapi.json"
         self.api_endpoints_json = "api_endpoints.json"
+        self.output = Output()
 
     def display_results(self, args):
+        id_key = args.id
         mode, host, version, mix_id, role, node_df, node_dict, api_data, swagger_data, routing_history = self.collect_all_results(args)
         print("\nNYM NODE INFO\n")
         print(f"Type = {mode}")
         if role:
             print(f"Mode = {role}")
-        print(f"Identity Key = {args.id}")
+        print(f"Identity Key = {id_key}")
         print(f"Host = {host}")
         print(f"Version = {version}")
         if mix_id:
@@ -57,7 +60,18 @@ class MainFunctions:
 #                print(node_markdown, "\n")
             else:
                 self.print_neat_dict(routing_history)
-
+                routing_history = self._json_neat_format(routing_history)
+        else:
+            routing_history = " "
+        if args.output or args.output == "":
+            node_dict = self._json_neat_format(node_dict)
+            api_data = self._json_neat_format(api_data)
+            if swagger_data:
+                swagger_data = self._json_neat_format(swagger_data)
+                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", node_dict, api_data, swagger_data, routing_history]
+            else:
+                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", node_dict, api_data, routing_history]
+            self.output.concat_to_file(args, data_list)
 
     def collect_all_results(self,args):
         id_key = args.id
@@ -224,6 +238,41 @@ class MainFunctions:
         return df
 
 
+class Output():
+
+    def __init__(self):
+        self.home = os.path.expanduser('~')
+        self.pwd = os.path.dirname(os.path.realpath(__file__))
+
+    def concat_to_file(self,args, data_list):
+        filename = self.init_output_file(args)
+        with open(f"{filename}", "w") as output_file:
+            for name in data_list:
+                output_file.write(name)
+                output_file.write("\n")
+
+        print(f"\nResults were exported to {filename}.")
+
+    def init_output_file(self,args):
+        filename = self.get_filename(args)
+        os.system(f"touch {filename}")
+        return filename
+
+    def get_filename(self,args):
+        path = args.output
+        id_key = args.id
+        file = f"api_output_{id_key}.txt"
+        if path == "":
+            filename = file
+        else:
+            if path[-1] != "/":
+                path = path + "/"
+            if path[0] == "~":
+                path = self.home + path[1:]
+            filename = f"{path}{file}"
+        return filename
+
+
 class VersionCount():
 
     def __init__(self):
@@ -304,7 +353,7 @@ class ArgParser:
         parser_pull_stats.add_argument("id", help="supply nym-node identity key")
         parser_pull_stats.add_argument("-n","--no_routing_history", help="Display node stats without routing history", action="store_true")
         parser_pull_stats.add_argument("-m","--markdown",help="Display results in markdown format", action="store_true")
-        parser_pull_stats.add_argument("-o","--output",help="Save results to file")
+        parser_pull_stats.add_argument("-o","--output",help="Save results to file (in current dir or supply with path without filename)", nargs='?',const="", type=str)
         parser_pull_stats.set_defaults(func=self.functions.display_results)
 
 
@@ -319,12 +368,15 @@ class ArgParser:
             func = args.func
             try:
                 args.func(args)
-            except AttributeError as e:
+            except (AttributeError, KeyError) as e:
                 msg = f"{e}.\nPlease run python {__file__} --help"
                 self.panic(msg)
             except UnboundLocalError as e:
                 msg = f"{e}.\nPlease provide a correct node identity key."
                 self.panic(msg)
+        except FileNotFoundError as e:
+            msg = f"{e}.\nMake sure your <PATH> supplied to --output is correct."
+            self.panic(msg)
         except AttributeError:
             parser.print_help(sys.stderr)
 

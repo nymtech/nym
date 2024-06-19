@@ -352,7 +352,7 @@ sudo systemctl restart nginx
 
 When done with the customization needs as described below, you'll need to upload the file and reference it as the `landing_page_assets_path` on the `[http]` section of the config.toml file that you'll find in the `~/.nym/gateways/<YOUR_GATEWAY_ID>/config/config.toml` file
 ```
-nano ${HOME}/.nym/gateways/<YOUR_GATEWAY_ID>/config/config.toml
+nano ${HOME}/.nym/nym-nodes/<YOUR_GATEWAY_ID>/config/config.toml
 ```
 change
 ```

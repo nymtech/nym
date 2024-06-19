@@ -336,8 +336,6 @@ where
             gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
         };
 
-        println!("execute");
-
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
             msg_responses: parse_msg_responses(tx_res.tx_result.data),

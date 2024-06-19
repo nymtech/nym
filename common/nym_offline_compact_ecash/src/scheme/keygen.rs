@@ -1,17 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use core::borrow::Borrow;
-use core::iter::Sum;
-use core::ops::{Add, Mul};
-use std::convert::TryFrom;
-use std::convert::TryInto;
-
-use bls12_381::{G1Projective, G2Projective, Scalar};
-use group::{Curve, GroupEncoding};
-use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-use serde::{Deserialize, Serialize};
-
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::SignerIndex;
@@ -22,6 +11,15 @@ use crate::utils::{
     try_deserialize_scalar_vec,
 };
 use crate::{ecash_group_parameters, Base58};
+use bls12_381::{G1Projective, G2Projective, Scalar};
+use core::borrow::Borrow;
+use core::iter::Sum;
+use core::ops::{Add, Mul};
+use group::{Curve, GroupEncoding};
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
+use std::convert::TryInto;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, PartialEq, Clone, Zeroize, ZeroizeOnDrop)]

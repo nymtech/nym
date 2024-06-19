@@ -5,6 +5,8 @@
 
 CREATE TABLE metadata (
     id INTEGER PRIMARY KEY CHECK (id = 0),
+    latest_network_id INTEGER REFERENCES network(id),
+    
     master_mnemonic TEXT NOT NULL,
     rpc_endpoint TEXT NOT NULL
 );
@@ -13,7 +15,7 @@ CREATE TABLE network (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    
+
     mixnet_contract_id INTEGER NOT NULL REFERENCES contract(id),
     vesting_contract_id INTEGER NOT NULL REFERENCES contract(id),
     ecash_contract_id INTEGER NOT NULL REFERENCES contract(id),

@@ -87,6 +87,13 @@ impl NetworkManagerStorage {
             .transpose()?)
     }
 
+    pub(crate) async fn get_latest_network_name(&self) -> Result<String, NetworkManagerError> {
+        let Some(id) = self.manager.get_latest_network_id().await? else {
+            return Err(NetworkManagerError::NoNetworksInitialised);
+        };
+        Ok(self.manager.get_network_name(id).await?)
+    }
+
     pub(crate) async fn set_initial_metadata(
         &self,
         master_mnemonic: &bip39::Mnemonic,
@@ -148,7 +155,8 @@ impl NetworkManagerStorage {
         let cw4_group_id = self.persist_contract(&network.contracts.cw4_group).await?;
         let dkg_id = self.persist_contract(&network.contracts.dkg).await?;
 
-        self.manager
+        let network_id = self
+            .manager
             .save_network(
                 &network.name,
                 network.created_at,
@@ -166,6 +174,8 @@ impl NetworkManagerStorage {
                     .as_ref(),
             )
             .await?;
+
+        self.manager.save_latest_network_id(network_id).await?;
 
         Ok(())
     }

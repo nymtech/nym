@@ -1,0 +1,5 @@
+all: build
+
+build:
+	RUSTFLAGS='-C link-arg=-s' cargo build --release --lib --target wasm32-unknown-unknown
+	wasm-opt --signext-lowering -O ../../../../target/wasm32-unknown-unknown/release/dkg_bypass_contract.wasm -o ../../../../target/wasm32-unknown-unknown/release/dkg_bypass_contract.wasm

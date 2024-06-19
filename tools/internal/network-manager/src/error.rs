@@ -1,5 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
+use nym_compact_ecash::CompactEcashError;
 use nym_validator_client::nyxd::error::NyxdError;
 use thiserror::Error;
 
@@ -49,4 +50,28 @@ pub enum NetworkManagerError {
 
     #[error("contract {name} has been build before build information got standarised. this is not supported")]
     MissingBuildInfo { name: String },
+
+    #[error("there aren't any initialised networks in the storage")]
+    NoNetworksInitialised,
+
+    #[error("you must specify at least a single api endpoint for the DKG")]
+    NoApiEndpoints,
+
+    #[error("the DKG process has already been started on the target network")]
+    DkgAlreadyStarted,
+
+    #[error("the target network is already in non-zero DKG epoch")]
+    NonZeroEpoch,
+
+    #[error("the target already has registered cw4 members")]
+    ExistingCW4Members,
+
+    #[error("failed to compute ecash keys: {source}")]
+    EcashCryptoFailure {
+        #[from]
+        source: CompactEcashError,
+    },
+
+    #[error("the provided contract path does not point to a valid .wasm file")]
+    MalformedDkgBypassContractPath,
 }

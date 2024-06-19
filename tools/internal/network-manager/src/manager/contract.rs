@@ -10,7 +10,7 @@ use nym_validator_client::DirectSecp256k1HdWallet;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct LoadedNymContracts {
     pub(crate) mixnet: LoadedContract,
     pub(crate) vesting: LoadedContract,
@@ -20,7 +20,7 @@ pub(crate) struct LoadedNymContracts {
     pub(crate) dkg: LoadedContract,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct NymContracts {
     pub(crate) mixnet: Contract,
     pub(crate) vesting: Contract,
@@ -113,7 +113,7 @@ impl Default for NymContracts {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Account {
     pub(crate) address: AccountId,
     pub(crate) mnemonic: bip39::Mnemonic,
@@ -136,7 +136,7 @@ impl Account {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MinimalUploadInfo {
     pub transaction_hash: Hash,
     pub code_id: ContractCodeId,
@@ -151,7 +151,7 @@ impl From<UploadResult> for MinimalUploadInfo {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MinimalInitInfo {
     pub transaction_hash: Hash,
     pub contract_address: AccountId,
@@ -166,7 +166,7 @@ impl From<InstantiateResult> for MinimalInitInfo {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct MinimalMigrateInfo {
     pub transaction_hash: Hash,
 }
@@ -179,14 +179,15 @@ impl From<MigrateResult> for MinimalMigrateInfo {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct LoadedContract {
     pub(crate) name: String,
     pub(crate) address: AccountId,
     pub(crate) admin_address: AccountId,
+    pub(crate) admin_mnemonic: bip39::Mnemonic,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct Contract {
     pub(crate) name: String,
     pub(crate) wasm_path: Option<PathBuf>,

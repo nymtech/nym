@@ -1,0 +1,435 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::error::NetworkManagerError;
+use crate::helpers::async_with_progress;
+use crate::manager::contract::Account;
+use crate::manager::network::LoadedNetwork;
+use crate::manager::NetworkManager;
+use console::style;
+use dkg_bypass_contract::msg::FakeDealerData;
+use indicatif::{HumanDuration, ProgressBar};
+use nym_compact_ecash::{ttp_keygen, Base58};
+use nym_crypto::asymmetric::ed25519;
+use nym_mixnet_contract_common::Addr;
+use nym_pemstore::{store_keypair, KeyPairPath};
+use nym_validator_client::nyxd::contract_traits::{
+    DkgQueryClient, GroupSigningClient, PagedGroupQueryClient,
+};
+use nym_validator_client::nyxd::cosmwasm::ContractCodeId;
+use nym_validator_client::nyxd::cw4::Member;
+use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
+use nym_validator_client::DirectSigningHttpRpcNyxdClient;
+use rand::rngs::OsRng;
+use std::borrow::Cow;
+use std::fs;
+use std::future::Future;
+use std::ops::Deref;
+use std::path::Path;
+use std::time::Instant;
+use url::Url;
+use zeroize::Zeroizing;
+
+struct EcashSigner {
+    ed25519_keypair: ed25519::KeyPair,
+    ecash_keypair: nym_compact_ecash::KeyPairAuth,
+    cosmos_account: Account,
+    endpoint: Url,
+}
+
+struct DkgSkipCtx {
+    start: Instant,
+    network: LoadedNetwork,
+    progress_bar: ProgressBar,
+    dkg_admin: DirectSigningHttpRpcNyxdClient,
+    ecash_signers: Vec<EcashSigner>,
+}
+
+impl Drop for DkgSkipCtx {
+    fn drop(&mut self) {
+        self.progress_bar.println(format!(
+            "✨ Done in {}",
+            HumanDuration(self.start.elapsed())
+        ));
+        self.progress_bar.finish_and_clear();
+    }
+}
+
+impl DkgSkipCtx {
+    fn println<I: AsRef<str>>(&self, msg: I) {
+        self.progress_bar.println(msg)
+    }
+
+    fn set_pb_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
+        self.progress_bar.set_prefix(prefix)
+    }
+
+    fn set_pb_message(&self, msg: impl Into<Cow<'static, str>>) {
+        self.progress_bar.set_message(msg)
+    }
+
+    fn dkg_contract(&self) -> &AccountId {
+        &self.network.contracts.dkg.address
+    }
+
+    async fn async_with_progress<F, T>(&self, fut: F) -> T
+    where
+        F: Future<Output = T>,
+    {
+        async_with_progress(fut, &self.progress_bar).await
+    }
+
+    fn new(network: LoadedNetwork) -> Result<Self, NetworkManagerError> {
+        let progress_bar = ProgressBar::new_spinner();
+
+        progress_bar.println(format!(
+            "\n🥷 attempting to skip DKG on network '{}'",
+            network.name
+        ));
+
+        Ok(DkgSkipCtx {
+            start: Instant::now(),
+            dkg_admin: network.dkg_signing_client()?,
+            network,
+            progress_bar,
+            ecash_signers: vec![],
+        })
+    }
+
+    fn group_signing_client(&self) -> Result<DirectSigningHttpRpcNyxdClient, NetworkManagerError> {
+        self.network.cw4_group_signing_client()
+    }
+
+    fn admin_signing_client(
+        &self,
+        mnemonic: bip39::Mnemonic,
+    ) -> Result<DirectSigningHttpRpcNyxdClient, NetworkManagerError> {
+        Ok(DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+            self.network.client_config()?,
+            self.network.rpc_endpoint.as_str(),
+            mnemonic,
+        )?)
+    }
+}
+
+impl NetworkManager {
+    fn generate_ecash_signer_data(
+        &self,
+        ctx: &mut DkgSkipCtx,
+        api_endpoints: Vec<Url>,
+    ) -> Result<(), NetworkManagerError> {
+        ctx.println(format!(
+            "📝 {}Generating ecash keys for all signers...",
+            style("[1/8]").bold().dim()
+        ));
+
+        // generate required materials
+        let n = api_endpoints.len();
+        let threshold = (2 * n + 3 - 1) / 3;
+
+        let ecash_keys = ttp_keygen(threshold as u64, n as u64)?;
+
+        let mut ecash_signers = Vec::new();
+        let mut rng = OsRng;
+        for (endpoint, ecash_keypair) in api_endpoints.into_iter().zip(ecash_keys.into_iter()) {
+            let ed25519_keypair = ed25519::KeyPair::new(&mut rng);
+            let party = EcashSigner {
+                ed25519_keypair,
+                ecash_keypair,
+                cosmos_account: Account::new(),
+                endpoint,
+            };
+            ctx.println(format!(
+                "\t{} will be managed by {}",
+                party.endpoint, party.cosmos_account.address
+            ));
+            ecash_signers.push(party)
+        }
+        ctx.ecash_signers = ecash_signers;
+
+        ctx.println("\t✅ generated ecash keys for all signers");
+        Ok(())
+    }
+
+    async fn validate_existing_contracts(
+        &self,
+        ctx: &DkgSkipCtx,
+    ) -> Result<ContractCodeId, NetworkManagerError> {
+        ctx.println(format!(
+            "🔬 {}Validating the current DKG and group contracts...",
+            style("[2/8]").bold().dim()
+        ));
+
+        ctx.set_pb_prefix("[1/3]");
+        ctx.set_pb_message("checking DKG epoch data...");
+        let epoch_fut = ctx.dkg_admin.get_current_epoch();
+        let dkg_epoch = ctx.async_with_progress(epoch_fut).await?;
+        if dkg_epoch.epoch_id != 0 {
+            return Err(NetworkManagerError::NonZeroEpoch);
+        }
+
+        if !dkg_epoch.state.is_waiting_initialisation() {
+            return Err(NetworkManagerError::DkgAlreadyStarted);
+        }
+
+        ctx.set_pb_prefix("[2/3]");
+        ctx.set_pb_message("retrieving DKG contract code_id...");
+        let code_fut = ctx
+            .dkg_admin
+            .get_contract_code_history(&ctx.network.contracts.dkg.address);
+        let code_history = ctx.async_with_progress(code_fut).await?;
+
+        // SAFETY:
+        // if this is empty our abci query is invalid since we have just queried the contract so it must exist
+        let current_code = code_history.last().unwrap().code_id;
+        ctx.println("\tthe DKG contract is all good!");
+
+        ctx.set_pb_prefix("[3/3]");
+        ctx.set_pb_message("checking cw4 group members data...");
+        let members_fut = ctx.dkg_admin.get_all_members();
+        let members = ctx.async_with_progress(members_fut).await?;
+        if !members.is_empty() {
+            return Err(NetworkManagerError::ExistingCW4Members);
+        }
+
+        ctx.println("\tthe group contract is all good!");
+        ctx.println("\t✅ the existing contracts are all good!");
+
+        Ok(current_code)
+    }
+
+    async fn persist_dkg_keys<P: AsRef<Path>>(
+        &self,
+        ctx: &DkgSkipCtx,
+        output_dir: P,
+    ) -> Result<(), NetworkManagerError> {
+        ctx.println(format!(
+            "📦 {}Persisting the signer keys...",
+            style("[3/8]").bold().dim()
+        ));
+
+        ctx.set_pb_message("storing the signer data on disk...");
+
+        let output_dir = output_dir.as_ref();
+
+        for signer in &ctx.ecash_signers {
+            let address = &signer.cosmos_account.address;
+            let url = &signer.endpoint;
+            let signer_dir = output_dir.join(address.to_string());
+            fs::create_dir_all(&signer_dir)?;
+
+            let ecash_paths = KeyPairPath {
+                private_key_path: signer_dir.join("ecash"),
+                public_key_path: signer_dir.join("ecash.pub"),
+            };
+
+            let ed25519_paths = KeyPairPath {
+                private_key_path: signer_dir.join("ed25519"),
+                public_key_path: signer_dir.join("ed25519.pub"),
+            };
+
+            store_keypair(&signer.ecash_keypair, &ecash_paths)?;
+            store_keypair(&signer.ed25519_keypair, &ed25519_paths)?;
+
+            fs::write(
+                signer_dir.join("mnemonic"),
+                &Zeroizing::new(signer.cosmos_account.mnemonic.to_string()),
+            )?;
+            fs::write(signer_dir.join("announce_address"), url.as_str())?;
+
+            ctx.println(format!(
+                "\tpersisted {address} (endpoint: {url}) data under {}",
+                signer_dir.display()
+            ));
+        }
+
+        ctx.println("\t✅ persisted all the signer keys!");
+        Ok(())
+    }
+
+    async fn upload_bypass_contract<P: AsRef<Path>>(
+        &self,
+        ctx: &DkgSkipCtx,
+        dkg_bypass_contract: P,
+    ) -> Result<ContractCodeId, NetworkManagerError> {
+        ctx.println(format!(
+            "🚚 {}Uploading the bypass contract...",
+            style("[4/8]").bold().dim()
+        ));
+
+        ctx.set_pb_message("uploading the bypass contract...");
+
+        let res = self
+            .upload_contract(&ctx.dkg_admin, &ctx.progress_bar, dkg_bypass_contract)
+            .await?;
+
+        ctx.println("\t✅ uploaded the bypass contract!");
+
+        Ok(res.code_id)
+    }
+
+    async fn migrate_to_bypass_contract(
+        &self,
+        ctx: &DkgSkipCtx,
+        code_id: ContractCodeId,
+    ) -> Result<(), NetworkManagerError> {
+        ctx.println(format!(
+            "🔀 {}Attempting to migrate into the bypass contract...",
+            style("[5/8]").bold().dim()
+        ));
+
+        ctx.set_pb_message("migrating the DKG contract...");
+
+        let migrate_msg = dkg_bypass_contract::MigrateMsg {
+            dealers: ctx
+                .ecash_signers
+                .iter()
+                .map(|signer| FakeDealerData {
+                    vk: signer.ecash_keypair.verification_key().to_bs58(),
+                    ed25519_identity: signer.ed25519_keypair.public_key().to_base58_string(),
+                    announce: signer.endpoint.to_string(),
+                    owner: Addr::unchecked(signer.cosmos_account.address.as_ref()),
+                })
+                .collect(),
+        };
+
+        let migrate_fut = ctx.dkg_admin.migrate(
+            ctx.dkg_contract(),
+            code_id,
+            &migrate_msg,
+            "migrating bypass DKG contract from network-manager",
+            None,
+        );
+        ctx.async_with_progress(migrate_fut).await?;
+
+        ctx.println("\t✅ migrated the DKG into the bypass contract!");
+
+        Ok(())
+    }
+
+    async fn restore_dkg_contract(
+        &self,
+        ctx: &DkgSkipCtx,
+        code_id: ContractCodeId,
+    ) -> Result<(), NetworkManagerError> {
+        ctx.println(format!(
+            "↩️ {}Attempting to migrate back into the original DKG contract...",
+            style("[6/8]").bold().dim()
+        ));
+
+        ctx.set_pb_message("migrating the DKG contract...");
+
+        let migrate_msg = nym_coconut_dkg_common::msg::MigrateMsg {};
+        let migrate_fut = ctx.dkg_admin.migrate(
+            ctx.dkg_contract(),
+            code_id,
+            &migrate_msg,
+            "migrating initial DKG contract from network-manager",
+            None,
+        );
+        ctx.async_with_progress(migrate_fut).await?;
+
+        ctx.println("\t✅ restored the original DKG contract!");
+
+        Ok(())
+    }
+
+    async fn add_group_members(&self, ctx: &DkgSkipCtx) -> Result<(), NetworkManagerError> {
+        ctx.println(format!(
+            "👪 {}Adding all the cw4 group members...",
+            style("[7/8]").bold().dim()
+        ));
+
+        ctx.set_pb_message("⛽creating a new big cw4 family...");
+        let admin = ctx.group_signing_client()?;
+        let new_members = ctx
+            .ecash_signers
+            .iter()
+            .map(|s| Member {
+                addr: s.cosmos_account.address.to_string(),
+                weight: 1,
+            })
+            .collect();
+
+        let update_fut = admin.update_members(new_members, Vec::new(), None);
+
+        ctx.async_with_progress(update_fut).await?;
+        ctx.println("\t✅ new cw4 group members got added");
+        Ok(())
+    }
+
+    async fn transfer_signer_tokens(&self, ctx: &DkgSkipCtx) -> Result<(), NetworkManagerError> {
+        ctx.println(format!(
+            "💸 {}Transferring tokens to the new signers...",
+            style("[8/8]").bold().dim()
+        ));
+
+        let admin = ctx.admin_signing_client(self.admin.deref().clone())?;
+
+        let mut receivers = Vec::new();
+        for signer in &ctx.ecash_signers {
+            // send 10nym to the admin
+            receivers.push((
+                signer.cosmos_account.address.clone(),
+                admin.mix_coins(101_000000),
+            ))
+        }
+
+        ctx.set_pb_message("attempting to send signer tokens...");
+
+        let send_future = admin.send_multiple(
+            receivers,
+            "signers token transfer from network-manager",
+            None,
+        );
+        let res = ctx.async_with_progress(send_future).await?;
+
+        ctx.println(format!(
+            "\t✅ sent tokens in transaction: {} (height {})",
+            res.hash, res.height
+        ));
+        Ok(())
+    }
+
+    pub(crate) async fn attempt_bypass_dkg<P1, P2>(
+        &self,
+        api_endpoints: Vec<Url>,
+        network: LoadedNetwork,
+        dkg_bypass_contract: P1,
+        data_output_dir: P2,
+    ) -> Result<(), NetworkManagerError>
+    where
+        P1: AsRef<Path>,
+        P2: AsRef<Path>,
+    {
+        if api_endpoints.is_empty() {
+            return Err(NetworkManagerError::NoApiEndpoints);
+        }
+
+        let dkg_bypass_contract = dkg_bypass_contract.as_ref();
+        if !dkg_bypass_contract.is_file() {
+            return Err(NetworkManagerError::MalformedDkgBypassContractPath);
+        }
+        let Some(ext) = dkg_bypass_contract.extension() else {
+            return Err(NetworkManagerError::MalformedDkgBypassContractPath);
+        };
+        if ext != "wasm" {
+            return Err(NetworkManagerError::MalformedDkgBypassContractPath);
+        }
+
+        let mut ctx = DkgSkipCtx::new(network)?;
+
+        self.generate_ecash_signer_data(&mut ctx, api_endpoints)?;
+        let current_code_id = self.validate_existing_contracts(&ctx).await?;
+        self.persist_dkg_keys(&ctx, data_output_dir).await?;
+        let new_code_id = self
+            .upload_bypass_contract(&ctx, dkg_bypass_contract)
+            .await?;
+        self.migrate_to_bypass_contract(&ctx, new_code_id).await?;
+        self.restore_dkg_contract(&ctx, current_code_id).await?;
+        self.add_group_members(&ctx).await?;
+        self.transfer_signer_tokens(&ctx).await?;
+
+        Ok(())
+    }
+}

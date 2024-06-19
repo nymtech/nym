@@ -10,7 +10,7 @@ use std::path::PathBuf;
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
     #[clap(long)]
-    network_name: String,
+    network_name: Option<String>,
 
     #[clap(long)]
     storage_path: Option<PathBuf>,

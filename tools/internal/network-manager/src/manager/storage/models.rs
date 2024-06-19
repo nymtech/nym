@@ -33,6 +33,7 @@ pub(crate) struct RawContract {
     pub(crate) name: String,
     pub(crate) address: String,
     pub(crate) admin_address: String,
+    pub(crate) mnemonic: String,
 }
 
 impl TryFrom<RawContract> for LoadedContract {
@@ -47,6 +48,10 @@ impl TryFrom<RawContract> for LoadedContract {
                 .map_err(|_| NetworkManagerError::MalformedAccountAddress)?,
             admin_address: value
                 .admin_address
+                .parse()
+                .map_err(|_| NetworkManagerError::MalformedAccountAddress)?,
+            admin_mnemonic: value
+                .mnemonic
                 .parse()
                 .map_err(|_| NetworkManagerError::MalformedAccountAddress)?,
         })

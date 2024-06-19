@@ -15,20 +15,24 @@ console = "0.15.8"
 cw-utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 indicatif = "0.17.8"
+rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
 thiserror.workspace = true
 time = { workspace = true, features = ["parsing", "formatting"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process"] }
 tracing.workspace = true
 url.workspace = true
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 
 nym-bin-common = { path = "../../../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-crypto = { path = "../../../common/crypto", features = ["asymmetric", "rand", "serde"] }
 nym-config = { path = "../../../common/config" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client" }
+nym-compact-ecash = { path = "../../../common/nym_offline_compact_ecash" }
+dkg-bypass-contract = { path = "dkg-bypass-contract" }
 
 # contracts:
 nym-mixnet-contract-common = { path = "../../../common/cosmwasm-smart-contracts/mixnet-contract" }
@@ -37,6 +41,7 @@ nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/g
 nym-ecash-contract-common = { path = "../../../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-coconut-dkg-common = { path = "../../../common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-multisig-contract-common = { path = "../../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-pemstore = { path = "../../../common/pemstore" }
 
 
 [build-dependencies]

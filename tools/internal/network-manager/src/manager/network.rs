@@ -1,11 +1,15 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
+use crate::error::NetworkManagerError;
 use crate::manager::contract::{Account, LoadedNymContracts, NymContracts};
+use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
+use nym_validator_client::nyxd::Config;
+use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use url::Url;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Network {
     pub name: String,
 
@@ -47,20 +51,74 @@ NYXD={}\n\
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LoadedNetwork {
-    pub name: String,
+pub(crate) struct LoadedNetwork {
+    pub(crate) name: String,
 
-    pub rpc_endpoint: Url,
+    pub(crate) rpc_endpoint: Url,
 
     #[serde(with = "time::serde::rfc3339")]
-    pub created_at: OffsetDateTime,
+    pub(crate) created_at: OffsetDateTime,
 
-    pub contracts: LoadedNymContracts,
+    pub(crate) contracts: LoadedNymContracts,
 
-    pub auxiliary_addresses: SpecialAddresses,
+    pub(crate) auxiliary_addresses: SpecialAddresses,
+}
+
+impl<'a> From<&'a LoadedNetwork> for nym_config::defaults::NymNetworkDetails {
+    fn from(value: &'a LoadedNetwork) -> Self {
+        let contracts = nym_config::defaults::NymContracts {
+            mixnet_contract_address: Some(value.contracts.mixnet.address.to_string()),
+            vesting_contract_address: Some(value.contracts.vesting.address.to_string()),
+            ecash_contract_address: Some(value.contracts.ecash.address.to_string()),
+            group_contract_address: Some(value.contracts.cw4_group.address.to_string()),
+            multisig_contract_address: Some(value.contracts.cw3_multisig.address.to_string()),
+            coconut_dkg_contract_address: Some(value.contracts.dkg.address.to_string()),
+            service_provider_directory_contract_address: None,
+            name_service_contract_address: None,
+        };
+        // ASSUMPTION: same chain details like prefix, denoms, etc. as mainnet
+        let mainnet = NymNetworkDetails::new_mainnet();
+        NymNetworkDetails {
+            chain_details: mainnet.chain_details,
+            network_name: "foomp".to_string(),
+            endpoints: vec![ValidatorDetails {
+                nyxd_url: value.rpc_endpoint.to_string(),
+                websocket_url: None,
+                api_url: None,
+            }],
+            contracts,
+            explorer_api: None,
+        }
+    }
 }
 
 impl LoadedNetwork {
+    pub fn dkg_signing_client(
+        &self,
+    ) -> Result<DirectSigningHttpRpcNyxdClient, NetworkManagerError> {
+        Ok(DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+            self.client_config()?,
+            self.rpc_endpoint.as_str(),
+            self.contracts.dkg.admin_mnemonic.clone(),
+        )?)
+    }
+
+    pub fn client_config(&self) -> Result<Config, NetworkManagerError> {
+        let network_details = NymNetworkDetails::from(self);
+        let config = Config::try_from_nym_network_details(&network_details)?;
+        Ok(config)
+    }
+
+    pub fn cw4_group_signing_client(
+        &self,
+    ) -> Result<DirectSigningHttpRpcNyxdClient, NetworkManagerError> {
+        Ok(DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+            self.client_config()?,
+            self.rpc_endpoint.as_str(),
+            self.contracts.cw4_group.admin_mnemonic.clone(),
+        )?)
+    }
+
     pub fn to_env_file_section(&self) -> String {
         format!(
             "\
@@ -87,7 +145,7 @@ NYXD={}\n\
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecialAddresses {
     pub ecash_holding_account: Account,
     pub mixnet_rewarder: Account,

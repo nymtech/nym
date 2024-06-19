@@ -13,13 +13,14 @@ const defaultUrl = 'https://nymtech.net/favicon.svg';
 const args = { mode: 'unsafe-ignore-cors' };
 
 const mixFetchOptions: SetupMixFetchOps = {
-  preferredGateway: '983r9LKDT9UUxx4Zsn2AH49poJ7Ep24ueR8ENfWFgCX6', // with WSS
+  preferredGateway: '6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B', // with WSS
   preferredNetworkRequester:
-    'DxAc9J4eqREc8hYfDobkSc81JLkmmrhJ77zJvHShUPoi.92bnebXtBuwKiYycrpioaAiYgta5hHWkys5aSGBQg5av@983r9LKDT9UUxx4Zsn2AH49poJ7Ep24ueR8ENfWFgCX6',
+    '8rRGWy54oC8drFL9DepMegBt2DLrsqQwCoHMXt9nsnTo.2XjCPVbb4FpQ9hNRcXwb9mTzEAVVk1zf1tcch3wdtNEA@6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B',
   mixFetchOverride: {
     requestTimeoutMs: 60_000,
   },
   forceTls: true, // force WSS
+  extra: {},
 };
 
 export const MixFetch = () => {

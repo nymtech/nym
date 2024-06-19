@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkManagerError;
-use crate::helpers::async_with_progress;
+use crate::helpers::{async_with_progress, ProgressTracker};
 use crate::manager::contract::Account;
 use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
 use console::style;
 use dkg_bypass_contract::msg::FakeDealerData;
-use indicatif::{HumanDuration, ProgressBar};
 use nym_compact_ecash::{ttp_keygen, Base58};
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::Addr;
@@ -25,47 +24,54 @@ use std::borrow::Cow;
 use std::fs;
 use std::future::Future;
 use std::ops::Deref;
-use std::path::Path;
-use std::time::Instant;
+use std::path::{Path, PathBuf};
 use url::Url;
 use zeroize::Zeroizing;
 
-struct EcashSigner {
-    ed25519_keypair: ed25519::KeyPair,
-    ecash_keypair: nym_compact_ecash::KeyPairAuth,
-    cosmos_account: Account,
-    endpoint: Url,
+pub(crate) struct EcashSigner {
+    pub(crate) ed25519_keypair: ed25519::KeyPair,
+    pub(crate) ecash_keypair: nym_compact_ecash::KeyPairAuth,
+    pub(crate) cosmos_account: Account,
+    pub(crate) endpoint: Url,
 }
 
-struct DkgSkipCtx {
-    start: Instant,
-    network: LoadedNetwork,
-    progress_bar: ProgressBar,
-    dkg_admin: DirectSigningHttpRpcNyxdClient,
-    ecash_signers: Vec<EcashSigner>,
+#[derive(Default)]
+pub(crate) struct EcashSignerPaths {
+    pub(crate) ecash_keys: KeyPairPath,
+    pub(crate) ed25519_keys: KeyPairPath,
+    pub(crate) mnemonic_path: PathBuf,
+    pub(crate) endpoint_path: PathBuf,
 }
 
-impl Drop for DkgSkipCtx {
-    fn drop(&mut self) {
-        self.progress_bar.println(format!(
-            "✨ Done in {}",
-            HumanDuration(self.start.elapsed())
-        ));
-        self.progress_bar.finish_and_clear();
+pub(crate) struct EcashSignerWithPaths {
+    pub(crate) data: EcashSigner,
+    pub(crate) paths: EcashSignerPaths,
+}
+
+impl EcashSignerWithPaths {
+    pub(crate) fn api_port(&self) -> u16 {
+        self.data.endpoint.port().unwrap()
     }
 }
 
-impl DkgSkipCtx {
+struct DkgSkipCtx<'a> {
+    progress: ProgressTracker,
+    network: &'a LoadedNetwork,
+    dkg_admin: DirectSigningHttpRpcNyxdClient,
+    ecash_signers: Vec<EcashSignerWithPaths>,
+}
+
+impl<'a> DkgSkipCtx<'a> {
     fn println<I: AsRef<str>>(&self, msg: I) {
-        self.progress_bar.println(msg)
+        self.progress.println(msg)
     }
 
     fn set_pb_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
-        self.progress_bar.set_prefix(prefix)
+        self.progress.set_pb_prefix(prefix)
     }
 
     fn set_pb_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.progress_bar.set_message(msg)
+        self.progress.set_pb_message(msg)
     }
 
     fn dkg_contract(&self) -> &AccountId {
@@ -76,22 +82,19 @@ impl DkgSkipCtx {
     where
         F: Future<Output = T>,
     {
-        async_with_progress(fut, &self.progress_bar).await
+        async_with_progress(fut, &self.progress.progress_bar).await
     }
 
-    fn new(network: LoadedNetwork) -> Result<Self, NetworkManagerError> {
-        let progress_bar = ProgressBar::new_spinner();
-
-        progress_bar.println(format!(
+    fn new(network: &'a LoadedNetwork) -> Result<Self, NetworkManagerError> {
+        let progress = ProgressTracker::new(format!(
             "\n🥷 attempting to skip DKG on network '{}'",
             network.name
         ));
 
         Ok(DkgSkipCtx {
-            start: Instant::now(),
+            progress,
             dkg_admin: network.dkg_signing_client()?,
             network,
-            progress_bar,
             ecash_signers: vec![],
         })
     }
@@ -133,7 +136,7 @@ impl NetworkManager {
         let mut rng = OsRng;
         for (endpoint, ecash_keypair) in api_endpoints.into_iter().zip(ecash_keys.into_iter()) {
             let ed25519_keypair = ed25519::KeyPair::new(&mut rng);
-            let party = EcashSigner {
+            let data = EcashSigner {
                 ed25519_keypair,
                 ecash_keypair,
                 cosmos_account: Account::new(),
@@ -141,9 +144,13 @@ impl NetworkManager {
             };
             ctx.println(format!(
                 "\t{} will be managed by {}",
-                party.endpoint, party.cosmos_account.address
+                data.endpoint, data.cosmos_account.address
             ));
-            ecash_signers.push(party)
+            let full = EcashSignerWithPaths {
+                data,
+                paths: EcashSignerPaths::default(),
+            };
+            ecash_signers.push(full)
         }
         ctx.ecash_signers = ecash_signers;
 
@@ -151,9 +158,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn validate_existing_contracts(
+    async fn validate_existing_contracts<'a>(
         &self,
-        ctx: &DkgSkipCtx,
+        ctx: &DkgSkipCtx<'a>,
     ) -> Result<ContractCodeId, NetworkManagerError> {
         ctx.println(format!(
             "🔬 {}Validating the current DKG and group contracts...",
@@ -198,9 +205,9 @@ impl NetworkManager {
         Ok(current_code)
     }
 
-    async fn persist_dkg_keys<P: AsRef<Path>>(
+    async fn persist_dkg_keys<'a, P: AsRef<Path>>(
         &self,
-        ctx: &DkgSkipCtx,
+        ctx: &mut DkgSkipCtx<'a>,
         output_dir: P,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
@@ -211,10 +218,11 @@ impl NetworkManager {
         ctx.set_pb_message("storing the signer data on disk...");
 
         let output_dir = output_dir.as_ref();
+        let pb = &ctx.progress.progress_bar;
 
-        for signer in &ctx.ecash_signers {
-            let address = &signer.cosmos_account.address;
-            let url = &signer.endpoint;
+        for signer in &mut ctx.ecash_signers {
+            let address = &signer.data.cosmos_account.address;
+            let url = &signer.data.endpoint;
             let signer_dir = output_dir.join(address.to_string());
             fs::create_dir_all(&signer_dir)?;
 
@@ -228,16 +236,24 @@ impl NetworkManager {
                 public_key_path: signer_dir.join("ed25519.pub"),
             };
 
-            store_keypair(&signer.ecash_keypair, &ecash_paths)?;
-            store_keypair(&signer.ed25519_keypair, &ed25519_paths)?;
+            let mnemonic_path = signer_dir.join("mnemonic");
+            let endpoint_path = signer_dir.join("announce_address");
+
+            store_keypair(&signer.data.ecash_keypair, &ecash_paths)?;
+            store_keypair(&signer.data.ed25519_keypair, &ed25519_paths)?;
 
             fs::write(
-                signer_dir.join("mnemonic"),
-                &Zeroizing::new(signer.cosmos_account.mnemonic.to_string()),
+                &mnemonic_path,
+                &Zeroizing::new(signer.data.cosmos_account.mnemonic.to_string()),
             )?;
-            fs::write(signer_dir.join("announce_address"), url.as_str())?;
+            fs::write(&endpoint_path, url.as_str())?;
 
-            ctx.println(format!(
+            signer.paths.ecash_keys = ecash_paths;
+            signer.paths.ed25519_keys = ed25519_paths;
+            signer.paths.mnemonic_path = mnemonic_path;
+            signer.paths.endpoint_path = endpoint_path;
+
+            pb.println(format!(
                 "\tpersisted {address} (endpoint: {url}) data under {}",
                 signer_dir.display()
             ));
@@ -247,9 +263,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn upload_bypass_contract<P: AsRef<Path>>(
+    async fn upload_bypass_contract<'a, P: AsRef<Path>>(
         &self,
-        ctx: &DkgSkipCtx,
+        ctx: &DkgSkipCtx<'a>,
         dkg_bypass_contract: P,
     ) -> Result<ContractCodeId, NetworkManagerError> {
         ctx.println(format!(
@@ -260,7 +276,11 @@ impl NetworkManager {
         ctx.set_pb_message("uploading the bypass contract...");
 
         let res = self
-            .upload_contract(&ctx.dkg_admin, &ctx.progress_bar, dkg_bypass_contract)
+            .upload_contract(
+                &ctx.dkg_admin,
+                &ctx.progress.progress_bar,
+                dkg_bypass_contract,
+            )
             .await?;
 
         ctx.println("\t✅ uploaded the bypass contract!");
@@ -268,9 +288,9 @@ impl NetworkManager {
         Ok(res.code_id)
     }
 
-    async fn migrate_to_bypass_contract(
+    async fn migrate_to_bypass_contract<'a>(
         &self,
-        ctx: &DkgSkipCtx,
+        ctx: &DkgSkipCtx<'a>,
         code_id: ContractCodeId,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
@@ -285,10 +305,10 @@ impl NetworkManager {
                 .ecash_signers
                 .iter()
                 .map(|signer| FakeDealerData {
-                    vk: signer.ecash_keypair.verification_key().to_bs58(),
-                    ed25519_identity: signer.ed25519_keypair.public_key().to_base58_string(),
-                    announce: signer.endpoint.to_string(),
-                    owner: Addr::unchecked(signer.cosmos_account.address.as_ref()),
+                    vk: signer.data.ecash_keypair.verification_key().to_bs58(),
+                    ed25519_identity: signer.data.ed25519_keypair.public_key().to_base58_string(),
+                    announce: signer.data.endpoint.to_string(),
+                    owner: Addr::unchecked(signer.data.cosmos_account.address.as_ref()),
                 })
                 .collect(),
         };
@@ -307,9 +327,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn restore_dkg_contract(
+    async fn restore_dkg_contract<'a>(
         &self,
-        ctx: &DkgSkipCtx,
+        ctx: &DkgSkipCtx<'a>,
         code_id: ContractCodeId,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
@@ -334,7 +354,7 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn add_group_members(&self, ctx: &DkgSkipCtx) -> Result<(), NetworkManagerError> {
+    async fn add_group_members<'a>(&self, ctx: &DkgSkipCtx<'a>) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "👪 {}Adding all the cw4 group members...",
             style("[7/8]").bold().dim()
@@ -346,7 +366,7 @@ impl NetworkManager {
             .ecash_signers
             .iter()
             .map(|s| Member {
-                addr: s.cosmos_account.address.to_string(),
+                addr: s.data.cosmos_account.address.to_string(),
                 weight: 1,
             })
             .collect();
@@ -358,7 +378,10 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn transfer_signer_tokens(&self, ctx: &DkgSkipCtx) -> Result<(), NetworkManagerError> {
+    async fn transfer_signer_tokens<'a>(
+        &self,
+        ctx: &DkgSkipCtx<'a>,
+    ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "💸 {}Transferring tokens to the new signers...",
             style("[8/8]").bold().dim()
@@ -370,7 +393,7 @@ impl NetworkManager {
         for signer in &ctx.ecash_signers {
             // send 10nym to the admin
             receivers.push((
-                signer.cosmos_account.address.clone(),
+                signer.data.cosmos_account.address.clone(),
                 admin.mix_coins(101_000000),
             ))
         }
@@ -394,10 +417,10 @@ impl NetworkManager {
     pub(crate) async fn attempt_bypass_dkg<P1, P2>(
         &self,
         api_endpoints: Vec<Url>,
-        network: LoadedNetwork,
+        network: &LoadedNetwork,
         dkg_bypass_contract: P1,
         data_output_dir: P2,
-    ) -> Result<(), NetworkManagerError>
+    ) -> Result<Vec<EcashSignerWithPaths>, NetworkManagerError>
     where
         P1: AsRef<Path>,
         P2: AsRef<Path>,
@@ -421,7 +444,7 @@ impl NetworkManager {
 
         self.generate_ecash_signer_data(&mut ctx, api_endpoints)?;
         let current_code_id = self.validate_existing_contracts(&ctx).await?;
-        self.persist_dkg_keys(&ctx, data_output_dir).await?;
+        self.persist_dkg_keys(&mut ctx, data_output_dir).await?;
         let new_code_id = self
             .upload_bypass_contract(&ctx, dkg_bypass_contract)
             .await?;
@@ -430,6 +453,6 @@ impl NetworkManager {
         self.add_group_members(&ctx).await?;
         self.transfer_signer_tokens(&ctx).await?;
 
-        Ok(())
+        Ok(ctx.ecash_signers)
     }
 }

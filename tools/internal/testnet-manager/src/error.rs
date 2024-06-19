@@ -74,4 +74,10 @@ pub enum NetworkManagerError {
 
     #[error("the provided contract path does not point to a valid .wasm file")]
     MalformedDkgBypassContractPath,
+
+    #[error("nym api initialisation returned non-zero return code")]
+    NymApiExecutionFailure,
+
+    #[error("failed to deserialise nym-api config: {0}")]
+    TomlDeserializationError(#[from] toml::de::Error),
 }

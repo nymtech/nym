@@ -10,6 +10,7 @@ mod bypass_dkg;
 mod initialise_new_network;
 mod initialise_post_dkg_network;
 mod load_network_details;
+mod local_ecash_apis;
 
 // Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
@@ -34,6 +35,7 @@ impl Cli {
             Commands::InitialisePostDkgNetwork(args) => {
                 initialise_post_dkg_network::execute(args).await
             }
+            Commands::CreateLocalEcashApis(args) => local_ecash_apis::execute(args).await,
         }
     }
 }
@@ -55,6 +57,9 @@ pub(crate) enum Commands {
     /// Initialise new network and bypass the DKG.
     /// Equivalent of running `initialise-new-network` and `bypass-dkg` separately.
     InitialisePostDkgNetwork(initialise_post_dkg_network::Args),
+
+    /// Attempt to create brand new network, in post DKG-state, using locally running nym-apis
+    CreateLocalEcashApis(local_ecash_apis::Args),
 }
 
 #[cfg(test)]

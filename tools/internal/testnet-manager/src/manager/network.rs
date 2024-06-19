@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NetworkManagerError;
+use crate::helpers::default_storage_dir;
 use crate::manager::contract::{Account, LoadedNymContracts, NymContracts};
 use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_validator_client::nyxd::Config;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use time::OffsetDateTime;
 use url::Url;
 
@@ -27,8 +29,14 @@ pub struct Network {
 impl Network {
     pub fn unchecked_to_env_file_section(&self) -> String {
         format!(
-            "\
+            "CONFIGURED=true\n\
 \n\
+BECH32_PREFIX=n\n\
+MIX_DENOM=unym\n\
+MIX_DENOM_DISPLAY=nym\n\
+STAKE_DENOM=unyx\n\
+STAKE_DENOM_DISPLAY=nyx\n\
+DENOMS_EXPONENT=6\n\
 \n\
 REWARDING_VALIDATOR_ADDRESS={}\n\
 MIXNET_CONTRACT_ADDRESS={}\n\
@@ -106,6 +114,12 @@ impl<'a> From<&'a LoadedNetwork> for nym_config::defaults::NymNetworkDetails {
 }
 
 impl LoadedNetwork {
+    pub fn default_env_file_path(&self) -> PathBuf {
+        default_storage_dir()
+            .join(&self.name)
+            .join(format!("{}.env", &self.name))
+    }
+
     pub fn dkg_signing_client(
         &self,
     ) -> Result<DirectSigningHttpRpcNyxdClient, NetworkManagerError> {
@@ -134,8 +148,14 @@ impl LoadedNetwork {
 
     pub fn to_env_file_section(&self) -> String {
         format!(
-            "\
+            "CONFIGURED=true\n\
 \n\
+BECH32_PREFIX=n\n\
+MIX_DENOM=unym\n\
+MIX_DENOM_DISPLAY=nym\n\
+STAKE_DENOM=unyx\n\
+STAKE_DENOM_DISPLAY=nyx\n\
+DENOMS_EXPONENT=6\n\
 \n\
 REWARDING_VALIDATOR_ADDRESS={}\n\
 MIXNET_CONTRACT_ADDRESS={}\n\

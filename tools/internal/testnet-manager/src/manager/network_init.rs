@@ -2,45 +2,47 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkManagerError;
-use crate::helpers::async_with_progress;
+use crate::helpers::{async_with_progress, ProgressTracker};
 use crate::manager::contract::Account;
 use crate::manager::network::Network;
 use crate::manager::NetworkManager;
 use console::style;
 use cw_utils::Threshold;
-use indicatif::{HumanDuration, ProgressBar};
+use indicatif::HumanDuration;
 use nym_coconut_dkg_common::types::TimeConfiguration;
 use nym_config::defaults::NymNetworkDetails;
 use nym_mixnet_contract_common::{Decimal, InitialRewardingParams, Percent};
 use nym_validator_client::nyxd::cosmwasm_client::types::InstantiateOptions;
 use nym_validator_client::nyxd::Config;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
+use std::borrow::Cow;
 use std::future::Future;
 use std::ops::Deref;
 use std::path::Path;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use url::Url;
 
 struct InitCtx {
-    start: Instant,
+    progress: ProgressTracker,
     network: Network,
-    progress_bar: ProgressBar,
     admin: DirectSigningHttpRpcNyxdClient,
 }
 
-impl Drop for InitCtx {
-    fn drop(&mut self) {
-        self.progress_bar.println(format!(
-            "✨ Done in {}",
-            HumanDuration(self.start.elapsed())
-        ));
-        self.progress_bar.finish_and_clear();
-    }
-}
-
 impl InitCtx {
+    fn println<I: AsRef<str>>(&self, msg: I) {
+        self.progress.println(msg)
+    }
+
+    fn set_pb_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
+        self.progress.set_pb_prefix(prefix)
+    }
+
+    fn set_pb_message(&self, msg: impl Into<Cow<'static, str>>) {
+        self.progress.set_pb_message(msg)
+    }
+
     fn dummy_client_config() -> Result<Config, NetworkManagerError> {
         // ASSUMPTION: same chain details like prefix, denoms, etc. as mainnet
         let mainnet = NymNetworkDetails::new_mainnet();
@@ -58,7 +60,7 @@ impl InitCtx {
     where
         F: Future<Output = T>,
     {
-        async_with_progress(fut, &self.progress_bar).await
+        async_with_progress(fut, &self.progress.progress_bar).await
     }
 
     fn new(
@@ -72,14 +74,12 @@ impl InitCtx {
             admin_mnemonic,
         )?;
 
-        let progress_bar = ProgressBar::new_spinner();
-
-        progress_bar.println(format!(
+        let progress = ProgressTracker::new(format!(
             "\n🚀 setting up new testnet '{network_name}' over {rpc_endpoint}",
         ));
 
         Ok(InitCtx {
-            start: Instant::now(),
+            progress,
             network: Network {
                 name: network_name,
                 rpc_endpoint: rpc_endpoint.clone(),
@@ -87,7 +87,6 @@ impl InitCtx {
                 contracts: Default::default(),
                 auxiliary_addresses: Default::default(),
             },
-            progress_bar,
             admin,
         })
     }
@@ -266,53 +265,50 @@ impl NetworkManager {
         ctx: &mut InitCtx,
         base_dir: P,
     ) -> Result<(), NetworkManagerError> {
-        let pb = &ctx.progress_bar;
-
         ctx.network.contracts.discover_paths(base_dir)?;
 
-        pb.println(format!(
+        ctx.println(format!(
             "🔍 {}Locating .wasm files...",
             style("[1/8]").bold().dim()
         ));
-        pb.println(format!(
+        ctx.println(format!(
             "\tdiscovered mixnet contract at '{}'",
             ctx.network.contracts.mixnet.wasm_path()?.display()
         ));
-        pb.println(format!(
+        ctx.println(format!(
             "\tdiscovered vesting contract at '{}'",
             ctx.network.contracts.vesting.wasm_path()?.display()
         ));
-        pb.println(format!(
+        ctx.println(format!(
             "\tdiscovered ecash contract at '{}'",
             ctx.network.contracts.ecash.wasm_path()?.display()
         ));
-        pb.println(format!(
+        ctx.println(format!(
             "\tdiscovered cw4_group contract at '{}'",
             ctx.network.contracts.cw4_group.wasm_path()?.display()
         ));
-        pb.println(format!(
+        ctx.println(format!(
             "\tdiscovered cw3_multisig contract at '{}'",
             ctx.network.contracts.cw3_multisig.wasm_path()?.display()
         ));
-        pb.println(format!(
+        ctx.println(format!(
             "\tdiscovered dkg contract at '{}'",
             ctx.network.contracts.dkg.wasm_path()?.display()
         ));
 
-        pb.println("\t✅ found all the contracts!");
+        ctx.println("\t✅ found all the contracts!");
 
         Ok(())
     }
 
     async fn upload_contracts(&self, ctx: &mut InitCtx) -> Result<(), NetworkManagerError> {
-        let pb = &ctx.progress_bar;
-
-        pb.println(format!(
+        ctx.println(format!(
             "🚚 {}Uploading contracts...",
             style("[2/8]").bold().dim()
         ));
 
         let total = ctx.network.contracts.count() as u64;
+        let pb = &ctx.progress.progress_bar;
 
         for (progress, contract) in ctx
             .network
@@ -325,7 +321,11 @@ impl NetworkManager {
             let name = &contract.name;
             pb.set_message(format!("uploading {name} contract..."));
             let upload_res = self
-                .upload_contract(&ctx.admin, pb, &contract.wasm_path()?)
+                .upload_contract(
+                    &ctx.admin,
+                    &ctx.progress.progress_bar,
+                    &contract.wasm_path()?,
+                )
                 .await?;
             pb.println(format!(
                 "\t{name} contract uploaded with code: {}",
@@ -334,7 +334,7 @@ impl NetworkManager {
             contract.upload_info = Some(upload_res.into());
         }
 
-        pb.println("\t✅ uploaded all the contracts!");
+        ctx.println("\t✅ uploaded all the contracts!");
 
         Ok(())
     }
@@ -343,14 +343,13 @@ impl NetworkManager {
         &self,
         ctx: &mut InitCtx,
     ) -> Result<(), NetworkManagerError> {
-        let pb = &ctx.progress_bar;
-
-        pb.println(format!(
+        ctx.println(format!(
             "📝 {}Generating admin mnemonics...",
             style("[3/8]").bold().dim()
         ));
 
         let total = ctx.network.contracts.count() as u64;
+        let pb = &ctx.progress.progress_bar;
         for (progress, contract) in ctx
             .network
             .contracts
@@ -369,14 +368,13 @@ impl NetworkManager {
             contract.admin = Some(admin)
         }
 
-        pb.println("\t✅ generated all admin mnemonics!");
+        ctx.println("\t✅ generated all admin mnemonics!");
 
         Ok(())
     }
 
     async fn transfer_admin_tokens(&self, ctx: &InitCtx) -> Result<(), NetworkManagerError> {
-        let pb = &ctx.progress_bar;
-        pb.println(format!(
+        ctx.println(format!(
             "💸 {}Transferring tokens to the admin accounts...",
             style("[4/8]").bold().dim()
         ));
@@ -387,14 +385,14 @@ impl NetworkManager {
             receivers.push((contract.admin()?.address(), ctx.admin.mix_coins(10_000000)))
         }
 
-        pb.set_message("attempting to send admin tokens...");
+        ctx.set_pb_message("attempting to send admin tokens...");
 
         let send_future =
             ctx.admin
                 .send_multiple(receivers, "admin token transfer from testnet-manager", None);
         let res = ctx.async_with_progress(send_future).await?;
 
-        pb.println(format!(
+        ctx.println(format!(
             "\t✅ sent tokens in transaction: {} (height {})",
             res.hash, res.height
         ));
@@ -403,8 +401,7 @@ impl NetworkManager {
     }
 
     async fn instantiate_contracts(&self, ctx: &mut InitCtx) -> Result<(), NetworkManagerError> {
-        let pb = &ctx.progress_bar;
-        pb.println(format!(
+        ctx.println(format!(
             "💽 {}Instantiating all the contracts...",
             style("[5/8]").bold().dim()
         ));
@@ -412,11 +409,11 @@ impl NetworkManager {
         let total = ctx.network.contracts.count() as u64;
 
         // mixnet
-        pb.set_prefix(format!("[1/{total}]"));
+        ctx.set_pb_prefix(format!("[1/{total}]"));
         let name = &ctx.network.contracts.mixnet.name;
         let code_id = ctx.network.contracts.mixnet.upload_info()?.code_id;
         let admin = ctx.network.contracts.mixnet.admin()?.address.clone();
-        pb.set_message(format!("attempting to instantiate {name} contract..."));
+        ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
         let init_msg = self.mixnet_init_message(ctx)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
@@ -428,17 +425,17 @@ impl NetworkManager {
         );
         let res = ctx.async_with_progress(init_fut).await?;
         let address = &res.contract_address;
-        pb.println(format!(
+        ctx.println(format!(
             "\t{name} contract instantiated with address: {address}",
         ));
         ctx.network.contracts.mixnet.init_info = Some(res.into());
 
         // vesting
-        pb.set_prefix(format!("[2/{total}]"));
+        ctx.set_pb_prefix(format!("[2/{total}]"));
         let name = &ctx.network.contracts.vesting.name;
         let code_id = ctx.network.contracts.vesting.upload_info()?.code_id;
         let admin = ctx.network.contracts.vesting.admin()?.address.clone();
-        pb.set_message(format!("attempting to instantiate {name} contract..."));
+        ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
         let init_msg = self.vesting_init_message(ctx)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
@@ -450,17 +447,17 @@ impl NetworkManager {
         );
         let res = ctx.async_with_progress(init_fut).await?;
         let address = &res.contract_address;
-        pb.println(format!(
+        ctx.println(format!(
             "\t{name} contract instantiated with address: {address}",
         ));
         ctx.network.contracts.vesting.init_info = Some(res.into());
 
         // group
-        pb.set_prefix(format!("[3/{total}]"));
+        ctx.set_pb_prefix(format!("[3/{total}]"));
         let name = &ctx.network.contracts.cw4_group.name;
         let code_id = ctx.network.contracts.cw4_group.upload_info()?.code_id;
         let admin = ctx.network.contracts.cw4_group.admin()?.address.clone();
-        pb.set_message(format!("attempting to instantiate {name} contract..."));
+        ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
         let init_msg = self.cw4_group_init_message(ctx)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
@@ -472,17 +469,17 @@ impl NetworkManager {
         );
         let res = ctx.async_with_progress(init_fut).await?;
         let address = &res.contract_address;
-        pb.println(format!(
+        ctx.println(format!(
             "\t{name} contract instantiated with address: {address}",
         ));
         ctx.network.contracts.cw4_group.init_info = Some(res.into());
 
         // multisig
-        pb.set_prefix(format!("[4/{total}]"));
+        ctx.set_pb_prefix(format!("[4/{total}]"));
         let name = &ctx.network.contracts.cw3_multisig.name;
         let code_id = ctx.network.contracts.cw3_multisig.upload_info()?.code_id;
         let admin = ctx.network.contracts.cw3_multisig.admin()?.address.clone();
-        pb.set_message(format!("attempting to instantiate {name} contract..."));
+        ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
         let init_msg = self.cw3_multisig_init_message(ctx)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
@@ -494,17 +491,17 @@ impl NetworkManager {
         );
         let res = ctx.async_with_progress(init_fut).await?;
         let address = &res.contract_address;
-        pb.println(format!(
+        ctx.println(format!(
             "\t{name} contract instantiated with address: {address}",
         ));
         ctx.network.contracts.cw3_multisig.init_info = Some(res.into());
 
         // dkg
-        pb.set_prefix(format!("[5/{total}]"));
+        ctx.set_pb_prefix(format!("[5/{total}]"));
         let name = &ctx.network.contracts.dkg.name;
         let code_id = ctx.network.contracts.dkg.upload_info()?.code_id;
         let admin = ctx.network.contracts.dkg.admin()?.address.clone();
-        pb.set_message(format!("attempting to instantiate {name} contract..."));
+        ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
         let init_msg = self.dkg_init_message(ctx)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
@@ -516,17 +513,17 @@ impl NetworkManager {
         );
         let res = ctx.async_with_progress(init_fut).await?;
         let address = &res.contract_address;
-        pb.println(format!(
+        ctx.println(format!(
             "\t{name} contract instantiated with address: {address}",
         ));
         ctx.network.contracts.dkg.init_info = Some(res.into());
 
         // ecash
-        pb.set_prefix(format!("[6/{total}]"));
+        ctx.set_pb_prefix(format!("[6/{total}]"));
         let name = &ctx.network.contracts.ecash.name;
         let code_id = ctx.network.contracts.ecash.upload_info()?.code_id;
         let admin = ctx.network.contracts.ecash.admin()?.address.clone();
-        pb.set_message(format!("attempting to instantiate {name} contract..."));
+        ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
         let init_msg = self.ecash_init_message(ctx)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
@@ -538,29 +535,28 @@ impl NetworkManager {
         );
         let res = ctx.async_with_progress(init_fut).await?;
         let address = &res.contract_address;
-        pb.println(format!(
+        ctx.println(format!(
             "\t{name} contract instantiated with address: {address}",
         ));
         ctx.network.contracts.ecash.init_info = Some(res.into());
 
-        pb.println("\t✅ instantiated all the contracts!");
+        ctx.println("\t✅ instantiated all the contracts!");
 
         Ok(())
     }
 
     async fn perform_final_migrations(&self, ctx: &mut InitCtx) -> Result<(), NetworkManagerError> {
-        let pb = &ctx.progress_bar;
-        pb.println(format!(
+        ctx.println(format!(
             "🧹 {}Performing final migrations and contract cleanup...",
             style("[6/8]").bold().dim()
         ));
 
         // migrate mixnet
-        pb.set_prefix("[1/2]");
+        ctx.set_pb_prefix("[1/2]");
         let name = &ctx.network.contracts.mixnet.name;
         let code_id = ctx.network.contracts.mixnet.upload_info()?.code_id;
         let address = ctx.network.contracts.mixnet.address()?;
-        pb.set_message(format!("attempting to migrate {name} contract..."));
+        ctx.set_pb_message(format!("attempting to migrate {name} contract..."));
         let migrate_msg = self.mixnet_migrate_message(ctx)?;
         let client = ctx.mixnet_signing_client()?;
         let migrate_fut = client.migrate(
@@ -572,14 +568,14 @@ impl NetworkManager {
         );
         let migrate_res = ctx.async_with_progress(migrate_fut).await?;
         ctx.network.contracts.mixnet.migrate_info = Some(migrate_res.into());
-        pb.println(format!("\t{name} contract has been migrated"));
+        ctx.println(format!("\t{name} contract has been migrated"));
 
         // migrate multisig
-        pb.set_prefix("[2/2]");
+        ctx.set_pb_prefix("[2/2]");
         let name = &ctx.network.contracts.cw3_multisig.name;
         let code_id = ctx.network.contracts.cw3_multisig.upload_info()?.code_id;
         let address = ctx.network.contracts.cw3_multisig.address()?;
-        pb.set_message(format!("attempting to migrate {name} contract..."));
+        ctx.set_pb_message(format!("attempting to migrate {name} contract..."));
         let migrate_msg = self.multisig_migrate_message(ctx)?;
         let client = ctx.multisig_signing_client()?;
         let migrate_fut = client.migrate(
@@ -591,22 +587,22 @@ impl NetworkManager {
         );
         let migrate_res = ctx.async_with_progress(migrate_fut).await?;
         ctx.network.contracts.cw3_multisig.migrate_info = Some(migrate_res.into());
-        pb.println(format!("\t{name} contract has been migrated"));
+        ctx.println(format!("\t{name} contract has been migrated"));
 
-        pb.println("\t✅ performed all the needed migrations!");
+        ctx.println("\t✅ performed all the needed migrations!");
 
         Ok(())
     }
 
     async fn get_build_info(&self, ctx: &mut InitCtx) -> Result<(), NetworkManagerError> {
-        let pb = &ctx.progress_bar;
-        pb.println(format!(
+        ctx.println(format!(
             "🏗️ {}Obtaining contracts build information",
             style("[7/8]").bold().dim()
         ));
 
         let total = ctx.network.contracts.count() as u64;
 
+        let pb = &ctx.progress.progress_bar;
         for (progress, contract) in ctx
             .network
             .contracts
@@ -619,7 +615,7 @@ impl NetworkManager {
             let address = contract.address()?;
             pb.set_message(format!("querying {name} contract..."));
             let build_info_fut = ctx.admin.try_get_contract_build_information(address);
-            let build_info = async_with_progress(build_info_fut, &pb)
+            let build_info = async_with_progress(build_info_fut, &ctx.progress.progress_bar)
                 .await
                 .ok_or_else(|| NetworkManagerError::MissingBuildInfo {
                     name: name.to_string(),
@@ -665,23 +661,22 @@ impl NetworkManager {
             contract.build_info = Some(build_info);
         }
 
-        pb.println("\t✅ updated all contract metadata!");
+        ctx.println("\t✅ updated all contract metadata!");
 
         Ok(())
     }
 
     async fn persist_in_database(&self, ctx: &InitCtx) -> Result<(), NetworkManagerError> {
-        let pb = &ctx.progress_bar;
-        pb.println(format!(
+        ctx.println(format!(
             "📦 {}Storing all the results in the database",
             style("[8/8]").bold().dim()
         ));
 
-        pb.set_message("attempting to persist network data...");
+        ctx.set_pb_message("attempting to persist network data...");
         let save_future = self.storage.persist_network(&ctx.network);
         ctx.async_with_progress(save_future).await?;
 
-        pb.println("\t✅ the network information got persisted in the database for future use");
+        ctx.println("\t✅ the network information got persisted in the database for future use");
 
         Ok(())
     }

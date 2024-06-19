@@ -42,7 +42,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NetworkManagerError> {
     manager
         .attempt_bypass_dkg(
             args.api_endpoints,
-            network,
+            &network,
             args.bypass_dkg_contract,
             signer_data_output_directory,
         )

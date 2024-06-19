@@ -104,9 +104,7 @@ impl Decoder for ReconstructedMessageCodec {
         }
 
         let decoded = match bincode::deserialize(&buf[OFFSET..len + OFFSET]) {
-            Ok(decoded) => {
-                decoded
-            }
+            Ok(decoded) => decoded,
             Err(e) => {
                 debug!("Failed to decode the message - {:?}", e);
                 return Ok(None);

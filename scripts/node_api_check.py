@@ -7,20 +7,23 @@ import os
 import pandas as pd
 import json
 import urllib3
+import time
 from json import JSONDecodeError
 from tabulate import tabulate
+
 
 class MainFunctions:
 
     def __init__(self):
         self.api_url = "https://validator.nymtech.net/api/v1"
-        #self.api_existing_endpoints_url = "https://validator.nymtech.net/api/v1/openapi.json"
+        #TODO: Pull endpoints from: https://validator.nymtech.net/api/v1/openapi.json
         self.api_endpoints_json = "api_endpoints.json"
         self.output = Output()
 
     def display_results(self, args):
         id_key = args.id
         mode, host, version, mix_id, role, node_df, node_dict, api_data, swagger_data, routing_history = self.collect_all_results(args)
+        print("\n============================================================")
         print("\nNYM NODE INFO\n")
         print(f"Type = {mode}")
         if role:
@@ -50,14 +53,15 @@ class MainFunctions:
                 node_markdown = self._dataframe_to_markdown(swagger_df, ["RESULT"], ["API EDNPOINT"])
                 print(node_markdown, "\n")
             else:
-                self.print_neat_dict(swagger_data)
+                swagger_data = self._json_neat_format(swagger_data)
+                print(swagger_data)
+        else:
+            swagger_data = f"\nSwagger API endpoints of node {id_key} hosted on IP: {host} are not responding. Maybe you querying a deprecated version of nym-mixnode or the VPS ports are not open correctly."
         if routing_history:
             print(f"\n\nNODE UPTIME HISTORY\n")
             if args.markdown:
                 routing_history_df = self._json_to_dataframe(routing_history)
                 print(routing_history_df.to_markdown(index = False))
-#                node_markdown = self._dataframe_to_markdown(routing_history_df, ["PERFORMANCE"], ["TIME"])
-#                print(node_markdown, "\n")
             else:
                 self.print_neat_dict(routing_history)
                 routing_history = self._json_neat_format(routing_history)
@@ -66,11 +70,7 @@ class MainFunctions:
         if args.output or args.output == "":
             node_dict = self._json_neat_format(node_dict)
             api_data = self._json_neat_format(api_data)
-            if swagger_data:
-                swagger_data = self._json_neat_format(swagger_data)
-                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", node_dict, api_data, swagger_data, routing_history]
-            else:
-                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", node_dict, api_data, routing_history]
+            data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", node_dict, api_data, swagger_data, routing_history]
             self.output.concat_to_file(args, data_list)
 
     def collect_all_results(self,args):
@@ -98,12 +98,13 @@ class MainFunctions:
         return mode, node_df, node_dict
 
     def get_unfiltered_data(self):
+        print("INFO: Starting to query /detailed-unfiltered endpoint...")
         gateways_unfiltered = r.get(f"{self.api_url}/status/gateways/detailed-unfiltered").json()
         mixnodes_unfiltered = r.get(f"{self.api_url}/status/mixnodes/detailed-unfiltered").json()
         return gateways_unfiltered, mixnodes_unfiltered
 
     def get_node_data(self,mode, node_dict, id_key, args):
-        #endpoint_json = self.get_api_endpoints()
+        print("INFO: Sorting out data from the unfiltered endpoint...")
         identity = id_key
         endpoint_json = self.api_endpoints_json
         with open(endpoint_json, "r") as f:
@@ -121,28 +122,12 @@ class MainFunctions:
             for key in endpoints:
                 endpoint = key.replace("{identity}", identity)
                 url = f"{self.api_url}{endpoint}"
+                print(f"Querying {url}")
                 value = r.get(url).json()
                 api_data[endpoint] = value
             routing_history = api_data[f"/status/gateway/{identity}/history"]["history"]
             del api_data[f"/status/gateway/{identity}/history"]["history"]
             swagger_data = self.get_swagger_data(host,swagger,swagger_data)
-#            for key in swagger:
-#                try:
-#                    url = f"http://{host}:8080/api/v1{key}"
-#                    value = r.get(url).json()
-#                    swagger_data[key] = value
-#                except r.exceptions.ConnectionError:
-#                    url = f"https://{host}/api/v1{key}"
-#                    value = r.get(url).json()
-#                    swagger_data[key] = value
-#                except r.exceptions.ConnectionError:
-#                    url = f"http://{host}/api/v1{key}"
-#                    value = r.get(url).json()
-#                    swagger_data[key] = value
-#                except r.exceptions.ConnectionError as e:
-#                    print(f"The request to pull data from /api/v1/{key} returns {e}!")
-#                except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError):
-#                    print(f"Endpoint {url} results in 404: Not Found!\n")
             if swagger_data["/roles"]["network_requester_enabled"]== True and swagger_data["/roles"]["ip_packet_router_enabled"] == True:
                 role = "exit-gateway"
             else:
@@ -152,17 +137,18 @@ class MainFunctions:
             for key in endpoints:
                 endpoint = key.replace("{mix_id}", mix_id)
                 url = f"{self.api_url}{endpoint}"
+                print(f"Querying {url}")
                 try:
                     value = r.get(url).json()
                     api_data[endpoint] = value
                 except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError):
-                    print(f"Endpoint {url} results in 404: Not Found!\n")
+                    print(f"Error: Endpoint {url} results in 404: Not Found!")
             host = node_dict["mixnode_details"]["bond_information"]["mix_node"]["host"]
             version = node_dict["mixnode_details"]["bond_information"]["mix_node"]["version"]
             routing_history = api_data[f"/status/mixnode/{mix_id}/history"]["history"]
             del api_data[f"/status/mixnode/{mix_id}/history"]["history"]
-            #Need a solution to be resolved for endless quesry on outdated mixnodes
-            #swagger_data = self.get_swagger_data(host,swagger,swagger_data)
+            #TODO: try this https://stackoverflow.com/questions/15431044/can-i-set-max-retries-for-requests-request/35504626#35504626
+            swagger_data = self.get_swagger_data(host,swagger,swagger_data)
         else:
             print(f"The mode type {mode} is not recognized!")
             sys.exit(-1)
@@ -176,28 +162,31 @@ class MainFunctions:
         return host, version, mix_id, role, api_data, swagger_data, routing_history
 
     def get_swagger_data(self,host,swagger,swagger_data):
+        print("INFO: Starting to query SWAGGER API page...")
         for key in swagger:
             try:
                 url = f"http://{host}:8080/api/v1{key}"
-                value = r.get(url).json()
+                print(f"Querying {url}")
+                value = r.get(url, timeout=3).json()
                 swagger_data[key] = value
             except r.exceptions.ConnectionError:
                 url = f"https://{host}/api/v1{key}"
-                value = r.get(url).json()
+                value = r.get(url, timeout=3).json()
                 swagger_data[key] = value
             except r.exceptions.ConnectionError:
                 url = f"http://{host}/api/v1{key}"
-                value = r.get(url).json()
+                value = r.get(url,timeout=3).json()
                 swagger_data[key] = value
             except r.exceptions.ConnectionError as e:
-                print(f"The request to pull data from /api/v1/{key} returns {e}!")
+                print(f"Error: The request to pull data from /api/v1/{key} returns {e}!")
             except urllib3.exceptions.ProtocolError as e:
-                print(f"The request to pull data from /api/v1/{key} returns {e}!")
+                print(f"Error: The request to pull data from /api/v1/{key} returns {e}!")
             except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError, r.exceptions.ConnectionError) as e:
-                print(f"Swagger endpoint {url} results in 404: Not Found! {e}\n")
-            #devtool excepption delete for production
+                print(f"Error: Swagger endpoint {url} results in 404: Not Found! {e}")
+            except r.exceptions.ConnectTimeout as e:
+                print(f"Error: The request to pull data from /api/v1/{key} returns {e}! We are likely quering a deprecated version of nym-mixnode.")
             except Exception as e:
-                print(e)
+                print(f"Error: {e}: {url} not responding. Maybe you querying a deprecated version of nym-mixnode?")
         return swagger_data
 
     def _set_index_to_empty(self, df):
@@ -211,18 +200,14 @@ class MainFunctions:
 
     def _dataframe_to_markdown(self,df,col_names, index_names=""):
         df = df.T
-#        print(f"columns = {df.columns}")
-#        print(f"index = {df.index}")
         df.index.names = index_names
         df.columns  = col_names
         markdown = df.to_markdown()
         return markdown
 
     def format_dataframe(self, df):
-        #df = pd.DataFrame(df)
         df = self._json_to_dataframe(df)
         df = df.T
-        #df.columns = ["API ENDPOINT", "RESULTS"]
         return df
 
     def print_neat_dict(self, dictionary, indent=4):
@@ -286,7 +271,6 @@ class VersionCount():
             table = df_final.to_markdown(index=False)
         else:
             table = tabulate(df_final)
-        #if args.output:
         print(table)
 
     def fetch_results(self, args):
@@ -346,8 +330,8 @@ class ArgParser:
 
         # sub-command parsers
         subparsers = parser.add_subparsers()
-        parser_pull_stats = subparsers.add_parser('node_stats',help='Run with node identity key', aliases=['n','node'])
-        parser_version_count = subparsers.add_parser('version_count', help='Sum of nodes in given version', aliases=['v','version'])
+        parser_pull_stats = subparsers.add_parser('query_stats',help='Get all nodes API endpoints', aliases=['q','query'])
+        parser_version_count = subparsers.add_parser('version_count', help='Sum of nodes in given version(s)', aliases=['v','version'])
 
         # pull_stats arguments
         parser_pull_stats.add_argument("id", help="supply nym-node identity key")

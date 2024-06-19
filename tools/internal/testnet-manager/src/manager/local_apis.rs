@@ -7,9 +7,11 @@ use crate::manager::dkg_skip::EcashSignerWithPaths;
 use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
 use console::style;
+use nym_compact_ecash::KeyPairAuth;
 use nym_config::{
     must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_NYM_APIS_DIR, NYM_DIR,
 };
+use nym_pemstore::traits::PemStorableKey;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{Display, Formatter};
@@ -31,6 +33,36 @@ impl Display for RunCommands {
             writeln!(f, "{cmd}")?
         }
         Ok(())
+    }
+}
+
+// perform the same serialisation as the nym-api keys
+struct FakeDkgKey<'a> {
+    inner: &'a KeyPairAuth,
+}
+
+impl<'a> FakeDkgKey<'a> {
+    fn new(inner: &'a KeyPairAuth) -> Self {
+        FakeDkgKey { inner }
+    }
+}
+
+impl<'a> PemStorableKey for FakeDkgKey<'a> {
+    type Error = NetworkManagerError;
+
+    fn pem_type() -> &'static str {
+        "ECASH KEY WITH EPOCH"
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        // our fake key is ALWAYS issued for epoch 0
+        let mut bytes = vec![0u8; 8];
+        bytes.append(&mut self.inner.secret_key().to_bytes());
+        bytes
+    }
+
+    fn from_bytes(_: &[u8]) -> Result<Self, Self::Error> {
+        unimplemented!("this is not meant to be ever called")
     }
 }
 
@@ -159,7 +191,8 @@ impl NetworkManager {
             .expect("nym-api config serialisation has changed");
 
         // overwrite pre-generated files
-        fs::copy(&info.paths.ecash_keys.private_key_path, ecash)?;
+        let fake_ecash_key = FakeDkgKey::new(&info.data.ecash_keypair);
+        nym_pemstore::store_key(&fake_ecash_key, ecash)?;
         fs::copy(&info.paths.ed25519_keys.private_key_path, priv_id)?;
         fs::copy(&info.paths.ed25519_keys.public_key_path, pub_id)?;
 
@@ -207,7 +240,7 @@ impl NetworkManager {
     fn output_run_commands(&self, ctx: &LocalApisCtx, cmds: &RunCommands) {
         ctx.println("🏇 run the apis with the following commands:");
         for cmd in &cmds.0 {
-            ctx.println(&cmd)
+            ctx.println(cmd)
         }
     }
 

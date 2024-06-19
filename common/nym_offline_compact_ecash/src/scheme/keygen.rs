@@ -453,6 +453,7 @@ impl Bytable for PublicKeyUser {
 }
 
 impl Base58 for PublicKeyUser {}
+
 #[derive(Debug, Zeroize, ZeroizeOnDrop)]
 pub struct KeyPairAuth {
     secret_key: SecretKeyAuth,
@@ -460,6 +461,16 @@ pub struct KeyPairAuth {
     verification_key: VerificationKeyAuth,
     /// Optional index value specifying polynomial point used during threshold key generation.
     pub index: Option<SignerIndex>,
+}
+
+impl From<SecretKeyAuth> for KeyPairAuth {
+    fn from(secret_key: SecretKeyAuth) -> Self {
+        KeyPairAuth {
+            verification_key: secret_key.verification_key(),
+            secret_key,
+            index: None,
+        }
+    }
 }
 
 impl PemStorableKeyPair for KeyPairAuth {

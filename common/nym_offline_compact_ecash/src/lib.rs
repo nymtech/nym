@@ -18,7 +18,9 @@ pub use scheme::aggregation::aggregate_wallets;
 pub use scheme::identify;
 pub use scheme::keygen::ttp_keygen;
 pub use scheme::keygen::{generate_keypair_user, generate_keypair_user_from_seed};
-pub use scheme::keygen::{KeyPairAuth, PublicKeyUser, SecretKeyUser, VerificationKeyAuth};
+pub use scheme::keygen::{
+    KeyPairAuth, PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth,
+};
 pub use scheme::setup;
 pub use scheme::withdrawal::issue;
 pub use scheme::withdrawal::issue_verify;

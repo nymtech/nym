@@ -5,7 +5,7 @@
 extern crate rocket;
 
 use crate::ecash::dkg::controller::keys::{
-    can_validate_coconut_keys, load_bte_keypair, load_coconut_keypair_if_exists,
+    can_validate_coconut_keys, load_bte_keypair, load_ecash_keypair_if_exists,
 };
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::network::models::NetworkDetails;
@@ -73,7 +73,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let coconut_keypair_wrapper = ecash::keys::KeyPair::new();
 
     // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
-    if let Some(loaded_keys) = load_coconut_keypair_if_exists(&config.coconut_signer)? {
+    if let Some(loaded_keys) = load_ecash_keypair_if_exists(&config.coconut_signer)? {
         let issued_for = loaded_keys.issued_for_epoch;
         coconut_keypair_wrapper.set(loaded_keys).await;
 

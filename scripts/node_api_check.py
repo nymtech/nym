@@ -168,24 +168,39 @@ class MainFunctions:
                 f"https://{host}/api/v1",
                 f"http://{host}/api/v1"
             ]
+        len_urls = len(urls)
         for endpoint in swagger:
+                print(f"Querying {host},swagger API endpoint: {endpoint} via https and https")
+                count = 0
+                error_dict = {}
                 for base_url in urls:
                     url = f"{base_url}{endpoint}"
                     try:
-                        print(f"Querying {url}")
-                        value = r.get(url, timeout=3).json()
+                        value = r.get(url, timeout=2).json()
                         swagger_data[endpoint] = value
                         break
                     except (r.exceptions.ConnectionError, urllib3.exceptions.ProtocolError) as e:
-                        print(f"Error: Connection error when querying {url}: {e}") # No break because you could be dealing with a different protocol
+                        #print(f"Error: Connection error when querying {url}: {e}") # No break because you could be dealing with a different protocol
+                        error = f"Error: Connection error when querying {url}: {e}" # No break because you could be dealing with a different protocol
+                        count, error_list = self.error_count(len_urls,count, error, error_dict, 1)
                     except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError) as e:
-                        print(f"Error: JSON decode error when querying {url}: {e}")
+                        #print(f"Error: JSON decode error when querying {url}: {e}")
+                        error = f"Error: JSON decode error when querying {url}: {e}"
+                        count, error_list = self.error_count(len_urls, count, error, error_dict, 2)
                     except r.exceptions.ConnectTimeout as e:
-                        print(f"Error: Connection timeout when querying {url}: {e}")
+                        #print(f"Error: Connection timeout when querying {url}: {e}")
+                        error = f"Error: Connection timeout when querying {url}: {e}"
+                        count, error_list = self.error_count(len_urls, count, error, error_dict, 3)
                     except Exception as e:
-                        print(f"Error: An unexpected error occurred when querying {url}: {e}")
-
-
+                        error = f"Error: An unexpected error occurred when querying {url}: {e}"
+                        count, error_list = self.error_count(len_urls, count, error, error_dict, 4)
+                        #count += 1
+                        #error_msgs.append(error)
+                        #if count == len(urls):
+                        #    for msg in error_msgs:
+                        #        print(msg)
+                        #    count = 0
+                        #    error_msgs = []
 #        for key in swagger:
 #            try:
 #                url = f"http://{host}:8080/api/v1{key}"
@@ -211,6 +226,16 @@ class MainFunctions:
 #            except Exception as e:
 #                print(f"Error: {e}: {url} not responding. Maybe you querying a deprecated version of nym-mixnode?")
         return swagger_data
+
+    def error_count(self,len_urls,count, error, error_dict, error_index):
+        count += 1
+        error_dict[error] = error_index
+        if count == len_urls and len(set(error_dict.values())) == 1:
+            for key in error_dict.keys():
+                print(key)
+            count = 0
+            error_dict = {}
+        return count, error_dict
 
     def _set_index_to_empty(self, df):
         index_len = pd.RangeIndex(len(df.index))

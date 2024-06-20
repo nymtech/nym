@@ -525,6 +525,12 @@ where
     T: DeserializeOwned,
     E: DeserializeOwned + Display,
 {
+    info!("parsing the response");
+    info!("status: {}", res.status());
+    info!("headers: {:#?}", res.headers());
+    info!("content_length: {:?}", res.content_length());
+    info!("url: {:?}", res.url());
+    info!("remote_addr: {:?}", res.remote_addr());
     let status = res.status();
 
     if !allow_empty {
@@ -536,6 +542,9 @@ where
     if res.status().is_success() {
         Ok(res.json().await?)
     } else if res.status() == StatusCode::NOT_FOUND {
+        error!("welp. request couldnt be found. attempting to parse the body...");
+        error!("body: {}", res.text().await?);
+
         Err(HttpClientError::NotFound)
     } else {
         let Ok(plaintext) = res.text().await else {

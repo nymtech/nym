@@ -8,6 +8,7 @@ use crate::{
     nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
     ReqwestRpcClient, ValidatorClientError,
 };
+use log::info;
 use nym_api_requests::coconut::models::FreePassNonceResponse;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest, VerifyCredentialBody,
@@ -270,6 +271,7 @@ impl NymApiClient {
         &self,
         semver_compatibility: Option<String>,
     ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        info!("about to get mixnodes");
         Ok(self
             .nym_api
             .get_basic_mixnodes(semver_compatibility)

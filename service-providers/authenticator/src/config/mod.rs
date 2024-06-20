@@ -184,4 +184,6 @@ impl Config {
 
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Authenticator {}
+pub struct Authenticator {
+    pub(crate) binding_port: u16,
+}

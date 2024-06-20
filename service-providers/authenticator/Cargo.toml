@@ -9,12 +9,16 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+fastrand = "2"
+
 anyhow = { workspace = true }
+bincode = { workspace = true }
 bs58 = { workspace = true }
 bytes = { workspace = true }
 clap = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -22,6 +26,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net"] }
 tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true }
 
+nym-authenticator-requests = { path = "../../common/authenticator-requests" }
 nym-bin-common = { path = "../../common/bin-common" }
 nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
@@ -33,3 +38,5 @@ nym-service-providers-common = { path = "../common" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }
+nym-wireguard = { path = "../../common/wireguard" }
+nym-wireguard-types = { path = "../../common/wireguard-types" }

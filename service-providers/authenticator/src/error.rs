@@ -16,20 +16,41 @@ pub enum AuthenticatorError {
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
+    #[error("received empty packet")]
+    EmptyPacket,
+
     #[error("failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,
 
     #[error("failed to connect to mixnet: {source}")]
     FailedToConnectToMixnet { source: nym_sdk::Error },
 
+    #[error("failed to deserialize tagged packet: {source}")]
+    FailedToDeserializeTaggedPacket { source: bincode::Error },
+
     #[error("failed to load configuration file: {0}")]
     FailedToLoadConfig(String),
+
+    #[error("failed to send packet to mixnet: {source}")]
+    FailedToSendPacketToMixnet { source: nym_sdk::Error },
+
+    #[error("failed to serialize response packet: {source}")]
+    FailedToSerializeResponsePacket { source: Box<bincode::ErrorKind> },
 
     #[error("failed to setup mixnet client: {source}")]
     FailedToSetupMixnetClient { source: nym_sdk::Error },
 
+    #[error("internal error: {0}")]
+    InternalError(String),
+
+    #[error("received packet has an invalid version: {0}")]
+    InvalidPacketVersion(u8),
+
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("no more space in the network")]
+    NoFreeIp,
 
     #[error(transparent)]
     NymIdError(#[from] NymIdError),

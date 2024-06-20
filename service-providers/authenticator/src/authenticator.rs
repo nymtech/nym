@@ -7,6 +7,7 @@ use futures::channel::oneshot;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_sdk::mixnet::Recipient;
 use nym_task::{TaskClient, TaskHandle};
+use nym_wireguard::WireguardGatewayData;
 
 use crate::{config::Config, error::AuthenticatorError};
 
@@ -99,11 +100,8 @@ impl Authenticator {
 
         let self_address = *mixnet_client.nym_address();
 
-        let mixnet_listener = crate::mixnet_listener::MixnetListener {
-            _config: self.config,
-            mixnet_client,
-            task_handle,
-        };
+        let mixnet_listener =
+            crate::mixnet_listener::MixnetListener::new(self.config, mixnet_client, task_handle);
 
         log::info!("The address of this client is: {self_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");

@@ -230,6 +230,7 @@ impl<St> Gateway<St> {
         shutdown: TaskClient,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(wireguard_data) = self.wireguard_data.take() {
+            let mut server = nym_authenticator::Authenticator::new(config);
             nym_wireguard::start_wireguard(shutdown, wireguard_data).await
         } else {
             Err(Box::new(GatewayError::WireguardNotSet))

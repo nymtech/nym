@@ -36,6 +36,7 @@ impl OnStartData {
 pub struct IpPacketRouter {
     #[allow(unused)]
     config: Config,
+
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
@@ -76,6 +77,12 @@ impl IpPacketRouter {
     #[allow(unused)]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    #[must_use]
+    pub fn with_minimum_gateway_performance(mut self, minimum_gateway_performance: u8) -> Self {
+        self.config.base.debug.topology.minimum_gateway_performance = minimum_gateway_performance;
         self
     }
 

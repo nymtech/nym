@@ -318,6 +318,7 @@ impl<St> Gateway<St> {
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_wait_for_gateway(true)
+            .with_minimum_gateway_performance(0)
             .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
@@ -382,6 +383,7 @@ impl<St> Gateway<St> {
                 .with_shutdown(shutdown)
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
+                .with_minimum_gateway_performance(0)
                 .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {

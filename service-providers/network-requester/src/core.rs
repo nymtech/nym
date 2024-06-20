@@ -222,6 +222,12 @@ impl NRServiceProviderBuilder {
     }
 
     #[must_use]
+    pub fn with_minimum_gateway_performance(mut self, minimum_gateway_performance: u8) -> Self {
+        self.config.base.debug.topology.minimum_gateway_performance = minimum_gateway_performance;
+        self
+    }
+
+    #[must_use]
     // this is a false positive, this method is actually called when used as a library
     // but clippy complains about it when building the binary
     #[allow(unused)]

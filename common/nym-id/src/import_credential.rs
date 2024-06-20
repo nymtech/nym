@@ -6,7 +6,7 @@ use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
 use nym_credentials::IssuedBandwidthCredential;
-use std::time::SystemTime;
+use time::OffsetDateTime;
 use tracing::{debug, warn};
 use zeroize::Zeroizing;
 
@@ -14,7 +14,7 @@ pub async fn import_credential<S>(
     credentials_store: S,
     raw_credential: Vec<u8>,
     credential_version: impl Into<Option<u8>>,
-) -> Result<Option<SystemTime>, NymIdError>
+) -> Result<Option<OffsetDateTime>, NymIdError>
 where
     S: Storage,
     <S as Storage>::StorageError: Send + Sync + 'static,
@@ -45,7 +45,7 @@ where
                     expiration: freepass_info.expiry_date(),
                 });
             } else {
-                Some(SystemTime::from(freepass_info.expiry_date()))
+                Some(freepass_info.expiry_date())
             }
         }
     };

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NetworkManagerError;
-use crate::helpers::{async_with_progress, wasm_code};
+use crate::helpers::{async_with_progress, default_storage_dir, wasm_code};
 use crate::manager::network::LoadedNetwork;
 use crate::manager::storage::NetworkManagerStorage;
 use bip39::rand::prelude::SliceRandom;
@@ -12,13 +12,14 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::cosmwasm_client::types::UploadResult;
 use nym_validator_client::nyxd::Config;
 use nym_validator_client::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use url::Url;
 use zeroize::Zeroizing;
 
 mod contract;
 mod dkg_skip;
 mod local_apis;
+mod local_nodes;
 pub(crate) mod network;
 mod network_init;
 pub(crate) mod storage;
@@ -64,6 +65,10 @@ impl NetworkManager {
             storage,
             rpc_endpoint,
         })
+    }
+
+    pub fn default_latest_env_file_path(&self) -> PathBuf {
+        default_storage_dir().join("latest.env")
     }
 
     #[allow(unused)]

@@ -11,6 +11,7 @@ license.workspace = true
 [dependencies]
 anyhow.workspace = true
 bip39.workspace = true
+bs58.workspace = true
 console = "0.15.8"
 cw-utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
@@ -38,6 +39,7 @@ dkg-bypass-contract = { path = "dkg-bypass-contract" }
 
 # contracts:
 nym-mixnet-contract-common = { path = "../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-vesting-contract-common = { path = "../../../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
 nym-ecash-contract-common = { path = "../../../common/cosmwasm-smart-contracts/ecash-contract" }

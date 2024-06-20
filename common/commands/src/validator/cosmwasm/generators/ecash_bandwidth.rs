@@ -18,6 +18,9 @@ pub struct Args {
     pub multisig_addr: Option<AccountId>,
 
     #[clap(long)]
+    pub holding_account: AccountId,
+
+    #[clap(long)]
     pub mix_denom: Option<String>,
 }
 
@@ -45,6 +48,7 @@ pub async fn generate(args: Args) {
     });
 
     let instantiate_msg = InstantiateMsg {
+        holding_account: args.holding_account.to_string(),
         group_addr: group_addr.to_string(),
         multisig_addr: multisig_addr.to_string(),
         mix_denom,

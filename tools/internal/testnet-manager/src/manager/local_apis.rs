@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkManagerError;
-use crate::helpers::{async_with_progress, ProgressTracker};
+use crate::helpers::{async_with_progress, ProgressTracker, RunCommands};
 use crate::manager::dkg_skip::EcashSignerWithPaths;
 use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
@@ -12,9 +12,7 @@ use nym_config::{
     must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_NYM_APIS_DIR, NYM_DIR,
 };
 use nym_pemstore::traits::PemStorableKey;
-use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::fmt::{Display, Formatter};
 use std::fs;
 use std::fs::File;
 use std::future::Future;
@@ -23,18 +21,6 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::Command;
 use zeroize::Zeroizing;
-
-#[derive(Serialize, Deserialize)]
-pub struct RunCommands(Vec<String>);
-
-impl Display for RunCommands {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for cmd in &self.0 {
-            writeln!(f, "{cmd}")?
-        }
-        Ok(())
-    }
-}
 
 // perform the same serialisation as the nym-api keys
 struct FakeDkgKey<'a> {
@@ -215,7 +201,7 @@ impl NetworkManager {
         Ok(())
     }
 
-    fn prepare_run_commands<P: AsRef<Path>>(
+    fn prepare_api_run_commands<P: AsRef<Path>>(
         &self,
         ctx: &LocalApisCtx,
         env_file: P,
@@ -231,17 +217,14 @@ impl NetworkManager {
             let id = ctx.signer_id(signer);
 
             cmds.push(format!(
-                "\tROCKET_PORT={port} {bin_canon_display} -c {env_canon_display} run --id {id}"
+                "ROCKET_PORT={port} {bin_canon_display} -c {env_canon_display} run --id {id}"
             ));
         }
         Ok(RunCommands(cmds))
     }
 
-    fn output_run_commands(&self, ctx: &LocalApisCtx, cmds: &RunCommands) {
-        ctx.println("🏇 run the apis with the following commands:");
-        for cmd in &cmds.0 {
-            ctx.println(cmd)
-        }
+    fn output_api_run_commands(&self, ctx: &LocalApisCtx, cmds: &RunCommands) {
+        ctx.progress.output_run_commands(cmds)
     }
 
     fn prepare_env_file<P: AsRef<Path>>(
@@ -252,13 +235,21 @@ impl NetworkManager {
         let base_env = ctx.network.to_env_file_section();
         let updated_env = format!("{base_env}NYM_API={}", ctx.signers[0].data.endpoint);
 
-        let env_file = env_file.as_ref();
-        if let Some(parent) = env_file.parent() {
+        let env_file_path = env_file.as_ref();
+        if let Some(parent) = env_file_path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        let mut env_file = File::create(env_file)?;
+        let latest = self.default_latest_env_file_path();
+        if fs::read_link(&latest).is_ok() {
+            fs::remove_file(&latest)?;
+        }
+
+        let mut env_file = File::create(env_file_path)?;
         env_file.write_all(updated_env.as_bytes())?;
+
+        // make symlink for usability purposes
+        std::os::unix::fs::symlink(env_file_path, &latest)?;
 
         Ok(())
     }
@@ -274,8 +265,8 @@ impl NetworkManager {
 
         self.initialise_apis(&ctx).await?;
         self.prepare_env_file(&ctx, &env_file)?;
-        let cmds = self.prepare_run_commands(&ctx, env_file)?;
-        self.output_run_commands(&ctx, &cmds);
+        let cmds = self.prepare_api_run_commands(&ctx, env_file)?;
+        self.output_api_run_commands(&ctx, &cmds);
 
         Ok(cmds)
     }

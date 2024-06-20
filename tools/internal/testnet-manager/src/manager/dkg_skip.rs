@@ -391,7 +391,7 @@ impl NetworkManager {
 
         let mut receivers = Vec::new();
         for signer in &ctx.ecash_signers {
-            // send 10nym to the admin
+            // send 101nym to the admin
             receivers.push((
                 signer.data.cosmos_account.address.clone(),
                 admin.mix_coins(101_000000),

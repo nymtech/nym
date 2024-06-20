@@ -78,6 +78,17 @@ pub enum NetworkManagerError {
     #[error("nym api initialisation returned non-zero return code")]
     NymApiExecutionFailure,
 
+    #[error("nym node initialisation returned non-zero return code")]
+    NymNodeExecutionFailure,
+
     #[error("failed to deserialise nym-api config: {0}")]
-    TomlDeserializationError(#[from] toml::de::Error),
+    TomlDeserialisationFailure(#[from] toml::de::Error),
+
+    #[error("failed to deserialise nym-node output: {0}")]
+    JsonDeserialisationFailure(#[from] serde_json::Error),
+
+    #[error(
+        "the corresponding env file hasn't been generated. you need to setup local apis first."
+    )]
+    EnvFileNotGenerated,
 }

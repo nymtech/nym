@@ -1,19 +1,19 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::cli::CommonArgs;
 use crate::error::NetworkManagerError;
-use crate::helpers::{default_db_file, default_storage_dir};
-use crate::manager::NetworkManager;
+use crate::helpers::default_storage_dir;
 use std::path::PathBuf;
 use url::Url;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
-    #[clap(long)]
-    signer_data_output_directory: Option<PathBuf>,
+    #[clap(flatten)]
+    common: CommonArgs,
 
     #[clap(long)]
-    storage_path: Option<PathBuf>,
+    signer_data_output_directory: Option<PathBuf>,
 
     #[clap(long)]
     network_name: Option<String>,
@@ -28,9 +28,7 @@ pub(crate) struct Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), NetworkManagerError> {
-    let storage_dir = args.storage_path.unwrap_or_else(default_db_file);
-
-    let manager = NetworkManager::new(&storage_dir, None, None).await?;
+    let manager = args.common.network_manager().await?;
     let network = manager.load_existing_network(args.network_name).await?;
 
     let signer_data_output_directory = if let Some(explicit) = args.signer_data_output_directory {

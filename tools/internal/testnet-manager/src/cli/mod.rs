@@ -1,9 +1,13 @@
+use std::path::PathBuf;
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 use crate::error::NetworkManagerError;
+use crate::helpers::default_db_file;
+use crate::manager::NetworkManager;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
 use std::sync::OnceLock;
+use url::Url;
 
 mod build_info;
 mod bypass_dkg;
@@ -11,6 +15,26 @@ mod initialise_new_network;
 mod initialise_post_dkg_network;
 mod load_network_details;
 mod local_ecash_apis;
+mod local_nodes;
+
+#[derive(clap::Args, Debug)]
+pub(crate) struct CommonArgs {
+    #[clap(long)]
+    master_mnemonic: Option<bip39::Mnemonic>,
+
+    #[clap(long)]
+    rpc_endpoint: Option<Url>,
+
+    #[clap(long)]
+    storage_path: Option<PathBuf>,
+}
+
+impl CommonArgs {
+    pub(crate) async fn network_manager(self) -> Result<NetworkManager, NetworkManagerError> {
+        let storage = self.storage_path.unwrap_or_else(default_db_file);
+        NetworkManager::new(storage, self.master_mnemonic, self.rpc_endpoint).await
+    }
+}
 
 // Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
@@ -36,6 +60,7 @@ impl Cli {
                 initialise_post_dkg_network::execute(args).await
             }
             Commands::CreateLocalEcashApis(args) => local_ecash_apis::execute(args).await,
+            Commands::BondLocalMixnet(args) => local_nodes::execute(args).await,
         }
     }
 }
@@ -60,6 +85,9 @@ pub(crate) enum Commands {
 
     /// Attempt to create brand new network, in post DKG-state, using locally running nym-apis
     CreateLocalEcashApis(local_ecash_apis::Args),
+
+    /// Attempt to bond minimal local mixnet (3 mixnodes + 1 gateways) and output the run commands
+    BondLocalMixnet(local_nodes::Args),
 }
 
 #[cfg(test)]

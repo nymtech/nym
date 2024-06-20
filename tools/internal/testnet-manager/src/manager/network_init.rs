@@ -138,6 +138,7 @@ impl NetworkManager {
     fn mixnet_init_message(
         &self,
         ctx: &InitCtx,
+        custom_epoch_duration: Option<Duration>,
     ) -> Result<nym_mixnet_contract_common::InstantiateMsg, NetworkManagerError> {
         Ok(nym_mixnet_contract_common::InstantiateMsg {
             rewarding_validator_address: ctx
@@ -156,7 +157,7 @@ impl NetworkManager {
             // PLACEHOLDER /\
             rewarding_denom: ctx.admin.mix_coin(0).denom,
             epochs_in_interval: 720,
-            epoch_duration: Duration::from_secs(60 * 60),
+            epoch_duration: custom_epoch_duration.unwrap_or(Duration::from_secs(60 * 60)),
             initial_rewarding_params: InitialRewardingParams {
                 initial_reward_pool: Decimal::from_atomics(250_000_000_000_000u128, 0).unwrap(),
                 initial_staking_supply: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
@@ -385,6 +386,12 @@ impl NetworkManager {
             receivers.push((contract.admin()?.address(), ctx.admin.mix_coins(10_000000)))
         }
 
+        // also send them to the rewarder
+        receivers.push((
+            ctx.network.auxiliary_addresses.mixnet_rewarder.address(),
+            ctx.admin.mix_coins(10_000000),
+        ));
+
         ctx.set_pb_message("attempting to send admin tokens...");
 
         let send_future =
@@ -400,7 +407,11 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn instantiate_contracts(&self, ctx: &mut InitCtx) -> Result<(), NetworkManagerError> {
+    async fn instantiate_contracts(
+        &self,
+        ctx: &mut InitCtx,
+        custom_epoch_duration: Option<Duration>,
+    ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "💽 {}Instantiating all the contracts...",
             style("[5/8]").bold().dim()
@@ -414,7 +425,7 @@ impl NetworkManager {
         let code_id = ctx.network.contracts.mixnet.upload_info()?.code_id;
         let admin = ctx.network.contracts.mixnet.admin()?.address.clone();
         ctx.set_pb_message(format!("attempting to instantiate {name} contract..."));
-        let init_msg = self.mixnet_init_message(ctx)?;
+        let init_msg = self.mixnet_init_message(ctx, custom_epoch_duration)?;
         let init_fut = ctx.admin.instantiate(
             code_id,
             &init_msg,
@@ -685,6 +696,7 @@ impl NetworkManager {
         &self,
         contracts: P,
         network_name: Option<String>,
+        custom_epoch_duration: Option<Duration>,
     ) -> Result<Network, NetworkManagerError> {
         let network_name = self.get_network_name(network_name);
         let mut ctx = InitCtx::new(network_name, self.admin.deref().clone(), &self.rpc_endpoint)?;
@@ -693,7 +705,8 @@ impl NetworkManager {
         self.upload_contracts(&mut ctx).await?;
         self.create_contract_admins_mnemonics(&mut ctx)?;
         self.transfer_admin_tokens(&ctx).await?;
-        self.instantiate_contracts(&mut ctx).await?;
+        self.instantiate_contracts(&mut ctx, custom_epoch_duration)
+            .await?;
         self.perform_final_migrations(&mut ctx).await?;
         self.get_build_info(&mut ctx).await?;
         self.persist_in_database(&ctx).await?;

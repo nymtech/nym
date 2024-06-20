@@ -8736,6 +8736,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bip39",
+ "bs58 0.5.1",
  "clap 4.5.7",
  "console",
  "cw-utils",
@@ -8745,6 +8746,7 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-contracts-common",
  "nym-crypto",
  "nym-ecash-contract-common",
  "nym-group-contract-common",

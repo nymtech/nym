@@ -4,13 +4,27 @@
 use crate::error::NetworkManagerError;
 use indicatif::{HumanDuration, ProgressBar};
 use nym_config::{must_get_home, NYM_DIR};
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::fmt::{Display, Formatter};
 use std::future::Future;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tokio::pin;
 use tokio::time::interval;
+
+#[derive(Serialize, Deserialize)]
+pub struct RunCommands(pub(crate) Vec<String>);
+
+impl Display for RunCommands {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for cmd in &self.0 {
+            writeln!(f, "{cmd}")?
+        }
+        Ok(())
+    }
+}
 
 pub(crate) struct ProgressTracker {
     start: Instant,
@@ -38,6 +52,13 @@ impl ProgressTracker {
 
     pub(crate) fn set_pb_message(&self, msg: impl Into<Cow<'static, str>>) {
         self.progress_bar.set_message(msg)
+    }
+
+    pub(crate) fn output_run_commands(&self, cmds: &RunCommands) {
+        self.println("🏇 run the binaries with the following commands:");
+        for cmd in &cmds.0 {
+            self.println(cmd)
+        }
     }
 }
 

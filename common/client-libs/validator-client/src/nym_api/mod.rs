@@ -4,6 +4,7 @@
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
+use log::info;
 pub use nym_api_requests::{
     coconut::{
         models::{
@@ -100,7 +101,9 @@ pub trait NymApiClientExt: ApiClient {
         &self,
         semver_compatibility: Option<String>,
     ) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
+        info!("attempting to query the mixnodes/skimmed endpoint");
         let params = if let Some(semver_compatibility) = &semver_compatibility {
+            info!("attaching semver_compatibility param");
             vec![("semver_compatibility", semver_compatibility.as_str())]
         } else {
             vec![]

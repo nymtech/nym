@@ -3,13 +3,13 @@
 
 use async_trait::async_trait;
 use reqwest::header::HeaderValue;
-use reqwest::{RequestBuilder, Response, StatusCode};
+use reqwest::{Error, RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::warn;
+use tracing::{error, info, warn};
 use url::Url;
 
 pub use reqwest::IntoUrl;
@@ -207,6 +207,7 @@ impl Client {
         E: Display,
     {
         let url = sanitize_url(&self.base_url, path, params);
+        info!("sanitised the request url into {url}");
 
         #[cfg(target_arch = "wasm32")]
         {
@@ -222,7 +223,19 @@ impl Client {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            Ok(self.reqwest_client.get(url).send().await?)
+            let req = self.reqwest_client.get(url);
+            match req.send().await {
+                Ok(response) => {
+                    info!("request was succesfull");
+                    Ok(response)
+                }
+                Err(err) => {
+                    error!("request failed: {err}");
+                    error!("url: {:?}", err.url());
+                    error!("status code: {:?}", err.status());
+                    Err(err.into())
+                }
+            }
         }
     }
 
@@ -282,6 +295,7 @@ impl Client {
         V: AsRef<str>,
         E: Display + DeserializeOwned,
     {
+        info!("attempting to send the get request");
         let res = self.send_get_request(path, params).await?;
         parse_response(res, false).await
     }

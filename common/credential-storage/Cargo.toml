@@ -11,17 +11,19 @@ async-trait = { workspace = true }
 
 log = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["sync"]}
+tokio = { workspace = true, features = ["sync"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
+
+nym-ecash-time = { path = "../ecash-time" }
 
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 workspace = true
-features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true
-features = [ "rt-multi-thread", "net", "signal", "fs" ]
+features = ["rt-multi-thread", "net", "signal", "fs"]
 
 
 [build-dependencies]

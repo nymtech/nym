@@ -3,6 +3,7 @@
 
 use crate::models::CoinIndicesSignature;
 use crate::models::StoredIssuedCredential;
+use nym_ecash_time::{ecash_today, OffsetDateTime};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -37,6 +38,7 @@ impl CoconutCredentialManager {
     pub async fn insert_issued_credential(
         &self,
         serialization_revision: u8,
+        expiration_date: OffsetDateTime,
         credential_data: &[u8],
         epoch_id: u32,
     ) {
@@ -46,27 +48,35 @@ impl CoconutCredentialManager {
             id,
             serialization_revision,
             credential_data: credential_data.to_vec(),
+            expiration_date,
             epoch_id,
-            expired: false,
             consumed: false,
         })
     }
 
     /// Tries to retrieve one of the stored, unused credentials.
     pub async fn get_next_unspent_ticketbook(&self) -> Option<StoredIssuedCredential> {
+        let deadline = ecash_today();
         let guard = self.inner.read().await;
         for credential in guard.credentials.iter() {
-            if !credential.consumed && !credential.expired {
+            if !credential.consumed && credential.expiration_date <= deadline {
                 return Some(credential.clone());
             }
         }
         None
     }
 
-    pub async fn update_issued_credential(&self, credential_data: &[u8], id: i64, consumed: bool) {
+    pub async fn update_issued_credential(
+        &self,
+        serialisation_revision: u8,
+        updated_data: &[u8],
+        id: i64,
+        consumed: bool,
+    ) {
         let mut guard = self.inner.write().await;
         if let Some(cred) = guard.credentials.get_mut(id as usize) {
-            cred.credential_data = credential_data.to_vec();
+            cred.serialization_revision = serialisation_revision;
+            cred.credential_data = updated_data.to_vec();
             cred.consumed = consumed;
         }
     }
@@ -110,17 +120,5 @@ impl CoconutCredentialManager {
             .iter()
             .find(|s| s.epoch_id == epoch_id)
             .cloned()
-    }
-
-    /// Marks the specified credential as expired
-    ///
-    /// # Arguments
-    ///
-    /// * `id`: Id of the credential to mark as expired.
-    pub async fn mark_expired(&self, id: i64) {
-        let mut creds = self.inner.write().await;
-        if let Some(cred) = creds.credentials.get_mut(id as usize) {
-            cred.expired = true;
-        }
     }
 }

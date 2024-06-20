@@ -3,6 +3,7 @@
 
 use crate::models::CoinIndicesSignature;
 use crate::models::StoredIssuedCredential;
+use sqlx::types::time::OffsetDateTime;
 
 #[derive(Clone)]
 pub struct CoconutCredentialManager {
@@ -22,62 +23,52 @@ impl CoconutCredentialManager {
     pub async fn insert_issued_credential(
         &self,
         serialization_revision: u8,
+        expiration_date: OffsetDateTime,
         credential_data: &[u8],
         epoch_id: u32,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO ecash_credentials(serialization_revision, credential_data, epoch_id, expired, consumed)
-                VALUES (?, ?, ?, false, false)
+                INSERT INTO ecash_credentials(serialization_revision, expiration_date, credential_data, epoch_id, consumed)
+                VALUES (?, ?, ?, ?, false)
             "#,
-            serialization_revision, credential_data, epoch_id
+            serialization_revision, expiration_date, credential_data, epoch_id
         ).execute(&self.connection_pool).await?;
         Ok(())
     }
 
     pub async fn get_next_unspent_ticketbook(
         &self,
+        deadline: OffsetDateTime,
     ) -> Result<Option<StoredIssuedCredential>, sqlx::Error> {
         // get a credential of bandwidth voucher type
         sqlx::query_as(
             r#"
                 SELECT * 
                 FROM ecash_credentials
-                WHERE credential_type == "TicketBook"
-                AND expired = false
-                AND consumed = false
+                WHERE consumed = false
+                AND expiration_date >= ?
                 ORDER BY id ASC
                 LIMIT 1
             "#,
         )
+        .bind(deadline)
         .fetch_optional(&self.connection_pool)
         .await
     }
 
     pub async fn update_issued_credential(
         &self,
-        credential_data: &[u8],
+        serialisation_revision: u8,
+        updated_data: &[u8],
         id: i64,
         consumed: bool,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "UPDATE ecash_credentials SET credential_data = ?, consumed = ? WHERE id = ?",
-            credential_data,
+            "UPDATE ecash_credentials SET serialization_revision = ?, credential_data = ?, consumed = ? WHERE id = ?",
+            serialisation_revision,
+            updated_data,
             consumed,
-            id
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-    /// Marks the specified credential as expired
-    ///
-    /// # Arguments
-    ///
-    /// * `id`: Id of the credential to mark as expired.
-    pub async fn mark_expired(&self, id: i64) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE ecash_credentials SET expired = TRUE WHERE id = ?",
             id
         )
         .execute(&self.connection_pool)

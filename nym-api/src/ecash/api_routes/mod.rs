@@ -7,8 +7,8 @@ use crate::ecash::helpers::blind_sign;
 use crate::ecash::state::State;
 use crate::ecash::storage::CoconutStorageExt;
 use nym_api_requests::coconut::models::{
-    BatchRedeemTicketsBody, EcachBatchTicketRedemptionResponse, EcachTicketVerificationRejection,
-    EcachTicketVerificationResponse, SpentCredentialsResponse, VerifyEcashTicketBody,
+    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationRejection,
+    EcashTicketVerificationResponse, SpentCredentialsResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::coconut::models::{
     CredentialsRequestBody, EpochCredentialsResponse, IssuedCredentialResponse,
@@ -114,19 +114,19 @@ pub async fn post_blind_sign(
 }
 
 fn reject_ticket(
-    reason: EcachTicketVerificationRejection,
-) -> Result<Json<EcachTicketVerificationResponse>> {
-    Ok(Json(EcachTicketVerificationResponse::reject(reason)))
+    reason: EcashTicketVerificationRejection,
+) -> Result<Json<EcashTicketVerificationResponse>> {
+    Ok(Json(EcashTicketVerificationResponse::reject(reason)))
 }
 
 // TODO: optimise it; for now it's just dummy split of the original `verify_offline_credential`
 // introduce bloomfilter checks without touching storage first, etc.
-#[post("/verify-ecach-ticket", data = "<verify_ticket_body>")]
+#[post("/verify-ecash-ticket", data = "<verify_ticket_body>")]
 pub async fn verify_ticket(
     // TODO in the future: make it send binary data rather than json
     verify_ticket_body: Json<VerifyEcashTicketBody>,
     state: &RocketState<State>,
-) -> Result<Json<EcachTicketVerificationResponse>> {
+) -> Result<Json<EcashTicketVerificationResponse>> {
     let credential_data = &verify_ticket_body.credential;
     let gateway_cosmos_addr = &verify_ticket_body.gateway_cosmos_addr;
     let sn = &credential_data.serial_number_b58();
@@ -145,7 +145,7 @@ pub async fn verify_ticket(
     let yesterday_date = today_date.replace_date(today_date.date().previous_day().unwrap());
 
     if today_date != spend_date && yesterday_date != spend_date {
-        return reject_ticket(EcachTicketVerificationRejection::InvalidSpentDate {
+        return reject_ticket(EcashTicketVerificationRejection::InvalidSpentDate {
             today: today_date,
             yesterday: yesterday_date,
             received: spend_date,
@@ -171,7 +171,7 @@ pub async fn verify_ticket(
             IdentifyResult::NotADuplicatePayment => {} //SW NOTE This should never happen, quick message?
             IdentifyResult::DuplicatePayInfo(_) => {
                 log::warn!("Identical payInfo");
-                return reject_ticket(EcachTicketVerificationRejection::ReplayedTicket);
+                return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
             }
             IdentifyResult::DoubleSpendingPublicKeys(pub_key) => {
                 //Actual double spending
@@ -180,14 +180,14 @@ pub async fn verify_ticket(
                     pub_key.to_base58_string()
                 );
                 // todo!("blacklisting");
-                return reject_ticket(EcachTicketVerificationRejection::DoubleSpend);
+                return reject_ticket(EcashTicketVerificationRejection::DoubleSpend);
             }
         }
     }
 
     // perform actual crypto verification
     if credential_data.verify(&verification_key).is_err() {
-        return reject_ticket(EcachTicketVerificationRejection::InvalidTicket);
+        return reject_ticket(EcashTicketVerificationRejection::InvalidTicket);
     }
 
     //add to bloom filter for fast dup detection
@@ -198,7 +198,7 @@ pub async fn verify_ticket(
         .store_verified_credential(credential_data, gateway_cosmos_addr)
         .await?;
 
-    Ok(Json(EcachTicketVerificationResponse { verified: Ok(()) }))
+    Ok(Json(EcashTicketVerificationResponse { verified: Ok(()) }))
 }
 //
 // #[post("/verify-offline-credential", data = "<verify_credential_body>")]
@@ -294,7 +294,7 @@ pub async fn batch_redeem_tickets(
     // TODO in the future: make it send binary data rather than json
     batch_redeem_credentials_body: Json<BatchRedeemTicketsBody>,
     state: &RocketState<State>,
-) -> Result<Json<EcachBatchTicketRedemptionResponse>> {
+) -> Result<Json<EcashBatchTicketRedemptionResponse>> {
     // 1. verify the digest
     if !batch_redeem_credentials_body.verify_digest() {
         return Err(EcashError::MismatchedRequestDigest);
@@ -326,7 +326,7 @@ pub async fn batch_redeem_tickets(
 
     // TODO: offload it to separate task with work queue and batching (of tx messages) to vote for multiple proposals in the same tx
     state.accept_proposal(proposal_id).await?;
-    Ok(Json(EcachBatchTicketRedemptionResponse {
+    Ok(Json(EcashBatchTicketRedemptionResponse {
         proposal_accepted: true,
     }))
 }

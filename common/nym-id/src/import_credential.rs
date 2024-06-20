@@ -46,6 +46,7 @@ where
     let storable = StorableIssuedCredential {
         serialization_revision: credential.current_serialization_revision(),
         credential_data: &raw_credential,
+        expiration_date: credential.expiration_date(),
         epoch_id: credential
             .epoch_id()
             .try_into()

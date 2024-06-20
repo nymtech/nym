@@ -5,7 +5,7 @@ use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
 use nym_api_requests::coconut::models::{
-    BatchRedeemTicketsBody, EcachBatchTicketRedemptionResponse, EcachTicketVerificationResponse,
+    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
     VerifyEcashTicketBody,
 };
 use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
@@ -443,7 +443,7 @@ pub trait NymApiClientExt: ApiClient {
     async fn verify_ecash_ticket(
         &self,
         request_body: &VerifyEcashTicketBody,
-    ) -> Result<EcachTicketVerificationResponse, NymAPIError> {
+    ) -> Result<EcashTicketVerificationResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
@@ -460,7 +460,7 @@ pub trait NymApiClientExt: ApiClient {
     async fn batch_redeem_ecash_tickets(
         &self,
         request_body: &BatchRedeemTicketsBody,
-    ) -> Result<EcachBatchTicketRedemptionResponse, NymAPIError> {
+    ) -> Result<EcashBatchTicketRedemptionResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,

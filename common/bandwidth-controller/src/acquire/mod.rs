@@ -46,7 +46,7 @@ where
     Ok(state)
 }
 
-pub async fn get_bandwidth_voucher<C, St>(
+pub async fn get_ticket_book<C, St>(
     state: &State,
     client: &C,
     storage: &St,
@@ -108,6 +108,7 @@ where
     let storable = StorableIssuedCredential {
         serialization_revision: issued.current_serialization_revision(),
         credential_data: credential_data.as_ref(),
+        expiration_date: state.voucher.expiration_date(),
         epoch_id: epoch_id
             .try_into()
             .expect("our epoch id has run over u32::MAX!"),

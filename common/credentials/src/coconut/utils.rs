@@ -6,32 +6,13 @@ use crate::error::Error;
 use log::{debug, warn};
 use nym_credentials_interface::{
     aggregate_expiration_signatures, aggregate_indices_signatures, aggregate_verification_keys,
-    constants, Base58, CoinIndexSignature, CoinIndexSignatureShare, ExpirationDateSignature,
+    Base58, CoinIndexSignature, CoinIndexSignatureShare, ExpirationDateSignature,
     ExpirationDateSignatureShare, VerificationKeyAuth, Wallet,
 };
 use nym_validator_client::client::CoconutApiClient;
-use time::{Duration, OffsetDateTime, Time};
 
-pub fn ecash_today() -> OffsetDateTime {
-    let now_utc = OffsetDateTime::now_utc();
-    now_utc.replace_time(Time::MIDNIGHT)
-}
-
-// no point in supporting more than i8 variance
-pub fn ecash_date_offset(offset: i8) -> OffsetDateTime {
-    let today = ecash_today();
-
-    let day = today + Duration::days(offset as i64);
-
-    // make sure to correct the time in case of DST
-    day.replace_time(Time::MIDNIGHT)
-}
-
-pub fn cred_exp_date() -> OffsetDateTime {
-    //count today as well
-    ecash_date_offset(constants::CRED_VALIDITY_PERIOD_DAYS as i8 - 1)
-    // ecash_today() + Duration::days(constants::CRED_VALIDITY_PERIOD_DAYS as i64 - 1)
-}
+// so we wouldn't break all the existing imports
+pub use nym_ecash_time::{cred_exp_date, ecash_date_offset, ecash_today};
 
 // TODO: obtain it directly from some API instead
 #[deprecated]

@@ -106,10 +106,26 @@ pub trait CoconutStorageManagerExt {
         proposal_id: i64,
     ) -> Result<(), sqlx::Error>;
 
-    async fn get_credential(
+    async fn insert_ticket_provider(&self, gateway_address: &str) -> Result<i64, sqlx::Error>;
+
+    async fn get_ticket_provider_id(
         &self,
-        serial_number: String,
+        gateway_address: &str,
+    ) -> Result<Option<i64>, sqlx::Error>;
+
+    async fn insert_verified_ticket(
+        &self,
+        provider_id: i64,
+        ticket_data: Vec<u8>,
+        serial_number: Vec<u8>,
+    ) -> Result<(), sqlx::Error>;
+
+    async fn get_ticket(
+        &self,
+        serial_number: Vec<u8>,
     ) -> Result<Option<SpentCredential>, sqlx::Error>;
+
+    // async fn get_provider_ticket_serial_numbers(&self, provider_id: i64,)
 }
 
 #[async_trait]
@@ -365,42 +381,36 @@ impl CoconutStorageManagerExt for StorageManager {
             .await
     }
 
-    /// Creates new credential entry for a given gateway addr.
-    ///
-    /// # Arguments
-    ///
-    /// * `credential_bs58`: base58 repr of a credential.
-    /// * `gateway_addr`: cosmos address of the gateway
-    async fn insert_credential(
+    async fn insert_verified_ticket(
         &self,
-        credential_bs58: String,
+        ticket_data: Vec<u8>,
         serial_number: String,
         gateway_addr: String,
-        proposal_id: i64,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "INSERT INTO spent_credentials(credential_bs58, serial_number, gateway_address, proposal_id) VALUES (?, ?, ?, ?)",
-            credential_bs58,
-            serial_number,
-            gateway_addr,
-            proposal_id,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     "INSERT INTO verified_tickets(ticket_data, serial_number, gateway_address) VALUES (?, ?, ?)",
+        //     ticket_data,
+        //     serial_number,
+        //     gateway_addr,
+        // )
+        //     .execute(&self.connection_pool)
+        //     .await?;
+        // Ok(())
     }
 
     async fn get_credential(
         &self,
         serial_number: String,
     ) -> Result<Option<SpentCredential>, sqlx::Error> {
-        sqlx::query_as!(
-            SpentCredential,
-            "SELECT credential_bs58 from spent_credentials where serial_number = ?",
-            serial_number,
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
+        todo!()
+        // sqlx::query_as!(
+        //     SpentCredential,
+        //     "SELECT credential_bs58 from spent_credentials where serial_number = ?",
+        //     serial_number,
+        // )
+        // .fetch_optional(&self.connection_pool)
+        // .await
     }
 }
 

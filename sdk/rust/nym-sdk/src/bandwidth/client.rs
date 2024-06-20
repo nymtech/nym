@@ -59,7 +59,7 @@ where
         let state =
             nym_bandwidth_controller::acquire::deposit(&self.client, self.client_id.as_bytes())
                 .await?;
-        nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, &self.client, self.storage)
+        nym_bandwidth_controller::acquire::get_ticket_book(&state, &self.client, self.storage)
             .await
             .map_err(|reason| Error::UnconvertedDeposit {
                 reason,
@@ -73,12 +73,8 @@ where
         let voucher = IssuanceTicketBook::try_from_recovered_bytes(voucher_blob)
             .map_err(|_| Error::InvalidVoucherBlob)?;
         let state = State::new(voucher);
-        nym_bandwidth_controller::acquire::get_bandwidth_voucher(
-            &state,
-            &self.client,
-            self.storage,
-        )
-        .await?;
+        nym_bandwidth_controller::acquire::get_ticket_book(&state, &self.client, self.storage)
+            .await?;
 
         Ok(())
     }

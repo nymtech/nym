@@ -9,7 +9,7 @@ use crate::{
     ReqwestRpcClient, ValidatorClientError,
 };
 use nym_api_requests::coconut::models::{
-    BatchRedeemTicketsBody, EcachBatchTicketRedemptionResponse, EcachTicketVerificationResponse,
+    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
     SpentCredentialsResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::coconut::{
@@ -370,14 +370,14 @@ impl NymApiClient {
     pub async fn verify_ecash_ticket(
         &self,
         request_body: &VerifyEcashTicketBody,
-    ) -> Result<EcachTicketVerificationResponse, ValidatorClientError> {
+    ) -> Result<EcashTicketVerificationResponse, ValidatorClientError> {
         Ok(self.nym_api.verify_ecash_ticket(request_body).await?)
     }
 
     pub async fn batch_redeem_ecash_tickets(
         &self,
         request_body: &BatchRedeemTicketsBody,
-    ) -> Result<EcachBatchTicketRedemptionResponse, ValidatorClientError> {
+    ) -> Result<EcashBatchTicketRedemptionResponse, ValidatorClientError> {
         Ok(self
             .nym_api
             .batch_redeem_ecash_tickets(request_body)

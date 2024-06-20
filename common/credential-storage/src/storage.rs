@@ -17,7 +17,7 @@ pub trait Storage: Send + Sync {
 
     /// Tries to retrieve one of the stored, unused credentials,
     /// that is also not marked as expired
-    async fn get_next_unspent_credential(
+    async fn get_next_unspent_usable_credential(
         &self,
     ) -> Result<Option<StoredIssuedCredential>, Self::StorageError>;
 
@@ -25,13 +25,15 @@ pub trait Storage: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `bandwidth_credential` : New credential
+    /// * `serialisation_revision`: the serialisation revision used for storing the data
+    /// * `updated_data` : New credential data
     /// * `id`: Id of the credential to be updated.
     /// * `consumed`: if the credential is consumed or not
     ///
-    async fn update_issued_credential<'a>(
+    async fn update_issued_credential(
         &self,
-        bandwidth_credential: StorableIssuedCredential<'a>,
+        serialisation_revision: u8,
+        updated_data: &[u8],
         id: i64,
         consumed: bool,
     ) -> Result<(), Self::StorageError>;
@@ -64,10 +66,4 @@ pub trait Storage: Send + Sync {
         &self,
         epoch_id: i64,
     ) -> Result<CoinIndicesSignature, Self::StorageError>;
-    /// Marks the specified credential as expired
-    ///
-    /// # Arguments
-    ///
-    /// * `id`: Id of the credential to mark as expired.
-    async fn mark_expired(&self, id: i64) -> Result<(), Self::StorageError>;
 }

@@ -241,6 +241,7 @@ impl NymEcashContract<'_> {
             .set_data(deposit_id.to_be_bytes()))
     }
 
+    #[msg(exec)]
     pub fn request_redemption(
         &self,
         ctx: ExecCtx,

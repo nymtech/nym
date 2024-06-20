@@ -4680,6 +4680,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "log",
+ "nym-ecash-time",
  "sqlx",
  "thiserror",
  "tokio",
@@ -4714,6 +4715,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-contract-common",
+ "nym-ecash-time",
  "nym-network-defaults",
  "nym-validator-client",
  "rand 0.8.5",
@@ -4796,6 +4798,14 @@ dependencies = [
  "cw2",
  "nym-multisig-contract-common",
  "thiserror",
+]
+
+[[package]]
+name = "nym-ecash-time"
+version = "0.1.0"
+dependencies = [
+ "nym-compact-ecash",
+ "time",
 ]
 
 [[package]]

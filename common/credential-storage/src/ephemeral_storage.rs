@@ -43,6 +43,7 @@ impl Storage for EphemeralStorage {
         self.coconut_credential_manager
             .insert_issued_credential(
                 bandwidth_credential.serialization_revision,
+                bandwidth_credential.expiration_date,
                 bandwidth_credential.credential_data,
                 bandwidth_credential.epoch_id,
             )
@@ -50,7 +51,7 @@ impl Storage for EphemeralStorage {
         Ok(())
     }
 
-    async fn get_next_unspent_credential(
+    async fn get_next_unspent_usable_credential(
         &self,
     ) -> Result<Option<StoredIssuedCredential>, Self::StorageError> {
         Ok(self
@@ -59,14 +60,15 @@ impl Storage for EphemeralStorage {
             .await)
     }
 
-    async fn update_issued_credential<'a>(
+    async fn update_issued_credential(
         &self,
-        bandwidth_credential: StorableIssuedCredential<'a>,
+        serialisation_revision: u8,
+        updated_data: &[u8],
         id: i64,
         consumed: bool,
     ) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .update_issued_credential(bandwidth_credential.credential_data, id, consumed)
+            .update_issued_credential(serialisation_revision, updated_data, id, consumed)
             .await;
         Ok(())
     }
@@ -97,11 +99,5 @@ impl Storage for EphemeralStorage {
             .get_coin_indices_sig(epoch_id)
             .await
             .ok_or(StorageError::NoSignatures { epoch_id })
-    }
-
-    async fn mark_expired(&self, id: i64) -> Result<(), Self::StorageError> {
-        self.coconut_credential_manager.mark_expired(id).await;
-
-        Ok(())
     }
 }

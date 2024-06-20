@@ -8,7 +8,7 @@ use futures::channel::mpsc::UnboundedReceiver;
 use futures::StreamExt;
 use log::{debug, error, warn};
 use nym_api_requests::coconut::models::{
-    BatchRedeemTicketsBody, EcachTicketVerificationRejection, VerifyEcashTicketBody,
+    BatchRedeemTicketsBody, EcashTicketVerificationRejection, VerifyEcashTicketBody,
 };
 use nym_api_requests::coconut::VerifyEcashCredentialBody;
 use nym_gateway_requests::models::CredentialSpendingRequest;

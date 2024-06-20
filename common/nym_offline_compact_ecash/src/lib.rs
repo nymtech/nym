@@ -44,13 +44,13 @@ pub mod utils;
 pub type Attribute = Scalar;
 
 pub fn ecash_parameters() -> &'static setup::Parameters {
-    static ECACH_PARAMS: OnceLock<setup::Parameters> = OnceLock::new();
-    ECACH_PARAMS.get_or_init(|| setup::Parameters::new(constants::NB_TICKETS))
+    static ECASH_PARAMS: OnceLock<setup::Parameters> = OnceLock::new();
+    ECASH_PARAMS.get_or_init(|| setup::Parameters::new(constants::NB_TICKETS))
 }
 
 pub fn ecash_group_parameters() -> &'static setup::GroupParameters {
-    static ECACH_PARAMS: OnceLock<setup::GroupParameters> = OnceLock::new();
-    ECACH_PARAMS.get_or_init(|| setup::GroupParameters::new(constants::ATTRIBUTES_LEN))
+    static ECASH_PARAMS: OnceLock<setup::GroupParameters> = OnceLock::new();
+    ECASH_PARAMS.get_or_init(|| setup::GroupParameters::new(constants::ATTRIBUTES_LEN))
 }
 
 // if anything changes here you MUST correctly increase semver of this library

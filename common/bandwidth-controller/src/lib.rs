@@ -67,7 +67,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         loop {
             let Some(maybe_next) = self
                 .storage
-                .get_next_unspent_credential()
+                .get_next_unspent_usable_credential()
                 .await
                 .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?
             else {
@@ -76,23 +76,10 @@ impl<C, St: Storage> BandwidthController<C, St> {
             let id = maybe_next.id;
 
             // try to deserialize it
-            let valid_credential = match stored_credential_to_issued_bandwidth(maybe_next) {
-                // check if it has already expired
-                Ok(credential) => {
-                    if credential.expired() {
-                        warn!("the credential (id: {id}) has already expired! The expiration was set to {}", credential.expiration_date());
-                        self.storage.mark_expired(id).await.map_err(|err| {
-                            BandwidthControllerError::CredentialStorageError(Box::new(err))
-                        })?;
-                        continue;
-                    }
-                    credential
-                }
-                Err(err) => {
-                    error!("failed to deserialize credential with id {id}: {err}. it may need to be manually removed from the storage");
-                    return Err(err);
-                }
-            };
+            let valid_credential = stored_credential_to_issued_bandwidth(maybe_next).inspect_err(|err| {
+                error!("failed to deserialize credential with id {id}: {err}. it may need to be manually removed from the storage");
+            })?;
+
             return Ok(RetrievedCredential {
                 credential: valid_credential,
                 credential_id: id,
@@ -201,19 +188,18 @@ impl<C, St: Storage> BandwidthController<C, St> {
         // consume it?
         let consumed = credential.wallet().tickets_spent() >= constants::NB_TICKETS;
 
+        error!("unimplemented: changed consumed into NUMBER of tickets");
+
         // make sure the data gets zeroized after persisting it
         let credential_data = Zeroizing::new(credential.pack_v1());
-        let storable = StorableIssuedCredential {
-            serialization_revision: credential.current_serialization_revision(),
-            credential_data: credential_data.as_ref(),
-            epoch_id: credential
-                .epoch_id()
-                .try_into()
-                .expect("our epoch is has run over u32::MAX!"),
-        };
 
         self.storage
-            .update_issued_credential(storable, id, consumed)
+            .update_issued_credential(
+                credential.current_serialization_revision(),
+                credential_data.as_ref(),
+                id,
+                consumed,
+            )
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))
     }

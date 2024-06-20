@@ -51,20 +51,20 @@ impl VerifyEcashCredentialBody {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EcachTicketVerificationResponse {
-    pub verified: Result<(), EcachTicketVerificationRejection>,
+pub struct EcashTicketVerificationResponse {
+    pub verified: Result<(), EcashTicketVerificationRejection>,
 }
 
-impl EcachTicketVerificationResponse {
-    pub fn reject(reason: EcachTicketVerificationRejection) -> Self {
-        EcachTicketVerificationResponse {
+impl EcashTicketVerificationResponse {
+    pub fn reject(reason: EcashTicketVerificationRejection) -> Self {
+        EcashTicketVerificationResponse {
             verified: Err(reason),
         }
     }
 }
 
 #[derive(Debug, Error, Serialize, Deserialize)]
-pub enum EcachTicketVerificationRejection {
+pub enum EcashTicketVerificationRejection {
     #[error("invalid ticket spent date. expected either today's or yesterday's date ({today} or {yesterday}) but got {received} instead")]
     InvalidSpentDate {
         today: OffsetDateTime,
@@ -268,7 +268,7 @@ impl BatchRedeemTicketsBody {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EcachBatchTicketRedemptionResponse {
+pub struct EcashBatchTicketRedemptionResponse {
     pub proposal_accepted: bool,
 }
 

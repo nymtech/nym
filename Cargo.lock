@@ -4568,6 +4568,7 @@ dependencies = [
  "ipnetwork 0.16.0",
  "log",
  "nym-api-requests",
+ "nym-authenticator",
  "nym-bin-common",
  "nym-config",
  "nym-credentials",

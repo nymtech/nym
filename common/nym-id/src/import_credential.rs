@@ -6,6 +6,7 @@ use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
 use nym_credentials::IssuedBandwidthCredential;
+use std::time::SystemTime;
 use tracing::{debug, warn};
 use zeroize::Zeroizing;
 
@@ -13,7 +14,7 @@ pub async fn import_credential<S>(
     credentials_store: S,
     raw_credential: Vec<u8>,
     credential_version: impl Into<Option<u8>>,
-) -> Result<(), NymIdError>
+) -> Result<Option<SystemTime>, NymIdError>
 where
     S: Storage,
     <S as Storage>::StorageError: Send + Sync + 'static,
@@ -29,9 +30,10 @@ where
         credential.typ()
     );
 
-    match credential.variant_data() {
+    let expiry_date = match credential.variant_data() {
         BandwidthCredentialIssuedDataVariant::Voucher(voucher_info) => {
-            debug!("with value of {}", voucher_info.value())
+            debug!("with value of {}", voucher_info.value());
+            None
         }
         BandwidthCredentialIssuedDataVariant::FreePass(freepass_info) => {
             debug!("with expiry at {}", freepass_info.expiry_date());
@@ -42,9 +44,11 @@ where
                 return Err(NymIdError::ExpiredCredentialImport {
                     expiration: freepass_info.expiry_date(),
                 });
+            } else {
+                Some(SystemTime::from(freepass_info.expiry_date()))
             }
         }
-    }
+    };
 
     // SAFETY:
     // for the epoch to run over u32::MAX, we'd have to advance it for few centuries every block...
@@ -67,5 +71,5 @@ where
         .map_err(|source| NymIdError::StorageError {
             source: Box::new(source),
         })?;
-    Ok(())
+    Ok(expiry_date)
 }

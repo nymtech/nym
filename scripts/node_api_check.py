@@ -163,30 +163,53 @@ class MainFunctions:
 
     def get_swagger_data(self,host,swagger,swagger_data):
         print("INFO: Starting to query SWAGGER API page...")
-        for key in swagger:
-            try:
-                url = f"http://{host}:8080/api/v1{key}"
-                print(f"Querying {url}")
-                value = r.get(url, timeout=3).json()
-                swagger_data[key] = value
-            except r.exceptions.ConnectionError:
-                url = f"https://{host}/api/v1{key}"
-                value = r.get(url, timeout=3).json()
-                swagger_data[key] = value
-            except r.exceptions.ConnectionError:
-                url = f"http://{host}/api/v1{key}"
-                value = r.get(url,timeout=3).json()
-                swagger_data[key] = value
-            except r.exceptions.ConnectionError as e:
-                print(f"Error: The request to pull data from /api/v1/{key} returns {e}!")
-            except urllib3.exceptions.ProtocolError as e:
-                print(f"Error: The request to pull data from /api/v1/{key} returns {e}!")
-            except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError, r.exceptions.ConnectionError) as e:
-                print(f"Error: Swagger endpoint {url} results in 404: Not Found! {e}")
-            except r.exceptions.ConnectTimeout as e:
-                print(f"Error: The request to pull data from /api/v1/{key} returns {e}! We are likely quering a deprecated version of nym-mixnode.")
-            except Exception as e:
-                print(f"Error: {e}: {url} not responding. Maybe you querying a deprecated version of nym-mixnode?")
+        urls = [
+                f"http://{host}:8080/api/v1",
+                f"https://{host}/api/v1",
+                f"http://{host}/api/v1"
+            ]
+        for endpoint in swagger:
+                for base_url in urls:
+                    url = f"{base_url}{endpoint}"
+                    try:
+                        print(f"Querying {url}")
+                        value = r.get(url, timeout=3).json()
+                        swagger_data[endpoint] = value
+                        break
+                    except (r.exceptions.ConnectionError, urllib3.exceptions.ProtocolError) as e:
+                        print(f"Error: Connection error when querying {url}: {e}") # No break because you could be dealing with a different protocol
+                    except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError) as e:
+                        print(f"Error: JSON decode error when querying {url}: {e}")
+                    except r.exceptions.ConnectTimeout as e:
+                        print(f"Error: Connection timeout when querying {url}: {e}")
+                    except Exception as e:
+                        print(f"Error: An unexpected error occurred when querying {url}: {e}")
+
+
+#        for key in swagger:
+#            try:
+#                url = f"http://{host}:8080/api/v1{key}"
+#                print(f"Querying {url}")
+#                value = r.get(url, timeout=3).json()
+#                swagger_data[key] = value
+#            except r.exceptions.ConnectionError:
+#                url = f"https://{host}/api/v1{key}"
+#                value = r.get(url, timeout=3).json()
+#                swagger_data[key] = value
+#            except r.exceptions.ConnectionError:
+#                url = f"http://{host}/api/v1{key}"
+#                value = r.get(url,timeout=3).json()
+#                swagger_data[key] = value
+#            except r.exceptions.ConnectionError as e:
+#                print(f"Error: The request to pull data from /api/v1/{key} returns {e}!")
+#            except urllib3.exceptions.ProtocolError as e:
+#                print(f"Error: The request to pull data from /api/v1/{key} returns {e}!")
+#            except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError, r.exceptions.ConnectionError) as e:
+#                print(f"Error: Swagger endpoint {url} results in 404: Not Found! {e}")
+#            except r.exceptions.ConnectTimeout as e:
+#                print(f"Error: The request to pull data from /api/v1/{key} returns {e}! We are likely quering a deprecated version of nym-mixnode.")
+#            except Exception as e:
+#                print(f"Error: {e}: {url} not responding. Maybe you querying a deprecated version of nym-mixnode?")
         return swagger_data
 
     def _set_index_to_empty(self, df):

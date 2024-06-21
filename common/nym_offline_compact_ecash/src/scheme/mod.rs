@@ -835,52 +835,36 @@ impl Payment {
         Ok(())
     }
 
+    pub fn encoded_serial_number(&self) -> Vec<u8> {
+        SerialNumberRef { inner: &self.ss }.to_bytes()
+    }
+
     pub fn serial_number_bs58(&self) -> String {
-        SerialNumber {
-            inner: self.ss.clone(),
-        }
-        .to_bs58()
+        SerialNumberRef { inner: &self.ss }.to_bs58()
     }
 
-    pub fn has_serial_number(&self, serial_number_bs58: &str) -> Result<bool> {
-        let serial_number = SerialNumber::try_from_bs58(serial_number_bs58)?;
-        let ret = self.ss.eq(&serial_number.inner);
-        Ok(ret)
-    }
+    // pub fn has_serial_number(&self, serial_number_bs58: &str) -> Result<bool> {
+    //     let serial_number = SerialNumberRef::try_from_bs58(serial_number_bs58)?;
+    //     let ret = self.ss.eq(&serial_number.inner);
+    //     Ok(ret)
+    // }
 }
 
-pub struct SerialNumber {
-    pub(crate) inner: Vec<G1Projective>,
+pub struct SerialNumberRef<'a> {
+    pub(crate) inner: &'a [G1Projective],
 }
 
-impl SerialNumber {
+impl<'a> SerialNumberRef<'a> {
     pub fn to_bytes(&self) -> Vec<u8> {
         let ss_len = self.inner.len();
         let mut bytes: Vec<u8> = Vec::with_capacity(ss_len * 48);
-        for s in &self.inner {
+        for s in self.inner {
             bytes.extend_from_slice(&s.to_affine().to_compressed());
         }
         bytes
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() % 48 != 0 {
-            return Err(CompactEcashError::DeserializationFailure {
-                object: "SerialNumber".into(),
-            });
-        }
-        let inner_len = bytes.len() / 48;
-        let mut inner = Vec::with_capacity(inner_len);
-        let mut idx = 0;
-        for _ in 0..inner_len {
-            //SAFETY : slice to array conversion after a length check
-            #[allow(clippy::unwrap_used)]
-            let ss_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
-            let ss_elem = try_deserialize_g1_projective(&ss_bytes)?;
-            inner.push(ss_elem);
-            idx += 48;
-        }
-
-        Ok(SerialNumber { inner })
+    pub fn to_bs58(&self) -> String {
+        bs58::encode(self.to_bytes()).into_string()
     }
 }

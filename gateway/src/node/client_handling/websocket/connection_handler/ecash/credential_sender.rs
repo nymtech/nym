@@ -6,7 +6,7 @@ use crate::node::client_handling::websocket::connection_handler::ecash::state::S
 use crate::node::storage::Storage;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::StreamExt;
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use nym_api_requests::coconut::models::{
     BatchRedeemTicketsBody, EcashTicketVerificationRejection, VerifyEcashTicketBody,
 };
@@ -141,15 +141,21 @@ where
     // }
 
     // the argument is temporary as we'll be reading from the storage
+    #[deprecated]
     async fn create_redemption_proposal(
         &self,
-        pending: &PendingCredential,
+        commitment: &[u8],
+        number_of_tickets: u16,
     ) -> Result<u64, RequestHandlingError> {
         let res = self
             .shared_state
             .start_tx()
             .await
-            .request_ticket_redemption(pending.credential.data.serial_number_b58(), 1, None)
+            .request_ticket_redemption(
+                bs58::encode(commitment).into_string(),
+                number_of_tickets,
+                None,
+            )
             .await?;
         let proposal_id = res.parse_singleton_u64_contract_data()?;
 
@@ -165,7 +171,7 @@ where
             .api_clients(cred.credential.data.epoch_id)
             .await?;
 
-        let serial_number = cred.credential.serial_number_bs58();
+        let serial_number = cred.credential.encoded_serial_number();
 
         let request = VerifyEcashTicketBody {
             // TODO: redundant clone
@@ -227,8 +233,8 @@ where
             let mut rejected_apis = Arc::new(Mutex::new(Vec::new()));
 
             let sn = vec![serial_number];
-            let digest = BatchRedeemTicketsBody::make_digest(sn.clone());
-            let proposal_id = self.create_redemption_proposal(&cred).await?;
+            let digest = BatchRedeemTicketsBody::make_digest(&sn);
+            let proposal_id = self.create_redemption_proposal(&digest, 1).await?;
 
             let request = BatchRedeemTicketsBody::new(
                 digest,
@@ -248,7 +254,7 @@ where
                     {
                         Ok(res) => {
                             if res.proposal_accepted {
-                                debug!("api {name} has accepted our redemption proposal");
+                                info!("api {name} has accepted our redemption proposal");
                             } else {
                                 warn!("api {name} has rejected our redemption proposal");
                                 rejected_apis.lock().await.push(coconut_client.node_id)

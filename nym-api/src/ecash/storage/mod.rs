@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::storage::manager::CoconutStorageManagerExt;
-use crate::ecash::storage::models::{join_attributes, EpochCredentials, IssuedCredential};
+use crate::ecash::storage::models::{
+    join_attributes, EpochCredentials, IssuedCredential, SerialNumberWrapper, TicketProvider,
+};
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::coconut::models::Pagination;
@@ -68,19 +70,40 @@ pub trait CoconutStorageExt {
         &self,
         pagination: Pagination<i64>,
     ) -> Result<Vec<IssuedCredential>, NymApiStorageError>;
-
-    async fn insert_credential(
+    //
+    // async fn insert_credential(
+    //     &self,
+    //     credential: &CredentialSpendingData,
+    //     serial_number_bs58: String,
+    //     gateway_addr: &AccountId,
+    //     proposal_id: u64,
+    // ) -> Result<(), NymApiStorageError>;
+    //
+    async fn get_credential_data(
         &self,
-        credential: &CredentialSpendingData,
-        serial_number_bs58: String,
+        serial_number: &[u8],
+    ) -> Result<Option<CredentialSpendingData>, NymApiStorageError>;
+
+    async fn store_verified_ticket(
+        &self,
+        ticket_data: &CredentialSpendingData,
         gateway_addr: &AccountId,
-        proposal_id: u64,
     ) -> Result<(), NymApiStorageError>;
 
-    async fn get_credential(
+    async fn get_ticket_provider(
         &self,
-        serial_number_bs58: String,
-    ) -> Result<Option<CredentialSpendingData>, NymApiStorageError>;
+        gateway_address: &str,
+    ) -> Result<Option<TicketProvider>, NymApiStorageError>;
+
+    async fn get_verified_tickets_since(
+        &self,
+        provider_id: i64,
+        since: OffsetDateTime,
+    ) -> Result<Vec<SerialNumberWrapper>, NymApiStorageError>;
+    async fn get_or_create_ticket_provider_with_id(
+        &self,
+        gateway_address: &str,
+    ) -> Result<i64, NymApiStorageError>;
 }
 
 #[async_trait]
@@ -182,37 +205,88 @@ impl CoconutStorageExt for NymApiStorage {
             .await?)
     }
 
-    async fn insert_credential(
-        &self,
-        credential: &CredentialSpendingData,
-        serial_number_bs58: String,
-        gateway_addr: &AccountId,
-        proposal_id: u64,
-    ) -> Result<(), NymApiStorageError> {
-        self.manager
-            .insert_credential(
-                credential.to_bs58(),
-                serial_number_bs58,
-                gateway_addr.to_string(),
-                proposal_id as i64,
-            )
-            .await
-            .map_err(|err| err.into())
-    }
+    // async fn insert_credential(
+    //     &self,
+    //     credential: &CredentialSpendingData,
+    //     serial_number_bs58: String,
+    //     gateway_addr: &AccountId,
+    //     proposal_id: u64,
+    // ) -> Result<(), NymApiStorageError> {
+    //     self.manager
+    //         .insert_credential(
+    //             credential.to_bs58(),
+    //             serial_number_bs58,
+    //             gateway_addr.to_string(),
+    //             proposal_id as i64,
+    //         )
+    //         .await
+    //         .map_err(|err| err.into())
+    // }
 
-    async fn get_credential(
+    async fn get_credential_data(
         &self,
-        serial_number_bs58: String,
+        serial_number: &[u8],
     ) -> Result<Option<CredentialSpendingData>, NymApiStorageError> {
-        let credential = self.manager.get_credential(serial_number_bs58).await?;
-        credential
-            .map(|cred| {
-                CredentialSpendingData::try_from_bs58(cred.credential_bs58).map_err(|_| {
+        let ticket = self.manager.get_ticket(&serial_number).await?;
+        ticket
+            .map(|ticket| {
+                CredentialSpendingData::try_from_bytes(&ticket.ticket_data).map_err(|_| {
                     NymApiStorageError::DatabaseInconsistency {
-                        reason: "impossible to deserialize credential".to_string(),
+                        reason: "impossible to deserialize verified ticket".to_string(),
                     }
                 })
             })
             .transpose()
+    }
+
+    async fn get_ticket_provider(
+        &self,
+        gateway_address: &str,
+    ) -> Result<Option<TicketProvider>, NymApiStorageError> {
+        self.manager
+            .get_ticket_provider(gateway_address)
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn get_or_create_ticket_provider_with_id(
+        &self,
+        gateway_address: &str,
+    ) -> Result<i64, NymApiStorageError> {
+        if let Some(provider) = self.get_ticket_provider(gateway_address).await? {
+            Ok(provider.id)
+        } else {
+            Ok(self.manager.insert_ticket_provider(gateway_address).await?)
+        }
+    }
+
+    async fn store_verified_ticket(
+        &self,
+        ticket_data: &CredentialSpendingData,
+        gateway_addr: &AccountId,
+    ) -> Result<(), NymApiStorageError> {
+        let provider_id = self
+            .get_or_create_ticket_provider_with_id(gateway_addr.as_ref())
+            .await?;
+
+        let now = OffsetDateTime::now_utc();
+
+        let ticket_bytes = ticket_data.to_bytes();
+        let encoded_serial_number = ticket_data.encoded_serial_number();
+        self.manager
+            .insert_verified_ticket(provider_id, now, ticket_bytes, encoded_serial_number)
+            .await
+            .map_err(Into::into)
+    }
+
+    async fn get_verified_tickets_since(
+        &self,
+        provider_id: i64,
+        since: OffsetDateTime,
+    ) -> Result<Vec<SerialNumberWrapper>, NymApiStorageError> {
+        self.manager
+            .get_provider_ticket_serial_numbers(provider_id, since)
+            .await
+            .map_err(Into::into)
     }
 }

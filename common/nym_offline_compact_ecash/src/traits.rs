@@ -8,7 +8,7 @@ use group::GroupEncoding;
 use crate::proofs::proof_spend::{SpendInstance, SpendProof};
 use crate::proofs::proof_withdrawal::{WithdrawalReqInstance, WithdrawalReqProof};
 use crate::scheme::withdrawal::RequestInfo;
-use crate::scheme::{Payment, SerialNumber, Wallet};
+use crate::scheme::{Payment, SerialNumberRef, Wallet};
 use crate::{Attribute, CompactEcashError, PartialWallet, WithdrawalRequest};
 
 #[macro_export]
@@ -129,7 +129,6 @@ impl Bytable for Attribute {
 
 impl_byteable_bs58!(Signature);
 impl_byteable_bs58!(BlindedSignature);
-impl_byteable_bs58!(SerialNumber);
 impl_byteable_bs58!(Wallet);
 impl_byteable_bs58!(PartialWallet);
 

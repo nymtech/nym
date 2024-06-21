@@ -123,7 +123,7 @@ members = [
     "wasm/node-tester",
     "wasm/zknym-lib",
     "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract", "common/ecash-time",
+    "tools/internal/testnet-manager/dkg-bypass-contract", "common/ecash-time", "common/serde-helpers",
 ]
 
 default-members = [

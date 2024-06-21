@@ -1,10 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::storage::models::{EpochCredentials, IssuedCredential, SpentCredential};
+use crate::ecash::storage::models::{
+    EpochCredentials, IssuedCredential, SerialNumberWrapper, TicketProvider, VerifiedTicket,
+};
 use crate::support::storage::manager::StorageManager;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_contract_common::deposit::DepositId;
+use sqlx::{Error, Row};
 use thiserror::Error;
 use time::OffsetDateTime;
 
@@ -92,40 +95,39 @@ pub trait CoconutStorageManagerExt {
         limit: u32,
     ) -> Result<Vec<IssuedCredential>, sqlx::Error>;
 
-    /// Creates new credential entry for a given gateway addr.
-    ///
-    /// # Arguments
-    ///
-    /// * `credential`: base58 repr of a credential.
-    /// * `gateway_addr`: cosmos address of the gateway
-    async fn insert_credential(
-        &self,
-        credential: String,
-        serial_number: String,
-        gateway_addr: String,
-        proposal_id: i64,
-    ) -> Result<(), sqlx::Error>;
-
     async fn insert_ticket_provider(&self, gateway_address: &str) -> Result<i64, sqlx::Error>;
+
+    async fn get_ticket_provider(
+        &self,
+        gateway_address: &str,
+    ) -> Result<Option<TicketProvider>, sqlx::Error>;
 
     async fn get_ticket_provider_id(
         &self,
         gateway_address: &str,
     ) -> Result<Option<i64>, sqlx::Error>;
 
+    async fn get_last_batch_verification(
+        &self,
+        gateway_address: &str,
+    ) -> Result<Option<OffsetDateTime>, sqlx::Error>;
+
     async fn insert_verified_ticket(
         &self,
         provider_id: i64,
+        verified_at: OffsetDateTime,
         ticket_data: Vec<u8>,
         serial_number: Vec<u8>,
     ) -> Result<(), sqlx::Error>;
 
-    async fn get_ticket(
-        &self,
-        serial_number: Vec<u8>,
-    ) -> Result<Option<SpentCredential>, sqlx::Error>;
+    async fn get_ticket(&self, serial_number: &[u8])
+        -> Result<Option<VerifiedTicket>, sqlx::Error>;
 
-    // async fn get_provider_ticket_serial_numbers(&self, provider_id: i64,)
+    async fn get_provider_ticket_serial_numbers(
+        &self,
+        provider_id: i64,
+        since: OffsetDateTime,
+    ) -> Result<Vec<SerialNumberWrapper>, sqlx::Error>;
 }
 
 #[async_trait]
@@ -381,36 +383,99 @@ impl CoconutStorageManagerExt for StorageManager {
             .await
     }
 
-    async fn insert_verified_ticket(
-        &self,
-        ticket_data: Vec<u8>,
-        serial_number: String,
-        gateway_addr: String,
-    ) -> Result<(), sqlx::Error> {
-        todo!()
-        // sqlx::query!(
-        //     "INSERT INTO verified_tickets(ticket_data, serial_number, gateway_address) VALUES (?, ?, ?)",
-        //     ticket_data,
-        //     serial_number,
-        //     gateway_addr,
-        // )
-        //     .execute(&self.connection_pool)
-        //     .await?;
-        // Ok(())
+    async fn insert_ticket_provider(&self, gateway_address: &str) -> Result<i64, sqlx::Error> {
+        let id = sqlx::query!(
+            "INSERT INTO ticket_providers(gateway_address) VALUES (?)",
+            gateway_address
+        )
+        .execute(&self.connection_pool)
+        .await?
+        .last_insert_rowid();
+        Ok(id)
     }
 
-    async fn get_credential(
+    async fn get_ticket_provider(
         &self,
-        serial_number: String,
-    ) -> Result<Option<SpentCredential>, sqlx::Error> {
-        todo!()
-        // sqlx::query_as!(
-        //     SpentCredential,
-        //     "SELECT credential_bs58 from spent_credentials where serial_number = ?",
-        //     serial_number,
-        // )
-        // .fetch_optional(&self.connection_pool)
-        // .await
+        gateway_address: &str,
+    ) -> Result<Option<TicketProvider>, Error> {
+        sqlx::query_as("SELECT * FROM ticket_providers WHERE gateway_address = ?")
+            .bind(gateway_address)
+            .fetch_optional(&self.connection_pool)
+            .await
+    }
+
+    async fn get_ticket_provider_id(
+        &self,
+        gateway_address: &str,
+    ) -> Result<Option<i64>, sqlx::Error> {
+        sqlx::query!(
+            "SELECT id FROM ticket_providers WHERE gateway_address = ?",
+            gateway_address
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
+        .map(|maybe_record| maybe_record.map(|r| r.id))
+    }
+
+    async fn get_last_batch_verification(
+        &self,
+        gateway_address: &str,
+    ) -> Result<Option<OffsetDateTime>, sqlx::Error> {
+        sqlx::query(
+            "SELECT last_batch_verification FROM ticket_providers WHERE gateway_address = ?",
+        )
+        .bind(gateway_address)
+        .fetch_one(&self.connection_pool)
+        .await
+        .map(|maybe_record| maybe_record.get("last_batch_verification"))
+    }
+
+    async fn insert_verified_ticket(
+        &self,
+        provider_id: i64,
+        verified_at: OffsetDateTime,
+        ticket_data: Vec<u8>,
+        serial_number: Vec<u8>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO verified_tickets(ticket_data, serial_number, verified_at, gateway_id)
+                VALUES (?, ?, ?, ?)
+            "#,
+            ticket_data,
+            serial_number,
+            verified_at,
+            provider_id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn get_ticket(
+        &self,
+        serial_number: &[u8],
+    ) -> Result<Option<VerifiedTicket>, sqlx::Error> {
+        sqlx::query_as("SELECT * FROM verified_tickets WHERE serial_number = ?")
+            .bind(serial_number)
+            .fetch_optional(&self.connection_pool)
+            .await
+    }
+
+    async fn get_provider_ticket_serial_numbers(
+        &self,
+        provider_id: i64,
+        since: OffsetDateTime,
+    ) -> Result<Vec<SerialNumberWrapper>, sqlx::Error> {
+        sqlx::query_as!(
+            SerialNumberWrapper,
+            "SELECT serial_number FROM verified_tickets WHERE gateway_id = ? AND verified_at > ?",
+            provider_id,
+            since
+        )
+        .fetch_all(&self.connection_pool)
+        .await
     }
 }
 

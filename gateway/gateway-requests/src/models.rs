@@ -16,12 +16,12 @@ impl CredentialSpendingRequest {
         CredentialSpendingRequest { data }
     }
 
-    pub fn matches_serial_number(
-        &self,
-        serial_number_bs58: &str,
-    ) -> Result<bool, CompactEcashError> {
-        self.data.payment.has_serial_number(serial_number_bs58)
-    }
+    // pub fn matches_serial_number(
+    //     &self,
+    //     serial_number_bs58: &str,
+    // ) -> Result<bool, CompactEcashError> {
+    //     self.data.payment.has_serial_number(serial_number_bs58)
+    // }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         self.data.to_bytes()
@@ -31,6 +31,10 @@ impl CredentialSpendingRequest {
         Ok(CredentialSpendingRequest {
             data: CredentialSpendingData::try_from_bytes(raw)?,
         })
+    }
+
+    pub fn encoded_serial_number(&self) -> Vec<u8> {
+        self.data.encoded_serial_number()
     }
 
     pub fn serial_number_bs58(&self) -> String {

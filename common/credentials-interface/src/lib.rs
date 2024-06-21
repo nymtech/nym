@@ -59,6 +59,10 @@ impl CredentialSpendingData {
         )
     }
 
+    pub fn encoded_serial_number(&self) -> Vec<u8> {
+        self.payment.encoded_serial_number()
+    }
+
     pub fn serial_number_b58(&self) -> String {
         self.payment.serial_number_bs58()
     }

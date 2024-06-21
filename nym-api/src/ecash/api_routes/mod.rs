@@ -18,12 +18,15 @@ use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
     PartialExpirationDateSignatureResponse,
 };
+use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::identify::IdentifyResult;
 use nym_credentials::coconut::utils::{cred_exp_date, ecash_today};
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
+use std::collections::HashSet;
 use std::ops::Deref;
+use time::OffsetDateTime;
 
 mod helpers;
 
@@ -159,7 +162,7 @@ pub async fn verify_ticket(
 
     // actual double spend detection with storage
     if let Some(previous_payment) = state
-        .get_credential_by_sn(credential_data.serial_number_b58())
+        .get_ticket_data_by_serial_number(&credential_data.encoded_serial_number())
         .await?
     {
         match nym_compact_ecash::identify::identify(
@@ -195,7 +198,7 @@ pub async fn verify_ticket(
 
     //store credential
     state
-        .store_verified_credential(credential_data, gateway_cosmos_addr)
+        .store_verified_ticket(credential_data, gateway_cosmos_addr)
         .await?;
 
     Ok(Json(EcashTicketVerificationResponse { verified: Ok(()) }))
@@ -295,33 +298,54 @@ pub async fn batch_redeem_tickets(
     batch_redeem_credentials_body: Json<BatchRedeemTicketsBody>,
     state: &RocketState<State>,
 ) -> Result<Json<EcashBatchTicketRedemptionResponse>> {
-    // 1. verify the digest
+    // 1. see if that gateway has even submitted any tickets
+    let Some(provider_info) = state
+        .get_ticket_provider(&batch_redeem_credentials_body.gateway_cosmos_addr)
+        .await?
+    else {
+        return Err(EcashError::NotTicketsProvided);
+    };
+
+    // 2. check if the gateway is not trying to spam the redemption requests
+    // (we have to protect our poor chain)
+    if let Some(last_redemption) = provider_info.last_batch_verification {
+        let now = OffsetDateTime::now_utc();
+        let next_allowed = last_redemption + MIN_BATCH_REDEMPTION_DELAY;
+
+        if next_allowed > now {
+            return Err(EcashError::TooFrequentRedemption {
+                last_redemption,
+                next_allowed,
+            });
+        }
+    }
+
+    // 3. verify the request digest
     if !batch_redeem_credentials_body.verify_digest() {
         return Err(EcashError::MismatchedRequestDigest);
     }
 
-    // 2. verify the associated on-chain proposal (whether it's made by correct sender, has valid messages, etc.)
+    // 4. verify the associated on-chain proposal (whether it's made by correct sender, has valid messages, etc.)
     state
         .validate_redemption_proposal(&batch_redeem_credentials_body)
         .await?;
 
-    let BatchRedeemTicketsBody {
-        proposal_id,
-        digest,
-        included_serial_numbers,
-        ..
-    } = batch_redeem_credentials_body.into_inner();
+    let proposal_id = batch_redeem_credentials_body.proposal_id;
+    let received = batch_redeem_credentials_body
+        .into_inner()
+        .included_serial_numbers;
 
-    // 3. for each included SN, check if we have verified it and it actually came from this gateway
-    // TODO: this is temporary just to have SOMETHING working for now
-    // in the very near future just grab all tickets from particular gateway verified since the last redemption request
-    for sn in included_serial_numbers {
-        let Some(ticket) = state.get_credential_by_sn(sn.clone()).await? else {
+    // 5. check if **every** serial number included in the request has been verified by us
+    // if we have more than requested, tough luck, they're going to lose them
+    let verified = state.get_redeemable_tickets(provider_info).await?;
+    let verified_tickets: HashSet<_> = verified.iter().map(|sn| sn.deref()).collect();
+
+    for sn in &received {
+        if !verified_tickets.contains(sn.deref()) {
             return Err(EcashError::TicketNotVerified {
-                serial_number_bs58: sn,
+                serial_number_bs58: bs58::encode(sn).into_string(),
             });
-        };
-        let _ = ticket;
+        }
     }
 
     // TODO: offload it to separate task with work queue and batching (of tx messages) to vote for multiple proposals in the same tx

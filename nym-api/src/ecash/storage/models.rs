@@ -11,6 +11,7 @@ use nym_compact_ecash::{Base58, BlindedSignature};
 use nym_ecash_contract_common::deposit::DepositId;
 use sqlx::FromRow;
 use std::fmt::Display;
+use std::ops::Deref;
 use time::OffsetDateTime;
 
 pub struct EpochCredentials {
@@ -35,8 +36,35 @@ impl From<EpochCredentials> for EpochCredentialsResponse {
     }
 }
 
-pub struct SpentCredential {
-    pub credential_bs58: String,
+#[derive(FromRow)]
+pub struct TicketProvider {
+    #[allow(unused)]
+    pub(crate) id: i64,
+    pub(crate) gateway_address: String,
+    pub(crate) last_batch_verification: Option<OffsetDateTime>,
+}
+
+#[derive(FromRow)]
+pub struct SerialNumberWrapper {
+    pub serial_number: Vec<u8>,
+}
+
+impl Deref for SerialNumberWrapper {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.serial_number
+    }
+}
+
+#[derive(FromRow)]
+pub struct VerifiedTicket {
+    #[allow(unused)]
+    pub(crate) id: i64,
+    pub(crate) ticket_data: Vec<u8>,
+    pub(crate) serial_number: Vec<u8>,
+    pub(crate) verified_at: OffsetDateTime,
+    pub(crate) gateway_id: i64,
 }
 
 #[derive(FromRow)]

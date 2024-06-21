@@ -7,6 +7,7 @@ use crate::ecash::comm::APICommunicationChannel;
 use crate::ecash::deposit::validate_deposit;
 use crate::ecash::error::{EcashError, RedemptionError, Result};
 use crate::ecash::keys::KeyPair;
+use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider, VerifiedTicket};
 use crate::ecash::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
 use bloomfilter::Bloom;
@@ -32,6 +33,7 @@ use nym_validator_client::nyxd::AccountId;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
 pub struct State {
@@ -358,46 +360,49 @@ impl State {
             .await
     }
 
-    pub async fn store_verified_credential(
+    pub async fn store_verified_ticket(
         &self,
-        credential: &CredentialSpendingData,
+        ticket_data: &CredentialSpendingData,
         gateway_addr: &AccountId,
-    ) -> Result<()> {
-        todo!()
-    }
-
-    pub async fn store_credential(
-        &self,
-        credential: &CredentialSpendingData,
-        gateway_addr: &AccountId,
-        proposal_id: u64,
     ) -> Result<()> {
         self.storage
-            .insert_credential(
-                credential,
-                credential.serial_number_b58(),
-                gateway_addr,
-                proposal_id,
-            )
+            .store_verified_ticket(ticket_data, gateway_addr)
             .await
-            .map_err(|err| err.into())
+            .map_err(Into::into)
     }
 
-    pub async fn get_verified_tickets(
+    pub async fn get_ticket_provider(
         &self,
-        gateway_cosmos_address: String,
-    ) -> Result<Vec<String>> {
-        todo!()
+        gateway_address: &str,
+    ) -> Result<Option<TicketProvider>> {
+        self.storage
+            .get_ticket_provider(gateway_address)
+            .await
+            .map_err(Into::into)
     }
 
-    pub async fn get_credential_by_sn(
+    pub async fn get_redeemable_tickets(
         &self,
-        serial_number_bs58: String,
+        provider_info: TicketProvider,
+    ) -> Result<Vec<SerialNumberWrapper>> {
+        let since = provider_info
+            .last_batch_verification
+            .unwrap_or(OffsetDateTime::UNIX_EPOCH);
+
+        self.storage
+            .get_verified_tickets_since(provider_info.id, since)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn get_ticket_data_by_serial_number(
+        &self,
+        serial_number: &[u8],
     ) -> Result<Option<CredentialSpendingData>> {
         self.storage
-            .get_credential(serial_number_bs58)
+            .get_credential_data(serial_number)
             .await
-            .map_err(|err| err.into())
+            .map_err(Into::into)
     }
 
     pub async fn get_coin_indices_signatures(&self) -> Result<Vec<CoinIndexSignature>> {

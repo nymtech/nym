@@ -8,6 +8,7 @@ use nym_credentials_interface::{
     PartialExpirationDateSignature, PublicKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
+use rocket::http::ext::IntoCollection;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::collections::BTreeMap;
@@ -229,41 +230,61 @@ pub struct CredentialsRequestBody {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct SerialNumberWrapper(#[serde(with = "serde_helpers::bs58")] Vec<u8>);
+
+impl Deref for SerialNumberWrapper {
+    type Target = Vec<u8>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<[u8]> for SerialNumberWrapper {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl From<Vec<u8>> for SerialNumberWrapper {
+    fn from(value: Vec<u8>) -> Self {
+        SerialNumberWrapper(value)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct BatchRedeemTicketsBody {
+    #[serde(with = "serde_helpers::bs58")]
     pub digest: Vec<u8>,
-    pub included_serial_numbers: Vec<String>,
+    pub included_serial_numbers: Vec<SerialNumberWrapper>,
     pub proposal_id: u64,
     pub gateway_cosmos_addr: String,
 }
 
 impl BatchRedeemTicketsBody {
-    pub fn make_digest(serial_numbers: Vec<String>) -> Vec<u8> {
-        let joined = serial_numbers.join("");
+    pub fn make_digest(serial_numbers: &[impl AsRef<[u8]>]) -> Vec<u8> {
         let mut hasher = sha2::Sha256::new();
-        hasher.update(&joined);
+        for sn in serial_numbers {
+            hasher.update(sn)
+        }
         hasher.finalize().to_vec()
     }
 
     pub fn new(
         digest: Vec<u8>,
         proposal_id: u64,
-        serial_numbers: Vec<String>,
+        serial_numbers: Vec<impl Into<SerialNumberWrapper>>,
         redeemer: String,
     ) -> Self {
         BatchRedeemTicketsBody {
             digest,
-            included_serial_numbers: serial_numbers,
+            included_serial_numbers: serial_numbers.into_iter().map(Into::into).collect(),
             proposal_id,
             gateway_cosmos_addr: redeemer,
         }
     }
 
     pub fn verify_digest(&self) -> bool {
-        let joined = self.included_serial_numbers.join("");
-        let mut hasher = sha2::Sha256::new();
-        hasher.update(&joined);
-        let digest = hasher.finalize();
-        digest.deref() == self.digest
+        Self::make_digest(&self.included_serial_numbers) == self.digest
     }
 }
 

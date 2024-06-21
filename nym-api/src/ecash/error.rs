@@ -20,6 +20,7 @@ use std::io::Cursor;
 use std::num::ParseIntError;
 use thiserror::Error;
 use time::error::ComponentRange;
+use time::OffsetDateTime;
 
 pub type Result<T> = std::result::Result<T, EcashError>;
 
@@ -183,6 +184,15 @@ pub enum EcashError {
     RedemptionProposalFailure {
         #[from]
         source: RedemptionError,
+    },
+
+    #[error("this gateway hasn't submitted any tickets for verification")]
+    NotTicketsProvided,
+
+    #[error("this gateway is attempting to redeem its tickets too often. last redemption happened on {last_redemption}. the earliest next permitted redemption will be on {next_allowed}")]
+    TooFrequentRedemption {
+        last_redemption: OffsetDateTime,
+        next_allowed: OffsetDateTime,
     },
 }
 

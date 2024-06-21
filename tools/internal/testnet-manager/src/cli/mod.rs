@@ -16,6 +16,7 @@ mod initialise_post_dkg_network;
 mod load_network_details;
 mod local_ecash_apis;
 mod local_nodes;
+mod migrate;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct CommonArgs {

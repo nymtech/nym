@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_sphinx::addressing::Recipient;
-use nym_wireguard_types::{registration::RegistrationData, GatewayClient};
+use nym_wireguard_types::registration::RegistrationData;
 use serde::{Deserialize, Serialize};
 
 use crate::make_bincode_serializer;

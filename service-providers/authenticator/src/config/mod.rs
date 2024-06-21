@@ -9,14 +9,13 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
+pub use persistence::AuthenticatorPaths;
 use serde::{Deserialize, Serialize};
 use std::{
     io,
     path::{Path, PathBuf},
     str::FromStr,
 };
-
-use persistence::AuthenticatorPaths;
 use template::CONFIG_TEMPLATE;
 
 pub mod helpers;
@@ -185,5 +184,5 @@ impl Config {
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Authenticator {
-    pub(crate) binding_port: u16,
+    pub binding_port: u16,
 }

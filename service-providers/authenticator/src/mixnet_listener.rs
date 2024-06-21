@@ -45,9 +45,9 @@ pub(crate) struct MixnetListener {
 impl MixnetListener {
     pub fn new(
         config: Config,
+        wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
-        wireguard_gateway_data: WireguardGatewayData,
     ) -> Self {
         MixnetListener {
             config,

@@ -5037,6 +5037,7 @@ dependencies = [
  "cupid",
  "humantime-serde",
  "ipnetwork 0.16.0",
+ "nym-authenticator",
  "nym-bin-common",
  "nym-client-core-config-types",
  "nym-config",

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use authenticator::{Authenticator, OnStartData};
+pub use config::Config;
 
 pub mod authenticator;
 pub mod config;

@@ -92,7 +92,7 @@ pub async fn create_gateway(
 
     let ip_opts = ip_packet_router_config.map(|config| LocalIpPacketRouterOpts {
         config,
-        custom_mixnet_path: custom_mixnet,
+        custom_mixnet_path: custom_mixnet.clone(),
     });
 
     Gateway::new(config, nr_opts, ip_opts, storage)
@@ -112,12 +112,21 @@ pub struct LocalIpPacketRouterOpts {
     pub custom_mixnet_path: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct LocalAuthenticatorOpts {
+    pub config: nym_authenticator::Config,
+
+    pub custom_mixnet_path: Option<PathBuf>,
+}
+
 pub struct Gateway<St = PersistentStorage> {
     config: Config,
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
     ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
+
+    authenticator_opts: Option<LocalAuthenticatorOpts>,
 
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
@@ -149,6 +158,7 @@ impl<St> Gateway<St> {
             config,
             network_requester_opts,
             ip_packet_router_opts,
+            authenticator_opts: None,
             #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
@@ -160,6 +170,7 @@ impl<St> Gateway<St> {
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
         ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
+        authenticator_opts: Option<LocalAuthenticatorOpts>,
         identity_keypair: Arc<identity::KeyPair>,
         sphinx_keypair: Arc<encryption::KeyPair>,
         storage: St,
@@ -168,6 +179,7 @@ impl<St> Gateway<St> {
             config,
             network_requester_opts,
             ip_packet_router_opts,
+            authenticator_opts,
             identity_keypair,
             sphinx_keypair,
             storage,
@@ -225,12 +237,17 @@ impl<St> Gateway<St> {
     }
 
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
-    async fn start_wireguard(
+    async fn start_authenticator(
         &mut self,
         shutdown: TaskClient,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(wireguard_data) = self.wireguard_data.take() {
-            let mut server = nym_authenticator::Authenticator::new(config);
+            let server = nym_authenticator::Authenticator::new(
+                self.authenticator_opts.as_ref().unwrap().config.clone(),
+                self.wireguard_data.as_ref().unwrap().inner.clone(),
+            )
+            .with_shutdown(shutdown.clone());
+            server.run_service_provider().await;
             nym_wireguard::start_wireguard(shutdown, wireguard_data).await
         } else {
             Err(Box::new(GatewayError::WireguardNotSet))
@@ -238,8 +255,8 @@ impl<St> Gateway<St> {
     }
 
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
-    async fn start_wireguard(&self, _shutdown: TaskClient) {
-        nym_wireguard::start_wireguard().await
+    async fn start_authenticator(&self, _shutdown: TaskClient) {
+        todo!("Authenticator is currently only supported on Linux");
     }
 
     fn start_client_websocket_listener(
@@ -553,6 +570,21 @@ impl<St> Gateway<St> {
             info!("embedded ip packet router is disabled");
         };
 
+        let _wg_api = if self.authenticator_opts.is_some() {
+            if cfg!(all(feature = "wireguard", target_os = "linux")) {
+                Some(
+                    self.start_authenticator(shutdown.fork("wireguard"))
+                        .await
+                        .map_err(|source| GatewayError::StdError { source })?,
+                )
+            } else {
+                warn!("Authenticator only supports linux platforms. Not enabling it");
+                None
+            }
+        } else {
+            None
+        };
+
         if self.run_http_server {
             HttpApiBuilder::new(
                 &self.config,
@@ -564,17 +596,6 @@ impl<St> Gateway<St> {
             .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))
             .start(shutdown.fork("http-api"))?;
         }
-
-        // Once this is a bit more mature, make this a commandline flag instead of a compile time
-        // flag
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        let _wg_api = self
-            .start_wireguard(shutdown.fork("wireguard"))
-            .await
-            .map_err(|source| GatewayError::StdError { source })?;
-
-        #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
-        self.start_wireguard(shutdown.fork("wireguard")).await;
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

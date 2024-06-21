@@ -27,16 +27,18 @@ pub struct Authenticator {
     config: Config,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+    wireguard_gateway_data: WireguardGatewayData,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
 impl Authenticator {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, wireguard_gateway_data: WireguardGatewayData) -> Self {
         Self {
             config,
             wait_for_gateway: false,
             custom_topology_provider: None,
+            wireguard_gateway_data,
             shutdown: None,
             on_start: None,
         }
@@ -100,8 +102,12 @@ impl Authenticator {
 
         let self_address = *mixnet_client.nym_address();
 
-        let mixnet_listener =
-            crate::mixnet_listener::MixnetListener::new(self.config, mixnet_client, task_handle);
+        let mixnet_listener = crate::mixnet_listener::MixnetListener::new(
+            self.config,
+            self.wireguard_gateway_data,
+            mixnet_client,
+            task_handle,
+        );
 
         log::info!("The address of this client is: {self_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");

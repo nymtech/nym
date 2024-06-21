@@ -8,7 +8,9 @@ use crate::error::ExitGatewayError;
 use clap::crate_version;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::mainnet;
-use nym_gateway::node::{LocalIpPacketRouterOpts, LocalNetworkRequesterOpts};
+use nym_gateway::node::{
+    LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
@@ -30,6 +32,8 @@ pub struct ExitGatewayConfig {
     pub network_requester: NetworkRequester,
 
     pub ip_packet_router: IpPacketRouter,
+
+    pub authenticator: Authenticator,
 }
 
 impl ExitGatewayConfig {
@@ -45,6 +49,7 @@ impl ExitGatewayConfig {
                 .expect("invalid default exit policy URL"),
             network_requester: Default::default(),
             ip_packet_router: Default::default(),
+            authenticator: Default::default(),
         }
     }
 }
@@ -134,10 +139,54 @@ impl Default for IpPacketRouterDebug {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct Authenticator {
+    #[serde(default)]
+    pub debug: AuthenticatorDebug,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for Authenticator {
+    fn default() -> Self {
+        Authenticator {
+            debug: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct AuthenticatorDebug {
+    /// Specifies whether authenticator service is enabled in this process.
+    /// This is only here for debugging purposes as exit gateway should always run
+    /// the authenticator.
+    pub enabled: bool,
+
+    /// Disable Poisson sending rate.
+    /// This is equivalent to setting client_debug.traffic.disable_main_poisson_packet_distribution = true
+    /// (or is it (?))
+    pub disable_poisson_rate: bool,
+
+    /// Shared detailed client configuration options
+    #[serde(flatten)]
+    pub client_debug: ClientDebugConfig,
+}
+
+impl Default for AuthenticatorDebug {
+    fn default() -> Self {
+        AuthenticatorDebug {
+            enabled: true,
+            disable_poisson_rate: true,
+            client_debug: Default::default(),
+        }
+    }
+}
+
 pub struct EphemeralConfig {
     pub gateway: nym_gateway::config::Config,
     pub nr_opts: LocalNetworkRequesterOpts,
     pub ipr_opts: LocalIpPacketRouterOpts,
+    pub auth_opts: LocalAuthenticatorOpts,
     pub wg_opts: LocalWireguardOpts,
 }
 
@@ -236,6 +285,26 @@ pub fn ephemeral_exit_gateway_config(
         ipr_opts.config.base.set_no_poisson_process()
     }
 
+    let auth_opts = LocalAuthenticatorOpts {
+        config: nym_authenticator::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config.exit_gateway.authenticator.debug.client_debug,
+            },
+            authenticator: nym_authenticator::config::Authenticator { binding_port: 1 },
+            storage_paths: nym_authenticator::config::AuthenticatorPaths {
+                common_paths: config
+                    .exit_gateway
+                    .storage_paths
+                    .authenticator
+                    .to_common_client_paths(),
+                authenticator_description: Default::default(),
+            },
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
     let pub_id_path = config
         .storage_paths
         .keys
@@ -268,6 +337,7 @@ pub fn ephemeral_exit_gateway_config(
     Ok(EphemeralConfig {
         nr_opts,
         ipr_opts,
+        auth_opts,
         wg_opts,
         gateway,
     })

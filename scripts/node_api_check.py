@@ -1,5 +1,10 @@
 #!/usr/bin/python3
 
+# TODO (in later versions)
+# - make option to run in sandbox env
+# - pull endpoints from: https://validator.nymtech.net/api/v1/openapi.json
+# - try this https://stackoverflow.com/questions/15431044/can-i-set-max-retries-for-requests-request/35504626#35504626
+
 import requests as r
 import argparse
 import sys
@@ -16,7 +21,6 @@ class MainFunctions:
 
     def __init__(self):
         self.api_url = "https://validator.nymtech.net/api/v1"
-        #TODO: Pull endpoints from: https://validator.nymtech.net/api/v1/openapi.json
         self.api_endpoints_json = "api_endpoints.json"
         self.output = Output()
 
@@ -56,7 +60,7 @@ class MainFunctions:
                 swagger_data = self._json_neat_format(swagger_data)
                 print(swagger_data)
         else:
-            swagger_data = f"\nSwagger API endpoints of node {id_key} hosted on IP: {host} are not responding. Maybe you querying a deprecated version of nym-mixnode or the VPS ports are not open correctly."
+            swagger_data = f"\nSwagger API endpoints of node {id_key} hosted on IP: {host} are not responding. Maybe you querying a deprecated version of nym-mixnode or the VPS ports are not open correctly.\n"
         if routing_history:
             print(f"\n\nNODE UPTIME HISTORY\n")
             if args.markdown:
@@ -70,7 +74,10 @@ class MainFunctions:
         if args.output or args.output == "":
             node_dict = self._json_neat_format(node_dict)
             api_data = self._json_neat_format(api_data)
-            data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", node_dict, api_data, swagger_data, routing_history]
+            if role:
+                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", f"Mode = {role}", node_dict, api_data, swagger_data, routing_history]
+            else:
+                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", node_dict, api_data, swagger_data, routing_history]
             self.output.concat_to_file(args, data_list)
 
     def collect_all_results(self,args):
@@ -147,7 +154,6 @@ class MainFunctions:
             version = node_dict["mixnode_details"]["bond_information"]["mix_node"]["version"]
             routing_history = api_data[f"/status/mixnode/{mix_id}/history"]["history"]
             del api_data[f"/status/mixnode/{mix_id}/history"]["history"]
-            #TODO: try this https://stackoverflow.com/questions/15431044/can-i-set-max-retries-for-requests-request/35504626#35504626
             swagger_data = self.get_swagger_data(host,swagger,swagger_data)
         else:
             print(f"The mode type {mode} is not recognized!")
@@ -162,7 +168,7 @@ class MainFunctions:
         return host, version, mix_id, role, api_data, swagger_data, routing_history
 
     def get_swagger_data(self,host,swagger,swagger_data):
-        print("INFO: Starting to query SWAGGER API page...")
+        print("INFO: Starting to query SWAGGER API endpoints...")
         urls = [
                 f"http://{host}:8080/api/v1",
                 f"https://{host}/api/v1",
@@ -171,10 +177,9 @@ class MainFunctions:
         responding_url = self.get_swagger_response(urls)
         if responding_url:
             for endpoint in swagger:
-                print(f"Quering {responding_url}{endpoint}")
+                print(f"Querying {responding_url}{endpoint}")
                 value = self.try_query_swagger(responding_url,endpoint)
                 if value:
-                    #value = response.json()
                     swagger_data[endpoint] = value
         else:
             swagger_data = {}
@@ -185,25 +190,21 @@ class MainFunctions:
         url = f"{base_url}{endpoint}"
         value = None
         try:
-            #response = r.get(url, timeout=2)
             value = r.get(url, timeout=2).json()
-            #value = r.get(url, timeout=2).json()
-            #print(response)
-            #value = response.json()
         except (r.exceptions.ConnectionError, urllib3.exceptions.ProtocolError) as e:
-            #print(f"Error: Connection error when querying {url}: {e}") # No break because you could be dealing with a different protocol
-            error = f"Error: Connection error when querying {url}: {e}" # No break because you could be dealing with a different protocol
+            print(f"Error: Connection error when querying {url}: {e}") # No break because you could be dealing with a different protocol
+#            error = f"Error: Connection error when querying {url}: {e}" # No break because you could be dealing with a different protocol
 #            count, error_list = self.error_count(len_urls,count, error, error_dict, 1)
         except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError) as e:
-            #print(f"Error: JSON decode error when querying {url}: {e}")
-            error = f"Error: JSON decode error when querying {url}: {e}"
- #           count, error_list = self.error_count(len_urls, count, error, error_dict, 2)
+            print(f"Error: JSON decode error when querying {url}: {e}")
+#            error = f"Error: JSON decode error when querying {url}: {e}"
+#            count, error_list = self.error_count(len_urls, count, error, error_dict, 2)
         except r.exceptions.ConnectTimeout as e:
-            #print(f"Error: Connection timeout when querying {url}: {e}")
-            error = f"Error: Connection timeout when querying {url}: {e}"
- #           count, error_list = self.error_count(len_urls, count, error, error_dict, 3)
+            print(f"Error: Connection timeout when querying {url}: {e}")
+#            error = f"Error: Connection timeout when querying {url}: {e}"
+#            count, error_list = self.error_count(len_urls, count, error, error_dict, 3)
         except Exception as e:
-            error = f"Error: An unexpected error occurred when querying {url}: {e}"
+            print(f"Error: An unexpected error occurred when querying {url}: {e}")
 #            count, error_list = self.error_count(len_urls, count, error, error_dict, 4)
         return value
 
@@ -214,23 +215,21 @@ class MainFunctions:
             value = self.try_query_swagger(base_url, endpoint)
             if value:
                 responding_url = base_url
+                print(f"INFO: Swagger API is accessible via {responding_url}, we are going to proceed with querying Swagger endpoints...")
                 break
-        if responding_url:
-            print(f"INFO: Swagger API page accessible via {responding_url}, we will proceed with quering Swagger endpoints...")
-        else:
-            for base_url in urls:
-                print(f"Error: Swagger API was unreachable via {base_url}, we cannot proceed with quering Swagger endpoints!")
+            else:
+                print(f"Swagger API was unreachable via {base_url}, we cannot proceed with querying Swagger end points!")
         return responding_url
 
-    def error_count(self,len_urls,count, error, error_dict, error_index):
-        count += 1
-        error_dict[error] = error_index
-        if count == len_urls and len(set(error_dict.values())) == 1:
-            for key in error_dict.keys():
-                print(key)
-            count = 0
-            error_dict = {}
-        return count, error_dict
+#    def error_count(self,len_urls,count, error, error_dict, error_index):
+#        count += 1
+#        error_dict[error] = error_index
+#        if count == len_urls and len(set(error_dict.values())) == 1:
+#            for key in error_dict.keys():
+#                print(key)
+#            count = 0
+#            error_dict = {}
+#        return count, error_dict
 
     def _set_index_to_empty(self, df):
         index_len = pd.RangeIndex(len(df.index))

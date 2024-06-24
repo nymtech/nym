@@ -193,19 +193,12 @@ class MainFunctions:
             value = r.get(url, timeout=2).json()
         except (r.exceptions.ConnectionError, urllib3.exceptions.ProtocolError) as e:
             print(f"Error: Connection error when querying {url}: {e}") # No break because you could be dealing with a different protocol
-#            error = f"Error: Connection error when querying {url}: {e}" # No break because you could be dealing with a different protocol
-#            count, error_list = self.error_count(len_urls,count, error, error_dict, 1)
         except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError) as e:
             print(f"Error: JSON decode error when querying {url}: {e}")
-#            error = f"Error: JSON decode error when querying {url}: {e}"
-#            count, error_list = self.error_count(len_urls, count, error, error_dict, 2)
         except r.exceptions.ConnectTimeout as e:
             print(f"Error: Connection timeout when querying {url}: {e}")
-#            error = f"Error: Connection timeout when querying {url}: {e}"
-#            count, error_list = self.error_count(len_urls, count, error, error_dict, 3)
         except Exception as e:
             print(f"Error: An unexpected error occurred when querying {url}: {e}")
-#            count, error_list = self.error_count(len_urls, count, error, error_dict, 4)
         return value
 
     def get_swagger_response(self,urls):
@@ -221,15 +214,6 @@ class MainFunctions:
                 print(f"Swagger API was unreachable via {base_url}, we cannot proceed with querying Swagger end points!")
         return responding_url
 
-#    def error_count(self,len_urls,count, error, error_dict, error_index):
-#        count += 1
-#        error_dict[error] = error_index
-#        if count == len_urls and len(set(error_dict.values())) == 1:
-#            for key in error_dict.keys():
-#                print(key)
-#            count = 0
-#            error_dict = {}
-#        return count, error_dict
 
     def _set_index_to_empty(self, df):
         index_len = pd.RangeIndex(len(df.index))

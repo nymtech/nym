@@ -168,64 +168,59 @@ class MainFunctions:
                 f"https://{host}/api/v1",
                 f"http://{host}/api/v1"
             ]
-        len_urls = len(urls)
-        for endpoint in swagger:
-                print(f"Querying {host},swagger API endpoint: {endpoint} via https and https")
-                count = 0
-                error_dict = {}
-                for base_url in urls:
-                    url = f"{base_url}{endpoint}"
-                    try:
-                        value = r.get(url, timeout=2).json()
-                        swagger_data[endpoint] = value
-                        break
-                    except (r.exceptions.ConnectionError, urllib3.exceptions.ProtocolError) as e:
-                        #print(f"Error: Connection error when querying {url}: {e}") # No break because you could be dealing with a different protocol
-                        error = f"Error: Connection error when querying {url}: {e}" # No break because you could be dealing with a different protocol
-                        count, error_list = self.error_count(len_urls,count, error, error_dict, 1)
-                    except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError) as e:
-                        #print(f"Error: JSON decode error when querying {url}: {e}")
-                        error = f"Error: JSON decode error when querying {url}: {e}"
-                        count, error_list = self.error_count(len_urls, count, error, error_dict, 2)
-                    except r.exceptions.ConnectTimeout as e:
-                        #print(f"Error: Connection timeout when querying {url}: {e}")
-                        error = f"Error: Connection timeout when querying {url}: {e}"
-                        count, error_list = self.error_count(len_urls, count, error, error_dict, 3)
-                    except Exception as e:
-                        error = f"Error: An unexpected error occurred when querying {url}: {e}"
-                        count, error_list = self.error_count(len_urls, count, error, error_dict, 4)
-                        #count += 1
-                        #error_msgs.append(error)
-                        #if count == len(urls):
-                        #    for msg in error_msgs:
-                        #        print(msg)
-                        #    count = 0
-                        #    error_msgs = []
-#        for key in swagger:
-#            try:
-#                url = f"http://{host}:8080/api/v1{key}"
-#                print(f"Querying {url}")
-#                value = r.get(url, timeout=3).json()
-#                swagger_data[key] = value
-#            except r.exceptions.ConnectionError:
-#                url = f"https://{host}/api/v1{key}"
-#                value = r.get(url, timeout=3).json()
-#                swagger_data[key] = value
-#            except r.exceptions.ConnectionError:
-#                url = f"http://{host}/api/v1{key}"
-#                value = r.get(url,timeout=3).json()
-#                swagger_data[key] = value
-#            except r.exceptions.ConnectionError as e:
-#                print(f"Error: The request to pull data from /api/v1/{key} returns {e}!")
-#            except urllib3.exceptions.ProtocolError as e:
-#                print(f"Error: The request to pull data from /api/v1/{key} returns {e}!")
-#            except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError, r.exceptions.ConnectionError) as e:
-#                print(f"Error: Swagger endpoint {url} results in 404: Not Found! {e}")
-#            except r.exceptions.ConnectTimeout as e:
-#                print(f"Error: The request to pull data from /api/v1/{key} returns {e}! We are likely quering a deprecated version of nym-mixnode.")
-#            except Exception as e:
-#                print(f"Error: {e}: {url} not responding. Maybe you querying a deprecated version of nym-mixnode?")
+        responding_url = self.get_swagger_response(urls)
+        if responding_url:
+            for endpoint in swagger:
+                print(f"Quering {responding_url}{endpoint}")
+                value = self.try_query_swagger(responding_url,endpoint)
+                if value:
+                    #value = response.json()
+                    swagger_data[endpoint] = value
+        else:
+            swagger_data = {}
+
         return swagger_data
+
+    def try_query_swagger(self, base_url, endpoint):
+        url = f"{base_url}{endpoint}"
+        value = None
+        try:
+            #response = r.get(url, timeout=2)
+            value = r.get(url, timeout=2).json()
+            #value = r.get(url, timeout=2).json()
+            #print(response)
+            #value = response.json()
+        except (r.exceptions.ConnectionError, urllib3.exceptions.ProtocolError) as e:
+            #print(f"Error: Connection error when querying {url}: {e}") # No break because you could be dealing with a different protocol
+            error = f"Error: Connection error when querying {url}: {e}" # No break because you could be dealing with a different protocol
+#            count, error_list = self.error_count(len_urls,count, error, error_dict, 1)
+        except (JSONDecodeError, json.JSONDecodeError, r.exceptions.JSONDecodeError, ConnectionResetError) as e:
+            #print(f"Error: JSON decode error when querying {url}: {e}")
+            error = f"Error: JSON decode error when querying {url}: {e}"
+ #           count, error_list = self.error_count(len_urls, count, error, error_dict, 2)
+        except r.exceptions.ConnectTimeout as e:
+            #print(f"Error: Connection timeout when querying {url}: {e}")
+            error = f"Error: Connection timeout when querying {url}: {e}"
+ #           count, error_list = self.error_count(len_urls, count, error, error_dict, 3)
+        except Exception as e:
+            error = f"Error: An unexpected error occurred when querying {url}: {e}"
+#            count, error_list = self.error_count(len_urls, count, error, error_dict, 4)
+        return value
+
+    def get_swagger_response(self,urls):
+        responding_url = None
+        for base_url in urls:
+            endpoint = "/health"
+            value = self.try_query_swagger(base_url, endpoint)
+            if value:
+                responding_url = base_url
+                break
+        if responding_url:
+            print(f"INFO: Swagger API page accessible via {responding_url}, we will proceed with quering Swagger endpoints...")
+        else:
+            for base_url in urls:
+                print(f"Error: Swagger API was unreachable via {base_url}, we cannot proceed with quering Swagger endpoints!")
+        return responding_url
 
     def error_count(self,len_urls,count, error, error_dict, error_index):
         count += 1

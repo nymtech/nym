@@ -215,25 +215,6 @@ impl MixnetClient {
         // it must be dropped to finalize the shutdown
     }
 
-    // fn read_buffer_to_slice(
-    //     &mut self,
-    //     buf: &mut [u8],
-    //     cx: &mut Context<'_>,
-    // ) -> Poll<std::result::Result<usize, std::io::Error>> {
-    //     if self._read.buffer.len() < buf.len() {
-    //         let written = self._read.buffer.len();
-    //         buf[..written].copy_from_slice(&self._read.buffer);
-    //         self._read.clear();
-    //         Poll::Ready(Ok(written))
-    //     } else {
-    //         let written = buf.len();
-    //         buf.copy_from_slice(&self._read.buffer[..written]);
-    //         self._read.buffer = self._read.buffer[written..].to_vec();
-    //         cx.waker().wake_by_ref();
-    //         Poll::Ready(Ok(written))
-    //     }
-    // }
-
     fn read_buffer_to_slice(
         &mut self,
         buf: &mut ReadBuf,
@@ -246,7 +227,7 @@ impl MixnetClient {
             Poll::Ready(Ok(()))
         } else {
             let written = buf.capacity();
-            buf.put_slice(&self._read.buffer[..written]);
+            buf.put_slice(&self._read.buffer.split_off(written));
             self._read.buffer.advance(written);
             cx.waker().wake_by_ref();
             Poll::Ready(Ok(()))
@@ -278,11 +259,16 @@ impl AsyncRead for MixnetClient {
             Poll::Pending => return Poll::Pending,
         };
 
-        // let mut buffer = BytesMut::new();
-
-        codec.encode(msg, &mut self._read.buffer).unwrap();
-
-        // = buffer.to_vec();
+        match codec.encode(msg, &mut self._read.buffer) {
+            Ok(_) => {}
+            Err(e) => {
+                error!("failed to encode reconstructed message: {:?}", e);
+                return Poll::Ready(Err(tokio::io::Error::new(
+                    tokio::io::ErrorKind::Other,
+                    "failed to encode reconstructed message",
+                )));
+            }
+        };
 
         self.read_buffer_to_slice(buf, cx)
     }

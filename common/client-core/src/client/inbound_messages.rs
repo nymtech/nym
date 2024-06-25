@@ -6,6 +6,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 use tokio_util::{
     bytes::Buf,
     bytes::BytesMut,
@@ -16,6 +17,8 @@ use crate::error::ClientCoreError;
 
 pub type InputMessageSender = tokio_util::sync::PollSender<InputMessage>;
 pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
+
+const LENGHT_ENCODING_PREFIX_SIZE: usize = 4;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum InputMessage {
@@ -210,11 +213,25 @@ impl InputMessage {
     }
 
     pub fn serialized_size(&self) -> u64 {
-        bincode::serialized_size(self).expect("failed to get serialized InputMessage size") + 4
+        bincode::serialized_size(self).expect("failed to get serialized InputMessage size")
+            + LENGHT_ENCODING_PREFIX_SIZE as u64
     }
 }
 
 // TODO: Tests
+pub struct AdressedInputMessageCodec(pub Recipient);
+
+impl Encoder<&[u8]> for AdressedInputMessageCodec {
+    type Error = ClientCoreError;
+
+    fn encode(&mut self, item: &[u8], buf: &mut BytesMut) -> Result<(), Self::Error> {
+        let mut codec = InputMessageCodec;
+        let input_message = InputMessage::simple(item, self.0.clone());
+        codec.encode(input_message, buf)?;
+        Ok(())
+    }
+}
+
 pub struct InputMessageCodec;
 
 impl Encoder<InputMessage> for InputMessageCodec {
@@ -236,21 +253,27 @@ impl Decoder for InputMessageCodec {
     type Error = ClientCoreError;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if buf.len() < 4 {
+        if buf.len() < LENGHT_ENCODING_PREFIX_SIZE {
             return Ok(None);
         }
 
-        let len = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as usize;
-        if buf.len() < len + 4 {
+        let len = u32::from_le_bytes(
+            buf[0..LENGHT_ENCODING_PREFIX_SIZE]
+                .try_into()
+                .expect("Could not coarce to array"),
+        ) as usize;
+        if buf.len() < len + LENGHT_ENCODING_PREFIX_SIZE {
             return Ok(None);
         }
 
-        let decoded = match bincode::deserialize(&buf[4..len + 4]) {
+        let decoded = match bincode::deserialize(
+            &buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE],
+        ) {
             Ok(decoded) => decoded,
             Err(_) => return Ok(None),
         };
 
-        buf.advance(len + 4);
+        buf.advance(len + LENGHT_ENCODING_PREFIX_SIZE);
 
         Ok(Some(decoded))
     }

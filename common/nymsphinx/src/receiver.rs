@@ -64,7 +64,7 @@ impl From<PlainMessage> for ReconstructedMessage {
 }
 
 pub struct ReconstructedMessageCodec;
-const OFFSET: usize = 4;
+const LENGHT_ENCODING_PREFIX_SIZE: usize = 4;
 
 impl Encoder<ReconstructedMessage> for ReconstructedMessageCodec {
     type Error = MessageRecoveryError;
@@ -89,21 +89,23 @@ impl Decoder for ReconstructedMessageCodec {
     type Error = MessageRecoveryError;
 
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if buf.len() < OFFSET {
+        if buf.len() < LENGHT_ENCODING_PREFIX_SIZE {
             return Ok(None);
         }
 
         let len = u32::from_le_bytes(
-            buf[0..OFFSET]
+            buf[0..LENGHT_ENCODING_PREFIX_SIZE]
                 .try_into()
-                .expect("We know that we have at least OFFSET bytes in there"),
+                .expect("We know that we have at least LENGHT_ENCODING_PREFIX_SIZE bytes in there"),
         ) as usize;
 
-        if buf.len() < len + OFFSET {
+        if buf.len() < len + LENGHT_ENCODING_PREFIX_SIZE {
             return Ok(None);
         }
 
-        let decoded = match bincode::deserialize(&buf[OFFSET..len + OFFSET]) {
+        let decoded = match bincode::deserialize(
+            &buf[LENGHT_ENCODING_PREFIX_SIZE..len + LENGHT_ENCODING_PREFIX_SIZE],
+        ) {
             Ok(decoded) => decoded,
             Err(e) => {
                 debug!("Failed to decode the message - {:?}", e);
@@ -111,7 +113,7 @@ impl Decoder for ReconstructedMessageCodec {
             }
         };
 
-        buf.advance(len + 4);
+        buf.advance(len + LENGHT_ENCODING_PREFIX_SIZE);
 
         Ok(Some(decoded))
     }

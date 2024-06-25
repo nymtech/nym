@@ -4,7 +4,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [2024.6-chomp] (2024-06-14)
+## [2024.6-chomp] (2024-06-25)
 
 - Remove additional code as part of Ephemera Purge and SP and contracts ([#4650])
 - bugfix: make sure nym-api can handle non-cw2 (or without detailed build info) compliant contracts ([#4648])

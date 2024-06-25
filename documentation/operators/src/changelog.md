@@ -2,6 +2,220 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+## `v2024.6-chomp`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.6-chomp)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.6-chomp/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.3`
+- Standalone `nym-gateway` and `nym-mixnode` binaries are no longer released
+
+~~~admonish example collapsible=true title='CHANGELOG.md'
+- Remove additional code as part of Ephemera Purge and SP and contracts ([#4650])
+- bugfix: make sure nym-api can handle non-cw2 (or without detailed build info) compliant contracts ([#4648])
+- introduced a flag to accept toc and exposed it via self-described API ([#4647])
+- bugfix: make sure to return an error on invalid public ip ([#4646])
+- Add ci check for PR having an assigned milestone ([#4644])
+- Removed ephemera code ([#4642])
+- Remove stale peers ([#4640])
+- Add generic wg private network routing ([#4636])
+- Feature/new node endpoints ([#4635])
+- standarised ContractBuildInformation and added it to all contracts ([#4631])
+- validate nym-node public ips on startup ([#4630])
+- Bump defguard wg ([#4625])
+- Fix cargo warnings ([#4624])
+- Update kernel peers on peer modification ([#4622])
+- Handle v6 and v7 requests in the IPR, but reply with v6 ([#4620])
+- fix typo ([#4619])
+- Update crypto and rand crates ([#4607])
+- Purge name service and service provider directory contracts ([#4603])
+
+[#4650]: https://github.com/nymtech/nym/pull/4650
+[#4648]: https://github.com/nymtech/nym/pull/4648
+[#4647]: https://github.com/nymtech/nym/pull/4647
+[#4646]: https://github.com/nymtech/nym/pull/4646
+[#4644]: https://github.com/nymtech/nym/pull/4644
+[#4642]: https://github.com/nymtech/nym/pull/4642
+[#4640]: https://github.com/nymtech/nym/pull/4640
+[#4636]: https://github.com/nymtech/nym/pull/4636
+[#4635]: https://github.com/nymtech/nym/pull/4635
+[#4631]: https://github.com/nymtech/nym/pull/4631
+[#4630]: https://github.com/nymtech/nym/pull/4630
+[#4625]: https://github.com/nymtech/nym/pull/4625
+[#4624]: https://github.com/nymtech/nym/pull/4624
+[#4622]: https://github.com/nymtech/nym/pull/4622
+[#4620]: https://github.com/nymtech/nym/pull/4620
+[#4619]: https://github.com/nymtech/nym/pull/4619
+[#4607]: https://github.com/nymtech/nym/pull/4607
+[#4603]: https://github.com/nymtech/nym/pull/4603
+~~~
+
+### Features
+
+- [Make embedded NR/IPR ignore performance of the Gateway](https://github.com/nymtech/nym/pull/4671): fixes bug in relation to scoring issue on nym-nodes operating as exit gateways failing to come online.
+- [Introduce a flag to accept Operators Terms and Conditions and exposed it via self-described API](https://github.com/nymtech/nym/pull/4647) 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Verify that the `execute` function correctly checks if the `accept_operator_terms` flag is set.
+- Test that a warning is displayed when the `accept_operator_terms` flag is not set.
+- Confirm that the `NymNode` instance is initialized with `with_accepted_toc(accepted_toc)` when the flag is set.
+- Apply the `--accept-toc` flag in the service and confirmed the change by running:
+```
+curl -s -X 'GET' 'http://18.171.251.41:8080/api/v1/auxiliary-details?output=json' -H 'accept: application/json' | jq .accepted_toc
+```
+- Verify that the output is `true`.
+~~~
+
+- [Rename 'accept-toc' flag and fields into explicit 'accept-operator-terms-and-conditions'](https://github.com/nymtech/nym/pull/4654): makes the `accept-toc` flag more explicit.
+- [Validate nym-node public ips on startup](https://github.com/nymtech/nym/pull/4630): makes sure nym-node is not run with an empty `public_ips` and that they do not correspond to common misconfigurations like `127.0.0.1` or `0.0.0.0` unless run with `--local` flag.
+~~~admonish example collapsible=true title='Testing steps performed'
+- Use the latest release/chomp binary with nym-node and input a dodgy ip
+<img width="361" alt="image" src="https://github.com/nymtech/nym/assets/60836166/6f2210f9-90ec-48fb-932f-f325c701de09">
+ 
+- Validation:
+<img width="1104" alt="image" src="https://github.com/nymtech/nym/assets/60836166/3bac221f-82f2-44cd-b8c0-6c599b0eb325">
+When restarting the node it complains within the service launch file
+~~~
+
+- [New node endpoints](https://github.com/nymtech/nym/pull/4635): introduces new endpoints on nym-api (and creates scaffolding for additional ones) for providing **unfiltered** network topology alongside performance score of all nodes.
+    - `NymApiTopologyProvider` got modified to use those endpoints alongside (configurable) filtering of nodes with score < 50% (like our current blacklist)
+    - Old clients should work as before as no existing endpoint got removed
+~~~admonish example collapsible=true title='Testing steps performed'
+- Validate that the `skimmed` endpoints are working, keeping in mind that they are unstable. The full-fat and semi-skimmed have not yet been implemented.
+~~~
+
+- [Remove stale peers](https://github.com/nymtech/nym/pull/4640)
+- [Removed ephemera code](https://github.com/nymtech/nym/pull/4642): 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Check references to everything named SP and Ephemera and removed any additional references
+~~~
+
+- [Remove additional code as part of Ephemera Purge and SP and contracts](https://github.com/nymtech/nym/pull/4650): in line with [#4642](https://github.com/nymtech/nym/pull/4642) and [#4603](https://github.com/nymtech/nym/pull/4603)
+~~~admonish example collapsible=true title='Testing steps performed'
+- Check references to everything named SP and Ephemera and removed any additional references
+~~~
+
+- [Add ci check for PR having an assigned milestone](https://github.com/nymtech/nym/pull/4644): add a CI check for checking that a PR is assigned to a milestone. Can bypassed the check by adding a `no-milestone` label to a PR
+~~~admonish example collapsible=true title='Testing steps performed'
+- CI complains if no milestone is associated with the an issue.
+~~~
+
+- [Bump defguard wireguard](https://github.com/nymtech/nym/pull/4625)
+- [Add generic wireguard private network routing](https://github.com/nymtech/nym/pull/4636): as defguard wireguard only allows for peer routing modifications, we will configure the entire wireguard private network to be routed to the wg device. Configuring per peer is also not desirable, as the interface doesn't allow removing routes, so unused ip routing won't be cleaned until gateway restart (and it would also pollute to routing table with a lot of rules when many peers are added).
+~~~admonish example collapsible=true title='Testing steps performed'
+- This is a part of a bigger ticket, but initial testing has proven to shown that launching nym-nodes (entry and exit gateways) in WG enable mode to be working
+ 
+*QA will use this template for the other related WG tickets in this release milestone.*
+~~~
+- [Standarise `ContractBuildInformation` and add it to all contracts](https://github.com/nymtech/nym/pull/4631): Similarly to `cw2`, we're now saving `ContractBuildInformation` under a constant storage key, i.e. `b"contract_build_info"` that standarises the retrieval by nym-api.
+    - Also each of our contracts now saves and updates that information upon init and migration.
+~~~admonish example collapsible=true title='Testing steps performed'
+- Use the latest release/chomp contracts and deploy these to QA
+- Use the nym-api to query for the results of these new contracts
+ 
+```sh
+ curl -X 'GET' \
+   'https://qa-nym-api.qa.nymte.ch/api/v1/network/nym-contracts-detailed' \
+   -H 'accept: application/json'
+```
+   
+- It returns a detailed view of the contracts and which branch they were built from, alongside rust versions and so forth.
+<img width="1257" alt="image" src="https://github.com/nymtech/nym/assets/60836166/b5711431-c2f6-44ee-bf02-b17e6c48c5ee">
+~~~
+
+- [Update kernel peers on peer modification](https://github.com/nymtech/nym/pull/4622): 
+~~~admonish example collapsible=true title='Testing steps performed'
+- This is a part of a bigger ticket, but initial testing has proven to shown that launching nym-nodes (entry and exit gateways) in WG enable mode to be working.
+*QA will use this template for the other related WG tickets in this release milestone.*
+~~~
+
+- [Handle v6 and v7 requests in the IPR, but reply with v6](https://github.com/nymtech/nym/pull/4620): teach the IPR to read both v6 and v7 requests, but always reply with v6. This is to prepare for bumping to v7 and signed connect/disconnect messages. Follow up PRs will add
+    - Verify signature
+    - Send v7 in client with signatures included
+- [Purge name service and service provider directory contracts](https://github.com/nymtech/nym/pull/4603): this is a compiler assisted purge of the `nym-name-service` and `nym-service-provider-directory` contracts that were never deployed on mainnet, and will anyhow be superseded by the new mixnode directory that is being worked on.
+~~~admonish example collapsible=true title='Testing steps performed'
+It works insofar that it compiles, we need to deploy and test this on non-mainnet before merging in
+ 
+- Purge `nym-name-service` contract
+- Purge `nym-name-service-common`
+- Purge `nym-service-provider-directory` contract
+- Purge `nym-service-provider-directory-common`
+- Remove everywhere name-service contract is used
+- Remove everywhere sp contract is used
+
+Performed:
+- Check references to everything named SP and Ephemera and removed any additional references
+~~~
+
+### Crypto
+
+- [Update crypto and rand crates](https://github.com/nymtech/nym/pull/4607): Update sphinx crate to `0.1.1` along with 25519 crates and `rand` crates
+~~~admonish example collapsible=true title="Comments"
+This PR contains a test failure due to the update [here](https://github.com/nymtech/nym/blob/b4a0487a41375167b2f481c00917b957b9f89789/common/crypto/src/asymmetric/encryption/mod.rs#L353-L358)
+
+- This is due a change in `x25519-dalek` from `1.1.1` to `2`. 
+- Crypto operations should be identical, but the byte representation has changed (sphinx clamps at creation, x25519 clamps at use). This cannot be changed in the sphinx crate without breaking changes. 
+- There is a good chance that this failure doesn't impact anything else, but it has to be tested to see. 
+- A mix of old and new clients with a mix of old and new mixnodes should do
+~~~
+
+### Bugfix
+- [Make sure nym-api can handle non-cw2 (or without detailed build info) compliant contracts](https://github.com/nymtech/nym/pull/4648): fixes the issue (even if some contracts aren't uploaded on chain it doesn't prohibit the api from working - caveat, the essential vesting and mixnet contract are required) 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Use the latest release/chomp contracts and deploy these to QA
+- If the contract was not found, the API would complain of invalid contracts, thus not starting the rest of the operations of the API (network monitor / rewarding etc)
+ 
+ `Jun 11 16:27:34 qa-v2-nym-api bash[1352642]:  2024-06-11T16:27:34.551Z ERROR nym_api::nym_contract_cache::cache::refresher > Failed to refresh validator cache - Abci query failed with code 6 - address n14y2x8a60knc5jjfeztt84kw8x8l5pwdgnqg256v0p9v4p7t2q6eswxyusw: no such contract: unknown request`
+~~~
+
+- [Make sure to return an error on `nym-node` invalid public ip](https://github.com/nymtech/nym/pull/4646): bugfix for [#4630](https://github.com/nymtech/nym/pull/4630) that interestingly hasn't been detected by clippy.
+~~~admonish example collapsible=true title='Testing steps performed'
+- Use the latest release/chomp binary with nym-node and input a dodgy ip
+<img width="361" alt="image" src="https://github.com/nymtech/nym/assets/60836166/6f2210f9-90ec-48fb-932f-f325c701de09">
+ 
+- Validation:
+<img width="1104" alt="image" src="https://github.com/nymtech/nym/assets/60836166/3bac221f-82f2-44cd-b8c0-6c599b0eb325">
+~~~
+
+- [Extend the return error when connecting to gateway fails](https://github.com/nymtech/nym/pull/4626)
+~~~admonish example collapsible=true title='Testing steps performed'
+- Verify that the `establish_connection` function correctly attempts to establish a connection to the gateway.
+- Test error handling for `NetworkConnectionFailed` by simulating a failed connection.
+- Ensure that the `NetworkConnectionFailed` error includes the `address` and `source` details as expected.
+- Checked that `SocketState::Available` is set correctly when a connection is successfully established.
+~~~
+
+- [Fix Cargo warnings](https://github.com/nymtech/nym/pull/4624): On every cargo command we have the set warnings:  
+~~~admonish example collapsible=true title="Cargo warnings"
+warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for ff, since `default-features` was not specified for `workspace.dependencies.ff`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for group, since `default-features` was not specified for `workspace.dependencies.group`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/client-libs/validator-client/Cargo.toml: `default-features` is ignored for bip32, since `default-features` was not specified for `workspace.dependencies.bip32`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/client-libs/validator-client/Cargo.toml: `default-features` is ignored for prost, since `default-features` was not specified for `workspace.dependencies.prost`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/credentials-interface/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/credentials/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for ff, since `default-features` was not specified for `workspace.dependencies.ff`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for group, since `default-features` was not specified for `workspace.dependencies.group`, this could become a hard error in the future.  
+~~~
+    - This PR adds `default-features = false` to the workspace dependencies to fix these. An alternative way would be to remove `default-features = false` in the crates, but we assume these were put there for a good reason. Also we might have other crates outside of the main workspace that depends on these crates having default features disabled. 
+    - We also have the warning `warning: profile package spec nym-wasm-sdk in profile release did not match any packages`  which we fix by commenting out the profile settings, since the crate is currently commented out in the workspace crate list. 
+~~~admonish example collapsible=true title='Testing steps performed'
+- All binaries have been built and deployed from this branch and no issues have surfaced.
+~~~
+
+### Operators Guide updates
+
+- [New Release Cycle](release-cycle.md) introduced: a transparent release flow, including:
+    - New environments
+    - Stable testnet 
+    - [Testnet token faucet](https://nymtech.net/operators/sandbox.html#sandbox-token-faucet)
+    - Flow [chart](elease-cycle.md#release-flow)
+- [Sandbox testnet](sandbox.md) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
+
+
+
+
+
+
+
+~~~admonish example collapsible=true title='Testing steps performed'
+
+~~~
+
+~~~admonish example collapsible=true title='Testing steps performed'
+
+~~~
+
 
 ## `v2024.5-ragusa`
 

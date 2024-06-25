@@ -88,6 +88,7 @@ Some of the most useful flags and their explanation:
 
 ~~~admonish example collapsible=true title="Flags explanation:"
 - `--id <YOUR_ID>`: Local identifier of your node. This `<ID>` determines your config path located at `~/.nym/nym-nodes/<ID>/config/config.toml`, default value is `default-nym-node`
+- `--accept-operator-terms-and-conditions`:  Explicitly specify whether you agree with the terms and conditions of a nym node operator as defined at [nymtech.net/terms-and-conditions/operators/v1.0.0](https://nymtech.net/terms-and-conditions/operators/v1.0.0)
 - `--config-file <PATH>`: Used for the migrate command to indicate the location of the existing node config file. Default path is `~/.nym/nym-nodes/default-nym-node/config/config.toml`
 - `--deny-init`: Use this flag to prevent a new node from being initialized. It's recommended to use this after the first run to avoid accidental spinning up of a second node.
 - `--init-only`: Use this flag if you want to set up a node without starting it.
@@ -99,9 +100,45 @@ Some of the most useful flags and their explanation:
 - `--expose-crypto-hardware <true/false>`: Sets your crypto hardware info visibility on the network.
 ~~~
 
+### Terms & Conditions
+
+```admonish info
+From `nym-node` version `1.1.3` onward is required to accept [**Operators Terms & Conditions**]({{toc_page}}) in order to be part of the active set. Make sure to read them before you accept. 
+```
+
+There has been a long ongoing discussion whether and how to apply Terms and Conditions for Nym network operators, with an aim to stay aligned with the philosophy of Free Software and provide legal defense for both node operators and Nym developers. To understand better the reasoning behind this decision, you can listen to the first [Nym Operator Town Hall](https://www.youtube.com/live/7hwb8bAZIuc?si=3mQ2ed7AyUA1SsCp&t=915) introducing the T&Cs or to [Operator AMA with CEO Harry Halpin]() from June 4th, 2024, explaining pros and cons and the implementation of T&Cs.
+
+Accepting T&Cs is done via an explicit flag `--accept-operator-terms-and-conditions` added to `nym-node run` command.
+
+To check whether any node has T&Cs accepted or not can be done by querying Swagger API endpoint `/auxiliary_details` via one of these ports (depending on node setup):
+```sh
+# sustitude <NODE_IP_ADDRESS> with a real one
+http://<NODE_IP_ADDRESS>:8080/api/v1/auxiliary_details
+https://<NODE_IP_ADDRESS>/api/v1/auxiliary_details
+http://<NODE_IP_ADDRESS>/api/v1/auxiliary_details
+```
+
+~~~admonish example collapsible=true title="Example of `/auxiliary_details` query"
+```sh
+# substitude <NODE_IP_ADDRESS> with a real one
+curl -X 'GET' \
+  'http://<NODE_IP_ADDRESS>:8080/api/v1/auxiliary-details' \
+  -H 'accept: application/json'
+
+{
+  "location": "Kurdistan",
+  "accepted_operator_terms_and_conditions": true
+}
+```
+~~~
+
 ### Commands & Examples
 
 **`nym-node` introduces a default human readible ID (local only) `default-nym-node`, which is used if there is not an explicit custom `--id <ID>` specified. All configuration is stored in `~/.nym/nym-nodes/default-nym-node/config/config.toml` or `~/.nym/nym-nodes/<ID>/config/config.toml` respectively.**
+
+```admonish info
+All commands with more options listed below include `--accept-operator-terms-and-conditions` flag, read [Terms & Conditions](#terms--conditions) chapter above before executing these commands.
+```
 
 ### Initialise & Run
 
@@ -121,15 +158,13 @@ To prevent over-flooding of our documentation we cannot provide with every singl
 
 #### Mode: `exit-gateway`
 
-As part of the transition, `allowed.list` on Exit Gateway embedded Network Requester was depreciated.
-
 **Initialise and run** in one command:
 ```sh
 # simple default
 ./nym-node  run  --mode exit-gateway
 
 # with other options
-./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --wireguard-enabled false
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled false
 
 # <YOUR_DOMAIN> is in format without 'https://' prefix
 # <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
@@ -143,7 +178,7 @@ As part of the transition, `allowed.list` on Exit Gateway embedded Network Reque
 ./nym-node run --init-only --mode exit-gateway
 
 # with a custom `--id` and other options
-./nym-node run --id <ID> --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --wireguard-enabled false
+./nym-node run --id <ID> --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled false
 
 # <YOUR_DOMAIN> is in format without 'https://' prefix
 # <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
@@ -152,7 +187,7 @@ As part of the transition, `allowed.list` on Exit Gateway embedded Network Reque
 
 Run the node with custom `--id` without initialising, using `--deny-init` command
 ```sh
-./nym-node run --id <ID> --deny-init --mode exit-gateway
+./nym-node run --id <ID> --deny-init --mode exit-gateway --accept-operator-terms-and-conditions
 ```
 
 #### Mode: `entry-gateway`

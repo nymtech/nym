@@ -199,12 +199,12 @@ Run the node with custom `--id` without initialising, using `--deny-init` comman
 
 Initialise only with a custom `--id` and `--init-only` command:
 ```sh
-./nym-node run --id <ID> --init-only --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789
+./nym-node run --id <ID> --init-only --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --accept-operator-terms-and-conditions
 ```
 
 Run the node with custom `--id` without initialising:
 ```sh
-./nym-node run --id <ID> --deny-init --mode entry-gateway
+./nym-node run --id <ID> --deny-init --mode entry-gateway --accept-operator-terms-and-conditions
 ```
 
 #### Mode: `mixnode`
@@ -216,17 +216,17 @@ Run the node with custom `--id` without initialising:
 
 Initialise only with a custom `--id` and `--init-only` command:
 ```sh
-./nym-node run --id <ID> --init-only --mode mixnode --verloc-bind-address 0.0.0.0:1790 --public-ips "$(curl -4 https://ifconfig.me)"
+./nym-node run --id <ID> --init-only --mode mixnode --verloc-bind-address 0.0.0.0:1790 --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
 ```
 
 Run the node with custom `--id` without initialising:
 ```sh
-./nym-node run --id <ID> --deny-init --mode mixnode
+./nym-node run --id <ID> --deny-init --mode mixnode --accept-operator-terms-and-conditions
 ```
 
 Run the node with custom `--id` without initialising:
 ```sh
-./nym-node run --id <ID> --deny-init --mode entry-gateway
+./nym-node run --id <ID> --deny-init --mode entry-gateway --accept-operator-terms-and-conditions
 ```
 
 ### Migrate
@@ -247,7 +247,7 @@ Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 ./nym-node migrate --config-file ~/.nym/mixnodes/<MIXNODE_ID>/config/config.toml mixnode
 
 # initialise with the new nym-node config
-./nym-node run --mode mixnode --id <NYM-NODE_ID> --deny-init
+./nym-node run --mode mixnode --id <NYM-NODE_ID> --accept-operator-terms-and-conditions
 ```
 
 #### Mode: `entry-gateway` and `exit-gateway`
@@ -255,8 +255,11 @@ Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 # move relevant infor from config.toml
 ./nym-node migrate --config-file ~/.nym/gateways/<GATEWAY_ID>/config/config.toml gateway
 
-# initialise with the new nym-node config
-./nym-node run --mode exit-gateway --id <NYM-NODE_ID> --deny-init # or change to entry-gateway
+# initialise with the new nym-node config - entry-gateway
+./nym-node run --mode entry-gateway --id <NYM-NODE_ID> --accept-operator-terms-and-conditions  
+
+# or as exit-gateway
+./nym-node run --id <NYM-NODE_ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled false
 ```
 
 ### Next steps

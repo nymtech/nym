@@ -112,7 +112,7 @@ The most common usage may be `./node_api_check.py query_stats <ID_KEY>` where `<
 
 #### `version_count`
 
-Another command is `version_count` where at least one `nym-node` version is required. In case of multiple version count, separate the versions with space. We recommend to run this command with `--markdown` flag for a nicer output. This is an example is we wanted to look up how many nodes registered on the network are on versions `1.1.0`, `1.1.1`, `1.1.2` and `1.1.3`:
+Another command is `version_count` where at least one `nym-node` version is required. In case of multiple version count, separate the versions with space. We recommend to run this command with `--markdown` flag for a nicer output. This is an example where we want to look up how many registered nodes are on versions `1.1.0`, `1.1.1`, `1.1.2` and `1.1.3`:
 ```sh
 ./node_api_check version_count 1.1.0 1.1.1 1.1.2 1.1.3 --markdown
 ```

@@ -4138,6 +4138,7 @@ version = "1.1.15"
 dependencies = [
  "async-trait",
  "base64 0.21.7",
+ "bincode",
  "bs58 0.5.1",
  "cfg-if",
  "clap 4.5.4",
@@ -4180,6 +4181,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "tokio-util",
  "tungstenite",
  "url",
  "wasm-bindgen",
@@ -4253,6 +4255,7 @@ dependencies = [
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
  "thiserror",
+ "tokio",
  "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4956,6 +4959,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-tungstenite",
+ "tokio-util",
  "url",
  "zeroize",
 ]
@@ -5300,6 +5304,7 @@ dependencies = [
  "tap",
  "thiserror",
  "tokio",
+ "tokio-util",
  "url",
 ]
 
@@ -5359,6 +5364,7 @@ dependencies = [
 name = "nym-sphinx"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "log",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -5375,8 +5381,10 @@ dependencies = [
  "nym-topology",
  "rand 0.8.5",
  "rand_distr",
+ "serde",
  "thiserror",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -5463,6 +5471,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "serde",
  "thiserror",
 ]
 
@@ -5540,6 +5549,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "log",
+ "serde",
  "thiserror",
  "tokio",
  "wasm-bindgen",

@@ -10,6 +10,7 @@ license.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
+bincode = { workspace = true }
 base64 = "0.21.2"
 bs58 = { workspace = true }
 cfg-if = { workspace = true }
@@ -26,6 +27,7 @@ tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["macros"] }
+tokio-util = { workspace = true, features = ["codec"] }
 time = { workspace = true }
 zeroize = { workspace = true }
 
@@ -47,7 +49,9 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
-nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"] }
+nym-client-core-config-types = { path = "./config-types", features = [
+    "disk-persistence",
+] }
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 

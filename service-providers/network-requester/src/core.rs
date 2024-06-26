@@ -10,13 +10,14 @@ use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
+use futures::SinkExt;
 use log::{debug, warn};
 use nym_bin_common::bin_info_owned;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_client_core::HardcodedTopologyProvider;
 use nym_network_defaults::NymNetworkDetails;
-use nym_sdk::mixnet::{MixnetMessageSender, TopologyProvider};
+use nym_sdk::mixnet::TopologyProvider;
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
@@ -40,6 +41,7 @@ use nym_task::manager::TaskHandle;
 use nym_task::TaskClient;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio_util::sync::PollSender;
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
@@ -293,6 +295,8 @@ impl NRServiceProviderBuilder {
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);
 
+        let mix_input_sender = PollSender::new(mix_input_sender);
+
         // Controller for managing all active connections.
         let (mut active_connections_controller, controller_sender) = Controller::new(
             mixnet_client.connection_command_sender(),
@@ -409,7 +413,7 @@ impl NRServiceProvider {
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
-        mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+        mut mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
         stats_collector: Option<ServiceStatisticsCollector>,
         packet_type: PacketType,
@@ -434,7 +438,7 @@ impl NRServiceProvider {
                         }
 
                         let response_message = msg.into_input_message(packet_type);
-                        mixnet_client_sender.send(response_message).await.unwrap();
+                        nym_sdk::mixnet::MixnetMessageSender::send(&mut mixnet_client_sender, response_message).await.unwrap();
                     } else {
                         log::error!("Exiting: channel closed!");
                         break;
@@ -452,7 +456,7 @@ impl NRServiceProvider {
         return_address: reply::MixnetAddress,
         biggest_packet_size: PacketSize,
         controller_sender: ControllerSender,
-        mix_input_sender: MixProxySender<MixnetMessage>,
+        mut mix_input_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
         mut shutdown: TaskClient,
     ) {
@@ -546,7 +550,7 @@ impl NRServiceProvider {
             .unwrap_or(traffic_config.primary_packet_size);
 
         let controller_sender_clone = self.controller_sender.clone();
-        let mix_input_sender_clone = self.mix_input_sender.clone();
+        let mut mix_input_sender_clone = self.mix_input_sender.clone();
         let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
         let mut shutdown = self.shutdown.get_handle();
 

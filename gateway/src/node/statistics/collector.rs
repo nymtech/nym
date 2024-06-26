@@ -52,7 +52,7 @@ impl StatisticsCollector for GatewayStatisticsCollector {
         }
     }
 
-    async fn send_stats_message(&self, stats_message: StatsMessage) -> Result<(), StatsError> {
+    async fn send_stats_message(&mut self, stats_message: StatsMessage) -> Result<(), StatsError> {
         build_and_send_statistics_request(stats_message, self.statistics_service_url.to_string())
             .await
     }

@@ -11,7 +11,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.21.3"
+base64 = { workspace = true }
 dashmap = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
 # The latest version on crates.io at the time of writing this (6.0.0) has a

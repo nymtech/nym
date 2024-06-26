@@ -15,14 +15,14 @@ use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use crate::node::statistics::collector::GatewayStatisticsCollector;
+// use crate::node::statistics::collector::GatewayStatisticsCollector;
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
-use nym_statistics_common::collector::StatisticsSender;
+// use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
@@ -36,7 +36,7 @@ use std::sync::Arc;
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
-pub(crate) mod statistics;
+// pub(crate) mod statistics;
 pub(crate) mod storage;
 
 pub use storage::{InMemStorage, PersistentStorage, Storage};
@@ -507,18 +507,18 @@ impl<St> Gateway<St> {
             shutdown.fork("mixnet_handling::Listener"),
         );
 
-        if self.config.gateway.enabled_statistics {
-            let statistics_service_url = self.config.get_statistics_service_url();
-            let stats_collector = GatewayStatisticsCollector::new(
-                self.identity_keypair.public_key().to_base58_string(),
-                active_clients_store.clone(),
-                statistics_service_url,
-            );
-            let mut stats_sender = StatisticsSender::new(stats_collector);
-            tokio::spawn(async move {
-                stats_sender.run().await;
-            });
-        }
+        // if self.config.gateway.enabled_statistics {
+        //     let statistics_service_url = self.config.get_statistics_service_url();
+        //     let stats_collector = GatewayStatisticsCollector::new(
+        //         self.identity_keypair.public_key().to_base58_string(),
+        //         active_clients_store.clone(),
+        //         statistics_service_url,
+        //     );
+        //     let mut stats_sender = StatisticsSender::new(stats_collector);
+        //     tokio::spawn(async move {
+        //         stats_sender.run().await;
+        //     });
+        // }
 
         self.start_client_websocket_listener(
             mix_forwarding_channel.clone(),

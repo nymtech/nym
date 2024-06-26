@@ -226,10 +226,10 @@ impl Config {
         self
     }
 
-    pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
-        self.gateway.enabled_statistics = enabled_statistics;
-        self
-    }
+    // pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
+    //     self.gateway.enabled_statistics = enabled_statistics;
+    //     self
+    // }
 
     pub fn with_custom_statistics_service_url(mut self, statistics_service_url: Url) -> Self {
         self.gateway.statistics_service_url = statistics_service_url;
@@ -370,8 +370,8 @@ pub struct Gateway {
     #[serde(deserialize_with = "de_maybe_port")]
     pub clients_wss_port: Option<u16>,
 
-    /// Whether gateway collects and sends anonymized statistics
-    pub enabled_statistics: bool,
+    // Whether gateway collects and sends anonymized statistics
+    // pub enabled_statistics: bool,
 
     /// Domain address of the statistics service
     #[zeroize(skip)]
@@ -405,7 +405,7 @@ impl Gateway {
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             clients_port: DEFAULT_CLIENT_LISTENING_PORT,
             clients_wss_port: None,
-            enabled_statistics: false,
+            // enabled_statistics: false,
             statistics_service_url: mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS
                 .parse()
                 .expect("Invalid default statistics service URL"),

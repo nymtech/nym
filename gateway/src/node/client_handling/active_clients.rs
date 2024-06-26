@@ -161,6 +161,7 @@ impl ActiveClientsStore {
     }
 
     /// Get number of active clients in store
+    #[allow(unused)]
     pub(crate) fn size(&self) -> usize {
         self.inner.len()
     }

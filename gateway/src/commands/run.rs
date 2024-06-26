@@ -73,13 +73,13 @@ pub struct Run {
     #[arg(long, hide = true)]
     only_coconut_credentials: Option<bool>,
 
-    /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
-    #[arg(long)]
-    enabled_statistics: Option<bool>,
+    // Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
+    // #[arg(long)]
+    // enabled_statistics: Option<bool>,
 
-    /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
-    #[arg(long)]
-    statistics_service_url: Option<url::Url>,
+    // URL where a statistics aggregator is running. The default value is a Nym aggregator server
+    // #[arg(long)]
+    // statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
     #[arg(long)]
@@ -94,14 +94,14 @@ pub struct Run {
     #[arg(long)]
     open_proxy: Option<bool>,
 
-    /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[arg(long)]
-    enable_statistics: Option<bool>,
+    // Enable service anonymized statistics that get sent to a statistics aggregator server
+    // #[arg(long)]
+    // enable_statistics: Option<bool>,
 
-    /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
-    /// aggregator client
-    #[arg(long)]
-    statistics_recipient: Option<String>,
+    // Mixnet client address where a statistics aggregator is running. The default value is a Nym
+    // aggregator client
+    // #[arg(long)]
+    // statistics_recipient: Option<String>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
@@ -147,8 +147,8 @@ impl From<Run> for OverrideConfig {
             nym_apis: run_config.nym_apis,
             mnemonic: run_config.mnemonic,
 
-            enabled_statistics: run_config.enabled_statistics,
-            statistics_service_url: run_config.statistics_service_url,
+            // enabled_statistics: run_config.enabled_statistics,
+            // statistics_service_url: run_config.statistics_service_url,
             nyxd_urls: run_config.nyxd_urls,
             only_coconut_credentials: run_config.only_coconut_credentials,
             with_network_requester: run_config.with_network_requester,
@@ -164,8 +164,8 @@ impl<'a> From<&'a Run> for OverrideNetworkRequesterConfig {
             no_cover: value.no_cover,
             medium_toggle: value.medium_toggle,
             open_proxy: value.open_proxy,
-            enable_statistics: value.enable_statistics,
-            statistics_recipient: value.statistics_recipient.clone(),
+            // enable_statistics: value.enable_statistics,
+            // statistics_recipient: value.statistics_recipient.clone(),
         }
     }
 }

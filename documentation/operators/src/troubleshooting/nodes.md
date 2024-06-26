@@ -300,14 +300,16 @@ In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/a
 - Outdated version of `nym-node`
 - Bonding before starting the node/service
 - Bonding before opening [needed ports](../nodes/vps-setup.md#configure-your-firewall)
-- VPS restarted without operator having a [systemd automation](../nodes/configuration.md#systemd) or some alert notification flow setup
-- IP address or host is incorrectly setup
+- VPS restarted without operator having a [systemd automation](../nodes/configuration.md#systemd) or some alert notification flow setup (so the operator doesn't know the node was stopped)
+- IP address or host is incorrectly configured
 - Process logs grew too big
 - Node is wrapped in [systemd service](../nodes/configuration.md#systemd) and the operator forgot to run `systemctl daemon-reload` after last changes
 
 **What to do**
 
-Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To query all API endpoints of your node at once, you run [Node API Check CLI](../testing/node-api-check.md). To see routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](../testing/gateway-probe.md). Then follow these steps:
+Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To query all API endpoints of your node at once, you can run [Node API Check CLI](../testing/node-api-check.md). To see IPv4 and IPv6 routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](../testing/gateway-probe.md). 
+
+Then follow these steps:
 
 1. Make sure your node is on the [latest version](../changelog.md) and it's running . Do *not* stop it if there is no need!
 2. Open all [needed ports](../nodes/vps-setup.md#configure-your-firewall)
@@ -316,7 +318,7 @@ Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbour
 5. See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
   - If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
 6. [Check out if your `syslog`s](vps-isp.md#logs-pruning) aren't eating all your disk space and prune them
-7. When all problems addressed: Restart the node/service (don't forget `systemctl daemon-reload`) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by `nym-api` and every positive response picks up your routing score.
+7. When all problems are addressed: Restart the node/service (don't forget `systemctl daemon-reload`) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by `nym-api` and every positive response picks up your routing score.
 8. If your node doesn't pick up the routing score within 24h at all and it was running in `--mode exit-gateway`, run it as `--mode entry-gateway`. When your node is above 75% performance (past 24h), switch back to `--mode exit-gateway`.
 
 **Do not repeatedly restart your Nym Node without reason, your routing score will only get worse!**
@@ -326,24 +328,31 @@ Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbour
 **1. Check out the API endpoints**
 
 Start with checking if your Gateway IPR and NR is active. To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
-```
+```sh
+# sustitude <NODE_IP_ADDRESS> or <NODE_DOMAIN> with a real one
 # for http
-http://<IP_ADDRESS>:8080/api/v1/roles
+http://<NODE_IP_ADDRESS>:8080/api/v1/roles
+# or
+http://<NODE_IP_ADDRESS>/api/v1/roles
 
-# for https reversed proxy
-https://<DOMAIN>/api/v1/roles
+# for reversed proxy/WSS
+https://<NODE_DOMAIN>/api/v1/roles
 ```
 
 Everything necessary will exist on your node by default. For instance, if you're running a mixnode, you'll find that a NR (Network Requester) and IPR (IP Packet Router) address exist, but they will be ignored in `mixnode` mode.
 
 For more information about available endpoints and their status, you can refer to:
 ```sh
+# sustitude <NODE_IP_ADDRESS> or <NODE_DOMAIN> with a real one
 # for http
-http://<IP>:8080/api/v1/swagger/#/
+http://<NODE_IP_ADDRESS>:8080/api/v1/swagger/#/
+# or
+http://<NODE_IP_ADDRESS>/api/v1/swagger/#/
 
-# for https reversed proxy
-https://<DOMAIN>/api/v1/swagger/#/
+# for reversed proxy/WSS
+https://<NODE_DOMAIN>/api/v1/swagger/#/
 ```
+
 
 **2. Configure IPv4 and IPv6 tables and rules**
 

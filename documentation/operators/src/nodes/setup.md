@@ -31,23 +31,29 @@ Every `exit-gateway` mode is basically an `entry-gateway` with NR (Network Reque
 Gateway operators can check out the node performance, connectivity and much more in our new tool [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
 To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
-```
+```sh
+# sustitude <NODE_IP_ADDRESS> or <NODE_DOMAIN> with a real one
 # for http
-http://<IP_ADDRESS>:8080/api/v1/roles
+http://<NODE_IP_ADDRESS>:8080/api/v1/roles
+# or
+http://<NODE_IP_ADDRESS>/api/v1/roles
 
-# for https reversed proxy
-https://<DOMAIN>/api/v1/roles
+# for reversed proxy/WSS
+https://<NODE_DOMAIN>/api/v1/roles
 ```
 
 Everything necessary will exist on your node by default. For instance, if you're running a mixnode, you'll find that a NR (Network Requester) and IPR (IP Packet Router) address exist, but they will be ignored in `mixnode` mode.
 
 For more information about available endpoints and their status, you can refer to:
-```
+```sh
+# sustitude <NODE_IP_ADDRESS> or <NODE_DOMAIN> with a real one
 # for http
-http://<IP>:8080/api/v1/swagger/#/
+http://<NODE_IP_ADDRESS>:8080/api/v1/swagger/#/
+# or
+http://<NODE_IP_ADDRESS>/api/v1/swagger/#/
 
-# for https reversed proxy
-https://<DOMAIN>/api/v1/swagger/#/
+# for reversed proxy/WSS
+https://<NODE_DOMAIN>/api/v1/swagger/#/
 ```
 
 ## Usage
@@ -112,9 +118,9 @@ Accepting T&Cs is done via an explicit flag `--accept-operator-terms-and-conditi
 
 To check whether any node has T&Cs accepted or not can be done by querying Swagger API endpoint `/auxiliary_details` via one of these ports (depending on node setup):
 ```sh
-# sustitude <NODE_IP_ADDRESS> with a real one
+# sustitude <NODE_IP_ADDRESS> or <NODE_DOMAIN> with a real one
 http://<NODE_IP_ADDRESS>:8080/api/v1/auxiliary_details
-https://<NODE_IP_ADDRESS>/api/v1/auxiliary_details
+https://<NODE_DOMAIN>/api/v1/auxiliary_details
 http://<NODE_IP_ADDRESS>/api/v1/auxiliary_details
 ```
 

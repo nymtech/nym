@@ -85,6 +85,8 @@ There are 2 community explorers currently, which have been created by [Nodes Gur
 * [Mainnet](https://mixnet.explorers.guru/)
 * [Sandbox testnet](https://sandbox.mixnet.explorers.guru/)
 
+You can run [Node API Check CLI](../testing/node-api-check.md) to query all API endpoints of your node at once.
+
 [Here](https://github.com/cosmos/chain-registry/blob/master/nyx/chain.json#L158-L187) is a dictionary with Nyx chain registry entry regarding all explorers.
 
 If you want more information, or if your node isn't showing up on the explorer of your choice and you want to double-check, here are some examples on how to check if the node is configured properly.
@@ -303,7 +305,9 @@ In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/a
 - Process logs grew too big
 - Node is wrapped in [systemd service](../nodes/configuration.md#systemd) and you forgot to run `systemctl daemon-reload` after last changes
 
-**What to do:**
+**What to do**
+
+Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To query all API endpoints of your node at once, you run [Node API Check CLI](../testing/node-api-check.md). To see routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](../testing/gateway-probe.md). Then follow these steps:
 
 1. Make sure your node is on the [latest version](../changelog.md) and it's running . Do *not* stop it if there is no need!
 2. Open all [needed ports](../nodes/vps-setup.md#configure-your-firewall)

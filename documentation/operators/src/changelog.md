@@ -201,7 +201,8 @@ warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ig
     - [Testnet token faucet](https://nymtech.net/operators/sandbox.html#sandbox-token-faucet)
     - Flow [chart](elease-cycle.md#release-flow)
 - [Sandbox testnet](sandbox.md) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
-- [Pruning VPS `syslog`](troubleshooting/vps-isp.md#logs-pruning)
+- [Node API Check CLI](testing/node-api-check.md)
+- [Pruning VPS `syslog` scripts](troubleshooting/vps-isp.md#logs-pruning)
 - [Black-xit: Exiting the blacklist](troubleshooting/nodes.md#my-gateway-is-blacklisted)
 
 ---

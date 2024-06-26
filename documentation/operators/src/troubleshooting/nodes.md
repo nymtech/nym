@@ -303,7 +303,7 @@ In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/a
 - VPS restarted without operator having a [systemd automation](../nodes/configuration.md#systemd) or some alert notification flow setup
 - IP address or host is incorrectly setup
 - Process logs grew too big
-- Node is wrapped in [systemd service](../nodes/configuration.md#systemd) and you forgot to run `systemctl daemon-reload` after last changes
+- Node is wrapped in [systemd service](../nodes/configuration.md#systemd) and the operator forgot to run `systemctl daemon-reload` after last changes
 
 **What to do**
 

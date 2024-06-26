@@ -79,7 +79,7 @@ When restarting the node it complains within the service launch file
     - `NymApiTopologyProvider` got modified to use those endpoints alongside (configurable) filtering of nodes with score < 50% (like our current blacklist)
     - Old clients should work as before as no existing endpoint got removed
 ~~~admonish example collapsible=true title='Testing steps performed'
-- Validate that the `skimmed` endpoints are working, keeping in mind that they are unstable. The full-fat and semi-skimmed have not yet been implemented.
+- Validate that the `skimmed` endpoints are working, keeping in mind that they are unstable. The *full-fat* and *semi-skimmed* have not yet been implemented.
 ~~~
 
 - [Remove stale peers](https://github.com/nymtech/nym/pull/4640)

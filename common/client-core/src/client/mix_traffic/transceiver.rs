@@ -19,6 +19,12 @@ use futures::channel::{mpsc, oneshot};
 #[error(transparent)]
 pub struct ErasedGatewayError(Box<dyn std::error::Error + Send + Sync>);
 
+impl ErasedGatewayError {
+    pub fn downcast<T: std::error::Error + 'static>(&self) -> Option<&T> {
+        self.0.downcast_ref::<T>()
+    }
+}
+
 fn erase_err<E: std::error::Error + Send + Sync + 'static>(err: E) -> ErasedGatewayError {
     ErasedGatewayError(Box::new(err))
 }
@@ -40,6 +46,7 @@ pub trait GatewaySender {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), ErasedGatewayError> {
+        log::info!("GatewaySender::batch_send_mix_packets - sending {} packets", packets.len());
         // allow for optimisation when sending multiple packets
         for packet in packets {
             self.send_mix_packet(packet).await?;
@@ -78,7 +85,10 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
 impl<G: GatewaySender + ?Sized + Send> GatewaySender for Box<G> {
     #[inline]
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
-        (**self).send_mix_packet(packet).await
+        log::info!("JON: Box<GatewaySender>::send_mix_packet - sending a packet");
+        let r = (**self).send_mix_packet(packet).await;
+        log::info!("JON: Box<GatewaySender>::send_mix_packet - sent a packet");
+        r
     }
 
     #[inline]
@@ -86,7 +96,10 @@ impl<G: GatewaySender + ?Sized + Send> GatewaySender for Box<G> {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), ErasedGatewayError> {
-        (**self).batch_send_mix_packets(packets).await
+        log::info!("JON: Box<GatewaySender>::batch_send_mix_packets - sending {} packets", packets.len());
+        let r = (**self).batch_send_mix_packets(packets).await;
+        log::info!("JON: Box<GatewaySender>::batch_send_mix_packets - sent packets");
+        r
     }
 }
 
@@ -130,20 +143,26 @@ where
     St: Send,
 {
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
-        self.gateway_client
+        log::info!("JON: RemoteGateway::send_mix_packet - sending a packet");
+        let r = self.gateway_client
             .send_mix_packet(packet)
             .await
-            .map_err(erase_err)
+            .map_err(erase_err);
+        log::info!("JON: RemoteGateway::send_mix_packet - sent a packet");
+        r
     }
 
     async fn batch_send_mix_packets(
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), ErasedGatewayError> {
-        self.gateway_client
+        log::info!("JON: RemoteGateway::batch_send_mix_packets - sending {} packets", packets.len());
+        let r = self.gateway_client
             .batch_send_mix_packets(packets)
             .await
-            .map_err(erase_err)
+            .map_err(erase_err);
+        log::info!("JON: RemoteGateway::batch_send_mix_packets - sent packets");
+        r
     }
 }
 
@@ -203,10 +222,13 @@ mod nonwasm_sealed {
     #[async_trait]
     impl GatewaySender for LocalGateway {
         async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
-            self.packet_forwarder
+            log::info!("JON: LocalGateway::send_mix_packet - sending a packet");
+            let r = self.packet_forwarder
                 .unbounded_send(packet)
                 .map_err(|err| err.into_send_error())
-                .map_err(erase_err)
+                .map_err(erase_err);
+            log::info!("JON: LocalGateway::send_mix_packet - sent a packet");
+            r
         }
     }
 
@@ -261,6 +283,7 @@ impl GatewayReceiver for MockGateway {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl GatewaySender for MockGateway {
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
+        log::info!("MockGateway::send_mix_packet - sending a packet");
         self.sent.push(packet);
         Ok(())
     }

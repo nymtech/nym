@@ -80,6 +80,9 @@ pub enum GatewayClientError {
     #[error("Timed out")]
     Timeout,
 
+    #[error("timeout sending ws message to the gateway")]
+    TimeoutOnSendingWs,
+
     #[error("Failed to send mixnet message")]
     MixnetMsgSenderFailedToSend,
 
@@ -99,6 +102,7 @@ pub enum GatewayClientError {
 
 impl GatewayClientError {
     pub fn is_closed_connection(&self) -> bool {
+        log::info!("GatewayClientError::is_closed_connection");
         match self {
             GatewayClientError::NetworkError(ws_err) => match ws_err {
                 WsError::AlreadyClosed | WsError::ConnectionClosed => true,

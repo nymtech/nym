@@ -78,6 +78,9 @@ pub enum ClientCoreError {
         source: tungstenite::Error,
     },
 
+    #[error("max number of retries for gateway connection has been exceeded")]
+    GatewayMaxRetriesExceeded,
+
     #[cfg(target_arch = "wasm32")]
     #[error("failed to establish gateway connection (wasm)")]
     GatewayJsConnectionFailure,
@@ -87,6 +90,11 @@ pub enum ClientCoreError {
 
     #[error("timed out while trying to establish gateway connection")]
     GatewayConnectionTimeout,
+
+    #[error("failed to send sphinx packet to the gateway: {gateway_client_error}")]
+    GatewayClientSendError {
+        gateway_client_error: String,
+    },
 
     #[error("no ping measurements for the gateway ({identity}) performed")]
     NoGatewayMeasurements { identity: String },

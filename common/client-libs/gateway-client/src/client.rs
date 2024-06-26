@@ -342,6 +342,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         msg: Message,
     ) -> Result<ServerResponse, GatewayClientError> {
+        log::info!("JON: GatewayClient: send_websocket_message");
         let should_restart_mixnet_listener = if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
             true
@@ -360,6 +361,7 @@ impl<C, St> GatewayClient<C, St> {
         if should_restart_mixnet_listener {
             self.start_listening_for_mixnet_messages()?;
         }
+        log::info!("JON: GatewayClient: send_websocket_message done");
         response
     }
 
@@ -367,7 +369,8 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         messages: Vec<Message>,
     ) -> Result<(), GatewayClientError> {
-        match self.connection {
+        log::info!("JON: GatewayClient: batch_send_websocket_messages_without_response"); 
+        let r = match self.connection {
             SocketState::Available(ref mut conn) => {
                 let stream_messages: Vec<_> = messages.into_iter().map(Ok).collect();
                 let mut send_stream = futures::stream::iter(stream_messages);
@@ -390,14 +393,17 @@ impl<C, St> GatewayClient<C, St> {
             }
             SocketState::NotConnected => Err(GatewayClientError::ConnectionNotEstablished),
             _ => Err(GatewayClientError::ConnectionInInvalidState),
-        }
+        };
+        log::info!("JON: GatewayClient: batch_send_websocket_messages_without_response done");
+        r
     }
 
     async fn send_websocket_message_without_response(
         &mut self,
         msg: Message,
     ) -> Result<(), GatewayClientError> {
-        match self.connection {
+        log::info!("JON: GatewayClient: send_websocket_message_without_response");
+        let r = match self.connection {
             SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
                 if let Err(err) = partially_delegated.send_without_response(msg).await {
@@ -413,7 +419,9 @@ impl<C, St> GatewayClient<C, St> {
             }
             SocketState::NotConnected => Err(GatewayClientError::ConnectionNotEstablished),
             _ => Err(GatewayClientError::ConnectionInInvalidState),
-        }
+        };
+        log::info!("JON: GatewayClient: send_websocket_message_without_response done");
+        r
     }
 
     fn check_gateway_protocol(
@@ -670,6 +678,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
+        info!("JON: GatewayClient: batch_send_mix_packets");
         debug!("Sending {} mix packets", packets.len());
 
         if !self.authenticated {
@@ -696,10 +705,11 @@ impl<C, St> GatewayClient<C, St> {
             })
             .collect();
 
-        if let Err(err) = self
+        let r = if let Err(err) = self
             .batch_send_websocket_messages_without_response(messages)
             .await
         {
+            log::error!("GatewayClient: Failed to send sphinx packets to the gateway: {err}");
             if err.is_closed_connection() && self.should_reconnect_on_failure {
                 self.attempt_reconnection().await
             } else {
@@ -707,14 +717,17 @@ impl<C, St> GatewayClient<C, St> {
             }
         } else {
             Ok(())
-        }
+        };
+        log::info!("JON: GatewayClient: batch_send_mix_packets done");
+        r
     }
 
     async fn send_with_reconnection_on_failure(
         &mut self,
         msg: Message,
     ) -> Result<(), GatewayClientError> {
-        if let Err(err) = self.send_websocket_message_without_response(msg).await {
+        log::info!("JON: GatewayClient: send_with_reconnection_on_failure");
+        let r = if let Err(err) = self.send_websocket_message_without_response(msg).await {
             if err.is_closed_connection() && self.should_reconnect_on_failure {
                 debug!("Going to attempt a reconnection");
                 self.attempt_reconnection().await
@@ -724,7 +737,9 @@ impl<C, St> GatewayClient<C, St> {
             }
         } else {
             Ok(())
-        }
+        };
+        log::info!("JON: GatewayClient: send_with_reconnection_on_failure done");
+        r
     }
 
     pub async fn send_ping_message(&mut self) -> Result<(), GatewayClientError> {
@@ -743,6 +758,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<(), GatewayClientError> {
+        log::info!("JON: GatewayClient: send_mix_packet");
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -762,7 +778,9 @@ impl<C, St> GatewayClient<C, St> {
                 .as_ref()
                 .expect("no shared key present even though we're authenticated!"),
         );
-        self.send_with_reconnection_on_failure(msg).await
+        let r = self.send_with_reconnection_on_failure(msg).await;
+        log::info!("JON: GatewayClient: send_mix_packet done");
+        r
     }
 
     async fn recover_socket_connection(&mut self) -> Result<(), GatewayClientError> {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::GatewayTransceiver;
+use crate::error::ClientCoreError;
 use crate::spawn_future;
 use log::*;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -60,8 +61,15 @@ impl MixTrafficController {
         )
     }
 
-    async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
+    async fn on_messages(
+        &mut self,
+        mut mix_packets: Vec<MixPacket>,
+    ) -> Result<(), ClientCoreError> {
         debug_assert!(!mix_packets.is_empty());
+        info!(
+            "JON: MixTrafficController: Sending {} sphinx packets to the gateway",
+            mix_packets.len()
+        );
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();
@@ -72,42 +80,56 @@ impl MixTrafficController {
                 .await
         };
 
-        match result {
+        let r = match result {
             Err(err) => {
                 error!("Failed to send sphinx packet(s) to the gateway: {err}");
                 self.consecutive_gateway_failure_count += 1;
                 if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
-                    // todo: in the future this should initiate a 'graceful' shutdown or try
-                    // to reconnect?
-                    panic!("failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead. Can't do anything about it yet :(")
+                    Err(ClientCoreError::GatewayMaxRetriesExceeded)
+                } else {
+                    Err(ClientCoreError::GatewayClientSendError {
+                        gateway_client_error: err.to_string(),
+                    })
                 }
             }
             Ok(_) => {
                 trace!("We *might* have managed to forward sphinx packet(s) to the gateway!");
                 self.consecutive_gateway_failure_count = 0;
+                Ok(())
             }
-        }
+        };
+        info!("JON: MixTrafficController: done sending sphinx packets to the gateway");
+        r
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
+            // let mut shutdown0 = shutdown.recv_with_delay();
+            // tokio::pin!(shutdown0);
+
             loop {
                 tokio::select! {
+                    biased;
+                    _ = shutdown.recv_with_delay() => {
+                    // _ = &mut shutdown0 => {
+                        log::trace!("MixTrafficController: Received shutdown");
+                        break;
+                    }
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
-                            self.on_messages(mix_packets).await;
+                            log::info!("JON: MixTrafficController: mix_rx recv");
+                            if let Err(err) = self.on_messages(mix_packets).await {
+                                log::error!("MixTrafficController: failed to send mix packets to the gateway: {err}");
+                            }
+                            log::info!("JON: MixTrafficController: done with mix_rx recv");
                         },
                         None => {
                             log::trace!("MixTrafficController: Stopping since channel closed");
                             break;
                         }
                     },
-                    _ = shutdown.recv_with_delay() => {
-                        log::trace!("MixTrafficController: Received shutdown");
-                        break;
-                    }
                 }
             }
             shutdown.recv_timeout().await;

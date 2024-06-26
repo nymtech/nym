@@ -24,7 +24,7 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 console-subscriber = { workspace = true, optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 dirs = { workspace = true }
 futures = { workspace = true }
-itertools = "0.12.0"
+itertools = { workspace = true }
 humantime-serde = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
 log = { workspace = true }

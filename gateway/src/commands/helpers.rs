@@ -208,7 +208,7 @@ pub(crate) async fn initialise_local_network_requester(
         identity_key: address.identity().to_string(),
         encryption_key: address.encryption_key().to_string(),
         open_proxy: nr_cfg.network_requester.open_proxy,
-        enabled_statistics: nr_cfg.network_requester.enabled_statistics,
+        // enabled_statistics: nr_cfg.network_requester.enabled_statistics,
         address: address.to_string(),
         config_path: nr_cfg_path.display().to_string(),
     })

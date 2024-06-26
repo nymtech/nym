@@ -112,8 +112,8 @@ impl From<NetworkRequesterV5> for NetworkRequester {
     fn from(value: NetworkRequesterV5) -> Self {
         NetworkRequester {
             open_proxy: value.open_proxy,
-            enabled_statistics: value.enabled_statistics,
-            statistics_recipient: value.statistics_recipient,
+            // enabled_statistics: value.enabled_statistics,
+            // statistics_recipient: value.statistics_recipient,
             disable_poisson_rate: value.disable_poisson_rate,
             upstream_exit_policy_url: value.upstream_exit_policy_url,
         }

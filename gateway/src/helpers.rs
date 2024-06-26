@@ -150,7 +150,7 @@ pub async fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse,
                 identity_key: nr_identity_public_key.to_base58_string(),
                 encryption_key: nr_encryption_key.to_base58_string(),
                 open_proxy: cfg.network_requester.open_proxy,
-                enabled_statistics: cfg.network_requester.enabled_statistics,
+                // enabled_statistics: cfg.network_requester.enabled_statistics,
                 address: address.to_string(),
                 config_path: display_path(nr_cfg_path),
             })

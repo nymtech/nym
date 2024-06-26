@@ -5,7 +5,7 @@ use crate::config::{BaseClientConfig, Config};
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
 use crate::request_filter::RequestFilter;
-use crate::statistics::ServiceStatisticsCollector;
+// use crate::statistics::ServiceStatisticsCollector;
 use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
@@ -34,7 +34,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::receiver::ReconstructedMessage;
-use nym_statistics_common::collector::StatisticsSender;
+// use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::manager::TaskHandle;
 use nym_task::TaskClient;
@@ -88,7 +88,7 @@ pub struct NRServiceProvider {
     controller_sender: ControllerSender,
 
     mix_input_sender: MixProxySender<MixnetMessage>,
-    stats_collector: Option<ServiceStatisticsCollector>,
+    // stats_collector: Option<ServiceStatisticsCollector>,
     shutdown: TaskHandle,
 }
 
@@ -146,31 +146,31 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 
         match request.content {
             Socks5RequestContent::Connect(req) => {
-                if let Some(stats_collector) = &self.stats_collector {
-                    stats_collector
-                        .connected_services
-                        .write()
-                        .await
-                        .insert(req.conn_id, req.remote_addr.clone());
-                }
+                // if let Some(stats_collector) = &self.stats_collector {
+                //     stats_collector
+                //         .connected_services
+                //         .write()
+                //         .await
+                //         .insert(req.conn_id, req.remote_addr.clone());
+                // }
                 self.handle_proxy_connect(request_version, sender, req)
                     .await
             }
             Socks5RequestContent::Send(req) => {
-                if let Some(stats_collector) = &self.stats_collector {
-                    if let Some(remote_addr) = stats_collector
-                        .connected_services
-                        .read()
-                        .await
-                        .get(&req.data.header.connection_id)
-                    {
-                        stats_collector
-                            .request_stats_data
-                            .write()
-                            .await
-                            .processed(remote_addr, req.data.data.len() as u32);
-                    }
-                }
+                // if let Some(stats_collector) = &self.stats_collector {
+                //     if let Some(remote_addr) = stats_collector
+                //         .connected_services
+                //         .read()
+                //         .await
+                //         .get(&req.data.header.connection_id)
+                //     {
+                //         stats_collector
+                //             .request_stats_data
+                //             .write()
+                //             .await
+                //             .processed(remote_addr, req.data.data.len() as u32);
+                //     }
+                // }
                 self.handle_proxy_send(req)
             }
             Socks5RequestContent::Query(query) => return self.handle_query(query),
@@ -266,14 +266,14 @@ impl NRServiceProviderBuilder {
 
     /// Start all subsystems
     pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
-        let stats_provider_addr = self
-            .config
-            .network_requester
-            .statistics_recipient
-            .as_ref()
-            .map(Recipient::try_from_base58_string)
-            .transpose()
-            .unwrap_or(None);
+        // let stats_provider_addr = self
+        //     .config
+        //     .network_requester
+        //     .statistics_recipient
+        //     .as_ref()
+        //     .map(Recipient::try_from_base58_string)
+        //     .transpose()
+        //     .unwrap_or(None);
 
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let shutdown: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
@@ -305,22 +305,22 @@ impl NRServiceProviderBuilder {
             active_connections_controller.run().await;
         });
 
-        let stats_collector = if self.config.network_requester.enabled_statistics {
-            let stats_collector =
-                ServiceStatisticsCollector::new(stats_provider_addr, mix_input_sender.clone())
-                    .await
-                    .expect("Service statistics collector could not be bootstrapped");
-            let mut stats_sender = StatisticsSender::new(stats_collector.clone());
+        // let stats_collector = if self.config.network_requester.enabled_statistics {
+        //     let stats_collector =
+        //         ServiceStatisticsCollector::new(stats_provider_addr, mix_input_sender.clone())
+        //             .await
+        //             .expect("Service statistics collector could not be bootstrapped");
+        //     let mut stats_sender = StatisticsSender::new(stats_collector.clone());
+        //
+        //     tokio::spawn(async move {
+        //         stats_sender.run().await;
+        //     });
+        //     Some(stats_collector)
+        // } else {
+        //     None
+        // };
 
-            tokio::spawn(async move {
-                stats_sender.run().await;
-            });
-            Some(stats_collector)
-        } else {
-            None
-        };
-
-        let stats_collector_clone = stats_collector.clone();
+        // let stats_collector_clone = stats_collector.clone();
         let mixnet_client_sender = mixnet_client.split_sender();
         let self_address = *mixnet_client.nym_address();
         let packet_type = self.config.base.debug.traffic.packet_type;
@@ -330,7 +330,7 @@ impl NRServiceProviderBuilder {
             NRServiceProvider::mixnet_response_listener(
                 mixnet_client_sender,
                 mix_input_receiver,
-                stats_collector_clone,
+                // stats_collector_clone,
                 packet_type,
             )
             .await;
@@ -344,7 +344,7 @@ impl NRServiceProviderBuilder {
             mixnet_client,
             controller_sender,
             mix_input_sender,
-            stats_collector,
+            // stats_collector,
             shutdown,
         };
 
@@ -411,27 +411,27 @@ impl NRServiceProvider {
     async fn mixnet_response_listener(
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
-        stats_collector: Option<ServiceStatisticsCollector>,
+        // stats_collector: Option<ServiceStatisticsCollector>,
         packet_type: PacketType,
     ) {
         loop {
             tokio::select! {
                 socks5_msg = mix_input_reader.recv() => {
                     if let Some(msg) = socks5_msg {
-                        if let Some(stats_collector) = stats_collector.as_ref() {
-                            if let Some(remote_addr) = stats_collector
-                                .connected_services
-                                .read()
-                                .await
-                                .get(&msg.connection_id)
-                            {
-                                stats_collector
-                                    .response_stats_data
-                                    .write()
-                                    .await
-                                    .processed(remote_addr, msg.data_size() as u32);
-                            }
-                        }
+                        // if let Some(stats_collector) = stats_collector.as_ref() {
+                        //     if let Some(remote_addr) = stats_collector
+                        //         .connected_services
+                        //         .read()
+                        //         .await
+                        //         .get(&msg.connection_id)
+                        //     {
+                        //         stats_collector
+                        //             .response_stats_data
+                        //             .write()
+                        //             .await
+                        //             .processed(remote_addr, msg.data_size() as u32);
+                        //     }
+                        // }
 
                         let response_message = msg.into_input_message(packet_type);
                         mixnet_client_sender.send(response_message).await.unwrap();

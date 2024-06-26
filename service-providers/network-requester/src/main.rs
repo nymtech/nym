@@ -12,7 +12,7 @@ mod error;
 mod reply;
 mod request_filter;
 mod socks5;
-mod statistics;
+// mod statistics;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

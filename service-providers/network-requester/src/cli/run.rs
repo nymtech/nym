@@ -10,7 +10,7 @@ use clap::Args;
 use log::error;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 
-const ENABLE_STATISTICS: &str = "enable-statistics";
+// const ENABLE_STATISTICS: &str = "enable-statistics";
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Args, Clone)]
@@ -22,14 +22,14 @@ pub(crate) struct Run {
     #[arg(long)]
     open_proxy: Option<bool>,
 
-    /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[arg(long)]
-    enable_statistics: Option<bool>,
+    // Enable service anonymized statistics that get sent to a statistics aggregator server
+    // #[arg(long)]
+    // enable_statistics: Option<bool>,
 
-    /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
-    /// aggregator client
-    #[arg(long)]
-    statistics_recipient: Option<String>,
+    // Mixnet client address where a statistics aggregator is running. The default value is a Nym
+    // aggregator client
+    // #[arg(long)]
+    // statistics_recipient: Option<String>,
 
     /// Enable medium mixnet traffic, for experiments only.
     /// This includes things like disabling cover traffic, no per hop delays, etc.
@@ -52,8 +52,8 @@ impl From<Run> for OverrideConfig {
             nyxd_urls: run_config.common_args.nyxd_urls,
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
             open_proxy: run_config.open_proxy,
-            enable_statistics: run_config.enable_statistics,
-            statistics_recipient: run_config.statistics_recipient,
+            // enable_statistics: run_config.enable_statistics,
+            // statistics_recipient: run_config.statistics_recipient,
         }
     }
 }
@@ -71,13 +71,13 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
         );
     }
 
-    if config.network_requester.enabled_statistics {
-        println!(
-            "\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND \
-                ANONYMIZED STATISTICS TO A CENTRAL SERVER. PLEASE QUIT IF YOU DON'T WANT \
-                THIS TO HAPPEN AND START WITHOUT THE {ENABLE_STATISTICS} FLAG .\n\n"
-        );
-    }
+    // if config.network_requester.enabled_statistics {
+    //     println!(
+    //         "\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND \
+    //             ANONYMIZED STATISTICS TO A CENTRAL SERVER. PLEASE QUIT IF YOU DON'T WANT \
+    //             THIS TO HAPPEN AND START WITHOUT THE {ENABLE_STATISTICS} FLAG .\n\n"
+    //     );
+    // }
 
     if !version_check(&config) {
         error!("failed the local version check");

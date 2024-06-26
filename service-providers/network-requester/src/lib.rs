@@ -7,7 +7,7 @@ pub mod error;
 mod reply;
 pub mod request_filter;
 mod socks5;
-mod statistics;
+// mod statistics;
 
 pub use crate::core::{NRServiceProvider, NRServiceProviderBuilder};
 pub use config::Config;

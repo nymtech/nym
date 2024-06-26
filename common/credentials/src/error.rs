@@ -1,11 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ecash::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
 use nym_credentials_interface::CompactEcashError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_validator_client::ValidatorClientError;
-
-use crate::coconut::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

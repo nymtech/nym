@@ -1,33 +1,28 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::websocket::connection_handler::ecash::PendingCredential;
 use crate::node::storage::bandwidth::BandwidthManager;
-use crate::node::storage::credential::CredentialManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
-use crate::node::storage::models::{PersistedBandwidth, PersistedSharedKeys, StoredMessage};
+use crate::node::storage::models::{
+    PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage, VerifiedTicket,
+};
 use crate::node::storage::shared_keys::SharedKeysManager;
+use crate::node::storage::tickets::TicketStorageManager;
 use async_trait::async_trait;
 use log::{debug, error};
-use nym_credentials_interface::Base58;
-use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
-use nym_validator_client::nyxd::AccountId;
-use nym_validator_client::NymApiClient;
 use sqlx::ConnectOptions;
 use std::path::Path;
-use std::str::FromStr;
 use time::OffsetDateTime;
-use url::Url;
 
 mod bandwidth;
-mod credential;
 pub(crate) mod error;
 mod inboxes;
 mod models;
 mod shared_keys;
+mod tickets;
 
 #[async_trait]
 pub trait Storage: Send + Sync {
@@ -155,56 +150,60 @@ pub trait Storage: Send + Sync {
         amount: i64,
     ) -> Result<(), StorageError>;
 
-    /// Stored the accepted credential
-    ///
-    /// # Arguments
-    ///
-    /// * `credential`: credential to store
-    async fn insert_credential(
+    async fn insert_epoch_signers(
         &self,
-        credential: CredentialSpendingRequest,
+        epoch_id: i64,
+        signer_ids: Vec<i64>,
     ) -> Result<(), StorageError>;
 
-    /// Store a pending credential
+    async fn insert_received_ticket(
+        &self,
+        client_address_bs58: String,
+        received_at: OffsetDateTime,
+        serial_number: Vec<u8>,
+        data: Vec<u8>,
+    ) -> Result<i64, StorageError>;
+
+    // note: this only checks very recent tickets that haven't yet been redeemed
+    // (but it's better than nothing)
+    /// Check if the ticket with the provided serial number if already present in the storage.
     ///
     /// # Arguments
     ///
-    /// * `pending`: pending credential to store
-    async fn insert_pending_credential(
+    /// * `serial_number`: the unique serial number embedded in the ticket
+    async fn contains_ticket(&self, serial_number: &[u8]) -> Result<bool, StorageError>;
+
+    async fn insert_ticket_verification(
         &self,
-        pending: PendingCredential,
+        ticket_id: i64,
+        signer_id: i64,
+        verified_at: OffsetDateTime,
+        accepted: bool,
     ) -> Result<(), StorageError>;
 
-    /// Remove a pending credential
-    ///
-    /// # Arguments
-    ///
-    /// * `id`: id of the pending credential to remove
-    async fn remove_pending_credential(&self, id: i64) -> Result<(), StorageError>;
+    async fn update_rejected_ticket(&self, ticket_id: i64) -> Result<(), StorageError>;
 
-    /// Get all pending credentials
-    ///
-    async fn get_all_pending_credential(
+    async fn update_verified_ticket(&self, ticket_id: i64) -> Result<(), StorageError>;
+
+    async fn remove_verified_ticket_binary_data(&self, ticket_id: i64) -> Result<(), StorageError>;
+
+    async fn get_all_verified_tickets(&self) -> Result<Vec<VerifiedTicket>, StorageError>;
+
+    async fn insert_redemption_proposal(
         &self,
-    ) -> Result<Vec<(i64, PendingCredential)>, StorageError>;
-    /// Mark received credential as spent and insert it into the storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential in base58
-    /// * `client_address`: address of the client that spent the credential
-    async fn insert_spent_credential(
-        &self,
-        blinded_serial_number: String,
-        client_address: DestinationAddressBytes,
+        tickets: &[VerifiedTicket],
+        proposal_id: u32,
+        created_at: OffsetDateTime,
     ) -> Result<(), StorageError>;
 
-    /// Check if the credential with the provided blinded serial number if already present in the storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `blinded_serial_number`: the unique blinded serial number embedded in the credential in base58 form
-    async fn contains_credential(&self, blinded_serial_number: &str) -> Result<bool, StorageError>;
+    async fn clear_post_proposal_data(
+        &self,
+        proposal_id: u32,
+        resolved_at: OffsetDateTime,
+        rejected: bool,
+    ) -> Result<(), StorageError>;
+
+    async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -213,7 +212,7 @@ pub struct PersistentStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
-    credential_manager: CredentialManager,
+    ticket_manager: TicketStorageManager,
 }
 
 impl PersistentStorage {
@@ -260,7 +259,7 @@ impl PersistentStorage {
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
             bandwidth_manager: BandwidthManager::new(connection_pool.clone()),
-            credential_manager: CredentialManager::new(connection_pool),
+            ticket_manager: TicketStorageManager::new(connection_pool),
         })
     }
 }
@@ -272,12 +271,11 @@ impl Storage for PersistentStorage {
         client_address: DestinationAddressBytes,
         shared_keys: &SharedKeys,
     ) -> Result<(), StorageError> {
-        let persisted_shared_keys = PersistedSharedKeys {
-            client_address_bs58: client_address.as_base58_string(),
-            derived_aes128_ctr_blake3_hmac_keys_bs58: shared_keys.to_base58_string(),
-        };
         self.shared_key_manager
-            .insert_shared_keys(persisted_shared_keys)
+            .insert_shared_keys(
+                client_address.as_base58_string(),
+                shared_keys.to_base58_string(),
+            )
             .await?;
         Ok(())
     }
@@ -386,232 +384,146 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn insert_credential(
+    async fn contains_ticket(&self, serial_number: &[u8]) -> Result<bool, StorageError> {
+        Ok(self.ticket_manager.has_ticket_data(serial_number).await?)
+    }
+
+    async fn insert_ticket_verification(
         &self,
-        credential: CredentialSpendingRequest,
+        ticket_id: i64,
+        signer_id: i64,
+        verified_at: OffsetDateTime,
+        accepted: bool,
     ) -> Result<(), StorageError> {
-        self.credential_manager
-            .insert_credential(credential.to_bs58())
+        self.ticket_manager
+            .insert_ticket_verification(ticket_id, signer_id, verified_at, accepted)
             .await?;
         Ok(())
     }
 
-    async fn insert_pending_credential(
-        &self,
-        pending: PendingCredential,
-    ) -> Result<(), StorageError> {
+    async fn update_rejected_ticket(&self, ticket_id: i64) -> Result<(), StorageError> {
+        // TODO:
+        error!("unimplemented: decrease clients bandwidth");
+
+        // set the ticket as rejected
+        self.ticket_manager.set_rejected_ticket(ticket_id).await?;
+
+        // drop all ticket_data - we no longer need it
+        // TODO: or maybe we do as a proof of receiving bad data?
+        self.ticket_manager.remove_ticket_data(ticket_id).await?;
+
+        Ok(())
+    }
+
+    async fn update_verified_ticket(&self, ticket_id: i64) -> Result<(), StorageError> {
+        // 1. insert into verified table
+        self.ticket_manager
+            .insert_verified_ticket(ticket_id)
+            .await?;
+
+        // TODO: maybe we want to leave that be until ticket gets fully redeemed instead?
+        // 2. remove individual verifications
+        self.ticket_manager
+            .remove_ticket_verification(ticket_id)
+            .await?;
+        Ok(())
+    }
+
+    async fn get_all_verified_tickets(&self) -> Result<Vec<VerifiedTicket>, StorageError> {
+        // MAKE SURE TO ORDER BY TIMESTAMP ASC WITH LIMIT 65535
+
         todo!()
-        // self.credential_manager
-        //     .insert_pending_credential(
-        //         pending.credential.to_bs58(),
-        //         pending.address.into(),
-        //         pending
-        //             .api_clients
-        //             .iter()
-        //             .map(|client| client.api_url().to_string())
-        //             .collect::<Vec<_>>()
-        //             .join(","),
-        //         pending.proposal_id.map(|id| id as i64),
-        //     )
-        //     .await?;
-        // Ok(())
     }
-    async fn insert_spent_credential(
+
+    async fn insert_redemption_proposal(
         &self,
-        blinded_serial_number: String,
-        client_address: DestinationAddressBytes,
+        tickets: &[VerifiedTicket],
+        proposal_id: u32,
+        created_at: OffsetDateTime,
     ) -> Result<(), StorageError> {
-        self.bandwidth_manager
-            .insert_spent_credential(&blinded_serial_number, &client_address.as_base58_string())
+        // if we crash between those, there might a bit of an issue. we should revisit it later
+
+        // 1. insert the actual proposal
+        self.ticket_manager
+            .insert_redemption_proposal(proposal_id as i64, created_at)
+            .await?;
+
+        // 2. update all the associated tickets
+        self.ticket_manager
+            .insert_verified_tickets_proposal_id(tickets.iter().map(|t| t.id), proposal_id as i64)
             .await?;
         Ok(())
     }
 
-    async fn remove_pending_credential(&self, id: i64) -> Result<(), StorageError> {
-        self.credential_manager
-            .remove_pending_credential(id)
-            .await?;
-        Ok(())
-    }
-
-    async fn get_all_pending_credential(
-        &self,
-    ) -> Result<Vec<(i64, PendingCredential)>, StorageError> {
+    async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, StorageError> {
         todo!()
-        // let credentials: Vec<_> = self
-        //     .credential_manager
-        //     .get_all_pending_credential()
-        //     .await?
-        //     .into_iter()
-        //     .map(|stored_pending| {
-        //         let credential =
-        //             CredentialSpendingRequest::try_from_bs58(stored_pending.credential)
-        //                 .map_err(|err| StorageError::DataCorruption(err.to_string()))?;
-        //         let urls = stored_pending
-        //             .api_urls
-        //             .split(',')
-        //             .map(|url| {
-        //                 Url::from_str(url)
-        //                     .map_err(|err| StorageError::DataCorruption(err.to_string()))
-        //             })
-        //             .collect::<Result<Vec<_>, _>>()?;
-        //
-        //         let proposal_id = stored_pending.proposal_id.map(|id| id as u64);
-        //         Ok((
-        //             stored_pending.id,
-        //             PendingCredential {
-        //                 credential,
-        //                 address: AccountId::from_str(&stored_pending.gateway_address)
-        //                     .map_err(|err| StorageError::DataCorruption(err.to_string()))?,
-        //                 api_clients: urls.into_iter().map(NymApiClient::new).collect(),
-        //                 proposal_id,
-        //             },
-        //         ))
-        //     })
-        //     .collect();
-        // credentials.into_iter().collect()
     }
 
-    async fn contains_credential(&self, blinded_serial_number: &str) -> Result<bool, StorageError> {
-        let cred = self
+    async fn insert_received_ticket(
+        &self,
+        client_address_bs58: String,
+        received_at: OffsetDateTime,
+        serial_number: Vec<u8>,
+        data: Vec<u8>,
+    ) -> Result<i64, StorageError> {
+        // this should be impossible to fail as we can't receive tickets from unauthenticated clients
+        let client_id = self
             .bandwidth_manager
-            .retrieve_spent_credential(blinded_serial_number)
+            .get_client_id(&client_address_bs58)
             .await?;
 
-        Ok(cred.is_some())
+        // technically if we crash between those 2 calls we'll have a bit of data inconsistency,
+        // but nothing too tragic. we just won't get paid for a single ticket
+        let ticket_id = self
+            .ticket_manager
+            .insert_new_ticket(client_id, received_at)
+            .await?;
+        self.ticket_manager
+            .insert_ticket_data(ticket_id, &serial_number, &data)
+            .await?;
+
+        Ok(ticket_id)
     }
-}
 
-/// In-memory implementation of `Storage`. The intention is primarily in testing environments.
-#[derive(Clone)]
-pub struct InMemStorage;
+    async fn remove_verified_ticket_binary_data(&self, ticket_id: i64) -> Result<(), StorageError> {
+        self.ticket_manager
+            .remove_binary_ticket_data(ticket_id)
+            .await?;
+        Ok(())
+    }
 
-//#[cfg(test)]
-//impl InMemStorage {
-//    #[allow(unused)]
-//    async fn init<P: AsRef<Path> + Send>() -> Result<Self, StorageError> {
-//        todo!()
-//    }
-//}
-
-#[cfg(test)]
-#[async_trait]
-impl Storage for InMemStorage {
-    async fn insert_shared_keys(
+    async fn clear_post_proposal_data(
         &self,
-        _client_address: DestinationAddressBytes,
-        _shared_keys: &SharedKeys,
+        proposal_id: u32,
+        resolved_at: OffsetDateTime,
+        rejected: bool,
     ) -> Result<(), StorageError> {
-        todo!()
+        // 1. update proposal metadata
+        self.ticket_manager
+            .update_redemption_proposal(proposal_id as i64, resolved_at, rejected)
+            .await?;
+
+        // 2. remove ticket data rows (we can drop serial numbers)
+        self.ticket_manager
+            .remove_redeemed_tickets_data(proposal_id as i64)
+            .await?;
+
+        // 3. remove verified tickets rows
+        self.ticket_manager
+            .remove_verified_tickets(proposal_id as i64)
+            .await?;
+
+        Ok(())
     }
 
-    async fn get_shared_keys(
+    async fn insert_epoch_signers(
         &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<Option<PersistedSharedKeys>, StorageError> {
-        todo!()
-    }
-
-    async fn remove_shared_keys(
-        &self,
-        _client_address: DestinationAddressBytes,
+        epoch_id: i64,
+        signer_ids: Vec<i64>,
     ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn store_message(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _message: Vec<u8>,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn retrieve_messages(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _start_after: Option<i64>,
-    ) -> Result<(Vec<StoredMessage>, Option<i64>), StorageError> {
-        todo!()
-    }
-
-    async fn remove_messages(&self, _ids: Vec<i64>) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn create_bandwidth_entry(
-        &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn set_expiration(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _expiration: OffsetDateTime,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn reset_bandwidth(
-        &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn get_available_bandwidth(
-        &self,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<Option<PersistedBandwidth>, StorageError> {
-        todo!()
-    }
-
-    async fn set_bandwidth(
-        &self,
-        _client_address: DestinationAddressBytes,
-        _amount: i64,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn insert_credential(
-        &self,
-        _credential: CredentialSpendingRequest,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn insert_pending_credential(
-        &self,
-        _pending: PendingCredential,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn insert_spent_credential(
-        &self,
-        _blinded_serial_number: String,
-        _client_address: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn remove_pending_credential(&self, _id: i64) -> Result<(), StorageError> {
-        todo!()
-    }
-
-    async fn get_all_pending_credential(
-        &self,
-    ) -> Result<Vec<(i64, PendingCredential)>, StorageError> {
-        todo!()
-    }
-
-    async fn contains_credential(
-        &self,
-        _blinded_serial_number: &str,
-    ) -> Result<bool, StorageError> {
-        todo!()
+        self.ticket_manager
+            .insert_ecash_signers(epoch_id, signer_ids)
+            .await?;
+        Ok(())
     }
 }

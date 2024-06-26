@@ -8,7 +8,6 @@ use nym_credentials_interface::{
     PartialExpirationDateSignature, PublicKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
-use rocket::http::ext::IntoCollection;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::collections::BTreeMap;
@@ -257,11 +256,15 @@ pub struct BatchRedeemTicketsBody {
     pub digest: Vec<u8>,
     pub included_serial_numbers: Vec<SerialNumberWrapper>,
     pub proposal_id: u64,
-    pub gateway_cosmos_addr: String,
+    pub gateway_cosmos_addr: AccountId,
 }
 
 impl BatchRedeemTicketsBody {
-    pub fn make_digest(serial_numbers: &[impl AsRef<[u8]>]) -> Vec<u8> {
+    pub fn make_digest<I, T>(serial_numbers: I) -> Vec<u8>
+    where
+        I: Iterator<Item = T>,
+        T: AsRef<[u8]>,
+    {
         let mut hasher = sha2::Sha256::new();
         for sn in serial_numbers {
             hasher.update(sn)
@@ -273,7 +276,7 @@ impl BatchRedeemTicketsBody {
         digest: Vec<u8>,
         proposal_id: u64,
         serial_numbers: Vec<impl Into<SerialNumberWrapper>>,
-        redeemer: String,
+        redeemer: AccountId,
     ) -> Self {
         BatchRedeemTicketsBody {
             digest,
@@ -284,7 +287,7 @@ impl BatchRedeemTicketsBody {
     }
 
     pub fn verify_digest(&self) -> bool {
-        Self::make_digest(&self.included_serial_numbers) == self.digest
+        Self::make_digest(self.included_serial_numbers.iter()) == self.digest
     }
 }
 

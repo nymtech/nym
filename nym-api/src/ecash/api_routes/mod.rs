@@ -21,7 +21,7 @@ use nym_api_requests::coconut::{
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::identify::IdentifyResult;
-use nym_credentials::coconut::utils::{cred_exp_date, ecash_today};
+use nym_credentials::ecash::utils::{cred_exp_date, ecash_today};
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::collections::HashSet;
@@ -300,7 +300,7 @@ pub async fn batch_redeem_tickets(
 ) -> Result<Json<EcashBatchTicketRedemptionResponse>> {
     // 1. see if that gateway has even submitted any tickets
     let Some(provider_info) = state
-        .get_ticket_provider(&batch_redeem_credentials_body.gateway_cosmos_addr)
+        .get_ticket_provider(batch_redeem_credentials_body.gateway_cosmos_addr.as_ref())
         .await?
     else {
         return Err(EcashError::NotTicketsProvided);

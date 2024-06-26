@@ -3,8 +3,8 @@
 
 use crate::error::BandwidthControllerError;
 use nym_credential_storage::models::StoredIssuedCredential;
-use nym_credentials::coconut::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
-use nym_credentials::coconut::bandwidth::IssuedTicketBook;
+use nym_credentials::ecash::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
+use nym_credentials::ecash::bandwidth::IssuedTicketBook;
 
 pub fn stored_credential_to_issued_bandwidth(
     cred: StoredIssuedCredential,

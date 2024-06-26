@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-use log::info;
+use log::{info, warn};
 use nym_credential_storage::models::StorableIssuedCredential;
 use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::IssuanceTicketBook;
-use nym_credentials::coconut::utils::{
+use nym_credentials::aggregate_verification_keys;
+use nym_credentials::ecash::bandwidth::IssuanceTicketBook;
+use nym_credentials::ecash::utils::{
     obtain_aggregate_wallet, obtain_coin_indices_signatures, obtain_expiration_date_signatures,
     signatures_to_string,
 };
-use nym_credentials::obtain_aggregate_verification_key;
 use nym_crypto::asymmetric::identity;
-use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::contract_traits::EcashSigningClient;
 use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
 use rand::rngs::OsRng;
 use state::State;
-use std::mem;
 use zeroize::Zeroizing;
 
 pub mod state;
@@ -62,9 +60,11 @@ where
         .await?
         .ok_or(BandwidthControllerError::NoThreshold)?;
 
+    warn!("unimplemented: query apis directly for aggregated data");
+
     let ecash_api_clients = all_ecash_api_clients(client, epoch_id).await?;
 
-    let verification_key = obtain_aggregate_verification_key(&ecash_api_clients)?;
+    let verification_key = aggregate_verification_keys(&ecash_api_clients)?;
 
     log::info!("Querying wallet signatures");
     let wallet = obtain_aggregate_wallet(&state.voucher, &ecash_api_clients, threshold).await?;

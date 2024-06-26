@@ -1,8 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coconut::bandwidth::CredentialSpendingData;
-use crate::coconut::utils::ecash_today;
+use crate::ecash::bandwidth::CredentialSpendingData;
+use crate::ecash::utils::ecash_today;
 use crate::error::Error;
 use nym_credentials_interface::{
     date_scalar, CoinIndexSignature, ExpirationDateSignature, PayInfo, SecretKeyUser,

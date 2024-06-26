@@ -6,7 +6,7 @@ use crate::helpers::default_storage_dir;
 use crate::manager::contract::{Account, LoadedNymContracts, NymContracts};
 use nym_config::defaults::{NymNetworkDetails, ValidatorDetails};
 use nym_validator_client::nyxd::Config;
-use nym_validator_client::DirectSigningHttpRpcNyxdClient;
+use nym_validator_client::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use time::OffsetDateTime;
@@ -118,6 +118,13 @@ impl LoadedNetwork {
         default_storage_dir()
             .join(&self.name)
             .join(format!("{}.env", &self.name))
+    }
+
+    pub fn query_client(&self) -> Result<QueryHttpRpcNyxdClient, NetworkManagerError> {
+        Ok(QueryHttpRpcNyxdClient::connect(
+            self.client_config()?,
+            self.rpc_endpoint.as_str(),
+        )?)
     }
 
     pub fn dkg_signing_client(

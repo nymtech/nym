@@ -7,7 +7,7 @@ use crate::ecash::comm::APICommunicationChannel;
 use crate::ecash::deposit::validate_deposit;
 use crate::ecash::error::{EcashError, RedemptionError, Result};
 use crate::ecash::keys::KeyPair;
-use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider, VerifiedTicket};
+use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
 use bloomfilter::Bloom;
@@ -23,7 +23,7 @@ use nym_compact_ecash::{
     BlindedSignature, VerificationKeyAuth,
 };
 use nym_config::defaults::{BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS};
-use nym_credentials::{coconut::utils::cred_exp_date, CredentialSpendingData};
+use nym_credentials::{ecash::utils::cred_exp_date, CredentialSpendingData};
 use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::{Deposit, DepositId};
 use nym_ecash_contract_common::msg::ExecuteMsg;
@@ -191,11 +191,11 @@ impl State {
             return Err(RedemptionError::InvalidMessage { proposal_id });
         };
 
-        if gw != request.gateway_cosmos_addr {
+        if gw != request.gateway_cosmos_addr.as_ref() {
             return Err(RedemptionError::InvalidRedemptionTarget {
                 proposal_id,
                 proposed: gw,
-                received: request.gateway_cosmos_addr.clone(),
+                received: request.gateway_cosmos_addr.to_string(),
             });
         }
 

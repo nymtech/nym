@@ -3,19 +3,15 @@
 
 use crate::error::BandwidthControllerError;
 use crate::utils::stored_credential_to_issued_bandwidth;
+use log::error;
 use log::info;
-use log::{error, warn};
-
-use nym_credential_storage::models::StorableIssuedCredential;
-use nym_credentials::coconut::utils::{obtain_coin_indices_signatures, signatures_to_string};
-use nym_credentials_interface::{constants, NymPayInfo, VerificationKeyAuth};
-
 use nym_credential_storage::storage::Storage;
-
-use nym_credentials::coconut::bandwidth::CredentialSpendingData;
-use nym_credentials::coconut::utils::signatures_from_string;
-use nym_credentials::obtain_aggregate_verification_key;
+use nym_credentials::aggregate_verification_keys;
+use nym_credentials::ecash::bandwidth::CredentialSpendingData;
+use nym_credentials::ecash::utils::signatures_from_string;
+use nym_credentials::ecash::utils::{obtain_coin_indices_signatures, signatures_to_string};
 use nym_credentials::IssuedTicketBook;
+use nym_credentials_interface::{constants, NymPayInfo, VerificationKeyAuth};
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
@@ -57,34 +53,31 @@ impl<C, St: Storage> BandwidthController<C, St> {
     }
 
     /// Tries to retrieve one of the stored, unused credentials that hasn't yet expired.
-    /// It marks any retrieved intermediate credentials as expired.
     pub async fn get_next_usable_credential(
         &self,
     ) -> Result<RetrievedCredential, BandwidthControllerError>
     where
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        loop {
-            let Some(maybe_next) = self
-                .storage
-                .get_next_unspent_usable_credential()
-                .await
-                .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?
-            else {
-                return Err(BandwidthControllerError::NoCredentialsAvailable);
-            };
-            let id = maybe_next.id;
+        let Some(maybe_next) = self
+            .storage
+            .get_next_unspent_usable_credential()
+            .await
+            .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?
+        else {
+            return Err(BandwidthControllerError::NoCredentialsAvailable);
+        };
+        let id = maybe_next.id;
 
-            // try to deserialize it
-            let valid_credential = stored_credential_to_issued_bandwidth(maybe_next).inspect_err(|err| {
+        // try to deserialize it
+        let valid_credential = stored_credential_to_issued_bandwidth(maybe_next).inspect_err(|err| {
                 error!("failed to deserialize credential with id {id}: {err}. it may need to be manually removed from the storage");
             })?;
 
-            return Ok(RetrievedCredential {
-                credential: valid_credential,
-                credential_id: id,
-            });
-        }
+        Ok(RetrievedCredential {
+            credential: valid_credential,
+            credential_id: id,
+        })
     }
 
     pub fn storage(&self) -> &St {
@@ -100,7 +93,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
         let coconut_api_clients = all_ecash_api_clients(&self.client, epoch_id).await?;
-        Ok(obtain_aggregate_verification_key(&coconut_api_clients)?)
+        Ok(aggregate_verification_keys(&coconut_api_clients)?)
     }
 
     pub async fn prepare_ecash_credential(

@@ -6,7 +6,7 @@ use nym_credentials::error::Error as CredentialsError;
 use nym_credentials_interface::CompactEcashError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
-use nym_validator_client::coconut::CoconutApiError;
+use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::error::ValidatorClientError;
 use thiserror::Error;
 
@@ -16,7 +16,7 @@ pub enum BandwidthControllerError {
     Nyxd(#[from] nym_validator_client::nyxd::error::NyxdError),
 
     #[error("coconut api query failure: {0}")]
-    CoconutApiError(#[from] CoconutApiError),
+    CoconutApiError(#[from] EcashApiError),
 
     #[error("There was a credential storage error - {0}")]
     CredentialStorageError(Box<dyn std::error::Error + Send + Sync>),

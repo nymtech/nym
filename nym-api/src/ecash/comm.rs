@@ -6,7 +6,7 @@ use crate::nyxd;
 use crate::support::nyxd::ClientInner;
 use nym_coconut_dkg_common::types::{Epoch, EpochId};
 use nym_compact_ecash::VerificationKeyAuth;
-use nym_credentials::obtain_aggregate_verification_key;
+use nym_credentials::aggregate_verification_keys;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::cmp::min;
@@ -110,7 +110,7 @@ impl APICommunicationChannel for QueryCommunicationChannel {
             ClientInner::Signing(client) => all_ecash_api_clients(client, epoch_id).await?,
         };
 
-        let vk = obtain_aggregate_verification_key(&ecash_api_clients)?;
+        let vk = aggregate_verification_keys(&ecash_api_clients)?;
 
         guard.insert(epoch_id, vk.clone());
 

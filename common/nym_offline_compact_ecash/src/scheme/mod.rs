@@ -17,8 +17,7 @@ use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::traits::Bytable;
 use crate::utils::{
-    batch_verify_signatures, check_bilinear_pairing, hash_to_scalar, try_deserialize_g1_projective,
-    try_deserialize_scalar,
+    batch_verify_signatures, check_bilinear_pairing, hash_to_scalar, try_deserialize_scalar,
 };
 use crate::{constants, ecash_group_parameters};
 use crate::{Attribute, Base58};

@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
+use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
 
 #[derive(Debug, Error)]
 pub enum GatewayError {
@@ -144,6 +145,12 @@ pub enum GatewayError {
     ClientRequestFailure {
         #[from]
         source: RequestHandlingError,
+    },
+
+    #[error("ecash related failure: {source}")]
+    EcashFailure {
+        #[from]
+        source: EcashTicketError,
     },
 
     #[error("failed to catch an interrupt: {source}")]

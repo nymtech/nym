@@ -4,7 +4,7 @@
 use crate::config::Config;
 use crate::node::storage::Storage;
 use log::{trace, warn};
-use nym_credentials::coconut::utils::ecash_today;
+use nym_credentials::ecash::utils::ecash_today;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
 use nym_sphinx::DestinationAddressBytes;
@@ -77,7 +77,7 @@ pub(crate) async fn handle_connection<R, S, St>(
 ) where
     R: Rng + CryptoRng,
     S: AsyncRead + AsyncWrite + Unpin + Send,
-    St: Storage,
+    St: Storage + Clone + 'static,
 {
     // If the connection handler abruptly stops, we shouldn't signal global shutdown
     shutdown.mark_as_success();

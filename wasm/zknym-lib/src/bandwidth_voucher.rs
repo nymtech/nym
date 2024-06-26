@@ -11,9 +11,9 @@
 //     Base58, BlindSignRequest, BlindedSignature, PrivateAttribute, PublicAttribute, Scalar,
 //     SignatureShare, VerificationKey,
 // };
-// use nym_credentials::coconut::bandwidth::issuance::Coin;
-// use nym_credentials::coconut::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
-// use nym_credentials::coconut::bandwidth::voucher::BandwidthVoucherIssuedData;
+// use nym_credentials::ecash::bandwidth::issuance::Coin;
+// use nym_credentials::ecash::bandwidth::issued::BandwidthCredentialIssuedDataVariant;
+// use nym_credentials::ecash::bandwidth::voucher::BandwidthVoucherIssuedData;
 // use nym_credentials::IssuedBandwidthCredential;
 // use serde::{Deserialize, Serialize};
 // use std::collections::HashMap;

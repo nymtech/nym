@@ -6,6 +6,10 @@ use sqlx::FromRow;
 use time::OffsetDateTime;
 
 pub struct PersistedSharedKeys {
+    #[allow(dead_code)]
+    pub(crate) id: i64,
+
+    #[allow(dead_code)]
     pub(crate) client_address_bs58: String,
     pub(crate) derived_aes128_ctr_blake3_hmac_keys_bs58: String,
 }
@@ -43,18 +47,14 @@ impl From<Option<PersistedBandwidth>> for AvailableBandwidth {
     }
 }
 
-pub(crate) struct PendingStoredCredential {
+#[derive(FromRow)]
+pub struct VerifiedTicket {
+    pub(crate) serial_number: Vec<u8>,
     pub(crate) id: i64,
-    pub(crate) credential: String,
-    pub(crate) gateway_address: String,
-    pub(crate) api_urls: String,
-    pub(crate) proposal_id: Option<i64>,
 }
 
-#[derive(Debug, Clone, FromRow)]
-pub struct SpentCredential {
-    #[allow(dead_code)]
-    pub(crate) blinded_serial_number_bs58: String,
-    #[allow(dead_code)]
-    pub(crate) client_address_bs58: String,
+#[derive(FromRow)]
+pub struct RedemptionProposal {
+    pub(crate) proposal_id: i64,
+    pub(crate) created_at: OffsetDateTime,
 }

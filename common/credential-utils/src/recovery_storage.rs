@@ -3,7 +3,7 @@
 
 use crate::errors::Result;
 use log::error;
-use nym_credentials::coconut::bandwidth::IssuanceTicketBook;
+use nym_credentials::ecash::bandwidth::IssuanceTicketBook;
 use std::fs::{create_dir_all, read_dir, File};
 use std::io::{Read, Write};
 use std::path::PathBuf;

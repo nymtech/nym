@@ -4,7 +4,7 @@
 use crate::error::{Error, Result};
 use nym_bandwidth_controller::acquire::state::State;
 use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::IssuanceTicketBook;
+use nym_credentials::ecash::bandwidth::IssuanceTicketBook;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use zeroize::Zeroizing;

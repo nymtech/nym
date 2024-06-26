@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::common_types::{BlindedSignature, Signature};
-use bls12_381::{G1Affine, G1Projective};
-use group::GroupEncoding;
-
 use crate::proofs::proof_spend::{SpendInstance, SpendProof};
 use crate::proofs::proof_withdrawal::{WithdrawalReqInstance, WithdrawalReqProof};
 use crate::scheme::withdrawal::RequestInfo;
-use crate::scheme::{Payment, SerialNumberRef, Wallet};
+use crate::scheme::{Payment, Wallet};
 use crate::{Attribute, CompactEcashError, PartialWallet, WithdrawalRequest};
+use bls12_381::{G1Affine, G1Projective};
+use group::GroupEncoding;
 
 #[macro_export]
 macro_rules! impl_byteable_bs58 {

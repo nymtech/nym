@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coconut::bandwidth::issued::IssuedTicketBook;
-use crate::coconut::bandwidth::CredentialSigningData;
-use crate::coconut::utils::cred_exp_date;
+use crate::ecash::bandwidth::issued::IssuedTicketBook;
+use crate::ecash::bandwidth::CredentialSigningData;
+use crate::ecash::utils::cred_exp_date;
 use crate::error::Error;
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_credentials_interface::{
@@ -15,7 +15,6 @@ use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::nym_api::EpochId;
 use serde::{Deserialize, Serialize};
-use time::macros::time;
 use time::OffsetDateTime;
 
 pub use nym_validator_client::nyxd::{Coin, Hash};
@@ -48,7 +47,7 @@ impl IssuanceTicketBook {
             deposit_id,
             signing_key,
             ecash_keypair,
-            expiration_date: cred_exp_date().replace_time(time!(0:00)),
+            expiration_date: cred_exp_date(),
         }
     }
 

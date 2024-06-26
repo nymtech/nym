@@ -36,7 +36,7 @@ pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 pub(crate) mod storage;
 
-pub use storage::{InMemStorage, PersistentStorage, Storage};
+pub use storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
 struct StartedNetworkRequester {
@@ -243,9 +243,9 @@ impl<St> Gateway<St> {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-        ecash_verifier: Arc<EcashManager>,
+        ecash_verifier: Arc<EcashManager<St>>,
     ) where
-        St: Storage + Clone + 'static,
+        St: Storage + Send + Sync + Clone + 'static,
     {
         info!("Starting client [web]socket listener...");
 
@@ -256,6 +256,7 @@ impl<St> Gateway<St> {
 
         let shared_state = websocket::CommonHandlerState {
             ecash_verifier,
+            storage: self.storage.clone(),
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
@@ -263,7 +264,6 @@ impl<St> Gateway<St> {
 
         websocket::Listener::new(listening_address, shared_state).start(
             forwarding_channel,
-            self.storage.clone(),
             active_clients_store,
             shutdown,
         );

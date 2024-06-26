@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_credentials::coconut::bandwidth::CredentialSpendingData;
+use nym_credentials::ecash::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::{Base58, Bytable, CompactEcashError};
 use serde::{Deserialize, Serialize};
 

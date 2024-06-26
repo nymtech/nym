@@ -1,27 +1,31 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::RequestHandlingError;
+use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
 use crate::node::client_handling::websocket::connection_handler::ecash::state::SharedState;
+use crate::node::Storage;
 use bloomfilter::reexports::bit_vec::BitVec;
 use bloomfilter::Bloom;
 use log::warn;
 use nym_network_defaults::{BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS};
 use nym_task::TaskClient;
-use nym_validator_client::CoconutApiClient;
+use nym_validator_client::EcashApiClient;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::time::{interval, Duration};
 
 #[derive(Clone)]
-pub(crate) struct DoubleSpendingDetector {
+pub(crate) struct DoubleSpendingDetector<S> {
     spent_serial_numbers: Arc<RwLock<Bloom<String>>>,
-    shared_state: SharedState,
+    shared_state: SharedState<S>,
 }
 
-impl DoubleSpendingDetector {
-    pub(crate) fn new(shared_state: SharedState) -> Self {
+impl<S> DoubleSpendingDetector<S>
+where
+    S: Storage + Clone + Send + Sync + 'static,
+{
+    pub(crate) fn new(shared_state: SharedState<S>) -> Self {
         let bitmap = [0u8; (BLOOM_BITMAP_SIZE / 8) as usize];
         let bloom_filter =
             Bloom::from_existing(&bitmap, BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS);
@@ -40,7 +44,7 @@ impl DoubleSpendingDetector {
 
     async fn latest_api_endpoints(
         &self,
-    ) -> Result<RwLockReadGuard<Vec<CoconutApiClient>>, RequestHandlingError> {
+    ) -> Result<RwLockReadGuard<Vec<EcashApiClient>>, EcashTicketError> {
         let epoch_id = self.shared_state.current_epoch_id().await?;
         self.shared_state.api_clients(epoch_id).await
     }

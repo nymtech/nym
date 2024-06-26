@@ -14,18 +14,18 @@ use url::Url;
 
 // TODO: it really doesn't feel like this should live in this crate.
 #[derive(Clone)]
-pub struct CoconutApiClient {
+pub struct EcashApiClient {
     pub api_client: NymApiClient,
     pub verification_key: VerificationKeyAuth,
     pub node_id: NodeIndex,
     pub cosmos_address: cosmrs::AccountId,
 }
 
-impl Display for CoconutApiClient {
+impl Display for EcashApiClient {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "[id_{}] {} @ {}",
+            "[id: {}] {} @ {}",
             self.node_id,
             self.cosmos_address,
             self.api_client.api_url()
@@ -37,7 +37,7 @@ impl Display for CoconutApiClient {
 // (which is in different crate; perhaps this client should be moved there?)
 
 #[derive(Debug, Error)]
-pub enum CoconutApiError {
+pub enum EcashApiError {
     // TODO: ask @BN whether this is a correct error message
     #[error("the provided key share hasn't been verified")]
     UnverifiedShare,
@@ -67,17 +67,17 @@ pub enum CoconutApiError {
     },
 }
 
-impl TryFrom<ContractVKShare> for CoconutApiClient {
-    type Error = CoconutApiError;
+impl TryFrom<ContractVKShare> for EcashApiClient {
+    type Error = EcashApiError;
 
     fn try_from(share: ContractVKShare) -> Result<Self, Self::Error> {
         if !share.verified {
-            return Err(CoconutApiError::UnverifiedShare);
+            return Err(EcashApiError::UnverifiedShare);
         }
 
         let url_address = Url::parse(&share.announce_address)?;
 
-        Ok(CoconutApiClient {
+        Ok(EcashApiClient {
             api_client: NymApiClient::new(url_address),
             verification_key: VerificationKeyAuth::try_from_bs58(&share.share)?,
             node_id: share.node_index,
@@ -89,7 +89,7 @@ impl TryFrom<ContractVKShare> for CoconutApiClient {
 pub async fn all_ecash_api_clients<C>(
     client: &C,
     epoch_id: EpochId,
-) -> Result<Vec<CoconutApiClient>, CoconutApiError>
+) -> Result<Vec<EcashApiClient>, EcashApiError>
 where
     C: DkgQueryClient + Sync + Send,
 {

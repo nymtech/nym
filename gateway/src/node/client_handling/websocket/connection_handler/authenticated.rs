@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::bandwidth::{Bandwidth, BandwidthError};
+use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
+use crate::node::client_handling::websocket::connection_handler::ecash::ClientTicket;
 use crate::node::client_handling::websocket::connection_handler::ClientBandwidth;
 use crate::node::{
     client_handling::{
@@ -20,7 +22,8 @@ use futures::{
     FutureExt, StreamExt,
 };
 use log::*;
-use nym_credentials::coconut::utils::ecash_today;
+use nym_credentials::ecash::utils::ecash_today;
+use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
@@ -28,8 +31,7 @@ use nym_gateway_requests::{
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
-use nym_validator_client::coconut::CoconutApiError;
-use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::coconut::EcashApiError;
 use rand::{CryptoRng, Rng};
 use std::{process, time::Duration};
 use thiserror::Error;
@@ -56,12 +58,6 @@ pub enum RequestHandlingError {
     #[error("The received request is not valid in the current context: {additional_context}")]
     IllegalRequest { additional_context: String },
 
-    #[error("the provided credential failed to get verified")]
-    MalformedCredential,
-
-    #[error("failed to verify provided credential due to invalid expiration date signatures")]
-    MalformedCredentialInvalidDateSignatures,
-
     #[error("credential has been rejected by the validators")]
     RejectedProposal,
 
@@ -72,15 +68,6 @@ pub enum RequestHandlingError {
         got: OffsetDateTime,
         expected: OffsetDateTime,
     },
-
-    #[error("provided payinfo's public key does not match provider's")]
-    InvalidPayInfoPublicKey,
-
-    #[error("provided payinfo's timestamp is invalid")]
-    InvalidPayInfoTimestamp,
-
-    #[error("received payinfo is a duplicate")]
-    DuplicatePayInfo,
 
     #[error("the provided bandwidth credential has already been spent before at this gateway")]
     BandwidthCredentialAlreadySpent,
@@ -94,9 +81,6 @@ pub enum RequestHandlingError {
     #[error("Validator API error - {0}")]
     APIError(#[from] nym_validator_client::ValidatorClientError),
 
-    #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
-    NotEnoughNymAPIs { received: usize, needed: usize },
-
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
 
@@ -104,7 +88,7 @@ pub enum RequestHandlingError {
     CompactEcashError(#[from] nym_credentials_interface::CompactEcashError),
 
     #[error("coconut api query failure: {0}")]
-    CoconutApiError(#[from] CoconutApiError),
+    CoconutApiError(#[from] EcashApiError),
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] nym_credentials::error::Error),
@@ -115,28 +99,27 @@ pub enum RequestHandlingError {
     #[error("failed to recover bandwidth value: {0}")]
     BandwidthRecoveryFailure(#[from] BandwidthError),
 
-    #[error("the provided credential did not contain a valid type attribute")]
-    InvalidTypeAttribute,
-
     #[error("insufficient bandwidth available to process the request. required: {required}B, available: {available}B")]
     OutOfBandwidth { required: i64, available: i64 },
 
-    #[error("the provided credential did not have a bandwidth attribute")]
-    MissingBandwidthAttribute,
-
-    #[error("attempted to claim another free pass for the account while another free pass is still active (it expires on {expiration})")]
-    PreexistingFreePass { expiration: OffsetDateTime },
-
-    #[error("the DKG contract is unavailable")]
-    UnavailableDkgContract,
-
-    #[error("the DKG threshold value for epoch {epoch_id} is currently unavailable. we're probably mid-epoch transition")]
-    DKGThresholdUnavailable { epoch_id: EpochId },
+    #[error(transparent)]
+    EcashFailure(EcashTicketError),
 }
 
 impl RequestHandlingError {
     fn into_error_message(self) -> Message {
         ServerResponse::new_error(self.to_string()).into()
+    }
+}
+
+impl From<EcashTicketError> for RequestHandlingError {
+    fn from(err: EcashTicketError) -> Self {
+        // don't expose storage issue details to the user
+        if let EcashTicketError::InternalStorageFailure { source } = err {
+            RequestHandlingError::StorageError(source)
+        } else {
+            RequestHandlingError::EcashFailure(err)
+        }
     }
 }
 
@@ -180,7 +163,7 @@ impl<R, S, St> AuthenticatedHandler<R, S, St>
 where
     // TODO: those trait bounds here don't really make sense....
     R: Rng + CryptoRng,
-    St: Storage,
+    St: Storage + Clone + 'static,
 {
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
     /// and thus allowed to perform more actions with the gateway, such as redeeming bandwidth or
@@ -202,6 +185,7 @@ where
         // so in theory we could just unwrap the value here, but since we're returning a Result anyway,
         // we might as well return a failure response instead
         let bandwidth = fresh
+            .shared_state
             .storage
             .get_available_bandwidth(client.address)
             .await?
@@ -285,12 +269,13 @@ where
 
     async fn check_local_db_for_double_spending(
         &self,
-        serial_number_bs58: &str,
+        serial_number: &[u8],
     ) -> Result<(), RequestHandlingError> {
         let spent = self
             .inner
+            .shared_state
             .storage
-            .contains_credential(serial_number_bs58)
+            .contains_ticket(serial_number)
             .await?;
         if spent {
             trace!("the credential has already been spent before at this gateway");
@@ -351,33 +336,33 @@ where
         Ok(())
     }
 
-    async fn spend_received_credential(
-        &self,
-        credential: CredentialSpendingRequest,
-    ) -> Result<(), RequestHandlingError> {
+    fn async_verify_ticket(&self, ticket: CredentialSpendingData, ticket_id: i64) {
+        let client_ticket = ClientTicket::new(ticket, ticket_id);
+
         self.inner
             .shared_state
             .ecash_verifier
-            .post_credential(credential.clone())?;
-
-        self.inner
-            .storage
-            .insert_credential(credential.clone())
-            .await?;
-
-        Ok(())
+            .async_verify(client_ticket);
     }
 
-    async fn store_spent_credential(
+    async fn store_received_ticket(
         &self,
-        serial_number_bs58: String,
-    ) -> Result<(), RequestHandlingError> {
-        trace!("storing serial number information");
-        self.inner
+        ticket_data: &CredentialSpendingRequest,
+        received_at: OffsetDateTime,
+    ) -> Result<i64, RequestHandlingError> {
+        trace!("storing received ticket");
+        let ticket_id = self
+            .inner
+            .shared_state
             .storage
-            .insert_spent_credential(serial_number_bs58, self.client.address)
+            .insert_received_ticket(
+                self.client.address.as_base58_string(),
+                received_at,
+                ticket_data.encoded_serial_number(),
+                ticket_data.to_bytes(),
+            )
             .await?;
-        Ok(())
+        Ok(ticket_id)
     }
 
     /// Tries to handle the received bandwidth request by checking correctness of the received data
@@ -392,6 +377,7 @@ where
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
+        let received_at = OffsetDateTime::now_utc();
         debug!("handling e-cash bandwidth request");
 
         let credential = ClientControlRequest::try_from_enc_ecash_credential(
@@ -402,22 +388,22 @@ where
         let spend_date = ecash_today();
 
         // check if the credential hasn't been spent before
-        let serial_number_bs58 = credential.data.serial_number_b58();
-        trace!("processing credential {serial_number_bs58}");
+        let serial_number = credential.data.encoded_serial_number();
 
         self.check_credential_spending_date(credential.data.spend_date, spend_date)?;
-        self.check_bloomfilter(&serial_number_bs58).await?;
-        self.check_local_db_for_double_spending(&serial_number_bs58)
+        self.check_bloomfilter(&credential.data.serial_number_b58())
+            .await?;
+        self.check_local_db_for_double_spending(&serial_number)
             .await?;
 
         self.cryptographically_verify_credential(&credential)
             .await?;
 
-        // TODO: change it to batching instead
-        self.spend_received_credential(credential).await?;
+        let ticket_id = self.store_received_ticket(&credential, received_at).await?;
+        self.async_verify_ticket(credential.data, ticket_id);
 
         // TODO: double storing?
-        self.store_spent_credential(serial_number_bs58).await?;
+        // self.store_spent_credential(serial_number_bs58).await?;
 
         let bandwidth = Bandwidth::ticket_amount();
 
@@ -447,10 +433,12 @@ where
     async fn flush_bandwidth(&mut self) -> Result<(), RequestHandlingError> {
         trace!("flushing client bandwidth to the underlying storage");
         self.inner
+            .shared_state
             .storage
             .set_bandwidth(self.client.address, self.client_bandwidth.bandwidth.bytes)
             .await?;
         self.inner
+            .shared_state
             .storage
             .set_expiration(
                 self.client.address,

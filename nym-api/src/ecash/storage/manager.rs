@@ -470,7 +470,14 @@ impl CoconutStorageManagerExt for StorageManager {
     ) -> Result<Vec<SerialNumberWrapper>, sqlx::Error> {
         sqlx::query_as!(
             SerialNumberWrapper,
-            "SELECT serial_number FROM verified_tickets WHERE gateway_id = ? AND verified_at > ?",
+            r#"
+                SELECT serial_number
+                FROM verified_tickets
+                WHERE gateway_id = ?
+                AND verified_at > ?
+                ORDER BY verified_at ASC
+                LIMIT 65535    
+            "#,
             provider_id,
             since
         )

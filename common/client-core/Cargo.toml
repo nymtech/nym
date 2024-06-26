@@ -20,7 +20,7 @@ log = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sha2 = "0.10.6"
+sha2 = { workspace = true }
 si-scale = { workspace = true }
 tap = { workspace = true }
 thiserror = { workspace = true }

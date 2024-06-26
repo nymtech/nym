@@ -22,11 +22,11 @@ utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 colored = { workspace = true }
-ipnetwork = "0.16"
+ipnetwork = { workspace = true }
 rand = { workspace = true }
 
 # Wireguard:
-fastrand = "2"
+fastrand = { workspace = true }
 
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 nym-http-api-common = { path = "../../common/http-api-common" }

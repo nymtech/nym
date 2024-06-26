@@ -27,7 +27,7 @@ dirs = { workspace = true }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
-ipnetwork = "0.16"
+ipnetwork = { workspace = true }
 log = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }

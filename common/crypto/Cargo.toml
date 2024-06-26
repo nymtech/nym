@@ -12,7 +12,7 @@ aes = { workspace = true, optional = true }
 bs58 = { workspace = true }
 blake3 = { workspace = true, features = ["traits-preview"], optional = true }
 ctr = { workspace = true, optional = true }
-digest = { version = "0.10.3", optional = true }
+digest = { workspace = true, optional = true }
 generic-array = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }

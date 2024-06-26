@@ -106,8 +106,6 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: Option<bool>,
 
     open_proxy: Option<bool>,
-    // enable_statistics: Option<bool>,
-    // statistics_recipient: Option<String>,
 }
 
 // NOTE: make sure this is in sync with `gateway/src/helpers.rs::override_network_requester_config`
@@ -141,8 +139,6 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
             args.enabled_credentials_mode.map(|b| !b),
         )
         .with_optional(Config::with_open_proxy, args.open_proxy)
-        // .with_optional(Config::with_enabled_statistics, args.enable_statistics)
-        // .with_optional(Config::with_statistics_recipient, args.statistics_recipient)
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {

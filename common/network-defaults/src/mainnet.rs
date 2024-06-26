@@ -27,7 +27,6 @@ pub const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
-pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";

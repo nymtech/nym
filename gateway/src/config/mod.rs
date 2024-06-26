@@ -226,16 +226,6 @@ impl Config {
         self
     }
 
-    // pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
-    //     self.gateway.enabled_statistics = enabled_statistics;
-    //     self
-    // }
-
-    pub fn with_custom_statistics_service_url(mut self, statistics_service_url: Url) -> Self {
-        self.gateway.statistics_service_url = statistics_service_url;
-        self
-    }
-
     pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
         self.gateway.nym_api_urls = nym_api_urls;
         self
@@ -273,10 +263,6 @@ impl Config {
     pub fn with_custom_persistent_store(mut self, store_dir: PathBuf) -> Self {
         self.storage_paths.clients_storage = store_dir;
         self
-    }
-
-    pub fn get_statistics_service_url(&self) -> Url {
-        self.gateway.statistics_service_url.clone()
     }
 
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
@@ -370,13 +356,6 @@ pub struct Gateway {
     #[serde(deserialize_with = "de_maybe_port")]
     pub clients_wss_port: Option<u16>,
 
-    // Whether gateway collects and sends anonymized statistics
-    // pub enabled_statistics: bool,
-
-    /// Domain address of the statistics service
-    #[zeroize(skip)]
-    pub statistics_service_url: Url,
-
     /// Addresses to APIs from which the node gets the view of the network.
     #[serde(alias = "validator_api_urls")]
     #[zeroize(skip)]
@@ -405,10 +384,6 @@ impl Gateway {
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             clients_port: DEFAULT_CLIENT_LISTENING_PORT,
             clients_wss_port: None,
-            // enabled_statistics: false,
-            statistics_service_url: mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS
-                .parse()
-                .expect("Invalid default statistics service URL"),
             nym_api_urls: vec![mainnet::NYM_API.parse().expect("Invalid default API URL")],
             nyxd_urls: vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")],
             cosmos_mnemonic: bip39::Mnemonic::generate(24)

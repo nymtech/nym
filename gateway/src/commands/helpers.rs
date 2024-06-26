@@ -39,8 +39,6 @@ pub(crate) struct OverrideConfig {
     pub(crate) mix_port: Option<u16>,
     pub(crate) clients_port: Option<u16>,
     pub(crate) datastore: Option<PathBuf>,
-    // pub(crate) enabled_statistics: Option<bool>,
-    // pub(crate) statistics_service_url: Option<url::Url>,
     pub(crate) nym_apis: Option<Vec<url::Url>>,
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
     pub(crate) nyxd_urls: Option<Vec<url::Url>>,
@@ -63,12 +61,6 @@ impl OverrideConfig {
                 NYM_API,
                 nym_config::parse_urls,
             )
-            // .with_optional(Config::with_enabled_statistics, self.enabled_statistics)
-            // .with_optional_env(
-            //     Config::with_custom_statistics_service_url,
-            //     self.statistics_service_url,
-            //     STATISTICS_SERVICE_DOMAIN_ADDRESS,
-            // )
             .with_optional(Config::with_custom_persistent_store, self.datastore)
             .with_optional(Config::with_cosmos_mnemonic, self.mnemonic)
             .with_optional_custom_env(

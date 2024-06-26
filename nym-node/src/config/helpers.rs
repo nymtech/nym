@@ -48,8 +48,6 @@ pub fn ephemeral_gateway_config(
         mix_port: config.mixnet.bind_address.port(),
         clients_port: config.entry_gateway.bind_address.port(),
         clients_wss_port: config.entry_gateway.announce_wss_port,
-        // enabled_statistics: false,
-        statistics_service_url: "https://nymtech.net/foobar".parse().unwrap(),
         nym_api_urls: config.mixnet.nym_api_urls,
         nyxd_urls: config.mixnet.nyxd_urls,
 

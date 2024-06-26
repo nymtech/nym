@@ -58,7 +58,6 @@ nym-service-providers-common = { path = "../common" }
 nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-sphinx = { path = "../../common/nymsphinx" }
-# nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }
 nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }

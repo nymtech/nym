@@ -122,8 +122,6 @@ impl From<ConfigV1_1_36> for Config {
                 mix_port: value.gateway.mix_port,
                 clients_port: value.gateway.clients_port,
                 clients_wss_port: value.gateway.clients_wss_port,
-                // enabled_statistics: value.gateway.enabled_statistics,
-                statistics_service_url: value.gateway.statistics_service_url,
                 nym_api_urls: value.gateway.nym_api_urls,
                 nyxd_urls: value.gateway.nyxd_urls,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,

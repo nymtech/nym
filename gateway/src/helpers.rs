@@ -33,8 +33,6 @@ pub struct OverrideNetworkRequesterConfig {
     pub medium_toggle: bool,
 
     pub open_proxy: Option<bool>,
-    // pub enable_statistics: Option<bool>,
-    // pub statistics_recipient: Option<String>,
 }
 
 #[derive(Default)]
@@ -63,14 +61,6 @@ pub fn override_network_requester_config(
         nym_network_requester::Config::with_open_proxy,
         opts.open_proxy,
     )
-    // .with_optional(
-    //     nym_network_requester::Config::with_enabled_statistics,
-    //     opts.enable_statistics,
-    // )
-    // .with_optional(
-    //     nym_network_requester::Config::with_statistics_recipient,
-    //     opts.statistics_recipient,
-    // )
 }
 
 // NOTE: make sure this is in sync with service-providers/ip-packet-router/src/cli/mod.rs::override_config
@@ -150,7 +140,6 @@ pub async fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse,
                 identity_key: nr_identity_public_key.to_base58_string(),
                 encryption_key: nr_encryption_key.to_base58_string(),
                 open_proxy: cfg.network_requester.open_proxy,
-                // enabled_statistics: cfg.network_requester.enabled_statistics,
                 address: address.to_string(),
                 config_path: display_path(nr_cfg_path),
             })

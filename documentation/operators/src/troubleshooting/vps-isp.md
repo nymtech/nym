@@ -49,3 +49,43 @@ To find the right IP configuration, contact your VPS provider for support to fin
 On self-hosted machine it's a bit more tricky. In that case as an operator you must be sure that your ISP allows for public IPv4 and IPv6 and then it may be a bit of playing around to find the right configuration. One way may be to bind your binary with the `--host` flag to local address `127.0.0.1` and run `echo "$(curl -4 https://ifconfig.me)"` to get a public address which you use to bond your Mix Node to `nym-api` via Nym wallet.
 
 It's up to you as a node operator to ensure that your public and private IPs match up properly.
+
+### Logs Pruning
+
+Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up to much disk space or memory. Below are two scripts that can help you clean this up. 
+
+`rm` is a powerful tool, without an easy way of revoking. If you need to extract or backup anything, do it now. Make sure you understand what you removing before you execute these commands.
+
+```sh
+# I WANT TO SEE WHATS EATING ALL MY DISKSPACE
+sudo find /var -type f -printf "%s\t%p\n" | sort -n -r | head -n 20 | ls -lh
+sudo find /var -type f -exec ls -lh {} + 2>/dev/null | sort -k 5 -n -r | head -n 20
+
+sudo du -h --max-depth=1 /var
+sudo du -h /var/log
+
+#PRUNE THOSE LOGS
+sudo rm -f /var/log/syslog.1
+sudo rm -f /var/log/syslog
+journalctl --disk-usage
+sudo journalctl --vacuum-time=3d
+sudo journalctl --vacuum-size=50M
+
+#ENFORCE LOG ROTATION
+sudo logrotate --force /etc/logrotate.conf
+sudo service rsyslog restart
+
+# REMOVE ALL THOSE OLD PACKAGES...
+sudo apt-get clean
+sudo apt-get autoremove
+
+sudo apt-get clean
+sudo rm -rf /var/lib/apt/lists/*
+sudo apt-get update
+
+for snap in $(sudo snap list --all | awk '/disabled/{print $1, $3}'); do
+    sudo snap remove $snap
+done
+```
+
+

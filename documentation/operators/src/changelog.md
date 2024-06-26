@@ -201,21 +201,10 @@ warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ig
     - [Testnet token faucet](https://nymtech.net/operators/sandbox.html#sandbox-token-faucet)
     - Flow [chart](elease-cycle.md#release-flow)
 - [Sandbox testnet](sandbox.md) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
+- [Pruning VPS `syslog`](troubleshooting/vps-isp.md#logs-pruning)
+- [Black-xit: Exiting the blacklist](troubleshooting/nodes.md#my-gateway-is-blacklisted)
 
-
-
-
-
-
-
-~~~admonish example collapsible=true title='Testing steps performed'
-
-~~~
-
-~~~admonish example collapsible=true title='Testing steps performed'
-
-~~~
-
+---
 
 ## `v2024.5-ragusa`
 

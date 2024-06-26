@@ -291,25 +291,31 @@ Let your Gateway run and follow these steps:
 
 ### My Gateway is blacklisted
 
-Nym API measures performance by routing traffic through the Mixnet. If the average of a Gateway's routing score in past 24h is less than 50%, the Gateway gets blacklisted and remains so until this number is higher than 50%.
+Nym API measures performance by routing traffic through the Mixnet. If the average of a Gateway's routing score in past 24h is less than 50%, the Gateway gets blacklisted and it remains so until its performance is higher than 50%.
 
 In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/api/v1/gateways/blacklisted), it's because there is some flaw in the configuration. The most common sources of problems are:
 
+- Outdated version of `nym-node`
 - Bonding before starting the node/service
 - Bonding before opening [needed ports](../nodes/vps-setup.md#configure-your-firewall)
 - VPS restarted without operator having a [systemd automation](../nodes/configuration.md#systemd) or some alert notification flow setup
+- IP address or host is incorrectly setup
+- Process logs grew too big
+- Node is wrapped in [systemd service](../nodes/configuration.md#systemd) and you forgot to run `systemctl daemon-reload` after last changes
 
-What to do:
+**What to do:**
 
-1. Make sure your node is running and do not stop it if there is no need
-2. Open all needed [needed ports](../nodes/vps-setup.md#configure-your-firewall)
-3. Check your `config.toml` - often people have filled `hostname` without such hostname being configured or a wrong IP address after moving their node.
+1. Make sure your node is on the [latest version](../changelog.md) and it's running . Do *not* stop it if there is no need!
+2. Open all [needed ports](../nodes/vps-setup.md#configure-your-firewall)
+3. Check your `config.toml` - often people have filled `hostname` without the domain being registered to `nym-node` IP, or a wrong IP address after moving their node.
 4. [Check Gateway Connectivity](#check-gateway-connectivity)
 5. See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
   - If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
-6. When all problems addressed:Wait until your node gets above 50% of performance (average of last 24h) - this will likely take several hours, up to a day. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
+6. [Check out if your `syslog`s](vps-isp.md#logs-pruning) aren't eating all your disk space and prune them
+7. When all problems addressed: Restart the node/service (don't forget `systemctl daemon-reload`) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by `nym-api` and every positive response picks up your routing score.
+8. If your node doesn't pick up the routing score within 24h at all and it was running in `--mode exit-gateway`, run it as `--mode entry-gateway`. When your node is above 75% performance (past 24h), switch back to `--mode exit-gateway`.
 
-**Do not restart your Nym Node without reason, your routing score will only get worse!**
+**Do not repeatedly restart your Nym Node without reason, your routing score will only get worse!**
 
 ### Check Gateway connectivity
 

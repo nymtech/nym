@@ -65,7 +65,7 @@ curl -s -X 'GET' 'http://18.171.251.41:8080/api/v1/auxiliary-details?output=json
 ~~~
 
 - [Rename 'accept-toc' flag and fields into explicit 'accept-operator-terms-and-conditions'](https://github.com/nymtech/nym/pull/4654): makes the `accept-toc` flag more explicit.
-- [Validate nym-node public ips on startup](https://github.com/nymtech/nym/pull/4630): makes sure nym-node is not run with an empty `public_ips` and that they do not correspond to common misconfigurations like `127.0.0.1` or `0.0.0.0` unless run with `--local` flag.
+- [Validate nym-node public ips on startup](https://github.com/nymtech/nym/pull/4630): makes sure `nym-node` is not run with an empty `public_ips` and that they do not correspond to common misconfigurations like `127.0.0.1` or `0.0.0.0` unless run with `--local` flag.
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Use the latest release/chomp binary with nym-node and input a dodgy ip
 <img width="361" alt="image" src="https://github.com/nymtech/nym/assets/60836166/6f2210f9-90ec-48fb-932f-f325c701de09">
@@ -83,7 +83,7 @@ When restarting the node it complains within the service launch file
 ~~~
 
 - [Remove stale peers](https://github.com/nymtech/nym/pull/4640)
-- [Removed ephemera code](https://github.com/nymtech/nym/pull/4642): 
+- [Removed ephemera code](https://github.com/nymtech/nym/pull/4642)
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Check references to everything named SP and Ephemera and removed any additional references
 ~~~
@@ -109,7 +109,7 @@ When restarting the node it complains within the service launch file
     - Also each of our contracts now saves and updates that information upon init and migration.
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Use the latest release/chomp contracts and deploy these to QA
-- Use the nym-api to query for the results of these new contracts
+- Use the `nym-api` to query for the results of these new contracts
  
 ```sh
  curl -X 'GET' \
@@ -201,6 +201,7 @@ warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ig
     - [Testnet token faucet](https://nymtech.net/operators/sandbox.html#sandbox-token-faucet)
     - Flow [chart](release-cycle.md#release-flow)
 - [Sandbox testnet](sandbox.md) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
+- [Terms & Conditions flag](nodes/setup.md#terms--conditions)
 - [Node API Check CLI](testing/node-api-check.md)
 - [Pruning VPS `syslog` scripts](troubleshooting/vps-isp.md#logs-pruning)
 - [Black-xit: Exiting the blacklist](troubleshooting/nodes.md#my-gateway-is-blacklisted)

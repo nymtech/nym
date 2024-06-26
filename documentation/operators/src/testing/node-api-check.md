@@ -12,26 +12,32 @@ Besides that, Gateway operators can check out their node performance, connectivi
 ### Basic API usage
 
 For information about available endpoints and their status, you can refer to:
-```
+```sh
+# sustitude <NODE_IP_ADDRESS> or <NODE_DOMAIN> with a real one
 # for http
-http://<IP>:8080/api/v1/swagger/#/
+http://<NODE_IP_ADDRESS>:8080/api/v1/swagger/#/
+# or
+http://<NODE_IP_ADDRESS>/api/v1/swagger/#/
 
-# for https reversed proxy
-https://<DOMAIN>/api/v1/swagger/#/
+# for reversed proxy/WSS
+https://<NODE_DOMAIN>/api/v1/swagger/#/
 ```
 
 For example to determine which mode your node is running, you can check `:8080/api/v1/roles` endpoint:
-```
+```sh
+# sustitude <NODE_IP_ADDRESS> or <NODE_DOMAIN> with a real one
 # for http
-http://<IP_ADDRESS>:8080/api/v1/roles
+http://<NODE_IP_ADDRESS>:8080/api/v1/roles
+# or
+http://<NODE_IP_ADDRESS>/api/v1/roles
 
-# for https reversed proxy
-https://<DOMAIN>/api/v1/roles
+# for reversed proxy/WSS
+https://<NODE_DOMAIN>/api/v1/roles
 ```
 
 ## `node_api_check.py`
 
-To make this a bit easier, we made a CLI tool quering all vailable API endpoints based on node `Identity Key` (further denoted as `<ID_KEY>`) called `node_api_check.py`. To diagnose your node performance, whether by yourself or by sharing an output in our [operator channel](https://matrix.to/#/#operators:nymtech.chat), this tool provides you with a quick overview of live data. We recommend to run this checker alongside [`nym_gateway_probe`](gateway-probe.md) to triage both performance and an actual routing.
+To make this a bit easier, we made a CLI tool querying all viable API endpoints based on node `Identity Key` (further denoted as `<ID_KEY>`) called `node_api_check.py`. To diagnose your node performance, whether by yourself or by sharing an output in our [operator channel](https://matrix.to/#/#operators:nymtech.chat), this tool provides you with a quick overview of live data. We recommend to run this checker alongside [`nym_gateway_probe`](gateway-probe.md) to triage both performance and an actual routing.
 
 Besides querying any bonded node APIs, `nym_api_check` has a function counting all existing nodes in provided version.
 
@@ -43,7 +49,7 @@ Besides querying any bonded node APIs, `nym_api_check` has a function counting a
 
 1. Start with installing Python3:
 ```sh
-sudo apt install Python3
+sudo apt install python3
 ```
 
 2. Make sure Python3 is your default Python version:
@@ -52,6 +58,7 @@ update-alternatives --install  /usr/bin/python python /usr/bin/python3 1
 
 # controll
 python --version
+
 # should return higher than 3
 ```
 
@@ -100,14 +107,14 @@ When you want to see all the options connected to a command, add a `--help` flag
 ```
 ~~~
 
-The most common usage may be `./node_api_check.py query_stats <ID_KEY>` where `<ID_KEY>` is required, sustitute it with node Identity Key.
+The most common usage may be `./node_api_check.py query_stats <ID_KEY>` where `<ID_KEY>` is required, substitute it with node Identity Key.
 
 **Optional arguments**
 
 | Flag                   | Shortcut | Description                                                 |
 | :---                   |     :---      | :---                                                        |
 | `--markdown`           |     `-m`      | returns output in markdown format                           |
-| `--no_routing_history` |     `-n`      | returns output without routing history which can be lenghty |
+| `--no_routing_history` |     `-n`      | returns output without routing history which can be lengthy |
 | `--output`             |     `-o`      | exports output to a file, possible to add a target path     |
 
 #### `version_count`

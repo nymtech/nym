@@ -109,10 +109,6 @@ pub fn export_to_env() {
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
-    // set_var_to_default(
-    //     var_names::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-    //     STATISTICS_SERVICE_DOMAIN_ADDRESS,
-    // );
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
     set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
@@ -154,10 +150,6 @@ pub fn export_to_env_if_not_set() {
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
-    // set_var_conditionally_to_default(
-    //     var_names::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-    //     STATISTICS_SERVICE_DOMAIN_ADDRESS,
-    // );
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
     set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);

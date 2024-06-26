@@ -32,15 +32,6 @@ pub struct CmdArgs {
     #[clap(long)]
     open_proxy: Option<bool>,
 
-    // Enable service anonymized statistics that get sent to a statistics aggregator server
-    // #[clap(long)]
-    // enable_statistics: Option<bool>,
-
-    // Mixnet client address where a statistics aggregator is running. The default value is a Nym
-    // aggregator client
-    // #[clap(long)]
-    // statistics_recipient: Option<String>,
-
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
     #[clap(long, hide = true, conflicts_with = "medium_toggle")]
@@ -71,8 +62,6 @@ impl<'a> From<&'a CmdArgs> for OverrideNetworkRequesterConfig {
             no_cover: value.no_cover,
             medium_toggle: value.medium_toggle,
             open_proxy: value.open_proxy,
-            // enable_statistics: value.enable_statistics,
-            // statistics_recipient: value.statistics_recipient.clone(),
         }
     }
 }

@@ -17,7 +17,7 @@ defguard_wireguard_rs = { workspace = true }
 # The latest version on crates.io at the time of writing this (6.0.0) has a
 # version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
 # latest commit. So pick that for now.
-x25519-dalek = "2.0.0"
+x25519-dalek = { workspace = true }
 ip_network = { workspace = true }
 log.workspace = true
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }

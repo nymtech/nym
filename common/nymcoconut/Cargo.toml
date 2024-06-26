@@ -33,7 +33,7 @@ default-features = false
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 doc-comment = { workspace = true }
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }
 
 [[bench]]
 name = "benchmarks"

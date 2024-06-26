@@ -37,7 +37,7 @@ nym-bin-common = { path = "../../common/bin-common", features = ["bin_info_schem
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }
 nym-crypto = { path = "../../common/crypto", features = ["rand"] }
 
 

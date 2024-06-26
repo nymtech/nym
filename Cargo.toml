@@ -334,6 +334,8 @@ wasm-bindgen = "0.2.92"
 wasm-bindgen-futures = "0.4.39"
 wasmtimer = "0.2.0"
 web-sys = "0.3.69"
+rand_chacha = "0.3"
+x25519-dalek = "2.0.0"
 
 
 # Profile settings for individual crates

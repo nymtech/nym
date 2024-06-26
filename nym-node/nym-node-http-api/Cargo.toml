@@ -45,4 +45,4 @@ serde_json.workspace = true
 
 hmac = { workspace = true }
 tower = { workspace = true }
-x25519-dalek = { version = "2.0.0" }
+x25519-dalek = { workspace = true }

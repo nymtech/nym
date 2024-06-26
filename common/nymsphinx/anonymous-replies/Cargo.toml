@@ -24,4 +24,4 @@ nym-topology = { path = "../../topology" }
 version = "0.2.83"
 
 [dev-dependencies]
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }

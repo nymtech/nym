@@ -116,6 +116,6 @@ sqlx = { workspace = true, features = [
 tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }
 sha2 = "0.9"
 

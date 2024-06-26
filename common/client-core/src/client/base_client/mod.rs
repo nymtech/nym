@@ -54,6 +54,7 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+use nym_validator_client::UserAgent;
 use rand::rngs::OsRng;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
@@ -185,6 +186,8 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
 
+    user_agent: Option<UserAgent>,
+
     setup_method: GatewaySetup,
 }
 
@@ -207,6 +210,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
+            user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
         }
     }
@@ -247,6 +251,12 @@ where
     #[must_use]
     pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
         self.shutdown = Some(shutdown);
+        self
+    }
+
+    #[must_use]
+    pub fn with_user_agent(mut self, user_agent: Option<UserAgent>) -> Self {
+        self.user_agent = user_agent;
         self
     }
 
@@ -467,6 +477,7 @@ where
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         config_topology: config::Topology,
         nym_api_urls: Vec<Url>,
+        user_agent: UserAgent,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
@@ -477,6 +488,7 @@ where
                 },
                 nym_api_urls,
                 env!("CARGO_PKG_VERSION").to_string(),
+                user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
                 Box::new(GeoAwareTopologyProvider::new(
@@ -689,6 +701,14 @@ where
             self.custom_topology_provider.take(),
             self.config.debug.topology,
             self.config.get_nym_api_endpoints(),
+            self.user_agent.clone().unwrap_or_else(|| {
+                UserAgent::new(
+                    "nym-client".to_string(),
+                    "unknown".to_string(),
+                    env!("CARGO_PKG_VERSION").to_string(),
+                    "unknown".to_string(),
+                )
+            }),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway

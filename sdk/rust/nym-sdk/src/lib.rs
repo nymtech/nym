@@ -13,6 +13,7 @@ pub use nym_network_defaults::{
     ChainDetails, DenomDetails, DenomDetailsOwned, NymContracts, NymNetworkDetails,
     ValidatorDetails,
 };
+pub use nym_validator_client::UserAgent;
 // we have to re-expose TaskClient since we're allowing custom shutdown in public API
 // (which is quite a shame if you ask me...)
 pub use nym_task::TaskClient;

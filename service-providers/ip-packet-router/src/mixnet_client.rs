@@ -1,5 +1,5 @@
 use nym_client_core::{config::disk_persistence::CommonClientPaths, TopologyProvider};
-use nym_sdk::{GatewayTransceiver, NymNetworkDetails};
+use nym_sdk::{GatewayTransceiver, NymNetworkDetails, UserAgent};
 use nym_task::TaskClient;
 
 use crate::{config::BaseClientConfig, error::IpPacketRouterError};
@@ -20,6 +20,15 @@ pub(crate) async fn create_mixnet_client(
 
     let storage_paths = nym_sdk::mixnet::StoragePaths::from(paths.clone());
 
+
+    let bin_info = nym_bin_common::bin_info_owned!();
+    let user_agent = UserAgent::new(
+        bin_info.binary_name,
+        bin_info.cargo_triple,
+        bin_info.build_version,
+        bin_info.commit_sha,
+    );
+
     let mut client_builder =
         nym_sdk::mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
             .await
@@ -27,6 +36,7 @@ pub(crate) async fn create_mixnet_client(
             .network_details(NymNetworkDetails::new_from_env())
             .debug_config(debug_config)
             .custom_shutdown(shutdown)
+            .with_user_agent(user_agent)
             .with_wait_for_gateway(wait_for_gateway);
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();

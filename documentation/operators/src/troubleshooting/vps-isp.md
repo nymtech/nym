@@ -52,7 +52,7 @@ It's up to you as a node operator to ensure that your public and private IPs mat
 
 ### Logs Pruning
 
-Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up to much disk space or memory. Below are two scripts that can help you clean this up. 
+Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up too much disk space or memory. Below are two scripts that can help you clean this up. 
 
 `rm` is a powerful tool, without an easy way of revoking. If you need to extract or backup anything, do it now. Make sure you understand what you removing before you execute these commands.
 

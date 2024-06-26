@@ -62,7 +62,7 @@ pip install tabulate pandas argparse
 ```
 - or if you installed Python3 system-wide you can install modules directly:
 ```sh
-sudo apt install Python3-tabulate Python3-pandas Python3-argparse
+sudo apt install python3-tabulate python3-pandas python3-argparse
 ```
 
 **Installation**
@@ -76,7 +76,7 @@ wget https://raw.githubusercontent.com/nymtech/nym/tree/develop/api_endpoints.js
 
 5. Make executable:
 ```sh
-chmod u+x node_Api.check.py
+chmod u+x node_api_check.py
 ```
 
 Now you are ready to check your node.

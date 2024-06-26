@@ -12,9 +12,9 @@ pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6)
 // -- Contract addresses --
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
-    "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
+    "n1hm4y6fzgxgu688jgf7ek66px6xkrtmn3gyk8fax3eawhp68c2d5qujz296";
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
-    "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
+    "n1jlzdxnyces4hrhqz68dqk28mrw5jgwtcfq0c2funcwrmw0dx9l9s8nnnvj";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
     "n1w798gp0zqv3s9hjl3jlnwxtwhykga6rn93p46q2crsdqhaj3y4gs68f74j";
 pub(crate) const GROUP_CONTRACT_ADDRESS: &str =
@@ -23,10 +23,6 @@ pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
     "n1sr06m8yqg0wzqqyqvzvp5t07dj4nevx9u8qc7j4qa72qu8e3ct8qledthy";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
     "n1udfs22xpxle475m2nz7u47jfa3vngncdegmczwwdx00cmetypa3s7uyuqn";
-pub(crate) const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str =
-    "n13ehuhysn5mqjeaheeuew2gjs785f6k7jm8vfsqg3jhtpkwppcmzq6m2hmz";
-pub(crate) const NAME_SERVICE_CONTRACT_ADDRESS: &str =
-    "n1qum2tr7hh4y7ruzew68c64myjec0dq2s2njf6waja5t0w879lutqadamme";
 
 // -- Constructor functions --
 
@@ -58,10 +54,6 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
-            service_provider_directory_contract_address: parse_optional_str(
-                SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
-            ),
-            name_service_contract_address: parse_optional_str(NAME_SERVICE_CONTRACT_ADDRESS),
         },
         explorer_api: parse_optional_str(EXPLORER_API),
     }

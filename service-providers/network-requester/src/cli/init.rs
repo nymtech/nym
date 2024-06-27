@@ -48,15 +48,6 @@ pub(crate) struct Init {
     #[clap(long)]
     open_proxy: Option<bool>,
 
-    /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[clap(long)]
-    enable_statistics: Option<bool>,
-
-    /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
-    /// aggregator client
-    #[clap(long)]
-    statistics_recipient: Option<String>,
-
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -71,8 +62,6 @@ impl From<Init> for OverrideConfig {
             nyxd_urls: init_config.common_args.nyxd_urls,
             enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
             open_proxy: init_config.open_proxy,
-            enable_statistics: init_config.enable_statistics,
-            statistics_recipient: init_config.statistics_recipient,
         }
     }
 }

@@ -8,21 +8,21 @@ rust-version = "1.58"
 license.workspace = true
 
 [dependencies]
-base64 = "0.21.4"
+base64 = { workspace = true }
 eyre = { workspace = true }
 hmac = { workspace = true }
-itertools = "0.11"
+itertools = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sha2 = "0.10.8"
+sha2 = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 ts-rs = { workspace = true }
 url = { workspace = true }
-x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
+x25519-dalek = { workspace = true, features = ["static_secrets"] }
 
 cosmwasm-std = { workspace = true }
 cosmrs = { workspace = true }

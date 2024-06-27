@@ -23,11 +23,11 @@ bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 colored = { workspace = true }
 dashmap = { workspace = true }
-dirs = "4.0"
+dirs = { workspace = true }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
-ipnetwork = "0.16"
+ipnetwork = { workspace = true }
 log = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }

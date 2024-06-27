@@ -21,7 +21,7 @@ addr = { workspace = true }
 async-trait = { workspace = true }
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"]}
-dirs = "4.0"
+dirs = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 ipnetwork = "0.20.0"

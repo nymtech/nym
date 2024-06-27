@@ -9,7 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 log = { workspace = true }
-rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+rand = { workspace = true }
 rand_distr = { workspace = true }
 thiserror = { workspace = true }
 

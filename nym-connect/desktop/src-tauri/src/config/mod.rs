@@ -20,7 +20,7 @@ use nym_config::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::config::Config as Socks5CoreConfig;
-use rand_07::rngs::OsRng;
+use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -214,7 +214,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     let gateway_setup = if !already_init {
         let selection_spec =
             GatewaySelectionSpecification::new(Some(chosen_gateway_id), None, false);
-        let mut rng = rand_07::thread_rng();
+        let mut rng = rand::thread_rng();
         let available_gateways =
             current_gateways(&mut rng, &config.core.base.client.nym_api_urls).await?;
         GatewaySetup::New {
@@ -252,7 +252,9 @@ fn print_saved_config(config: &Config, gateway_details: &RemoteGatewayDetails) {
         config.default_location().display()
     );
     log::info!("Gateway id: {}", gateway_details.gateway_id);
-    log::info!("Gateway owner: {}", gateway_details.gateway_owner_address);
+    if let Some(owner) = gateway_details.gateway_owner_address.as_ref() {
+        log::info!("Gateway owner: {owner}");
+    }
     log::info!("Gateway listener: {}", gateway_details.gateway_listener);
     log::info!(
         "Service provider address: {}",

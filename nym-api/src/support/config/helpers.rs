@@ -9,7 +9,6 @@ use crate::support::config::{
 use anyhow::{Context, Result};
 use nym_crypto::asymmetric::identity;
 use rand::rngs::OsRng;
-use rand_07::rngs::OsRng as OsRng07;
 use std::{fs, io};
 
 // TODO: once we upgrade ed25519 library, we could use the same rand library and use proper
@@ -20,7 +19,7 @@ fn init_identity_keys(config: &config::NymApiPaths) -> Result<()> {
         &config.public_identity_key_file,
     );
 
-    let mut rng = OsRng07;
+    let mut rng = OsRng;
     let keypair = identity::KeyPair::new(&mut rng);
     nym_pemstore::store_keypair(&keypair, &keypaths)
         .context("failed to store identity keys of the nym api")?;

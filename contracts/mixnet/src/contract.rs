@@ -13,7 +13,7 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
-use semver::Version;
+use nym_contracts_common::set_build_information;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
@@ -87,6 +87,7 @@ pub fn instantiate(
     mixnode_storage::initialise_storage(deps.storage)?;
     rewards_storage::initialise_storage(deps.storage, reward_params)?;
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    set_build_information!(deps.storage)?;
 
     Ok(Response::default())
 }
@@ -610,29 +611,8 @@ pub fn migrate(
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
-    // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
-    let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
-        MixnetContractError::SemVerFailure {
-            value: CONTRACT_VERSION.to_string(),
-            error_message: error.to_string(),
-        }
-    })?;
-
-    let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
-    let storage_version: Version =
-        storage_version_raw
-            .parse()
-            .map_err(|error: semver::Error| MixnetContractError::SemVerFailure {
-                value: storage_version_raw,
-                error_message: error.to_string(),
-            })?;
-
-    if storage_version < version {
-        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-        // If state structure changed in any contract version in the way migration is needed, it
-        // should occur here, for example anything from `crate::queued_migrations::`
-    }
+    set_build_information!(deps.storage)?;
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh

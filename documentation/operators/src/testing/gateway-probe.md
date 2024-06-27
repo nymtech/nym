@@ -24,7 +24,7 @@ git clone https://github.com/nymtech/nym-vpn-client.git
 2. Build `nym-gateway-probe`:
 
 ```sh
-cd nym-vpn-client
+cd nym-vpn-client/nym-vpn-core
 
 cargo build --release -p nym-gateway-probe
 ```
@@ -34,7 +34,7 @@ cargo build --release -p nym-gateway-probe
 ```sh
 ./target/release/nym-gateway-probe --help
 ```
-~~~admonish collapsible=true
+~~~admonish example collapsible=true title="`nym-gateway-probe --help`"
 ```
 Usage: nym-gateway-probe [OPTIONS]
 
@@ -48,7 +48,7 @@ Options:
 ```
 ~~~
 
-To run the client, simply add a flag `--gateway` with a targeted gateway identity key. 
+To run the client, simply add a flag `--gateway` with a targeted gateway identity key.
 
 ```sh
 ./target/release/nym-gateway-probe --gateway <GATEWAY_IDENTITY_KEY>
@@ -74,6 +74,6 @@ For any `nym-node --mode exit-gateway` the aim is to have this outcome:
 }
 ```
 
+If your Gateway is blacklisted, the probe will not work.
+
 If you don't provide a `--gateway` flag it will pick a random one to test.
-
-

@@ -27,23 +27,17 @@ jobs:
       release_id: ${{ steps.create-release.outputs.id }}
       release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
       client_hash: ${{ steps.binary-hashes.outputs.client_hash }}
-      mixnode_hash: ${{ steps.binary-hashes.outputs.mixnode_hash }}
-      gateway_hash: ${{ steps.binary-hashes.outputs.gateway_hash }}
       nymvisor_hash: ${{ steps.binary-hashes.outputs.nymvisor_hash }}
       nymnode_hash: ${{ steps.binary-hashes.outputs.nymnode_hash }}
       socks5_hash: ${{ steps.binary-hashes.outputs.socks5_hash }}
       netreq_hash: ${{ steps.binary-hashes.outputs.netreq_hash }}
       cli_hash: ${{ steps.binary-hashes.outputs.cli_hash }}
-      netstat_hash: ${{ steps.binary-hashes.outputs.netstat_hash }}
       client_version: ${{ steps.binary-versions.outputs.client_version }}
-      mixnode_version: ${{ steps.binary-versions.outputs.mixnode_version }}
-      gateway_version: ${{ steps.binary-versions.outputs.gateway_version }}
       nymvisor_version: ${{ steps.binary-versions.outputs.nymvisor_version }}
       nymnode_version: ${{ steps.binary-versions.outputs.nymnode_version }}
       socks5_version: ${{ steps.binary-versions.outputs.socks5_version }}
       netreq_version: ${{ steps.binary-versions.outputs.netreq_version }}
       cli_version: ${{ steps.binary-versions.outputs.cli_version }}
-      netstat_version: ${{ steps.binary-versions.outputs.netstat_version }}
 
     steps:
       - uses: actions/checkout@v3
@@ -75,12 +69,9 @@ jobs:
           path: |
             target/release/explorer-api
             target/release/nym-client
-            target/release/nym-gateway
-            target/release/nym-mixnode
             target/release/nym-socks5-client
             target/release/nym-api
             target/release/nym-network-requester
-            target/release/nym-network-statistics
             target/release/nym-cli
             target/release/nymvisor
             target/release/nym-node
@@ -94,12 +85,9 @@ jobs:
           files: |
             target/release/explorer-api
             target/release/nym-client
-            target/release/nym-gateway
-            target/release/nym-mixnode
             target/release/nym-socks5-client
             target/release/nym-api
             target/release/nym-network-requester
-            target/release/nym-network-statistics
             target/release/nym-cli
             target/release/nymvisor
             target/release/nym-node

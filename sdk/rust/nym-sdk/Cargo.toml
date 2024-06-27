@@ -32,7 +32,7 @@ http = { workspace = true }
 
 futures = { workspace = true }
 log = { workspace = true }
-rand = { version = "0.7.3" }
+rand = { workspace = true }
 tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }

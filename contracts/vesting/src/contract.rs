@@ -1,11 +1,11 @@
 pub use crate::queries::*;
 use crate::storage::{ADMIN, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 pub use crate::transactions::*;
+use contracts_common::set_build_information;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
     Uint128,
 };
-use semver::Version;
 use vesting_contract_common::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 use vesting_contract_common::{Account, VestingContractError};
 
@@ -45,6 +45,7 @@ pub fn instantiate(
     MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
 
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    set_build_information!(deps.storage)?;
 
     Ok(Response::default())
 }
@@ -55,29 +56,8 @@ pub fn migrate(
     _env: Env,
     _msg: MigrateMsg,
 ) -> Result<Response, VestingContractError> {
-    // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
-    let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
-        VestingContractError::SemVerFailure {
-            value: CONTRACT_VERSION.to_string(),
-            error_message: error.to_string(),
-        }
-    })?;
-
-    let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
-    let storage_version: Version =
-        storage_version_raw
-            .parse()
-            .map_err(|error: semver::Error| VestingContractError::SemVerFailure {
-                value: storage_version_raw,
-                error_message: error.to_string(),
-            })?;
-
-    if storage_version < version {
-        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-        // If state structure changed in any contract version in the way migration is needed, it
-        // should occur here, for example anything from `crate::queued_migrations::`
-    }
+    set_build_information!(deps.storage)?;
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::new())
 }

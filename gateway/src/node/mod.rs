@@ -16,7 +16,6 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
-use dashmap::DashMap;
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -28,7 +27,6 @@ use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
-use nym_wireguard_types::registration::GatewayClientRegistry;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -126,9 +124,11 @@ pub struct Gateway<St = PersistentStorage> {
 
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
+
     storage: St,
 
-    client_registry: Arc<GatewayClientRegistry>,
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    wireguard_data: Option<nym_wireguard::WireguardData>,
 
     run_http_server: bool,
     task_client: Option<TaskClient>,
@@ -149,7 +149,8 @@ impl<St> Gateway<St> {
             config,
             network_requester_opts,
             ip_packet_router_opts,
-            client_registry: Arc::new(DashMap::new()),
+            #[cfg(all(feature = "wireguard", target_os = "linux"))]
+            wireguard_data: None,
             run_http_server: true,
             task_client: None,
         })
@@ -170,7 +171,8 @@ impl<St> Gateway<St> {
             identity_keypair,
             sphinx_keypair,
             storage,
-            client_registry: Arc::new(DashMap::new()),
+            #[cfg(all(feature = "wireguard", target_os = "linux"))]
+            wireguard_data: None,
             run_http_server: true,
             task_client: None,
         }
@@ -184,12 +186,9 @@ impl<St> Gateway<St> {
         self.task_client = Some(task_client)
     }
 
-    pub fn set_wireguard_client_registry(&mut self, client_registry: Arc<GatewayClientRegistry>) {
-        // sanity check:
-        if Arc::strong_count(&self.client_registry) != 1 {
-            panic!("the client registry is already being used elsewhere")
-        }
-        self.client_registry = client_registry
+    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    pub fn set_wireguard_data(&mut self, wireguard_data: nym_wireguard::WireguardData) {
+        self.wireguard_data = Some(wireguard_data)
     }
 
     pub async fn node_details(&self) -> Result<GatewayNodeDetailsResponse, GatewayError> {
@@ -227,10 +226,14 @@ impl<St> Gateway<St> {
 
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     async fn start_wireguard(
-        &self,
+        &mut self,
         shutdown: TaskClient,
-    ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync>> {
-        nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
+    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(wireguard_data) = self.wireguard_data.take() {
+            nym_wireguard::start_wireguard(shutdown, wireguard_data).await
+        } else {
+            Err(Box::new(GatewayError::WireguardNotSet))
+        }
     }
 
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
@@ -315,6 +318,7 @@ impl<St> Gateway<St> {
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_wait_for_gateway(true)
+            .with_minimum_gateway_performance(0)
             .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
@@ -379,6 +383,7 @@ impl<St> Gateway<St> {
                 .with_shutdown(shutdown)
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
+                .with_minimum_gateway_performance(0)
                 .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
@@ -555,7 +560,6 @@ impl<St> Gateway<St> {
                 self.identity_keypair.as_ref(),
                 self.sphinx_keypair.clone(),
             )
-            .with_wireguard_client_registry(self.client_registry.clone())
             .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
             .with_maybe_network_request_filter(nr_request_filter)
             .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))
@@ -565,21 +569,26 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        let wg_api = self.start_wireguard(shutdown.fork("wireguard")).await.ok();
+        let _wg_api = self
+            .start_wireguard(shutdown.fork("wireguard"))
+            .await
+            .map_err(|source| GatewayError::StdError { source })?;
 
         #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
         self.start_wireguard(shutdown.fork("wireguard")).await;
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
+        info!(
+            "Public key: {:?}",
+            self.identity_keypair.public_key().to_string()
+        );
+
         if let Err(source) = shutdown.wait_for_shutdown().await {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             return Err(GatewayError::ShutdownFailure { source });
         }
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        if let Some(wg_api) = wg_api {
-            defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&wg_api)?;
-        }
+
         Ok(())
     }
 }

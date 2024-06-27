@@ -8,6 +8,9 @@ use nym_mixnet_contract_common::GatewayBond;
 use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nym_sphinx_types::Node as SphinxNode;
 
+use nym_api_requests::nym_nodes::SkimmedNode;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::fmt;
 use std::fmt::Formatter;
 use std::io;
@@ -40,11 +43,13 @@ pub enum GatewayConversionError {
         #[source]
         err: AddrParseError,
     },
+
+    #[error("provided node is not an entry gateway in this epoch!")]
+    NotGateway,
 }
 
 #[derive(Clone)]
 pub struct Node {
-    pub owner: String,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
@@ -58,6 +63,9 @@ pub struct Node {
 
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
+
+    // to be removed:
+    pub owner: Option<String>,
     pub version: NodeVersion,
 }
 
@@ -78,11 +86,9 @@ impl std::fmt::Debug for Node {
 
 impl Node {
     pub fn parse_host(raw: &str) -> Result<NetworkAddress, GatewayConversionError> {
-        raw.parse()
-            .map_err(|err| GatewayConversionError::InvalidAddress {
-                value: raw.to_owned(),
-                source: err,
-            })
+        // safety: this conversion is infallible
+        // (but we retain result return type for legacy reasons)
+        Ok(raw.parse().unwrap())
     }
 
     pub fn extract_mix_host(
@@ -120,7 +126,7 @@ impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Node(id: {}, owner: {}, host: {})",
+            "Node(id: {}, owner: {:?}, host: {})",
             self.identity_key, self.owner, self.host,
         )
     }
@@ -154,7 +160,7 @@ impl<'a> TryFrom<&'a GatewayBond> for Node {
         let mix_host = Self::extract_mix_host(&host, bond.gateway.mix_port)?;
 
         Ok(Node {
-            owner: bond.owner.as_str().to_owned(),
+            owner: Some(bond.owner.as_str().to_owned()),
             host,
             mix_host,
             clients_ws_port: bond.gateway.clients_port,
@@ -199,7 +205,7 @@ impl<'a> TryFrom<&'a DescribedGateway> for Node {
         let mix_host = SocketAddr::new(ips[0], value.bond.gateway.mix_port);
 
         Ok(Node {
-            owner: value.bond.owner.as_str().to_owned(),
+            owner: Some(value.bond.owner.as_str().to_owned()),
             host,
             mix_host,
             clients_ws_port: self_described.mixnet_websockets.ws_port,
@@ -215,6 +221,43 @@ impl<'a> TryFrom<&'a DescribedGateway> for Node {
                 .build_version
                 .as_str()
                 .into(),
+        })
+    }
+}
+
+impl<'a> TryFrom<&'a SkimmedNode> for Node {
+    type Error = GatewayConversionError;
+
+    fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
+        let Some(entry_details) = &value.entry else {
+            return Err(GatewayConversionError::NotGateway);
+        };
+
+        if value.ip_addresses.is_empty() {
+            return Err(GatewayConversionError::NoIpAddressesProvided {
+                gateway: value.ed25519_identity_pubkey.clone(),
+            });
+        }
+
+        // safety: we just checked the slice is not empty
+        #[allow(clippy::unwrap_used)]
+        let ip = value.ip_addresses.choose(&mut thread_rng()).unwrap();
+
+        let host = if let Some(hostname) = &entry_details.hostname {
+            NetworkAddress::Hostname(hostname.to_string())
+        } else {
+            NetworkAddress::IpAddr(*ip)
+        };
+
+        Ok(Node {
+            host,
+            mix_host: SocketAddr::new(*ip, value.mix_port),
+            clients_ws_port: entry_details.ws_port,
+            clients_wss_port: entry_details.wss_port,
+            identity_key: value.ed25519_identity_pubkey.parse()?,
+            sphinx_key: value.x25519_sphinx_pubkey.parse()?,
+            owner: None,
+            version: NodeVersion::Unknown,
         })
     }
 }

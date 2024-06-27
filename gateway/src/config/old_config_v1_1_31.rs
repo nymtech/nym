@@ -1,8 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::persistence::paths::{GatewayPaths, WireguardPaths};
-use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
@@ -14,8 +12,11 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
 
-use super::persistence::paths::KeysPaths;
-use super::{Config, Debug, Gateway, Host, Http, NetworkRequester, Wireguard};
+use super::old_config_v1_1_36::{
+    ConfigV1_1_36, DebugV1_1_36, GatewayPathsV1_1_36, GatewayV1_1_36, KeysPathsV1_1_36,
+    LoggingSettingsV1_1_36, NetworkRequesterV1_1_36, WireguardPathsV1_1_36, WireguardV1_1_36,
+};
+use super::{Host, Http};
 
 const DEFAULT_GATEWAYS_DIR: &str = "gateways";
 
@@ -105,13 +106,13 @@ impl ConfigV1_1_31 {
     }
 }
 
-impl From<ConfigV1_1_31> for Config {
+impl From<ConfigV1_1_31> for ConfigV1_1_36 {
     fn from(value: ConfigV1_1_31) -> Self {
         Self {
             save_path: value.save_path,
             host: value.host,
             http: value.http,
-            gateway: Gateway {
+            gateway: GatewayV1_1_36 {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,
@@ -125,17 +126,17 @@ impl From<ConfigV1_1_31> for Config {
                 nyxd_urls: value.gateway.nyxd_urls,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
             },
-            wireguard: Wireguard {
+            wireguard: WireguardV1_1_36 {
                 enabled: value.wireguard.enabled,
                 bind_address: value.wireguard.bind_address,
                 announced_port: value.wireguard.announced_port,
                 private_network_prefix: Default::default(),
-                storage_paths: WireguardPaths {
+                storage_paths: WireguardPathsV1_1_36 {
                     // no fields (yet)
                 },
             },
-            storage_paths: GatewayPaths {
-                keys: KeysPaths {
+            storage_paths: GatewayPathsV1_1_36 {
+                keys: KeysPathsV1_1_36 {
                     private_identity_key_file: value.storage_paths.keys.private_identity_key_file,
                     public_identity_key_file: value.storage_paths.keys.public_identity_key_file,
                     private_sphinx_key_file: value.storage_paths.keys.private_sphinx_key_file,
@@ -147,16 +148,16 @@ impl From<ConfigV1_1_31> for Config {
                 ip_packet_router_config: Default::default(),
                 // /\ ADDED
             },
-            network_requester: NetworkRequester {
+            network_requester: NetworkRequesterV1_1_36 {
                 enabled: value.network_requester.enabled,
             },
             // \/ ADDED
             ip_packet_router: Default::default(),
             // /\ ADDED
-            logging: LoggingSettings {
+            logging: LoggingSettingsV1_1_36 {
                 // no fields (yet)
             },
-            debug: Debug {
+            debug: DebugV1_1_36 {
                 packet_forwarding_initial_backoff: value.debug.packet_forwarding_initial_backoff,
                 packet_forwarding_maximum_backoff: value.debug.packet_forwarding_maximum_backoff,
                 initial_connection_timeout: value.debug.initial_connection_timeout,
@@ -165,7 +166,6 @@ impl From<ConfigV1_1_31> for Config {
                 stored_messages_filename_length: value.debug.stored_messages_filename_length,
                 message_retrieval_limit: value.debug.message_retrieval_limit,
                 use_legacy_framed_packet_version: value.debug.use_legacy_framed_packet_version,
-                ..Default::default()
             },
         }
     }

@@ -20,12 +20,8 @@ cw-utils = { workspace = true }
 cw2 = { workspace = true }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", version = "0.5.0" }
 nym-name-service-common = { path = "../../common/cosmwasm-smart-contracts/name-service" }
-semver = { workspace = true, default-features = false }
 serde = { version = "1.0.155", default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
-
-[build-dependencies]
-vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }
 
 [dev-dependencies]
 anyhow = "1.0.40"
@@ -33,7 +29,7 @@ cw-multi-test = { workspace = true }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 nym-sphinx-addressing = { path = "../../common/nymsphinx/addressing" }
 rand = "0.8.5"
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 rstest = "0.17.0"
 
 [features]

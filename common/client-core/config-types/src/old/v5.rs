@@ -146,6 +146,7 @@ impl From<ConfigV5> for Config {
                         .topology
                         .max_startup_gateway_waiting_period,
                     topology_structure: value.debug.topology.topology_structure.into(),
+                    ..Default::default()
                 },
                 reply_surbs: ReplySurbs {
                     minimum_reply_surb_storage_threshold: value

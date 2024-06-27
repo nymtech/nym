@@ -11,7 +11,7 @@ use rand::Rng;
 /// on its payload length of the maximum number of `Fragment`s multiplied by their maximum,
 /// fragmented, length.
 pub const fn max_unlinked_set_payload_length(max_plaintext_size: usize) -> usize {
-    u8::max_value() as usize * unlinked_fragment_payload_max_len(max_plaintext_size)
+    u8::MAX as usize * unlinked_fragment_payload_max_len(max_plaintext_size)
 }
 
 /// If the set is being linked to another one, by either being the very first set, or the very last,
@@ -52,8 +52,8 @@ pub const fn two_way_linked_set_payload_length(max_plaintext_size: usize) -> usi
 pub(crate) type FragmentSet = Vec<Fragment>;
 
 /// Generate a pseudo-random id for a `FragmentSet`.
-/// Its value is restricted to (0, i32::max_value()].
-/// Note that it *excludes* 0, but *includes* i32::max_value().
+/// Its value is restricted to (0, i32::MAX].
+/// Note that it *excludes* 0, but *includes* i32::MAX.
 /// This particular range allows for the id to be represented using 31bits, rather than
 /// the full length of 32 while still providing more than enough variability to
 /// distinguish different `FragmentSet`s.
@@ -89,13 +89,13 @@ fn prepare_unlinked_fragmented_set(
         / unlinked_fragment_payload_max_len(max_plaintext_size) as f64)
         .ceil() as usize;
 
-    debug_assert!(pre_casted_frags <= u8::max_value() as usize);
+    debug_assert!(pre_casted_frags <= u8::MAX as usize);
     let num_fragments = pre_casted_frags as u8;
 
     let mut fragments = Vec::with_capacity(num_fragments as usize);
 
     for i in 1..(pre_casted_frags + 1) {
-        // we can't use u8 directly here as upper (NON-INCLUSIVE, so it would always fit) bound could be u8::max_value() + 1
+        // we can't use u8 directly here as upper (NON-INCLUSIVE, so it would always fit) bound could be u8::MAX + 1
         let lb = (i - 1) * unlinked_fragment_payload_max_len(max_plaintext_size);
         let ub = usize::min(
             message.len(),
@@ -131,7 +131,7 @@ fn prepare_linked_fragment_set(
 ) -> FragmentSet {
     // determine number of fragments in the set:
     let num_frags_usize = if next_link_id.is_some() {
-        u8::max_value() as usize
+        u8::MAX as usize
     } else {
         // we know this set is linked, if it's not post-linked then it MUST BE pre-linked
         let tail_len = if message.len() >= linked_fragment_payload_max_len(max_plaintext_size) {
@@ -142,7 +142,7 @@ fn prepare_linked_fragment_set(
         let pre_casted_frags = 1
             + (tail_len as f64 / unlinked_fragment_payload_max_len(max_plaintext_size) as f64)
                 .ceil() as usize;
-        if pre_casted_frags > u8::max_value() as usize {
+        if pre_casted_frags > u8::MAX as usize {
             panic!("message would produce too many fragments!")
         };
         pre_casted_frags
@@ -162,7 +162,7 @@ fn prepare_linked_fragment_set(
 
     let mut fragments = Vec::with_capacity(num_frags_usize);
     for i in 1..(num_frags_usize + 1) {
-        // we can't use u8 directly here as upper (NON-INCLUSIVE, so i would always fit) bound could be u8::max_value() + 1
+        // we can't use u8 directly here as upper (NON-INCLUSIVE, so i would always fit) bound could be u8::MAX + 1
         let fragment = Fragment::try_new(
             &message[lb..ub],
             id,
@@ -343,7 +343,7 @@ mod tests {
     fn verify_post_linked_set_payload(mut set: FragmentSet, payload: &[u8]) {
         for i in (0..set.len()).rev() {
             let lb = i * unlinked_fragment_payload_max_len(max_plaintext_size());
-            let ub = if i == (u8::max_value() as usize - 1) {
+            let ub = if i == (u8::MAX as usize - 1) {
                 i * unlinked_fragment_payload_max_len(max_plaintext_size())
                     + linked_fragment_payload_max_len(max_plaintext_size())
             } else {
@@ -365,7 +365,7 @@ mod tests {
                 (i - 1) * unlinked_fragment_payload_max_len(max_plaintext_size())
                     + linked_fragment_payload_max_len(max_plaintext_size())
             };
-            let ub = if i == (u8::max_value() as usize - 1) {
+            let ub = if i == (u8::MAX as usize - 1) {
                 (i - 1) * unlinked_fragment_payload_max_len(max_plaintext_size())
                     + 2 * linked_fragment_payload_max_len(max_plaintext_size())
             } else {
@@ -434,7 +434,7 @@ mod tests {
                 id,
                 max_plaintext_size(),
             );
-            assert_eq!(u8::max_value() as usize, max_fragment_set.len());
+            assert_eq!(u8::MAX as usize, max_fragment_set.len());
             verify_unlinked_set_payload(max_fragment_set, &max_fragments_set_payload);
 
             let mut full_set_payload =
@@ -442,7 +442,7 @@ mod tests {
             rng.fill_bytes(&mut full_set_payload);
             let full_fragment_set =
                 prepare_unlinked_fragmented_set(&full_set_payload, id, max_plaintext_size());
-            assert_eq!(u8::max_value() as usize, full_fragment_set.len());
+            assert_eq!(u8::MAX as usize, full_fragment_set.len());
             verify_unlinked_set_payload(full_fragment_set, &full_set_payload);
         }
 
@@ -515,7 +515,7 @@ mod tests {
                 None,
                 max_plaintext_size(),
             );
-            assert_eq!(u8::max_value() as usize, max_fragment_set.len());
+            assert_eq!(u8::MAX as usize, max_fragment_set.len());
             verify_pre_linked_set_payload(max_fragment_set, &max_fragments_set_payload);
 
             let mut full_set_payload =
@@ -528,7 +528,7 @@ mod tests {
                 None,
                 max_plaintext_size(),
             );
-            assert_eq!(u8::max_value() as usize, full_fragment_set.len());
+            assert_eq!(u8::MAX as usize, full_fragment_set.len());
             verify_pre_linked_set_payload(full_fragment_set, &full_set_payload);
         }
 
@@ -561,7 +561,7 @@ mod tests {
                 Some(link_id),
                 max_plaintext_size(),
             );
-            assert_eq!(u8::max_value() as usize, full_fragment_set.len());
+            assert_eq!(u8::MAX as usize, full_fragment_set.len());
             verify_post_linked_set_payload(full_fragment_set, &full_set_payload);
         }
 
@@ -608,7 +608,7 @@ mod tests {
                 Some(post_link_id),
                 max_plaintext_size(),
             );
-            assert_eq!(u8::max_value() as usize, full_fragment_set.len());
+            assert_eq!(u8::MAX as usize, full_fragment_set.len());
             verify_two_way_linked_set_payload(full_fragment_set, &full_set_payload);
         }
 
@@ -700,8 +700,8 @@ mod tests {
 
             let mut sets = split_into_sets(&mut rng, &message, max_plaintext_size());
             assert_eq!(2, sets.len());
-            assert_eq!(sets[0].len(), u8::max_value() as usize);
-            assert_eq!(sets[1].len(), u8::max_value() as usize);
+            assert_eq!(sets[0].len(), u8::MAX as usize);
+            assert_eq!(sets[1].len(), u8::MAX as usize);
             verify_correct_link(&sets[0], &sets[1]);
             verify_pre_linked_set_payload(
                 sets.pop().unwrap(),
@@ -726,9 +726,9 @@ mod tests {
             rng.fill_bytes(&mut message);
             let mut sets = split_into_sets(&mut rng, &message, max_plaintext_size());
             assert_eq!(4, sets.len());
-            assert_eq!(sets[0].len(), u8::max_value() as usize);
-            assert_eq!(sets[1].len(), u8::max_value() as usize);
-            assert_eq!(sets[2].len(), u8::max_value() as usize);
+            assert_eq!(sets[0].len(), u8::MAX as usize);
+            assert_eq!(sets[1].len(), u8::MAX as usize);
+            assert_eq!(sets[2].len(), u8::MAX as usize);
 
             verify_correct_link(&sets[0], &sets[1]);
             verify_correct_link(&sets[1], &sets[2]);
@@ -766,10 +766,10 @@ mod tests {
 
             let mut sets = split_into_sets(&mut rng, &message, max_plaintext_size());
             assert_eq!(4, sets.len());
-            assert_eq!(sets[0].len(), u8::max_value() as usize);
-            assert_eq!(sets[1].len(), u8::max_value() as usize);
-            assert_eq!(sets[2].len(), u8::max_value() as usize);
-            assert_eq!(sets[3].len(), u8::max_value() as usize);
+            assert_eq!(sets[0].len(), u8::MAX as usize);
+            assert_eq!(sets[1].len(), u8::MAX as usize);
+            assert_eq!(sets[2].len(), u8::MAX as usize);
+            assert_eq!(sets[3].len(), u8::MAX as usize);
 
             verify_correct_link(&sets[0], &sets[1]);
             verify_correct_link(&sets[1], &sets[2]);

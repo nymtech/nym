@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use cw3::{ProposalResponse, VoteResponse};
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 use nym_coconut_dkg_common::dealing::{
     DealerDealingsStatusResponse, DealingChunkInfo, DealingMetadata, DealingStatusResponse,
     PartialContractDealing,
@@ -21,8 +22,6 @@ use nym_coconut_dkg_common::{
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
-
-use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
@@ -30,16 +29,14 @@ use nym_mixnet_contract_common::{
     CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment,
     MixId, RewardedSetNodeStatus,
 };
-use nym_name_service_common::msg::QueryMsg as NameServiceQueryMsg;
-use nym_service_provider_directory_common::msg::QueryMsg as SpQueryMsg;
-use nym_validator_client::nyxd::contract_traits::{NameServiceQueryClient, PagedDkgQueryClient};
+use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{
     contract_traits::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
         MixnetQueryClient, MixnetSigningClient, MultisigQueryClient, MultisigSigningClient,
         NymContractsProvider, PagedMixnetQueryClient, PagedMultisigQueryClient,
-        PagedVestingQueryClient, SpDirectoryQueryClient,
+        PagedVestingQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
     CosmWasmClient, Fee,
@@ -599,31 +596,5 @@ impl DkgQueryClient for Client {
         for<'a> T: Deserialize<'a>,
     {
         nyxd_query!(self, query_dkg_contract(query).await)
-    }
-}
-
-#[async_trait]
-impl SpDirectoryQueryClient for Client {
-    async fn query_service_provider_contract<T>(
-        &self,
-        query: SpQueryMsg,
-    ) -> std::result::Result<T, NyxdError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        nyxd_query!(self, query_service_provider_contract(query).await)
-    }
-}
-
-#[async_trait]
-impl NameServiceQueryClient for Client {
-    async fn query_name_service_contract<T>(
-        &self,
-        query: NameServiceQueryMsg,
-    ) -> std::result::Result<T, NyxdError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        nyxd_query!(self, query_name_service_contract(query).await)
     }
 }

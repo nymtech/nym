@@ -4,7 +4,7 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version = "1.1.38"
+version = "1.1.39"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -29,8 +29,7 @@ humantime-serde = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
 log = { workspace = true }
 pin-project = { workspace = true }
-rand = "0.8.5"
-rand-07 = { package = "rand", version = "0.7.3" } # required for compatibility
+rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 rocket = { workspace = true, features = ["json"] }
 rocket_cors = { workspace = true }
@@ -89,14 +88,12 @@ nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
-nym-service-provider-directory-common = { path = "../common/cosmwasm-smart-contracts/service-provider-directory" }
-nym-name-service-common = { path = "../common/cosmwasm-smart-contracts/name-service" }
 nym-coconut = { path = "../common/nymcoconut", features = ["key-zeroize"] }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
-nym-api-requests = { path = "nym-api-requests" }
+nym-api-requests = { path = "nym-api-requests", features = ["request-parsing"] }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
@@ -120,6 +117,5 @@ tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = "0.3"
-rand_chacha_02 = { package = "rand_chacha", version = "0.2" }
 sha2 = "0.9"
 

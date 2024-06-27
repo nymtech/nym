@@ -7,8 +7,6 @@ use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeDetails,
     RewardingParams,
 };
-use nym_name_service_common::RegisteredName;
-use nym_service_provider_directory_common::Service;
 use nym_validator_client::nyxd::AccountId;
 use std::collections::{HashMap, HashSet};
 
@@ -27,9 +25,6 @@ pub(crate) struct ValidatorCacheData {
 
     pub(crate) mix_to_family: Cache<Vec<(IdentityKey, FamilyHead)>>,
 
-    pub(crate) service_providers: Cache<Vec<Service>>,
-    pub(crate) registered_names: Cache<Vec<RegisteredName>>,
-
     pub(crate) contracts_info: Cache<CachedContractsInfo>,
 }
 
@@ -45,8 +40,6 @@ impl ValidatorCacheData {
             current_interval: Cache::default(),
             current_reward_params: Cache::default(),
             mix_to_family: Cache::default(),
-            service_providers: Cache::default(),
-            registered_names: Cache::default(),
             contracts_info: Cache::default(),
         }
     }

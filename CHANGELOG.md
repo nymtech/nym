@@ -4,6 +4,46 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.6-chomp] (2024-06-25)
+
+- Remove additional code as part of Ephemera Purge and SP and contracts ([#4650])
+- bugfix: make sure nym-api can handle non-cw2 (or without detailed build info) compliant contracts ([#4648])
+- introduced a flag to accept toc and exposed it via self-described API ([#4647])
+- bugfix: make sure to return an error on invalid public ip ([#4646])
+- Add ci check for PR having an assigned milestone ([#4644])
+- Removed ephemera code ([#4642])
+- Remove stale peers ([#4640])
+- Add generic wg private network routing ([#4636])
+- Feature/new node endpoints ([#4635])
+- standarised ContractBuildInformation and added it to all contracts ([#4631])
+- validate nym-node public ips on startup ([#4630])
+- Bump defguard wg ([#4625])
+- Fix cargo warnings ([#4624])
+- Update kernel peers on peer modification ([#4622])
+- Handle v6 and v7 requests in the IPR, but reply with v6 ([#4620])
+- fix typo ([#4619])
+- Update crypto and rand crates ([#4607])
+- Purge name service and service provider directory contracts ([#4603])
+
+[#4650]: https://github.com/nymtech/nym/pull/4650
+[#4648]: https://github.com/nymtech/nym/pull/4648
+[#4647]: https://github.com/nymtech/nym/pull/4647
+[#4646]: https://github.com/nymtech/nym/pull/4646
+[#4644]: https://github.com/nymtech/nym/pull/4644
+[#4642]: https://github.com/nymtech/nym/pull/4642
+[#4640]: https://github.com/nymtech/nym/pull/4640
+[#4636]: https://github.com/nymtech/nym/pull/4636
+[#4635]: https://github.com/nymtech/nym/pull/4635
+[#4631]: https://github.com/nymtech/nym/pull/4631
+[#4630]: https://github.com/nymtech/nym/pull/4630
+[#4625]: https://github.com/nymtech/nym/pull/4625
+[#4624]: https://github.com/nymtech/nym/pull/4624
+[#4622]: https://github.com/nymtech/nym/pull/4622
+[#4620]: https://github.com/nymtech/nym/pull/4620
+[#4619]: https://github.com/nymtech/nym/pull/4619
+[#4607]: https://github.com/nymtech/nym/pull/4607
+[#4603]: https://github.com/nymtech/nym/pull/4603
+
 ## [2024.5-ragusa] (2024-05-22)
 
 - Feature/nym node api location ([#4605])

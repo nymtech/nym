@@ -45,25 +45,12 @@ dependencies = [
 
 [[package]]
 name = "aes"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e8b47f52ea9bae42228d07ec09eb676433d7c4ed1ebdf0f1d1c29ed446f1ab8"
-dependencies = [
- "cfg-if",
- "cipher 0.3.0",
- "cpufeatures",
- "ctr 0.8.0",
- "opaque-debug 0.3.1",
-]
-
-[[package]]
-name = "aes"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b169f7a6d4742236a0a00c541b845991d0ac43e546831af1249753ab4c3aa3a0"
 dependencies = [
  "cfg-if",
- "cipher 0.4.4",
+ "cipher",
  "cpufeatures",
 ]
 
@@ -74,9 +61,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "831010a0f742e1209b3bcea8fab6a8e149051ba6099432c8cb2cc117dec3ead1"
 dependencies = [
  "aead",
- "aes 0.8.4",
- "cipher 0.4.4",
- "ctr 0.9.2",
+ "aes",
+ "cipher",
+ "ctr",
  "ghash",
  "subtle 2.5.0",
 ]
@@ -537,10 +524,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e141fb0f8be1c7b45887af94c88b182472b57c96b56773250ae00cd6a14a164"
 dependencies = [
  "bs58 0.5.1",
- "hmac 0.12.1",
+ "hmac",
  "k256",
- "once_cell",
- "pbkdf2",
  "rand_core 0.6.4",
  "ripemd",
  "sha2 0.10.8",
@@ -599,7 +584,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94cb07b0da6a73955f8fb85d24c466778e70cda767a568229b104f0264089330"
 dependencies = [
  "byte-tools",
- "crypto-mac 0.7.0",
+ "crypto-mac",
  "digest 0.8.1",
  "opaque-debug 0.2.3",
 ]
@@ -827,7 +812,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3613f74bd2eac03dad61bd53dbe620703d4371614fe0bc3b9f04dd36fe4e818"
 dependencies = [
  "cfg-if",
- "cipher 0.4.4",
+ "cipher",
  "cpufeatures",
 ]
 
@@ -839,7 +824,7 @@ checksum = "10cd79432192d1c0f4e1a0fef9527696cc039165d729fb41b3f4f4f354c2dc35"
 dependencies = [
  "aead",
  "chacha20",
- "cipher 0.4.4",
+ "cipher",
  "poly1305",
  "zeroize",
 ]
@@ -884,15 +869,6 @@ checksum = "57663b653d948a338bfb3eeba9bb2fd5fcfaecb9e199e87e1eda4d9e8b240fd9"
 dependencies = [
  "ciborium-io",
  "half",
-]
-
-[[package]]
-name = "cipher"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ee52072ec15386f770805afd189a01c8841be8696bed250fa2f13c4c0d6dfb7"
-dependencies = [
- "generic-array 0.14.7",
 ]
 
 [[package]]
@@ -1188,7 +1164,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "serde_json",
- "signature 2.2.0",
+ "signature",
  "subtle-encoding",
  "tendermint",
  "thiserror",
@@ -1207,7 +1183,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "serde_json",
- "signature 2.2.0",
+ "signature",
  "subtle-encoding",
  "tendermint",
  "tendermint-rpc",
@@ -1474,16 +1450,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crypto-mac"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25fab6889090c8133f3deb8f73ba3c65a7f456f66436fc012a1b1e272b1e103e"
-dependencies = [
- "generic-array 0.14.7",
- "subtle 2.5.0",
-]
-
-[[package]]
 name = "csv"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1506,20 +1472,11 @@ dependencies = [
 
 [[package]]
 name = "ctr"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "049bb91fb4aaf0e3c7efa6cd5ef877dbbbd15b39dad06d9948de4ec8a75761ea"
-dependencies = [
- "cipher 0.3.0",
-]
-
-[[package]]
-name = "ctr"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0369ee1ad671834580515889b80f2ea915f23b8be8d0daa4bbaf2ac5c7590835"
 dependencies = [
- "cipher 0.4.4",
+ "cipher",
 ]
 
 [[package]]
@@ -1571,7 +1528,6 @@ dependencies = [
  "byteorder",
  "digest 0.9.0",
  "rand_core 0.5.1",
- "serde",
  "subtle 2.5.0",
  "zeroize",
 ]
@@ -1585,9 +1541,11 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "curve25519-dalek-derive",
+ "digest 0.10.7",
  "fiat-crypto",
  "platforms",
  "rustc_version 0.4.0",
+ "serde",
  "subtle 2.5.0",
  "zeroize",
 ]
@@ -1804,8 +1762,9 @@ checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
 
 [[package]]
 name = "defguard_wireguard_rs"
-version = "0.3.0"
-source = "git+https://github.com/neacsu/wireguard-rs.git?rev=c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed#c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba16f17698d4b389907310af018b0c3a80b025bba9c38d947cbc6dd70921743"
 dependencies = [
  "base64 0.21.7",
  "libc",
@@ -1985,18 +1944,8 @@ dependencies = [
  "elliptic-curve",
  "rfc6979",
  "serdect",
- "signature 2.2.0",
+ "signature",
  "spki",
-]
-
-[[package]]
-name = "ed25519"
-version = "1.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91cff35c70bba8a626e3185d8cd48cc11b5437e1a5bcd15b9b5fa3c64b6dfee7"
-dependencies = [
- "serde",
- "signature 1.6.4",
 ]
 
 [[package]]
@@ -2006,7 +1955,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "115531babc129696a58c64a4fef0a8bf9e9698629fb97e9e40767d235cfbcd53"
 dependencies = [
  "pkcs8",
- "signature 2.2.0",
+ "serde",
+ "signature",
 ]
 
 [[package]]
@@ -2024,16 +1974,16 @@ dependencies = [
 
 [[package]]
 name = "ed25519-dalek"
-version = "1.0.1"
+version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c762bae6dcaf24c4c84667b8579785430908723d5c889f469d76a41d59cc7a9d"
+checksum = "4a3daa8e81a3963a60642bcc1f90a670680bd4a77535faa384e9d1c79d620871"
 dependencies = [
- "curve25519-dalek 3.2.0",
- "ed25519 1.5.3",
- "rand 0.7.3",
+ "curve25519-dalek 4.1.2",
+ "ed25519",
+ "rand_core 0.6.4",
  "serde",
- "serde_bytes",
- "sha2 0.9.9",
+ "sha2 0.10.8",
+ "subtle 2.5.0",
  "zeroize",
 ]
 
@@ -2143,7 +2093,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
-version = "1.1.34"
+version = "1.1.35"
 dependencies = [
  "chrono",
  "clap 4.5.4",
@@ -2252,7 +2202,6 @@ version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
 dependencies = [
- "bitvec",
  "rand_core 0.6.4",
  "subtle 2.5.0",
 ]
@@ -2827,31 +2776,11 @@ dependencies = [
 
 [[package]]
 name = "hkdf"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01706d578d5c281058480e673ae4086a9f4710d8df1ad80a5b03e39ece5f886b"
-dependencies = [
- "digest 0.9.0",
- "hmac 0.11.0",
-]
-
-[[package]]
-name = "hkdf"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b5f8eb2ad728638ea2c7d47a21db23b7b58a72ed6a38256b8a1849f15fbbdf7"
 dependencies = [
- "hmac 0.12.1",
-]
-
-[[package]]
-name = "hmac"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a2a2320eb7ec0ebe8da8f744d7812d9fc4cb4d09344ac01898dbcb6a20ae69b"
-dependencies = [
- "crypto-mac 0.11.0",
- "digest 0.9.0",
+ "hmac",
 ]
 
 [[package]]
@@ -3409,7 +3338,7 @@ dependencies = [
  "elliptic-curve",
  "once_cell",
  "sha2 0.10.8",
- "signature 2.2.0",
+ "signature",
 ]
 
 [[package]]
@@ -3688,7 +3617,7 @@ dependencies = [
  "nym-ordered-buffer",
  "nym-service-providers-common",
  "nym-socks5-requests",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "thiserror",
@@ -3929,7 +3858,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.38"
+version = "1.1.39"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3966,11 +3895,9 @@ dependencies = [
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-node-requests",
  "nym-node-tester-utils",
  "nym-pemstore",
- "nym-service-provider-directory-common",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
@@ -3978,9 +3905,7 @@ dependencies = [
  "nym-vesting-contract-common",
  "okapi",
  "pin-project",
- "rand 0.7.3",
  "rand 0.8.5",
- "rand_chacha 0.2.2",
  "rand_chacha 0.3.1",
  "reqwest 0.12.4",
  "rocket",
@@ -4015,6 +3940,7 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-node-requests",
+ "rocket",
  "schemars",
  "serde",
  "serde_json",
@@ -4046,7 +3972,7 @@ dependencies = [
  "nym-crypto",
  "nym-network-defaults",
  "nym-validator-client",
- "rand 0.7.3",
+ "rand 0.8.5",
  "thiserror",
  "url",
  "zeroize",
@@ -4092,7 +4018,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.36"
+version = "1.1.37"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -4151,10 +4077,8 @@ dependencies = [
  "nym-id",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-network-defaults",
  "nym-pemstore",
- "nym-service-provider-directory-common",
  "nym-sphinx",
  "nym-types",
  "nym-validator-client",
@@ -4173,7 +4097,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.35"
+version = "1.1.36"
 dependencies = [
  "bs58 0.5.1",
  "clap 4.5.4",
@@ -4196,7 +4120,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "tap",
@@ -4244,7 +4168,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -4324,7 +4248,7 @@ dependencies = [
  "nym-bin-common",
  "nym-node-tester-utils",
  "nym-node-tester-wasm",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
@@ -4413,10 +4337,12 @@ dependencies = [
  "bs58 0.5.1",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw-storage-plus",
  "schemars",
  "serde",
  "serde_json",
  "thiserror",
+ "vergen",
 ]
 
 [[package]]
@@ -4467,7 +4393,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-validator-client",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "thiserror",
  "time",
@@ -4488,25 +4414,25 @@ dependencies = [
 name = "nym-crypto"
 version = "0.4.0"
 dependencies = [
- "aes 0.8.4",
+ "aes",
  "blake3",
  "bs58 0.5.1",
- "cipher 0.4.4",
- "ctr 0.9.2",
+ "cipher",
+ "ctr",
  "digest 0.10.7",
  "ed25519-dalek",
  "generic-array 0.14.7",
- "hkdf 0.12.4",
- "hmac 0.12.1",
+ "hkdf",
+ "hmac",
  "nym-pemstore",
  "nym-sphinx-types",
- "rand 0.7.3",
- "rand_chacha 0.2.2",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "serde",
  "serde_bytes",
  "subtle-encoding",
  "thiserror",
- "x25519-dalek 1.1.1",
+ "x25519-dalek",
  "zeroize",
 ]
 
@@ -4531,16 +4457,6 @@ dependencies = [
  "sha2 0.9.9",
  "thiserror",
  "zeroize",
-]
-
-[[package]]
-name = "nym-ephemera-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-utils",
- "nym-contracts-common",
 ]
 
 [[package]]
@@ -4590,7 +4506,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.36"
+version = "1.1.37"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4628,7 +4544,7 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-types",
  "once_cell",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "sqlx",
@@ -4661,7 +4577,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-validator-client",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "si-scale",
  "thiserror",
@@ -4690,7 +4606,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "thiserror",
@@ -4781,6 +4697,7 @@ dependencies = [
  "bincode",
  "bytes",
  "nym-bin-common",
+ "nym-crypto",
  "nym-sphinx",
  "rand 0.8.5",
  "serde",
@@ -4825,6 +4742,7 @@ dependencies = [
  "serde_json",
  "tap",
  "thiserror",
+ "time",
  "tokio",
  "tokio-tun",
  "tokio-util",
@@ -4887,7 +4805,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.37"
+version = "1.1.38"
 dependencies = [
  "anyhow",
  "axum 0.7.5",
@@ -4918,7 +4836,7 @@ dependencies = [
  "nym-topology",
  "nym-types",
  "nym-validator-client",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "sysinfo 0.27.8",
@@ -4976,20 +4894,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-name-service-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "cw2",
- "nym-contracts-common",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
@@ -5006,7 +4910,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.36"
+version = "1.1.37"
 dependencies = [
  "addr",
  "anyhow",
@@ -5040,7 +4944,7 @@ dependencies = [
  "nym-types",
  "pretty_env_logger",
  "publicsuffix",
- "rand 0.7.3",
+ "rand 0.8.5",
  "regex",
  "reqwest 0.12.4",
  "serde",
@@ -5058,7 +4962,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.34"
+version = "1.1.35"
 dependencies = [
  "dirs 4.0.0",
  "log",
@@ -5075,7 +4979,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.1.2"
+version = "1.1.3"
 dependencies = [
  "anyhow",
  "bip39",
@@ -5101,8 +5005,9 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-task",
  "nym-types",
+ "nym-wireguard",
  "nym-wireguard-types",
- "rand 0.7.3",
+ "rand 0.8.5",
  "semver 1.0.23",
  "serde",
  "serde_json",
@@ -5121,11 +5026,12 @@ version = "0.1.0"
 dependencies = [
  "axum 0.7.5",
  "axum-extra",
+ "base64 0.21.7",
  "colored",
  "dashmap",
  "fastrand 2.1.0",
  "headers",
- "hmac 0.12.1",
+ "hmac",
  "hyper 1.3.1",
  "ipnetwork 0.16.0",
  "nym-crypto",
@@ -5135,7 +5041,7 @@ dependencies = [
  "nym-task",
  "nym-wireguard",
  "nym-wireguard-types",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde_json",
  "thiserror",
  "time",
@@ -5145,7 +5051,7 @@ dependencies = [
  "tracing",
  "utoipa",
  "utoipa-swagger-ui",
- "x25519-dalek 2.0.1",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -5162,7 +5068,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-wireguard-types",
- "rand_chacha 0.2.2",
+ "rand_chacha 0.3.1",
  "schemars",
  "serde",
  "serde_json",
@@ -5183,7 +5089,7 @@ dependencies = [
  "nym-sphinx-params",
  "nym-task",
  "nym-topology",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "thiserror",
@@ -5198,7 +5104,7 @@ dependencies = [
  "futures",
  "js-sys",
  "nym-node-tester-utils",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "thiserror",
@@ -5253,11 +5159,11 @@ dependencies = [
  "chacha20",
  "chacha20poly1305",
  "criterion",
- "curve25519-dalek 3.2.0",
+ "curve25519-dalek 4.1.2",
  "fastrand 1.9.0",
  "getrandom 0.2.15",
  "log",
- "rand 0.7.3",
+ "rand 0.8.5",
  "rayon",
  "sphinx-packet",
  "thiserror",
@@ -5305,7 +5211,7 @@ dependencies = [
  "nym-validator-client",
  "parking_lot 0.12.2",
  "pretty_env_logger",
- "rand 0.7.3",
+ "rand 0.8.5",
  "reqwest 0.12.4",
  "tap",
  "thiserror",
@@ -5314,19 +5220,6 @@ dependencies = [
  "tokio-util",
  "toml 0.5.11",
  "url",
-]
-
-[[package]]
-name = "nym-service-provider-directory-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "cw2",
- "nym-contracts-common",
- "thiserror",
 ]
 
 [[package]]
@@ -5348,7 +5241,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.35"
+version = "1.1.36"
 dependencies = [
  "bs58 0.5.1",
  "clap 4.5.4",
@@ -5367,7 +5260,7 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-sphinx",
  "nym-topology",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "tap",
@@ -5400,7 +5293,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "pin-project",
- "rand 0.7.3",
+ "rand 0.8.5",
  "reqwest 0.12.4",
  "schemars",
  "serde",
@@ -5426,7 +5319,7 @@ dependencies = [
  "nym-credential-storage",
  "nym-crypto",
  "nym-socks5-client-core",
- "rand 0.7.3",
+ "rand 0.8.5",
  "safer-ffi",
  "serde",
  "tokio",
@@ -5480,7 +5373,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.7.3",
+ "rand 0.8.5",
  "rand_distr",
  "thiserror",
  "tokio",
@@ -5498,7 +5391,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "thiserror",
  "zeroize",
@@ -5510,7 +5403,7 @@ version = "0.1.0"
 dependencies = [
  "nym-crypto",
  "nym-sphinx-types",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "thiserror",
 ]
@@ -5526,8 +5419,8 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.7.3",
- "rand_chacha 0.2.2",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "serde",
  "thiserror",
  "wasm-bindgen",
@@ -5541,7 +5434,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "rand 0.7.3",
+ "rand 0.8.5",
  "thiserror",
 ]
 
@@ -5558,7 +5451,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.7.3",
+ "rand 0.8.5",
  "thiserror",
 ]
 
@@ -5669,7 +5562,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-routing",
  "nym-sphinx-types",
- "rand 0.7.3",
+ "rand 0.8.5",
  "semver 0.11.0",
  "serde",
  "serde_json",
@@ -5699,7 +5592,7 @@ dependencies = [
  "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "eyre",
- "hmac 0.12.1",
+ "hmac",
  "itertools 0.11.0",
  "log",
  "nym-config",
@@ -5717,7 +5610,7 @@ dependencies = [
  "thiserror",
  "ts-rs",
  "url",
- "x25519-dalek 2.0.1",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -5747,14 +5640,11 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-config",
  "nym-contracts-common",
- "nym-ephemera-common",
  "nym-group-contract-common",
  "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-network-defaults",
- "nym-service-provider-directory-common",
  "nym-vesting-contract-common",
  "prost 0.12.4",
  "reqwest 0.12.4",
@@ -5842,14 +5732,17 @@ name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
+ "dashmap",
  "defguard_wireguard_rs",
  "ip_network",
  "log",
+ "nym-crypto",
  "nym-network-defaults",
  "nym-task",
  "nym-wireguard-types",
  "tokio",
- "x25519-dalek 2.0.1",
+ "tokio-stream",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -5858,21 +5751,23 @@ version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
  "dashmap",
- "hmac 0.12.1",
+ "hmac",
  "log",
+ "nym-config",
  "nym-crypto",
- "rand 0.7.3",
+ "nym-network-defaults",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "thiserror",
  "utoipa",
- "x25519-dalek 2.0.1",
+ "x25519-dalek",
 ]
 
 [[package]]
 name = "nymvisor"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -6183,16 +6078,6 @@ name = "paste"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
-name = "pbkdf2"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
-dependencies = [
- "digest 0.10.7",
- "hmac 0.12.1",
-]
 
 [[package]]
 name = "pear"
@@ -6750,12 +6635,12 @@ dependencies = [
 
 [[package]]
 name = "rand_distr"
-version = "0.3.0"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9e9532ada3929fb8b2e9dbe28d1e06c9b2cc65813f074fcb6bd5fbefeff9d56"
+checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
 dependencies = [
  "num-traits",
- "rand 0.7.3",
+ "rand 0.8.5",
 ]
 
 [[package]]
@@ -7069,7 +6954,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dd2a808d456c4a54e300a23e9f5a67e122c3024119acbfd73e3bf664491cb2"
 dependencies = [
- "hmac 0.12.1",
+ "hmac",
  "subtle 2.5.0",
 ]
 
@@ -7863,12 +7748,6 @@ dependencies = [
 
 [[package]]
 name = "signature"
-version = "1.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74233d3b3b2f6d4b006dc19dee745e73e2a6bfb6f93607cd3b02bd5b00797d7c"
-
-[[package]]
-name = "signature"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
@@ -7937,25 +7816,26 @@ dependencies = [
 
 [[package]]
 name = "sphinx-packet"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc43eda802856ee82a7555c7b75ceb9e07451741c7a2f5f23d036020e01189d4"
+checksum = "dabeca95bf5fd0563d6be7ebcb1c6a9fcb135746a0ba9050c47dc68c8607e595"
 dependencies = [
- "aes 0.7.5",
+ "aes",
  "arrayref",
  "blake2 0.8.1",
- "bs58 0.4.0",
+ "bs58 0.5.1",
  "byteorder",
  "chacha",
- "curve25519-dalek 3.2.0",
- "digest 0.9.0",
- "hkdf 0.11.0",
- "hmac 0.11.0",
+ "ctr",
+ "curve25519-dalek 4.1.2",
+ "digest 0.10.7",
+ "hkdf",
+ "hmac",
  "lioness",
  "log",
- "rand 0.7.3",
+ "rand 0.8.5",
  "rand_distr",
- "sha2 0.9.9",
+ "sha2 0.10.8",
  "subtle 2.5.0",
 ]
 
@@ -8346,7 +8226,7 @@ checksum = "15ab8f0a25d0d2ad49ac615da054d6a76aa6603ff95f7d18bafdd34450a1a04b"
 dependencies = [
  "bytes",
  "digest 0.10.7",
- "ed25519 2.2.3",
+ "ed25519",
  "ed25519-consensus",
  "flex-error",
  "futures",
@@ -8361,7 +8241,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "sha2 0.10.8",
- "signature 2.2.0",
+ "signature",
  "subtle 2.5.0",
  "subtle-encoding",
  "tendermint-proto",
@@ -9335,11 +9215,14 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "vergen"
-version = "8.2.6"
+version = "8.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1290fd64cc4e7d3c9b07d7f333ce0ce0007253e32870e632624835cc80b83939"
+checksum = "e27d6bdd219887a9eadd19e1c34f32e47fa332301184935c6d9bca26f3cca525"
 dependencies = [
  "anyhow",
+ "cargo_metadata",
+ "cfg-if",
+ "regex",
  "rustc_version 0.4.0",
  "rustversion",
  "time",
@@ -9497,7 +9380,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "rand 0.7.3",
+ "rand 0.8.5",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "thiserror",
@@ -9951,18 +9834,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
-]
-
-[[package]]
-name = "x25519-dalek"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a0c105152107e3b96f6a00a65e86ce82d9b125230e1c4302940eca58ff71f4f"
-dependencies = [
- "curve25519-dalek 3.2.0",
- "rand_core 0.5.1",
- "serde",
- "zeroize",
 ]
 
 [[package]]

@@ -12,12 +12,12 @@ use std::{fmt, ops::Deref, str::FromStr};
 #[cfg(feature = "verify")]
 use hmac::{Hmac, Mac};
 #[cfg(feature = "verify")]
-use nym_crypto::asymmetric::encryption::{PrivateKey, PublicKey};
+use nym_crypto::asymmetric::encryption::PrivateKey;
 #[cfg(feature = "verify")]
 use sha2::Sha256;
 
 pub type GatewayClientRegistry = DashMap<PeerPublicKey, GatewayClient>;
-pub type PendingRegistrations = DashMap<PeerPublicKey, Nonce>;
+pub type PendingRegistrations = DashMap<PeerPublicKey, RegistrationData>;
 pub type PrivateIPs = DashMap<IpAddr, Free>;
 
 #[cfg(feature = "verify")]
@@ -56,14 +56,16 @@ impl InitMessage {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ClientRegistrationResponse {
-    PendingRegistration {
-        nonce: u64,
-        gateway_data: GatewayClient,
-        wg_port: u16,
-    },
-    Registered {
-        success: bool,
-    },
+    PendingRegistration(RegistrationData),
+    Registered,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct RegistrationData {
+    pub nonce: u64,
+    pub gateway_data: GatewayClient,
+    pub wg_port: u16,
 }
 
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.
@@ -87,7 +89,7 @@ impl GatewayClient {
     #[cfg(feature = "verify")]
     pub fn new(
         local_secret: &PrivateKey,
-        remote_public: PublicKey,
+        remote_public: x25519_dalek::PublicKey,
         private_ip: IpAddr,
         nonce: u64,
     ) -> Self {
@@ -95,8 +97,6 @@ impl GatewayClient {
         #[allow(clippy::expect_used)]
         let static_secret = x25519_dalek::StaticSecret::from(local_secret.to_bytes());
         let local_public: x25519_dalek::PublicKey = (&static_secret).into();
-
-        let remote_public = x25519_dalek::PublicKey::from(remote_public.to_bytes());
 
         let dh = static_secret.diffie_hellman(&remote_public);
 
@@ -220,7 +220,7 @@ mod tests {
 
         let client = GatewayClient::new(
             client_key_pair.private_key(),
-            *gateway_key_pair.public_key(),
+            x25519_dalek::PublicKey::from(gateway_key_pair.public_key().to_bytes()),
             "10.0.0.42".parse().unwrap(),
             nonce,
         );

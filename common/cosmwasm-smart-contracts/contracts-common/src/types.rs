@@ -132,10 +132,18 @@ where
     }
 }
 
+fn default_unknown() -> String {
+    "unknown".to_string()
+}
+
 // TODO: there's no reason this couldn't be used for proper binaries, but in that case
 // perhaps the struct should get renamed and moved to a "more" common crate
 #[cw_serde]
 pub struct ContractBuildInformation {
+    /// Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.
+    #[serde(default = "default_unknown")]
+    pub contract_name: String,
+
     // VERGEN_BUILD_TIMESTAMP
     /// Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.
     pub build_timestamp: String,
@@ -159,6 +167,38 @@ pub struct ContractBuildInformation {
     // VERGEN_RUSTC_SEMVER
     /// Provides the rustc version that was used for the build, for example `1.52.0-nightly`.
     pub rustc_version: String,
+
+    // VERGEN_CARGO_DEBUG
+    /// Provides the cargo debug mode that was used for the build.
+    #[serde(default = "default_unknown")]
+    pub cargo_debug: String,
+
+    // VERGEN_CARGO_OPT_LEVEL
+    /// Provides the opt value set by cargo during the build
+    #[serde(default = "default_unknown")]
+    pub cargo_opt_level: String,
+}
+
+impl ContractBuildInformation {
+    pub fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
+        ContractBuildInformation {
+            contract_name: name.into(),
+            build_version: version.into(),
+            build_timestamp: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
+            commit_sha: option_env!("VERGEN_GIT_SHA")
+                .unwrap_or("UNKNOWN")
+                .to_string(),
+            commit_timestamp: option_env!("VERGEN_GIT_COMMIT_TIMESTAMP")
+                .unwrap_or("UNKNOWN")
+                .to_string(),
+            commit_branch: option_env!("VERGEN_GIT_BRANCH")
+                .unwrap_or("UNKNOWN")
+                .to_string(),
+            rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
+            cargo_debug: env!("VERGEN_CARGO_DEBUG").to_string(),
+            cargo_opt_level: env!("VERGEN_CARGO_OPT_LEVEL").to_string(),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -24,7 +24,7 @@ struct ReconstructionBuffer {
     previous_fragments_set_id: Option<i32>,
     /// Once all fragments are received, the value of `next_fragments_set_id` is copied
     /// from the last `Fragment` in the set (assuming the set is full, i.e. it contains
-    /// `u8::max_value()` elements).
+    /// `u8::MAX` elements).
     next_fragments_set_id: Option<i32>,
 
     /// The actual `Fragment` data held by the `ReconstructionBuffer`. When created it is already
@@ -40,7 +40,7 @@ pub type ReconstructedMessage = (Vec<u8>, Vec<i32>);
 impl ReconstructionBuffer {
     /// Initialises new instance of a `ReconstructionBuffer` with given size, i.e.
     /// number of expected `Fragment`s in the set.
-    /// The `u8` input type of `size` argument ensures it has the `u8::max_value()` upper bound.
+    /// The `u8` input type of `size` argument ensures it has the `u8::MAX` upper bound.
     fn new(size: u8) -> Self {
         // Note: `new` should have never been called with size 0 in the first place
         // as `size` value is based on the first recovered `Fragment` in the set.
@@ -122,8 +122,8 @@ impl ReconstructionBuffer {
                 .as_ref()
                 .unwrap()
                 .previous_fragments_set_id();
-            self.next_fragments_set_id = if self.fragments.len() == u8::max_value() as usize {
-                self.fragments[u8::max_value() as usize - 1]
+            self.next_fragments_set_id = if self.fragments.len() == u8::MAX as usize {
+                self.fragments[u8::MAX as usize - 1]
                     .as_ref()
                     .unwrap()
                     .next_fragments_set_id()
@@ -313,8 +313,8 @@ mod reconstruction_buffer {
             assert_eq!(None, frag);
         }
 
-        let buf = ReconstructionBuffer::new(u8::max_value());
-        assert_eq!(u8::max_value() as usize, buf.fragments.len());
+        let buf = ReconstructionBuffer::new(u8::MAX);
+        assert_eq!(u8::MAX as usize, buf.fragments.len());
         for frag in buf.fragments {
             assert_eq!(None, frag);
         }
@@ -358,11 +358,11 @@ mod reconstruction_buffer {
         buf.insert_fragment(Fragment::try_from_bytes(&raw_fragments[2]).unwrap());
         assert_eq!(message.to_vec(), buf.reconstruct_set_data());
 
-        let mut buf = ReconstructionBuffer::new(u8::max_value());
+        let mut buf = ReconstructionBuffer::new(u8::MAX);
         let message = vec![
             42u8;
             unlinked_fragment_payload_max_len(AVAILABLE_PLAINTEXT_SIZE)
-                * u8::max_value() as usize
+                * u8::MAX as usize
         ];
         let raw_fragments: Vec<_> =
             crate::split_into_sets(&mut rand::rngs::OsRng, &message, AVAILABLE_PLAINTEXT_SIZE)
@@ -445,7 +445,7 @@ mod reconstruction_buffer {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize - 1) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize - 1) {
             buf.insert_fragment(Fragment::try_from_bytes(raw_fragment).unwrap());
         }
 
@@ -563,7 +563,7 @@ mod message_reconstructor {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -611,7 +611,7 @@ mod message_reconstructor {
                 .collect();
 
         // note that first set is not fully inserted
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize - 1) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize - 1) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -657,7 +657,7 @@ mod message_reconstructor {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -699,7 +699,7 @@ mod message_reconstructor {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -738,7 +738,7 @@ mod message_reconstructor {
                 .collect();
 
         // note that first set is not fully inserted
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize - 1) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize - 1) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -779,7 +779,7 @@ mod message_reconstructor {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize * 2) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize * 2) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -793,7 +793,7 @@ mod message_reconstructor {
         assert!(reconstructor
             .insert_new_fragment(
                 reconstructor
-                    .recover_fragment(raw_fragments[(u8::max_value() as usize) * 2].clone())
+                    .recover_fragment(raw_fragments[(u8::MAX as usize) * 2].clone())
                     .unwrap()
             )
             .is_none());
@@ -822,11 +822,7 @@ mod message_reconstructor {
                 .collect();
 
         // note that first set is not fully inserted
-        for raw_fragment in raw_fragments
-            .iter()
-            .skip(1)
-            .take(u8::max_value() as usize * 2 - 1)
-        {
+        for raw_fragment in raw_fragments.iter().skip(1).take(u8::MAX as usize * 2 - 1) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -839,7 +835,7 @@ mod message_reconstructor {
         assert!(reconstructor
             .insert_new_fragment(
                 reconstructor
-                    .recover_fragment(raw_fragments[(u8::max_value() as usize) * 2].clone())
+                    .recover_fragment(raw_fragments[(u8::MAX as usize) * 2].clone())
                     .unwrap()
             )
             .is_none());
@@ -896,7 +892,7 @@ mod message_reconstructor {
                 .collect();
 
         // note that first set is not fully inserted
-        for raw_fragment in raw_fragments1.iter().take(u8::max_value() as usize - 1) {
+        for raw_fragment in raw_fragments1.iter().take(u8::MAX as usize - 1) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -930,7 +926,7 @@ mod message_reconstructor {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for raw_fragment in raw_fragments2.iter().take(u8::max_value() as usize) {
+        for raw_fragment in raw_fragments2.iter().take(u8::MAX as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -970,7 +966,7 @@ mod message_reconstructor {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize) {
             assert!(reconstructor
                 .insert_new_fragment(
                     reconstructor
@@ -1252,7 +1248,7 @@ mod message_reconstructor {
         //
         // we're inserting this via the buffer approach as not to trigger immediate re-assembly
         let mut reconstructor = MessageReconstructor::default();
-        let mut set_buf1 = ReconstructionBuffer::new(u8::max_value());
+        let mut set_buf1 = ReconstructionBuffer::new(u8::MAX);
         let mut set_buf2 = ReconstructionBuffer::new(1);
 
         let mut rng = thread_rng();
@@ -1267,7 +1263,7 @@ mod message_reconstructor {
                 .map(|x| x.into_bytes())
                 .collect();
 
-        for raw_fragment in raw_fragments.iter().take(u8::max_value() as usize) {
+        for raw_fragment in raw_fragments.iter().take(u8::MAX as usize) {
             set_buf1.insert_fragment(Fragment::try_from_bytes(raw_fragment).unwrap());
         }
 
@@ -1630,19 +1626,19 @@ mod message_reconstruction {
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
-            assert_eq!(fragments1.len(), u8::max_value() as usize);
+            assert_eq!(fragments1.len(), u8::MAX as usize);
             let mut fragments2: Vec<_> =
                 crate::split_into_sets(&mut rand::rngs::OsRng, &message2, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
-            assert_eq!(fragments2.len(), u8::max_value() as usize);
+            assert_eq!(fragments2.len(), u8::MAX as usize);
 
             // combine and shuffle fragments
             fragments1.append(fragments2.as_mut());
             fragments1.shuffle(&mut rng);
             let fragments = fragments1;
-            assert_eq!(fragments.len(), (u8::max_value() as usize) * 2);
+            assert_eq!(fragments.len(), (u8::MAX as usize) * 2);
 
             let mut message_reconstructor = MessageReconstructor::default();
             for fragment in fragments.into_iter() {
@@ -1762,7 +1758,7 @@ mod message_reconstruction {
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .map(|x| x.into_bytes())
                     .collect();
-            assert_eq!(fragments.len(), 4 * (u8::max_value() as usize));
+            assert_eq!(fragments.len(), 4 * (u8::MAX as usize));
             // shuffle the fragments
             fragments.shuffle(&mut rng);
 
@@ -1811,19 +1807,19 @@ mod message_reconstruction {
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
-            assert_eq!(fragments1.len(), 4 * (u8::max_value() as usize));
+            assert_eq!(fragments1.len(), 4 * (u8::MAX as usize));
             let mut fragments2: Vec<_> =
                 crate::split_into_sets(&mut rand::rngs::OsRng, &message2, AVAILABLE_PLAINTEXT_SIZE)
                     .into_iter()
                     .flat_map(|fragment_set| fragment_set.into_iter())
                     .collect();
-            assert_eq!(fragments2.len(), 4 * (u8::max_value() as usize));
+            assert_eq!(fragments2.len(), 4 * (u8::MAX as usize));
 
             // combine and shuffle fragments
             fragments1.append(fragments2.as_mut());
             fragments1.shuffle(&mut rng);
             let fragments = fragments1;
-            assert_eq!(fragments.len(), (u8::max_value() as usize) * 8);
+            assert_eq!(fragments.len(), (u8::MAX as usize) * 8);
 
             let mut message_reconstructor = MessageReconstructor::default();
             for fragment in fragments.into_iter() {

@@ -82,7 +82,7 @@ impl<T> From<Cache<T>> for CachedItem<T> {
 // opt for SharedCache<T> instead
 pub struct Cache<T> {
     value: T,
-    as_at: i64,
+    as_at: OffsetDateTime,
 }
 
 impl<T> Cache<T> {
@@ -90,7 +90,7 @@ impl<T> Cache<T> {
     pub(crate) fn new(value: T) -> Self {
         Cache {
             value,
-            as_at: current_unix_timestamp(),
+            as_at: OffsetDateTime::now_utc(),
         }
     }
 
@@ -120,19 +120,18 @@ impl<T> Cache<T> {
     // ugh. I hate to expose it, but it'd have broken pre-existing code
     pub(crate) fn unchecked_update(&mut self, value: T) {
         self.value = value;
-        self.as_at = current_unix_timestamp()
+        self.as_at = OffsetDateTime::now_utc()
     }
 
     #[allow(dead_code)]
     pub fn has_expired(&self, ttl: Duration, now: Option<OffsetDateTime>) -> bool {
-        let now = now.unwrap_or(OffsetDateTime::now_utc()).unix_timestamp();
+        let now = now.unwrap_or(OffsetDateTime::now_utc());
         let diff = now - self.as_at;
 
-        diff > (ttl.as_secs() as i64)
+        diff > ttl
     }
 
-    #[allow(dead_code)]
-    pub fn timestamp(&self) -> i64 {
+    pub fn timestamp(&self) -> OffsetDateTime {
         self.as_at
     }
 
@@ -157,12 +156,7 @@ where
     fn default() -> Self {
         Cache {
             value: T::default(),
-            as_at: 0,
+            as_at: OffsetDateTime::UNIX_EPOCH,
         }
     }
-}
-
-fn current_unix_timestamp() -> i64 {
-    let now = OffsetDateTime::now_utc();
-    now.unix_timestamp()
 }

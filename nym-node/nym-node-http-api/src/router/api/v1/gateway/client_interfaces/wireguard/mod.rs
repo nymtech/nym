@@ -8,11 +8,10 @@ use crate::error::NymNodeHttpError;
 use axum::routing::{get, post};
 use axum::Router;
 use ipnetwork::IpNetwork;
-use nym_crypto::asymmetric::encryption::PrivateKey;
 use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
-use nym_wireguard::setup;
+use nym_wireguard::WireguardGatewayData;
+use nym_wireguard_types::registration::PendingRegistrations;
 use nym_wireguard_types::registration::PrivateIPs;
-use nym_wireguard_types::registration::{GatewayClientRegistry, PendingRegistrations};
 use std::sync::Arc;
 
 pub(crate) mod client_registry;
@@ -27,17 +26,14 @@ pub struct WireguardAppState {
 
 impl WireguardAppState {
     pub fn new(
-        client_registry: Arc<GatewayClientRegistry>,
+        wireguard_gateway_data: WireguardGatewayData,
         registration_in_progress: Arc<PendingRegistrations>,
         binding_port: u16,
         private_ip_network: IpNetwork,
     ) -> Result<Self, NymNodeHttpError> {
         Ok(WireguardAppState {
             inner: Some(WireguardAppStateInner {
-                private_key: Arc::new(PrivateKey::from_bytes(
-                    setup::server_static_private_key().as_ref(),
-                )?),
-                client_registry,
+                wireguard_gateway_data,
                 registration_in_progress,
                 binding_port,
                 free_private_network_ips: Arc::new(
@@ -83,8 +79,7 @@ macro_rules! get_state {
 
 #[derive(Clone)]
 pub(crate) struct WireguardAppStateInner {
-    private_key: Arc<PrivateKey>,
-    client_registry: Arc<GatewayClientRegistry>,
+    wireguard_gateway_data: WireguardGatewayData,
     registration_in_progress: Arc<PendingRegistrations>,
     binding_port: u16,
     free_private_network_ips: Arc<PrivateIPs>,
@@ -108,6 +103,7 @@ mod test {
     use axum::body::Body;
     use axum::http::Request;
     use axum::http::StatusCode;
+    use base64::{engine::general_purpose, Engine as _};
     use dashmap::DashMap;
     use hmac::Mac;
     use ipnetwork::IpNetwork;
@@ -117,14 +113,30 @@ mod test {
         PeerPublicKey,
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
-    use nym_wireguard::setup::server_static_private_key;
-    use nym_wireguard_types::registration::HmacSha256;
+    use nym_wireguard::{peer_controller::PeerControlMessage, WireguardGatewayData};
+    use nym_wireguard_types::registration::{HmacSha256, RegistrationData};
     use std::net::IpAddr;
     use std::str::FromStr;
     use std::sync::Arc;
     use tower::Service;
     use tower::ServiceExt;
     use x25519_dalek::{PublicKey, StaticSecret};
+
+    const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
+
+    fn decode_base64_key(base64_key: &str) -> [u8; 32] {
+        general_purpose::STANDARD
+            .decode(base64_key)
+            .unwrap()
+            .try_into()
+            .unwrap()
+    }
+
+    fn server_static_private_key() -> x25519_dalek::StaticSecret {
+        // TODO: this is a temporary solution for development
+        let static_private_bytes: [u8; 32] = decode_base64_key(PRIVATE_KEY);
+        x25519_dalek::StaticSecret::from(static_private_bytes)
+    }
 
     #[tokio::test]
     async fn registration() {
@@ -155,7 +167,6 @@ mod test {
         let client_dh = client_static_private.diffie_hellman(&gateway_static_public);
 
         let registration_in_progress = Arc::new(DashMap::new());
-        let client_registry = Arc::new(DashMap::new());
         let free_private_network_ips = Arc::new(
             IpNetwork::from_str("10.1.0.0/24")
                 .unwrap()
@@ -164,11 +175,19 @@ mod test {
                 .collect(),
         );
         let client_private_ip = IpAddr::from_str("10.1.0.42").unwrap();
+        let (wireguard_gateway_data, mut peer_rx) = WireguardGatewayData::new(
+            nym_wireguard_types::Config {
+                bind_address: "0.0.0.0:51822".parse().unwrap(),
+                private_ip: "10.1.0.1".parse().unwrap(),
+                announced_port: 51822,
+                private_network_prefix: 16,
+            },
+            Arc::new(gateway_key_pair),
+        );
 
         let state = WireguardAppState {
             inner: Some(WireguardAppStateInner {
-                client_registry: Arc::clone(&client_registry),
-                private_key: Arc::new(gateway_private_key),
+                wireguard_gateway_data: wireguard_gateway_data.clone(),
                 registration_in_progress: Arc::clone(&registration_in_progress),
                 binding_port: 8080,
                 free_private_network_ips,
@@ -200,11 +219,11 @@ mod test {
         assert_eq!(response.status(), StatusCode::OK);
         assert!(!registration_in_progress.is_empty());
 
-        let ClientRegistrationResponse::PendingRegistration {
+        let ClientRegistrationResponse::PendingRegistration(RegistrationData {
             nonce,
             gateway_data,
             wg_port: 8080,
-        } = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+        }) = serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
             .unwrap()
         else {
             panic!("invalid response")
@@ -238,9 +257,11 @@ mod test {
             .call(final_request)
             .await
             .unwrap();
+        let msg = peer_rx.recv().await.unwrap();
 
+        assert!(matches!(msg, PeerControlMessage::AddPeer(_)));
         assert_eq!(response.status(), StatusCode::OK);
-        assert!(!client_registry.is_empty());
+        assert!(!wireguard_gateway_data.client_registry().is_empty());
 
         let clients_request = Request::builder()
             .method("GET")
@@ -264,7 +285,8 @@ mod test {
         assert!(!clients.is_empty());
 
         assert_eq!(
-            client_registry
+            wireguard_gateway_data
+                .client_registry()
                 .iter()
                 .map(|c| c.value().pub_key())
                 .collect::<Vec<PeerPublicKey>>(),

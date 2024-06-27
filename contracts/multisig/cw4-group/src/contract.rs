@@ -11,6 +11,7 @@ use cw4::{
 };
 use cw_storage_plus::Bound;
 use cw_utils::maybe_addr;
+use nym_contracts_common::set_build_information;
 
 use crate::error::ContractError;
 use crate::helpers::validate_unique_members;
@@ -31,6 +32,8 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    set_build_information!(deps.storage)?;
+
     create(deps, msg.admin, msg.members, env.block.height)?;
     Ok(Response::default())
 }
@@ -221,6 +224,9 @@ pub fn query_list_members(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    set_build_information!(deps.storage)?;
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     Ok(Default::default())
 }

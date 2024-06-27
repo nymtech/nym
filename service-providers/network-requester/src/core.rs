@@ -51,6 +51,7 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
     }
 }
 
+#[allow(dead_code)]
 pub struct OnStartData {
     // to add more fields as required
     pub address: Recipient,
@@ -218,6 +219,15 @@ impl NRServiceProviderBuilder {
     #[allow(unused)]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    #[must_use]
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
+    pub fn with_minimum_gateway_performance(mut self, minimum_gateway_performance: u8) -> Self {
+        self.config.base.debug.topology.minimum_gateway_performance = minimum_gateway_performance;
         self
     }
 

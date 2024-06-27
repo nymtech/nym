@@ -5,8 +5,6 @@ use clap::{Args, Subcommand};
 
 pub mod query_all_gateways;
 pub mod query_all_mixnodes;
-pub mod query_all_names;
-pub mod query_all_service_providers;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -21,8 +19,4 @@ pub enum MixnetQueryCommands {
     Mixnodes(query_all_mixnodes::Args),
     /// Query gateways
     Gateways(query_all_gateways::Args),
-    /// Query announced service-providers
-    ServiceProviders(query_all_service_providers::Args),
-    /// Query registed names
-    Names(query_all_names::Args),
 }

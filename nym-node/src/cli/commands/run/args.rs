@@ -18,6 +18,17 @@ pub(crate) struct Args {
     #[clap(flatten)]
     pub(crate) config: ConfigArgs,
 
+    /// Explicitly specify whether you agree with the terms and conditions of a nym node operator
+    /// as defined at <https://nymtech.net/terms-and-conditions/operators/v1.0.0>
+    #[clap(
+        long,
+        env = NYMNODE_ACCEPT_OPERATOR_TERMS,
+        alias = "accept-t&c",
+        alias = "accept-operator-terms",
+        alias = "accept-operator-t&c",
+    )]
+    pub(crate) accept_operator_terms_and_conditions: bool,
+
     /// Forbid a new node from being initialised if configuration file for the provided specification doesn't already exist
     #[clap(
         long,
@@ -35,6 +46,14 @@ pub(crate) struct Args {
         conflicts_with = "deny_init"
     )]
     pub(crate) init_only: bool,
+
+    /// Flag specifying this node will be running in a local setting.
+    #[clap(
+        long,
+        default_value_t = false,
+        env = NYMNODE_LOCAL_ARG
+    )]
+    pub(crate) local: bool,
 
     /// Specifies the current mode of this nym-node.
     #[clap(

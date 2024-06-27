@@ -18,6 +18,7 @@ use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
+use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_network_defaults::NymNetworkDetails;
 use url::Url;
 
@@ -263,6 +264,28 @@ impl NymApiClient {
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_base_url(new_endpoint);
+    }
+
+    pub async fn get_basic_mixnodes(
+        &self,
+        semver_compatibility: Option<String>,
+    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .get_basic_mixnodes(semver_compatibility)
+            .await?
+            .nodes)
+    }
+
+    pub async fn get_basic_gateways(
+        &self,
+        semver_compatibility: Option<String>,
+    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .get_basic_gateways(semver_compatibility)
+            .await?
+            .nodes)
     }
 
     pub async fn get_cached_active_mixnodes(

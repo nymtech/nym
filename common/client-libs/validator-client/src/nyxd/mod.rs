@@ -70,6 +70,8 @@ use crate::http_client;
 use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
+use nym_contracts_common::build_information::CONTRACT_BUILD_INFO_STORAGE_KEY;
+use nym_contracts_common::ContractBuildInformation;
 
 pub mod coin;
 pub mod contract_traits;
@@ -246,12 +248,6 @@ impl<C, S> NyxdClient<C, S> {
         self.config.contracts.multisig_contract_address = Some(address);
     }
 
-    pub fn set_service_provider_contract_address(&mut self, address: AccountId) {
-        self.config
-            .contracts
-            .service_provider_directory_contract_address = Some(address);
-    }
-
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
         self.config.simulated_gas_multiplier = multiplier;
     }
@@ -283,21 +279,6 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
 
     fn multisig_contract_address(&self) -> Option<&AccountId> {
         self.config.contracts.multisig_contract_address.as_ref()
-    }
-
-    fn ephemera_contract_address(&self) -> Option<&AccountId> {
-        self.config.contracts.ephemera_contract_address.as_ref()
-    }
-
-    fn name_service_contract_address(&self) -> Option<&AccountId> {
-        self.config.contracts.name_service_contract_address.as_ref()
-    }
-
-    fn service_provider_contract_address(&self) -> Option<&AccountId> {
-        self.config
-            .contracts
-            .service_provider_directory_contract_address
-            .as_ref()
     }
 }
 
@@ -348,6 +329,33 @@ where
             .get_block(Some(height))
             .await
             .map(|block| block.block_id.hash)
+    }
+
+    pub async fn try_get_cw2_contract_version(
+        &self,
+        contract_address: &AccountId,
+    ) -> Option<cw2::ContractVersion> {
+        let raw_info = self
+            .query_contract_raw(contract_address, b"contract_info".to_vec())
+            .await
+            .ok()?;
+
+        serde_json::from_slice(&raw_info).ok()
+    }
+
+    pub async fn try_get_contract_build_information(
+        &self,
+        contract_address: &AccountId,
+    ) -> Option<ContractBuildInformation> {
+        let raw_info = self
+            .query_contract_raw(
+                contract_address,
+                CONTRACT_BUILD_INFO_STORAGE_KEY.as_bytes().to_vec(),
+            )
+            .await
+            .ok()?;
+
+        serde_json::from_slice(&raw_info).ok()
     }
 }
 

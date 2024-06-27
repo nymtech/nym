@@ -109,7 +109,8 @@ pub struct SerializableMixNode {
     #[serde(alias = "mix_id")]
     pub mix_id: u32,
 
-    pub owner: String,
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    pub owner: Option<String>,
 
     pub host: String,
 
@@ -180,7 +181,8 @@ impl<'a> From<&'a mix::Node> for SerializableMixNode {
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct SerializableGateway {
-    pub owner: String,
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    pub owner: Option<String>,
 
     pub host: String,
 

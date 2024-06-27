@@ -16,7 +16,7 @@ pub struct WasmRawRegisteredGateway {
 
     pub derived_aes128_ctr_blake3_hmac_keys_bs58: String,
 
-    pub gateway_owner_address: String,
+    pub gateway_owner_address: Option<String>,
 
     pub gateway_listener: String,
 }
@@ -55,7 +55,10 @@ impl<'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
             derived_aes128_ctr_blake3_hmac_keys_bs58: remote_details
                 .derived_aes128_ctr_blake3_hmac_keys
                 .to_base58_string(),
-            gateway_owner_address: remote_details.gateway_owner_address.to_string(),
+            gateway_owner_address: remote_details
+                .gateway_owner_address
+                .as_ref()
+                .map(|a| a.to_string()),
             gateway_listener: remote_details.gateway_listener.to_string(),
         }
     }

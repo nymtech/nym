@@ -17,7 +17,9 @@ log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
+nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-network-defaults = { path = "../network-defaults" }
 
 # feature-specific dependencies:
 
@@ -32,7 +34,7 @@ serde_json = { workspace = true, optional = true }
 x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
 
 [dev-dependencies]
-rand = "0.7.3"
+rand = "0.8.5"
 nym-crypto = { path = "../crypto", features = ["rand"]}
 
 

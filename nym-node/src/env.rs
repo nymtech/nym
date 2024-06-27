@@ -9,7 +9,7 @@ pub mod vars {
     pub const NYMNODE_CONFIG_PATH_ARG: &str = "NYMNODE_CONFIG";
 
     pub const NYMNODE_DENY_INIT_ARG: &str = "NYMNODE_DENY_INIT";
-
+    pub const NYMNODE_LOCAL_ARG: &str = "NYMNODE_LOCAL";
     pub const NYMNODE_INIT_ONLY_ARG: &str = "NYMNODE_INIT_ONLY";
 
     pub const NYMMONDE_WRITE_CONFIG_CHANGES_ARG: &str = "NYMNODE_WRITE_CONFIG_CHANGES";
@@ -17,6 +17,8 @@ pub mod vars {
     pub const NYMNODE_BONDING_INFORMATION_OUTPUT_ARG: &str = "NYMNODE_BONDING_INFORMATION_OUTPUT";
 
     pub const NYMNODE_MODE_ARG: &str = "NYMNODE_MODE";
+
+    pub const NYMNODE_ACCEPT_OPERATOR_TERMS: &str = "NYMNODE_ACCEPT_OPERATOR_TERMS";
 
     // host:
     pub const NYMNODE_PUBLIC_IPS_ARG: &str = "NYMNODE_PUBLIC_IPS";
@@ -40,7 +42,7 @@ pub mod vars {
     // wireguard:
     pub const NYMNODE_WG_ENABLED_ARG: &str = "NYMNODE_WG_ENABLED";
     pub const NYMNODE_WG_BIND_ADDRESS_ARG: &str = "NYMNODE_WG_BIND_ADDRESS";
-    pub const NYMNODE_WG_IP_NETWORK_ARG: &str = "NYMNODE_WG_IP_NETWORK";
+    pub const NYMNODE_WG_IP_ARG: &str = "NYMNODE_WG_IP";
     pub const NYMNODE_WG_ANNOUNCED_PORT_ARG: &str = "NYMNODE_WG_ANNOUNCED_PORT";
     pub const NYMNODE_WG_PRIVATE_NETWORK_PREFIX_ARG: &str = "NYMNODE_WG_PRIVATE_NETWORK_PREFIX";
 

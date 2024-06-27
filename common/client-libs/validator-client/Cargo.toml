@@ -14,17 +14,14 @@ colored = { workspace = true }
 
 nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
-nym-ephemera-common = { path = "../../cosmwasm-smart-contracts/ephemera" }
 nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
-nym-name-service-common = { path = "../../cosmwasm-smart-contracts/name-service" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
-nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts/service-provider-directory" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-nym-http-api-client = { path = "../../../common/http-api-client"}
+nym-http-api-client = { path = "../../../common/http-api-client" }
 thiserror = { workspace = true }
 log = { workspace = true }
 url = { workspace = true, features = ["serde"] }
@@ -84,14 +81,6 @@ name = "offline_signing"
 # it should only really require the "signing" feature,
 # but that would require another round of refactoring to make it possible
 # (traits would need to be moved around and refactored themselves)
-required-features = ["http-client"]
-
-[[example]]
-name = "query_service_provider_directory"
-required-features = ["http-client"]
-
-[[example]]
-name = "query_name_service"
 required-features = ["http-client"]
 
 [features]

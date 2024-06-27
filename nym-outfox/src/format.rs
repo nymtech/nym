@@ -64,7 +64,6 @@ use curve25519_dalek::montgomery::MontgomeryPoint;
 use curve25519_dalek::scalar::Scalar;
 
 use std::ops::Range;
-use std::u8;
 
 use crate::constants::groupelementbytes;
 use crate::constants::tagbytes;
@@ -241,7 +240,7 @@ impl MixStageParameters {
             });
         }
 
-        let user_public_key = (&ED25519_BASEPOINT_TABLE * &user_secret_key).to_montgomery();
+        let user_public_key = (ED25519_BASEPOINT_TABLE * &user_secret_key).to_montgomery();
         let shared_key = user_secret_key * mix_public_key;
 
         // Copy rounting data into buffer

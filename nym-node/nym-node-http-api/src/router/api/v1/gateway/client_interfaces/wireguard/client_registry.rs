@@ -10,32 +10,60 @@ use crate::router::types::RequestError;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
-    ClientMessage, ClientRegistrationResponse, GatewayClient, InitMessage, Nonce, PeerPublicKey,
+    ClientMessage, ClientRegistrationResponse, GatewayClient, InitMessage, PeerPublicKey,
 };
+use nym_wireguard_types::registration::RegistrationData;
 use rand::{prelude::IteratorRandom, thread_rng};
+
+fn remove_from_registry(
+    state: &WireguardAppStateInner,
+    remote_public: &PeerPublicKey,
+    gateway_client: &GatewayClient,
+) -> Result<(), RequestError> {
+    state
+        .wireguard_gateway_data
+        .remove_peer(gateway_client)
+        .map_err(|err| RequestError::from_err(err, StatusCode::INTERNAL_SERVER_ERROR))?;
+    state
+        .wireguard_gateway_data
+        .client_registry()
+        .remove(remote_public);
+    Ok(())
+}
 
 async fn process_final_message(
     client: GatewayClient,
     state: &WireguardAppStateInner,
-) -> Result<StatusCode, RequestError> {
-    let preshared_nonce = {
-        if let Some(nonce) = state.registration_in_progress.get(&client.pub_key()) {
-            *nonce
-        } else {
-            return Err(RequestError::from_err(
-                WireguardError::RegistrationNotInProgress,
-                StatusCode::BAD_REQUEST,
-            ));
-        }
-    };
+) -> Result<ClientRegistrationResponse, RequestError> {
+    let registration_data = state
+        .registration_in_progress
+        .get(&client.pub_key())
+        .ok_or(RequestError::from_err(
+            WireguardError::RegistrationNotInProgress,
+            StatusCode::BAD_REQUEST,
+        ))?
+        .value()
+        .clone();
 
-    if client.verify(&state.private_key, preshared_nonce).is_ok() {
+    if client
+        .verify(
+            state.wireguard_gateway_data.keypair().private_key(),
+            registration_data.nonce,
+        )
+        .is_ok()
+    {
+        state
+            .wireguard_gateway_data
+            .add_peer(&client)
+            .map_err(|err| RequestError::from_err(err, StatusCode::INTERNAL_SERVER_ERROR))?;
         state.registration_in_progress.remove(&client.pub_key());
-        state.client_registry.insert(client.pub_key(), client);
+        state
+            .wireguard_gateway_data
+            .client_registry()
+            .insert(client.pub_key(), client);
 
-        Ok(StatusCode::OK)
+        Ok(ClientRegistrationResponse::Registered)
     } else {
         Err(RequestError::from_err(
             WireguardError::MacVerificationFailure,
@@ -44,12 +72,65 @@ async fn process_final_message(
     }
 }
 
-async fn process_init_message(init_message: InitMessage, state: &WireguardAppStateInner) -> Nonce {
+async fn process_init_message(
+    init_message: InitMessage,
+    state: &WireguardAppStateInner,
+) -> Result<ClientRegistrationResponse, RequestError> {
+    let remote_public = init_message.pub_key();
     let nonce: u64 = fastrand::u64(..);
+    if let Some(registration_data) = state.registration_in_progress.get(&remote_public) {
+        return Ok(ClientRegistrationResponse::PendingRegistration(
+            registration_data.value().clone(),
+        ));
+    }
+    let gateway_client_opt = if let Some(gateway_client) = state
+        .wireguard_gateway_data
+        .client_registry()
+        .get(&remote_public)
+    {
+        let mut private_ip_ref = state
+            .free_private_network_ips
+            .get_mut(&gateway_client.private_ip)
+            .ok_or(RequestError::new(
+                "Internal data corruption",
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))?;
+        *private_ip_ref = true;
+        Some(gateway_client.clone())
+    } else {
+        None
+    };
+    if let Some(gateway_client) = gateway_client_opt {
+        remove_from_registry(state, &remote_public, &gateway_client)?;
+    }
+    let mut private_ip_ref = state
+        .free_private_network_ips
+        .iter_mut()
+        .filter(|r| **r)
+        .choose(&mut thread_rng())
+        .ok_or(RequestError::new(
+            "No more space in the network",
+            StatusCode::SERVICE_UNAVAILABLE,
+        ))?;
+    // mark it as used, even though it's not final
+    *private_ip_ref = false;
+    let gateway_data = GatewayClient::new(
+        state.wireguard_gateway_data.keypair().private_key(),
+        remote_public.inner(),
+        *private_ip_ref.key(),
+        nonce,
+    );
+    let registration_data = RegistrationData {
+        nonce,
+        gateway_data,
+        wg_port: state.binding_port,
+    };
     state
         .registration_in_progress
-        .insert(init_message.pub_key(), nonce);
-    nonce
+        .insert(remote_public, registration_data.clone());
+    Ok(ClientRegistrationResponse::PendingRegistration(
+        registration_data,
+    ))
 }
 
 /// Perform wireguard client registration.
@@ -84,45 +165,11 @@ pub(crate) async fn register_client(
         return Err(RequestError::new_status(StatusCode::NOT_IMPLEMENTED));
     };
 
-    match payload {
-        ClientMessage::Initial(init) => {
-            let remote_public = PublicKey::from_bytes(init.pub_key().as_bytes())
-                .map_err(|_| RequestError::new_status(StatusCode::BAD_REQUEST))?;
-            let nonce = process_init_message(init, state).await;
-            let mut private_ip_ref = state
-                .free_private_network_ips
-                .iter_mut()
-                .filter(|r| **r)
-                .choose(&mut thread_rng())
-                .ok_or(RequestError::new(
-                    "No more space in the network",
-                    StatusCode::SERVICE_UNAVAILABLE,
-                ))?;
-            // mark it as used, even though it's not final
-            *private_ip_ref = false;
-            let gateway_data = GatewayClient::new(
-                &state.private_key,
-                remote_public,
-                *private_ip_ref.key(),
-                nonce,
-            );
-            let response = ClientRegistrationResponse::PendingRegistration {
-                nonce,
-                gateway_data,
-                wg_port: state.binding_port,
-            };
-            Ok(output.to_response(response))
-        }
-        ClientMessage::Final(finalize) => {
-            let result = process_final_message(finalize, state).await?;
-            if result.is_success() {
-                let response = ClientRegistrationResponse::Registered { success: true };
-                Ok(output.to_response(response))
-            } else {
-                Err(RequestError::new_status(result))
-            }
-        }
-    }
+    let response = match payload {
+        ClientMessage::Initial(init) => process_init_message(init, state).await?,
+        ClientMessage::Final(finalize) => process_final_message(finalize, state).await?,
+    };
+    Ok(output.to_response(response))
 }
 
 pub type RegisterClientResponse = FormattedResponse<ClientRegistrationResponse>;
@@ -153,7 +200,8 @@ pub(crate) async fn get_all_clients(
     };
 
     let clients = state
-        .client_registry
+        .wireguard_gateway_data
+        .client_registry()
         .iter()
         .map(|c| c.pub_key())
         .collect::<Vec<PeerPublicKey>>();
@@ -195,7 +243,8 @@ pub(crate) async fn get_client(
     };
 
     let clients = state
-        .client_registry
+        .wireguard_gateway_data
+        .client_registry()
         .iter()
         .filter_map(|c| {
             if c.pub_key() == pub_key {

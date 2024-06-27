@@ -174,4 +174,10 @@ pub struct AuxiliaryDetails {
     #[schemars(with = "Option<String>")]
     #[schemars(length(equal = 2))]
     pub location: Option<Country>,
+
+    /// Specifies whether this node operator has agreed to the terms and conditions
+    /// as defined at <https://nymtech.net/terms-and-conditions/operators/v1.0.0>
+    // make sure to include the default deserialisation as this field hasn't existed when the struct was first created
+    #[serde(default)]
+    pub accepted_operator_terms_and_conditions: bool,
 }

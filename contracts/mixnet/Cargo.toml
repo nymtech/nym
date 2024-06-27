@@ -9,10 +9,10 @@ repository = { workspace = true }
 readme = "README.md"
 
 exclude = [
-  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
-  "contract.wasm",
-  "hash.txt",
-  "artifacts",
+    # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
+    "contract.wasm",
+    "hash.txt",
+    "artifacts",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -41,14 +41,10 @@ bs58 = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
 thiserror = { workspace = true }
 time = { version = "0.3", features = ["macros"] }
-semver = { workspace = true, default-features = false }
 
 [dev-dependencies]
-rand_chacha = "0.2"
+rand_chacha = "0.3"
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
-
-[build-dependencies]
-vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }
 
 [features]
 default = []

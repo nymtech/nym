@@ -234,12 +234,6 @@ pub enum MixnetContractError {
     #[error("the epoch is currently not in the 'epoch advancement' state. (the state is {current_state})")]
     EpochNotInAdvancementState { current_state: EpochState },
 
-    #[error("failed to parse {value} into a valid SemVer version: {error_message}")]
-    SemVerFailure {
-        value: String,
-        error_message: String,
-    },
-
     #[error("failed to verify message signature: {source}")]
     SignatureVerificationFailure {
         #[from]

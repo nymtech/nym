@@ -287,6 +287,9 @@ impl Client {
         E: Display + DeserializeOwned,
     {
         let res = self.send_get_request(path, params).await?;
+        // dbg!(&res);
+        // dbg!(&res.text().await);
+        // todo!();
         parse_response(res, false).await
     }
 
@@ -516,6 +519,7 @@ where
     E: DeserializeOwned + Display,
 {
     let status = res.status();
+    dbg!(&status);
 
     if !allow_empty {
         if let Some(0) = res.content_length() {

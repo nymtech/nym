@@ -260,6 +260,7 @@ impl NymApiClient {
     }
 
     pub fn new_with_user_agent(api_url: Url, user_agent: UserAgent) -> Self {
+        dbg!(&user_agent);
         let nym_api = nym_api::Client::builder::<_, ValidatorClientError>(api_url)
             .expect("invalid api url")
             .with_user_agent(user_agent)

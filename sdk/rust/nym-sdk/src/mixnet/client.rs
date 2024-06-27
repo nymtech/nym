@@ -580,54 +580,11 @@ where
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
-                .with_wireguard_connection(self.wireguard_mode)
-                .with_user_agent(self.user_agent.clone());
+                .with_wireguard_connection(self.wireguard_mode);
 
-        // let mut base_builder: BaseClientBuilder<_, _> = if !known_gateway {
-        //     // we need to setup a new gateway
-        //     let setup = self.new_gateway_setup().await;
-        //
-        //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-        //         .with_wait_for_gateway(self.wait_for_gateway)
-        //         .with_gateway_setup(setup)
-        // // } else if self.wireguard_mode {
-        // //     // load current active gateway in wireguard mode
-        // //     details_store.set_wireguard_mode(true).await?;
-        // //
-        // //     if let Ok(PersistedGatewayDetails::Default(mut config)) = self
-        // //         .storage
-        // //         .gateway_details_store()
-        // //         .load_gateway_details()
-        // //         .await
-        // //     {
-        // //         config.details.gateway_listener = format!(
-        // //             "ws://{}:{}",
-        // //             WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
-        // //         );
-        // //         if let Err(e) = self
-        // //             .storage
-        // //             .gateway_details_store()
-        // //             .store_gateway_details(&PersistedGatewayDetails::Default(config))
-        // //             .await
-        // //         {
-        // //             warn!("Could not switch to using wireguard mode - {:?}", e);
-        // //         }
-        // //     } else {
-        // //         warn!("Storage type not supported with wireguard mode");
-        // //     }
-        // //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-        // //         .with_wait_for_gateway(self.wait_for_gateway)
-        // } else {
-        //     // load current active gateway in non-wireguard mode
-        //
-        //     // make sure our current storage mode matches the desired wg mode
-        //     details_store
-        //         .set_wireguard_mode(self.wireguard_mode)
-        //         .await?;
-        //
-        //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-        //         .with_wait_for_gateway(self.wait_for_gateway)
-        // };
+        if let Some(user_agent) = self.user_agent {
+            base_builder = base_builder.with_user_agent(user_agent);
+        }
 
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);

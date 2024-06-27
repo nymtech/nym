@@ -253,8 +253,8 @@ where
     }
 
     #[must_use]
-    pub fn with_user_agent(mut self, user_agent: Option<UserAgent>) -> Self {
-        self.user_agent = user_agent;
+    pub fn with_user_agent(mut self, user_agent: UserAgent) -> Self {
+        self.user_agent = Some(user_agent);
         self
     }
 

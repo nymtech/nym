@@ -1,5 +1,5 @@
 use nym_client_core::{config::disk_persistence::CommonClientPaths, TopologyProvider};
-use nym_sdk::{GatewayTransceiver, NymNetworkDetails, UserAgent};
+use nym_sdk::{GatewayTransceiver, NymNetworkDetails};
 use nym_task::TaskClient;
 
 use crate::{config::BaseClientConfig, error::IpPacketRouterError};

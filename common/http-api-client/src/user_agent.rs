@@ -34,8 +34,10 @@ impl fmt::Display for UserAgent {
     }
 }
 
-impl Into<HeaderValue> for UserAgent {
-    fn into(self) -> HeaderValue {
-        HeaderValue::from_str(&self.to_string()).unwrap()
+impl TryFrom<UserAgent> for HeaderValue {
+    type Error = http::header::InvalidHeaderValue;
+
+    fn try_from(user_agent: UserAgent) -> Result<Self, Self::Error> {
+        HeaderValue::from_str(&user_agent.to_string())
     }
 }

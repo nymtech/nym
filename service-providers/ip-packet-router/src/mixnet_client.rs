@@ -20,7 +20,6 @@ pub(crate) async fn create_mixnet_client(
 
     let storage_paths = nym_sdk::mixnet::StoragePaths::from(paths.clone());
 
-
     let bin_info = nym_bin_common::bin_info_owned!();
     let user_agent = UserAgent::new(
         bin_info.binary_name,

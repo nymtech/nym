@@ -42,14 +42,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
-#[allow(unused)]
-pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
-    RequestVersion {
-        provider_interface: ProviderInterfaceVersion::Legacy,
-        provider_protocol: Socks5ProtocolVersion::Legacy,
-    }
-}
-
 #[allow(dead_code)]
 pub struct OnStartData {
     // to add more fields as required

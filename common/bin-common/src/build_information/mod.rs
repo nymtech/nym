@@ -5,6 +5,7 @@
 // and be used by our smart contracts
 
 use serde::{Deserialize, Serialize};
+use serde_json::de::StrRead;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
@@ -166,7 +167,12 @@ pub struct BinaryBuildInformationOwned {
 
     // VERGEN_CARGO_TARGET_TRIPLE
     /// Provides the cargo target triple that was used for the build.
+    #[serde(default = "unknown")]
     pub cargo_triple: String,
+}
+
+fn unknown() -> String {
+    "unknown".to_string()
 }
 
 impl Display for BinaryBuildInformationOwned {

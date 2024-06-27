@@ -103,7 +103,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), NetworkRequesterError> {
     eprintln!("Initialising client...");
 
     let output = args.output;
-    let res = initialise_client::<CliNetworkRequesterClient>(args).await?;
+    let res = initialise_client::<CliNetworkRequesterClient>(args, None).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

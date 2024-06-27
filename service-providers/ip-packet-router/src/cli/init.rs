@@ -88,7 +88,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), IpPacketRouterError> {
     eprintln!("Initialising client...");
 
     let output = args.output;
-    let res = initialise_client::<CliIpPacketRouterClient>(args).await?;
+    let res = initialise_client::<CliIpPacketRouterClient>(args, None).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

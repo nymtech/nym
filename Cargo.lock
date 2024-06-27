@@ -5232,6 +5232,7 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-sphinx",
  "nym-topology",
+ "nym-validator-client",
  "rand 0.8.5",
  "serde",
  "serde_json",

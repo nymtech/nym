@@ -55,7 +55,6 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
-
     user_agent: Option<UserAgent>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
@@ -473,8 +472,10 @@ where
             self.force_tls,
         );
 
+        let user_agent = self.user_agent.clone();
+
         let mut rng = OsRng;
-        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints).await?;
+        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints, user_agent).await?;
 
         Ok(GatewaySetup::New {
             specification: selection_spec,

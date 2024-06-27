@@ -14,6 +14,7 @@ mod bypass_dkg;
 mod initialise_new_network;
 mod initialise_post_dkg_network;
 mod load_network_details;
+mod local_client;
 mod local_ecash_apis;
 mod local_nodes;
 mod migrate;
@@ -62,6 +63,7 @@ impl Cli {
             }
             Commands::CreateLocalEcashApis(args) => local_ecash_apis::execute(args).await,
             Commands::BondLocalMixnet(args) => local_nodes::execute(args).await,
+            Commands::CreateLocalClient(args) => local_client::execute(args).await,
         }
     }
 }
@@ -89,6 +91,9 @@ pub(crate) enum Commands {
 
     /// Attempt to bond minimal local mixnet (3 mixnodes + 1 gateways) and output the run commands
     BondLocalMixnet(local_nodes::Args),
+
+    /// Initialise a locally run nym-client, adjust its config and output the run command
+    CreateLocalClient(local_client::Args),
 }
 
 #[cfg(test)]

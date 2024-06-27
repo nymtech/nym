@@ -81,6 +81,9 @@ pub enum NetworkManagerError {
     #[error("nym node initialisation returned non-zero return code")]
     NymNodeExecutionFailure,
 
+    #[error("nym client initialisation returned non-zero return code")]
+    NymClientExecutionFailure,
+
     #[error("failed to deserialise nym-api config: {0}")]
     TomlDeserialisationFailure(#[from] toml::de::Error),
 
@@ -91,4 +94,13 @@ pub enum NetworkManagerError {
         "the corresponding env file hasn't been generated. you need to setup local apis first."
     )]
     EnvFileNotGenerated,
+
+    #[error("the default, pre-generated, .env file does not have the nym-api endpoint set!")]
+    NymApiEndpointMissing,
+
+    #[error("timed out while waiting for some gateway to appear in the directory (you don't need to run it)")]
+    ApiGatewayWaitTimeout,
+
+    #[error("timed out while waiting for the gateway to start receiving traffic (you need to actually run it!)")]
+    GatewayWaitTimeout,
 }

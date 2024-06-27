@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkManagerError;
-use crate::helpers::{async_with_progress, ProgressTracker, RunCommands};
+use crate::helpers::{ProgressCtx, ProgressTracker, RunCommands};
 use crate::manager::contract::Account;
 use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
@@ -16,9 +16,7 @@ use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigni
 use nym_validator_client::nyxd::CosmWasmCoin;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
 use std::fs;
-use std::future::Future;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -120,6 +118,7 @@ impl NymNode {
 
 struct LocalNodesCtx<'a> {
     nym_node_binary: PathBuf,
+
     progress: ProgressTracker,
     network: &'a LoadedNetwork,
     admin: DirectSigningHttpRpcNyxdClient,
@@ -128,28 +127,15 @@ struct LocalNodesCtx<'a> {
     gateway: Option<NymNode>,
 }
 
+impl<'a> ProgressCtx for LocalNodesCtx<'a> {
+    fn progress_tracker(&self) -> &ProgressTracker {
+        &self.progress
+    }
+}
+
 impl<'a> LocalNodesCtx<'a> {
     fn nym_node_id(&self, node: &NymNode) -> String {
         format!("{}-{}", node.owner.address, self.network.name)
-    }
-
-    fn println<I: AsRef<str>>(&self, msg: I) {
-        self.progress.println(msg)
-    }
-
-    fn set_pb_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
-        self.progress.set_pb_prefix(prefix)
-    }
-
-    fn set_pb_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.progress.set_pb_message(msg)
-    }
-
-    async fn async_with_progress<F, T>(&self, fut: F) -> T
-    where
-        F: Future<Output = T>,
-    {
-        async_with_progress(fut, &self.progress.progress_bar).await
     }
 
     fn new(
@@ -502,11 +488,12 @@ impl NetworkManager {
         Ok(())
     }
 
-    fn prepare_nym_nodes_run_commands<P: AsRef<Path>>(
+    fn prepare_nym_nodes_run_commands(
         &self,
         ctx: &LocalNodesCtx,
-        env_file: P,
     ) -> Result<RunCommands, NetworkManagerError> {
+        let env_file = ctx.network.default_env_file_path();
+
         let bin_canon = fs::canonicalize(&ctx.nym_node_binary)?;
         let env_canon = fs::canonicalize(env_file)?;
         let bin_canon_display = bin_canon.display();
@@ -523,6 +510,7 @@ impl NetworkManager {
                 "{bin_canon_display} -c {env_canon_display} run --id {id} --local"
             ));
         }
+
         Ok(RunCommands(cmds))
     }
 
@@ -550,7 +538,7 @@ impl NetworkManager {
         self.transfer_bonding_tokens(&ctx).await?;
         self.bond_nym_nodes(&ctx).await?;
         self.assign_to_active_set(&ctx).await?;
-        let cmds = self.prepare_nym_nodes_run_commands(&ctx, env_file)?;
+        let cmds = self.prepare_nym_nodes_run_commands(&ctx)?;
         self.output_nym_nodes_run_commands(&ctx, &cmds);
 
         Ok(cmds)

@@ -19,6 +19,7 @@ use zeroize::Zeroizing;
 mod contract;
 mod dkg_skip;
 mod local_apis;
+mod local_client;
 mod local_nodes;
 pub(crate) mod network;
 mod network_init;

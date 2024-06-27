@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkManagerError;
-use crate::helpers::{async_with_progress, ProgressTracker};
+use crate::helpers::{async_with_progress, ProgressCtx, ProgressTracker};
 use crate::manager::contract::Account;
 use crate::manager::network::Network;
 use crate::manager::NetworkManager;
@@ -15,8 +15,6 @@ use nym_mixnet_contract_common::{Decimal, InitialRewardingParams, Percent};
 use nym_validator_client::nyxd::cosmwasm_client::types::InstantiateOptions;
 use nym_validator_client::nyxd::Config;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
-use std::borrow::Cow;
-use std::future::Future;
 use std::ops::Deref;
 use std::path::Path;
 use std::time::Duration;
@@ -31,18 +29,6 @@ struct InitCtx {
 }
 
 impl InitCtx {
-    fn println<I: AsRef<str>>(&self, msg: I) {
-        self.progress.println(msg)
-    }
-
-    fn set_pb_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
-        self.progress.set_pb_prefix(prefix)
-    }
-
-    fn set_pb_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.progress.set_pb_message(msg)
-    }
-
     fn dummy_client_config() -> Result<Config, NetworkManagerError> {
         // ASSUMPTION: same chain details like prefix, denoms, etc. as mainnet
         let mainnet = NymNetworkDetails::new_mainnet();
@@ -54,13 +40,6 @@ impl InitCtx {
             explorer_api: None,
         };
         Ok(Config::try_from_nym_network_details(&network_details)?)
-    }
-
-    async fn async_with_progress<F, T>(&self, fut: F) -> T
-    where
-        F: Future<Output = T>,
-    {
-        async_with_progress(fut, &self.progress.progress_bar).await
     }
 
     fn new(
@@ -112,6 +91,12 @@ impl InitCtx {
                 .mnemonic
                 .clone(),
         )?)
+    }
+}
+
+impl ProgressCtx for InitCtx {
+    fn progress_tracker(&self) -> &ProgressTracker {
+        &self.progress
     }
 }
 

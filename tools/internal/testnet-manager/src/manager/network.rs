@@ -120,6 +120,7 @@ impl LoadedNetwork {
             .join(format!("{}.env", &self.name))
     }
 
+    #[allow(dead_code)]
     pub fn query_client(&self) -> Result<QueryHttpRpcNyxdClient, NetworkManagerError> {
         Ok(QueryHttpRpcNyxdClient::connect(
             self.client_config()?,

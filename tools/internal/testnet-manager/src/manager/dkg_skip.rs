@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkManagerError;
-use crate::helpers::{async_with_progress, ProgressTracker};
+use crate::helpers::{ProgressCtx, ProgressTracker};
 use crate::manager::contract::Account;
 use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
@@ -20,9 +20,7 @@ use nym_validator_client::nyxd::cw4::Member;
 use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use rand::rngs::OsRng;
-use std::borrow::Cow;
 use std::fs;
-use std::future::Future;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -61,28 +59,15 @@ struct DkgSkipCtx<'a> {
     ecash_signers: Vec<EcashSignerWithPaths>,
 }
 
+impl<'a> ProgressCtx for DkgSkipCtx<'a> {
+    fn progress_tracker(&self) -> &ProgressTracker {
+        &self.progress
+    }
+}
+
 impl<'a> DkgSkipCtx<'a> {
-    fn println<I: AsRef<str>>(&self, msg: I) {
-        self.progress.println(msg)
-    }
-
-    fn set_pb_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
-        self.progress.set_pb_prefix(prefix)
-    }
-
-    fn set_pb_message(&self, msg: impl Into<Cow<'static, str>>) {
-        self.progress.set_pb_message(msg)
-    }
-
     fn dkg_contract(&self) -> &AccountId {
         &self.network.contracts.dkg.address
-    }
-
-    async fn async_with_progress<F, T>(&self, fut: F) -> T
-    where
-        F: Future<Output = T>,
-    {
-        async_with_progress(fut, &self.progress.progress_bar).await
     }
 
     fn new(network: &'a LoadedNetwork) -> Result<Self, NetworkManagerError> {

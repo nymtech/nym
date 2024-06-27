@@ -14,6 +14,39 @@ use std::time::{Duration, Instant};
 use tokio::pin;
 use tokio::time::interval;
 
+// struct Ctx<'a, T> {
+//     progress: ProgressTracker,
+//     network: LoadedNetwork<'a>,
+//     inner: T,
+// }
+
+pub(crate) trait ProgressCtx {
+    fn progress_tracker(&self) -> &ProgressTracker;
+
+    fn println<I: AsRef<str>>(&self, msg: I) {
+        self.progress_tracker().println(msg)
+    }
+
+    fn set_pb_prefix(&self, prefix: impl Into<Cow<'static, str>>) {
+        self.progress_tracker().set_pb_prefix(prefix)
+    }
+
+    fn set_pb_message(&self, msg: impl Into<Cow<'static, str>>) {
+        self.progress_tracker().set_pb_message(msg)
+    }
+
+    async fn async_with_progress<F, T>(&self, fut: F) -> T
+    where
+        F: Future<Output = T>,
+    {
+        async_with_progress(fut, &self.progress_tracker().progress_bar).await
+    }
+}
+
+// pub(crate) trait NetworkCtx {
+//     fn loaded_network(&self) -> &LoadedNetwork;
+// }
+
 #[derive(Serialize, Deserialize)]
 pub struct RunCommands(pub(crate) Vec<String>);
 

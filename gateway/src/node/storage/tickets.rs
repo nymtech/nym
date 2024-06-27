@@ -1,6 +1,7 @@
-// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::storage::models::{RedemptionProposal, VerifiedTicket};
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -174,6 +175,27 @@ impl TicketStorageManager {
         Ok(())
     }
 
+    pub(crate) async fn get_verified_tickets_with_sn(
+        &self,
+    ) -> Result<Vec<VerifiedTicket>, sqlx::Error> {
+        sqlx::query_as!(
+            VerifiedTicket,
+            r#"
+                SELECT t1.ticket_id, t2.serial_number
+                    FROM verified_tickets as t1
+                JOIN ticket_data as t2
+                    ON t1.ticket_id = t2.ticket_id
+                JOIN received_ticket as t3
+                    ON t1.ticket_id = t3.id
+
+                ORDER BY t3.received_at ASC
+                LIMIT 65535
+        "#
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+    }
+
     /// for each ticket in `verified_tickets` where the `ticket_id` is present in the provided iterator,
     /// set the associated `proposal_id` to the provided value.
     pub(crate) async fn insert_verified_tickets_proposal_id<I>(
@@ -244,5 +266,20 @@ impl TicketStorageManager {
         .execute(&self.connection_pool)
         .await?;
         Ok(())
+    }
+
+    pub(crate) async fn get_latest_redemption_proposal(
+        &self,
+    ) -> Result<Option<RedemptionProposal>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+                    SELECT proposal_id, created_at
+                    FROM redemption_proposals
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                "#,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 }

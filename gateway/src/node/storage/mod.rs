@@ -187,7 +187,7 @@ pub trait Storage: Send + Sync {
 
     async fn remove_verified_ticket_binary_data(&self, ticket_id: i64) -> Result<(), StorageError>;
 
-    async fn get_all_verified_tickets(&self) -> Result<Vec<VerifiedTicket>, StorageError>;
+    async fn get_all_verified_tickets_with_sn(&self) -> Result<Vec<VerifiedTicket>, StorageError>;
 
     async fn insert_redemption_proposal(
         &self,
@@ -429,10 +429,8 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn get_all_verified_tickets(&self) -> Result<Vec<VerifiedTicket>, StorageError> {
-        // MAKE SURE TO ORDER BY TIMESTAMP ASC WITH LIMIT 65535
-
-        todo!()
+    async fn get_all_verified_tickets_with_sn(&self) -> Result<Vec<VerifiedTicket>, StorageError> {
+        Ok(self.ticket_manager.get_verified_tickets_with_sn().await?)
     }
 
     async fn insert_redemption_proposal(
@@ -450,13 +448,16 @@ impl Storage for PersistentStorage {
 
         // 2. update all the associated tickets
         self.ticket_manager
-            .insert_verified_tickets_proposal_id(tickets.iter().map(|t| t.id), proposal_id as i64)
+            .insert_verified_tickets_proposal_id(
+                tickets.iter().map(|t| t.ticket_id),
+                proposal_id as i64,
+            )
             .await?;
         Ok(())
     }
 
     async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, StorageError> {
-        todo!()
+        Ok(self.ticket_manager.get_latest_redemption_proposal().await?)
     }
 
     async fn insert_received_ticket(

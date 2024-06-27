@@ -5,7 +5,7 @@ use crate::node::client_handling::websocket::connection_handler::ecash::error::E
 use crate::node::Storage;
 use crate::GatewayError;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
-use log::{error, trace};
+use log::{error, trace, warn};
 use nym_credentials_interface::VerificationKeyAuth;
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_validator_client::coconut::all_ecash_api_clients;
@@ -51,49 +51,21 @@ where
             return Err(EcashTicketError::UnavailableDkgContract.into());
         };
 
-        let mut epoch_data = BTreeMap::new();
+        let this = SharedState {
+            nyxd_client: Arc::new(RwLock::new(nyxd_client)),
+            address,
+            epoch_data: Arc::new(RwLock::new(BTreeMap::new())),
+            storage,
+        };
 
         // might as well obtain the data for the current epoch, if applicable
         if current_epoch.state.is_in_progress() {
-            // note: even though we're constructing clients here, we will NOT be making any network requests
-            let epoch_api_clients = all_ecash_api_clients(&nyxd_client, current_epoch.epoch_id)
-                .await
-                .map_err(EcashTicketError::from)?;
-            let threshold = nyxd_client.get_current_epoch_threshold().await?;
-
-            // SAFETY:
-            // if epoch state is in the 'in progress' state, it means the threshold value MUST HAVE
-            // been established. if it wasn't, there's an underlying issue with the DKG contract in which
-            // case we shouldn't continue anyway because here be dragons
-            #[allow(clippy::expect_used)]
-            let threshold = threshold.expect("unavailable threshold value") as usize;
-            if epoch_api_clients.len() < threshold {
-                return Err(EcashTicketError::NotEnoughNymAPIs {
-                    received: epoch_api_clients.len(),
-                    needed: threshold,
-                }
-                .into());
+            if let Err(err) = this.set_epoch_data(current_epoch.epoch_id).await {
+                warn!("failed to set initial epoch data: {err}")
             }
-            let aggregated_verification_key =
-                nym_credentials::aggregate_verification_keys(&epoch_api_clients)
-                    .map_err(EcashTicketError::from)?;
-
-            epoch_data.insert(
-                current_epoch.epoch_id,
-                EpochState {
-                    api_clients: epoch_api_clients,
-                    master_key: aggregated_verification_key,
-                    threshold: threshold as u64,
-                },
-            );
         }
 
-        Ok(SharedState {
-            nyxd_client: Arc::new(RwLock::new(nyxd_client)),
-            address,
-            epoch_data: Arc::new(RwLock::new(epoch_data)),
-            storage,
-        })
+        Ok(this)
     }
 
     fn created_redemption_proposal(&self, proposal: &ProposalResponse) -> bool {

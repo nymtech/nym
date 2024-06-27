@@ -50,7 +50,7 @@ impl From<Option<PersistedBandwidth>> for AvailableBandwidth {
 #[derive(FromRow)]
 pub struct VerifiedTicket {
     pub(crate) serial_number: Vec<u8>,
-    pub(crate) id: i64,
+    pub(crate) ticket_id: i64,
 }
 
 #[derive(FromRow)]

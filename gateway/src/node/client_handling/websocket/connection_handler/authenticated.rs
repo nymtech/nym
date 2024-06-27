@@ -317,7 +317,7 @@ where
         Ok(())
     }
 
-    async fn cryptographically_verify_credential(
+    async fn cryptographically_verify_ticket(
         &self,
         credential: &CredentialSpendingRequest,
     ) -> Result<(), RequestHandlingError> {
@@ -396,8 +396,7 @@ where
         self.check_local_db_for_double_spending(&serial_number)
             .await?;
 
-        self.cryptographically_verify_credential(&credential)
-            .await?;
+        self.cryptographically_verify_ticket(&credential).await?;
 
         let ticket_id = self.store_received_ticket(&credential, received_at).await?;
         self.async_verify_ticket(credential.data, ticket_id);

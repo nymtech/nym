@@ -179,6 +179,8 @@ where
             .inspect_err(|err| error!("reached seemingly impossible error! could not recover the redemption proposal id: {err}"))
             .map_err(|source| EcashTicketError::ProposalIdParsingFailure { source })?;
 
+        info!("created redemption proposal {proposal_id} to redeem {number_of_tickets} tickets");
+
         Ok(proposal_id)
     }
 
@@ -494,6 +496,11 @@ where
     ) -> Result<ProposalResult, EcashTicketError> {
         let proposal_id = pending.proposal_id;
 
+        info!(
+            "attempting to resolve pending redemption proposal {proposal_id} to redeem {} tickets",
+            pending.included_serial_numbers.len()
+        );
+
         // check if the proposal still needs more votes from the apis
         let result = self.try_finalize_proposal(proposal_id).await?;
         if !result.is_pending() {
@@ -609,13 +616,18 @@ where
             }
             (_, Some(on_chain)) => {
                 warn!("we seem to have crashed after creating proposal, but before persisting it onto disk!");
+
                 Some(on_chain)
             }
         };
 
         // technically we could have been just caching all of those serial numbers as we verify tickets,
         // but given how infrequently we call this, there's no point in wasting this memory
-        let verified_tickets = self.shared_state.storage.get_all_verified_tickets().await?;
+        let verified_tickets = self
+            .shared_state
+            .storage
+            .get_all_verified_tickets_with_sn()
+            .await?;
 
         if verified_tickets.len() < MINIMUM_REDEMPTION_TICKETS {
             info!("we only have {} verified tickets. there's no point in creating a redemption request yet.", verified_tickets.len());

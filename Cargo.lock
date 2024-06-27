@@ -4623,6 +4623,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "http 1.1.0",
+ "nym-bin-common",
  "reqwest 0.12.4",
  "serde",
  "serde_json",

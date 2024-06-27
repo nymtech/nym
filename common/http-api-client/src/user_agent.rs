@@ -4,6 +4,7 @@
 use std::fmt;
 
 use http::HeaderValue;
+use nym_bin_common::build_information::{BinaryBuildInformation, BinaryBuildInformationOwned};
 
 #[derive(Clone, Debug)]
 pub struct UserAgent {
@@ -39,5 +40,27 @@ impl TryFrom<UserAgent> for HeaderValue {
 
     fn try_from(user_agent: UserAgent) -> Result<Self, Self::Error> {
         HeaderValue::from_str(&user_agent.to_string())
+    }
+}
+
+impl From<BinaryBuildInformation> for UserAgent {
+    fn from(build_info: BinaryBuildInformation) -> Self {
+        UserAgent {
+            application: build_info.binary_name.to_string(),
+            platform: build_info.cargo_triple.to_string(),
+            version: build_info.build_version.to_string(),
+            git_commit: build_info.commit_sha.to_string(),
+        }
+    }
+}
+
+impl From<BinaryBuildInformationOwned> for UserAgent {
+    fn from(build_info: BinaryBuildInformationOwned) -> Self {
+        UserAgent {
+            application: build_info.binary_name,
+            platform: build_info.cargo_triple,
+            version: build_info.build_version,
+            git_commit: build_info.commit_sha,
+        }
     }
 }

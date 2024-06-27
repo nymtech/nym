@@ -15,7 +15,6 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_init::{
     initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
 };
-use nym_validator_client::UserAgent;
 use serde::Serialize;
 use std::fmt::Display;
 use std::fs;
@@ -115,14 +114,7 @@ impl Display for InitResults {
 pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
     eprintln!("Initialising client...");
 
-    let bin_info = nym_bin_common::bin_info_owned!();
-    let user_agent = UserAgent::new(
-        bin_info.binary_name,
-        bin_info.cargo_triple,
-        bin_info.build_version,
-        bin_info.commit_sha,
-    );
-
+    let user_agent = nym_bin_common::bin_info!().into();
     let output = args.output;
     let res = initialise_client::<CliNativeClient>(args, Some(user_agent)).await?;
 

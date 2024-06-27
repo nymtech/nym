@@ -519,7 +519,6 @@ where
     E: DeserializeOwned + Display,
 {
     let status = res.status();
-    dbg!(&status);
 
     if !allow_empty {
         if let Some(0) = res.content_length() {

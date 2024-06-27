@@ -27,10 +27,11 @@ impl UserAgent {
 
 impl fmt::Display for UserAgent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let abbreviated_commit = self.git_commit.chars().take(7).collect::<String>();
         write!(
             f,
             "{}/{}/{}/{}",
-            self.application, self.platform, self.version, self.git_commit
+            self.application, self.platform, self.version, abbreviated_commit
         )
     }
 }

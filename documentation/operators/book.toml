@@ -35,6 +35,7 @@ performance_validator = "http://validator.performance.nymte.ch/"
 performance_testing_release = "v2024.2-fast-and-furious-v2"
 # dependencies
 prometheus_latest_version = "v2.50.1"
+toc_page = "https://nymtech.net/terms-and-conditions/operators/v1.0.0"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"

@@ -107,6 +107,7 @@ impl SocketClient {
 
         let storage = self.initialise_storage().await?;
         let user_agent = nym_bin_common::bin_info!().into();
+        error!("JON: user_agent: {}", user_agent);
 
         let mut base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client)
             .with_user_agent(user_agent);

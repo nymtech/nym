@@ -50,11 +50,13 @@ On self-hosted machine it's a bit more tricky. In that case as an operator you m
 
 It's up to you as a node operator to ensure that your public and private IPs match up properly.
 
-### Logs Pruning
+### Pruning Logs
 
-Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up too much disk space or memory. Below are two scripts that can help you clean this up. 
+Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up too much disk space or memory. Below are two scripts that can help you clean this up.
 
+```admonish warning
 `rm` is a powerful tool, without an easy way of revoking. If you need to extract or backup anything, do it now. Make sure you understand what you removing before you execute these commands.
+```
 
 ```sh
 # I WANT TO SEE WHATS EATING ALL MY DISKSPACE
@@ -87,5 +89,3 @@ for snap in $(sudo snap list --all | awk '/disabled/{print $1, $3}'); do
     sudo snap remove $snap
 done
 ```
-
-

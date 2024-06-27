@@ -37,7 +37,7 @@ https://<NODE_DOMAIN>/api/v1/roles
 
 ## `node_api_check.py`
 
-To make this a bit easier, we made a CLI tool querying all viable API endpoints based on node `Identity Key` (further denoted as `<ID_KEY>`) called `node_api_check.py`. To diagnose your node performance, whether by yourself or by sharing an output in our [operator channel](https://matrix.to/#/#operators:nymtech.chat), this tool provides you with a quick overview of live data. We recommend to run this checker alongside [`nym_gateway_probe`](gateway-probe.md) to triage both performance and an actual routing.
+To make this a bit easier, we made a CLI tool querying all available API endpoints based on node `Identity Key` (further denoted as `<ID_KEY>`) called `node_api_check.py`. To diagnose your node performance, whether by yourself or by sharing an output in our [operator channel](https://matrix.to/#/#operators:nymtech.chat), this tool provides you with a quick overview of live data. We recommend to run this checker alongside [`nym_gateway_probe`](gateway-probe.md) to triage both performance and an actual routing.
 
 Besides querying any bonded node APIs, `nym_api_check` has a function counting all existing nodes in provided version.
 

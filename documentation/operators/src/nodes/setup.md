@@ -24,7 +24,7 @@ To run a new node, you can simply execute the `nym-node` command without any fla
 
 The most crucial aspect of running the node is specifying the `--mode`, which can be one of three: `mixnode`, `entry-gateway`, and `exit-gateway`.
 
-Currently `nym-node` binary enables to run only one `--mode` at a time. In the future the operators will be able to specify multiple modes within one `nym-node`. Our goal is to have as many nodes each running all the available modes enabled and let the Nym API to position the node according the network needs in the beginning of each epoch.
+Currently the `nym-node` binary can only be run in a single `--mode` at any one time. In the future however, operators will be able to specify multiple modes that a single `nym-node` binary can run. Our goal is to have as many nodes as possible enabling multiple modes, and allow the Nym API to position the node according the network's needs in the beginning of each epoch.
 
 Every `exit-gateway` mode is basically an `entry-gateway` with NR (Network Requester) and IPR (IP Packet Router) enabled. This means that every `exit-gateway` is automatically seen as an `entry-gateway` but not the opposite.
 
@@ -94,7 +94,7 @@ Some of the most useful flags and their explanation:
 
 ~~~admonish example collapsible=true title="Flags explanation:"
 - `--id <YOUR_ID>`: Local identifier of your node. This `<ID>` determines your config path located at `~/.nym/nym-nodes/<ID>/config/config.toml`, default value is `default-nym-node`
-- `--accept-operator-terms-and-conditions`:  Explicitly specify whether you agree with the terms and conditions of a nym node operator as defined at [nymtech.net/terms-and-conditions/operators/v1.0.0](https://nymtech.net/terms-and-conditions/operators/v1.0.0)
+- `--accept-operator-terms-and-conditions`:  Explicitly specify whether you agree with the terms and conditions of a nym node operator as defined at [nymtech.net/terms-and-conditions/operators/v1.0.0]({{toc_page}})
 - `--config-file <PATH>`: Used for the migrate command to indicate the location of the existing node config file. Default path is `~/.nym/nym-nodes/default-nym-node/config/config.toml`
 - `--deny-init`: Use this flag to prevent a new node from being initialized. It's recommended to use this after the first run to avoid accidental spinning up of a second node.
 - `--init-only`: Use this flag if you want to set up a node without starting it.
@@ -109,10 +109,10 @@ Some of the most useful flags and their explanation:
 ### Terms & Conditions
 
 ```admonish info
-From `nym-node` version `1.1.3` onward is required to accept [**Operators Terms & Conditions**]({{toc_page}}) in order to be part of the active set. Make sure to read them before you accept. 
+From `nym-node` version `1.1.3` onward is required to accept [**Operators Terms & Conditions**]({{toc_page}}) in order to be part of the active set. Make sure to read them before you add the flag.
 ```
 
-There has been a long ongoing discussion whether and how to apply Terms and Conditions for Nym network operators, with an aim to stay aligned with the philosophy of Free Software and provide legal defense for both node operators and Nym developers. To understand better the reasoning behind this decision, you can listen to the first [Nym Operator Town Hall](https://www.youtube.com/live/7hwb8bAZIuc?si=3mQ2ed7AyUA1SsCp&t=915) introducing the T&Cs or to [Operator AMA with CEO Harry Halpin](https://youtu.be/yIN-zYQw0I0?feature=shared) from June 4th, 2024, explaining pros and cons of T&Cs implementation.
+There has been a long ongoing discussion whether and how to apply Terms and Conditions for Nym network operators, with an aim to stay aligned with the philosophy of Free Software and provide legal defense for both node operators and Nym developers. To understand better the reasoning behind this decision, you can listen to the first [Nym Operator Town Hall](https://www.youtube.com/live/7hwb8bAZIuc?si=3mQ2ed7AyUA1SsCp&t=915) introducing the T&Cs or to [Operator AMA with CEO Harry Halpin](https://www.youtube.com/watch?v=yIN-zYQw0I0) from June 4th, 2024, explaining pros and cons of T&Cs implementation.
 
 Accepting T&Cs is done via an explicit flag `--accept-operator-terms-and-conditions` added to `nym-node run` command.
 
@@ -262,7 +262,7 @@ Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 ./nym-node migrate --config-file ~/.nym/gateways/<GATEWAY_ID>/config/config.toml gateway
 
 # initialise with the new nym-node config - entry-gateway
-./nym-node run --mode entry-gateway --id <NYM-NODE_ID> --accept-operator-terms-and-conditions  
+./nym-node run --mode entry-gateway --id <NYM-NODE_ID> --accept-operator-terms-and-conditions
 
 # or as exit-gateway
 ./nym-node run --id <NYM-NODE_ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled false

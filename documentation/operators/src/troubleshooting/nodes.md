@@ -307,7 +307,7 @@ In case your Gateway appeared on the [blacklist](https://validator.nymtech.net/a
 
 **What to do**
 
-Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To query all API endpoints of your node at once, you can run [Node API Check CLI](../testing/node-api-check.md). To see IPv4 and IPv6 routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](../testing/gateway-probe.md). 
+Begin with a sanity check by opening [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net) and check your node there. To query all API endpoints of your node at once, you can run [Node API Check CLI](../testing/node-api-check.md). To see IPv4 and IPv6 routing in real time (harbourmaster can have a cache up to 90 min), run [Gateway Probe CLI](../testing/gateway-probe.md).
 
 Then follow these steps:
 
@@ -317,7 +317,7 @@ Then follow these steps:
 4. [Check Gateway Connectivity](#check-gateway-connectivity)
 5. See logs of your Gateway and search [for errors](#nym-node-errors) - if you find any unusual one, you can ask in the [Element Node Operators](https://matrix.to/#/#operators:nymtech.chat) channel
   - If your logs show that your Node has `cover down: 0.00` that means that the embedded IPR and NR is not sending any cover traffic.
-6. [Check out if your `syslog`s](vps-isp.md#logs-pruning) aren't eating all your disk space and prune them
+6. [Check out if your `syslog`s](vps-isp.md#pruning-logs) aren't eating all your disk space and prune them
 7. When all problems are addressed: Restart the node/service (don't forget `systemctl daemon-reload`) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by `nym-api` and every positive response picks up your routing score.
 8. If your node doesn't pick up the routing score within 24h at all and it was running in `--mode exit-gateway`, run it as `--mode entry-gateway`. When your node is above 75% performance (past 24h), switch back to `--mode exit-gateway`.
 

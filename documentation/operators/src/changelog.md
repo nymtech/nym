@@ -52,7 +52,7 @@ This page displays a full list of all the changes during our release cycle from 
 ### Features
 
 - [Make embedded NR/IPR ignore performance of the Gateway](https://github.com/nymtech/nym/pull/4671): fixes bug in relation to scoring issue on nym-nodes operating as exit gateways failing to come online.
-- [Introduce a flag to accept Operators Terms and Conditions and exposed it via self-described API](https://github.com/nymtech/nym/pull/4647) 
+- [Introduce a flag to accept Operators Terms and Conditions and exposed it via self-described API](https://github.com/nymtech/nym/pull/4647)
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Verify that the `execute` function correctly checks if the `accept_operator_terms` flag is set.
 - Test that a warning is displayed when the `accept_operator_terms` flag is not set.
@@ -69,7 +69,7 @@ curl -s -X 'GET' 'http://18.171.251.41:8080/api/v1/auxiliary-details?output=json
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Use the latest release/chomp binary with nym-node and input a dodgy ip
 <img width="361" alt="image" src="https://github.com/nymtech/nym/assets/60836166/6f2210f9-90ec-48fb-932f-f325c701de09">
- 
+
 - Validation:
 <img width="1104" alt="image" src="https://github.com/nymtech/nym/assets/60836166/3bac221f-82f2-44cd-b8c0-6c599b0eb325">
 When restarting the node it complains within the service launch file
@@ -102,7 +102,7 @@ When restarting the node it complains within the service launch file
 - [Add generic wireguard private network routing](https://github.com/nymtech/nym/pull/4636): as defguard wireguard only allows for peer routing modifications, we will configure the entire wireguard private network to be routed to the wg device. Configuring per peer is also not desirable, as the interface doesn't allow removing routes, so unused ip routing won't be cleaned until gateway restart (and it would also pollute to routing table with a lot of rules when many peers are added).
 ~~~admonish example collapsible=true title='Testing steps performed'
 - This is a part of a bigger ticket, but initial testing has proven to shown that launching nym-nodes (entry and exit gateways) in WG enable mode to be working
- 
+
 *QA will use this template for the other related WG tickets in this release milestone.*
 ~~~
 - [Standarise `ContractBuildInformation` and add it to all contracts](https://github.com/nymtech/nym/pull/4631): Similarly to `cw2`, we're now saving `ContractBuildInformation` under a constant storage key, i.e. `b"contract_build_info"` that standarises the retrieval by nym-api.
@@ -110,18 +110,18 @@ When restarting the node it complains within the service launch file
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Use the latest release/chomp contracts and deploy these to QA
 - Use the `nym-api` to query for the results of these new contracts
- 
+
 ```sh
  curl -X 'GET' \
    'https://qa-nym-api.qa.nymte.ch/api/v1/network/nym-contracts-detailed' \
    -H 'accept: application/json'
 ```
-   
+
 - It returns a detailed view of the contracts and which branch they were built from, alongside rust versions and so forth.
 <img width="1257" alt="image" src="https://github.com/nymtech/nym/assets/60836166/b5711431-c2f6-44ee-bf02-b17e6c48c5ee">
 ~~~
 
-- [Update kernel peers on peer modification](https://github.com/nymtech/nym/pull/4622): 
+- [Update kernel peers on peer modification](https://github.com/nymtech/nym/pull/4622):
 ~~~admonish example collapsible=true title='Testing steps performed'
 - This is a part of a bigger ticket, but initial testing has proven to shown that launching nym-nodes (entry and exit gateways) in WG enable mode to be working.
 *QA will use this template for the other related WG tickets in this release milestone.*
@@ -133,7 +133,7 @@ When restarting the node it complains within the service launch file
 - [Purge name service and service provider directory contracts](https://github.com/nymtech/nym/pull/4603): this is a compiler assisted purge of the `nym-name-service` and `nym-service-provider-directory` contracts that were never deployed on mainnet, and will anyhow be superseded by the new mixnode directory that is being worked on.
 ~~~admonish example collapsible=true title='Testing steps performed'
 It works insofar that it compiles, we need to deploy and test this on non-mainnet before merging in
- 
+
 - Purge `nym-name-service` contract
 - Purge `nym-name-service-common`
 - Purge `nym-service-provider-directory` contract
@@ -151,18 +151,18 @@ Performed:
 ~~~admonish example collapsible=true title="Comments"
 This PR contains a test failure due to the update [here](https://github.com/nymtech/nym/blob/b4a0487a41375167b2f481c00917b957b9f89789/common/crypto/src/asymmetric/encryption/mod.rs#L353-L358)
 
-- This is due a change in `x25519-dalek` from `1.1.1` to `2`. 
-- Crypto operations should be identical, but the byte representation has changed (sphinx clamps at creation, x25519 clamps at use). This cannot be changed in the sphinx crate without breaking changes. 
-- There is a good chance that this failure doesn't impact anything else, but it has to be tested to see. 
+- This is due a change in `x25519-dalek` from `1.1.1` to `2`.
+- Crypto operations should be identical, but the byte representation has changed (sphinx clamps at creation, x25519 clamps at use). This cannot be changed in the sphinx crate without breaking changes.
+- There is a good chance that this failure doesn't impact anything else, but it has to be tested to see.
 - A mix of old and new clients with a mix of old and new mixnodes should do
 ~~~
 
 ### Bugfix
-- [Make sure nym-api can handle non-cw2 (or without detailed build info) compliant contracts](https://github.com/nymtech/nym/pull/4648): fixes the issue (even if some contracts aren't uploaded on chain it doesn't prohibit the api from working - caveat, the essential vesting and mixnet contract are required) 
+- [Make sure nym-api can handle non-cw2 (or without detailed build info) compliant contracts](https://github.com/nymtech/nym/pull/4648): fixes the issue (even if some contracts aren't uploaded on chain it doesn't prohibit the api from working - caveat, the essential vesting and mixnet contract are required)
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Use the latest release/chomp contracts and deploy these to QA
 - If the contract was not found, the API would complain of invalid contracts, thus not starting the rest of the operations of the API (network monitor / rewarding etc)
- 
+
  `Jun 11 16:27:34 qa-v2-nym-api bash[1352642]:  2024-06-11T16:27:34.551Z ERROR nym_api::nym_contract_cache::cache::refresher > Failed to refresh validator cache - Abci query failed with code 6 - address n14y2x8a60knc5jjfeztt84kw8x8l5pwdgnqg256v0p9v4p7t2q6eswxyusw: no such contract: unknown request`
 ~~~
 
@@ -170,7 +170,7 @@ This PR contains a test failure due to the update [here](https://github.com/nymt
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Use the latest release/chomp binary with nym-node and input a dodgy ip
 <img width="361" alt="image" src="https://github.com/nymtech/nym/assets/60836166/6f2210f9-90ec-48fb-932f-f325c701de09">
- 
+
 - Validation:
 <img width="1104" alt="image" src="https://github.com/nymtech/nym/assets/60836166/3bac221f-82f2-44cd-b8c0-6c599b0eb325">
 ~~~
@@ -183,12 +183,12 @@ This PR contains a test failure due to the update [here](https://github.com/nymt
 - Checked that `SocketState::Available` is set correctly when a connection is successfully established.
 ~~~
 
-- [Fix Cargo warnings](https://github.com/nymtech/nym/pull/4624): On every cargo command we have the set warnings:  
+- [Fix Cargo warnings](https://github.com/nymtech/nym/pull/4624): On every cargo command we have the set warnings:
 ~~~admonish example collapsible=true title="Cargo warnings"
-warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for ff, since `default-features` was not specified for `workspace.dependencies.ff`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for group, since `default-features` was not specified for `workspace.dependencies.group`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/client-libs/validator-client/Cargo.toml: `default-features` is ignored for bip32, since `default-features` was not specified for `workspace.dependencies.bip32`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/client-libs/validator-client/Cargo.toml: `default-features` is ignored for prost, since `default-features` was not specified for `workspace.dependencies.prost`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/credentials-interface/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/credentials/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for ff, since `default-features` was not specified for `workspace.dependencies.ff`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for group, since `default-features` was not specified for `workspace.dependencies.group`, this could become a hard error in the future.  
+warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for ff, since `default-features` was not specified for `workspace.dependencies.ff`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ignored for group, since `default-features` was not specified for `workspace.dependencies.group`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/client-libs/validator-client/Cargo.toml: `default-features` is ignored for bip32, since `default-features` was not specified for `workspace.dependencies.bip32`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/client-libs/validator-client/Cargo.toml: `default-features` is ignored for prost, since `default-features` was not specified for `workspace.dependencies.prost`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/credentials-interface/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/credentials/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for bls12_381, since `default-features` was not specified for `workspace.dependencies.bls12_381`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for ff, since `default-features` was not specified for `workspace.dependencies.ff`, this could become a hard error in the future warning: /home/alice/src/nym/nym/common/nymcoconut/Cargo.toml: `default-features` is ignored for group, since `default-features` was not specified for `workspace.dependencies.group`, this could become a hard error in the future.
 ~~~
-    - This PR adds `default-features = false` to the workspace dependencies to fix these. An alternative way would be to remove `default-features = false` in the crates, but we assume these were put there for a good reason. Also we might have other crates outside of the main workspace that depends on these crates having default features disabled. 
-    - We also have the warning `warning: profile package spec nym-wasm-sdk in profile release did not match any packages`  which we fix by commenting out the profile settings, since the crate is currently commented out in the workspace crate list. 
+    - This PR adds `default-features = false` to the workspace dependencies to fix these. An alternative way would be to remove `default-features = false` in the crates, but we assume these were put there for a good reason. Also we might have other crates outside of the main workspace that depends on these crates having default features disabled.
+    - We also have the warning `warning: profile package spec nym-wasm-sdk in profile release did not match any packages`  which we fix by commenting out the profile settings, since the crate is currently commented out in the workspace crate list.
 ~~~admonish example collapsible=true title='Testing steps performed'
 - All binaries have been built and deployed from this branch and no issues have surfaced.
 ~~~
@@ -197,13 +197,13 @@ warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ig
 
 - [New Release Cycle](release-cycle.md) introduced: a transparent release flow, including:
     - New environments
-    - Stable testnet 
+    - Stable testnet
     - [Testnet token faucet](https://nymtech.net/operators/sandbox.html#sandbox-token-faucet)
     - Flow [chart](release-cycle.md#release-flow)
 - [Sandbox testnet](sandbox.md) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
 - [Terms & Conditions flag](nodes/setup.md#terms--conditions)
 - [Node API Check CLI](testing/node-api-check.md)
-- [Pruning VPS `syslog` scripts](troubleshooting/vps-isp.md#logs-pruning)
+- [Pruning VPS `syslog` scripts](troubleshooting/vps-isp.md#pruning-logs)
 - [Black-xit: Exiting the blacklist](troubleshooting/nodes.md#my-gateway-is-blacklisted)
 
 ---

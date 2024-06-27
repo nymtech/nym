@@ -56,7 +56,7 @@ nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-topology = { path = "../common/topology" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format", "clap"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = [

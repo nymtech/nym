@@ -1,0 +1,12 @@
+packages:
+  - "dist/wasm/**"
+  - "dist/node/**"
+  - "dist/ts/**"
+  - "sdk/typescript/packages/mui-theme"
+  - "sdk/typescript/packages/react-components"
+  - "sdk/typescript/packages/validator-client"
+  - "ts-packages/*"
+  - "nym-wallet"
+  - "explorer-nextjs"
+  - "types"
+  - "clients/validator"

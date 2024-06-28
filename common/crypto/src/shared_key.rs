@@ -6,6 +6,8 @@ use crate::hkdf;
 use cipher::{Key, KeyIvInit, StreamCipher};
 use digest::crypto_common::BlockSizeUser;
 use digest::Digest;
+#[cfg(feature = "rand")]
+use rand::{CryptoRng, RngCore};
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};

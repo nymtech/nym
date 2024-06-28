@@ -146,6 +146,9 @@ pub enum EcashError {
     #[error("the internal dkg state for epoch {epoch_id} is missing - we might have joined mid exchange")]
     MissingDkgState { epoch_id: EpochId },
 
+    #[error("a new iteration of DKG is currently in progress. all ticket issuance is halted until that's completed")]
+    DkgInProgress,
+
     #[error(
         "the node index value for epoch {epoch_id} is not available - are you sure we are a dealer?"
     )]

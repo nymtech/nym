@@ -70,6 +70,9 @@ pub async fn post_blind_sign(
         return Err(EcashError::ExpirationDateTooLate);
     }
 
+    // see if we're not in the middle of new dkg
+    state.ensure_dkg_not_in_progress().await?;
+
     // check if we already issued a credential for this deposit
     let deposit_id = blind_sign_request_body.deposit_id;
     debug!(
@@ -431,6 +434,9 @@ pub async fn issued_credentials(
 pub async fn expiration_date_signatures(
     state: &RocketState<State>,
 ) -> Result<Json<PartialExpirationDateSignatureResponse>> {
+    // see if we're not in the middle of new dkg
+    state.ensure_dkg_not_in_progress().await?;
+
     let expiration_date_signatures = state.get_exp_date_signatures().await?;
 
     Ok(Json(PartialExpirationDateSignatureResponse::new(
@@ -443,6 +449,9 @@ pub async fn expiration_date_signatures_timestamp(
     timestamp: u64,
     state: &RocketState<State>,
 ) -> Result<Json<PartialExpirationDateSignatureResponse>> {
+    // see if we're not in the middle of new dkg
+    state.ensure_dkg_not_in_progress().await?;
+
     let expiration_date_signatures = state.get_exp_date_signatures_timestamp(timestamp).await?;
     Ok(Json(PartialExpirationDateSignatureResponse::new(
         &expiration_date_signatures,
@@ -453,6 +462,9 @@ pub async fn expiration_date_signatures_timestamp(
 pub async fn coin_indices_signatures(
     state: &RocketState<State>,
 ) -> Result<Json<PartialCoinIndicesSignatureResponse>> {
+    // see if we're not in the middle of new dkg
+    state.ensure_dkg_not_in_progress().await?;
+
     let coin_indices_signatures = state.get_coin_indices_signatures().await?;
     Ok(Json(PartialCoinIndicesSignatureResponse::new(
         &coin_indices_signatures,

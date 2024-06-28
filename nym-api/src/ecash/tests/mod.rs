@@ -1131,6 +1131,11 @@ impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
     async fn aggregated_verification_key(&self, _epoch_id: EpochId) -> Result<VerificationKeyAuth> {
         Ok(self.aggregated_verification_key.clone())
     }
+
+    async fn dkg_in_progress(&self) -> Result<bool> {
+        // deal with this later lol
+        Ok(false)
+    }
 }
 
 #[allow(dead_code)]

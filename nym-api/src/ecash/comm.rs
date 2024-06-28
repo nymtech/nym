@@ -13,24 +13,26 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Deref;
 use time::OffsetDateTime;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockWriteGuard};
 
 #[async_trait]
 pub trait APICommunicationChannel {
     async fn current_epoch(&self) -> Result<EpochId>;
     async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth>;
+
+    async fn dkg_in_progress(&self) -> Result<bool>;
 }
 
 struct CachedEpoch {
     valid_until: OffsetDateTime,
-    current_epoch_id: EpochId,
+    current_epoch: Epoch,
 }
 
 impl Default for CachedEpoch {
     fn default() -> Self {
         CachedEpoch {
             valid_until: OffsetDateTime::UNIX_EPOCH,
-            current_epoch_id: 0,
+            current_epoch: Epoch::default(),
         }
     }
 }
@@ -54,7 +56,7 @@ impl CachedEpoch {
         };
 
         self.valid_until = now + validity_duration;
-        self.current_epoch_id = epoch.epoch_id;
+        self.current_epoch = epoch;
 
         Ok(())
     }
@@ -75,18 +77,8 @@ impl QueryCommunicationChannel {
             cached_epoch: Default::default(),
         }
     }
-}
 
-#[async_trait]
-impl APICommunicationChannel for QueryCommunicationChannel {
-    async fn current_epoch(&self) -> Result<EpochId> {
-        let guard = self.cached_epoch.read().await;
-        if guard.is_valid() {
-            return Ok(guard.current_epoch_id);
-        }
-
-        // update cache
-        drop(guard);
+    async fn update_epoch_cache(&self) -> Result<RwLockWriteGuard<CachedEpoch>> {
         let mut guard = self.cached_epoch.write().await;
 
         let epoch = match self.nyxd_client.read().await.deref() {
@@ -95,8 +87,23 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         };
 
         guard.update(epoch).await?;
+        Ok(guard)
+    }
+}
 
-        return Ok(guard.current_epoch_id);
+#[async_trait]
+impl APICommunicationChannel for QueryCommunicationChannel {
+    async fn current_epoch(&self) -> Result<EpochId> {
+        let guard = self.cached_epoch.read().await;
+        if guard.is_valid() {
+            return Ok(guard.current_epoch.epoch_id);
+        }
+
+        // update cache
+        drop(guard);
+        let guard = self.update_epoch_cache().await?;
+
+        return Ok(guard.current_epoch.epoch_id);
     }
 
     async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth> {
@@ -115,5 +122,18 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         guard.insert(epoch_id, vk.clone());
 
         Ok(vk)
+    }
+
+    async fn dkg_in_progress(&self) -> Result<bool> {
+        let guard = self.cached_epoch.read().await;
+        if guard.is_valid() {
+            return Ok(!guard.current_epoch.state.is_in_progress());
+        }
+
+        // update cache
+        drop(guard);
+        let guard = self.update_epoch_cache().await?;
+
+        return Ok(!guard.current_epoch.state.is_in_progress());
     }
 }

@@ -83,6 +83,13 @@ impl State {
         }
     }
 
+    pub(crate) async fn ensure_dkg_not_in_progress(&self) -> Result<()> {
+        if self.comm_channel.dkg_in_progress().await? {
+            return Err(EcashError::DkgInProgress);
+        }
+        Ok(())
+    }
+
     /// Check if this nym-api has already issued a credential for the provided deposit id.
     /// If so, return it.
     pub async fn already_issued(&self, deposit_id: DepositId) -> Result<Option<BlindedSignature>> {

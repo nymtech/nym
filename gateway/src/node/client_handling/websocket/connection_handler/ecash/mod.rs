@@ -11,7 +11,7 @@ use log::error;
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::{CompactEcashError, NymPayInfo, VerificationKeyAuth};
 use nym_validator_client::nym_api::EpochId;
-use nym_validator_client::{DirectSigningHttpRpcNyxdClient, EcashApiClient};
+use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLockReadGuard};
 

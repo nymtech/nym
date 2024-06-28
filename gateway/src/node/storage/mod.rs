@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::client_handling::websocket::connection_handler::ecash::ClientTicket;
 use crate::node::storage::bandwidth::BandwidthManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
@@ -20,7 +21,7 @@ use time::OffsetDateTime;
 mod bandwidth;
 pub(crate) mod error;
 mod inboxes;
-mod models;
+pub(crate) mod models;
 mod shared_keys;
 mod tickets;
 
@@ -188,6 +189,10 @@ pub trait Storage: Send + Sync {
     async fn remove_verified_ticket_binary_data(&self, ticket_id: i64) -> Result<(), StorageError>;
 
     async fn get_all_verified_tickets_with_sn(&self) -> Result<Vec<VerifiedTicket>, StorageError>;
+    async fn get_all_proposed_tickets_with_sn(
+        &self,
+        proposal_id: u32,
+    ) -> Result<Vec<VerifiedTicket>, StorageError>;
 
     async fn insert_redemption_proposal(
         &self,
@@ -204,6 +209,12 @@ pub trait Storage: Send + Sync {
     ) -> Result<(), StorageError>;
 
     async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, StorageError>;
+
+    async fn get_all_unverified_tickets(&self) -> Result<Vec<ClientTicket>, StorageError>;
+    async fn get_all_unresolved_proposals(&self) -> Result<Vec<i64>, StorageError>;
+    async fn get_votes(&self, ticket_id: i64) -> Result<Vec<i64>, StorageError>;
+
+    async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -384,6 +395,43 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
+    async fn insert_epoch_signers(
+        &self,
+        epoch_id: i64,
+        signer_ids: Vec<i64>,
+    ) -> Result<(), StorageError> {
+        self.ticket_manager
+            .insert_ecash_signers(epoch_id, signer_ids)
+            .await?;
+        Ok(())
+    }
+
+    async fn insert_received_ticket(
+        &self,
+        client_address_bs58: String,
+        received_at: OffsetDateTime,
+        serial_number: Vec<u8>,
+        data: Vec<u8>,
+    ) -> Result<i64, StorageError> {
+        // this should be impossible to fail as we can't receive tickets from unauthenticated clients
+        let client_id = self
+            .bandwidth_manager
+            .get_client_id(&client_address_bs58)
+            .await?;
+
+        // technically if we crash between those 2 calls we'll have a bit of data inconsistency,
+        // but nothing too tragic. we just won't get paid for a single ticket
+        let ticket_id = self
+            .ticket_manager
+            .insert_new_ticket(client_id, received_at)
+            .await?;
+        self.ticket_manager
+            .insert_ticket_data(ticket_id, &serial_number, &data)
+            .await?;
+
+        Ok(ticket_id)
+    }
+
     async fn contains_ticket(&self, serial_number: &[u8]) -> Result<bool, StorageError> {
         Ok(self.ticket_manager.has_ticket_data(serial_number).await?)
     }
@@ -429,8 +477,28 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
+    async fn remove_verified_ticket_binary_data(&self, ticket_id: i64) -> Result<(), StorageError> {
+        self.ticket_manager
+            .remove_binary_ticket_data(ticket_id)
+            .await?;
+        Ok(())
+    }
+
     async fn get_all_verified_tickets_with_sn(&self) -> Result<Vec<VerifiedTicket>, StorageError> {
-        Ok(self.ticket_manager.get_verified_tickets_with_sn().await?)
+        Ok(self
+            .ticket_manager
+            .get_all_verified_tickets_with_sn()
+            .await?)
+    }
+
+    async fn get_all_proposed_tickets_with_sn(
+        &self,
+        proposal_id: u32,
+    ) -> Result<Vec<VerifiedTicket>, StorageError> {
+        Ok(self
+            .ticket_manager
+            .get_all_proposed_tickets_with_sn(proposal_id as i64)
+            .await?)
     }
 
     async fn insert_redemption_proposal(
@@ -452,43 +520,6 @@ impl Storage for PersistentStorage {
                 tickets.iter().map(|t| t.ticket_id),
                 proposal_id as i64,
             )
-            .await?;
-        Ok(())
-    }
-
-    async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, StorageError> {
-        Ok(self.ticket_manager.get_latest_redemption_proposal().await?)
-    }
-
-    async fn insert_received_ticket(
-        &self,
-        client_address_bs58: String,
-        received_at: OffsetDateTime,
-        serial_number: Vec<u8>,
-        data: Vec<u8>,
-    ) -> Result<i64, StorageError> {
-        // this should be impossible to fail as we can't receive tickets from unauthenticated clients
-        let client_id = self
-            .bandwidth_manager
-            .get_client_id(&client_address_bs58)
-            .await?;
-
-        // technically if we crash between those 2 calls we'll have a bit of data inconsistency,
-        // but nothing too tragic. we just won't get paid for a single ticket
-        let ticket_id = self
-            .ticket_manager
-            .insert_new_ticket(client_id, received_at)
-            .await?;
-        self.ticket_manager
-            .insert_ticket_data(ticket_id, &serial_number, &data)
-            .await?;
-
-        Ok(ticket_id)
-    }
-
-    async fn remove_verified_ticket_binary_data(&self, ticket_id: i64) -> Result<(), StorageError> {
-        self.ticket_manager
-            .remove_binary_ticket_data(ticket_id)
             .await?;
         Ok(())
     }
@@ -517,14 +548,34 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn insert_epoch_signers(
-        &self,
-        epoch_id: i64,
-        signer_ids: Vec<i64>,
-    ) -> Result<(), StorageError> {
+    async fn latest_proposal(&self) -> Result<Option<RedemptionProposal>, StorageError> {
+        Ok(self.ticket_manager.get_latest_redemption_proposal().await?)
+    }
+
+    async fn get_all_unverified_tickets(&self) -> Result<Vec<ClientTicket>, StorageError> {
         self.ticket_manager
-            .insert_ecash_signers(epoch_id, signer_ids)
-            .await?;
-        Ok(())
+            .get_unverified_tickets()
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect()
+    }
+
+    async fn get_all_unresolved_proposals(&self) -> Result<Vec<i64>, StorageError> {
+        Ok(self
+            .ticket_manager
+            .get_all_unresolved_redemption_proposal_ids()
+            .await?)
+    }
+
+    async fn get_votes(&self, ticket_id: i64) -> Result<Vec<i64>, StorageError> {
+        Ok(self
+            .ticket_manager
+            .get_verification_votes(ticket_id)
+            .await?)
+    }
+
+    async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, StorageError> {
+        Ok(self.ticket_manager.get_epoch_signers(epoch_id).await?)
     }
 }

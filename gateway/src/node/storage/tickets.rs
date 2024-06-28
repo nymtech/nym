@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::storage::models::{RedemptionProposal, VerifiedTicket};
+use crate::node::storage::models::{RedemptionProposal, UnverifiedTicketData, VerifiedTicket};
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -175,7 +175,52 @@ impl TicketStorageManager {
         Ok(())
     }
 
-    pub(crate) async fn get_verified_tickets_with_sn(
+    /// Attempts to retrieve ticket data for all tickets that that are **NOT** present in `verified_tickets` table
+    pub(crate) async fn get_unverified_tickets(
+        &self,
+    ) -> Result<Vec<UnverifiedTicketData>, sqlx::Error> {
+        // force not nullable `data` field as we explicitly ensured this via the query
+        sqlx::query_as!(
+            UnverifiedTicketData,
+            r#"
+                SELECT t1.ticket_id, t1.data as "data!"
+                    FROM ticket_data as t1
+                LEFT JOIN verified_tickets as t2
+                ON t1.ticket_id = t2.ticket_id
+                WHERE
+                    t2.ticket_id IS NULL
+                AND
+                    t1.data IS NOT NULL
+        "#
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+    }
+
+    pub(crate) async fn get_epoch_signers(&self, epoch_id: i64) -> Result<Vec<i64>, sqlx::Error> {
+        sqlx::query!(
+            "SELECT signer_id FROM ecash_signer WHERE epoch_id = ?",
+            epoch_id
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+        .map(|records| records.into_iter().map(|r| r.signer_id).collect())
+    }
+
+    pub(crate) async fn get_verification_votes(
+        &self,
+        ticket_id: i64,
+    ) -> Result<Vec<i64>, sqlx::Error> {
+        sqlx::query!(
+            "SELECT signer_id FROM ticket_verification WHERE ticket_id = ?",
+            ticket_id
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+        .map(|records| records.into_iter().map(|r| r.signer_id).collect())
+    }
+
+    pub(crate) async fn get_all_verified_tickets_with_sn(
         &self,
     ) -> Result<Vec<VerifiedTicket>, sqlx::Error> {
         sqlx::query_as!(
@@ -191,6 +236,25 @@ impl TicketStorageManager {
                 ORDER BY t3.received_at ASC
                 LIMIT 65535
         "#
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+    }
+
+    pub(crate) async fn get_all_proposed_tickets_with_sn(
+        &self,
+        proposal_id: i64,
+    ) -> Result<Vec<VerifiedTicket>, sqlx::Error> {
+        sqlx::query_as!(
+            VerifiedTicket,
+            r#"
+                SELECT t1.ticket_id, t2.serial_number
+                    FROM verified_tickets as t1
+                JOIN ticket_data as t2
+                    ON t1.ticket_id = t2.ticket_id
+                WHERE t1.proposal_id = ?
+        "#,
+            proposal_id
         )
         .fetch_all(&self.connection_pool)
         .await
@@ -281,5 +345,14 @@ impl TicketStorageManager {
         )
         .fetch_optional(&self.connection_pool)
         .await
+    }
+
+    pub(crate) async fn get_all_unresolved_redemption_proposal_ids(
+        &self,
+    ) -> Result<Vec<i64>, sqlx::Error> {
+        sqlx::query!("SELECT proposal_id FROM redemption_proposals WHERE resolved_at IS NULL")
+            .fetch_all(&self.connection_pool)
+            .await
+            .map(|records| records.into_iter().map(|r| r.proposal_id).collect())
     }
 }

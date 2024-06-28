@@ -14,12 +14,13 @@ use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_credentials_interface::CredentialSpendingData;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
-    EcashSigningClient, MultisigQueryClient, MultisigSigningClient,
+    EcashSigningClient, MultisigQueryClient, MultisigSigningClient, PagedMultisigQueryClient,
 };
 use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
 use nym_validator_client::nyxd::cw3::Status;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
+use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use time::OffsetDateTime;
@@ -134,17 +135,134 @@ impl<St> CredentialHandler<St>
 where
     St: Storage + Clone + 'static,
 {
+    async fn rebuild_pending_tickets(
+        shared_state: &SharedState<St>,
+    ) -> Result<Vec<PendingVerification>, EcashTicketError> {
+        // 1. get all tickets that were not fully verified
+        let unverified = shared_state.storage.get_all_unverified_tickets().await?;
+        let mut pending = Vec::with_capacity(unverified.len());
+
+        // a lookup of ids for signers for given epoch
+        let mut apis_lookup = HashMap::new();
+
+        // 2. for each of them, reconstruct missing votes
+        for ticket in unverified {
+            let epoch = ticket.spending_data.epoch_id;
+            assert!(epoch <= i64::MAX as u64);
+            let signers = match apis_lookup.get(&epoch) {
+                Some(signers) => signers,
+                None => {
+                    // get all signers for given epoch
+                    let signers = shared_state.storage.get_signers(epoch as i64).await?;
+                    apis_lookup.insert(epoch, signers);
+
+                    // safety: we just inserted that entry
+                    #[allow(clippy::unwrap_used)]
+                    apis_lookup.get(&epoch).unwrap()
+                }
+            };
+            // get all votes the ticket received
+            let votes = shared_state
+                .storage
+                .get_votes(ticket.ticket_id)
+                .await?
+                .into_iter()
+                .collect::<HashSet<_>>();
+            let mut missing_votes = Vec::new();
+            for signer in signers {
+                // for each signer, check if they have actually voted; if not, that's the missing guy
+                if !votes.contains(signer) {
+                    missing_votes.push(*signer as u64)
+                }
+            }
+            pending.push(PendingVerification {
+                ticket,
+                pending: missing_votes,
+            })
+        }
+        Ok(pending)
+    }
+
+    async fn rebuild_pending_votes(
+        shared_state: &SharedState<St>,
+    ) -> Result<Vec<PendingRedemptionVote>, EcashTicketError> {
+        // 1. get all tickets that were not fully verified
+        let unverified = shared_state.storage.get_all_unresolved_proposals().await?;
+        let mut pending = Vec::with_capacity(unverified.len());
+
+        let epoch_id = shared_state.current_epoch_id().await?;
+        let apis = shared_state
+            .api_clients(epoch_id)
+            .await?
+            .iter()
+            .map(|s| (s.cosmos_address.to_string(), s.node_id))
+            .collect::<Vec<_>>();
+
+        for proposal_id in unverified {
+            // get all of the votes
+            let votes = shared_state
+                .start_query()
+                .await
+                .get_all_votes(proposal_id as u64)
+                .await
+                .map_err(EcashTicketError::chain_query_failure)?
+                .into_iter()
+                .map(|v| v.voter)
+                .collect::<HashSet<_>>();
+
+            let mut missing_votes = Vec::new();
+
+            // see who hasn't voted
+            for (api_address, api_id) in &apis {
+                // for each signer, check if they have actually voted; if not, that's the missing guy
+                if !votes.contains(api_address) {
+                    missing_votes.push(*api_id)
+                }
+            }
+
+            // attempt to rebuild SN and digest from the proposal info + storage data
+            let proposal_info = shared_state
+                .start_query()
+                .await
+                .query_proposal(proposal_id as u64)
+                .await
+                .map_err(EcashTicketError::chain_query_failure)?;
+
+            let tickets = shared_state
+                .storage
+                .get_all_proposed_tickets_with_sn(proposal_id as u32)
+                .await?;
+            let digest =
+                BatchRedeemTicketsBody::make_digest(tickets.iter().map(|t| &t.serial_number));
+            let encoded_digest = bs58::encode(&digest).into_string();
+            if encoded_digest != proposal_info.description {
+                error!("the lost proposal {proposal_id} does not have a matching digest!");
+                continue;
+            }
+
+            pending.push(PendingRedemptionVote {
+                proposal_id: proposal_id as u64,
+                digest,
+                included_serial_numbers: tickets.into_iter().map(|t| t.serial_number).collect(),
+                epoch_id,
+                pending: missing_votes,
+            })
+        }
+
+        Ok(pending)
+    }
+
     pub(crate) async fn new(
         ticket_receiver: UnboundedReceiver<ClientTicket>,
         shared_state: SharedState<St>,
     ) -> Result<Self, GatewayError> {
-        // todo: on startup read pending credentials and api responses from the storage
-        let mut pending_tickets = Vec::new();
+        // on startup read pending credentials and api responses from the storage
+        let pending_tickets = Self::rebuild_pending_tickets(&shared_state).await?;
 
-        // todo: on startup read pending proposals from the storage
+        // on startup read pending proposals from the storage
         // then reconstruct the votes by querying the multisig contract for votes on those proposals
         // digest from the description and count from the message
-        let mut pending_redemptions = Vec::new();
+        let pending_redemptions = Self::rebuild_pending_votes(&shared_state).await?;
 
         Ok(CredentialHandler {
             ticket_receiver,
@@ -750,8 +868,8 @@ where
                     // this will help us determine if we need to parallelize it
                     match queued_up {
                         n if n < 5 => debug!("there are {n} tickets queued up that need processing"),
-                        n if n >= 5 && n < 20 => info!("there are {n} tickets queued up that need processing"),
-                        n if n >= 20 && n < 50 => warn!("there are {n} tickets queued up that need processing!"),
+                        n if (5..20).contains(&n) => info!("there are {n} tickets queued up that need processing"),
+                        n if (20..50).contains(&n) => warn!("there are {n} tickets queued up that need processing!"),
                         n => error!("there are {n} tickets queued up that need processing!"),
                     }
 

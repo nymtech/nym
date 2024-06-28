@@ -13,4 +13,7 @@ pub enum StorageError {
 
     #[error("Somehow stored data is incorrect: {0}")]
     DataCorruption(String),
+
+    #[error("the stored data associated with ticket {ticket_id} is malformed!")]
+    MalformedStoredTicketData { ticket_id: i64 },
 }

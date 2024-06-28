@@ -7,7 +7,7 @@ use crate::ecash::storage::models::{
 use crate::support::storage::manager::StorageManager;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_contract_common::deposit::DepositId;
-use sqlx::{Error, Row};
+use sqlx::Error;
 use thiserror::Error;
 use time::OffsetDateTime;
 
@@ -101,16 +101,6 @@ pub trait CoconutStorageManagerExt {
         &self,
         gateway_address: &str,
     ) -> Result<Option<TicketProvider>, sqlx::Error>;
-
-    async fn get_ticket_provider_id(
-        &self,
-        gateway_address: &str,
-    ) -> Result<Option<i64>, sqlx::Error>;
-
-    async fn get_last_batch_verification(
-        &self,
-        gateway_address: &str,
-    ) -> Result<Option<OffsetDateTime>, sqlx::Error>;
 
     async fn insert_verified_ticket(
         &self,
@@ -403,33 +393,6 @@ impl CoconutStorageManagerExt for StorageManager {
             .fetch_optional(&self.connection_pool)
             .await
     }
-
-    async fn get_ticket_provider_id(
-        &self,
-        gateway_address: &str,
-    ) -> Result<Option<i64>, sqlx::Error> {
-        sqlx::query!(
-            "SELECT id FROM ticket_providers WHERE gateway_address = ?",
-            gateway_address
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
-        .map(|maybe_record| maybe_record.map(|r| r.id))
-    }
-
-    async fn get_last_batch_verification(
-        &self,
-        gateway_address: &str,
-    ) -> Result<Option<OffsetDateTime>, sqlx::Error> {
-        sqlx::query(
-            "SELECT last_batch_verification FROM ticket_providers WHERE gateway_address = ?",
-        )
-        .bind(gateway_address)
-        .fetch_one(&self.connection_pool)
-        .await
-        .map(|maybe_record| maybe_record.get("last_batch_verification"))
-    }
-
     async fn insert_verified_ticket(
         &self,
         provider_id: i64,

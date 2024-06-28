@@ -36,8 +36,6 @@ pub trait Client {
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>>;
 
     async fn get_vote(&self, proposal_id: u64, voter: String) -> Result<VoteResponse>;
-
-    async fn propose_for_blacklist(&self, public_key: String) -> Result<ExecuteResult>;
     async fn get_blacklisted_account(
         &self,
         public_key: String,

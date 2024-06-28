@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::helpers::{accepted_vote_err, CoinIndexSignatureCache, ExpirationDateSignatureCache};
+use super::helpers::{CoinIndexSignatureCache, ExpirationDateSignatureCache};
 use crate::ecash::client::Client as LocalClient;
 use crate::ecash::comm::APICommunicationChannel;
 use crate::ecash::deposit::validate_deposit;
@@ -28,7 +28,6 @@ use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::{Deposit, DepositId};
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
-use nym_validator_client::nyxd::cosmwasm_client::logs::find_proposal_id;
 use nym_validator_client::nyxd::AccountId;
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -225,84 +224,34 @@ impl State {
 
         Ok(())
     }
-    //
-    // pub(crate) async fn accept_and_execute_proposal(
-    //     &self,
-    //     proposal_id: u64,
-    //     expected_digest: Vec<u8>,
-    // ) -> Result<()> {
-    //     let proposal = self.client.get_proposal(proposal_id).await?;
-    //     let encoded_digest = bs58::encode(&expected_digest).into_string();
-    //
-    //     // Proposal description is the blinded serial number
-    //     if encoded_digest != proposal.description {
-    //         return Err(EcashError::IncorrectProposal {
-    //             reason: String::from("incorrect blinded serial number in description"),
-    //         });
-    //     }
-    //     if !check_proposal(proposal.msgs) {
-    //         return Err(EcashError::IncorrectProposal {
-    //             reason: String::from("action is not to spend_credential"),
-    //         });
-    //     }
+
+    // pub(crate) async fn blacklist(&self, public_key: String) {
     //     let client = self.client.clone();
     //     tokio::spawn(async move {
-    //         let ret = client.vote_proposal(proposal_id, true, None).await;
-    //         //SW NOTE: What to do if this fails
-    //         if let Err(err) = accepted_vote_err(ret) {
-    //             log::debug!("failed to vote on proposal {proposal_id}: {err}");
-    //         }
+    //         //SW TODO error handling with one log at the end
+    //         let response = client.propose_for_blacklist(public_key.clone()).await?;
+    //         let proposal_id = find_proposal_id(&response.logs)?;
     //
-    //         if let Ok(proposal) = client.get_proposal(proposal_id).await {
-    //             if proposal.status == Status::Passed {
-    //                 //SW NOTE: What to do if this fails
-    //                 if let Err(err) = client.execute_proposal(proposal_id).await {
-    //                     log::debug!("failed to execute proposal {proposal_id}: {err}");
+    //         let proposal = client.get_proposal(proposal_id).await?;
+    //         if proposal.status == Status::Open {
+    //             if public_key != proposal.description {
+    //                 return Err(EcashError::IncorrectProposal {
+    //                     reason: String::from("incorrect publickey in description"),
+    //                 });
+    //             }
+    //             let ret = client.vote_proposal(proposal_id, true, None).await;
+    //
+    //             accepted_vote_err(ret)?;
+    //
+    //             if let Ok(proposal) = client.get_proposal(proposal_id).await {
+    //                 if proposal.status == Status::Passed {
+    //                     client.execute_proposal(proposal_id).await?
     //                 }
     //             }
     //         }
+    //         Ok(())
     //     });
-    //
-    //     Ok(())
     // }
-
-    pub(crate) async fn refuse_proposal(&self, proposal_id: u64) {
-        let client = self.client.clone();
-        tokio::spawn(async move {
-            //whatever is in the proposal, we can refuse it anyway
-            if let Err(err) = client.vote_proposal(proposal_id, false, None).await {
-                log::debug!("failed to refuse proposal {proposal_id}: {err}")
-            }
-        });
-    }
-
-    pub(crate) async fn blacklist(&self, public_key: String) {
-        let client = self.client.clone();
-        tokio::spawn(async move {
-            //SW TODO error handling with one log at the end
-            let response = client.propose_for_blacklist(public_key.clone()).await?;
-            let proposal_id = find_proposal_id(&response.logs)?;
-
-            let proposal = client.get_proposal(proposal_id).await?;
-            if proposal.status == Status::Open {
-                if public_key != proposal.description {
-                    return Err(EcashError::IncorrectProposal {
-                        reason: String::from("incorrect publickey in description"),
-                    });
-                }
-                let ret = client.vote_proposal(proposal_id, true, None).await;
-
-                accepted_vote_err(ret)?;
-
-                if let Ok(proposal) = client.get_proposal(proposal_id).await {
-                    if proposal.status == Status::Passed {
-                        client.execute_proposal(proposal_id).await?
-                    }
-                }
-            }
-            Ok(())
-        });
-    }
 
     pub(crate) async fn sign_and_store_credential(
         &self,
@@ -483,6 +432,7 @@ impl State {
         )?)
     }
 
+    #[allow(dead_code)]
     pub async fn check_bloomfilter(&self, serial_number_bs58: &String) -> bool {
         self.spent_credentials
             .read()

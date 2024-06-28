@@ -75,7 +75,7 @@ where
         let CosmosMsg::Wasm(WasmMsg::Execute { msg, .. }) = msg else {
             return false;
         };
-        let Ok(ExecuteMsg::RedeemTickets { gw, .. }) = from_binary(&msg) else {
+        let Ok(ExecuteMsg::RedeemTickets { gw, .. }) = from_binary(msg) else {
             return false;
         };
 

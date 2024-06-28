@@ -36,9 +36,6 @@ use nym_crypto::asymmetric::identity;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
-use nym_ecash_contract_common::redeem_credential::{
-    EcashSpentCredential, EcashSpentCredentialResponse,
-};
 use nym_validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES,
 };
@@ -272,15 +269,15 @@ pub(crate) struct FakeMultisigContractState {
 }
 
 impl FakeMultisigContractState {
+    #[allow(dead_code)]
     pub(crate) fn reset_votes(&mut self) {
         self.votes = HashMap::new()
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct FakeBandwidthContractState {
+pub(crate) struct FakeEcashContractState {
     pub(crate) address: Addr,
-    pub(crate) spent_credentials: HashMap<String, EcashSpentCredential>,
     pub(crate) deposits: HashMap<DepositId, Deposit>,
     pub(crate) blacklist: HashMap<String, Blacklisting>,
 }
@@ -306,7 +303,7 @@ pub(crate) struct FakeChainState {
     pub(crate) dkg_contract: FakeDkgContractState,
     pub(crate) group_contract: FakeGroupContractState,
     pub(crate) multisig_contract: FakeMultisigContractState,
-    pub(crate) bandwidth_contract: FakeBandwidthContractState,
+    pub(crate) ecash_contract: FakeEcashContractState,
 }
 
 impl Default for FakeChainState {
@@ -317,7 +314,7 @@ impl Default for FakeChainState {
             Addr::unchecked("n1pd7kfgvr5tpcv0xnlv46c4jsq9jg2r799xxrcwqdm4l2jhq2pjwqrmz5ju");
         let dkg_contract =
             Addr::unchecked("n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a");
-        let bandwidth_contract =
+        let ecash_contract =
             Addr::unchecked("n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l");
 
         FakeChainState {
@@ -351,9 +348,8 @@ impl Default for FakeChainState {
                 proposals: Default::default(),
                 votes: Default::default(),
             },
-            bandwidth_contract: FakeBandwidthContractState {
-                address: bandwidth_contract,
-                spent_credentials: Default::default(),
+            ecash_contract: FakeEcashContractState {
+                address: ecash_contract,
                 deposits: Default::default(),
                 blacklist: Default::default(),
             },
@@ -382,6 +378,7 @@ impl FakeChainState {
         self.group_contract.add_member(address, weight)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn reset_votes(&mut self) {
         self.multisig_contract.reset_votes()
     }
@@ -431,7 +428,7 @@ impl FakeChainState {
         if contract == &self.multisig_contract.address {
             unimplemented!("multisig contract exec")
         }
-        if contract == &self.bandwidth_contract.address {
+        if contract == &self.ecash_contract.address {
             unimplemented!("bandwidth contract exec")
         }
         if contract == self.dkg_contract.address.as_ref() {
@@ -523,7 +520,7 @@ impl super::client::Client for DummyClient {
             .state
             .lock()
             .unwrap()
-            .bandwidth_contract
+            .ecash_contract
             .deposits
             .get(&deposit_id)
             .cloned();
@@ -578,25 +575,6 @@ impl super::client::Client for DummyClient {
         Ok(VoteResponse { vote })
     }
 
-    async fn get_spent_credential(
-        &self,
-        blinded_serial_number: String,
-    ) -> Result<EcashSpentCredentialResponse> {
-        Ok(EcashSpentCredentialResponse::new(
-            self.state
-                .lock()
-                .unwrap()
-                .bandwidth_contract
-                .spent_credentials
-                .get(&blinded_serial_number)
-                .cloned(),
-        ))
-    }
-
-    async fn propose_for_blacklist(&self, _public_key: String) -> Result<ExecuteResult> {
-        todo!()
-    }
-
     async fn get_blacklisted_account(
         &self,
         public_key: String,
@@ -605,7 +583,7 @@ impl super::client::Client for DummyClient {
             self.state
                 .lock()
                 .unwrap()
-                .bandwidth_contract
+                .ecash_contract
                 .blacklist
                 .get(&public_key)
                 .cloned(),
@@ -1244,7 +1222,18 @@ impl TestFixture {
             chain_state.clone(),
         );
 
+        let ecash_contract = chain_state
+            .lock()
+            .unwrap()
+            .ecash_contract
+            .address
+            .clone()
+            .as_str()
+            .parse()
+            .unwrap();
+
         let rocket = rocket::build().attach(crate::ecash::stage(
+            ecash_contract,
             nyxd_client,
             identity,
             staged_key_pair,
@@ -1281,7 +1270,7 @@ impl TestFixture {
                 .to_base58_string(),
         };
         let existing = chain
-            .bandwidth_contract
+            .ecash_contract
             .deposits
             .insert(voucher_data.deposit_id(), deposit);
         assert!(existing.is_none());
@@ -1339,14 +1328,7 @@ impl TestFixture {
 mod credential_tests {
     use super::*;
     use crate::ecash::tests::helpers::init_chain;
-    use nym_api_requests::coconut::{
-        models::VerifyEcashCredentialResponse, VerifyEcashCredentialBody,
-    };
-    use nym_compact_ecash::{
-        ecash_parameters, issue,
-        tests::helpers::{generate_coin_indices_signatures, generate_expiration_date_signatures},
-        ttp_keygen, PayInfo,
-    };
+    use nym_compact_ecash::ttp_keygen;
 
     #[tokio::test]
     async fn already_issued() {
@@ -1428,6 +1410,9 @@ mod credential_tests {
         staged_key_pair.validate();
 
         let state = State::new(
+            "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l"
+                .parse()
+                .unwrap(),
             nyxd_client,
             identity,
             staged_key_pair,
@@ -1549,7 +1534,7 @@ mod credential_tests {
         chain
             .lock()
             .unwrap()
-            .bandwidth_contract
+            .ecash_contract
             .deposits
             .insert(voucher.deposit_id(), deposit);
 
@@ -1569,6 +1554,9 @@ mod credential_tests {
         staged_key_pair.validate();
 
         let rocket = rocket::build().attach(crate::ecash::stage(
+            "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l"
+                .parse()
+                .unwrap(),
             nyxd_client,
             nym_api_identity,
             staged_key_pair,

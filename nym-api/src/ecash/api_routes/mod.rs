@@ -28,6 +28,7 @@ use std::collections::HashSet;
 use std::ops::Deref;
 use time::OffsetDateTime;
 
+pub(crate) mod aggregation;
 mod helpers;
 
 #[get("/free-pass-nonce")]
@@ -206,86 +207,6 @@ pub async fn verify_ticket(
 
     Ok(Json(EcashTicketVerificationResponse { verified: Ok(()) }))
 }
-//
-// #[post("/verify-offline-credential", data = "<verify_credential_body>")]
-// pub async fn verify_offline_credential(
-//     verify_credential_body: Json<VerifyEcashCredentialBody>,
-//     state: &RocketState<State>,
-// ) -> Result<Json<VerifyEcashCredentialResponse>> {
-//     let credential_data = &verify_credential_body.credential;
-//     let proposal_id = verify_credential_body.proposal_id;
-//
-//     //SW NOTE: Offline scheme, but we still need some check on that, so that client and gateway can't collude and send expired credentials.
-//     //Let's allow the current day (obviously), and the day before (for late sender or around midnight)
-//     let today_date = ecash_today();
-//     let yesterday_date = today_date - Duration::DAY;
-//     if today_date != credential_data.spend_date && yesterday_date != credential_data.spend_date {
-//         state.refuse_proposal(proposal_id).await;
-//         return Ok(Json(VerifyEcashCredentialResponse::SubmittedTooLate {
-//             expected_until: yesterday_date,
-//             actual: credential_data.spend_date,
-//         }));
-//     }
-//
-//     //actual double spend detection with storage
-//     if let Some(previous_payment) = state
-//         .get_credential_by_sn(credential_data.serial_number_b58())
-//         .await?
-//     {
-//         match nym_compact_ecash::identify::identify(
-//             &credential_data.payment,
-//             &previous_payment.payment,
-//             credential_data.pay_info,
-//             previous_payment.pay_info,
-//         ) {
-//             IdentifyResult::NotADuplicatePayment => {} //SW NOTE This should never happen, quick message?
-//             IdentifyResult::DuplicatePayInfo(_) => {
-//                 log::warn!("Identical payInfo");
-//                 state.refuse_proposal(proposal_id).await;
-//                 return Ok(Json(VerifyEcashCredentialResponse::AlreadySent));
-//             }
-//             IdentifyResult::DoubleSpendingPublicKeys(pub_key) => {
-//                 //Actual double spending
-//                 log::warn!(
-//                     "Double spending attempt for key {}",
-//                     pub_key.to_base58_string()
-//                 );
-//                 state.refuse_proposal(proposal_id).await;
-//                 state.blacklist(pub_key.to_base58_string()).await;
-//
-//                 return Ok(Json(VerifyEcashCredentialResponse::DoubleSpend));
-//             }
-//         }
-//     }
-//
-//     let epoch_id = credential_data.epoch_id;
-//     let verification_key = state.verification_key(epoch_id).await?;
-//
-//     if credential_data.verify(&verification_key).is_err() {
-//         state.refuse_proposal(proposal_id).await;
-//         return Ok(Json(VerifyEcashCredentialResponse::Refused));
-//     }
-//
-//     //add to bloom filter for fast dup detection
-//     state
-//         .update_bloomfilter(&credential_data.serial_number_b58())
-//         .await;
-//
-//     //store credential
-//     state
-//         .store_credential(
-//             &verify_credential_body.credential,
-//             &verify_credential_body.gateway_cosmos_addr,
-//             proposal_id,
-//         )
-//         .await?;
-//
-//     state
-//         .accept_and_execute_proposal(proposal_id, credential_data.serial_number_b58())
-//         .await?;
-//
-//     Ok(Json(VerifyEcashCredentialResponse::Accepted))
-// }
 
 // // for particular SN returns what gateway has submitted it and whether it has been verified correctly
 // pub async fn credential_status() -> ! {

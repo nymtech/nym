@@ -10,23 +10,8 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
 use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
 use nym_compact_ecash::BlindedSignature;
 use nym_compact_ecash::{PublicKeyUser, VerificationKeyAuth, WithdrawalRequest};
-use nym_validator_client::nyxd::error::NyxdError::AbciError;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::RwLock;
-
-// If the result is already established, the vote might be redundant and
-// thus the transaction might fail
-pub(crate) fn accepted_vote_err(ret: Result<(), EcashError>) -> Result<(), EcashError> {
-    if let Err(EcashError::NyxdError(AbciError { ref log, .. })) = ret {
-        let accepted_err =
-            nym_multisig_contract_common::error::ContractError::NotOpen {}.to_string();
-        // If redundant voting is not the case, error out on all other error variants
-        if !log.contains(&accepted_err) {
-            ret?;
-        }
-    }
-    Ok(())
-}
 
 pub(crate) trait CredentialRequest {
     fn withdrawal_request(&self) -> &WithdrawalRequest;

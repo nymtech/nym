@@ -34,10 +34,9 @@ use nym_validator_client::nyxd::contract_traits::PagedDkgQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{
     contract_traits::{
-        DkgQueryClient, DkgSigningClient, EcashQueryClient, EcashSigningClient, GroupQueryClient,
-        MixnetQueryClient, MixnetSigningClient, MultisigQueryClient, MultisigSigningClient,
-        NymContractsProvider, PagedMixnetQueryClient, PagedMultisigQueryClient,
-        PagedVestingQueryClient,
+        DkgQueryClient, DkgSigningClient, EcashQueryClient, GroupQueryClient, MixnetQueryClient,
+        MixnetSigningClient, MultisigQueryClient, MultisigSigningClient, NymContractsProvider,
+        PagedMixnetQueryClient, PagedMultisigQueryClient, PagedVestingQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
     CosmWasmClient, Fee,
@@ -388,15 +387,15 @@ impl crate::ecash::client::Client for Client {
         Ok(nyxd_query!(self, query_vote(proposal_id, voter).await?))
     }
 
-    async fn propose_for_blacklist(
-        &self,
-        public_key: String,
-    ) -> crate::ecash::error::Result<ExecuteResult> {
-        Ok(nyxd_signing!(
-            self,
-            propose_for_blacklist(public_key, None).await?
-        ))
-    }
+    // async fn propose_for_blacklist(
+    //     &self,
+    //     public_key: String,
+    // ) -> crate::ecash::error::Result<ExecuteResult> {
+    //     Ok(nyxd_signing!(
+    //         self,
+    //         propose_for_blacklist(public_key, None).await?
+    //     ))
+    // }
 
     async fn get_blacklisted_account(
         &self,

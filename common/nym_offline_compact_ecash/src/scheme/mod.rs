@@ -1,13 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::convert::TryInto;
-
-use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
-use group::Curve;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use zeroize::{Zeroize, ZeroizeOnDrop};
-
 use crate::common_types::{Signature, SignerIndex};
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
@@ -21,6 +14,10 @@ use crate::utils::{
 };
 use crate::{constants, ecash_group_parameters};
 use crate::{Attribute, Base58};
+use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
+use group::Curve;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub mod aggregation;
 pub mod coin_indices_signatures;

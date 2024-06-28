@@ -17,7 +17,7 @@ mod load_network_details;
 mod local_client;
 mod local_ecash_apis;
 mod local_nodes;
-mod migrate;
+// mod migrate;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct CommonArgs {

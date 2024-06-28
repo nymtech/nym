@@ -151,8 +151,6 @@ pub async fn obtain_aggregate_wallet(
     if ecash_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
-    let unused_variable = 42;
-    // TODO: instead use: let verification_key = obtain_aggregated_verification_key(ecash_api_clients).await?;
     let verification_key = aggregate_verification_keys(ecash_api_clients)?;
 
     let request = voucher.prepare_for_signing();

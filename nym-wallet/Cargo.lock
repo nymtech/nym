@@ -342,18 +342,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4682ae6287fcf752ecaabbfcc7b6f9b72aa33933dc23a554d853aea8eea8635"
 
 [[package]]
-name = "bitvec"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bc2832c24239b0141d5674bb9174f9d68a8b5b3f2753311927c172ca46f7e9c"
-dependencies = [
- "funty",
- "radium",
- "tap",
- "wyz",
-]
-
-[[package]]
 name = "blake2"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -845,17 +833,17 @@ checksum = "32560304ab4c365791fd307282f76637213d8083c1a98490c35159cd67852237"
 dependencies = [
  "prost",
  "prost-types",
- "tendermint-proto",
+ "tendermint-proto 0.34.0",
 ]
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.20.0"
-source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#67718aa27a96efb9881e927a8f998c94b885093c"
+version = "0.22.0-pre"
+source = "git+https://github.com/cosmos/cosmos-rust?rev=4b1332e6d8258ac845cef71589c8d362a669675a#4b1332e6d8258ac845cef71589c8d362a669675a"
 dependencies = [
  "prost",
  "prost-types",
- "tendermint-proto",
+ "tendermint-proto 0.37.0",
 ]
 
 [[package]]
@@ -865,7 +853,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47126f5364df9387b9d8559dcef62e99010e1d4098f39eb3f7ee4b5c254e40ea"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cosmos-sdk-proto 0.20.0",
  "ecdsa",
  "eyre",
  "k256",
@@ -874,17 +862,17 @@ dependencies = [
  "serde_json",
  "signature",
  "subtle-encoding",
- "tendermint",
+ "tendermint 0.34.0",
  "thiserror",
 ]
 
 [[package]]
 name = "cosmrs"
-version = "0.15.0"
-source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#67718aa27a96efb9881e927a8f998c94b885093c"
+version = "0.17.0-pre"
+source = "git+https://github.com/cosmos/cosmos-rust?rev=4b1332e6d8258ac845cef71589c8d362a669675a#4b1332e6d8258ac845cef71589c8d362a669675a"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto 0.20.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
+ "cosmos-sdk-proto 0.22.0-pre",
  "ecdsa",
  "eyre",
  "k256",
@@ -893,7 +881,7 @@ dependencies = [
  "serde_json",
  "signature",
  "subtle-encoding",
- "tendermint",
+ "tendermint 0.37.0",
  "tendermint-rpc",
  "thiserror",
 ]
@@ -1734,12 +1722,6 @@ name = "forward_ref"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8cbd1169bd7b4a0a20d92b9af7a7e0422888bd38a6f5ec29c1fd8c1558a272e"
-
-[[package]]
-name = "funty"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
 name = "futf"
@@ -2683,6 +2665,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3121,7 +3112,7 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58 0.5.1",
- "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
+ "cosmrs 0.17.0-pre",
  "cosmwasm-std",
  "ecdsa",
  "getset",
@@ -3132,7 +3123,10 @@ dependencies = [
  "nym-node-requests",
  "schemars",
  "serde",
- "tendermint",
+ "serde-helpers",
+ "sha2 0.10.8",
+ "tendermint 0.37.0",
+ "thiserror",
  "time",
 ]
 
@@ -3264,16 +3258,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-ephemera-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-utils",
- "nym-contracts-common",
-]
-
-[[package]]
 name = "nym-exit-policy"
 version = "0.1.0"
 dependencies = [
@@ -3343,19 +3327,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-name-service-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "nym-contracts-common",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
@@ -3397,18 +3368,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-service-provider-directory-common"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-controllers",
- "cw-utils",
- "nym-contracts-common",
- "thiserror",
-]
-
-[[package]]
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
@@ -3436,11 +3395,11 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "base64 0.21.4",
- "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
+ "cosmrs 0.17.0-pre",
  "cosmwasm-std",
  "eyre",
  "hmac",
- "itertools 0.11.0",
+ "itertools 0.13.0",
  "log",
  "nym-config",
  "nym-crypto",
@@ -3468,7 +3427,7 @@ dependencies = [
  "bip32",
  "bip39",
  "colored 2.0.4",
- "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
+ "cosmrs 0.17.0-pre",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
@@ -3478,7 +3437,7 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "log",
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
@@ -3487,14 +3446,11 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-ecash-contract-common",
- "nym-ephemera-common",
  "nym-group-contract-common",
  "nym-http-api-client",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
- "nym-name-service-common",
  "nym-network-defaults",
- "nym-service-provider-directory-common",
  "nym-vesting-contract-common",
  "prost",
  "reqwest 0.12.4",
@@ -3540,7 +3496,7 @@ dependencies = [
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
- "cosmrs 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cosmrs 0.15.0",
  "cosmwasm-std",
  "hex-literal",
  "nym-config",
@@ -3579,7 +3535,7 @@ dependencies = [
  "bip39",
  "cfg-if",
  "colored 2.0.4",
- "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
+ "cosmrs 0.17.0-pre",
  "cosmwasm-std",
  "dirs 4.0.0",
  "dotenvy",
@@ -3835,9 +3791,9 @@ checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 
 [[package]]
 name = "peg"
-version = "0.7.0"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07c0b841ea54f523f7aa556956fbd293bcbe06f2e67d2eb732b7278aaf1d166a"
+checksum = "8a625d12ad770914cbf7eff6f9314c3ef803bfe364a1b20bc36ddf56673e71e5"
 dependencies = [
  "peg-macros",
  "peg-runtime",
@@ -3845,9 +3801,9 @@ dependencies = [
 
 [[package]]
 name = "peg-macros"
-version = "0.7.0"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5aa52829b8decbef693af90202711348ab001456803ba2a98eb4ec8fb70844c"
+checksum = "f241d42067ed3ab6a4fece1db720838e1418f36d868585a27931f95d6bc03582"
 dependencies = [
  "peg-runtime",
  "proc-macro2",
@@ -3856,9 +3812,9 @@ dependencies = [
 
 [[package]]
 name = "peg-runtime"
-version = "0.7.0"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c719dcf55f09a3a7e764c6649ab594c18a177e3599c467983cdf644bfc0a4088"
+checksum = "e3aeb8f54c078314c2065ee649a7241f46b9d8e418e1a9581ba0546657d7aa3a"
 
 [[package]]
 name = "pem"
@@ -4147,7 +4103,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f4c021e1093a56626774e81216a4ce732a735e5bad4868a03f3ed65ca0c3919"
 dependencies = [
  "once_cell",
- "toml_edit",
+ "toml_edit 0.19.14",
 ]
 
 [[package]]
@@ -4250,12 +4206,6 @@ checksum = "291ec9ab5efd934aaf503a6466c5d5251535d108ee747472c3977cc5acc868ef"
 dependencies = [
  "proc-macro2",
 ]
-
-[[package]]
-name = "radium"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
@@ -4861,6 +4811,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-helpers"
+version = "0.1.0"
+dependencies = [
+ "bs58 0.5.1",
+ "serde",
+]
+
+[[package]]
 name = "serde-json-wasm"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5418,7 +5376,7 @@ dependencies = [
  "scopeguard",
  "serde",
  "unicode-segmentation",
- "uuid 1.4.1",
+ "uuid 1.9.1",
  "windows 0.39.0",
  "windows-implement",
  "x11-dl",
@@ -5493,7 +5451,7 @@ dependencies = [
  "time",
  "tokio",
  "url",
- "uuid 1.4.1",
+ "uuid 1.9.1",
  "webkit2gtk",
  "webview2-com",
  "windows 0.39.0",
@@ -5538,7 +5496,7 @@ dependencies = [
  "tauri-utils",
  "thiserror",
  "time",
- "uuid 1.4.1",
+ "uuid 1.9.1",
  "walkdir",
 ]
 
@@ -5571,7 +5529,7 @@ dependencies = [
  "serde_json",
  "tauri-utils",
  "thiserror",
- "uuid 1.4.1",
+ "uuid 1.9.1",
  "webview2-com",
  "windows 0.39.0",
 ]
@@ -5589,7 +5547,7 @@ dependencies = [
  "raw-window-handle",
  "tauri-runtime",
  "tauri-utils",
- "uuid 1.4.1",
+ "uuid 1.9.1",
  "webkit2gtk",
  "webview2-com",
  "windows 0.39.0",
@@ -5663,22 +5621,53 @@ dependencies = [
  "signature",
  "subtle 2.5.0",
  "subtle-encoding",
- "tendermint-proto",
+ "tendermint-proto 0.34.0",
+ "time",
+ "zeroize",
+]
+
+[[package]]
+name = "tendermint"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "954496fbc9716eb4446cdd6d00c071a3e2f22578d62aa03b40c7e5b4fda3ed42"
+dependencies = [
+ "bytes",
+ "digest 0.10.7",
+ "ed25519",
+ "ed25519-consensus",
+ "flex-error",
+ "futures",
+ "k256",
+ "num-traits",
+ "once_cell",
+ "prost",
+ "prost-types",
+ "ripemd",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "serde_repr",
+ "sha2 0.10.8",
+ "signature",
+ "subtle 2.5.0",
+ "subtle-encoding",
+ "tendermint-proto 0.37.0",
  "time",
  "zeroize",
 ]
 
 [[package]]
 name = "tendermint-config"
-version = "0.34.0"
+version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a25dbe8b953e80f3d61789fbdb83bf9ad6c0ef16df5ca6546f49912542cc137"
+checksum = "f84b11b57d20ee4492a1452faff85f5c520adc36ca9fe5e701066935255bb89f"
 dependencies = [
  "flex-error",
  "serde",
  "serde_json",
- "tendermint",
- "toml 0.5.11",
+ "tendermint 0.37.0",
+ "toml 0.8.2",
  "url",
 ]
 
@@ -5701,10 +5690,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "tendermint-rpc"
-version = "0.34.0"
+name = "tendermint-proto"
+version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfbf0a4753b46a190f367337e0163d0b552a2674a6bac54e74f9f2cdcde2969b"
+checksum = "dc87024548c7f3da479885201e3da20ef29e85a3b13d04606b380ac4c7120d87"
+dependencies = [
+ "bytes",
+ "flex-error",
+ "prost",
+ "prost-types",
+ "serde",
+ "serde_bytes",
+ "subtle-encoding",
+ "time",
+]
+
+[[package]]
+name = "tendermint-rpc"
+version = "0.37.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dfdc2281e271277fda184d96d874a6fe59f569b130b634289257baacfc95aa85"
 dependencies = [
  "async-trait",
  "bytes",
@@ -5713,6 +5718,7 @@ dependencies = [
  "getrandom 0.2.10",
  "peg",
  "pin-project",
+ "rand 0.8.5",
  "reqwest 0.11.22",
  "semver 1.0.22",
  "serde",
@@ -5720,15 +5726,15 @@ dependencies = [
  "serde_json",
  "subtle 2.5.0",
  "subtle-encoding",
- "tendermint",
+ "tendermint 0.37.0",
  "tendermint-config",
- "tendermint-proto",
+ "tendermint-proto 0.37.0",
  "thiserror",
  "time",
  "tokio",
  "tracing",
  "url",
- "uuid 0.8.2",
+ "uuid 1.9.1",
  "walkdir",
 ]
 
@@ -5929,7 +5935,19 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit",
+ "toml_edit 0.19.14",
+]
+
+[[package]]
+name = "toml"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "185d8ab0dfbb35cf1399a6344d8484209c088f75f8f68230da55d48d95d43e3d"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "toml_edit 0.20.2",
 ]
 
 [[package]]
@@ -5946,6 +5964,19 @@ name = "toml_edit"
 version = "0.19.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8123f27e969974a3dfba720fdb560be359f57b44302d280ba72e76a74480e8a"
+dependencies = [
+ "indexmap 2.0.0",
+ "serde",
+ "serde_spanned",
+ "toml_datetime",
+ "winnow",
+]
+
+[[package]]
+name = "toml_edit"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "396e4d48bbb2b7554c944bde63101b5ae446cff6ec4a24227428f15eb72ef338"
 dependencies = [
  "indexmap 2.0.0",
  "serde",
@@ -6170,9 +6201,9 @@ checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 
 [[package]]
 name = "uuid"
-version = "1.4.1"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79daa5ed5740825c40b389c5e50312b9c86df53fccd33f281df655642b43869d"
+checksum = "5de17fd2f7da591098415cff336e12965a28061ddace43b59cb3c430179c9439"
 dependencies = [
  "getrandom 0.2.10",
 ]
@@ -6793,15 +6824,6 @@ dependencies = [
  "webview2-com",
  "windows 0.39.0",
  "windows-implement",
-]
-
-[[package]]
-name = "wyz"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
-dependencies = [
- "tap",
 ]
 
 [[package]]

@@ -187,7 +187,7 @@ impl NetworkManager {
                 &env.display().to_string(),
                 "init",
                 "--id",
-                &id,
+                id,
                 "--enabled-credentials-mode",
                 "true",
             ])

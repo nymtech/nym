@@ -37,8 +37,8 @@ impl From<EpochCredentials> for EpochCredentialsResponse {
 }
 
 #[derive(FromRow)]
+#[allow(unused)]
 pub struct TicketProvider {
-    #[allow(unused)]
     pub(crate) id: i64,
     pub(crate) gateway_address: String,
     pub(crate) last_batch_verification: Option<OffsetDateTime>,
@@ -58,8 +58,8 @@ impl Deref for SerialNumberWrapper {
 }
 
 #[derive(FromRow)]
+#[allow(unused)]
 pub struct VerifiedTicket {
-    #[allow(unused)]
     pub(crate) id: i64,
     pub(crate) ticket_data: Vec<u8>,
     pub(crate) serial_number: Vec<u8>,

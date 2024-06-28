@@ -7,11 +7,9 @@ use crate::manager::dkg_skip::EcashSignerWithPaths;
 use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
 use console::style;
-use nym_compact_ecash::KeyPairAuth;
 use nym_config::{
     must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_NYM_APIS_DIR, NYM_DIR,
 };
-use nym_pemstore::traits::PemStorableKey;
 use std::fs;
 use std::fs::File;
 use std::io::Write;

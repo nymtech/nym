@@ -8,11 +8,13 @@ use sylvia::types::{InstantiateCtx, QueryCtx};
 
 pub const TEST_DENOM: &str = "unym";
 
+#[allow(dead_code)]
 pub struct TestSetup {
     pub contract: NymEcashContract<'static>,
     pub deps: OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>>,
     pub env: Env,
 
+    pub holding_account: Addr,
     pub multisig_contract: Addr,
     pub group_contract: Addr,
 }
@@ -26,11 +28,13 @@ impl TestSetup {
 
         let multisig_contract = "multisig";
         let group_contract = "group";
+        let holding = "holding";
 
         let contract = NymEcashContract::new();
         contract
             .instantiate(
                 init_ctx,
+                holding.to_string(),
                 multisig_contract.to_string(),
                 group_contract.to_string(),
                 TEST_DENOM.to_string(),
@@ -41,6 +45,7 @@ impl TestSetup {
             contract,
             deps,
             env,
+            holding_account: Addr::unchecked(holding),
             multisig_contract: Addr::unchecked(multisig_contract),
             group_contract: Addr::unchecked(group_contract),
         }

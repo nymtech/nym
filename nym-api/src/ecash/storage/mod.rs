@@ -227,7 +227,7 @@ impl CoconutStorageExt for NymApiStorage {
         &self,
         serial_number: &[u8],
     ) -> Result<Option<CredentialSpendingData>, NymApiStorageError> {
-        let ticket = self.manager.get_ticket(&serial_number).await?;
+        let ticket = self.manager.get_ticket(serial_number).await?;
         ticket
             .map(|ticket| {
                 CredentialSpendingData::try_from_bytes(&ticket.ticket_data).map_err(|_| {
@@ -237,27 +237,6 @@ impl CoconutStorageExt for NymApiStorage {
                 })
             })
             .transpose()
-    }
-
-    async fn get_ticket_provider(
-        &self,
-        gateway_address: &str,
-    ) -> Result<Option<TicketProvider>, NymApiStorageError> {
-        self.manager
-            .get_ticket_provider(gateway_address)
-            .await
-            .map_err(Into::into)
-    }
-
-    async fn get_or_create_ticket_provider_with_id(
-        &self,
-        gateway_address: &str,
-    ) -> Result<i64, NymApiStorageError> {
-        if let Some(provider) = self.get_ticket_provider(gateway_address).await? {
-            Ok(provider.id)
-        } else {
-            Ok(self.manager.insert_ticket_provider(gateway_address).await?)
-        }
     }
 
     async fn store_verified_ticket(
@@ -279,6 +258,16 @@ impl CoconutStorageExt for NymApiStorage {
             .map_err(Into::into)
     }
 
+    async fn get_ticket_provider(
+        &self,
+        gateway_address: &str,
+    ) -> Result<Option<TicketProvider>, NymApiStorageError> {
+        self.manager
+            .get_ticket_provider(gateway_address)
+            .await
+            .map_err(Into::into)
+    }
+
     async fn get_verified_tickets_since(
         &self,
         provider_id: i64,
@@ -288,5 +277,16 @@ impl CoconutStorageExt for NymApiStorage {
             .get_provider_ticket_serial_numbers(provider_id, since)
             .await
             .map_err(Into::into)
+    }
+
+    async fn get_or_create_ticket_provider_with_id(
+        &self,
+        gateway_address: &str,
+    ) -> Result<i64, NymApiStorageError> {
+        if let Some(provider) = self.get_ticket_provider(gateway_address).await? {
+            Ok(provider.id)
+        } else {
+            Ok(self.manager.insert_ticket_provider(gateway_address).await?)
+        }
     }
 }

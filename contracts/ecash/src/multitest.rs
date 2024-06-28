@@ -32,6 +32,7 @@ fn invalid_deposit() {
 
     let contract = code_id
         .instantiate(
+            "holding_acount".to_string(),
             "multisig_addr".to_string(),
             "group_addr".to_string(),
             denom.to_string(),

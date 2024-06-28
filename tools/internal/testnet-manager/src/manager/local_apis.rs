@@ -20,36 +20,6 @@ use std::process::Stdio;
 use tokio::process::Command;
 use zeroize::Zeroizing;
 
-// perform the same serialisation as the nym-api keys
-struct FakeDkgKey<'a> {
-    inner: &'a KeyPairAuth,
-}
-
-impl<'a> FakeDkgKey<'a> {
-    fn new(inner: &'a KeyPairAuth) -> Self {
-        FakeDkgKey { inner }
-    }
-}
-
-impl<'a> PemStorableKey for FakeDkgKey<'a> {
-    type Error = NetworkManagerError;
-
-    fn pem_type() -> &'static str {
-        "ECASH KEY WITH EPOCH"
-    }
-
-    fn to_bytes(&self) -> Vec<u8> {
-        // our fake key is ALWAYS issued for epoch 0
-        let mut bytes = vec![0u8; 8];
-        bytes.append(&mut self.inner.secret_key().to_bytes());
-        bytes
-    }
-
-    fn from_bytes(_: &[u8]) -> Result<Self, Self::Error> {
-        unimplemented!("this is not meant to be ever called")
-    }
-}
-
 struct LocalApisCtx<'a> {
     nym_api_binary: PathBuf,
     progress: ProgressTracker,
@@ -161,8 +131,7 @@ impl NetworkManager {
             .expect("nym-api config serialisation has changed");
 
         // overwrite pre-generated files
-        let fake_ecash_key = FakeDkgKey::new(&info.data.ecash_keypair);
-        nym_pemstore::store_key(&fake_ecash_key, ecash)?;
+        fs::copy(&info.paths.ecash_key, ecash)?;
         fs::copy(&info.paths.ed25519_keys.private_key_path, priv_id)?;
         fs::copy(&info.paths.ed25519_keys.public_key_path, pub_id)?;
 

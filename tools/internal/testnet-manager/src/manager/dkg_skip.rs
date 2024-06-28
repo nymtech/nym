@@ -8,10 +8,11 @@ use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
 use console::style;
 use dkg_bypass_contract::msg::FakeDealerData;
-use nym_compact_ecash::{ttp_keygen, Base58};
+use nym_compact_ecash::{ttp_keygen, Base58, KeyPairAuth};
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::Addr;
-use nym_pemstore::{store_keypair, KeyPairPath};
+use nym_pemstore::traits::PemStorableKey;
+use nym_pemstore::{store_key, store_keypair, KeyPairPath};
 use nym_validator_client::nyxd::contract_traits::{
     DkgQueryClient, GroupSigningClient, PagedGroupQueryClient,
 };
@@ -35,7 +36,7 @@ pub(crate) struct EcashSigner {
 
 #[derive(Default)]
 pub(crate) struct EcashSignerPaths {
-    pub(crate) ecash_keys: KeyPairPath,
+    pub(crate) ecash_key: PathBuf,
     pub(crate) ed25519_keys: KeyPairPath,
     pub(crate) mnemonic_path: PathBuf,
     pub(crate) endpoint_path: PathBuf,
@@ -44,6 +45,36 @@ pub(crate) struct EcashSignerPaths {
 pub(crate) struct EcashSignerWithPaths {
     pub(crate) data: EcashSigner,
     pub(crate) paths: EcashSignerPaths,
+}
+
+// perform the same serialisation as the nym-api keys
+struct FakeDkgKey<'a> {
+    inner: &'a KeyPairAuth,
+}
+
+impl<'a> FakeDkgKey<'a> {
+    fn new(inner: &'a KeyPairAuth) -> Self {
+        FakeDkgKey { inner }
+    }
+}
+
+impl<'a> PemStorableKey for FakeDkgKey<'a> {
+    type Error = NetworkManagerError;
+
+    fn pem_type() -> &'static str {
+        "ECASH KEY WITH EPOCH"
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        // our fake key is ALWAYS issued for epoch 0
+        let mut bytes = vec![0u8; 8];
+        bytes.append(&mut self.inner.secret_key().to_bytes());
+        bytes
+    }
+
+    fn from_bytes(_: &[u8]) -> Result<Self, Self::Error> {
+        unimplemented!("this is not meant to be ever called")
+    }
 }
 
 impl EcashSignerWithPaths {
@@ -211,10 +242,9 @@ impl NetworkManager {
             let signer_dir = output_dir.join(address.to_string());
             fs::create_dir_all(&signer_dir)?;
 
-            let ecash_paths = KeyPairPath {
-                private_key_path: signer_dir.join("ecash"),
-                public_key_path: signer_dir.join("ecash.pub"),
-            };
+            let fake_ecash_key = FakeDkgKey::new(&signer.data.ecash_keypair);
+
+            let ecash_path = signer_dir.join("ecash");
 
             let ed25519_paths = KeyPairPath {
                 private_key_path: signer_dir.join("ed25519"),
@@ -224,7 +254,7 @@ impl NetworkManager {
             let mnemonic_path = signer_dir.join("mnemonic");
             let endpoint_path = signer_dir.join("announce_address");
 
-            store_keypair(&signer.data.ecash_keypair, &ecash_paths)?;
+            store_key(&fake_ecash_key, &ecash_path)?;
             store_keypair(&signer.data.ed25519_keypair, &ed25519_paths)?;
 
             fs::write(
@@ -233,7 +263,7 @@ impl NetworkManager {
             )?;
             fs::write(&endpoint_path, url.as_str())?;
 
-            signer.paths.ecash_keys = ecash_paths;
+            signer.paths.ecash_key = ecash_path;
             signer.paths.ed25519_keys = ed25519_paths;
             signer.paths.mnemonic_path = mnemonic_path;
             signer.paths.endpoint_path = endpoint_path;

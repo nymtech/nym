@@ -21,8 +21,9 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      - name: Setup yarn
-        run: npm install -g yarn
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -35,23 +36,20 @@ jobs:
       - name: Install wasm-opt
         uses: ./.github/actions/install-wasm-opt
         with:
-          version: '116'
+          version: "116"
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
-
-      - name: Install
-        run: yarn
+          go-version: "1.20"
 
       - name: Build packages
-        run: yarn build:ci
+        run: pnpm run build:ci
 
       - name: Lint
-        run: yarn lint
+        run: pnpm run lint
       - name: Typecheck with tsc
-        run: yarn tsc
+        run: pnpm run tsc
 
       - name: Matrix - Node Install
         run: npm install

@@ -3,72 +3,74 @@ name: ci-nym-wallet-storybook
 on:
   pull_request:
     paths:
-      - 'nym-wallet/**'
+      - "nym-wallet/**"
 
 jobs:
   build:
     runs-on: custom-linux
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Install rsync
-      run: sudo apt-get install rsync
-      continue-on-error: true
+      - name: Install rsync
+        run: sudo apt-get install rsync
+        continue-on-error: true
 
-    - uses: rlespinasse/github-slug-action@v3.x
+      - uses: rlespinasse/github-slug-action@v3.x
 
-    - uses: actions/setup-node@v3
-      with:
-        node-version: 18
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
-    - name: Setup yarn
-      run: npm install -g yarn
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-    - name: Install Rust stable
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
-    - name: Install wasm-pack
-      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-    - name: Build dependencies
-      run: yarn && yarn build
+      - name: Build dependencies
+        run: pnpm i && pnpm run build
 
-    - name: Build storybook
-      run: yarn storybook:build
-      working-directory: ./nym-wallet
+      - name: Build storybook
+        run: pnpm run storybook:build
+        working-directory: ./nym-wallet
 
-    - name: Deploy branch to CI www (storybook)
-      continue-on-error: true
-      uses: easingthemes/ssh-deploy@main
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-        ARGS: "-rltgoDzvO --delete"
-        SOURCE: "nym-wallet/storybook-static/"
-        REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-        REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/wallet-${{ env.GITHUB_REF_SLUG }}
-        EXCLUDE: "/dist/, /node_modules/"
+      - name: Deploy branch to CI www (storybook)
+        continue-on-error: true
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+          ARGS: "-rltgoDzvO --delete"
+          SOURCE: "nym-wallet/storybook-static/"
+          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/wallet-${{ env.GITHUB_REF_SLUG }}
+          EXCLUDE: "/dist/, /node_modules/"
 
-    - name: Matrix - Node Install
-      run: npm install
-      working-directory: .github/workflows/support-files
+      - name: Matrix - Node Install
+        run: npm install
+        working-directory: .github/workflows/support-files
 
-    - name: Matrix - Send Notification
-      env:
-        NYM_NOTIFICATION_KIND: nym-wallet
-        NYM_PROJECT_NAME: "nym-wallet"
-        NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
-        NYM_CI_WWW_LOCATION: "wallet-${{ env.GITHUB_REF_SLUG }}"
-        GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
-        GIT_BRANCH: "${GITHUB_REF##*/}"
-        IS_SUCCESS: "${{ job.status == 'success' }}"
-        MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
-        MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
-        MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
-        MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
-        MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
-      uses: docker://keybaseio/client:stable-node
-      with:
-        args: .github/workflows/support-files/notifications/entry_point.sh
+      - name: Matrix - Send Notification
+        env:
+          NYM_NOTIFICATION_KIND: nym-wallet
+          NYM_PROJECT_NAME: "nym-wallet"
+          NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
+          NYM_CI_WWW_LOCATION: "wallet-${{ env.GITHUB_REF_SLUG }}"
+          GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
+          GIT_BRANCH: "${GITHUB_REF##*/}"
+          IS_SUCCESS: "${{ job.status == 'success' }}"
+          MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
+          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
+          MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
+          MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
+          MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
+        uses: docker://keybaseio/client:stable-node
+        with:
+          args: .github/workflows/support-files/notifications/entry_point.sh

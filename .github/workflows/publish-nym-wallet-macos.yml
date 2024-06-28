@@ -61,12 +61,12 @@ jobs:
       - name: Create env file
         uses: timheuer/base64-to-file@v1.2
         with:
-          fileName: '.env'
+          fileName: ".env"
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
       - name: Install project dependencies
         shell: bash
-        run: cd .. && yarn --network-timeout 100000
+        run: cd .. && pnpm i --network-timeout 100000
 
       - name: Install app dependencies and build it
         env:
@@ -80,7 +80,7 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: yarn && yarn build
+        run: pnpm i && pnpm build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
@@ -112,7 +112,7 @@ jobs:
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet
-          EXCLUDE: "/dist/, /node_modules/"            
+          EXCLUDE: "/dist/, /node_modules/"
 
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}

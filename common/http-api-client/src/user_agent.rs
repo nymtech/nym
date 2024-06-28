@@ -31,7 +31,7 @@ impl fmt::Display for UserAgent {
         write!(
             f,
             "{}/{}/{}/{}",
-            self.application, self.platform, self.version, abbreviated_commit
+            self.application, self.version, self.platform, abbreviated_commit
         )
     }
 }

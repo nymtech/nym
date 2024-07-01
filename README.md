@@ -7,31 +7,37 @@ SPDX-License-Identifier: Apache-2.0
 
 The platform is composed of multiple Rust crates. Top-level executable binary crates include:
 
-* nym-mixnode - shuffles [Sphinx](https://github.com/nymtech/sphinx) packets together to provide privacy against network-level attackers.
-* nym-client - an executable which you can build into your own applications. Use it for interacting with Nym nodes.
-* nym-socks5-client - a Socks5 proxy you can run on your machine and use with existing applications.
-* nym-gateway - acts sort of like a mailbox for mixnet messages, which removes the need for direct delivery to potentially offline or firewalled devices.
-* nym-network-monitor - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
-* nym-explorer - a (projected) block explorer and (existing) mixnet viewer.
-* nym-wallet - a desktop wallet implemented using the [Tauri](https://tauri.studio/en/docs/about/intro) framework.
+* `nym-node` - a tool for running a node within the Nym network. Nym Nodes containing functionality such as `mixnode`, `entry-gateway` and `exit-gateway` are fundamental components of Nym Mixnet architecture. Nym Nodes are ran by decentralised node operators. The network functionality of different modes (`--mode` flag) is as follows:
+	- `mixnode` - shuffles [Sphinx](https://github.com/nymtech/sphinx) packets together to provide privacy against network-level attackers.
+	- `gateway` - acts sort of like a mailbox for mixnet messages, which removes the need for direct delivery to potentially offline or firewalled devices. Gateways can be further categorized as `entry-gateway` and `exit-gateway`. The latter has an extra embedded IP packet router and Network requester to route data to the internet.
+* `nym-client` - an executable which you can build into your own applications. Use it for interacting with Nym nodes.
+* `nym-socks5-client` - a Socks5 proxy you can run on your machine and use with existing applications.
+* `nym-explorer` - a (projected) block explorer and (existing) mixnet viewer.
+* `nym-wallet` - a desktop wallet implemented using the [Tauri](https://tauri.studio/en/docs/about/intro) framework.
+<!-- coming soon
+* `nym-network-monitor` - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
+-->
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/nymtech/nym/build.yml?branch=develop&style=for-the-badge&logo=github-actions)](https://github.com/nymtech/nym/actions?query=branch%3Adevelop)
 
 
 ### Building
 
-Platform build instructions are available on [our docs site](https://nymtech.net/docs/binaries/pre-built-binaries.html).
-Wallet build instructions are also available on [our docs site](https://nymtech.net/docs/wallet/desktop-wallet.html).
+* Platform build instructions are available on Nym [Operators Guide documentation](https://nymtech.net/operators/binaries/building-nym.html).
+* Wallet build instructions are available on Nym [Technical docs](https://nymtech.net/docs/wallet/desktop-wallet.html).
 
 ### Developing
 
-There's a `.env.sample-dev` file provided which you can rename to `.env` if you want convenient logging, backtrace, or other environment variables pre-set. The `.env` file is ignored so you don't need to worry about checking it in.
+There's a [`sandbox.env`](https://github.com/nymtech/nym/envs/sandbox.env) file provided which you can rename to `.env` if you want convenient testing environment. Read more about sandbox environment in our [Operators Guide page](https://nymtech.net/operators/sandbox.html).
 
-For Typescript components, please see [ts-packages](./ts-packages).
+References for developers:
+
+* [Developers Portal](https://nymtech.net/developers)
+* [Typescript SDKs](https://sdk.nymtech.net/)
+* [Technical Documentation - Nym network overview](https://nymtech.net/docs/)
+* [Release cycle - git flow](https://nymtech.net/operators/release-cycle.html)
 
 ### Developer chat
-
-> We used to use Keybase for developer chats, but we have since migrated to Matrix and Discord. We no longer check the old **nymtech.friends** Keybase team.
 
 You can chat to us in two places:
 * The #dev channel on [Matrix](https://matrix.to/#/#dev:nymtech.chat)

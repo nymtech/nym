@@ -230,11 +230,6 @@ Run the node with custom `--id` without initialising:
 ./nym-node run --id <ID> --deny-init --mode mixnode --accept-operator-terms-and-conditions
 ```
 
-Run the node with custom `--id` without initialising:
-```sh
-./nym-node run --id <ID> --deny-init --mode entry-gateway --accept-operator-terms-and-conditions
-```
-
 ### Migrate
 
 ```admonish caution

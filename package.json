@@ -33,9 +33,10 @@
     "dev:off": "node sdk/typescript/scripts/dev-mode-remove.mjs"
   },
   "devDependencies": {
-    "npm-run-all": "^4.1.5",
     "@npmcli/node-gyp": "^3.0.0",
+    "js-yaml": "^4.1.0",
     "node-gyp": "^9.3.1",
+    "npm-run-all": "^4.1.5",
     "tslog": "3.3.3"
   },
   "packageManager": "pnpm@9.4.0+sha256.b6fd0bfda555e7e584ad7e56b30c68b01d5a04f9ee93989f4b93ca8473c49c74"

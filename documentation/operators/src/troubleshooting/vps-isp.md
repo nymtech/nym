@@ -25,6 +25,39 @@ Begin with the steps listed in [*Connectivity Test and Configuration*](../nodes/
 
 5. Search for guides regarding your particular system and distribution. For Debian based distributions using systemd, some generic guides such as [this one](https://cloudzy.com/blog/configure-ipv6-on-ubuntu/) work as well.
 
+### Network configuration
+
+On modern Debian based Linux distributions, network is being configure by either Netplan (www.netplan.io) or ifup/ifdown utilities (https://manpages.debian.org/testing/ifupdown/ifup.8.en.html). It is very easy to check which one you have.
+
+1. If you have the following folder /etc/netplan which has got a YAML file - you are likely to have Netplan.
+2. If you have the following folder /etc/network/ and it is not empty - you are likely to have ifup/down.
+
+Most contemporary Ubuntu/Debian distributions come with netplan, however it is possibly that your hosting provider is using a custom version of ISO. For example, Debian 12 (latest version as of June 2024) may come with ifup/down.
+
+I have tried one VPS with Netplan and was not able to make it fully work with exit-gateway, the maximum I was getting for Probe score at Horbour Master was lolipop. Since this option is modern networking configuration, it should be researched more.
+
+With ifup/down it is straight-forward. Most installations are good enough. Simply open /etc/network/interfaces file (it may be called slightly different on your system) and make sure it looks similar to this:
+
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+address YOUR_IPV4_ADDRESS
+netmask NETMASK
+
+gateway YOUR_IPV4_GATEWAY
+iface eth0 inet6 static
+        accept_ra 0
+        address YOUR_IPV6_ADDRESS
+        netmask 64
+        gateway YOUR_IPV6_GATEWAY
+post-up /sbin/ip -r route add YOUR_IPV6_GATEWAY dev eth0
+post-up /sbin/ip -r route add default via YOUR_IPV6_GATEWAY
+
+Last two lines are particularly important as they enable IPv6 routing. Be extra careful editing this file since you may lock yourself out of the server. If it happens, you can always access the server via the hoster's panel via vnc.
+
+Once you are done, simply reboot your server and check that after booting the servers gets the correct IPv4/IPv6 addresses by entering 'ip a' command. Once you are happy with IP addresses, please proceed with runnig a script, please refer to network_tunnel_manager.sh located here https://nymtech.net/operators/nodes/configuration.html#ipv6-configuration
 
 ## Other VPS troubleshooting
 

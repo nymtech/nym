@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 
 The platform is composed of multiple Rust crates. Top-level executable binary crates include:
 
-* `nym-node` - a tool for running a node within the Nym network. Nym Nodes containing functionality such as `mixnode`, `entry-gateway` and `exit-gateway` are fundamental components of Nym Mixnet architecture. Nym Nodes are ran by decentralised node operators. The network functionality of different modes (`--mode` flag) is as follows:
+* `nym-node` - a tool for running a node within the Nym network. Nym Nodes containing functionality such as `mixnode`, `entry-gateway` and `exit-gateway` are fundamental components of Nym Mixnet architecture. Nym Nodes are ran by decentralised node operators. Read more about `nym-node` in [Operators Guide documentation](https://nymtech.net/operators/nodes/nym-node.html). Network functionality of `nym-node` (labeled with `--mode` flag) can be:
 	- `mixnode` - shuffles [Sphinx](https://github.com/nymtech/sphinx) packets together to provide privacy against network-level attackers.
 	- `gateway` - acts sort of like a mailbox for mixnet messages, which removes the need for direct delivery to potentially offline or firewalled devices. Gateways can be further categorized as `entry-gateway` and `exit-gateway`. The latter has an extra embedded IP packet router and Network requester to route data to the internet.
 * `nym-client` - an executable which you can build into your own applications. Use it for interacting with Nym nodes.
@@ -17,6 +17,17 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 <!-- coming soon
 * `nym-network-monitor` - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
 -->
+
+```ascii
+                      ┌─►mix──┐  mix     mix
+                      │       │
+            Entry     │       │                   Exit
+client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► Gateway ───► internet
+                              │       │
+                              │       │
+                         mix  └─►mix──┘  mix
+
+```
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/nymtech/nym/build.yml?branch=develop&style=for-the-badge&logo=github-actions)](https://github.com/nymtech/nym/actions?query=branch%3Adevelop)
 
@@ -35,7 +46,7 @@ References for developers:
 * [Developers Portal](https://nymtech.net/developers)
 * [Typescript SDKs](https://sdk.nymtech.net/)
 * [Technical Documentation - Nym network overview](https://nymtech.net/docs/)
-* [Release cycle - git flow](https://nymtech.net/operators/release-cycle.html)
+* [Release Cycle - git flow](https://nymtech.net/operators/release-cycle.html)
 
 ### Developer chat
 
@@ -46,6 +57,10 @@ You can chat to us in two places:
 ### Rewards
 
 Node, node operator and delegator rewards are determined according to the principles laid out in the section 6 of [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf). Below is a TLDR of the variables and formulas involved in calculating the epoch rewards. Initial reward pool is set to 250 million Nym, making the circulating supply 750 million Nym.
+
+Testing alpha on GH:
+
+	&alpha;
 
 |Symbol|Definition|
 |---|---|

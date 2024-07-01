@@ -973,13 +973,13 @@ importers:
       bech32:
         specifier: ^1.1.4
         version: 1.1.4
-      bs58:
-        specifier: '4'
-        version: 4.0.1
     devDependencies:
       '@nymproject/eslint-config-react-typescript':
         specifier: workspace:1.0.0
         version: link:../eslint-config-react-typescript
+      '@types/bs58':
+        specifier: ^4.0.1
+        version: 4.0.4
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.13.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)
@@ -989,6 +989,9 @@ importers:
       babel-plugin-root-import:
         specifier: ^5.1.0
         version: 5.1.0
+      bs58:
+        specifier: ^4.0.1
+        version: 4.0.1
       eslint:
         specifier: ^8.10.0
         version: 8.57.0

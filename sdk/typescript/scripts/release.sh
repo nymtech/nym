@@ -8,8 +8,8 @@ set -o pipefail
 make sdk-wasm-build
 
 # Build Typescript packages
-yarn
-yarn build:sdk
+pnpm i
+pnpm build:sdk
 
 # Publish to NPM
 ./sdk/typescript/scripts/publish.sh

@@ -5,7 +5,7 @@ packages:
   - sdk/typescript/packages/mui-theme
   - sdk/typescript/packages/react-components
   - sdk/typescript/packages/validator-client
-  - ts-packages/*
+  - ts-packages/**
   - nym-wallet
   - explorer-nextjs
   - types

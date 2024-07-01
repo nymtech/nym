@@ -71,10 +71,10 @@ pub async fn current_gateways<R: Rng>(
         nym_validator_client::client::NymApiClient::new(nym_api.clone())
     };
 
-    log::info!("Fetching list of gateways from: {nym_api}");
+    log::debug!("Fetching list of gateways from: {nym_api}");
 
     let gateways = client.get_cached_described_gateways().await?;
-    log::info!("Found {} gateways", gateways.len());
+    log::debug!("Found {} gateways", gateways.len());
     log::trace!("Gateways: {:#?}", gateways);
 
     let valid_gateways = gateways

@@ -18,9 +18,9 @@ mod build_info;
 mod import_credential;
 mod init;
 mod list_gateways;
+mod peer_handler;
 mod run;
 mod sign;
-mod peer_handler;
 mod switch_gateway;
 
 pub(crate) struct CliAuthenticatorClient;

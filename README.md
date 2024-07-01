@@ -52,64 +52,21 @@ References for developers:
 
 You can chat to us in two places:
 * The #dev channel on [Matrix](https://matrix.to/#/#dev:nymtech.chat)
-* The various developer channels on [Discord](https://discord.gg/nym)
+* The various developer channels on [Discord](discord.gg/nymproject)
 
-### Rewards
+### Tokenomics & Rewards
 
-Node, node operator and delegator rewards are determined according to the principles laid out in the section 6 of [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf).
-<!-- Below is a TLDR of the variables and formulas involved in calculating the epoch rewards.  -->
+Nym network economic incentives, operator and validator rewards, and scalability of the network are determined according to the principles laid out in the section 6 of [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf).
 Initial reward pool is set to 250 million Nym, making the circulating supply 750 million Nym.
-
-<!-- REDO USING DECIMAL NOTATION, LIKE THIS FOR ALPHA: &#945; MORE INFO HERE https://unicodelookup.com/#greek
-
-|Symbol|Definition|
-|---|---|
-|<img src="https://render.githubusercontent.com/render/math?math=R#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}R#gh-dark-mode-only">|global share of rewards available, starts at 2% of the reward pool.
-|<img src="https://render.githubusercontent.com/render/math?math=R_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}R_{i}#gh-dark-mode-only">|node reward for mixnode `i`.
-|<img src="https://render.githubusercontent.com/render/math?math=\sigma_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}\sigma_{i}#gh-dark-mode-only">|ratio of total node stake (node bond + all delegations) to the token circulating supply.
-|<img src="https://render.githubusercontent.com/render/math?math=\lambda_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}\lambda_{i}#gh-dark-mode-only">|ratio of stake operator has pledged to their node to the token circulating supply.
-|<img src="https://render.githubusercontent.com/render/math?math=\omega_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}\omega_{i}#gh-dark-mode-only">|fraction of total effort undertaken by node `i`, set to `1/k`.
-|<img src="https://render.githubusercontent.com/render/math?math=k#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}k#gh-dark-mode-only">|number of nodes stakeholders are incentivised to create, set by the validators, a matter of governance. Currently determined by the `reward set` size, and set to 720 in testnet Sandbox.
-|<img src="https://render.githubusercontent.com/render/math?math=\alpha#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}\alpha#gh-dark-mode-only">|A Sybil attack resistance parameter - the higher this parameter is set, the stronger the reduction in competitiveness for a Sybil attacker.
-|<img src="https://render.githubusercontent.com/render/math?math=PM_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}PM_{i}#gh-dark-mode-only">|declared profit margin of operator `i`, defaults to 10%.
-|<img src="https://render.githubusercontent.com/render/math?math=PF_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}PF_{i}#gh-dark-mode-only">|uptime of node `i`, scaled to 0 - 1, for the rewarding epoch
-|<img src="https://render.githubusercontent.com/render/math?math=PP_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}PP_{i}#gh-dark-mode-only">|cost of operating node `i` for the duration of the rewarding epoch, set to 40 NYMs.
-
-Node reward for node `i` is determined as:
-
-<img src="https://render.githubusercontent.com/render/math?math=R_{i}=PF_{i} \cdot R \cdot (\sigma^'_{i} \cdot \omega_{i} \cdot k %2b \alpha \cdot \lambda^'_{i} \cdot \sigma^'_{i} \cdot k)/(1 %2b \alpha)#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math=\color{white}R_{i}=PF_{i} \cdot R \cdot (\sigma^'_{i} \cdot \omega_{i} \cdot k %2b \alpha \cdot \lambda^'_{i} \cdot \sigma^'_{i} \cdot k)/(1 %2b \alpha)#gh-dark-mode-only">
-where:
-
-<img src="https://render.githubusercontent.com/render/math?math=\sigma^'_{i} = min\{\sigma_{i}, 1/k\}#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math=\color{white}\sigma^'_{i} = min\{\sigma_{i}, 1/k\}#gh-dark-mode-only">
-
-and
-
-<img src="https://render.githubusercontent.com/render/math?math=\lambda^'_{i} = min\{\lambda_{i}, 1/k\}#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math=\color{white}\lambda^'_{i} = min\{\lambda_{i}, 1/k\}#gh-dark-mode-only">
-
-Operator of node `i` is credited with the following amount:
-
-<img src="https://render.githubusercontent.com/render/math?math=min\{PP_{i},R_{i})\} %2b max\{0, (PM_{i} %2b (1 - PM_{i}) \cdot \lambda_{i}/\delta_{i}) \cdot (R_{i} - PP_{i})\}#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math=\color{white}min\{PP_{i},R_{i})\} %2b max\{0, (PM_{i} %2b (1 - PM_{i}) \cdot \lambda_{i}/\delta_{i}) \cdot (R_{i} - PP_{i})\}#gh-dark-mode-only">
-
-Delegate with stake `s` receives:
-
-<img src="https://render.githubusercontent.com/render/math?math=max\{0, (1-PM_{i}) \cdot (s^'/\sigma_{i}) \cdot (R_{i} - PP_{i})\}#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math=\color{white}max\{0, (1-PM_{i}) \cdot (s^'/\sigma_{i}) \cdot (R_{i} - PP_{i})\}#gh-dark-mode-only">
-
-where `s'` is stake `s` scaled over total token circulating supply.
-
--->
 
 ### Licensing and copyright information
 
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.
 
 As a general approach, licensing is as follows this pattern:
+
 - applications and binaries are GPLv3
 - libraries and components are Apache 2.0 or MIT
 - documentation is Apache 2.0 or CC0-1.0
 
-Again, for accurate information, please check individual files.
+Nym Node Operators and Validators Temrs and Conditions can be found [here](https://nymtech.net/terms-and-conditions/operators/v1.0.0).

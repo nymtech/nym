@@ -124,7 +124,7 @@ impl MixnetListener {
         let registration_data = RegistrationData {
             nonce,
             gateway_data,
-            wg_port: self.config.authenticator.binding_port,
+            wg_port: self.config.authenticator.announced_port,
         };
         self.registration_in_progres
             .insert(remote_public, registration_data.clone());

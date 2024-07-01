@@ -289,7 +289,7 @@ pub fn ephemeral_exit_gateway_config(
                 client: base_client_config(&config),
                 debug: config.exit_gateway.authenticator.debug.client_debug,
             },
-            authenticator: nym_authenticator::config::Authenticator { binding_port: 1 },
+            authenticator: config.wireguard.clone().into(),
             storage_paths: nym_authenticator::config::AuthenticatorPaths {
                 common_paths: config
                     .exit_gateway

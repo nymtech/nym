@@ -8,11 +8,13 @@ use nym_config::{
     must_get_home, save_formatted_config_to_file, NymConfigTemplate, OptionalSet,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
+use nym_network_defaults::WG_PORT;
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
 pub use persistence::AuthenticatorPaths;
 use serde::{Deserialize, Serialize};
 use std::{
     io,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -181,8 +183,44 @@ impl Config {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Authenticator {
-    pub binding_port: u16,
+    /// Socket address this node will use for binding its wireguard interface.
+    /// default: `0.0.0.0:51822`
+    pub bind_address: SocketAddr,
+
+    /// Private IP address of the wireguard gateway.
+    /// default: `10.1.0.1`
+    pub private_ip: IpAddr,
+
+    /// Port announced to external clients wishing to connect to the wireguard interface.
+    /// Useful in the instances where the node is behind a proxy.
+    pub announced_port: u16,
+
+    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard.
+    /// The maximum value for IPv4 is 32 and for IPv6 is 128
+    pub private_network_prefix: u8,
+}
+
+impl Default for Authenticator {
+    fn default() -> Self {
+        Self {
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 51822),
+            private_ip: IpAddr::V4(Ipv4Addr::new(10, 1, 0, 1)),
+            announced_port: WG_PORT,
+            private_network_prefix: 16,
+        }
+    }
+}
+
+impl From<Authenticator> for nym_wireguard_types::Config {
+    fn from(value: Authenticator) -> Self {
+        nym_wireguard_types::Config {
+            bind_address: value.bind_address,
+            private_ip: value.private_ip,
+            announced_port: value.announced_port,
+            private_network_prefix: value.private_network_prefix,
+        }
+    }
 }

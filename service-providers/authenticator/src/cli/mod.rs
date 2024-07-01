@@ -20,6 +20,7 @@ mod init;
 mod list_gateways;
 mod run;
 mod sign;
+mod peer_handler;
 mod switch_gateway;
 
 pub(crate) struct CliAuthenticatorClient;

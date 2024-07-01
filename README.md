@@ -60,7 +60,7 @@ Node, node operator and delegator rewards are determined according to the princi
 
 Testing alpha on GH:
 
-	&alpha;
+&#945;
 
 |Symbol|Definition|
 |---|---|

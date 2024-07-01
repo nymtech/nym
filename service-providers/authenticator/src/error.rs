@@ -49,11 +49,17 @@ pub enum AuthenticatorError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("mac does not verify")]
+    MacVerificationFailure,
+
     #[error("no more space in the network")]
     NoFreeIp,
 
     #[error(transparent)]
     NymIdError(#[from] NymIdError),
+
+    #[error("registration is not in progress for the given key")]
+    RegistrationNotInProgress,
 }
 
 pub type Result<T> = std::result::Result<T, AuthenticatorError>;

@@ -140,7 +140,35 @@ impl MixnetListener {
         gateway_client: GatewayClient,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
-        Ok(AuthenticatorResponse::new_registered(reply_to))
+        let registration_data = self
+            .registration_in_progres
+            .get(&gateway_client.pub_key())
+            .ok_or(AuthenticatorError::RegistrationNotInProgress)?
+            .value()
+            .clone();
+
+        if gateway_client
+            .verify(
+                self.wireguard_gateway_data.keypair().private_key(),
+                registration_data.nonce,
+            )
+            .is_ok()
+        {
+            self.wireguard_gateway_data
+                .add_peer(&gateway_client)
+                .map_err(|err| {
+                    AuthenticatorError::InternalError(format!("could not add peer: {:?}", err))
+                })?;
+            self.registration_in_progres
+                .remove(&gateway_client.pub_key());
+            self.wireguard_gateway_data
+                .client_registry()
+                .insert(gateway_client.pub_key(), gateway_client);
+
+            Ok(AuthenticatorResponse::new_registered(reply_to))
+        } else {
+            Err(AuthenticatorError::MacVerificationFailure)
+        }
     }
 
     async fn on_reconstructed_message(

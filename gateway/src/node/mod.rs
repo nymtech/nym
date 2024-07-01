@@ -239,12 +239,12 @@ impl<St> Gateway<St> {
         shutdown: TaskClient,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(wireguard_data) = self.wireguard_data.take() {
-            let server = nym_authenticator::Authenticator::new(
+            let authenticator_server = nym_authenticator::Authenticator::new(
                 self.authenticator_opts.as_ref().unwrap().config.clone(),
                 self.wireguard_data.as_ref().unwrap().inner.clone(),
             )
             .with_shutdown(shutdown.clone());
-            server.run_service_provider().await;
+            tokio::spawn(async move { authenticator_server.run_service_provider().await });
             nym_wireguard::start_wireguard(shutdown, wireguard_data).await
         } else {
             Err(Box::new(GatewayError::WireguardNotSet))

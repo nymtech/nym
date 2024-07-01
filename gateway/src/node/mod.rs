@@ -252,7 +252,10 @@ impl<St> Gateway<St> {
     }
 
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
-    async fn start_authenticator(&self, _shutdown: TaskClient) {
+    async fn start_authenticator(
+        &self,
+        _shutdown: TaskClient,
+    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         todo!("Authenticator is currently only supported on Linux");
     }
 
@@ -557,16 +560,11 @@ impl<St> Gateway<St> {
         };
 
         let _wg_api = if self.authenticator_opts.is_some() {
-            if cfg!(all(feature = "wireguard", target_os = "linux")) {
-                Some(
-                    self.start_authenticator(shutdown.fork("wireguard"))
-                        .await
-                        .map_err(|source| GatewayError::StdError { source })?,
-                )
-            } else {
-                warn!("Authenticator only supports linux platforms. Not enabling it");
-                None
-            }
+            Some(
+                self.start_authenticator(shutdown.fork("wireguard"))
+                    .await
+                    .map_err(|source| GatewayError::StdError { source })?,
+            )
         } else {
             None
         };

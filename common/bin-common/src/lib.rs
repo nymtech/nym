@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod build_information;
-pub mod completions;
 pub mod logging;
 pub mod version_checker;
+
+#[cfg(feature = "clap")]
+pub mod completions;
 
 #[cfg(feature = "output_format")]
 pub mod output_format;

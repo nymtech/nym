@@ -9,9 +9,9 @@ repository = { workspace = true }
 
 [dependencies]
 const-str = { workspace = true }
-clap = { workspace = true, features = ["derive"] }
-clap_complete = { workspace = true }
-clap_complete_fig = { workspace = true }
+clap = { workspace = true, features = ["derive"], optional = true }
+clap_complete = { workspace = true, optional = true }
+clap_complete_fig = { workspace = true, optional = true }
 log = { workspace = true }
 pretty_env_logger = { workspace = true }
 semver = "0.11"
@@ -34,7 +34,7 @@ vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "carg
 [features]
 default = []
 openapi = ["utoipa"]
-output_format = ["serde_json"]
+output_format = ["serde_json", "dep:clap"]
 bin_info_schema = ["schemars"]
 basic_tracing = ["tracing-subscriber"]
 tracing = [
@@ -44,3 +44,4 @@ tracing = [
     "tracing-opentelemetry",
     "opentelemetry",
 ]
+clap = [ "dep:clap", "dep:clap_complete", "dep:clap_complete_fig" ]

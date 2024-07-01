@@ -23,7 +23,7 @@ impl AsRef<CommonClientAddGatewayArgs> for Args {
 
 pub(crate) async fn execute(args: Args) -> Result<(), IpPacketRouterError> {
     let output = args.output;
-    let res = add_gateway::<CliIpPacketRouterClient, _>(args).await?;
+    let res = add_gateway::<CliIpPacketRouterClient, _>(args, None).await?;
 
     println!("{}", output.format(&res));
     Ok(())

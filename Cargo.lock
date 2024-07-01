@@ -4623,6 +4623,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "http 1.1.0",
+ "nym-bin-common",
  "reqwest 0.12.4",
  "serde",
  "serde_json",
@@ -5232,6 +5233,7 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-sphinx",
  "nym-topology",
+ "nym-validator-client",
  "rand 0.8.5",
  "serde",
  "serde_json",

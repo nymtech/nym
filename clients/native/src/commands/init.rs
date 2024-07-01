@@ -114,8 +114,9 @@ impl Display for InitResults {
 pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
     eprintln!("Initialising client...");
 
+    let user_agent = nym_bin_common::bin_info!().into();
     let output = args.output;
-    let res = initialise_client::<CliNativeClient>(args).await?;
+    let res = initialise_client::<CliNativeClient>(args, Some(user_agent)).await?;
 
     let init_results = InitResults::new(res);
     println!("{}", output.format(&init_results));

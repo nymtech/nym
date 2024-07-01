@@ -56,11 +56,11 @@ You can chat to us in two places:
 
 ### Rewards
 
-Node, node operator and delegator rewards are determined according to the principles laid out in the section 6 of [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf). Below is a TLDR of the variables and formulas involved in calculating the epoch rewards. Initial reward pool is set to 250 million Nym, making the circulating supply 750 million Nym.
+Node, node operator and delegator rewards are determined according to the principles laid out in the section 6 of [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf).
+<!-- Below is a TLDR of the variables and formulas involved in calculating the epoch rewards.  -->
+Initial reward pool is set to 250 million Nym, making the circulating supply 750 million Nym.
 
-Testing alpha on GH:
-
-&#945;
+<!-- REDO USING DECIMAL NOTATION, LIKE THIS FOR ALPHA: &#945; MORE INFO HERE https://unicodelookup.com/#greek
 
 |Symbol|Definition|
 |---|---|
@@ -100,6 +100,8 @@ Delegate with stake `s` receives:
 <img src="https://render.githubusercontent.com/render/math?math=\color{white}max\{0, (1-PM_{i}) \cdot (s^'/\sigma_{i}) \cdot (R_{i} - PP_{i})\}#gh-dark-mode-only">
 
 where `s'` is stake `s` scaled over total token circulating supply.
+
+-->
 
 ### Licensing and copyright information
 

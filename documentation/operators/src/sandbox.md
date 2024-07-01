@@ -8,7 +8,7 @@ Below are steps to [setup your environment](#sandbox-environment-setup) and an i
 This page is for Nym node operators. If you want to run NymVPN CLI over Sandbox testnet, visit our [developers portal](https://nymtech.net/developers/nymvpn/cli.html#testnet-environment).
 ```
 
-## Sanbox Environment Setup
+## Sandbox Environment Setup
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
@@ -40,9 +40,9 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 ![](images/sandbox.png)
 
 ~~~admonish tip
-1. If you [built Nym from source](building-nym.md), you already have `sanbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you are likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`
+1. If you [built Nym from source](building-nym.md), you already have `sandbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you are likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`
 
-2. You can export the path to `sanbox.env` to your enviromental variables:
+2. You can export the path to `sandbox.env` to your enviromental variables:
 ```sh
 export NYMNODE_CONFIG_ENV_FILE_ARG=<PATH/TO/sandbox.env>
 ```

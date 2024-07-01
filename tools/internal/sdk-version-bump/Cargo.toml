@@ -14,6 +14,6 @@ license.workspace = true
 anyhow = { workspace = true }
 cargo-edit = "0.11.0"
 clap = { workspace = true, features = ["derive", "string"] }
-semver = "1.0.18"
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

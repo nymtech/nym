@@ -23,11 +23,11 @@ bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 colored = { workspace = true }
 dashmap = { workspace = true }
-dirs = "4.0"
+dirs = { workspace = true }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
-ipnetwork = "0.16"
+ipnetwork = { workspace = true }
 log = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
@@ -72,7 +72,6 @@ nym-network-requester = { path = "../service-providers/network-requester" }
 nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx = { path = "../common/nymsphinx" }
-nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }

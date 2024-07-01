@@ -32,6 +32,7 @@
 - [Performance Monitoring & Testing](testing/performance.md)
   <!--- [Node Setup](testing/node-setup.md)-->
   - [Gateway Probe](testing/gateway-probe.md)
+  - [Node API Check](testing/node-api-check.md)
   - [Prometheus & Grafana](testing/prometheus-grafana.md)
     - [ExploreNYM scripts](testing/explorenym-scripts.md)
 <!--    - [Run in a Docker](testing/docker-monitor.md) -->
@@ -83,5 +84,6 @@
 ---
 # Misc.
 - [Code of Conduct](coc.md)
+- [Terms & Conditions](toc.md)
 - [Licensing](licensing.md)
 ---

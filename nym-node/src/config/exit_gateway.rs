@@ -214,8 +214,6 @@ pub fn ephemeral_exit_gateway_config(
             },
             network_requester: nym_network_requester::config::NetworkRequester {
                 open_proxy: config.exit_gateway.open_proxy,
-                enabled_statistics: false,
-                statistics_recipient: None,
                 disable_poisson_rate: config
                     .exit_gateway
                     .network_requester

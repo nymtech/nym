@@ -9,7 +9,7 @@ license.workspace = true
 
 [dependencies]
 bls12_381 = { workspace = true, default-features = false, features = ["pairings", "alloc", "experimental"] }
-itertools = "0.10"
+itertools = { workspace = true }
 digest = "0.9"
 rand = "0.8"
 thiserror = { workspace = true }
@@ -33,7 +33,7 @@ default-features = false
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 doc-comment = { workspace = true }
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }
 
 [[bench]]
 name = "benchmarks"

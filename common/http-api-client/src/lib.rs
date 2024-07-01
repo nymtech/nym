@@ -287,9 +287,6 @@ impl Client {
         E: Display + DeserializeOwned,
     {
         let res = self.send_get_request(path, params).await?;
-        // dbg!(&res);
-        // dbg!(&res.text().await);
-        // todo!();
         parse_response(res, false).await
     }
 

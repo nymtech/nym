@@ -454,6 +454,9 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                                 .unwrap_or_default(),
                         },
                     },
+                    authenticator: config::exit_gateway::Authenticator {
+                        debug: Default::default(),
+                    },
                 }),
         )
         .build();

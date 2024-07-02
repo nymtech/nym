@@ -543,6 +543,17 @@ impl From<Wireguard> for nym_wireguard_types::Config {
     }
 }
 
+impl From<Wireguard> for nym_authenticator::config::Authenticator {
+    fn from(value: Wireguard) -> Self {
+        nym_authenticator::config::Authenticator {
+            bind_address: value.bind_address,
+            private_ip: value.private_ip,
+            announced_port: value.announced_port,
+            private_network_prefix: value.private_network_prefix,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct LocalWireguardOpts {
     pub config: Wireguard,

@@ -23,7 +23,7 @@ impl AsRef<CommonClientAddGatewayArgs> for Args {
 
 pub(crate) async fn execute(args: Args) -> Result<(), AuthenticatorError> {
     let output = args.output;
-    let res = add_gateway::<CliAuthenticatorClient, _>(args).await?;
+    let res = add_gateway::<CliAuthenticatorClient, _>(args, None).await?;
 
     println!("{}", output.format(&res));
     Ok(())

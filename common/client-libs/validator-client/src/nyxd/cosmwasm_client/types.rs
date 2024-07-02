@@ -30,6 +30,7 @@ use prost::Message;
 use serde::Serialize;
 
 pub use cosmrs::abci::GasInfo;
+pub use cosmrs::abci::MsgResponse;
 
 pub type ContractCodeId = u64;
 
@@ -238,7 +239,7 @@ pub struct UploadResult {
     pub gas_info: GasInfo,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InstantiateOptions {
     /// The funds that are transferred from the sender to the newly created contract.
     /// The funds are transferred as part of the message execution after the contract address is
@@ -259,6 +260,11 @@ impl InstantiateOptions {
             funds: funds.into_iter().map(Into::into).collect(),
             admin,
         }
+    }
+
+    pub fn with_admin(mut self, admin: AccountId) -> Self {
+        self.admin = Some(admin);
+        self
     }
 }
 
@@ -299,7 +305,7 @@ pub struct MigrateResult {
 pub struct ExecuteResult {
     pub logs: Vec<Log>,
 
-    pub data: Vec<u8>,
+    pub msg_responses: Vec<MsgResponse>,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,

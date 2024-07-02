@@ -31,15 +31,15 @@ pub trait MultisigSigningClient: NymContractsProvider {
         voucher_value: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let coconut_bandwidth_contract_address = self
-            .coconut_bandwidth_contract_address()
+        let ecash_contract_address = self
+            .ecash_contract_address()
             .ok_or_else(|| NyxdError::unavailable_contract_address("coconut bandwidth contract"))?;
 
         let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
             funds: voucher_value.into(),
         };
         let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: coconut_bandwidth_contract_address.to_string(),
+            contract_addr: ecash_contract_address.to_string(),
             msg: to_binary(&release_funds_req)?,
             funds: vec![],
         });

@@ -5,6 +5,7 @@ pub mod helpers;
 pub mod models;
 
 pub use models::{
-    BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody, FreePassRequest,
-    VerificationKeyResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
+    PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
+    VerificationKeyResponse, VerifyEcashCredentialBody,
 };

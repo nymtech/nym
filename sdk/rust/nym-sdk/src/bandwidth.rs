@@ -15,10 +15,10 @@
 //!         .build()
 //!         .unwrap();
 //!
-//!     let bandwidth_client = mixnet_client.create_bandwidth_client(String::from("my super secret mnemonic")).unwrap();
+//!     let bandwidth_client = mixnet_client.create_bandwidth_client(String::from("my super secret mnemonic")).await.unwrap();
 //!
-//!     // Get a bandwidth credential worth 1000000 unym for the mixnet_client
-//!     bandwidth_client.acquire(1000000).await.unwrap();
+//!     // Get a bandwidth credential for the mixnet_client
+//!     bandwidth_client.acquire().await.unwrap();
 //!
 //!     // Connect using paid bandwidth credential
 //!     let mut client = mixnet_client.connect_to_mixnet().await.unwrap();

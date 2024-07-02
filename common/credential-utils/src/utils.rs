@@ -5,43 +5,39 @@ use nym_bandwidth_controller::acquire::state::State;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_credentials::coconut::bandwidth::CredentialType;
 use nym_validator_client::nyxd::contract_traits::{
-    dkg_query_client::EpochState, CoconutBandwidthSigningClient, DkgQueryClient,
+    dkg_query_client::EpochState, DkgQueryClient, EcashSigningClient,
 };
-use nym_validator_client::nyxd::Coin;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 pub async fn issue_credential<C>(
     client: &C,
-    amount: Coin,
+    client_id: &[u8],
     persistent_storage: &PersistentStorage,
     recovery_storage_path: PathBuf,
 ) -> Result<()>
 where
-    C: DkgQueryClient + CoconutBandwidthSigningClient + Send + Sync,
+    C: DkgQueryClient + EcashSigningClient + Send + Sync,
 {
     let recovery_storage = setup_recovery_storage(recovery_storage_path).await;
 
     block_until_coconut_is_available(client).await?;
     info!("Starting to deposit funds, don't kill the process");
 
-    if let Ok(recovered_amount) =
+    if let Ok(recovered_tickets) =
         recover_credentials(client, &recovery_storage, persistent_storage).await
     {
-        if recovered_amount != 0 {
-            info!(
-                "Recovered credentials in the amount of {}",
-                recovered_amount
-            );
+        if recovered_tickets != 0 {
+            info!("managed to recover {recovered_tickets} tickets",);
             return Ok(());
         }
     };
 
-    let state = nym_bandwidth_controller::acquire::deposit(client, amount.clone()).await?;
+    let state = nym_bandwidth_controller::acquire::deposit(client, client_id).await?;
+    info!("Deposit done");
 
-    if nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, client, persistent_storage)
+    if nym_bandwidth_controller::acquire::get_ticket_book(&state, client, persistent_storage)
         .await
         .is_err()
     {
@@ -60,7 +56,7 @@ where
         ));
     }
 
-    info!("Succeeded adding a credential with amount {amount}");
+    info!("Succeeded adding a ticketbook credential");
 
     Ok(())
 }
@@ -113,27 +109,23 @@ pub async fn recover_credentials<C>(
     client: &C,
     recovery_storage: &RecoveryStorage,
     shared_storage: &PersistentStorage,
-) -> Result<u128>
+) -> Result<usize>
 where
     C: DkgQueryClient + Send + Sync,
 {
-    let mut recovered_amount: u128 = 0;
+    let mut recovered_tickets = 0;
     for voucher in recovery_storage.unconsumed_vouchers()? {
-        let voucher_value = match voucher.typ() {
-            CredentialType::Voucher => voucher.get_bandwidth_attribute(),
-            CredentialType::FreePass => {
-                error!("unimplemented recovery of free pass credentials");
-                continue;
-            }
-        };
-        recovered_amount += voucher_value.parse::<u128>()?;
-
         let voucher_name = RecoveryStorage::voucher_filename(&voucher);
+
+        if voucher.check_expiration_date() {
+            //We did change the expiration
+            warn!("Deposit {} was made with a different expiration date, it's validity will be shorter than the max one", voucher_name);
+        }
+
         let state = State::new(voucher);
 
         if let Err(e) =
-            nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, client, shared_storage)
-                .await
+            nym_bandwidth_controller::acquire::get_ticket_book(&state, client, shared_storage).await
         {
             error!("Could not recover deposit {voucher_name} due to {e}, try again later",)
         } else {
@@ -143,8 +135,9 @@ where
             if let Err(err) = recovery_storage.remove_voucher(voucher_name) {
                 warn!("Could not remove recovery data: {err}");
             }
+            recovered_tickets += 1;
         }
     }
 
-    Ok(recovered_amount)
+    Ok(recovered_tickets)
 }

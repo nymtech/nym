@@ -69,8 +69,6 @@ fn print_signed_contract_msg(
 }
 
 pub async fn execute(args: Args) -> Result<(), NymNodeError> {
-    println!("args: {args:?}");
-
     let config = try_load_current_config(args.config.config_path()).await?;
     let identity_keypair =
         load_ed25519_identity_keypair(config.storage_paths.keys.ed25519_identity_storage_paths())?;

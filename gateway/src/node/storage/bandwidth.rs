@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::storage::models::{PersistedBandwidth, SpentCredential};
+use crate::node::storage::models::PersistedBandwidth;
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -29,32 +29,46 @@ impl BandwidthManager {
         client_address_bs58: &str,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO available_bandwidth(client_address_bs58, available) VALUES (?, 0)",
-            client_address_bs58
+            "INSERT INTO available_bandwidth(client_address_bs58, available, expiration) VALUES (?, 0, ?)",
+            client_address_bs58,
+            OffsetDateTime::UNIX_EPOCH,
         )
         .execute(&self.connection_pool)
         .await?;
         Ok(())
     }
 
-    /// Set the freepass expiration date of the particular client to the provided date.
+    pub(crate) async fn get_client_id(
+        &self,
+        client_address_bs58: &str,
+    ) -> Result<i64, sqlx::Error> {
+        Ok(sqlx::query!(
+            "SELECT id from shared_keys WHERE client_address_bs58 = ?",
+            client_address_bs58
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .id)
+    }
+
+    /// Set the expiration date of the particular client to the provided date.
     ///
     /// # Arguments
     ///
     /// * `client_address_bs58`: base58-encoded address of the client.
-    /// * `freepass_expiration`: the expiration date of the associated free pass.
-    pub(crate) async fn set_freepass_expiration(
+    /// * `expiration`: the expiration date
+    pub(crate) async fn set_expiration(
         &self,
         client_address_bs58: &str,
-        freepass_expiration: OffsetDateTime,
+        expiration: OffsetDateTime,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE available_bandwidth
-                SET freepass_expiration = ?
+                SET expiration = ?
                 WHERE client_address_bs58 = ?
             "#,
-            freepass_expiration,
+            expiration,
             client_address_bs58
         )
         .execute(&self.connection_pool)
@@ -67,16 +81,17 @@ impl BandwidthManager {
     /// # Arguments
     ///
     /// * `client_address_bs58`: base58-encoded address of the client.
-    pub(crate) async fn reset_freepass_bandwidth(
+    pub(crate) async fn reset_bandwidth(
         &self,
         client_address_bs58: &str,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
                 UPDATE available_bandwidth
-                SET available = 0, freepass_expiration = NULL
+                SET available = 0, expiration = ?
                 WHERE client_address_bs58 = ?
             "#,
+            OffsetDateTime::UNIX_EPOCH,
             client_address_bs58
         )
         .execute(&self.connection_pool)
@@ -122,55 +137,5 @@ impl BandwidthManager {
         .execute(&self.connection_pool)
         .await?;
         Ok(())
-    }
-
-    /// Mark received credential as spent and insert it into the storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `blinded_serial_number_bs58`: the unique blinded serial number embedded in the credential
-    /// * `was_freepass`: indicates whether the spent credential was a freepass
-    /// * `client_address_bs58`: address of the client that spent the credential
-    pub(crate) async fn insert_spent_credential(
-        &self,
-        blinded_serial_number_bs58: &str,
-        was_freepass: bool,
-        client_address_bs58: &str,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO spent_credential
-                (blinded_serial_number_bs58, was_freepass, client_address_bs58)
-                VALUES (?, ?, ?)
-            "#,
-            blinded_serial_number_bs58,
-            was_freepass,
-            client_address_bs58
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    /// Retrieve the spent credential with the provided blinded serial number from the storage.
-    ///
-    /// # Arguments
-    ///
-    /// * `blinded_serial_number_bs58`: the unique blinded serial number embedded in the credential
-    pub(crate) async fn retrieve_spent_credential(
-        &self,
-        blinded_serial_number_bs58: &str,
-    ) -> Result<Option<SpentCredential>, sqlx::Error> {
-        sqlx::query_as!(
-            SpentCredential,
-            r#"
-                SELECT * FROM spent_credential
-                WHERE blinded_serial_number_bs58 = ?
-                LIMIT 1
-            "#,
-            blinded_serial_number_bs58,
-        )
-        .fetch_optional(&self.connection_pool)
-        .await
     }
 }

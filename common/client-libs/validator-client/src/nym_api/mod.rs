@@ -4,14 +4,27 @@
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
+use nym_api_requests::coconut::models::{
+    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
+    VerifyEcashTicketBody,
+};
+use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
+use nym_http_api_client::{ApiClient, NO_PARAMS};
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+
+pub mod error;
+pub mod routes;
+
 pub use nym_api_requests::{
     coconut::{
         models::{
             EpochCredentialsResponse, IssuedCredential, IssuedCredentialBody,
-            IssuedCredentialResponse, IssuedCredentialsResponse,
+            IssuedCredentialResponse, IssuedCredentialsResponse, SpentCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
-        VerifyCredentialBody, VerifyCredentialResponse,
+        PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
+        VerifyEcashCredentialBody,
     },
     models::{
         ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -22,16 +35,6 @@ pub use nym_api_requests::{
     },
 };
 pub use nym_coconut_dkg_common::types::EpochId;
-use nym_http_api_client::{ApiClient, NO_PARAMS};
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-
-pub mod error;
-pub mod routes;
-
-use nym_api_requests::coconut::models::FreePassNonceResponse;
-use nym_api_requests::coconut::FreePassRequest;
-use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
 pub use nym_http_api_client::Client;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -420,36 +423,6 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_FREE_PASS_NONCE,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    async fn free_pass(
-        &self,
-        request: &FreePassRequest,
-    ) -> Result<BlindedSignatureResponse, NymAPIError> {
-        self.post_json(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_FREE_PASS,
-            ],
-            NO_PARAMS,
-            request,
-        )
-        .await
-    }
-
     async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
@@ -467,19 +440,96 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn verify_bandwidth_credential(
+    async fn verify_ecash_ticket(
         &self,
-        request_body: &VerifyCredentialBody,
-    ) -> Result<VerifyCredentialResponse, NymAPIError> {
+        request_body: &VerifyEcashTicketBody,
+    ) -> Result<EcashTicketVerificationResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
-                routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+                routes::VERIFY_ECASH_TICKET,
             ],
             NO_PARAMS,
             request_body,
+        )
+        .await
+    }
+
+    async fn batch_redeem_ecash_tickets(
+        &self,
+        request_body: &BatchRedeemTicketsBody,
+    ) -> Result<EcashBatchTicketRedemptionResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::BATCH_REDEEM_ECASH_TICKETS,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    async fn spent_credentials_filter(&self) -> Result<SpentCredentialsResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::SPENT_CREDENTIALS_FILTER,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn expiration_date_signatures(
+        &self,
+    ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::EXPIRATION_DATE_SIGNATURES,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn expiration_date_signatures_timestamp(
+        &self,
+        timestamp: &str,
+    ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::EXPIRATION_DATE_SIGNATURES,
+                timestamp,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn coin_indices_signatures(
+        &self,
+    ) -> Result<PartialCoinIndicesSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COIN_INDICES_SIGNATURES,
+            ],
+            NO_PARAMS,
         )
         .await
     }

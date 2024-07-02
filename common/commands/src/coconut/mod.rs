@@ -3,22 +3,20 @@
 
 use clap::{Args, Subcommand};
 
-pub mod generate_freepass;
-pub mod import_credential;
-pub mod issue_credentials;
-pub mod recover_credentials;
+pub mod import_ticket_book;
+pub mod issue_ticket_book;
+pub mod recover_ticket_book;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
-pub struct Coconut {
+pub struct Ecash {
     #[clap(subcommand)]
-    pub command: CoconutCommands,
+    pub command: EcashCommands,
 }
 
 #[derive(Debug, Subcommand)]
-pub enum CoconutCommands {
-    GenerateFreepass(generate_freepass::Args),
-    IssueCredentials(issue_credentials::Args),
-    RecoverCredentials(recover_credentials::Args),
-    ImportCredential(import_credential::Args),
+pub enum EcashCommands {
+    IssueTicketBook(issue_ticket_book::Args),
+    RecoverTicketBook(recover_ticket_book::Args),
+    ImportTicketBook(import_ticket_book::Args),
 }

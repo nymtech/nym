@@ -225,7 +225,6 @@ impl Config {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
     }
-
     pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
         self.gateway.nym_api_urls = nym_api_urls;
         self

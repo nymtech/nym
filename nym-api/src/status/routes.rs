@@ -5,7 +5,7 @@ use crate::node_status_api::models::ErrorResponse;
 use crate::status::ApiStatusState;
 use nym_api_requests::models::{ApiHealthResponse, SignerInformationResponse};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
-use nym_coconut::Base58;
+use nym_compact_ecash::Base58;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;

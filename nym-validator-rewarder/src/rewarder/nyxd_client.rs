@@ -1,18 +1,17 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
 use crate::error::NymRewarderError;
 use crate::rewarder::credential_issuance::types::{addr_to_account_id, CredentialIssuer};
-use nym_coconut::{Base58, VerificationKey};
-use nym_coconut_bandwidth_contract_common::events::{
-    COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO, DEPOSIT_VALUE,
-};
 use nym_coconut_dkg_common::types::Epoch;
+use nym_compact_ecash::{Base58, VerificationKeyAuth};
 use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
-use nym_validator_client::nyxd::helpers::find_tx_attribute;
+use nym_validator_client::nyxd::contract_traits::ecash_query_client::{Deposit, DepositId};
+use nym_validator_client::nyxd::contract_traits::{
+    DkgQueryClient, EcashQueryClient, PagedDkgQueryClient,
+};
 use nym_validator_client::nyxd::module_traits::staking::{
     QueryHistoricalInfoResponse, QueryValidatorsResponse,
 };
@@ -110,7 +109,7 @@ impl NyxdClient {
                     public_key: ed25519::PublicKey::from_base58_string(&info.ed25519_identity)?,
                     operator_account: addr_to_account_id(share.owner),
                     api_runner: share.announce_address,
-                    verification_key: VerificationKey::try_from_bs58(share.share).map_err(
+                    verification_key: VerificationKeyAuth::try_from_bs58(share.share).map_err(
                         |source| NymRewarderError::MalformedPartialVerificationKey {
                             runner: info.address.to_string(),
                             source,
@@ -123,22 +122,12 @@ impl NyxdClient {
         Ok(issuers)
     }
 
-    pub(crate) async fn get_deposit_transaction_attributes(
+    pub(crate) async fn get_deposit_details(
         &self,
-        tx_hash: Hash,
-    ) -> Result<(String, String), NymRewarderError> {
-        let tx = self.inner.read().await.get_tx(tx_hash).await?;
-
-        // todo: we need to make it more concrete that the first attribute is the deposit value
-        // and the second one is the deposit info
-        let deposit_value =
-            find_tx_attribute(&tx, COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_VALUE)
-                .ok_or(NymRewarderError::DepositValueNotFound { tx_hash })?;
-
-        let deposit_info =
-            find_tx_attribute(&tx, COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO)
-                .ok_or(NymRewarderError::DepositInfoNotFound { tx_hash })?;
-
-        Ok((deposit_value, deposit_info))
+        deposit_id: DepositId,
+    ) -> Result<Deposit, NymRewarderError> {
+        let res = self.inner.read().await.get_deposit(deposit_id).await?;
+        res.deposit
+            .ok_or(NymRewarderError::DepositNotFound { deposit_id })
     }
 }

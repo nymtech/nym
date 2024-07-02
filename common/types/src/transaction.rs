@@ -65,7 +65,7 @@ impl TransactionDetails {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TransactionExecuteResult {
     pub logs_json: String,
-    pub data_json: String,
+    pub msg_responses_json: String,
     pub transaction_hash: String,
     pub gas_info: GasInfo,
     pub fee: Option<DecCoin>,
@@ -79,7 +79,7 @@ impl TransactionExecuteResult {
         Ok(TransactionExecuteResult {
             gas_info: value.gas_info.into(),
             transaction_hash: value.transaction_hash.to_string(),
-            data_json: ::serde_json::to_string_pretty(&value.data)?,
+            msg_responses_json: ::serde_json::to_string_pretty(&value.msg_responses)?,
             logs_json: ::serde_json::to_string_pretty(&value.logs)?,
             fee,
         })

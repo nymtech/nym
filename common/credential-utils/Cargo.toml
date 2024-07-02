@@ -12,9 +12,9 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
-nym-coconut = { path = "../nymcoconut" }
 nym-credentials = { path = "../../common/credentials" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-config = { path = "../../common/config" }
 nym-client-core = { path = "../../common/client-core" }
+nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }

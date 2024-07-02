@@ -123,11 +123,10 @@ impl InitialAuthenticationError {
 
 pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
-    pub(crate) shared_state: CommonHandlerState,
+    pub(crate) shared_state: CommonHandlerState<St>,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
-    pub(crate) storage: St,
 
     // currently unused (but populated)
     pub(crate) negotiated_protocol: Option<u8>,
@@ -136,7 +135,7 @@ pub(crate) struct FreshHandler<R, S, St> {
 impl<R, S, St> FreshHandler<R, S, St>
 where
     R: Rng + CryptoRng,
-    St: Storage,
+    St: Storage + Clone + 'static,
 {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
@@ -147,16 +146,14 @@ where
         rng: R,
         conn: S,
         outbound_mix_sender: MixForwardingSender,
-        storage: St,
         active_clients_store: ActiveClientsStore,
-        shared_state: CommonHandlerState,
+        shared_state: CommonHandlerState<St>,
     ) -> Self {
         FreshHandler {
             rng,
             active_clients_store,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
-            storage,
             negotiated_protocol: None,
             shared_state,
         }
@@ -311,6 +308,7 @@ where
         loop {
             // retrieve some messages
             let (messages, new_start_next_after) = self
+                .shared_state
                 .storage
                 .retrieve_messages(client_address, start_next_after)
                 .await?;
@@ -326,7 +324,7 @@ where
                 return Err(InitialAuthenticationError::ConnectionError(err));
             } else {
                 // if it was successful - remove them from the store
-                self.storage.remove_messages(ids).await?;
+                self.shared_state.storage.remove_messages(ids).await?;
             }
 
             // no more messages to grab
@@ -356,7 +354,11 @@ where
         encrypted_address: EncryptedAddressBytes,
         iv: IV,
     ) -> Result<Option<SharedKeys>, InitialAuthenticationError> {
-        let shared_keys = self.storage.get_shared_keys(client_address).await?;
+        let shared_keys = self
+            .shared_state
+            .storage
+            .get_shared_keys(client_address)
+            .await?;
 
         if let Some(shared_keys) = shared_keys {
             // this should never fail as we only ever construct persisted shared keys ourselves when inserting
@@ -548,11 +550,15 @@ where
             .await?;
         let status = shared_keys.is_some();
 
-        let available_bandwidth: AvailableBandwidth =
-            self.storage.get_available_bandwidth(address).await?.into();
+        let available_bandwidth: AvailableBandwidth = self
+            .shared_state
+            .storage
+            .get_available_bandwidth(address)
+            .await?
+            .into();
 
-        let bandwidth_remaining = if available_bandwidth.freepass_expired() {
-            self.expire_freepass(address).await?;
+        let bandwidth_remaining = if available_bandwidth.expired() {
+            self.expire_bandwidth(address).await?;
             0
         } else {
             available_bandwidth.bytes
@@ -571,11 +577,11 @@ where
         ))
     }
 
-    pub(crate) async fn expire_freepass(
+    pub(crate) async fn expire_bandwidth(
         &self,
         client: DestinationAddressBytes,
     ) -> Result<(), StorageError> {
-        self.storage.reset_freepass_bandwidth(client).await
+        self.shared_state.storage.reset_bandwidth(client).await
     }
 
     /// Attempts to finalize registration of the client by storing the derived shared keys in the
@@ -598,18 +604,23 @@ where
             client.address.as_base58_string()
         );
 
-        self.storage
+        self.shared_state
+            .storage
             .insert_shared_keys(client.address, &client.shared_keys)
             .await?;
 
         // see if we have bandwidth entry for the client already, if not, create one with zero value
         if self
+            .shared_state
             .storage
             .get_available_bandwidth(client.address)
             .await?
             .is_none()
         {
-            self.storage.create_bandwidth_entry(client.address).await?;
+            self.shared_state
+                .storage
+                .create_bandwidth_entry(client.address)
+                .await?;
         }
 
         self.push_stored_messages_to_client(client.address, &client.shared_keys)

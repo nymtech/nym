@@ -87,6 +87,9 @@ pub enum QueryMsg {
     #[cfg_attr(feature = "schema", returns(u64))]
     GetCurrentEpochThreshold {},
 
+    #[cfg_attr(feature = "schema", returns(u64))]
+    GetEpochThreshold { epoch_id: EpochId },
+
     #[cfg_attr(feature = "schema", returns(StateAdvanceResponse))]
     CanAdvanceState {},
 

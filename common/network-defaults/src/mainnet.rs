@@ -17,7 +17,7 @@ pub const MIXNET_CONTRACT_ADDRESS: &str =
 pub const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
 
-pub const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str = "";
+pub const ECASH_CONTRACT_ADDRESS: &str = "";
 pub const GROUP_CONTRACT_ADDRESS: &str =
     "n1e2zq4886zzewpvpucmlw8v9p7zv692f6yck4zjzxh699dkcmlrfqk2knsr";
 pub const MULTISIG_CONTRACT_ADDRESS: &str =
@@ -92,10 +92,7 @@ pub fn export_to_env() {
         var_names::VESTING_CONTRACT_ADDRESS,
         VESTING_CONTRACT_ADDRESS,
     );
-    set_var_to_default(
-        var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-        COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-    );
+    set_var_to_default(var_names::ECASH_CONTRACT_ADDRESS, ECASH_CONTRACT_ADDRESS);
     set_var_to_default(var_names::GROUP_CONTRACT_ADDRESS, GROUP_CONTRACT_ADDRESS);
     set_var_to_default(
         var_names::MULTISIG_CONTRACT_ADDRESS,
@@ -133,10 +130,7 @@ pub fn export_to_env_if_not_set() {
         var_names::VESTING_CONTRACT_ADDRESS,
         VESTING_CONTRACT_ADDRESS,
     );
-    set_var_conditionally_to_default(
-        var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-        COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-    );
+    set_var_conditionally_to_default(var_names::ECASH_CONTRACT_ADDRESS, ECASH_CONTRACT_ADDRESS);
     set_var_conditionally_to_default(var_names::GROUP_CONTRACT_ADDRESS, GROUP_CONTRACT_ADDRESS);
     set_var_conditionally_to_default(
         var_names::MULTISIG_CONTRACT_ADDRESS,

@@ -1,0 +1,459 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
+use super::helpers::{CoinIndexSignatureCache, ExpirationDateSignatureCache};
+use crate::ecash::client::Client as LocalClient;
+use crate::ecash::comm::APICommunicationChannel;
+use crate::ecash::deposit::validate_deposit;
+use crate::ecash::error::{EcashError, RedemptionError, Result};
+use crate::ecash::keys::KeyPair;
+use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
+use crate::ecash::storage::CoconutStorageExt;
+use crate::support::storage::NymApiStorage;
+use bloomfilter::Bloom;
+use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
+use cw3::Status;
+use nym_api_requests::coconut::helpers::issued_credential_plaintext;
+use nym_api_requests::coconut::models::BatchRedeemTicketsBody;
+use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_coconut_dkg_common::types::EpochId;
+use nym_compact_ecash::{
+    scheme::coin_indices_signatures::CoinIndexSignature,
+    scheme::expiration_date_signatures::{sign_expiration_date, ExpirationDateSignature},
+    BlindedSignature, VerificationKeyAuth,
+};
+use nym_config::defaults::{BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS};
+use nym_credentials::{ecash::utils::cred_exp_date, CredentialSpendingData};
+use nym_crypto::asymmetric::identity;
+use nym_ecash_contract_common::deposit::{Deposit, DepositId};
+use nym_ecash_contract_common::msg::ExecuteMsg;
+use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
+use nym_validator_client::nyxd::AccountId;
+use rand::rngs::OsRng;
+use rand::RngCore;
+use std::sync::Arc;
+use time::OffsetDateTime;
+use tokio::sync::RwLock;
+
+pub struct State {
+    contract_address: AccountId,
+    pub(crate) client: Arc<dyn LocalClient + Send + Sync>,
+    pub(crate) ecash_keypair: KeyPair,
+    pub(crate) identity_keypair: identity::KeyPair,
+    pub(crate) comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
+    pub(crate) storage: NymApiStorage,
+    coin_indices_sigs_cache: Arc<CoinIndexSignatureCache>,
+    exp_date_sigs_cache: Arc<ExpirationDateSignatureCache>,
+    spent_credentials: Arc<RwLock<Bloom<String>>>,
+}
+
+impl State {
+    pub(crate) fn new<C, D>(
+        contract_address: AccountId,
+        client: C,
+        identity_keypair: identity::KeyPair,
+        key_pair: KeyPair,
+        comm_channel: D,
+        storage: NymApiStorage,
+    ) -> Self
+    where
+        C: LocalClient + Send + Sync + 'static,
+        D: APICommunicationChannel + Send + Sync + 'static,
+    {
+        let client = Arc::new(client);
+        let comm_channel = Arc::new(comm_channel);
+
+        let mut nonce = [0u8; 16];
+        OsRng.fill_bytes(&mut nonce);
+
+        let bitmap = [0u8; (BLOOM_BITMAP_SIZE / 8) as usize];
+        let bloom_filter =
+            Bloom::from_existing(&bitmap, BLOOM_BITMAP_SIZE, BLOOM_NUM_HASHES, BLOOM_SIP_KEYS);
+        Self {
+            contract_address,
+            client,
+            ecash_keypair: key_pair,
+            identity_keypair,
+            comm_channel,
+            storage,
+            coin_indices_sigs_cache: Arc::new(CoinIndexSignatureCache::new()),
+            exp_date_sigs_cache: Arc::new(ExpirationDateSignatureCache::new()),
+            spent_credentials: Arc::new(RwLock::new(bloom_filter)),
+        }
+    }
+
+    pub(crate) async fn ensure_dkg_not_in_progress(&self) -> Result<()> {
+        if self.comm_channel.dkg_in_progress().await? {
+            return Err(EcashError::DkgInProgress);
+        }
+        Ok(())
+    }
+
+    /// Check if this nym-api has already issued a credential for the provided deposit id.
+    /// If so, return it.
+    pub async fn already_issued(&self, deposit_id: DepositId) -> Result<Option<BlindedSignature>> {
+        self.storage
+            .get_issued_bandwidth_credential_by_deposit_id(deposit_id)
+            .await?
+            .map(|cred| cred.try_into())
+            .transpose()
+    }
+
+    pub async fn get_deposit(&self, deposit_id: DepositId) -> Result<Deposit> {
+        self.client
+            .get_deposit(deposit_id)
+            .await?
+            .deposit
+            .ok_or(EcashError::NonExistentDeposit { deposit_id })
+    }
+
+    pub async fn validate_request(
+        &self,
+        request: &BlindSignRequestBody,
+        deposit: Deposit,
+    ) -> Result<()> {
+        validate_deposit(request, deposit).await
+    }
+
+    pub(crate) async fn validate_redemption_proposal(
+        &self,
+        request: &BatchRedeemTicketsBody,
+    ) -> std::result::Result<(), RedemptionError> {
+        let proposal_id = request.proposal_id;
+
+        // retrieve the proposal itself
+        let mut proposal = self
+            .client
+            .get_proposal(proposal_id)
+            .await
+            .map_err(|_| RedemptionError::ProposalRetrievalFailure { proposal_id })?;
+
+        if proposal.title != BATCH_REDEMPTION_PROPOSAL_TITLE {
+            return Err(RedemptionError::InvalidProposalTitle {
+                proposal_id,
+                received: proposal.title,
+            });
+        }
+
+        // make sure you can still vote on it
+        match proposal.status {
+            Status::Pending => return Err(RedemptionError::StillPending { proposal_id }),
+            Status::Open => {}
+            Status::Rejected => return Err(RedemptionError::AlreadyRejected { proposal_id }),
+
+            // TODO: need to double check with the multisig whether it wouldn't always be thrown on threshold
+            // i.e. whether after the 2+/3 vote, the remaining 1-/3 would return this error
+            Status::Passed => return Err(RedemptionError::AlreadyPassed { proposal_id }),
+            Status::Executed => return Err(RedemptionError::AlreadyExecuted { proposal_id }),
+        }
+
+        let encoded_digest = bs58::encode(&request.digest).into_string();
+
+        // check if the description matches the expected digest
+        if encoded_digest != proposal.description {
+            return Err(RedemptionError::InvalidProposalDescription {
+                proposal_id,
+                received: proposal.description,
+                expected: encoded_digest,
+            });
+        }
+
+        // check if it was actually created by the ecash contract
+        if proposal.proposer != self.contract_address.as_ref() {
+            return Err(RedemptionError::InvalidProposer {
+                proposal_id,
+                received: proposal.proposer.into_string(),
+                expected: self.contract_address.clone(),
+            });
+        }
+
+        // check if contains exactly the content we expect,
+        // i.e. single `RedeemTickets` message with no funds, etc.
+        if proposal.msgs.len() != 1 {
+            return Err(RedemptionError::TooManyMessages { proposal_id });
+        }
+
+        // SAFETY: we just checked we have exactly one message
+        #[allow(clippy::unwrap_used)]
+        let msg = proposal.msgs.pop().unwrap();
+        let CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg,
+            funds,
+        }) = msg
+        else {
+            return Err(RedemptionError::InvalidMessage { proposal_id });
+        };
+
+        if !funds.is_empty() {
+            return Err(RedemptionError::InvalidMessage { proposal_id });
+        }
+
+        if contract_addr != self.contract_address.as_ref() {
+            return Err(RedemptionError::InvalidContract { proposal_id });
+        }
+
+        let Ok(ExecuteMsg::RedeemTickets { n, gw }) = from_binary(&msg) else {
+            return Err(RedemptionError::InvalidMessage { proposal_id });
+        };
+
+        if gw != request.gateway_cosmos_addr.as_ref() {
+            return Err(RedemptionError::InvalidRedemptionTarget {
+                proposal_id,
+                proposed: gw,
+                received: request.gateway_cosmos_addr.to_string(),
+            });
+        }
+
+        if n as usize != request.included_serial_numbers.len() {
+            return Err(RedemptionError::InvalidRedemptionTicketCount {
+                proposal_id,
+                proposed: n,
+                received: request.included_serial_numbers.len() as u16,
+            });
+        }
+
+        Ok(())
+    }
+
+    pub(crate) async fn accept_proposal(&self, proposal_id: u64) -> Result<()> {
+        //SW NOTE: What to do if this fails
+        if let Err(err) = self.client.vote_proposal(proposal_id, true, None).await {
+            log::debug!("failed to vote on proposal {proposal_id}: {err}");
+        }
+
+        Ok(())
+    }
+
+    // pub(crate) async fn blacklist(&self, public_key: String) {
+    //     let client = self.client.clone();
+    //     tokio::spawn(async move {
+    //         //SW TODO error handling with one log at the end
+    //         let response = client.propose_for_blacklist(public_key.clone()).await?;
+    //         let proposal_id = find_proposal_id(&response.logs)?;
+    //
+    //         let proposal = client.get_proposal(proposal_id).await?;
+    //         if proposal.status == Status::Open {
+    //             if public_key != proposal.description {
+    //                 return Err(EcashError::IncorrectProposal {
+    //                     reason: String::from("incorrect publickey in description"),
+    //                 });
+    //             }
+    //             let ret = client.vote_proposal(proposal_id, true, None).await;
+    //
+    //             accepted_vote_err(ret)?;
+    //
+    //             if let Ok(proposal) = client.get_proposal(proposal_id).await {
+    //                 if proposal.status == Status::Passed {
+    //                     client.execute_proposal(proposal_id).await?
+    //                 }
+    //             }
+    //         }
+    //         Ok(())
+    //     });
+    // }
+
+    pub(crate) async fn sign_and_store_credential(
+        &self,
+        current_epoch: EpochId,
+        request_body: BlindSignRequestBody,
+        blinded_signature: &BlindedSignature,
+    ) -> Result<i64> {
+        let encoded_commitments = request_body.encode_commitments();
+
+        let plaintext = issued_credential_plaintext(
+            current_epoch as u32,
+            request_body.deposit_id,
+            blinded_signature,
+            &encoded_commitments,
+            request_body.expiration_date,
+        );
+
+        let signature = self.identity_keypair.private_key().sign(plaintext);
+
+        // note: we have a UNIQUE constraint on the tx_hash column of the credential
+        // and so if the api is processing request for the same hash at the same time,
+        // only one of them will be successfully inserted to the database
+        let credential_id = self
+            .storage
+            .store_issued_credential(
+                current_epoch as u32,
+                request_body.deposit_id,
+                blinded_signature,
+                signature,
+                encoded_commitments,
+                request_body.expiration_date,
+            )
+            .await?;
+
+        Ok(credential_id)
+    }
+
+    pub async fn store_issued_credential(
+        &self,
+        request_body: BlindSignRequestBody,
+        blinded_signature: &BlindedSignature,
+    ) -> Result<()> {
+        let current_epoch = self.comm_channel.current_epoch().await?;
+
+        // note: we have a UNIQUE constraint on the tx_hash column of the credential
+        // and so if the api is processing request for the same hash at the same time,
+        // only one of them will be successfully inserted to the database
+        let credential_id = self
+            .sign_and_store_credential(current_epoch, request_body, blinded_signature)
+            .await?;
+        self.storage
+            .update_epoch_credentials_entry(current_epoch, credential_id)
+            .await?;
+        debug!("the stored credential has id {credential_id}");
+
+        Ok(())
+    }
+
+    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth> {
+        self.comm_channel
+            .aggregated_verification_key(epoch_id)
+            .await
+    }
+
+    pub async fn store_verified_ticket(
+        &self,
+        ticket_data: &CredentialSpendingData,
+        gateway_addr: &AccountId,
+    ) -> Result<()> {
+        self.storage
+            .store_verified_ticket(ticket_data, gateway_addr)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn get_ticket_provider(
+        &self,
+        gateway_address: &str,
+    ) -> Result<Option<TicketProvider>> {
+        self.storage
+            .get_ticket_provider(gateway_address)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn get_redeemable_tickets(
+        &self,
+        provider_info: TicketProvider,
+    ) -> Result<Vec<SerialNumberWrapper>> {
+        let since = provider_info
+            .last_batch_verification
+            .unwrap_or(OffsetDateTime::UNIX_EPOCH);
+
+        self.storage
+            .get_verified_tickets_since(provider_info.id, since)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn get_ticket_data_by_serial_number(
+        &self,
+        serial_number: &[u8],
+    ) -> Result<Option<CredentialSpendingData>> {
+        self.storage
+            .get_credential_data(serial_number)
+            .await
+            .map_err(Into::into)
+    }
+
+    pub async fn get_coin_indices_signatures(&self) -> Result<Vec<CoinIndexSignature>> {
+        let current_epoch = self.comm_channel.current_epoch().await?;
+        match self
+            .coin_indices_sigs_cache
+            .get_signatures(current_epoch)
+            .await
+        {
+            Some(signatures) => Ok(signatures),
+            None => {
+                let verification_key = self.verification_key(current_epoch).await?;
+                let maybe_keypair_guard = self.ecash_keypair.get().await;
+                let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
+                    return Err(EcashError::KeyPairNotDerivedYet);
+                };
+                let Some(signing_key) = keypair_guard.as_ref() else {
+                    return Err(EcashError::KeyPairNotDerivedYet);
+                };
+                self.coin_indices_sigs_cache
+                    .refresh_signatures(
+                        current_epoch,
+                        &verification_key,
+                        signing_key.keys.secret_key(),
+                    )
+                    .await
+            }
+        }
+    }
+
+    pub async fn get_exp_date_signatures(&self) -> Result<Vec<ExpirationDateSignature>> {
+        let current_epoch = self.comm_channel.current_epoch().await?;
+        let expiration_ts = cred_exp_date().unix_timestamp() as u64;
+        match self
+            .exp_date_sigs_cache
+            .get_signatures(current_epoch, expiration_ts)
+            .await
+        {
+            Some(signatures) => Ok(signatures),
+            None => {
+                let maybe_keypair_guard = self.ecash_keypair.get().await;
+                let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
+                    return Err(EcashError::KeyPairNotDerivedYet);
+                };
+                let Some(signing_key) = keypair_guard.as_ref() else {
+                    return Err(EcashError::KeyPairNotDerivedYet);
+                };
+                self.exp_date_sigs_cache
+                    .refresh_signatures(current_epoch, expiration_ts, signing_key.keys.secret_key())
+                    .await
+            }
+        }
+    }
+
+    //this one gives the signatures for a particular day. No cache because it's only gonna be used for recovery attempt and freepasses
+    pub async fn get_exp_date_signatures_timestamp(
+        &self,
+        timestamp: u64,
+    ) -> Result<Vec<ExpirationDateSignature>> {
+        let maybe_keypair_guard = self.ecash_keypair.get().await;
+        let Some(keypair_guard) = maybe_keypair_guard.as_ref() else {
+            return Err(EcashError::KeyPairNotDerivedYet);
+        };
+        let Some(signing_key) = keypair_guard.as_ref() else {
+            return Err(EcashError::KeyPairNotDerivedYet);
+        };
+
+        Ok(sign_expiration_date(
+            signing_key.keys.secret_key(),
+            timestamp,
+        )?)
+    }
+
+    #[allow(dead_code)]
+    pub async fn check_bloomfilter(&self, serial_number_bs58: &String) -> bool {
+        self.spent_credentials
+            .read()
+            .await
+            .check(serial_number_bs58)
+    }
+
+    pub async fn update_bloomfilter(&self, serial_number_bs58: &String) {
+        let mut filter = self.spent_credentials.write().await;
+        filter.set(serial_number_bs58);
+    }
+
+    pub async fn export_bloomfilter(&self) -> Vec<u8> {
+        let filter = self.spent_credentials.read().await;
+        filter.bitmap()
+    }
+
+    //SW NOTE: will be used eventually
+    #[allow(dead_code)]
+    pub async fn clear_spent_credentials(&self) {
+        let mut filter = self.spent_credentials.write().await;
+        filter.clear()
+    }
+}

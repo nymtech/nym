@@ -79,6 +79,7 @@ impl PartiallyDelegated {
     fn recover_received_plaintexts(
         ws_msgs: Vec<Message>,
         shared_key: &SharedKeys,
+        bandwidth_remaining: Arc<AtomicI64>,
     ) -> Result<Vec<Vec<u8>>, GatewayClientError> {
         let mut plaintexts = Vec::with_capacity(ws_msgs.len());
         for ws_msg in ws_msgs {
@@ -104,7 +105,11 @@ impl PartiallyDelegated {
                     {
                         ServerResponse::Send {
                             remaining_bandwidth,
-                        } => maybe_log_bandwidth(remaining_bandwidth),
+                        } => {
+                            maybe_log_bandwidth(remaining_bandwidth);
+                            bandwidth_remaining
+                                .store(remaining_bandwidth, std::sync::atomic::Ordering::Release)
+                        }
                         ServerResponse::Error { message } => {
                             error!("gateway failure: {message}");
                             return Err(GatewayClientError::GatewayError(message));
@@ -129,8 +134,10 @@ impl PartiallyDelegated {
         ws_msgs: Vec<Message>,
         packet_router: &PacketRouter,
         shared_key: &SharedKeys,
+        bandwidth_remaining: Arc<AtomicI64>,
     ) -> Result<(), GatewayClientError> {
-        let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key)?;
+        let plaintexts =
+            Self::recover_received_plaintexts(ws_msgs, shared_key, bandwidth_remaining)?;
         packet_router.route_received(plaintexts)
     }
 
@@ -138,6 +145,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         mut packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
+        bandwidth_remaining: Arc<AtomicI64>,
         mut shutdown: TaskClient,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
@@ -169,7 +177,7 @@ impl PartiallyDelegated {
                             Ok(msgs) => msgs
                         };
 
-                        if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref()) {
+                        if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref(), bandwidth_remaining.clone()) {
                             log::error!("Route socket messages failed: {err}");
                             break Err(err)
                         }

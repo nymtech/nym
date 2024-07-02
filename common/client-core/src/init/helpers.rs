@@ -9,6 +9,7 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 use nym_topology::{filter::VersionFilterable, gateway, mix};
 use nym_validator_client::client::IdentityKeyRef;
+use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
 use tungstenite::Message;
@@ -59,11 +60,16 @@ impl<'a> GatewayWithLatency<'a> {
 pub async fn current_gateways<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
+    user_agent: Option<UserAgent>,
 ) -> Result<Vec<gateway::Node>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
+    let client = if let Some(user_agent) = user_agent {
+        nym_validator_client::client::NymApiClient::new_with_user_agent(nym_api.clone(), user_agent)
+    } else {
+        nym_validator_client::client::NymApiClient::new(nym_api.clone())
+    };
 
     log::debug!("Fetching list of gateways from: {nym_api}");
 

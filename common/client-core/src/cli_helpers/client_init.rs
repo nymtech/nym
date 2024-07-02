@@ -16,6 +16,7 @@ use log::info;
 use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::identity;
 use nym_topology::NymTopology;
+use nym_validator_client::UserAgent;
 use rand::rngs::OsRng;
 use std::path::PathBuf;
 
@@ -96,6 +97,7 @@ pub struct InitResultsWithConfig<T> {
 
 pub async fn initialise_client<C>(
     init_args: C::InitArgs,
+    user_agent: Option<UserAgent>,
 ) -> Result<InitResultsWithConfig<C::Config>, C::Error>
 where
     C: InitialisableClient,
@@ -163,7 +165,8 @@ where
         hardcoded_topology.get_gateways()
     } else {
         let mut rng = rand::thread_rng();
-        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
+        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls, user_agent)
+            .await?
     };
 
     let gateway_setup = GatewaySetup::New {

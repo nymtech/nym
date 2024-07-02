@@ -25,17 +25,18 @@ zeroize = { workspace = true }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage", "cli"] }
 nym-config = { path = "../../common/config" }
+nym-credential-storage = { path = "../../common/credential-storage" }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
 nym-gateway-requests = { path = "../../gateway/gateway-requests" }
-nym-credential-storage = { path = "../../common/credential-storage" }
+nym-id = { path = "../../common/nym-id" }
 nym-network-defaults = { path = "../../common/network-defaults" }
-nym-sphinx = { path = "../../common/nymsphinx" }
 nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-pemstore = { path = "../../common/pemstore" }
-nym-topology = { path = "../../common/topology" }
 nym-socks5-client-core = { path = "../../common/socks5-client-core" }
-nym-id = { path = "../../common/nym-id" }
+nym-sphinx = { path = "../../common/nymsphinx" }
+nym-topology = { path = "../../common/topology" }
+nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["http-client"] }
 
 [features]
 default = []

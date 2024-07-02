@@ -47,11 +47,6 @@
         {{#each additional_css}}
         <link rel="stylesheet" href="{{ ../path_to_root }}{{ this }}">
         {{/each}}
-
-<!--        {{#if mathjax_support}}-->
-<!--        &lt;!&ndash; MathJax &ndash;&gt;-->
-<!--        <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>-->
-<!--        {{/if}}-->
     </head>
     <body class="sidebar-visible no-js">
     <div id="body-container">
@@ -159,20 +154,14 @@
                         </ul>
 
                         <!-- CUSTOM -->
-                        <select id="dropdown-menu3" class="icon-button">
-                            <option value="">Network Protocol</option>
+                        <select id="dropdown-menu" class="icon-button">
                             <option value="https://nymtech.net/docs">Network Docs</option>
                             <option value="https://nymtech.net/learn/papers">Academic Papers</option>
-                        </select>
-
-                        <select id="dropdown-menu" class="icon-button">
-                            <option value="">Developer Docs</option>
+                            <option value="">--------</option>
                             <option value="https://nymtech.net/developers">Dev Portal</option>
                             <option value="https://nymtech.net/docs/sdk/rust/rust.html">Rust SDK</option>
                             <option value="https://sdk.nymtech.net">Typescript SDK</option>
-                        </select>
-
-                        <select id="dropdown-menu2" class="icon-button">
+                            <option value="">--------</option>
                             <option value="">Setup Guides</option>
                             <option value="https://nymtech.net/operators">Operators</option>
                             <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
@@ -180,24 +169,6 @@
 
                         <script>
                             document.getElementById('dropdown-menu').addEventListener('change', function() {
-                                const selected = this.options[this.selectedIndex];
-                                if (selected.value !== '') {
-                                    window.location.href = selected.value;
-                                }
-                            });
-                        </script>
-
-                        <script>
-                            document.getElementById('dropdown-menu2').addEventListener('change', function() {
-                                const selected = this.options[this.selectedIndex];
-                                if (selected.value !== '') {
-                                    window.location.href = selected.value;
-                                }
-                            });
-                        </script>
-
-                        <script>
-                            document.getElementById('dropdown-menu3').addEventListener('change', function() {
                                 const selected = this.options[this.selectedIndex];
                                 if (selected.value !== '') {
                                     window.location.href = selected.value;

@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 use crate::state::AppState;
 use axum::routing::get;
 use axum::Router;
@@ -26,14 +25,11 @@ pub struct Config {
     pub ip_packet_router: ip_packet_router::Config,
 }
 
-pub(super) fn routes(config: Config, initial_wg_state: WireguardAppState) -> Router<AppState> {
+pub(super) fn routes(config: Config) -> Router<AppState> {
     Router::new()
         .route(v1::HEALTH, get(health::root_health))
         .nest(v1::METRICS, metrics::routes(config.metrics))
-        .nest(
-            v1::GATEWAY,
-            gateway::routes(config.gateway, initial_wg_state),
-        )
+        .nest(v1::GATEWAY, gateway::routes(config.gateway))
         .nest(v1::MIXNODE, mixnode::routes(config.mixnode))
         .nest(
             v1::NETWORK_REQUESTER,

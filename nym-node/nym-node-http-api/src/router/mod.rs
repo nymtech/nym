@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-pub use crate::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 use crate::error::NymNodeHttpError;
 use crate::middleware::logging;
 use crate::state::AppState;
@@ -156,11 +155,7 @@ pub struct NymNodeRouter {
 
 impl NymNodeRouter {
     // TODO: move the wg state to a builder
-    pub fn new(
-        config: Config,
-        app_state: Option<AppState>,
-        initial_wg_state: Option<WireguardAppState>,
-    ) -> NymNodeRouter {
+    pub fn new(config: Config, app_state: Option<AppState>) -> NymNodeRouter {
         let state = app_state.unwrap_or(AppState::new());
 
         NymNodeRouter {
@@ -189,10 +184,7 @@ impl NymNodeRouter {
                     }),
                 )
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
-                .nest(
-                    routes::API,
-                    api::routes(config.api, initial_wg_state.unwrap_or_default()),
-                )
+                .nest(routes::API, api::routes(config.api))
                 .layer(axum::middleware::from_fn(logging::logger))
                 .with_state(state),
         }

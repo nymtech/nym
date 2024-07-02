@@ -563,7 +563,7 @@ impl<St> Gateway<St> {
             Some(
                 self.start_authenticator(shutdown.fork("wireguard"))
                     .await
-                    .map_err(|source| GatewayError::StdError { source })?,
+                    .map_err(|source| GatewayError::AuthenticatorStartError { source })?,
             )
         } else {
             None

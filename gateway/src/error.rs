@@ -194,9 +194,8 @@ pub enum GatewayError {
     #[error("wireguard not set")]
     WireguardNotSet,
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
-    #[error("failed to catch an interrupt: {source}")]
-    StdError {
+    #[error("failed to start authenticator: {source}")]
+    AuthenticatorStartError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 }

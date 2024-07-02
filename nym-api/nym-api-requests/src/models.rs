@@ -607,6 +607,15 @@ pub struct NymNodeDescription {
 
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
+
+    pub role: NymNodeRole,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum NymNodeRole {
+    Mixnode,
+    Gateway,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]

@@ -2663,6 +2663,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3141,7 +3150,7 @@ dependencies = [
  "ff",
  "getrandom 0.2.10",
  "group",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "nym-dkg",
  "nym-pemstore",
  "rand 0.8.5",
@@ -3390,7 +3399,7 @@ dependencies = [
  "cosmwasm-std",
  "eyre",
  "hmac",
- "itertools 0.11.0",
+ "itertools 0.12.1",
  "log",
  "nym-config",
  "nym-crypto",
@@ -3428,7 +3437,7 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "log",
  "nym-api-requests",
  "nym-coconut",

@@ -29,6 +29,7 @@
     "@mui/styles": "^5.2.2",
     "@mui/utils": "^5.7.0",
     "@nymproject/mui-theme": "workspace:^1.0.0",
+    "@nymproject/node-tester": "1.2.4-rc.1",
     "@nymproject/react": "workspace:^1.0.0",
     "@nymproject/types": "workspace:^1.0.0",
     "@storybook/react": "^6.5.15",

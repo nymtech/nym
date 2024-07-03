@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_http_api_client::{ApiClient, HttpClientError};
 
+use crate::api::v1::authenticator::models::Authenticator;
 use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
@@ -61,6 +62,11 @@ pub trait NymNodeApiClientExt: ApiClient {
 
     async fn get_ip_packet_router(&self) -> Result<IpPacketRouter, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::ip_packet_router_absolute())
+            .await
+    }
+
+    async fn get_authenticator(&self) -> Result<Authenticator, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::authenticator_absolute())
             .await
     }
 }

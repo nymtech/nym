@@ -8,7 +8,7 @@ use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use futures::{stream, StreamExt};
 use nym_api_requests::models::{
-    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
+    AuthenticatorDetails, IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
 };
 use nym_config::defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
 use nym_contracts_common::IdentityKey;
@@ -186,12 +186,21 @@ async fn get_gateway_description(
         None
     };
 
+    let authenticator = if let Ok(auth) = client.get_authenticator().await {
+        Some(AuthenticatorDetails {
+            address: auth.address,
+        })
+    } else {
+        None
+    };
+
     let description = NymNodeDescription {
         host_information: host_info.data.into(),
         last_polled: OffsetDateTime::now_utc().into(),
         build_information: build_info,
         network_requester,
         ip_packet_router,
+        authenticator,
         mixnet_websockets: websockets.into(),
         auxiliary_details,
     };

@@ -8,6 +8,7 @@ use crate::NymNodeHTTPServer;
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
+use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
@@ -53,6 +54,7 @@ impl Config {
                     mixnode: Default::default(),
                     network_requester: Default::default(),
                     ip_packet_router: Default::default(),
+                    authenticator: Default::default(),
                 },
             },
         }
@@ -145,6 +147,12 @@ impl Config {
     #[must_use]
     pub fn with_ip_packet_router_details(mut self, ip_packet_router: IpPacketRouter) -> Self {
         self.api.v1_config.ip_packet_router.details = Some(ip_packet_router);
+        self
+    }
+
+    #[must_use]
+    pub fn with_authenticator_details(mut self, authenticator: Authenticator) -> Self {
+        self.api.v1_config.authenticator.details = Some(authenticator);
         self
     }
 }

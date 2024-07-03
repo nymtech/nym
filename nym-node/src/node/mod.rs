@@ -106,6 +106,9 @@ pub struct ExitGatewayData {
 
     ipr_ed25519: ed25519::PublicKey,
     ipr_x25519: x25519::PublicKey,
+
+    auth_ed25519: ed25519::PublicKey,
+    auth_x25519: x25519::PublicKey,
 }
 
 impl ExitGatewayData {
@@ -236,11 +239,24 @@ impl ExitGatewayData {
             "ip packet router x25519",
         )?;
 
+        let auth_paths = &config.storage_paths.authenticator;
+        let auth_ed25519 = load_key(
+            &auth_paths.public_ed25519_identity_key_file,
+            "authenticator ed25519",
+        )?;
+
+        let auth_x25519 = load_key(
+            &auth_paths.public_x25519_diffie_hellman_key_file,
+            "authenticator x25519",
+        )?;
+
         Ok(ExitGatewayData {
             nr_ed25519,
             nr_x25519,
             ipr_ed25519,
             ipr_x25519,
+            auth_ed25519,
+            auth_x25519,
         })
     }
 }
@@ -411,6 +427,14 @@ impl NymNode {
         )
     }
 
+    fn exit_authenticator_address(&self) -> Recipient {
+        Recipient::new(
+            self.exit_gateway.auth_ed25519,
+            self.exit_gateway.auth_x25519,
+            *self.ed25519_identity_keys.public_key(),
+        )
+    }
+
     fn x25519_wireguard_key(&self) -> &x25519::PublicKey {
         self.wireguard.inner.keypair().public_key()
     }
@@ -575,6 +599,13 @@ impl NymNode {
             encoded_x25519_key: self.exit_gateway.ipr_x25519.to_base58_string(),
             address: self.exit_ip_packet_router_address().to_string(),
         };
+
+        let auth_details = api_requests::v1::authenticator::models::Authenticator {
+            encoded_identity_key: self.exit_gateway.auth_ed25519.to_base58_string(),
+            encoded_x25519_key: self.exit_gateway.auth_x25519.to_base58_string(),
+            address: self.exit_authenticator_address().to_string(),
+        };
+
         let exit_policy_details =
             api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy {
                 enabled: true,
@@ -594,6 +625,7 @@ impl NymNode {
             .with_gateway_details(gateway_details)
             .with_network_requester_details(nr_details)
             .with_ip_packet_router_details(ipr_details)
+            .with_authenticator_details(auth_details)
             .with_used_exit_policy(exit_policy_details)
             .with_description(self.description.clone())
             .with_auxiliary_details(auxiliary_details);

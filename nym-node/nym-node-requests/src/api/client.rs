@@ -64,17 +64,6 @@ pub trait NymNodeApiClientExt: ApiClient {
         self.get_json_from(routes::api::v1::ip_packet_router_absolute())
             .await
     }
-
-    async fn post_gateway_register_client(
-        &self,
-        client_message: &ClientMessage,
-    ) -> Result<ClientRegistrationResponse, NymNodeApiClientError> {
-        self.post_json_data_to(
-            routes::api::v1::gateway::client_interfaces::wireguard::client_absolute(),
-            client_message,
-        )
-        .await
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

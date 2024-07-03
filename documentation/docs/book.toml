@@ -16,11 +16,11 @@ edition = "2018"
 [preprocessor.theme]
 pagetoc = true
 sidebar-width = "280px"
-content-max-width = "70%"
-content-main-margin-left = "5%"
-content-main-margin-right = "5%"
+content-max-width = "80%"
 root-font-size = "70%"
-# DO NOT CHANGE or you might overwrite the custom hbs file
+# if you need to change anything in the index.hbs file you need to turn this to `false`, rebuild the book, 
+# probably remove the additional `comment` that gets appended to the header, and then change this back to `true`. 
+# this is because of a bug in the `mdbook-theme` plugin
 turn-off = true
 
 [preprocessor.admonish]
@@ -67,15 +67,14 @@ curly-quotes = true
 copy-fonts = true
 no-section-label = false
 additional-css = [
-  "./theme/custom.css",
-  "./theme/mdbook-admonish.css",
-  "./theme/pagetoc.css",
+  "./themes/custom.css",
+  "./themes/mdbook-admonish.css",
+  "./themes/pagetoc.css",
 ]
-additional-js = ["./theme/pagetoc.js"]
+additional-js = ["./themes/pagetoc.js"]
 git-repository-url = "https://github.com/nymtech/nym/documentation/"
 git-repository-icon = "fa-github"
 input-404 = "not-found.md"
-cname = "nymtech.net"
 
 [output.html.fold]
 enable = true # whether or not to enable section folding

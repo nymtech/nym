@@ -8,10 +8,12 @@
   --sidebar-active: #fb6e4e;
   --icons-hover: #fb6e4e;
   --links: #fb6e4e;
+
   ::selection {
     color: #121726;
     background-color: #c5573d;
   }
+
   select option {
     background-color: #121726;
   }
@@ -21,17 +23,18 @@
   --sidebar-active: #fb6e4e;
   --icons-hover: #fb6e4e;
   --links: #fb6e4e;
+
   ::selection {
-    color:#f2f2f2;
+    color: #f2f2f2;
     background-color: #c5573d;
   }
 }
 
 /*properly centering the title given the additional header items*/
 .menu-title {
-  position: absolute;
-  left: 50%;
+  left: 45%;
 }
+
 .menu-bar .a:hover,
 
 /*necessary because of ^*/
@@ -43,8 +46,6 @@
 select {
   font-size: 16px;
 }
-
-
 
 footer {
   font-size: 0.8em;

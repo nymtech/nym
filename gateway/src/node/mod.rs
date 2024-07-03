@@ -236,12 +236,13 @@ impl<St> Gateway<St> {
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     async fn start_authenticator(
         &mut self,
+        opts: &LocalAuthenticatorOpts,
         shutdown: TaskClient,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(wireguard_data) = self.wireguard_data.take() {
             let authenticator_server = nym_authenticator::Authenticator::new(
-                self.authenticator_opts.as_ref().unwrap().config.clone(),
-                self.wireguard_data.as_ref().unwrap().inner.clone(),
+                opts.config.clone(),
+                wireguard_data.inner.clone(),
             )
             .with_shutdown(shutdown.clone());
             tokio::spawn(async move { authenticator_server.run_service_provider().await });
@@ -254,6 +255,7 @@ impl<St> Gateway<St> {
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
     async fn start_authenticator(
         &self,
+        _opts: LocalAuthenticatorOpts,
         _shutdown: TaskClient,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         todo!("Authenticator is currently only supported on Linux");
@@ -559,9 +561,9 @@ impl<St> Gateway<St> {
             info!("embedded ip packet router is disabled");
         };
 
-        let _wg_api = if self.authenticator_opts.is_some() {
+        let _wg_api = if let Some(opts) = self.authenticator_opts.clone() {
             Some(
-                self.start_authenticator(shutdown.fork("wireguard"))
+                self.start_authenticator(&opts, shutdown.fork("wireguard"))
                     .await
                     .map_err(|source| GatewayError::AuthenticatorStartError { source })?,
             )

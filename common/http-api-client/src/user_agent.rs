@@ -8,21 +8,10 @@ use nym_bin_common::build_information::{BinaryBuildInformation, BinaryBuildInfor
 
 #[derive(Clone, Debug)]
 pub struct UserAgent {
-    application: String,
-    platform: String,
-    version: String,
-    git_commit: String,
-}
-
-impl UserAgent {
-    pub fn new(application: String, platform: String, version: String, git_commit: String) -> Self {
-        UserAgent {
-            application,
-            platform,
-            version,
-            git_commit,
-        }
-    }
+    pub application: String,
+    pub version: String,
+    pub platform: String,
+    pub git_commit: String,
 }
 
 impl fmt::Display for UserAgent {
@@ -48,8 +37,8 @@ impl From<BinaryBuildInformation> for UserAgent {
     fn from(build_info: BinaryBuildInformation) -> Self {
         UserAgent {
             application: build_info.binary_name.to_string(),
-            platform: build_info.cargo_triple.to_string(),
             version: build_info.build_version.to_string(),
+            platform: build_info.cargo_triple.to_string(),
             git_commit: build_info.commit_sha.to_string(),
         }
     }
@@ -59,8 +48,8 @@ impl From<BinaryBuildInformationOwned> for UserAgent {
     fn from(build_info: BinaryBuildInformationOwned) -> Self {
         UserAgent {
             application: build_info.binary_name,
-            platform: build_info.cargo_triple,
             version: build_info.build_version,
+            platform: build_info.cargo_triple,
             git_commit: build_info.commit_sha,
         }
     }

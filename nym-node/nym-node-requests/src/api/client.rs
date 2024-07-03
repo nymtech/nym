@@ -8,7 +8,6 @@ use crate::routes;
 use async_trait::async_trait;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_http_api_client::{ApiClient, HttpClientError};
-use nym_wireguard_types::{ClientMessage, ClientRegistrationResponse};
 
 use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;

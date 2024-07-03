@@ -78,6 +78,18 @@ impl GatewayConfig {
     }
 }
 
+// See other comments for other TaskStatus message enumds about abusing the Error trait when we
+// should have a new trait for TaskStatus messages
+#[derive(Debug, thiserror::Error)]
+enum BandwidthStatusMessage {
+    #[error("remaining bandwidth: {0}")]
+    RemainingBandwidth(i64),
+
+    #[allow(unused)]
+    #[error("no bandwidth left")]
+    NoBandwidth,
+}
+
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
 #[derive(Debug)]
 pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
@@ -540,6 +552,9 @@ impl<C, St> GatewayClient<C, St> {
                 self.bandwidth_remaining = bandwidth_remaining;
                 self.negotiated_protocol = protocol_version;
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
+                self.shutdown.send_status_msg(Box::new(
+                    BandwidthStatusMessage::RemainingBandwidth(bandwidth_remaining),
+                ));
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),

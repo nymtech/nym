@@ -255,7 +255,7 @@ impl<St> Gateway<St> {
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
     async fn start_authenticator(
         &self,
-        _opts: LocalAuthenticatorOpts,
+        _opts: &LocalAuthenticatorOpts,
         _shutdown: TaskClient,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         todo!("Authenticator is currently only supported on Linux");

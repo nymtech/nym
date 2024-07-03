@@ -9,7 +9,7 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
-    GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
+    GatewayBond, IdentityKey, Interval, MixId, MixNode, MixNodeBond, Percent, RewardedSetNodeStatus,
 };
 use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, BinaryBuildInformationOwned};
 use schemars::gen::SchemaGenerator;
@@ -621,6 +621,21 @@ pub struct DescribedGateway {
 impl From<GatewayBond> for DescribedGateway {
     fn from(bond: GatewayBond) -> Self {
         DescribedGateway {
+            bond,
+            self_described: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct DescribedMixNode {
+    pub bond: MixNodeBond,
+    pub self_described: Option<NymNodeDescription>,
+}
+
+impl From<MixNodeBond> for DescribedMixNode {
+    fn from(bond: MixNodeBond) -> Self {
+        DescribedMixNode {
             bond,
             self_described: None,
         }

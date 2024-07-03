@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
@@ -8,8 +9,9 @@ use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use futures::{stream, StreamExt};
 use nym_api_requests::models::{
-    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription, NymNodeRole,
+    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
 };
+use nym_api_requests::nym_nodes::NodeRole;
 use nym_config::defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
 use nym_contracts_common::IdentityKey;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
@@ -55,17 +57,20 @@ pub enum NodeDescribeCacheError {
 }
 
 pub struct NodeDescriptionProvider {
-    // for now we only care about gateways, nothing more
-    // network_gateways: SharedCache<Vec<GatewayBond>>,
     contract_cache: NymContractCache,
+    node_status_cache: NodeStatusCache,
 
     batch_size: usize,
 }
 
 impl NodeDescriptionProvider {
-    pub(crate) fn new(contract_cache: NymContractCache) -> NodeDescriptionProvider {
+    pub(crate) fn new(
+        contract_cache: NymContractCache,
+        node_status_cache: NodeStatusCache,
+    ) -> NodeDescriptionProvider {
         NodeDescriptionProvider {
             contract_cache,
+            node_status_cache,
             batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
         }
     }
@@ -80,15 +85,21 @@ impl NodeDescriptionProvider {
 async fn try_get_client(
     host: &str,
     identity_key: &IdentityKey,
+    port: Option<u16>,
 ) -> Result<nym_node_requests::api::Client, NodeDescribeCacheError> {
     // first try the standard port in case the operator didn't put the node behind the proxy,
     // then default https (443)
     // finally default http (80)
-    let addresses_to_try = vec![
+    let mut addresses_to_try = vec![
         format!("http://{host}:{DEFAULT_NYM_NODE_HTTP_PORT}"),
+        format!("http://{host}:8000"),
         format!("https://{host}"),
         format!("http://{host}"),
     ];
+
+    if let Some(port) = port {
+        addresses_to_try.insert(0, format!("http://{host}:{port}"));
+    }
 
     for address in addresses_to_try {
         // if provided host was malformed, no point in continuing
@@ -118,7 +129,7 @@ async fn try_get_client(
 async fn try_get_description(
     data: RefreshData,
 ) -> Result<(IdentityKey, NymNodeDescription), NodeDescribeCacheError> {
-    let client = try_get_client(&data.host(), &data.identity_key()).await?;
+    let client = try_get_client(&data.host(), &data.identity_key(), data.port()).await?;
 
     let host_info =
         client
@@ -201,15 +212,17 @@ async fn try_get_description(
 struct RefreshData {
     host: String,
     identity_key: IdentityKey,
-    role: NymNodeRole,
+    role: NodeRole,
+    port: Option<u16>,
 }
 
 impl RefreshData {
-    pub fn new(host: String, identity_key: IdentityKey, role: NymNodeRole) -> Self {
+    pub fn new(host: String, identity_key: IdentityKey, role: NodeRole, port: Option<u16>) -> Self {
         RefreshData {
             host,
             identity_key,
             role,
+            port,
         }
     }
 
@@ -221,7 +234,11 @@ impl RefreshData {
         self.identity_key.clone()
     }
 
-    pub fn role(&self) -> NymNodeRole {
+    pub fn port(&self) -> Option<u16> {
+        self.port
+    }
+
+    pub fn role(&self) -> NodeRole {
         self.role.clone()
     }
 }
@@ -236,19 +253,40 @@ impl CacheItemProvider for NodeDescriptionProvider {
     }
 
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {
-        let mut host_id_pairs = self
-            .contract_cache
-            .gateways_all()
-            .await
-            .into_iter()
-            .map(|bond| {
-                RefreshData::new(
-                    bond.gateway.host,
-                    bond.gateway.identity_key,
-                    NymNodeRole::Gateway,
-                )
-            })
-            .collect::<Vec<RefreshData>>();
+        let mut host_id_pairs =
+            if let Some(gateways) = self.node_status_cache.gateways_annotated_full().await {
+                gateways
+                    .into_iter()
+                    .map(|full| {
+                        RefreshData::new(
+                            full.gateway_bond.gateway.host,
+                            full.gateway_bond.gateway.identity_key,
+                            NodeRole::EntryGateway,
+                            None,
+                        )
+                    })
+                    .collect::<Vec<RefreshData>>()
+            } else {
+                vec![]
+            };
+
+        if let Some(nodes) = self.node_status_cache.mixnodes_annotated_full().await {
+            host_id_pairs.extend(
+                nodes
+                    .into_iter()
+                    .map(|full| {
+                        RefreshData::new(
+                            full.mixnode_details.bond_information.mix_node.host,
+                            full.mixnode_details.bond_information.mix_node.identity_key,
+                            NodeRole::Mixnode {
+                                layer: full.mixnode_details.bond_information.layer.into(),
+                            },
+                            Some(full.mixnode_details.bond_information.mix_node.mix_port),
+                        )
+                    })
+                    .collect::<Vec<RefreshData>>(),
+            );
+        }
 
         let nodes = self
             .contract_cache
@@ -259,7 +297,8 @@ impl CacheItemProvider for NodeDescriptionProvider {
                 RefreshData::new(
                     node.bond_information.mix_node.host,
                     node.bond_information.mix_node.identity_key,
-                    NymNodeRole::Mixnode,
+                    NodeRole::Mixnode { layer: 0 },
+                    None,
                 )
             });
 
@@ -301,12 +340,13 @@ impl CacheItemProvider for NodeDescriptionProvider {
 pub(crate) fn new_refresher(
     config: &config::TopologyCacher,
     contract_cache: NymContractCache,
+    node_status_cache: NodeStatusCache,
     // hehe. we can't do that yet
     // network_gateways: SharedCache<Vec<GatewayBond>>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new(
         Box::new(
-            NodeDescriptionProvider::new(contract_cache)
+            NodeDescriptionProvider::new(contract_cache, node_status_cache)
                 .with_batch_size(config.debug.node_describe_batch_size),
         ),
         config.debug.node_describe_caching_interval,
@@ -316,13 +356,14 @@ pub(crate) fn new_refresher(
 pub(crate) fn new_refresher_with_initial_value(
     config: &config::TopologyCacher,
     contract_cache: NymContractCache,
+    node_status_cache: NodeStatusCache,
     // hehe. we can't do that yet
     // network_gateways: SharedCache<Vec<GatewayBond>>,
     initial: SharedCache<DescribedNodes>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new_with_initial_value(
         Box::new(
-            NodeDescriptionProvider::new(contract_cache)
+            NodeDescriptionProvider::new(contract_cache, node_status_cache)
                 .with_batch_size(config.debug.node_describe_batch_size),
         ),
         config.debug.node_describe_caching_interval,

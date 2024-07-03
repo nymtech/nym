@@ -117,6 +117,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     node_describe_cache::new_refresher_with_initial_value(
         &config.topology_cacher,
         nym_contract_cache_state.clone(),
+        node_status_cache_state.clone(),
         described_nodes_state.to_owned(),
     )
     .named("node-self-described-data-refresher")

@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nym_nodes::NodeRole;
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::families::FamilyHead;
@@ -608,14 +609,7 @@ pub struct NymNodeDescription {
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
 
-    pub role: NymNodeRole,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum NymNodeRole {
-    Mixnode,
-    Gateway,
+    pub role: NodeRole,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]

@@ -72,9 +72,10 @@ additional-css = [
   "./theme/pagetoc.css",
 ]
 additional-js = ["./theme/pagetoc.js"]
-git-repository-url = "https://github.com/nymtech/nym"
+git-repository-url = "https://github.com/nymtech/nym/documentation/"
 git-repository-icon = "fa-github"
 input-404 = "not-found.md"
+site-url = "/docs/"
 
 [output.html.fold]
 enable = true # whether or not to enable section folding

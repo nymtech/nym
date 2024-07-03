@@ -123,6 +123,8 @@ pub struct Gateway<St = PersistentStorage> {
 
     ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
 
+    // Use None when wireguard feature is not enabled too
+    #[allow(dead_code)]
     authenticator_opts: Option<LocalAuthenticatorOpts>,
 
     /// ed25519 keypair used to assert one's identity.
@@ -561,6 +563,7 @@ impl<St> Gateway<St> {
             info!("embedded ip packet router is disabled");
         };
 
+        #[cfg(feature = "wireguard")]
         let _wg_api = if let Some(opts) = self.authenticator_opts.clone() {
             Some(
                 self.start_authenticator(&opts, shutdown.fork("wireguard"))

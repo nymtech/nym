@@ -58,6 +58,7 @@ zeroize = { workspace = true }
 
 # internal
 
+nym-authenticator = { path = "../service-providers/authenticator" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-config = { path = "../common/config" }
@@ -77,7 +78,6 @@ nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
-nym-authenticator = { path = "../service-providers/authenticator", optional = true }
 nym-wireguard = { path = "../common/wireguard", optional = true }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
@@ -94,7 +94,7 @@ sqlx = { workspace = true, features = [
 ] }
 
 [features]
-wireguard = ["nym-authenticator", "nym-wireguard", "defguard_wireguard_rs"]
+wireguard = ["nym-wireguard", "defguard_wireguard_rs"]
 
 [package.metadata.deb]
 name = "nym-gateway"

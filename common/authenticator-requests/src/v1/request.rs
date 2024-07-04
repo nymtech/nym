@@ -41,6 +41,23 @@ impl AuthenticatorRequest {
             request_id,
         )
     }
+
+    pub fn new_final_request(gateway_client: GatewayClient, reply_to: Recipient) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                version: VERSION,
+                data: AuthenticatorRequestData::Final(gateway_client),
+                reply_to,
+            },
+            request_id,
+        )
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().serialize(self)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

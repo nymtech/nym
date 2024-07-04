@@ -60,7 +60,7 @@ extra-watch-dirs = []            # directories to watch for triggering builds
 ##########
 
 [output.html]
-theme = "theme"
+theme = "themes"
 default-theme = "coal"
 preferred-dark-theme = "coal"
 curly-quotes = true

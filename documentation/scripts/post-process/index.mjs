@@ -53,9 +53,9 @@ async function main() {
             // const item = { filename, relativeDirectory, tagName, propertyName, rawUrl, url };
             const item = { tagName, rawUrl, url };
 
-            if (tagName === 'a') {
-              console.log(args);
-            }
+            //            if (tagName === 'a') {
+            //              console.log(`tagName = a, args are: $args`);
+            //            }
 
             if (!rawUrl.startsWith('http')) {
               if (tagName === 'link' || tagName === 'script' || tagName === 'a') {
@@ -80,8 +80,8 @@ async function main() {
     }
   }
 
-  console.table(items);
-  console.log();
+  //  console.table(items);
+  //  console.log();
 }
 
 main();

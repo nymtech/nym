@@ -7,6 +7,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::make_bincode_serializer;
 
+use super::VERSION;
+
+fn generate_random() -> u64 {
+    use rand::RngCore;
+    let mut rng = rand::rngs::OsRng;
+    rng.next_u64()
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthenticatorRequest {
     pub version: u8,
@@ -20,6 +28,18 @@ impl AuthenticatorRequest {
     ) -> Result<Self, bincode::Error> {
         use bincode::Options;
         make_bincode_serializer().deserialize(&message.message)
+    }
+
+    pub fn new_initial_request(init_message: InitMessage, reply_to: Recipient) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                version: VERSION,
+                data: AuthenticatorRequestData::Initial(init_message),
+                reply_to,
+            },
+            request_id,
+        )
     }
 }
 

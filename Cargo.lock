@@ -3992,6 +3992,7 @@ dependencies = [
  "bincode",
  "nym-sphinx",
  "nym-wireguard-types",
+ "rand 0.8.5",
  "serde",
 ]
 

@@ -11,7 +11,7 @@ use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nym_bandwidth_controller::BandwidthController;
+use nym_bandwidth_controller::{BandwidthController, BandwidthStatusMessage};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_credentials::CredentialSpendingData;
@@ -76,18 +76,6 @@ impl GatewayConfig {
             gateway_listener,
         }
     }
-}
-
-// See other comments for other TaskStatus message enumds about abusing the Error trait when we
-// should have a new trait for TaskStatus messages
-#[derive(Debug, thiserror::Error)]
-enum BandwidthStatusMessage {
-    #[error("remaining bandwidth: {0}")]
-    RemainingBandwidth(i64),
-
-    #[allow(unused)]
-    #[error("no bandwidth left")]
-    NoBandwidth,
 }
 
 // TODO: this should be refactored into a state machine that keeps track of its authentication state

@@ -117,8 +117,8 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     // currently unused (but populated)
     negotiated_protocol: Option<u8>,
 
-    /// Listen to shutdown messages.
-    shutdown: TaskClient,
+    /// Listen to shutdown messages and send notifications back to the task manager
+    task_client: TaskClient,
 }
 
 impl<C, St> GatewayClient<C, St> {
@@ -129,7 +129,7 @@ impl<C, St> GatewayClient<C, St> {
         shared_key: Option<Arc<SharedKeys>>,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
-        shutdown: TaskClient,
+        task_client: TaskClient,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -147,7 +147,7 @@ impl<C, St> GatewayClient<C, St> {
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
             negotiated_protocol: None,
-            shutdown,
+            task_client,
         }
     }
 
@@ -311,7 +311,7 @@ impl<C, St> GatewayClient<C, St> {
 
         loop {
             tokio::select! {
-                _ = self.shutdown.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("GatewayClient control response: Received shutdown");
                     log::debug!("GatewayClient control response: Exiting");
                     break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
@@ -552,7 +552,7 @@ impl<C, St> GatewayClient<C, St> {
                 self.bandwidth_remaining = bandwidth_remaining;
                 self.negotiated_protocol = protocol_version;
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
-                self.shutdown.send_status_msg(Box::new(
+                self.task_client.send_status_msg(Box::new(
                     BandwidthStatusMessage::RemainingBandwidth(bandwidth_remaining),
                 ));
                 Ok(())
@@ -820,7 +820,7 @@ impl<C, St> GatewayClient<C, St> {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
-                        self.shutdown.clone(),
+                        self.task_client.clone(),
                     )
                 }
                 _ => unreachable!(),
@@ -894,8 +894,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let shutdown = TaskClient::dummy();
-        let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
+        let task_client = TaskClient::dummy();
+        let packet_router = PacketRouter::new(ack_tx, mix_tx, task_client.clone());
 
         GatewayClient {
             authenticated: false,
@@ -913,7 +913,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
             negotiated_protocol: None,
-            shutdown,
+            task_client,
         }
     }
 
@@ -921,7 +921,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         self,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
-        shutdown: TaskClient,
+        task_client: TaskClient,
     ) -> GatewayClient<C, St> {
         // invariants that can't be broken
         // (unless somebody decided to expose some field that wasn't meant to be exposed)
@@ -945,7 +945,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             reconnection_attempts: self.reconnection_attempts,
             reconnection_backoff: self.reconnection_backoff,
             negotiated_protocol: self.negotiated_protocol,
-            shutdown,
+            task_client,
         }
     }
 }

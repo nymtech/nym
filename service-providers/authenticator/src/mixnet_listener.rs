@@ -215,13 +215,8 @@ impl MixnetListener {
             AuthenticatorError::FailedToSerializeResponsePacket { source: err }
         })?;
 
-        let input_message = InputMessage::new_regular_with_custom_hops(
-            recipient,
-            response_packet,
-            TransmissionLane::General,
-            None,
-            None,
-        );
+        let input_message =
+            InputMessage::new_regular(recipient, response_packet, TransmissionLane::General, None);
         self.mixnet_client
             .send(input_message)
             .await

@@ -3,6 +3,8 @@
 
 pub mod v1;
 
+pub const CURRENT_VERSION: u8 = 1;
+
 fn make_bincode_serializer() -> impl bincode::Options {
     use bincode::Options;
     bincode::DefaultOptions::new()

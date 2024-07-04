@@ -44,6 +44,13 @@ impl AuthenticatorResponse {
         use bincode::Options;
         make_bincode_serializer().serialize(self)
     }
+
+    pub fn from_reconstructed_message(
+        message: &nym_sphinx::receiver::ReconstructedMessage,
+    ) -> Result<Self, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().deserialize(&message.message)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

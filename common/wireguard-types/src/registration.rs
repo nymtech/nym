@@ -53,15 +53,6 @@ impl InitMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type", rename_all = "camelCase")]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub enum ClientRegistrationResponse {
-    PendingRegistration(RegistrationData),
-    Registered,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct RegistrationData {
     pub nonce: u64,
     pub gateway_data: GatewayClient,

@@ -11,7 +11,7 @@ This document presents an initiative to further support Nym’s mission of allow
 All the technical changes on the side of Nym nodes - ***Project Smoosh*** - are described in the [FAQ section](../archive/faq/smoosh-faq.md).
 
 ```admonish warning
-Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the operator channels ([Element](https://matrix.to/#/#operators:nymtech.chat), [Discord](https://discord.com/invite/nym), [Telegram](https://t.me/nymchan_help_chat)) to share best practices and experiences.
+Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the operator channels ([Element](https://matrix.to/#/#operators:nymtech.chat), [Discord](https://discord.gg/FaTJb8q8), [Telegram](https://t.me/nymchan_help_chat)) to share best practices and experiences.
 ```
 
 

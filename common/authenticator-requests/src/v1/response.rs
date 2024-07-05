@@ -19,19 +19,27 @@ pub struct AuthenticatorResponse {
 impl AuthenticatorResponse {
     pub fn new_pending_registration_success(
         registration_data: RegistrationData,
+        request_id: u64,
         reply_to: Recipient,
     ) -> Self {
         Self {
             version: VERSION,
-            data: AuthenticatorResponseData::PendingRegistration(registration_data),
+            data: AuthenticatorResponseData::PendingRegistration(PendingRegistrationResponse {
+                reply: registration_data,
+                reply_to,
+                request_id,
+            }),
             reply_to,
         }
     }
 
-    pub fn new_registered(reply_to: Recipient) -> Self {
+    pub fn new_registered(reply_to: Recipient, request_id: u64) -> Self {
         Self {
             version: VERSION,
-            data: AuthenticatorResponseData::Registered,
+            data: AuthenticatorResponseData::Registered(RegisteredResponse {
+                reply_to,
+                request_id,
+            }),
             reply_to,
         }
     }
@@ -54,8 +62,8 @@ impl AuthenticatorResponse {
 
     pub fn id(&self) -> Option<u64> {
         match &self.data {
-            AuthenticatorResponseData::PendingRegistration(registration_data) => {}
-            AuthenticatorResponseData::Registered => None,
+            AuthenticatorResponseData::PendingRegistration(response) => Some(response.request_id),
+            AuthenticatorResponseData::Registered(response) => Some(response.request_id),
         }
     }
 }

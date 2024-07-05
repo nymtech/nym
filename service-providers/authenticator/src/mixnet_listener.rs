@@ -124,6 +124,7 @@ impl MixnetListener {
     fn on_initial_request(
         &mut self,
         init_message: InitMessage,
+        request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
         let remote_public = init_message.pub_key();
@@ -131,6 +132,7 @@ impl MixnetListener {
         if let Some(registration_data) = self.registration_in_progres.get(&remote_public) {
             return Ok(AuthenticatorResponse::new_pending_registration_success(
                 registration_data.value().clone(),
+                request_id,
                 reply_to,
             ));
         }
@@ -177,6 +179,7 @@ impl MixnetListener {
 
         Ok(AuthenticatorResponse::new_pending_registration_success(
             registration_data,
+            request_id,
             reply_to,
         ))
     }
@@ -184,6 +187,7 @@ impl MixnetListener {
     fn on_final_request(
         &mut self,
         gateway_client: GatewayClient,
+        request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
         let registration_data = self
@@ -211,7 +215,7 @@ impl MixnetListener {
                 .client_registry()
                 .insert(gateway_client.pub_key(), gateway_client);
 
-            Ok(AuthenticatorResponse::new_registered(reply_to))
+            Ok(AuthenticatorResponse::new_registered(reply_to, request_id))
         } else {
             Err(AuthenticatorError::MacVerificationFailure)
         }
@@ -235,10 +239,10 @@ impl MixnetListener {
 
         match request.data {
             AuthenticatorRequestData::Initial(init_msg) => {
-                self.on_initial_request(init_msg, request.reply_to)
+                self.on_initial_request(init_msg, request.request_id, request.reply_to)
             }
             AuthenticatorRequestData::Final(client) => {
-                self.on_final_request(client, request.reply_to)
+                self.on_final_request(client, request.request_id, request.reply_to)
             }
         }
     }

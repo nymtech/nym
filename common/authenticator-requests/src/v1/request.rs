@@ -20,6 +20,7 @@ pub struct AuthenticatorRequest {
     pub version: u8,
     pub data: AuthenticatorRequestData,
     pub reply_to: Recipient,
+    pub request_id: u64,
 }
 
 impl AuthenticatorRequest {
@@ -37,6 +38,7 @@ impl AuthenticatorRequest {
                 version: VERSION,
                 data: AuthenticatorRequestData::Initial(init_message),
                 reply_to,
+                request_id,
             },
             request_id,
         )
@@ -49,6 +51,7 @@ impl AuthenticatorRequest {
                 version: VERSION,
                 data: AuthenticatorRequestData::Final(gateway_client),
                 reply_to,
+                request_id,
             },
             request_id,
         )

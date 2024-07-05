@@ -4,6 +4,7 @@
 use std::path::Path;
 
 use futures::channel::oneshot;
+use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_sdk::mixnet::Recipient;
 use nym_task::{TaskClient, TaskHandle};
@@ -102,8 +103,13 @@ impl Authenticator {
 
         let self_address = *mixnet_client.nym_address();
 
+        let private_ip_network = IpNetwork::new(
+            self.config.authenticator.private_ip,
+            self.config.authenticator.private_network_prefix,
+        )?;
         let mixnet_listener = crate::mixnet_listener::MixnetListener::new(
             self.config,
+            private_ip_network,
             self.wireguard_gateway_data,
             mixnet_client,
             task_handle,

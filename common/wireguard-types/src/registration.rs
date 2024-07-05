@@ -7,6 +7,7 @@ use base64::{engine::general_purpose, Engine};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
+use std::time::SystemTime;
 use std::{fmt, ops::Deref, str::FromStr};
 
 #[cfg(feature = "verify")]
@@ -18,13 +19,13 @@ use sha2::Sha256;
 
 pub type GatewayClientRegistry = DashMap<PeerPublicKey, GatewayClient>;
 pub type PendingRegistrations = DashMap<PeerPublicKey, RegistrationData>;
-pub type PrivateIPs = DashMap<IpAddr, Free>;
+pub type PrivateIPs = DashMap<IpAddr, Taken>;
 
 #[cfg(feature = "verify")]
 pub type HmacSha256 = Hmac<Sha256>;
 
 pub type Nonce = u64;
-pub type Free = bool;
+pub type Taken = Option<SystemTime>;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]

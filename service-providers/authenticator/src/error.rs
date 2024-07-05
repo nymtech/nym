@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use ipnetwork::IpNetworkError;
 use nym_client_core::error::ClientCoreError;
 use nym_id::NymIdError;
 
@@ -49,6 +50,9 @@ pub enum AuthenticatorError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("{0}")]
+    IpNetworkError(#[from] IpNetworkError),
+
     #[error("mac does not verify")]
     MacVerificationFailure,
 
@@ -60,6 +64,9 @@ pub enum AuthenticatorError {
 
     #[error("registration is not in progress for the given key")]
     RegistrationNotInProgress,
+
+    #[error("internal data corruption: {0}")]
+    InternalDataCorruption(String),
 }
 
 pub type Result<T> = std::result::Result<T, AuthenticatorError>;

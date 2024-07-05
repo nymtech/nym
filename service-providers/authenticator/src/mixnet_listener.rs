@@ -1,10 +1,14 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use crate::error::AuthenticatorError;
 use futures::StreamExt;
+use ipnetwork::IpNetwork;
 use nym_authenticator_requests::v1::{
     self,
     request::{AuthenticatorRequest, AuthenticatorRequestData},
@@ -19,10 +23,12 @@ use nym_wireguard_types::{
     GatewayClient, InitMessage, PeerPublicKey,
 };
 use rand::{prelude::IteratorRandom, thread_rng};
+use tokio_stream::wrappers::IntervalStream;
 
 use crate::{config::Config, error::*};
 
 type AuthenticatorHandleResult = Result<AuthenticatorResponse>;
+const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
 
 pub(crate) struct MixnetListener {
     // The configuration for the mixnet listener
@@ -40,22 +46,30 @@ pub(crate) struct MixnetListener {
     pub(crate) wireguard_gateway_data: WireguardGatewayData,
 
     pub(crate) free_private_network_ips: Arc<PrivateIPs>,
+
+    pub(crate) timeout_check_interval: IntervalStream,
 }
 
 impl MixnetListener {
     pub fn new(
         config: Config,
+        private_ip_network: IpNetwork,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
     ) -> Self {
+        let timeout_check_interval =
+            IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
         MixnetListener {
             config,
             mixnet_client,
             task_handle,
             registration_in_progres: Default::default(),
             wireguard_gateway_data,
-            free_private_network_ips: Default::default(),
+            free_private_network_ips: Arc::new(
+                private_ip_network.iter().map(|ip| (ip, None)).collect(),
+            ),
+            timeout_check_interval,
         }
     }
 
@@ -72,6 +86,38 @@ impl MixnetListener {
         self.wireguard_gateway_data
             .client_registry()
             .remove(remote_public);
+        Ok(())
+    }
+
+    fn remove_stale_registrations(&self) -> Result<()> {
+        for reg in self.registration_in_progres.iter().map(|reg| reg.clone()) {
+            let mut ip = self
+                .free_private_network_ips
+                .get_mut(&reg.gateway_data.private_ip)
+                .ok_or(AuthenticatorError::InternalDataCorruption(format!(
+                    "IP {} should be present",
+                    reg.gateway_data.private_ip
+                )))?;
+
+            let timestamp = ip.ok_or(AuthenticatorError::InternalDataCorruption(format!(
+                "timestamp should be set for IP {}",
+                ip.key()
+            )))?;
+            let duration = SystemTime::now().duration_since(timestamp).map_err(|_| {
+                AuthenticatorError::InternalDataCorruption(format!(
+                    "set timestamp shouldn't have been set in the future"
+                ))
+            })?;
+            if duration > DEFAULT_REGISTRATION_TIMEOUT_CHECK {
+                *ip = None;
+                self.registration_in_progres
+                    .remove(&reg.gateway_data.pub_key());
+                log::debug!(
+                    "Removed stale registration of {}",
+                    reg.gateway_data.pub_key()
+                );
+            }
+        }
         Ok(())
     }
 
@@ -99,7 +145,7 @@ impl MixnetListener {
                 .ok_or(AuthenticatorError::InternalError(String::from(
                     "could not find private IP",
                 )))?;
-            *private_ip_ref = true;
+            *private_ip_ref = None;
             Some(gateway_client.clone())
         } else {
             None
@@ -110,11 +156,11 @@ impl MixnetListener {
         let mut private_ip_ref = self
             .free_private_network_ips
             .iter_mut()
-            .filter(|r| **r)
+            .filter(|r| r.is_none())
             .choose(&mut thread_rng())
             .ok_or(AuthenticatorError::NoFreeIp)?;
         // mark it as used, even though it's not final
-        *private_ip_ref = false;
+        *private_ip_ref = Some(SystemTime::now());
         let gateway_data = GatewayClient::new(
             self.wireguard_gateway_data.keypair().private_key(),
             remote_public.inner(),
@@ -231,6 +277,11 @@ impl MixnetListener {
                 _ = task_client.recv() => {
                     log::debug!("Authenticator [main loop]: received shutdown");
                 },
+                _ = self.timeout_check_interval.next() => {
+                    if let Err(e) = self.remove_stale_registrations() {
+                        log::error!("Could not clear stale registrations. The registration process might get jammed soon - {:?}", e);
+                    }
+                }
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
                         match self.on_reconstructed_message(msg).await {

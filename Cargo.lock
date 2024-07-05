@@ -3961,6 +3961,7 @@ dependencies = [
  "clap 4.5.4",
  "fastrand 2.1.0",
  "futures",
+ "ipnetwork 0.16.0",
  "log",
  "nym-authenticator-requests",
  "nym-bin-common",
@@ -3981,6 +3982,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "url",
 ]

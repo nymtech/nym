@@ -51,10 +51,30 @@ impl AuthenticatorResponse {
         use bincode::Options;
         make_bincode_serializer().deserialize(&message.message)
     }
+
+    pub fn id(&self) -> Option<u64> {
+        match &self.data {
+            AuthenticatorResponseData::PendingRegistration(registration_data) => {}
+            AuthenticatorResponseData::Registered => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AuthenticatorResponseData {
-    PendingRegistration(RegistrationData),
-    Registered,
+    PendingRegistration(PendingRegistrationResponse),
+    Registered(RegisteredResponse),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PendingRegistrationResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
+    pub reply: RegistrationData,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RegisteredResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
 }

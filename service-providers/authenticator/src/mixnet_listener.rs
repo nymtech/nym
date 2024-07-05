@@ -104,9 +104,9 @@ impl MixnetListener {
                 ip.key()
             )))?;
             let duration = SystemTime::now().duration_since(timestamp).map_err(|_| {
-                AuthenticatorError::InternalDataCorruption(format!(
-                    "set timestamp shouldn't have been set in the future"
-                ))
+                AuthenticatorError::InternalDataCorruption(
+                    "set timestamp shouldn't have been set in the future".to_string(),
+                )
             })?;
             if duration > DEFAULT_REGISTRATION_TIMEOUT_CHECK {
                 *ip = None;

@@ -10,7 +10,7 @@ license.workspace = true
 
 [dependencies]
 bincode = { workspace = true }
-rand = "0.8.5"
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 nym-sphinx = { path = "../nymsphinx" }

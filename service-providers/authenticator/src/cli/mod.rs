@@ -122,7 +122,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), AuthenticatorError> {
-    let bin_name = "nym-ip-packet-router";
+    let bin_name = "nym-authenticator";
 
     match args.command {
         Commands::Init(m) => init::execute(m).await?,

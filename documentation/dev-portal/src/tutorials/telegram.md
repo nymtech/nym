@@ -39,5 +39,5 @@ Follow this [video](https://youtu.be/quj8H2qeOwY?t=97) to see the steps on Teleg
 
 **Now your Telegram runs over NymConnect.**
 
-NymConnect is currently available for several applications and service providers. Support for more apps is on the way. For any bug reports or feedback please reach out to us on Telegram or our [Discord](http://discord.gg/nym) server.
+NymConnect is currently available for several applications and service providers. Support for more apps is on the way. For any bug reports or feedback please reach out to us on Telegram or our [Discord](http://discord.gg/FaTJb8q8) server.
 

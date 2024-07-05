@@ -10,7 +10,7 @@ import { DiscordIcon } from '../icons/socials/DiscordIcon'
 export const TELEGRAM_LINK = 'https://t.me/nymchan'
 export const TWITTER_LINK = 'https://twitter.com/nymproject'
 export const GITHUB_LINK = 'https://github.com/nymtech'
-export const DISCORD_LINK = 'https://discord.gg/nym'
+export const DISCORD_LINK = 'https://discord.gg/FaTJb8q8'
 
 export const Socials: FCWithChildren<{ isFooter?: boolean }> = ({
   isFooter = false,

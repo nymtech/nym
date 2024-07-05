@@ -81,12 +81,6 @@ nr_description = '{{ storage_paths.nr_description }}'
 # and thus would attempt to resolve **ANY** request it receives.
 open_proxy = {{ network_requester.open_proxy }}
 
-# specifies whether this network requester would send anonymized statistics to a statistics aggregator server
-enabled_statistics = {{ network_requester.enabled_statistics }}
-
-# in case of enabled statistics, specifies mixnet client address where a statistics aggregator is running
-statistics_recipient = '{{ network_requester.statistics_recipient }}'
-
 # Disable Poisson sending rate
 # This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
 disable_poisson_rate = {{ network_requester.disable_poisson_rate }}

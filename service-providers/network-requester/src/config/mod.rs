@@ -203,7 +203,7 @@ impl Config {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct NetworkRequester {
     /// specifies whether this network requester should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.

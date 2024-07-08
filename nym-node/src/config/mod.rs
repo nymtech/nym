@@ -25,6 +25,7 @@ use std::time::Duration;
 use tracing::{debug, error};
 use url::Url;
 
+pub mod authenticator;
 pub mod entry_gateway;
 pub mod exit_gateway;
 pub mod helpers;

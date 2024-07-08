@@ -409,6 +409,9 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                 bind_address: SocketAddr::new(ip, cfg.gateway.clients_port),
                 announce_ws_port: None,
                 announce_wss_port: cfg.gateway.clients_wss_port,
+                authenticator: config::authenticator::Authenticator {
+                    debug: Default::default(),
+                },
                 debug: config::entry_gateway::Debug {
                     message_retrieval_limit: cfg.debug.message_retrieval_limit,
                 },
@@ -454,7 +457,7 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                                 .unwrap_or_default(),
                         },
                     },
-                    authenticator: config::exit_gateway::Authenticator {
+                    authenticator: config::authenticator::Authenticator {
                         debug: Default::default(),
                     },
                 }),

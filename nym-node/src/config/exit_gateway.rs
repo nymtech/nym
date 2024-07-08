@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
-use super::LocalWireguardOpts;
+use super::{authenticator::Authenticator, LocalWireguardOpts};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -132,49 +132,6 @@ pub struct IpPacketRouterDebug {
 impl Default for IpPacketRouterDebug {
     fn default() -> Self {
         IpPacketRouterDebug {
-            enabled: true,
-            disable_poisson_rate: true,
-            client_debug: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct Authenticator {
-    #[serde(default)]
-    pub debug: AuthenticatorDebug,
-}
-
-#[allow(clippy::derivable_impls)]
-impl Default for Authenticator {
-    fn default() -> Self {
-        Authenticator {
-            debug: Default::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
-pub struct AuthenticatorDebug {
-    /// Specifies whether authenticator service is enabled in this process.
-    /// This is only here for debugging purposes as exit gateway should always run
-    /// the authenticator.
-    pub enabled: bool,
-
-    /// Disable Poisson sending rate.
-    /// This is equivalent to setting client_debug.traffic.disable_main_poisson_packet_distribution = true
-    /// (or is it (?))
-    pub disable_poisson_rate: bool,
-
-    /// Shared detailed client configuration options
-    #[serde(flatten)]
-    pub client_debug: ClientDebugConfig,
-}
-
-impl Default for AuthenticatorDebug {
-    fn default() -> Self {
-        AuthenticatorDebug {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),

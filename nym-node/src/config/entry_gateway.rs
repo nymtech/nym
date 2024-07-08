@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::path::Path;
 
+use super::authenticator::Authenticator;
+
 pub const DEFAULT_WS_PORT: u16 = DEFAULT_CLIENT_LISTENING_PORT;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,6 +39,8 @@ pub struct EntryGatewayConfig {
     /// (default: None)
     #[serde(deserialize_with = "de_maybe_port")]
     pub announce_wss_port: Option<u16>,
+
+    pub authenticator: Authenticator,
 
     #[serde(default)]
     pub debug: Debug,
@@ -69,6 +73,7 @@ impl EntryGatewayConfig {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
+            authenticator: Default::default(),
             debug: Default::default(),
         }
     }

@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import React, { useCallback, useMemo } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   MaterialReactTable,
   useMaterialReactTable,
   type MRT_ColumnDef,
-} from 'material-react-table'
-import { Grid, Card, Button, Box, Stack } from '@mui/material'
+} from "material-react-table";
+import { Grid, Card, Button, Box, Stack } from "@mui/material";
 import {
   CustomColumnHeading,
   DelegateIconButton,
@@ -21,81 +21,81 @@ import {
   Title,
   Tooltip,
   mixnodeToGridRow,
-} from '@/app/components'
-import { DelegationsProvider } from '@/app/context/delegations'
-import { useWalletContext } from '@/app/context/wallet'
-import { useGetMixNodeStatusColor, useIsMobile } from '@/app/hooks'
-import { useMainContext } from '@/app/context/main'
-import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard'
-import { splice } from '@/app/utils'
-import { currencyToString } from '@/app/utils/currency'
-import { NYM_BIG_DIPPER } from '@/app/api/constants'
+} from "@/app/components";
+import { DelegationsProvider } from "@/app/context/delegations";
+import { useWalletContext } from "@/app/context/wallet";
+import { useGetMixNodeStatusColor, useIsMobile } from "@/app/hooks";
+import { useMainContext } from "@/app/context/main";
+import { CopyToClipboard } from "@nymproject/react";
+import { splice } from "@/app/utils";
+import { currencyToString } from "@/app/utils/currency";
+import { NYM_BIG_DIPPER } from "@/app/api/constants";
 import {
   MixnodeStatusWithAll,
   toMixnodeStatus,
-} from '@/app/typeDefs/explorer-api'
+} from "@/app/typeDefs/explorer-api";
 
 export default function MixnodesPage() {
-  const isMobile = useIsMobile()
-  const { isWalletConnected } = useWalletContext()
-  const { mixnodes, fetchMixnodes } = useMainContext()
-  const router = useRouter()
+  const isMobile = useIsMobile();
+  const { isWalletConnected } = useWalletContext();
+  const { mixnodes, fetchMixnodes } = useMainContext();
+  const router = useRouter();
 
   const [itemSelectedForDelegation, setItemSelectedForDelegation] =
     React.useState<{
-      mixId: number
-      identityKey: string
-    }>()
+      mixId: number;
+      identityKey: string;
+    }>();
   const [confirmationModalProps, setConfirmationModalProps] = React.useState<
     DelegationModalProps | undefined
-  >()
+  >();
 
-  const search = useSearchParams()
-  const status = search.get('status') as MixnodeStatusWithAll
+  const search = useSearchParams();
+  const status = search.get("status") as MixnodeStatusWithAll;
 
   React.useEffect(() => {
     // when the status changes, get the mixnodes
-    fetchMixnodes(toMixnodeStatus(status))
-  }, [status])
+    fetchMixnodes(toMixnodeStatus(status));
+  }, [status]);
 
   const handleMixnodeStatusChanged = (newStatus?: MixnodeStatusWithAll) => {
     router.push(
-      newStatus && newStatus !== 'all'
+      newStatus && newStatus !== "all"
         ? `/network-components/mixnodes?status=${newStatus}`
-        : '/network-components/mixnodes'
-    )
-  }
+        : "/network-components/mixnodes"
+    );
+  };
 
   const handleOnDelegate = useCallback(
     ({ identityKey, mixId }: { identityKey: string; mixId: number }) => {
       if (!isWalletConnected) {
         setConfirmationModalProps({
-          status: 'info',
-          message: 'Please connect your wallet to delegate',
-        })
+          status: "info",
+          message: "Please connect your wallet to delegate",
+        });
       } else {
-        setItemSelectedForDelegation({ identityKey, mixId })
+        setItemSelectedForDelegation({ identityKey, mixId });
       }
     },
     [isWalletConnected]
-  )
+  );
 
   const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
-    setItemSelectedForDelegation(undefined)
-    setConfirmationModalProps(delegationModalProps)
-  }
+    setItemSelectedForDelegation(undefined);
+    setConfirmationModalProps(delegationModalProps);
+  };
 
   const columns = useMemo<MRT_ColumnDef<MixnodeRowType>[]>(() => {
     return [
       {
-        id: 'mixnode-data',
-        header: 'Mixnode Data',
+        id: "mixnode-data",
+        header: "Mixnode Data",
         columns: [
           {
-            id: 'delegate',
-            accessorKey: 'delegate',
+            id: "delegate",
+            accessorKey: "delegate",
             size: isMobile ? 50 : 150,
-            header: '',
+            header: "",
             grow: false,
             Cell: ({ row }) => (
               <DelegateIconButton
@@ -113,15 +113,15 @@ export default function MixnodesPage() {
             Filter: () => null,
           },
           {
-            id: 'identity_key',
-            header: 'Identity Key',
-            accessorKey: 'identity_key',
+            id: "identity_key",
+            header: "Identity Key",
+            accessorKey: "identity_key",
             size: 250,
             Cell: ({ row }) => {
               return (
                 <Stack direction="row" alignItems="center" gap={1}>
                   <CopyToClipboard
-                    sx={{ mr: 0.5, color: 'grey.400' }}
+                    sx={{ mr: 0.5, color: "grey.400" }}
                     smallIcons
                     value={row.original.identity_key}
                     tooltip={`Copy identity key ${row.original.identity_key} to clipboard`}
@@ -134,13 +134,13 @@ export default function MixnodesPage() {
                     {splice(7, 29, row.original.identity_key)}
                   </StyledLink>
                 </Stack>
-              )
+              );
             },
           },
           {
-            id: 'bond',
-            header: 'Stake',
-            accessorKey: 'bond',
+            id: "bond",
+            header: "Stake",
+            accessorKey: "bond",
             Cell: ({ row }) => (
               <StyledLink
                 to={`/network-components/mixnodes/${row.original.mix_id}`}
@@ -151,9 +151,9 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'stake_saturation',
-            header: 'Stake Saturation',
-            accessorKey: 'stake_saturation',
+            id: "stake_saturation",
+            header: "Stake Saturation",
+            accessorKey: "stake_saturation",
             size: 225,
             Header() {
               return (
@@ -161,7 +161,7 @@ export default function MixnodesPage() {
                   headingTitle="Stake Saturation"
                   tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is 940k NYMs, computed as S/K where S is target amount of tokens staked in the network and K is the number of nodes in the reward set."
                 />
-              )
+              );
             },
             Cell: ({ row }) => (
               <StyledLink
@@ -171,9 +171,9 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'pledge_amount',
-            header: 'Bond',
-            accessorKey: 'pledge_amount',
+            id: "pledge_amount",
+            header: "Bond",
+            accessorKey: "pledge_amount",
             size: 185,
             Header: () => (
               <CustomColumnHeading
@@ -193,9 +193,9 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'profit_percentage',
-            accessorKey: 'profit_percentage',
-            header: 'Profit Margin',
+            id: "profit_percentage",
+            accessorKey: "profit_percentage",
+            header: "Profit Margin",
             size: 145,
             Header: () => (
               <CustomColumnHeading
@@ -211,10 +211,10 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'operating_cost',
-            accessorKey: 'operating_cost',
+            id: "operating_cost",
+            accessorKey: "operating_cost",
             size: 220,
-            header: 'Operating Cost',
+            header: "Operating Cost",
             disableColumnMenu: true,
             Header: () => (
               <CustomColumnHeading
@@ -230,10 +230,10 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'node_performance',
-            accessorKey: 'node_performance',
+            id: "node_performance",
+            accessorKey: "node_performance",
             size: 200,
-            header: 'Routing Score',
+            header: "Routing Score",
             Header: () => (
               <CustomColumnHeading
                 headingTitle="Routing Score"
@@ -248,10 +248,10 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'owner',
-            accessorKey: 'owner',
+            id: "owner",
+            accessorKey: "owner",
             size: 150,
-            header: 'Owner',
+            header: "Owner",
             Header: () => <CustomColumnHeading headingTitle="Owner" />,
             Cell: ({ row }) => (
               <StyledLink
@@ -265,19 +265,19 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'location',
-            accessorKey: 'location',
-            header: 'Location',
+            id: "location",
+            accessorKey: "location",
+            header: "Location",
             maxSize: 150,
             Header: () => <CustomColumnHeading headingTitle="Location" />,
             Cell: ({ row }) => (
               <Tooltip text={row.original.location} id="mixnode-location-text">
                 <Box
                   sx={{
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    textOverflow: 'ellipsis',
-                    cursor: 'pointer',
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                    textOverflow: "ellipsis",
+                    cursor: "pointer",
                     color: useGetMixNodeStatusColor(row.original.status),
                   }}
                 >
@@ -287,9 +287,9 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'host',
-            accessorKey: 'host',
-            header: 'Host',
+            id: "host",
+            accessorKey: "host",
+            header: "Host",
             size: 130,
             Header: () => <CustomColumnHeading headingTitle="Host" />,
             Cell: ({ row }) => (
@@ -303,12 +303,12 @@ export default function MixnodesPage() {
           },
         ],
       },
-    ]
-  }, [handleOnDelegate, isMobile])
+    ];
+  }, [handleOnDelegate, isMobile]);
 
   const data = useMemo(() => {
-    return mixnodeToGridRow(mixnodes?.data)
-  }, [mixnodes?.data])
+    return mixnodeToGridRow(mixnodes?.data);
+  }, [mixnodes?.data]);
 
   const table = useMaterialReactTable({
     columns,
@@ -317,11 +317,11 @@ export default function MixnodesPage() {
     state: {
       isLoading: mixnodes?.isLoading,
     },
-    layoutMode: 'grid-no-grow',
+    layoutMode: "grid-no-grow",
     initialState: {
-      columnPinning: { left: ['delegate'] },
+      columnPinning: { left: ["delegate"] },
     },
-  })
+  });
 
   return (
     <DelegationsProvider>
@@ -333,7 +333,7 @@ export default function MixnodesPage() {
           <Card
             sx={{
               padding: 2,
-              height: '100%',
+              height: "100%",
             }}
           >
             <TableToolbar
@@ -350,7 +350,7 @@ export default function MixnodesPage() {
                     fullWidth
                     size="large"
                     variant="outlined"
-                    onClick={() => router.push('/delegations')}
+                    onClick={() => router.push("/delegations")}
                   >
                     Delegations
                   </Button>
@@ -364,7 +364,7 @@ export default function MixnodesPage() {
       {itemSelectedForDelegation && (
         <DelegateModal
           onClose={() => {
-            setItemSelectedForDelegation(undefined)
+            setItemSelectedForDelegation(undefined);
           }}
           header="Delegate"
           buttonText="Delegate stake"
@@ -382,19 +382,19 @@ export default function MixnodesPage() {
           {...confirmationModalProps}
           open={Boolean(confirmationModalProps)}
           onClose={async () => {
-            setConfirmationModalProps(undefined)
-            if (confirmationModalProps.status === 'success') {
-              router.push('/delegations')
+            setConfirmationModalProps(undefined);
+            if (confirmationModalProps.status === "success") {
+              router.push("/delegations");
             }
           }}
           sx={{
             width: {
-              xs: '90%',
+              xs: "90%",
               sm: 600,
             },
           }}
         />
       )}
     </DelegationsProvider>
-  )
+  );
 }

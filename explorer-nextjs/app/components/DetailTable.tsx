@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 import {
   Link,
   Paper,
@@ -9,49 +9,49 @@ import {
   TableHead,
   TableRow,
   TableCellProps,
-} from '@mui/material'
-import { useTheme } from '@mui/material/styles'
-import { Tooltip } from '@nymproject/react/tooltip/Tooltip'
-import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard'
-import { Box } from '@mui/system'
-import { unymToNym } from '@/app/utils/currency'
-import { GatewayEnrichedRowType } from './Gateways/Gateways'
-import { MixnodeRowType } from './MixNodes'
-import { StakeSaturationProgressBar } from './MixNodes/Economics/StakeSaturationProgressBar'
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { Tooltip } from "@nymproject/react";
+import { CopyToClipboard } from "@nymproject/react";
+import { Box } from "@mui/system";
+import { unymToNym } from "@/app/utils/currency";
+import { GatewayEnrichedRowType } from "./Gateways/Gateways";
+import { MixnodeRowType } from "./MixNodes";
+import { StakeSaturationProgressBar } from "./MixNodes/Economics/StakeSaturationProgressBar";
 
 export type ColumnsType = {
-  field: string
-  title: string
-  headerAlign?: TableCellProps['align']
-  width?: string | number
-  tooltipInfo?: string
-}
+  field: string;
+  title: string;
+  headerAlign?: TableCellProps["align"];
+  width?: string | number;
+  tooltipInfo?: string;
+};
 
 export interface UniversalTableProps<T = any> {
-  tableName: string
-  columnsData: ColumnsType[]
-  rows: T[]
+  tableName: string;
+  columnsData: ColumnsType[];
+  rows: T[];
 }
 
 function formatCellValues(val: string | number, field: string) {
-  if (field === 'identity_key' && typeof val === 'string') {
+  if (field === "identity_key" && typeof val === "string") {
     return (
       <Box display="flex" justifyContent="flex-end">
         <CopyToClipboard
-          sx={{ mr: 1, mt: 0.5, fontSize: '18px' }}
+          sx={{ mr: 1, mt: 0.5, fontSize: "18px" }}
           value={val}
           tooltip={`Copy identity key ${val} to clipboard`}
         />
         <span>{val}</span>
       </Box>
-    )
+    );
   }
 
-  if (field === 'bond') {
-    return unymToNym(val, 6)
+  if (field === "bond") {
+    return unymToNym(val, 6);
   }
 
-  if (field === 'owner') {
+  if (field === "owner") {
     return (
       <Link
         underline="none"
@@ -61,22 +61,22 @@ function formatCellValues(val: string | number, field: string) {
       >
         {val}
       </Link>
-    )
+    );
   }
 
-  if (field === 'stake_saturation') {
-    return <StakeSaturationProgressBar value={Number(val)} threshold={100} />
+  if (field === "stake_saturation") {
+    return <StakeSaturationProgressBar value={Number(val)} threshold={100} />;
   }
 
-  return val
+  return val;
 }
 
 export const DetailTable: FCWithChildren<{
-  tableName: string
-  columnsData: ColumnsType[]
-  rows: MixnodeRowType[] | GatewayEnrichedRowType[]
+  tableName: string;
+  columnsData: ColumnsType[];
+  rows: MixnodeRowType[] | GatewayEnrichedRowType[];
 }> = ({ tableName, columnsData, rows }: UniversalTableProps) => {
-  const theme = useTheme()
+  const theme = useTheme();
   return (
     <TableContainer component={Paper}>
       <Table sx={{ minWidth: 1080 }} aria-label={tableName}>
@@ -87,9 +87,9 @@ export const DetailTable: FCWithChildren<{
                 key={field}
                 sx={{ fontSize: 14, fontWeight: 600, width }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
                   {tooltipInfo && (
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
                       <Tooltip
                         title={tooltipInfo}
                         id={field}
@@ -115,7 +115,7 @@ export const DetailTable: FCWithChildren<{
           {rows.map((eachRow) => (
             <TableRow
               key={eachRow.id}
-              sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+              sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
             >
               {columnsData?.map((data, index) => (
                 <TableCell
@@ -128,7 +128,7 @@ export const DetailTable: FCWithChildren<{
                     width: 200,
                     fontSize: 14,
                   }}
-                  data-testid={`${data.title.replace(/ /g, '-')}-value`}
+                  data-testid={`${data.title.replace(/ /g, "-")}-value`}
                 >
                   {formatCellValues(
                     eachRow[columnsData[index].field],
@@ -141,5 +141,5 @@ export const DetailTable: FCWithChildren<{
         </TableBody>
       </Table>
     </TableContainer>
-  )
-}
+  );
+};

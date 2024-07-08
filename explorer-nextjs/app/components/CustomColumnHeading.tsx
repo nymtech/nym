@@ -1,13 +1,13 @@
-import * as React from 'react'
-import { Box, Typography } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
-import { Tooltip } from '@nymproject/react/tooltip/Tooltip'
+import * as React from "react";
+import { Box, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { Tooltip } from "@nymproject/react";
 
 export const CustomColumnHeading: FCWithChildren<{
-  headingTitle: string
-  tooltipInfo?: string
+  headingTitle: string;
+  tooltipInfo?: string;
 }> = ({ headingTitle, tooltipInfo }) => {
-  const theme = useTheme()
+  const theme = useTheme();
 
   return (
     <Box alignItems="center" display="flex">
@@ -26,5 +26,5 @@ export const CustomColumnHeading: FCWithChildren<{
         {headingTitle}
       </Typography>
     </Box>
-  )
-}
+  );
+};

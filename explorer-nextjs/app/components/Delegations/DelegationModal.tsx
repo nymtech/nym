@@ -1,26 +1,26 @@
-import React from 'react'
-import { Typography, SxProps, Stack } from '@mui/material'
-import { Link } from '@nymproject/react/link/Link'
-import { LoadingModal } from './LoadingModal'
-import { ConfirmationModal } from './ConfirmationModal'
-import { ErrorModal } from './ErrorModal'
+import React from "react";
+import { Typography, SxProps, Stack } from "@mui/material";
+import { Link } from "@nymproject/react";
+import { LoadingModal } from "./LoadingModal";
+import { ConfirmationModal } from "./ConfirmationModal";
+import { ErrorModal } from "./ErrorModal";
 
 export type DelegationModalProps = {
-  status: 'loading' | 'success' | 'error' | 'info'
-  message?: string
+  status: "loading" | "success" | "error" | "info";
+  message?: string;
   transactions?: {
-    url: string
-    hash: string
-  }[]
-}
+    url: string;
+    hash: string;
+  }[];
+};
 
 export const DelegationModal: FCWithChildren<
   DelegationModalProps & {
-    open: boolean
-    onClose: () => void
-    sx?: SxProps
-    backdropProps?: object
-    children?: React.ReactNode
+    open: boolean;
+    onClose: () => void;
+    sx?: SxProps;
+    backdropProps?: object;
+    children?: React.ReactNode;
   }
 > = ({
   status,
@@ -32,18 +32,18 @@ export const DelegationModal: FCWithChildren<
   sx,
   backdropProps,
 }) => {
-  if (status === 'loading')
-    return <LoadingModal sx={sx} backdropProps={backdropProps} />
+  if (status === "loading")
+    return <LoadingModal sx={sx} backdropProps={backdropProps} />;
 
-  if (status === 'error') {
+  if (status === "error") {
     return (
       <ErrorModal message={message} sx={sx} open={open} onClose={onClose}>
         {children}
       </ErrorModal>
-    )
+    );
   }
 
-  if (status === 'info') {
+  if (status === "info") {
     return (
       <ConfirmationModal
         open={open}
@@ -53,7 +53,7 @@ export const DelegationModal: FCWithChildren<
       >
         <Typography>{message}</Typography>
       </ConfirmationModal>
-    )
+    );
   }
 
   return (
@@ -91,5 +91,5 @@ export const DelegationModal: FCWithChildren<
         )}
       </Stack>
     </ConfirmationModal>
-  )
-}
+  );
+};

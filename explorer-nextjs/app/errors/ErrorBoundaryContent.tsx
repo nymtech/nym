@@ -1,8 +1,8 @@
-import * as React from 'react'
-import { FallbackProps } from 'react-error-boundary'
-import { Alert, AlertTitle, Container } from '@mui/material'
-import { NymThemeProvider } from '@nymproject/mui-theme'
-import { NymLogo } from '@nymproject/react/logo/NymLogo'
+import * as React from "react";
+import { FallbackProps } from "react-error-boundary";
+import { Alert, AlertTitle, Container } from "@mui/material";
+import { NymThemeProvider } from "@nymproject/mui-theme";
+import { NymLogo } from "@nymproject/react";
 
 export const ErrorBoundaryContent: FCWithChildren<FallbackProps> = ({
   error,
@@ -15,7 +15,7 @@ export const ErrorBoundaryContent: FCWithChildren<FallbackProps> = ({
         <AlertTitle>{error.name}</AlertTitle>
         {error.message}
       </Alert>
-      {process.env.NODE_ENV === 'development' && (
+      {process.env.NODE_ENV === "development" && (
         <Alert severity="info" sx={{ mt: 2 }} data-testid="stack-trace">
           <AlertTitle>Stack trace</AlertTitle>
           {error.stack}
@@ -23,4 +23,4 @@ export const ErrorBoundaryContent: FCWithChildren<FallbackProps> = ({
       )}
     </Container>
   </NymThemeProvider>
-)
+);

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_status_api::NodeStatusCache;
+use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
@@ -56,15 +56,15 @@ pub enum NodeDescribeCacheError {
 }
 
 pub struct NodeDescriptionProvider {
-    node_status_cache: NodeStatusCache,
+    contract_cache: NymContractCache,
 
     batch_size: usize,
 }
 
 impl NodeDescriptionProvider {
-    pub(crate) fn new(node_status_cache: NodeStatusCache) -> NodeDescriptionProvider {
+    pub(crate) fn new(contract_cache: NymContractCache) -> NodeDescriptionProvider {
         NodeDescriptionProvider {
-            node_status_cache,
+            contract_cache,
             batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
         }
     }
@@ -243,40 +243,38 @@ impl CacheItemProvider for NodeDescriptionProvider {
     type Error = NodeDescribeCacheError;
 
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {
-        let mut host_id_pairs =
-            if let Some(gateways) = self.node_status_cache.gateways_annotated_full().await {
-                gateways
-                    .into_iter()
-                    .map(|full| {
-                        RefreshData::new(
-                            full.gateway_bond.gateway.host,
-                            full.gateway_bond.gateway.identity_key,
-                            NodeRole::EntryGateway,
-                            None,
-                        )
-                    })
-                    .collect::<Vec<RefreshData>>()
-            } else {
-                vec![]
-            };
+        let mut host_id_pairs = self
+            .contract_cache
+            .gateways_all()
+            .await
+            .into_iter()
+            .map(|full| {
+                RefreshData::new(
+                    full.gateway.host,
+                    full.gateway.identity_key,
+                    NodeRole::EntryGateway,
+                    None,
+                )
+            })
+            .collect::<Vec<RefreshData>>();
 
-        if let Some(nodes) = self.node_status_cache.mixnodes_annotated_full().await {
-            host_id_pairs.extend(
-                nodes
-                    .into_iter()
-                    .map(|full| {
-                        RefreshData::new(
-                            full.mixnode_details.bond_information.mix_node.host,
-                            full.mixnode_details.bond_information.mix_node.identity_key,
-                            NodeRole::Mixnode {
-                                layer: full.mixnode_details.bond_information.layer.into(),
-                            },
-                            Some(full.mixnode_details.bond_information.mix_node.mix_port),
-                        )
-                    })
-                    .collect::<Vec<RefreshData>>(),
-            );
-        }
+        host_id_pairs.extend(
+            self.contract_cache
+                .mixnodes_all()
+                .await
+                .into_iter()
+                .map(|full| {
+                    RefreshData::new(
+                        full.bond_information.mix_node.host,
+                        full.bond_information.mix_node.identity_key,
+                        NodeRole::Mixnode {
+                            layer: full.bond_information.layer.into(),
+                        },
+                        Some(full.bond_information.mix_node.mix_port),
+                    )
+                })
+                .collect::<Vec<RefreshData>>(),
+        );
 
         if host_id_pairs.is_empty() {
             return Ok(HashMap::new());
@@ -304,13 +302,13 @@ impl CacheItemProvider for NodeDescriptionProvider {
 #[allow(dead_code)]
 pub(crate) fn new_refresher(
     config: &config::TopologyCacher,
-    node_status_cache: NodeStatusCache,
+    contract_cache: NymContractCache,
     // hehe. we can't do that yet
     // network_gateways: SharedCache<Vec<GatewayBond>>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new(
         Box::new(
-            NodeDescriptionProvider::new(node_status_cache)
+            NodeDescriptionProvider::new(contract_cache)
                 .with_batch_size(config.debug.node_describe_batch_size),
         ),
         config.debug.node_describe_caching_interval,
@@ -319,14 +317,14 @@ pub(crate) fn new_refresher(
 
 pub(crate) fn new_refresher_with_initial_value(
     config: &config::TopologyCacher,
-    node_status_cache: NodeStatusCache,
+    contract_cache: NymContractCache,
     // hehe. we can't do that yet
     // network_gateways: SharedCache<Vec<GatewayBond>>,
     initial: SharedCache<DescribedNodes>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new_with_initial_value(
         Box::new(
-            NodeDescriptionProvider::new(node_status_cache)
+            NodeDescriptionProvider::new(contract_cache)
                 .with_batch_size(config.debug.node_describe_batch_size),
         ),
         config.debug.node_describe_caching_interval,

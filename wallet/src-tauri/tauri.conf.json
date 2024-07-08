@@ -1,0 +1,78 @@
+{
+  "package": {
+    "productName": "nym-wallet",
+    "version": "1.2.13"
+  },
+  "build": {
+    "distDir": "../dist",
+    "devPath": "http://localhost:9000",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": "all",
+      "identifier": "net.nymtech.wallet",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "resources": [],
+      "externalBin": [],
+      "copyright": "Copyright © 2021-2023 Nym Technologies SA",
+      "category": "Business",
+      "shortDescription": "Nym desktop wallet allows you to manage your NYM tokens",
+      "longDescription": "",
+      "deb": {
+        "depends": []
+      },
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "",
+        "exceptionDomain": "",
+        "signingIdentity": "Developer ID Application: Nym Technologies SA (VW5DZLFHM5)",
+        "entitlements": null
+      },
+      "windows": {
+        "certificateThumbprint": "6DB77B1F529A0804FE0E6843A3EB8A8CECFFD408",
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "http://timestamp.comodoca.com"
+      }
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://nymtech.net/.wellknown/wallet/updater.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCNzQ2M0E5N0VFODE2NApSV1JrZ2U2WE9rYTNETTg1OTBKdE5uWUEra0hML2syOVUvQ2lxZmFZRzZ1T3NWbGM0eVRzUTVhVwo="
+    },
+    "allowlist": {
+      "window": {
+        "maximize": true,
+        "print": true
+      },
+      "clipboard": {
+        "all": true
+      },
+      "shell": {
+        "open": true
+      }
+    },
+    "windows": [
+      {
+        "title": "Nym Wallet",
+        "width": 1268,
+        "height": 768,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src blob: data: filesystem: ws: wss: http: https: tauri: 'unsafe-eval' 'unsafe-inline' 'self' img-src: 'self'"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "accounts": [
+    {
+      "id": "first",
+      "account": {
+        "ciphertext": "icnpxLmr/H7FIIOaEf7DYNLuM6uhh7poEppXpYCllQD33TjY+8eLtVvhEQmjX60IQeFOd+1JCcrHa2B12vlBAYlfM4gBxA6d2ZJ8+Dw/vNvBNyChiyUx2euV3vPGOs22r/XDBsmEeF40XZcXftQZa2kzYaPnkbP+eiMOIWkcY4FYOEHwx5SxT4VBPZIrVTC3iDalJLWybVbbw/Bc2zbzEXI1ckg4Ccydj95SMil9BiyDpALfZqwlai7I97S+BjmcVxSCsYqFjTkRUHVMjrEr7fWHKU4DIOM=",
+        "salt": "CtnbfkxTybqz0U4cPHW2jQ==",
+        "iv": "77ZROU6dAMttEWwS"
+      }
+    },
+    {
+      "id": "second",
+      "account": {
+        "ciphertext": "nsqZHdQFlskglc5izKgnr8sBwdMmd82h2Rnjdos9EUca3cqkUdFYEjZDsK8OGR3GZ9alLTNt/1U97Rvvr2HPAWbzl23FW2YXaLTA6yj6ZwQK5w0MYE061NYbcxNHuzT9f5aQWkGULAk4RWb5t8eUX7y/NdJr3tA5xuGOLhooTfBB98/4RpupDsYGZp1DPC/GMFppOA3GmKs9bacZm805Bhfq5mwhXab1SjJQpFHMHisCMhxo/oLqulKML1tQMetBdqDTjJmPpdUnd1mi",
+        "salt": "J2TMLjKv4dkZ/kXso9FGhg==",
+        "iv": "CTqqoMa4LetvBKCP"
+      }
+    }
+  ]
+}

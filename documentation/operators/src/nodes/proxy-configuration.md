@@ -8,7 +8,7 @@ More advanced and secure solution is to have your node behind Web Secure Socket 
 For both of these configurations you will need to register a DNS domain and configure a record to your VPS.
 ```
 
-**Variables Explanation**
+## Variables Explanation
 
 This guide contains several variables. Substitute them with your own value, without `<>` brackets. Here is a list of variables we used below.
 
@@ -19,7 +19,6 @@ This guide contains several variables. Substitute them with your own value, with
 | `<YOUR_WELCOME_TEXT>` | Any text you want to show on the landing page                                               | Welcome to Nym Node, operator contact is example@email.me |
 | `<LANDING_PAGE_PATH>` | A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files        | `/var/www/exit-gateway1.squad.nsl`                        |
 | `<NODE_ID>`           | A local only `nym-node` identifier, specified by flag `--id`, default is `default-nym-node` | alice_super_node                                          |
-|                       |                                                                                             |                                                           |
 
 ```admonish warning title=""
 The commands in this setup need to be run with root permission. Either add a prefix `sudo` or execute them from a root shell.
@@ -301,7 +300,7 @@ src="href="data:image/x-icon;base64,AAABAAMA....""
 <a href="mailto:>YOUR_EMAIL_ADDRESS>">maintainer</a>
 ```
 
-- If you're running the node within the US check the sections marked as `FIXME`, add your DNS name and uncomment those.
+- If you're running the node within the US check the sections marked as `FIXME`, add your DNS name and un-comment those.
 
 4. Save and exit
 
@@ -321,8 +320,7 @@ You may set up a [reverse proxy](https://www.nginx.com/resources/glossary/revers
 The following assumes that you're owning a domain and that you've already set the Let's Encrypt certificates on your hosting, and you've copied those on your Gateway, i.e. copy the two Let's Encript pem files on your Gateway's home folder.
 Else you may obtain a Let's Encrypt certificate using a [`--certonly` procedure](https://eff-certbot.readthedocs.io/en/latest/using.html#getting-certificates-and-choosing-plugins).
 
-**Configure nginx**
-
+**Configure Nginx**
 
 1. Install `nginx`:
 ```sh
@@ -358,7 +356,7 @@ systemctl restart nginx
 ```sh
 nano /etc/nginx/sites-available/<HOSTNAME>
 ```
-- and changing `<HOSTNAME>` occurrencies below with your domain name:
+- and changing `<HOSTNAME>` occurrences below with your domain name:
 
 ```
 server {
@@ -419,7 +417,7 @@ certbot renew --dry-run
 certbot --nginx -d <HOSTNAME>
 ```
 
-9. If you're running your `nym-node` as a  [`systemd` service](configuration.md#systemd), restart your service:
+9. Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](configuration.md#systemd), restart your service:
 ```sh
 systemctl daemon-reload
 service nym-node restart
@@ -433,20 +431,21 @@ journalctl -u  nym-gateway.service | grep 8080
 ... Started NymNodeHTTPServer on 0.0.0.0:8080
 ```
 
-
-Now your `nginx` should be configured, up and running. Test it by insterting your `<HOSTNAME>` as a URL in a browser.
+Now your `nginx` should be configured, up and running. Test it by inserting your `<HOSTNAME>` as a URL in a browser.
 
 
 ## Web Secure Socket Setup
 
-- INTRO WHY
-- VAR LEGEND
-
+For better security of transfered data, we recommend node operators to run their nodes through Secure Socket instead of be out in open. You can read more about *Secure Socket Layer* (SSL) in [here](https://www.geeksforgeeks.org/secure-socket-layer-ssl/).
 
 Before you start, don't forget to register a DNS and configure a record for your VPS with `nym-node`.
 
 
-If you haven't configure reversed proxy before, start with [*Preliminary steps* chapter](#preliminary-steps) below and only then move to WSS setup. If you have reversed proxy already running, you can skip *Premliminary steps* and begin to setup WSS directly. Remember that there may be some unique variables and customisation depending on the way your reversed proxy is done which you may have to adjust when installing WSS in order to make it work.
+If you haven't configure reversed proxy before, start with [*Preliminary steps* chapter](#preliminary-steps) below and only then move to WSS setup. If you have reversed proxy already running and your `nym-node` can be reached via https, you can skip *Preliminary steps* and begin to setup WSS directly. Remember that there may be some unique variables and customization depending on the way your reversed proxy is done which you may have to adjust when installing WSS in order to make it work.
+
+```admonish tip
+To see description of use variables (noted in `<>` brackets), scroll to the top of this page, chapter [*Variables Explanation*](#variables-explanation).
+```
 
 We documented two options for node operators to setup WSS for `nym-node`:
 
@@ -456,15 +455,215 @@ We documented two options for node operators to setup WSS for `nym-node`:
 
 ### Preliminary Steps
 
-**Configure nginx**
+#### Firewall configuration
 
-```admonish warning title=""
-The commands bellow need to be run with root permission. Either add a prefix `sudo` or execute them from a root shell.
+Make sure to open all [needed ports](vps-setup.md#configure-your-firewall), adding your `<WSS_PORT>`:
+
+```sh
+ufw allow <WSS_PORT>/tcp
+
+# for example
+# ufw allow 9001/tcp
 ```
+
+#### Landing page configuration
+
+1. Create server block directory for your https site:
+```sh
+sudo mkdir -p /var/www/<HOSTNAME>
+```
+
+2. Assign ownership using `$USER` environmental variable:
+```sh
+sudo chown -R $USER:$USER /var/www/<HOSTNAME>
+```
+
+3. Create a landing page in `/var/www/<HOSTNAME>`. Either configure your own page (basic [syntax example](https://www.freecodecamp.org/news/introduction-to-html-basics/) or use our [template](#html-file-customization). Alternatively you can just make a simple welcome text using this command:
+```sh
+echo "<h1><YOUR_WELCOME_TEXT></h1>" | sudo tee /var/www/<HOSTNAME>/index.html
+```
+
+Now you are ready to set up WSS, ether using a [script](#using-a-script) or [step-by-step](#step-by-step) tutorial.
+
+### Using a Script
+
+Using a script is a more convenient option but it takes away some customization possibilities. If you like to have your setup fully in your hands, use [*Step by step guide*](#step-by-step-guide). Before you move on, make sure you went through [*Preliminary steps*](#preliminary-steps).
+
+1. Create a script by copying the block below and save it on your VPS as `install_run_nginx.sh`.
+
+```bash
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "usage: sudo ./install_run_nginx.sh <host_name> <port_to_run_wss>"
+    exit 1
+fi
+
+host=$1
+port_value=$2
+
+# preliminary checks
+config_file_path="${HOME}/.nym/nym-nodes/*/config/config.toml"
+
+# check if the configuration file exists
+if [ ! -f $config_file_path ]; then
+    echo "configuration file not found at $config_file_path"
+    exit 1
+fi
+
+# extract hostname and wss port
+hostname=$(grep "hostname" $config_file_path | awk -F" = " '{print $2}' | tr -d "'")
+wss_port=$(grep "announce_wss_port" $config_file_path | awk -F" = " '{print $2}' | tr -d ' ')
+
+# check if hostname is empty
+if [ -z "$hostname" ]; then
+    echo "hostname is empty, updating it to ${host}"
+    sed -i "s|hostname = ''|hostname = '${host}'|" $config_file_path
+else
+    echo "current hostname: $hostname"
+fi
+
+# check if wss port is set to 0 and update it
+if [ "$wss_port" -eq 0 ]; then
+    echo "wss port is 0, updating it to ${port_value}"
+    sed -i "s/announce_wss_port *= *0/announce_wss_port = ${port_value}/" $config_file_path
+else
+    echo "current wss port: $wss_port"
+fi
+
+# install nginx
+apt update
+apt install -y nginx
+
+# install certbot and the nginx plugin
+apt install -y certbot python3-certbot-nginx
+
+# enable nginx service
+systemctl enable nginx.service
+
+# create a consolidated nginx configuration file
+nginx_config_file="/etc/nginx/sites-available/${host}.conf"
+cat <<EOF > $nginx_config_file
+server {
+    listen 80;
+    server_name ${host};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name ${host};
+
+    ssl_certificate /etc/letsencrypt/live/${host}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${host}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass http://localhost:9000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+
+    location /images/ {
+        alias /var/www/${host}/images/;
+    }
+
+    location /css/ {
+        alias /var/www/${host}/css/;
+    }
+}
+
+server {
+    listen ${port_value} ssl;
+    server_name ${host};
+
+    ssl_certificate /etc/letsencrypt/live/${host}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${host}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass http://localhost:9000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+
+# create a symbolic link in sites-enabled
+ln -s /etc/nginx/sites-available/${host}.conf /etc/nginx/sites-enabled/
+
+# test nginx configuration
+if ! nginx -t; then
+    echo "nginx configuration test failed"
+    exit 1
+fi
+
+# reload nginx service
+systemctl reload nginx.service
+
+# obtain ssl certificates using certbot
+if ! certbot --nginx -d ${host} --non-interactive --agree-tos -m your-email@example.com; then
+    echo "certbot failed to obtain certificates"
+    exit 1
+fi
+
+# test nginx configuration again
+if ! nginx -t; then
+    echo "nginx configuration test failed after obtaining ssl certificates"
+    exit 1
+fi
+
+# reload nginx service to apply the new configuration
+systemctl reload nginx.service
+
+echo "script completed successfully!"
+echo "have a nice day!"
+exit 0
+```
+
+2. Make the script executable:
+```sh
+chmod u+x install_run_nginx.sh
+```
+
+3. Run the script as root (with `sudo` or from the root shell):
+```sh
+./install_run_nginx <HOSTNAME> <WSS_PORT>
+# hostname is your domain
+# wss default port is 9001
+```
+
+
+4. Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](configuration.md#systemd), restart your service:
+```sh
+systemctl daemon-reload
+service nym-node restart
+```
+
+Your `nym-node` should be configured to run over WSS now. You can do a few quick checks to test that the setup worked out using `wscat`.
+```sh
+wscat -c ws://<HOSTNAME>:<WSS_PORT>
+```
+
+### Step by Step Guide
+
+Step by step guide is more advanced than using a [script](#using-a-script), but it allows for more customisation. Before you move on, make sure you finished [*Preliminary steps*](#preliminary-steps*).
+
+
+#### Nginx Configuration
+
 
 1. Install `nginx`:
 ```sh
-sudo apt install nginx
+apt install nginx
 ```
 
 2. Setup firewall with `ufw`. `ufw` has three profile pre-configured for `nginx`, we will need the first one for `nym-node`:
@@ -480,26 +679,13 @@ ufw allow 'Nginx Full'
 ufw status
 ```
 
-3. Create server block directory for your https site:
-```sh
-sudo mkdir -p /var/www/<HOSTNAME>
-```
+#### Landing page configuration
 
-4. Asign ownership using `$USER` enviromental variable:
-```sh
-sudo chown -R $USER:$USER /var/www/<HOSTNAME>
-```
+We made the landing page customization directory in [*Preliminary steps*](#preliminary-steps), next steps will configure that with Nginx.
 
-**Landing page configuration**
-
-5. Create a landing page in `/var/www/<HOSTNAME>`. Either configure your own page (basic [syntax example](https://www.freecodecamp.org/news/introduction-to-html-basics/) or use our [template](#html-file-customization). Alternatively you can just make a simple welcome text using this command:
-```sh
-echo "<h1><YOUR_WELCOME_TEXT></h1>" | sudo tee /var/www/<HOSTNAME>/index.html
-```
-
-6. Configure your site to work with `nginx`. Open a new text file `/etc/nginx/sites-available/<HOSTNAME>` and paste the block below. Don't forget to insert your correct values.
+3. Configure your site to work with `nginx`. Open a new text file `/etc/nginx/sites-available/<HOSTNAME>` and paste the block below. Don't forget to insert your correct values.
 ~~~admonish example collapsible=true title="site configuration"
-```toml
+```bash
 
 <!--
 server {
@@ -564,22 +750,24 @@ server {
 ```
 ~~~
 
-7. Activate the configuration by creating a simlink to `/etc/nginx/sites-enabled`:
+4. Activate the configuration by creating a simlink to `/etc/nginx/sites-enabled`:
 ```sh
 ln -s /etc/nginx/sites-available/<HOSTNAME> /etc/nginx/sites-enabled
 ```
 
-8. Test your configuration syntax:
+5. Test your configuration syntax:
 ```sh
 nginx -t
 ```
 
-9. Restart `nginx`:
+6. Restart `nginx`:
 ```sh
 systemctl daemon-reload && systemctl restart nginx
 ```
 
-10. Get an `SSL` certificate using certbot:
+#### SSL Setup using certbot
+
+7. Get an `SSL` certificate using certbot:
 
 ```sh
 apt install certbot python3-certbot-nginx
@@ -587,221 +775,18 @@ certbot renew --dry-run
 certbot --nginx -d <HOSTNAME>
 ```
 
-Now your `nginx` should be configured, up and running. Test it by insterting your `<HOSTNAME>` as a URL in a browser.
-
-To test your WSS setup
-
-### Using a Script
-
-Using a script is a more convenient option but it takes away some customization possibilities. If you like to have your setup fully in your hands, use [*Step by step guide*](#step-by-step-guide).
-
-1. Create a script by copying the block below and save it on your VPS as `install_run_nginx.sh`.
-
-```bash
-#!/bin/bash
-
-if [ "$#" -ne 2 ]; then
-    echo "usage: sudo ./install_run_nginx.sh <host_name> <port_to_run_wss>"
-    exit 1
-fi
-
-host=$1
-port_value=$2
-
-config_file_path="${HOME}/.nym/nym-nodes/*/config/config.toml"
-
-if [ ! -f $config_file_path ]; then
-    echo "configuration file not found at $config_file_path"
-    exit 1
-fi
-
-hostname=$(grep "hostname" $config_file_path | awk -F" = " '{print $2}' | tr -d "'")
-wss_port=$(grep "announce_wss_port" $config_file_path | awk -F" = " '{print $2}' | tr -d ' ')
-
-if [ -z "$hostname" ]; then
-    echo "hostname is empty, updating it to ${host}"
-    sed -i "s|hostname = ''|hostname = '${host}'|" $config_file_path
-else
-    echo "current hostname: $hostname"
-fi
-
-if [ "$wss_port" -eq 0 ]; then
-    echo "wss port is 0, updating it to ${port_value}"
-    sed -i "s/announce_wss_port *= *0/announce_wss_port = ${port_value}/" $config_file_path
-else
-    echo "current wss port: $wss_port"
-fi
-
-apt update
-apt install -y nginx
-
-sudo apt install certbot python3-certbot-nginx
-pip install --upgrade twine requests-toolbelt
-systemctl enable nginx.service
-
-if ! certbot certonly --nginx -d ${host} --non-interactive --agree-tos -m info@nymtech.net; then
-    echo "certbot failed to obtain certificates"
-    exit 1
-fi
-
-nginx_config_file="/etc/nginx/sites-available/${host}.conf"
-cat <<EOF > $nginx_config_file
-server {
-    listen ${port_value} ssl;
-    server_name ${host};
-
-    ssl_certificate /etc/letsencrypt/live/${host}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${host}/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    location / {
-        proxy_pass http://localhost:9000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-    }
-}
-EOF
-
-ln -s /etc/nginx/sites-available/${host}.conf /etc/nginx/sites-enabled/
-
-if ! nginx -t; then
-    echo "nginx configuration test failed"
-    exit 1
-fi
-
-systemctl reload nginx.service
-
-echo "script completed successfully!"
-echo "have a nice day!"
-exit 0
-```
-
-2. Make the script executable:
+8. Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](configuration.md#systemd), restart your service:
 ```sh
-chmod u+x install_run_nginx.sh
+systemctl daemon-reload
+service nym-node restart
 ```
 
-3. Run the script as root (with `sudo` or from the root shell):
-```sh
-./install_run_nginx <HOSTNAME> <WSS_PORT>
-# hostname is your domain
-# wss default port is 9001
-```
+Now your `nginx` should be configured, up and running. Test it by inserting your `<HOSTNAME>` as a URL in a browser.
 
-Your `nym-node` should be configured to run over WSS now. You can do a few quick checks to test that the setup worked out.
+**Testing WSS**
 
-- `wscat -c ws://<IP>:<WSS_PORT>`
-
-### Step by Step Guide
-
-
-<!--
-## Run Web Secure Socket (WSS) on Gateway
-
-Now you can run WSS on your `nym-node` with an Exit Gateway functionality.
-
-### WSS on a new Gateway
-
-These steps are for an operator who is setting up a [Gateway](gateway-setup.md) for the first time and wants to run it with WSS.
-
-1. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway:
+To test your WSS setup, use `wscat`
 
 ```sh
-sudo ufw allow 1789,1790,8000,9000,9001,22/tcp, 9001/tcp
+wscat --connect wss://<HOSTNAME>:<WSS_PORT>
 ```
-
-The Gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
-
-Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*?
-
-Please modify `[host.public_ips]` section of your config file stored as `~/.nym/gateways/<ID>/config/config.toml`.
-
-### WSS on an existing Gateway
-
-In case you already run a working Gateway and want to add WSS on it, here are the pre-requisites to running WSS on Gateways:
-
-* You need to use the latest `nym-gateway` binary [version](./gateway-setup.md#current-version) and restart it.
-* That will add the relevant fields to update your config.
-* These two values will be added and need to be amended in your config.toml:
-
-```sh
-clients_wss_port = 0
-hostname = ""
-```
-
-Then you can run this:
-
-```sh
-port=$1 // in the example below we will use 9001
-host=$2 = // this would be a domain name registered for your Gateway for example: mainnet-gateway2.nymtech.net
-
-
-sed -i "s/clients_wss_port = 0/clients_wss_port = ${port}/" ${HOME}/.nym/gateways/*/config/config.toml
-sed -i "s|hostname = ''|hostname = '${host}'|" ${HOME}/.nym/gateways/*/config/config.toml
-```
-The following shell script can be run:
-
-```sh
-#!/bin/bash
-
-if [ "$#" -ne 2 ]; then
-    echo "Usage: sudo ./install_run_caddy.sh <host_name> <port_to_run_wss>"
-    exit 1
-fi
-
-host=$1
-port_value=$2
-
-apt install -y debian-keyring debian-archive-keyring apt-transport-https
-apt --fix-broken install
-
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-
-apt update
-apt install caddy
-
-systemctl enable caddy.service
-
-cd /etc/caddy
-
-# check if Caddyfile exists, if it does, remove and insert a new one
-if [ -f Caddyfile ]; then
-    echo "removing caddyfile inserting a new one"
-    rm -f Caddyfile
-fi
-
-cat  <<EOF >> Caddyfile
-${host}:${port_value} {
-	@websockets {
-		header Connection *Upgrade*
-		header Upgrade websocket
-	}
-	reverse_proxy @websockets localhost:9000
-}
-EOF
-
-cat Caddyfile
-
-echo "script completed successfully!"
-
-systemctl restart caddy.service
-echo "have a nice day!"
-exit 0
-
-```
-
-Although your Gateway is Now ready to use its `wss_port`, your server may not be ready - the following commands will allow you to set up a properly configured firewall using `ufw`:
-
-```sh
-ufw allow 9001/tcp
-```
-
-Lastly don't forget to restart your Gateway, now the API will render the WSS details for this Gateway:
-
--->

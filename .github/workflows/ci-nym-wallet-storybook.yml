@@ -24,7 +24,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          run_install: true
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

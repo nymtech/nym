@@ -56,8 +56,8 @@ Quite a bit of stuff gets built. The key working parts are:
 
 * [mix node](../nodes/mixnode.md): `nym-mixnode`
 * [gateway node](../nodes/gateway.md): `nym-gateway`
-* [websocket client](../clients/websocket-client.md): `nym-client`
-* [socks5 client](../clients/socks5-client.md): `nym-socks5-client`
+* [websocket client](https://nymtech.net/developers/clients/websocket-client.md): `nym-client`
+* [socks5 client](https://nymtech.net/developers/clients/socks5-client.md): `nym-socks5-client`
 * [network requester](../nodes/network-requester.md): `nym-network-requester`
 * [nym-cli tool](../tools/nym-cli.md): `nym-cli`
 * [nym-api](https://nymtech.net/operators/nodes/nym-api.html): `nym-api`

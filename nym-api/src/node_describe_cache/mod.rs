@@ -242,6 +242,10 @@ impl CacheItemProvider for NodeDescriptionProvider {
     type Item = HashMap<IdentityKey, NymNodeDescription>;
     type Error = NodeDescribeCacheError;
 
+    async fn wait_until_ready(&self) {
+        self.contract_cache.wait_for_initial_values().await
+    }
+
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {
         let mut host_id_pairs = self
             .contract_cache

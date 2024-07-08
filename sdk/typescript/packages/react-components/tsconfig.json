@@ -3,7 +3,8 @@
     "jsx": "react-jsx",
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "noEmit": true
+    "noEmit": true,
+    "noImplicitAny": false
   },
   "files": [],
   "references": [

@@ -9,11 +9,11 @@ rm -rf ../../dist || true
 
 # Bundle application
 
-yarn build
+pnpm build
 
 # Bundle types
 
-yarn build:types
+pnp, build:types
 
 # Build package.json for bundle
 

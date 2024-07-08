@@ -6,7 +6,6 @@ packages:
   - sdk/typescript/packages/react-components
   - sdk/typescript/packages/validator-client
   - ts-packages/**
-  - nym-wallet
   - explorer-nextjs
   - types
   - clients/validator

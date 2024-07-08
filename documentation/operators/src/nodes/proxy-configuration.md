@@ -8,67 +8,46 @@ More advanced and secure solution is to have your node behind Web Secure Socket 
 For both of these configurations you will need to register a DNS domain and configure a record to your VPS.
 ```
 
-## Reversed Proxy: Avril 14th Exit Gateways Guide
+**Variables Explanation**
+
+This guide contains several variables. Substitute them with your own value, without `<>` brackets. Here is a list of variables we used below.
+
+| Variable              | Description                                                                                 | Syntax example                                            |
+| :---                  | :---                                                                                        | :---                                                      |
+| `<HOSTNAME>`          | Your registered DNS domain, asigned to the VPS with `nym-node`                              | exit-gateway1.squad.nsl                                   |
+| `<WSS_PORT>`          | Port listening to WSS, default is `9001`                                                    | 9001                                                      |
+| `<YOUR_WELCOME_TEXT>` | Any text you want to show on the landing page                                               | Welcome to Nym Node, operator contact is example@email.me |
+| `<LANDING_PAGE_PATH>` | A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files        | `/var/www/exit-gateway1.squad.nsl`                        |
+| `<NODE_ID>`           | A local only `nym-node` identifier, specified by flag `--id`, default is `default-nym-node` | alice_super_node                                          |
+|                       |                                                                                             |                                                           |
+
+```admonish warning title=""
+The commands in this setup need to be run with root permission. Either add a prefix `sudo` or execute them from a root shell.
+```
+
+## Reversed Proxy Setup
 
 ```admonish info
-This guide was created by a Nym node operator, Avril 14th as a part of [Nym Operators Community Counsel](../legal/community-counsel.md)
-
-The entire content of this page is under [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/).
+This guide was created by a Nym node operator, [Avril 14th](https://avril14th.org) as a part of [Nym Operators Community Counsel](../legal/community-counsel.md), edited by Nym.
 ```
 
 The following snippet needs  be modified as described below according to the public identity that you may want to show on this public notice, i.e. your graphics and your email.
 It would allow you to serve it as a landing page resembling the one proposed by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html) but with all the changes needed to adhere to the Nym's operators case.
 
-[Avril 14th](https://avril14th.org/) is a team of professionals and optimistic realists eager to contribute to a future of privacy, decentralization and connectivity.
-
-```admonish warning
-With a migration from `nym-gateway` to `nym-node --mode exit-gateway` the directory tree has been slightly changed. After the migration the configuration directory is in `~/.nym/nym-nodes/`. **The pathways and exact syntax in this guide is yet to be modified!**
-```
-
-When done with the customization needs as described below, you'll need to upload the file and reference it as the `landing_page_assets_path` on the `[http]` section of the config.toml file:
-```
-landing_page_assets_path = '<PATH_TO_YOUR_CUSTOM_FILE>'
-```
-
-### HTML file customization
-
-- add your favicon logo on the line:
-```
-<link rel="icon" type="image/png" href="">
-```
-
-and your header logo on the line:
-```
-<img class="logo" src="<FIXME>">
-```
-
-by either setting the URl to the image (if you're hosting it publicly, i.e. on your web server)
-```
-href="<PATH_TO_YOUR_PUBLIC_URL>"
-```
-and
-```
-src="<PATH_TO_YOUR_PUBLIC_URL>"
-
-```
-**or** by adding the image inline as base64 encoded image
-```
-href="href="data:image/x-icon;base64,AAABAAMA....""
-```
-and
-```
-src="href="data:image/x-icon;base64,AAABAAMA....""
-```
 
 
-- add the email address you're willing to use for being contacted.
-```
-<a href="mailto:>FIXME>">maintainer</a>
+### HTML File Customization
+
+File for html configuration are by convention located at `/var/www/<HOSTNAME>` directory and it's subdirectories. We refer to this directory as `<LANDING_PAGE_PATH>`.
+
+1. Start by creating this directory:
+```sh
+mkdir -p /var/www/<HOSTNAME>
 ```
 
-- If you're running the node within the US check the sections marked as FIXME, add your DNS name and uncomment those.
-***
+2. Use your own html code or copy the template below to a new file called `index.html` located in `/var/www/<HOSTNAME>` directory.
 
+~~~admonish example collapsible=true title="An example template for `/var/www/<HOSTNAME>/index.html` page"
 ```html
 <!DOCTYPE html>
 <html lang="en-US">
@@ -269,7 +248,7 @@ which are two established safeguards.
 
 <p>
 That being said, if you still have a complaint about the router, you may email the
- <a href="mailto:>FIXME>">maintainer</a>. If complaints are related
+ <a href="mailto:>YOUR_EMAIL_ADDRESS>">maintainer</a>. If complaints are related
  to a particular service that is being abused, the maintainer will submit that to the
  NYM Operators Community in order to add it to the Exit Policy cited above.
 If approved, that would prevent this router from allowing that traffic to exit through it.
@@ -285,40 +264,108 @@ specified IP:port combination. Please be considerate when using these options.</
 </body>
 </html>
 ```
-***
-### Reverse proxy
-You may set up a [reverse proxy](https://www.nginx.com/resources/glossary/reverse-proxy-server/) in order to serve this landing page with proper SSL and DNS management, i.e. to resolve it to https://nym-exit.<YOUR_DOMAIN> or https://nym-readme.<YOUR_DOMAIN>.
+~~~
+
+3. Before you save and close the file, make sure to edit the text, especially the information in these points:
+
+- Add your favicon logo on the line:
+```
+<link rel="icon" type="image/png" href="">
+```
+
+- Add your header logo on the line:
+```
+<img class="logo" src="<FIXME>">
+```
+
+- By either setting the URl to the image (if you're hosting it publicly, i.e. on your web server)
+```
+href="<PATH_TO_YOUR_PUBLIC_URL>"
+
+# and
+
+src="<PATH_TO_YOUR_PUBLIC_URL>"
+```
+
+- **or** by adding the image inline as base64 encoded image
+```
+href="href="data:image/x-icon;base64,AAABAAMA....""
+
+# and
+
+src="href="data:image/x-icon;base64,AAABAAMA....""
+```
+
+- Add the email address you're willing to use for being contacted.
+```
+<a href="mailto:>YOUR_EMAIL_ADDRESS>">maintainer</a>
+```
+
+- If you're running the node within the US check the sections marked as `FIXME`, add your DNS name and uncomment those.
+
+4. Save and exit
+
+Now your html page is configured.
+
+### `nym-node` Configuration
+
+When done with the customization, you'll need to make sure your `nym-node` uploads the file and reference to it. This is done by opening your node configuration file located at `~/.nym/nym-nodes/<NODE_ID>/config/config.toml` and changing the value of the line `landing_page_assets_path` on the `[http]` section:
+```
+landing_page_assets_path = '<LANDING_PAGE_PATH>'
+```
+
+### Reverse Proxy Configuration
+
+You may set up a [reverse proxy](https://www.nginx.com/resources/glossary/reverse-proxy-server/) in order to serve this landing page with proper SSL and DNS management, i.e. to resolve it to https://<HOSTNAME>.
 
 The following assumes that you're owning a domain and that you've already set the Let's Encrypt certificates on your hosting, and you've copied those on your Gateway, i.e. copy the two Let's Encript pem files on your Gateway's home folder.
-Else you may obtain a Let's Encrypt certificate using a -[-certonly procedure](https://eff-certbot.readthedocs.io/en/latest/using.html#getting-certificates-and-choosing-plugins).
+Else you may obtain a Let's Encrypt certificate using a [`--certonly` procedure](https://eff-certbot.readthedocs.io/en/latest/using.html#getting-certificates-and-choosing-plugins).
 
-```
+**Configure nginx**
+
+
+1. Install `nginx`:
+```sh
 sudo apt install nginx
 ```
-If you're running your Gateway (you should...) exposing only the needed ports as listed [here](https://nymtech.net/operators/nodes/maintenance.html?highlight=port#ports), you need to add the Nginx service to your ufw configuration:
-```
-sudo ufw app list
-sudo ufw allow 'Nginx Full'
-sudo ufw reload
-```
-Disable the default Nginx landing page
-```
-sudo systemctl status nginx
-sudo unlink /etc/nginx/sites-enabled/default
-sudo systemctl restart nginx
-```
-Add your endpoint configuration to Nginx changing <YOUR_DOMAIN> occurrencies below with your domain name, including the top-level domain, i.e. *avril4th.org*
 
+2. Setup firewall with `ufw`. `ufw` has three profile pre-configured for `nginx`, we will need the first one for `nym-node`:
+
+- `Nginx Full`: This profile opens both port 80 (normal, unencrypted web traffic) and port 443 (TLS/SSL encrypted traffic)
+- `Nginx HTTP`: This profile opens only port 80 (normal, unencrypted web traffic)
+- `Nginx HTTPS`: This profile opens only port 443 (TLS/SSL encrypted traffic)
+
+```sh
+ufw allow 'Nginx Full'
+
+# you can verify by
+ufw status
+
+# possibly reload ufw by
+ufw reload
 ```
-sudo nano /etc/nginx/sites-available/nym-exit.<YOUR_DOMAIN>
+
+3. Disable the default Nginx landing page
 ```
+systemctl status nginx
+unlink /etc/nginx/sites-enabled/default
+systemctl restart nginx
+```
+
+4. Add your endpoint configuration to Nginx by creating file:
+
+
+```sh
+nano /etc/nginx/sites-available/<HOSTNAME>
+```
+- and changing `<HOSTNAME>` occurrencies below with your domain name:
 
 ```
 server {
   listen 443 ssl http2;
   listen [::]:443 ssl http2;
 
-  server_name nym-exit.<YOUR_DOMAIN>;
+  server_name nym-exit.<HOSTNAME>;
 
   ssl_certificate <PATH_TO>/fullchain.pem;
   ssl_certificate_key <PATH_TO>/privkey.pem;
@@ -338,50 +385,57 @@ server {
   listen 80;
   listen [::]:80;
 
-  if ($host = nym-exit.<YOUR_DOMAIN>) {
+  if ($host = nym-exit.<HOSTNAME>) {
     return 301 https://$host$request_uri;
   }
 
-  server_name <YOUR_DOMAIN> www.<YOUR_DOMAIN>;
+  server_name <YOUR_DOMAIN> www.<HOSTNAME>;
 
-  return 301 https://<YOUR_DOMAIN>$request_uri;
+  return 301 https://<HOSTNAME>$request_uri;
 }
 ```
 
-```
-sudo ln -s /etc/nginx/sites-available/nym-exit.<YOUR_DOMAIN> /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
+
+5. Activate the configuration by creating a simlink to `/etc/nginx/sites-enabled`:
+```sh
+ln -s /etc/nginx/sites-available/<HOSTNAME> /etc/nginx/sites-enabled
 ```
 
-When done with the customization needs as described below, you'll need to upload the file and reference it as the `landing_page_assets_path` on the `[http]` section of the config.toml file that you'll find in the `~/.nym/gateways/<YOUR_GATEWAY_ID>/config/config.toml` file
-```
-nano ${HOME}/.nym/gateways/<YOUR_GATEWAY_ID>/config/config.toml
-```
-change
-```
-landing_page_assets_path = '<PATH_TO_YOUR_CUSTOM_FILE>'
+6. Test your configuration syntax:
+```sh
+nginx -t
 ```
 
-If you're running the Gateway as a service as described [here](https://nymtech.net/operators/nodes/maintenance.html#systemd) and [here](https://nymtech.net/operators/nodes/maintenance.html#following-steps-for-nym-nodes-running-as-systemd-service) you may just restart your service
+7. Restart `nginx`:
+```sh
+systemctl daemon-reload && systemctl restart nginx
 ```
-service nym-gateway stop
-service nym-gateway start
+
+8. Get an `SSL` certificate using certbot:
+
+```sh
+apt install certbot python3-certbot-nginx
+certbot renew --dry-run
+certbot --nginx -d <HOSTNAME>
 ```
-and check for the page being served either checking the service logs
+
+9. If you're running your `nym-node` as a  [`systemd` service](configuration.md#systemd), restart your service:
+```sh
+systemctl daemon-reload
+service nym-node restart
 ```
-sudo journalctl -u  nym-gateway.service | grep 8080
-```
-where you should read out
-```
+
+10. Check for the page being served reading the service logs
+```sh
+journalctl -u  nym-gateway.service | grep 8080
+
+# where you should see
 ... Started NymNodeHTTPServer on 0.0.0.0:8080
 ```
-or just point your browser to the URI which you set above, such as https://nym-exit.<YOUR_DOMAIN>
 
 
+Now your `nginx` should be configured, up and running. Test it by insterting your `<HOSTNAME>` as a URL in a browser.
 
-
-```
 
 ## Web Secure Socket Setup
 
@@ -398,18 +452,6 @@ We documented two options for node operators to setup WSS for `nym-node`:
 
 1. [Using a script](#using-a-script)
 2. [Step by step](#step-by-step)
-
-**Variables Explanation**
-
-This guide contains several variables. Substitute them with your own value, without `<>` brackets. Here is a list of variables we used below.
-
-| Variable              | Description                                                    | Syntax example                                            |
-| :---                  | :---                                                           | :---                                                      |
-| `<HOSTNAME>`          | Your registered DNS domain, asigned to the VPS with `nym-node` | exit-gateway1.squad.nsl                                   |
-| `<WSS_PORT>`          | Port listening to WSS, default is `9001`                       | 9001                                                      |
-| `<YOUR_WELCOME_TEXT>` | Any text you want to show on the landing page                  | Welcome to Nym Node, operator contact is example@email.me |
-|                       |                                                                |                                                           |
-
 
 
 ### Preliminary Steps
@@ -458,6 +500,8 @@ echo "<h1><YOUR_WELCOME_TEXT></h1>" | sudo tee /var/www/<HOSTNAME>/index.html
 6. Configure your site to work with `nginx`. Open a new text file `/etc/nginx/sites-available/<HOSTNAME>` and paste the block below. Don't forget to insert your correct values.
 ~~~admonish example collapsible=true title="site configuration"
 ```toml
+
+<!--
 server {
     server_name <HOSTNAME>;
 
@@ -497,6 +541,26 @@ server {
 
 
 }
+-->
+
+server {
+    listen <WSS_PORT> ssl;
+    server_name <HOSTNAME>;
+
+    ssl_certificate /etc/letsencrypt/live/<HOSTNAME>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<HOSTNAME>/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    location / {
+        proxy_pass http://localhost:9000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
 ```
 ~~~
 
@@ -523,7 +587,9 @@ certbot renew --dry-run
 certbot --nginx -d <HOSTNAME>
 ```
 
-Now your `nginx` should be configured. Test it by insterting your `<HOSTNAME>` as a URL in a browser.
+Now your `nginx` should be configured, up and running. Test it by insterting your `<HOSTNAME>` as a URL in a browser.
+
+To test your WSS setup
 
 ### Using a Script
 

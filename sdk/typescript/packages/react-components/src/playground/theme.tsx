@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { useTheme } from '@mui/material';
 import { MUIThemeExplorer } from './theme/MUIThemeExplorer';
 import { PaletteSwatches, PaletteSwatchesList } from './theme/PaletteSwatches';

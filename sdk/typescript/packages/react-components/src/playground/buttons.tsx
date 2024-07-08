@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Button, Stack } from '@mui/material';
 
 export const PlaygroundButtons: FCWithChildren = () => (

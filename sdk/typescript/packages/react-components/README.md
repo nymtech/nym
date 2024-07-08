@@ -1,58 +1,30 @@
-# Nym Shared React Components
+# React + TypeScript + Vite
 
-This package contains shared React components that are used in other Nym projects.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-It uses the following packages:
+Currently, two official plugins are available:
 
-- [shared MUI theme](../mui-theme/README.md)
-- [webpack config](../webpack/README.md)
-- [MUI](https://https://mui.com/)
-- Typescript
-- React
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## Building
+## Expanding the ESLint configuration
 
-```
-yarn
-yarn build
-```
+If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
 
-## Development
+- Configure the top-level `parserOptions` property like this:
 
-Run watch mode with:
-
-```
-yarn watch
-```
-
-Or you can run Storybook with:
-
-```
-yarn storybook
+```js
+export default {
+  // other rules...
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module',
+    project: ['./tsconfig.json', './tsconfig.node.json'],
+    tsconfigRootDir: __dirname,
+  },
+}
 ```
 
-Or you can run the [example project](../react-webpack-with-theme-example/README.md) in dev mode and this package in watch mode, and test results in the example project's dev server output.
-
-## Playground
-
-There are [playground components](./src/playground/index.tsx) that are intended to be used during development to see the effects are changes to the MUI theme or shared components at a glance.
-
-They are available in Storybook from [src/stories/Playground.stories.tsx](./src/stories/Playground.stories.tsx).
-
-> ℹ️ **Tip**: use the playground to make sure components stay consistent and you don't break other components while making changes
-
-## Shared assets
-
-This project uses [shared asset files](../../assets/README.md) such as favicons and logos.
-
-> ℹ️ **Tip**: use to keep your project consistent with Nym's branding and so that it automatically receives changes when the shared assets change. Please try to avoid duplicating the files in the shared assets directory.
-
-## Publishing
-
-This package is not published to NPM ... yet.
-
-## TODO
-
-- ugprade to React 18
-- upgrade Storybook
-- upgrade MUI
+- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
+- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
+- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list

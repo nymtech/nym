@@ -1,19 +1,17 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "noEmit": true,
-    "outDir": "./dist",
-    "declarationDir": "./dist"
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "noEmit": true
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/stories",
-    "**/*.stories.*"
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    }
   ]
 }

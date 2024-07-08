@@ -1,96 +1,56 @@
 {
   "name": "@nymproject/react",
+  "private": true,
   "version": "1.0.0",
-  "license": "Apache-2.0",
-  "main": "dist/index.js",
-  "exports": {
-    ".": "./dist/index.js",
-    "./*": "./dist/components/*",
-    "./hooks/*": "./dist/hooks/*",
-    "./playground/*": "./dist/playground/*"
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "module": "./dist/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
   },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "dist/components/*"
-      ],
-      "hooks/*": [
-        "dist/hooks/*"
-      ],
-      "playground/*": [
-        "dist/playground/*"
-      ]
-    }
-  },
-  "peerDependencies": {
+  "dependencies": {
     "@cosmjs/math": "^0.27.1",
     "@mui/icons-material": ">= 5",
     "@mui/lab": "^5.0.0-alpha.72",
     "@mui/material": ">= 5",
     "@mui/styles": ">= 5",
     "@mui/system": ">= 5",
-    "@nymproject/mui-theme": "workspace:1",
+    "@nymproject/mui-theme": "workspace:^1.0.0",
     "@nymproject/nym-validator-client": "^0.18.0",
     "@nymproject/types": "workspace:1",
     "bech32": "^1.1.4",
     "bs58": "4",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "flat": "^5.0.2",
+    "use-clipboard-copy": "^0.2.0",
     "zxcvbn": "^4.4.2"
   },
-  "dependencies": {
-    "@mui/x-tree-view": "^7.10.0",
-    "flat": "^5.0.2",
-    "use-clipboard-copy": "^0.2.0"
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.17.5",
-    "@nymproject/eslint-config-react-typescript": "workspace:^1.0.0",
-    "@storybook/addon-actions": "^6.5.8",
-    "@storybook/addon-essentials": "^6.5.8",
-    "@storybook/addon-interactions": "^6.5.8",
-    "@storybook/addon-links": "^6.5.8",
-    "@storybook/builder-webpack5": "^6.5.8",
-    "@storybook/manager-webpack5": "^6.5.8",
     "@storybook/react": "^6.5.15",
-    "@storybook/testing-library": "^0.0.9",
-    "@svgr/webpack": "^6.1.1",
-    "@types/flat": "^5.0.2",
-    "@types/react": "^18.0.26",
-    "@types/react-dom": "^18.0.10",
-    "@types/zxcvbn": "^4.4.1",
-    "@typescript-eslint/eslint-plugin": "^5.13.0",
-    "@typescript-eslint/parser": "^5.13.0",
-    "babel-loader": "^8.2.3",
-    "babel-plugin-root-import": "^5.1.0",
-    "eslint": "^8.10.0",
-    "eslint-config-airbnb": "^19.0.4",
-    "eslint-config-airbnb-typescript": "^16.1.0",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-import-resolver-root-import": "^1.0.4",
-    "eslint-plugin-import": "^2.25.4",
-    "eslint-plugin-jest": "^26.1.1",
-    "eslint-plugin-jsx-a11y": "^6.5.1",
-    "eslint-plugin-prettier": "^4.0.0",
-    "eslint-plugin-react": "^7.29.2",
-    "eslint-plugin-react-hooks": "^4.3.0",
-    "eslint-plugin-storybook": "^0.5.12",
-    "jest": "^27.1.0",
-    "prettier": "^2.8.7",
-    "rimraf": "^3.0.2",
-    "ts-jest": "^27.0.5",
-    "tsconfig-paths-webpack-plugin": "^3.5.2",
-    "typescript": "^4.6.2"
-  },
-  "scripts": {
-    "clean": "rimraf dist",
-    "tsc": "tsc --noEmit true",
-    "build": "tsc --noEmit false",
-    "watch": "tsc --noEmit false -w",
-    "lint": "eslint src .storybook",
-    "lint:fix": "eslint src .storybook --fix",
-    "storybook": "start-storybook -p 6006",
-    "storybook:build": "build-storybook"
-  },
-  "sideEffects": false
+    "@types/flat": "^5.0.5",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/zxcvbn": "^4.4.4",
+    "@typescript-eslint/eslint-plugin": "^7.13.1",
+    "@typescript-eslint/parser": "^7.13.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.1",
+    "vite-plugin-dts": "^3.9.1",
+    "vite-plugin-svgr": "^4.2.0",
+    "vite-tsconfig-paths": "^4.3.2"
+  }
 }

@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { PlaygroundButtons } from './buttons';
 import { PlaygroundCheckboxes } from './checkboxes';
 import { PlaygroundBasicSwitches } from './switches';

@@ -7,5 +7,4 @@ packages:
   - sdk/typescript/packages/validator-client
   - ts-packages/**
   - explorer-nextjs
-  - types
   - clients/validator

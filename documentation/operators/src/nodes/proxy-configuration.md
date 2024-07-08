@@ -444,7 +444,7 @@ Before you start, don't forget to register a DNS and configure a record for your
 If you haven't configure reversed proxy before, start with [*Preliminary steps* chapter](#preliminary-steps) below and only then move to WSS setup. If you have reversed proxy already running and your `nym-node` can be reached via https, you can skip *Preliminary steps* and begin to setup WSS directly. Remember that there may be some unique variables and customization depending on the way your reversed proxy is done which you may have to adjust when installing WSS in order to make it work.
 
 ```admonish tip
-To see description of use variables (noted in `<>` brackets), scroll to the top of this page, chapter [*Variables Explanation*](#variables-explanation).
+To see description of used variables (noted in `<>` brackets), scroll to the top of this page, chapter [*Variables Explanation*](#variables-explanation).
 ```
 
 We documented two options for node operators to setup WSS for `nym-node`:

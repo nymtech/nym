@@ -491,6 +491,7 @@ Using a script is a more convenient option but it takes away some customization 
 
 1. Create a script by copying the block below and save it on your VPS as `install_run_nginx.sh`.
 
+~~~admonish example collapsible=true title="install_run_nginx.sh"
 ```bash
 #!/bin/bash
 
@@ -628,6 +629,7 @@ echo "script completed successfully!"
 echo "have a nice day!"
 exit 0
 ```
+~~~
 
 2. Make the script executable:
 ```sh
@@ -687,7 +689,6 @@ We made the landing page customization directory in [*Preliminary steps*](#preli
 ~~~admonish example collapsible=true title="site configuration"
 ```bash
 
-<!--
 server {
     server_name <HOSTNAME>;
 
@@ -714,20 +715,6 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
 }
-server {
-    if ($host =<HOSTNAME>) {
-        return 301 https://$host$request_uri;
-    } # managed by Certbot
-
-
-    listen 80;
-    listen [::]:80;
-    server_name <HOSTNAME>;
-    return 404; # managed by Certbot
-
-
-}
--->
 
 server {
     listen <WSS_PORT> ssl;

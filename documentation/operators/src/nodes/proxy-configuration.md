@@ -19,7 +19,7 @@ This guide contains several variables. Substitute them with your own value, with
 | `<YOUR_WELCOME_TEXT>` | Any text you want to show on the landing page                                               | Welcome to Nym Node, operator contact is example@email.me |
 | `<LANDING_PAGE_PATH>` | A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files        | `/var/www/exit-gateway1.squad.nsl`                        |
 | `<NODE_ID>`           | A local only `nym-node` identifier, specified by flag `--id`, default is `default-nym-node` | alice_super_node                                          |
-| `<PATH_TO>`           | Specify a full path to the given file, directory or binary behind this variable             | `/src/nym/target/release/`                                |
+| `<PATH_TO>`           | Specify a full path to the given file, directory or binary behind this variable             | `/root/src/nym/target/release/`                                |
 
 ```admonish warning title=""
 The commands in this setup need to be run with root permission. Either add a prefix `sudo` or execute them from a root shell.
@@ -554,7 +554,7 @@ apt install -y certbot python3-certbot-nginx
 systemctl enable nginx.service
 
 # create a consolidated nginx configuration file
-nginx_config_file="/etc/nginx/sites-available/${host}.conf"
+nginx_config_file="/etc/nginx/sites-available/${host_name}"
 cat <<EOF > $nginx_config_file
 # Reversed proxy configuration for landing page
 server {
@@ -616,7 +616,7 @@ server {
 EOF
 
 # create a symbolic link in sites-enabled
-ln -s /etc/nginx/sites-available/${host_name}.conf /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/${host_name} /etc/nginx/sites-enabled/
 
 # test nginx configuration
 if ! nginx -t; then

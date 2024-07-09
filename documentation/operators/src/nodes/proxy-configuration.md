@@ -19,6 +19,7 @@ This guide contains several variables. Substitute them with your own value, with
 | `<YOUR_WELCOME_TEXT>` | Any text you want to show on the landing page                                               | Welcome to Nym Node, operator contact is example@email.me |
 | `<LANDING_PAGE_PATH>` | A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files        | `/var/www/exit-gateway1.squad.nsl`                        |
 | `<NODE_ID>`           | A local only `nym-node` identifier, specified by flag `--id`, default is `default-nym-node` | alice_super_node                                          |
+| `<PATH_TO>`           | Specify a full path to the given file, directory or binary behind this variable             | `/src/nym/target/release/`                                |
 
 ```admonish warning title=""
 The commands in this setup need to be run with root permission. Either add a prefix `sudo` or execute them from a root shell.
@@ -360,36 +361,36 @@ nano /etc/nginx/sites-available/<HOSTNAME>
 
 ```
 server {
-  listen 443 ssl http2;
-  listen [::]:443 ssl http2;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
 
-  server_name nym-exit.<HOSTNAME>;
+    server_name nym-exit.<HOSTNAME>;
 
-  ssl_certificate <PATH_TO>/fullchain.pem;
-  ssl_certificate_key <PATH_TO>/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/<HOSTNAME>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<HOSTNAME>/privkey.pem;
 
-  access_log /var/log/nginx/access.log;
-  error_log /var/log/nginx/error.log;
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
 
   location / {
-    proxy_pass http://127.0.0.1:8080;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_pass http://127.0.0.1:8080;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
   }
 }
 
 server {
-  listen 80;
-  listen [::]:80;
+    listen 80;
+    listen [::]:80;
 
-  if ($host = nym-exit.<HOSTNAME>) {
-    return 301 https://$host$request_uri;
+    if ($host = <HOSTNAME>) {
+      return 301 https://$host$request_uri;
   }
 
-  server_name <YOUR_DOMAIN> www.<HOSTNAME>;
+    server_name <HOSTNAME> www.<HOSTNAME>;
 
-  return 301 https://<HOSTNAME>$request_uri;
+    return 301 https://<HOSTNAME>$request_uri;
 }
 ```
 
@@ -455,6 +456,8 @@ We documented two options for node operators to setup WSS for `nym-node`:
 
 ### Preliminary Steps
 
+Whether you choose to setup WSS manually or using the script, the preliminary steps are mandatory to begin with before you continue with the installation.
+
 #### Firewall configuration
 
 Make sure to open all [needed ports](vps-setup.md#configure-your-firewall), adding your `<WSS_PORT>`:
@@ -483,6 +486,14 @@ sudo chown -R $USER:$USER /var/www/<HOSTNAME>
 echo "<h1><YOUR_WELCOME_TEXT></h1>" | sudo tee /var/www/<HOSTNAME>/index.html
 ```
 
+4. When done with the customization, you'll need to make sure your `nym-node` uploads the file and reference to it. This is done by opening your node configuration file located at `~/.nym/nym-nodes/<NODE_ID>/config/config.toml` and changing the value of the line `landing_page_assets_path` on the `[http]` section:
+```sh
+landing_page_assets_path = '<LANDING_PAGE_PATH>'
+
+# for example
+# landing_page_assets_path = '/var/www/exit-gateway1.squad.nsl'
+```
+
 Now you are ready to set up WSS, ether using a [script](#using-a-script) or [step-by-step](#step-by-step) tutorial.
 
 ### Using a Script
@@ -500,7 +511,7 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-host=$1
+host_name=$1
 port_value=$2
 
 # preliminary checks
@@ -518,8 +529,8 @@ wss_port=$(grep "announce_wss_port" $config_file_path | awk -F" = " '{print $2}'
 
 # check if hostname is empty
 if [ -z "$hostname" ]; then
-    echo "hostname is empty, updating it to ${host}"
-    sed -i "s|hostname = ''|hostname = '${host}'|" $config_file_path
+    echo "hostname is empty, updating it to ${host_name}"
+    sed -i "s|hostname = ''|hostname = '${host_name}'|" $config_file_path
 else
     echo "current hostname: $hostname"
 fi
@@ -545,61 +556,67 @@ systemctl enable nginx.service
 # create a consolidated nginx configuration file
 nginx_config_file="/etc/nginx/sites-available/${host}.conf"
 cat <<EOF > $nginx_config_file
+# Reversed proxy configuration for landing page
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+
+    server_name ${host_name};
+
+    ssl_certificate /etc/letsencrypt/live/${host_name}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${host_name}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}
+
+# http configuration
 server {
     listen 80;
-    server_name ${host};
-    return 301 https://\$host\$request_uri;
+    listen [::]:80;
+
+    if ($host = ${host_name}) {
+      return 301 https://$host$request_uri;
+  }
+
+  server_name ${host_name} www.${host_name};
+
+  return 301 https://${host_name}$request_uri;
 }
 
+# WSS configuration
 server {
-    listen 443 ssl;
-    server_name ${host};
-
-    ssl_certificate /etc/letsencrypt/live/${host}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${host}/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
+    listen ${port_value};
     location / {
-        proxy_pass http://localhost:9000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
+
+	    add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Credentials' 'true';
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD';
+	    add_header 'Access-Control-Allow-Headers' '*';
+
+	    proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "Upgrade";
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-    }
-
-    location /images/ {
-        alias /var/www/${host}/images/;
-    }
-
-    location /css/ {
-        alias /var/www/${host}/css/;
-    }
-}
-
-server {
-    listen ${port_value} ssl;
-    server_name ${host};
-
-    ssl_certificate /etc/letsencrypt/live/${host}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${host}/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
-
-    location / {
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_pass http://localhost:9000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
+        proxy_intercept_errors on; # Enable intercepting errors from the proxy
     }
+
 }
 EOF
 
 # create a symbolic link in sites-enabled
-ln -s /etc/nginx/sites-available/${host}.conf /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/${host_name}.conf /etc/nginx/sites-enabled/
 
 # test nginx configuration
 if ! nginx -t; then
@@ -611,7 +628,7 @@ fi
 systemctl reload nginx.service
 
 # obtain ssl certificates using certbot
-if ! certbot --nginx -d ${host} --non-interactive --agree-tos -m your-email@example.com; then
+if ! certbot --nginx -d ${host_name} --non-interactive --agree-tos -m your-email@example.com; then
     echo "certbot failed to obtain certificates"
     exit 1
 fi
@@ -681,58 +698,75 @@ ufw allow 'Nginx Full'
 ufw status
 ```
 
-#### Landing page configuration
+#### WSS & Landing page configuration
 
 We made the landing page customization directory in [*Preliminary steps*](#preliminary-steps), next steps will configure that with Nginx.
 
 3. Configure your site to work with `nginx`. Open a new text file `/etc/nginx/sites-available/<HOSTNAME>` and paste the block below. Don't forget to insert your correct values.
 ~~~admonish example collapsible=true title="site configuration"
 ```bash
+#################################################################
+# EXCHANGE ALL <HOSTNAME>, <WSS_PORT> AND <PATH_TO> VARIABLES ! #
+#################################################################
 
+# Reversed proxy configuration for landing page
 server {
-    server_name <HOSTNAME>;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
 
-    root /var/www/<HOSTNAME>;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ =404;
-    }
-
-    location /images/ {
-        alias /var/www/<HOSTNAME>/images/;
-    }
-
-    location /css/ {
-        alias /var/www/<HOSTNAME>/css/;
-    }
-
-    listen [::]:443 ssl ipv6only=on; # managed by Certbot
-    listen 443 ssl; # managed by Certbot
-    ssl_certificate /etc/letsencrypt/live/<HOSTNAME>/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/<HOSTNAME>/privkey.pem; # managed by Certbot
-    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
-
-}
-
-server {
-    listen <WSS_PORT> ssl;
     server_name <HOSTNAME>;
 
     ssl_certificate /etc/letsencrypt/live/<HOSTNAME>/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/<HOSTNAME>/privkey.pem;
-    include /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+  location / {
+      proxy_pass http://127.0.0.1:8080;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}
+
+
+# http configuration
+server {
+    listen 80;
+    listen [::]:80;
+
+  if ($host = <HOSTNAME>) {
+    return 301 https://$host$request_uri;
+  }
+
+    server_name <HOSTNAME> www.<HOSTNAME>;
+
+    return 301 https://<HOSTNAME>$request_uri;
+}
+
+
+# WSS configuration
+server {
+    listen <WSS_PORT>;
     location / {
-        proxy_pass http://localhost:9000;
-        proxy_http_version 1.1;
+
+	    add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Credentials' 'true';
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD';
+	    add_header 'Access-Control-Allow-Headers' '*';
+
+	    proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Forwarded-For $remote_addr;
+
+        proxy_pass http://localhost:9000;
+        proxy_intercept_errors on; # Enable intercepting errors from the proxy
     }
+
 }
 ```
 ~~~

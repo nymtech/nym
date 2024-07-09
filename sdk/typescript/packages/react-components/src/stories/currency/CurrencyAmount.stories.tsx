@@ -1,6 +1,7 @@
+import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { Stack } from '@mui/material';
-import { CurrencyAmount } from '@lib/components/currency';
+import { CurrencyAmount } from '../../../lib/components/currency/CurrencyAmount';
 
 export default {
   title: 'Currency/Currency amount',

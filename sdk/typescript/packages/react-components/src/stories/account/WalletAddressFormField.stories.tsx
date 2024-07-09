@@ -1,6 +1,7 @@
+import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { Box } from '@mui/material';
-import { WalletAddressFormField } from '@lib/components/account';
+import { WalletAddressFormField } from '../../../lib/components/account/WalletAddressFormField';
 
 export default {
   title: 'Accounts/Wallet Address',

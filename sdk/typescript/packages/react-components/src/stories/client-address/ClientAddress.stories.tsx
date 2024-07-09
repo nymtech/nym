@@ -1,15 +1,16 @@
+import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box } from '@mui/material';
-import { ClientAddressDisplay } from '@lib/components/client-address';
+import { ClientAddress } from '../../../lib/components/client-address/ClientAddress';
 
 export default {
   title: 'Wallet / Client Address',
-  component: ClientAddressDisplay,
-} as ComponentMeta<typeof ClientAddressDisplay>;
+  component: ClientAddress,
+} as ComponentMeta<typeof ClientAddress>;
 
-const Template: ComponentStory<typeof ClientAddressDisplay> = (args) => (
+const Template: ComponentStory<typeof ClientAddress> = (args) => (
   <Box display="flex" alignContent="center">
-    <ClientAddressDisplay {...args} />
+    <ClientAddress {...args} />
   </Box>
 );
 

@@ -1,16 +1,22 @@
+import React from 'react';
 import { Theme } from '@mui/material/styles';
-import * as React from 'react';
 import { Box, Grid, Typography } from '@mui/material';
 import flatten from 'flat';
 
 const SWATCH_SIZE = '40px';
 
-const PaletteSwatch: FCWithChildren<{
+const PaletteSwatch = ({
+  theme,
+  path,
+  value,
+  width,
+}: {
   theme: Theme;
   path: string;
   value: string;
   width?: string;
-}> = ({ theme, path, value, width }) => (
+  chidlren: React.ReactNode;
+}) => (
   <>
     <Box
       sx={{

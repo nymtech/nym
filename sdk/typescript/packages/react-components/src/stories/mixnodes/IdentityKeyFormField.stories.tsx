@@ -1,6 +1,7 @@
+import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { Box } from '@mui/material';
-import { IdentityKeyFormField } from '@lib/components';
+import { IdentityKeyFormField } from '../../../lib/components/mixnodes/IdentityKeyFormField';
 
 export default {
   title: 'Mixnodes/Identity Key',

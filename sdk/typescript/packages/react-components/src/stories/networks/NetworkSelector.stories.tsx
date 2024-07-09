@@ -1,6 +1,6 @@
 import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
-import { NetworkSelector, type Network } from '@lib/components/networks';
+import { NetworkSelector, type Network } from '../../../lib/components/networks/NetworkSelector';
 
 export default {
   title: 'Networks/Network Selector',

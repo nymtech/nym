@@ -1,7 +1,5 @@
 {
   "compilerOptions": {
-    "rootDir": "./lib",
-    "outDir": "./dist",
     "declaration": true,
     "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
@@ -19,7 +17,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "typeRoots": ["./dist/index.d.ts"],
+    "typeRoots": [],
 
     /* Linting */
     "strict": true,
@@ -28,10 +26,10 @@
     "noFallthroughCasesInSwitch": true,
 
     /* Paths */
-    "baseUrl": ".",
+    "baseUrl": "./",
     "paths": {
-      "@src/*": ["src/*"],
-      "@lib/*": ["lib/*"],
+      "@src/*": ["./src/*"],
+      "@lib/*": ["./lib/*"],
       "@assets/*": ["../../../../assets/*"]
     }
   },

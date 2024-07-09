@@ -1,6 +1,7 @@
+import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box, Typography } from '@mui/material';
-import { CopyToClipboard } from '@lib/components/clipboard';
+import { CopyToClipboard } from '../../../lib/components/clipboard/CopyToClipboard';
 
 export default {
   title: 'Decorators / Copy to clipboard',

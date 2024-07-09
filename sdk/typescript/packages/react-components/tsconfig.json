@@ -4,7 +4,13 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "noEmit": true,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "baseUrl": ".",
+    "paths": {
+      "@src/*": ["./src/*"],
+      "@lib/*": ["./lib/*"],
+      "@assets/*": ["../../../../assets/*"]
+    }
   },
   "files": [],
   "references": [

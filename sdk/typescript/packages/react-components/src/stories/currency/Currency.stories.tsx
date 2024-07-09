@@ -1,6 +1,8 @@
+import React from 'react';
+
 import { ComponentMeta } from '@storybook/react';
 import { Stack } from '@mui/material';
-import { Currency } from '@lib/components/currency';
+import { Currency } from '../../../lib/components/currency/Currency';
 import { amounts } from './CurrencyAmount.stories';
 
 export default {

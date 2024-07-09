@@ -1,3 +1,4 @@
+import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { useTheme } from '@mui/material';
 import { Playground } from '../playground/Playground';

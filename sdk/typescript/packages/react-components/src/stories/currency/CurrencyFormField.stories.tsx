@@ -1,6 +1,7 @@
+import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { Stack } from '@mui/material';
-import { CurrencyFormField } from '@lib/components/currency';
+import { CurrencyFormField } from '../../../lib/components/currency/CurrencyFormField';
 
 export default {
   title: 'Currency/Currency form field',

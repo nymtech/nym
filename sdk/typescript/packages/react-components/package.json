@@ -13,7 +13,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006",
+    "storybook:build": "storybook build"
   },
   "dependencies": {
     "@cosmjs/math": "^0.27.1",
@@ -36,7 +38,8 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@storybook/react": "^6.5.15",
+    "@storybook/react": "^8.1.11",
+    "@storybook/react-vite": "^8.1.11",
     "@types/flat": "^5.0.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -47,6 +50,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
+    "storybook": "^8.1.11",
     "typescript": "^5.2.2",
     "vite": "^5.3.1",
     "vite-plugin-dts": "^3.9.1",

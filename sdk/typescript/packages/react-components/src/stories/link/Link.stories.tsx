@@ -1,7 +1,8 @@
+import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { Typography } from '@mui/material';
 import { Link as LinkIcon } from '@mui/icons-material';
-import { Link } from '@lib/components/link';
+import { Link } from '../../../lib/components/link/Link';
 
 export default {
   title: 'Basics/Link',

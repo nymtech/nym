@@ -1,6 +1,7 @@
+import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { Stack, Typography } from '@mui/material';
-import { CoinMarkTestnet } from '@lib/components/coins';
+import { CoinMarkTestnet } from '../../../lib/components/coins/CoinMarkTestnet';
 
 export default {
   title: 'Branding/Coin Mark (testnet)',

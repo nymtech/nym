@@ -1,5 +1,8 @@
+import React from 'react';
 import { ComponentMeta } from '@storybook/react';
-import { NymLogo, NymWordmark, NymIcon } from '@lib/components/logo';
+import { NymLogo } from '../../../lib/components/logo/NymLogo';
+import { NymIcon } from '../../../lib/components/logo/NymIcon';
+import { NymWordmark } from '../../../lib/components/logo/NymWordmark';
 
 export default {
   title: 'Branding/Nym Logo',

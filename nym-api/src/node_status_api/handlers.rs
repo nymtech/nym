@@ -1,6 +1,20 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::helpers::{
+    _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
+    _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
+    _get_gateways_detailed, _get_gateways_detailed_unfiltered, _get_mixnode_avg_uptime,
+    _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
+    _get_mixnode_reward_estimation, _get_mixnode_stake_saturation, _get_mixnode_status,
+    _get_mixnodes_detailed, _get_mixnodes_detailed_unfiltered, _get_rewarded_set_detailed,
+    _mixnode_core_status_count, _mixnode_report, _mixnode_uptime_history,
+};
+use crate::node_status_api::models::AxumResult;
+use crate::v2::AxumAppState;
+use axum::extract::{Path, Query, State};
+use axum::Json;
+use axum::Router;
 use nym_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
     GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
@@ -10,239 +24,299 @@ use nym_api_requests::models::{
     UptimeResponse,
 };
 use nym_mixnet_contract_common::MixId;
-use rocket::serde::json::Json;
-use rocket::State;
-use rocket_okapi::openapi;
 
-use super::helpers::_get_gateways_detailed;
-use super::NodeStatusCache;
-use crate::node_status_api::helpers::{
-    _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
-    _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
-    _get_gateways_detailed_unfiltered, _get_mixnode_avg_uptime,
-    _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
-    _get_mixnode_reward_estimation, _get_mixnode_stake_saturation, _get_mixnode_status,
-    _get_mixnodes_detailed, _get_mixnodes_detailed_unfiltered, _get_rewarded_set_detailed,
-    _mixnode_core_status_count, _mixnode_report, _mixnode_uptime_history,
-};
-use crate::node_status_api::models::ErrorResponse;
-use crate::storage::NymApiStorage;
-use crate::NymContractCache;
+pub(crate) fn node_status_routes(network_monitor: bool) -> Router<AxumAppState> {
+    // in the minimal variant we would not have access to endpoints relying on existence
+    // of the network monitor and the associated storage
+    let without_network_monitor = Router::new().nest(
+        "/v1/gateway/:identity",
+        Router::new()
+            .nest(
+                "/mixnode/:mix_id",
+                Router::new()
+                    .route("/status", axum::routing::get(get_mixnode_status))
+                    .route(
+                        "/stake-saturation",
+                        axum::routing::get(get_mixnode_stake_saturation),
+                    )
+                    .route(
+                        "/inclusion-probability",
+                        axum::routing::get(get_mixnode_inclusion_probability),
+                    ),
+            )
+            .nest(
+                "/mixnodes",
+                Router::new()
+                    .route(
+                        "/inclusion-probability",
+                        axum::routing::get(get_mixnode_inclusion_probabilities),
+                    )
+                    .route("/detailed", axum::routing::get(get_mixnodes_detailed))
+                    .route(
+                        "/rewarded/detailed",
+                        axum::routing::get(get_rewarded_set_detailed),
+                    )
+                    .route(
+                        "/active/detailed",
+                        axum::routing::get(get_active_set_detailed),
+                    ),
+            ),
+    );
 
-#[openapi(tag = "status")]
-#[get("/gateway/<identity>/report")]
+    if network_monitor {
+        let with_network_monitor = Router::new().nest(
+            "/v1/gateway/:identity",
+            Router::new()
+                .route("/report", axum::routing::get(gateway_report))
+                .route("/history", axum::routing::get(gateway_uptime_history))
+                .route(
+                    "/core-status-count",
+                    axum::routing::get(gateway_core_status_count),
+                )
+                .route("/avg_uptime", axum::routing::get(get_gateway_avg_uptime))
+                .nest(
+                    "/mixnode/:mix_id",
+                    Router::new()
+                        .route("/report", axum::routing::get(mixnode_report))
+                        .route("/history", axum::routing::get(mixnode_uptime_history))
+                        .route(
+                            "/core-status-count",
+                            axum::routing::get(mixnode_core_status_count),
+                        )
+                        .route(
+                            "/reward-estimation",
+                            axum::routing::get(get_mixnode_reward_estimation),
+                        )
+                        .route(
+                            "/compute-reward-estimation",
+                            axum::routing::post(compute_mixnode_reward_estimation),
+                        )
+                        .route("/avg_uptime", axum::routing::get(get_mixnode_avg_uptime)),
+                )
+                .nest(
+                    "/mixnodes",
+                    Router::new()
+                        .route(
+                            "/detailed-unfiltered",
+                            axum::routing::get(get_mixnodes_detailed_unfiltered),
+                        )
+                        .route(
+                            "/unstable/:mix_id/test-results",
+                            axum::routing::get(unstable::mixnode_test_results),
+                        ),
+                )
+                .nest(
+                    "/gateways",
+                    Router::new()
+                        .route("/detailed", axum::routing::get(get_gateways_detailed))
+                        .route(
+                            "/detailed-unfiltered",
+                            axum::routing::get(get_gateways_detailed_unfiltered),
+                        )
+                        .route(
+                            "/unstable/:gateway_identity/test-results",
+                            axum::routing::get(unstable::gateway_test_results),
+                        ),
+                ),
+        );
+
+        with_network_monitor.merge(without_network_monitor)
+    } else {
+        without_network_monitor
+    }
+}
+
 pub(crate) async fn gateway_report(
-    cache: &State<NodeStatusCache>,
-    identity: &str,
-) -> Result<Json<GatewayStatusReportResponse>, ErrorResponse> {
-    Ok(Json(_gateway_report(cache, identity).await?))
+    Path(identity): Path<String>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<GatewayStatusReportResponse>> {
+    Ok(Json(
+        _gateway_report(state.node_status_cache(), &identity).await?,
+    ))
 }
 
-#[openapi(tag = "status")]
-#[get("/gateway/<identity>/history")]
 pub(crate) async fn gateway_uptime_history(
-    storage: &State<NymApiStorage>,
-    identity: &str,
-) -> Result<Json<GatewayUptimeHistoryResponse>, ErrorResponse> {
-    Ok(Json(_gateway_uptime_history(storage, identity).await?))
+    Path(identity): Path<String>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<GatewayUptimeHistoryResponse>> {
+    Ok(Json(
+        _gateway_uptime_history(state.storage(), &identity).await?,
+    ))
 }
 
-#[openapi(tag = "status")]
-#[get("/gateway/<identity>/core-status-count?<since>")]
 pub(crate) async fn gateway_core_status_count(
-    storage: &State<NymApiStorage>,
-    identity: &str,
-    since: Option<i64>,
-) -> Result<Json<GatewayCoreStatusResponse>, ErrorResponse> {
+    Path(identity): Path<String>,
+    Query(since): Query<Option<i64>>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<GatewayCoreStatusResponse>> {
     Ok(Json(
-        _gateway_core_status_count(storage, identity, since).await?,
+        _gateway_core_status_count(state.storage(), &identity, since).await?,
     ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<mix_id>/report")]
 pub(crate) async fn mixnode_report(
-    cache: &State<NodeStatusCache>,
-    mix_id: MixId,
-) -> Result<Json<MixnodeStatusReportResponse>, ErrorResponse> {
-    Ok(Json(_mixnode_report(cache, mix_id).await?))
+    Path(mix_id): Path<MixId>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<MixnodeStatusReportResponse>> {
+    Ok(Json(
+        _mixnode_report(state.node_status_cache(), mix_id).await?,
+    ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<mix_id>/history")]
 pub(crate) async fn mixnode_uptime_history(
-    storage: &State<NymApiStorage>,
-    mix_id: MixId,
-) -> Result<Json<MixnodeUptimeHistoryResponse>, ErrorResponse> {
-    Ok(Json(_mixnode_uptime_history(storage, mix_id).await?))
+    Path(mix_id): Path<MixId>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<MixnodeUptimeHistoryResponse>> {
+    Ok(Json(
+        _mixnode_uptime_history(state.storage(), mix_id).await?,
+    ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<mix_id>/core-status-count?<since>")]
 pub(crate) async fn mixnode_core_status_count(
-    storage: &State<NymApiStorage>,
-    mix_id: MixId,
-    since: Option<i64>,
-) -> Result<Json<MixnodeCoreStatusResponse>, ErrorResponse> {
+    Path(mix_id): Path<MixId>,
+    Query(since): Query<Option<i64>>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<MixnodeCoreStatusResponse>> {
     Ok(Json(
-        _mixnode_core_status_count(storage, mix_id, since).await?,
+        _mixnode_core_status_count(state.storage(), mix_id, since).await?,
     ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<mix_id>/status")]
 pub(crate) async fn get_mixnode_status(
-    cache: &State<NymContractCache>,
-    mix_id: MixId,
+    Path(mix_id): Path<MixId>,
+    State(state): State<AxumAppState>,
 ) -> Json<MixnodeStatusResponse> {
-    Json(_get_mixnode_status(cache, mix_id).await)
+    Json(_get_mixnode_status(state.nym_contract_cache(), mix_id).await)
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<mix_id>/reward-estimation")]
 pub(crate) async fn get_mixnode_reward_estimation(
-    cache: &State<NodeStatusCache>,
-    validator_cache: &State<NymContractCache>,
-    mix_id: MixId,
-) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
+    Path(mix_id): Path<MixId>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<RewardEstimationResponse>> {
     Ok(Json(
-        _get_mixnode_reward_estimation(cache, validator_cache, mix_id).await?,
-    ))
-}
-
-#[openapi(tag = "status")]
-#[post(
-    "/mixnode/<mix_id>/compute-reward-estimation",
-    data = "<user_reward_param>"
-)]
-pub(crate) async fn compute_mixnode_reward_estimation(
-    user_reward_param: Json<ComputeRewardEstParam>,
-    cache: &State<NodeStatusCache>,
-    validator_cache: &State<NymContractCache>,
-    mix_id: MixId,
-) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
-    Ok(Json(
-        _compute_mixnode_reward_estimation(
-            user_reward_param.into_inner(),
-            cache,
-            validator_cache,
+        _get_mixnode_reward_estimation(
+            state.node_status_cache(),
+            state.nym_contract_cache(),
             mix_id,
         )
         .await?,
     ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<mix_id>/stake-saturation")]
+pub(crate) async fn compute_mixnode_reward_estimation(
+    Path(mix_id): Path<MixId>,
+    State(state): State<AxumAppState>,
+    Json(user_reward_param): Json<ComputeRewardEstParam>,
+) -> AxumResult<Json<RewardEstimationResponse>> {
+    Ok(Json(
+        _compute_mixnode_reward_estimation(
+            &user_reward_param,
+            state.node_status_cache(),
+            state.nym_contract_cache(),
+            mix_id,
+        )
+        .await?,
+    ))
+}
+
 pub(crate) async fn get_mixnode_stake_saturation(
-    cache: &State<NodeStatusCache>,
-    validator_cache: &State<NymContractCache>,
-    mix_id: MixId,
-) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
+    Path(mix_id): Path<MixId>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<StakeSaturationResponse>> {
     Ok(Json(
-        _get_mixnode_stake_saturation(cache, validator_cache, mix_id).await?,
+        _get_mixnode_stake_saturation(
+            state.node_status_cache(),
+            state.nym_contract_cache(),
+            mix_id,
+        )
+        .await?,
     ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<mix_id>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
-    cache: &State<NodeStatusCache>,
-    mix_id: MixId,
-) -> Result<Json<InclusionProbabilityResponse>, ErrorResponse> {
+    Path(mix_id): Path<MixId>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<InclusionProbabilityResponse>> {
     Ok(Json(
-        _get_mixnode_inclusion_probability(cache, mix_id).await?,
+        _get_mixnode_inclusion_probability(state.node_status_cache(), mix_id).await?,
     ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnode/<mix_id>/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptime(
-    cache: &State<NodeStatusCache>,
-    mix_id: MixId,
-) -> Result<Json<UptimeResponse>, ErrorResponse> {
-    Ok(Json(_get_mixnode_avg_uptime(cache, mix_id).await?))
+    Path(mix_id): Path<MixId>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<UptimeResponse>> {
+    Ok(Json(
+        _get_mixnode_avg_uptime(state.node_status_cache(), mix_id).await?,
+    ))
 }
 
-#[openapi(tag = "status")]
-#[get("/gateway/<identity>/avg_uptime")]
 pub(crate) async fn get_gateway_avg_uptime(
-    cache: &State<NodeStatusCache>,
-    identity: &str,
-) -> Result<Json<GatewayUptimeResponse>, ErrorResponse> {
-    Ok(Json(_get_gateway_avg_uptime(cache, identity).await?))
+    Path(identity): Path<String>,
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<GatewayUptimeResponse>> {
+    Ok(Json(
+        _get_gateway_avg_uptime(state.node_status_cache(), &identity).await?,
+    ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnodes/inclusion_probability")]
 pub(crate) async fn get_mixnode_inclusion_probabilities(
-    cache: &State<NodeStatusCache>,
-) -> Result<Json<AllInclusionProbabilitiesResponse>, ErrorResponse> {
-    Ok(Json(_get_mixnode_inclusion_probabilities(cache).await?))
+    State(state): State<AxumAppState>,
+) -> AxumResult<Json<AllInclusionProbabilitiesResponse>> {
+    Ok(Json(
+        _get_mixnode_inclusion_probabilities(state.node_status_cache()).await?,
+    ))
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnodes/detailed")]
 pub async fn get_mixnodes_detailed(
-    cache: &State<NodeStatusCache>,
+    State(state): State<AxumAppState>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
-    Json(_get_mixnodes_detailed(cache).await)
+    Json(_get_mixnodes_detailed(state.node_status_cache()).await)
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnodes/detailed-unfiltered")]
 pub async fn get_mixnodes_detailed_unfiltered(
-    cache: &State<NodeStatusCache>,
+    State(state): State<AxumAppState>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
-    Json(_get_mixnodes_detailed_unfiltered(cache).await)
+    Json(_get_mixnodes_detailed_unfiltered(state.node_status_cache()).await)
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnodes/rewarded/detailed")]
 pub async fn get_rewarded_set_detailed(
-    cache: &State<NodeStatusCache>,
+    State(state): State<AxumAppState>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
-    Json(_get_rewarded_set_detailed(cache).await)
+    Json(_get_rewarded_set_detailed(state.node_status_cache()).await)
 }
 
-#[openapi(tag = "status")]
-#[get("/mixnodes/active/detailed")]
 pub async fn get_active_set_detailed(
-    cache: &State<NodeStatusCache>,
+    State(state): State<AxumAppState>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
-    Json(_get_active_set_detailed(cache).await)
+    Json(_get_active_set_detailed(state.node_status_cache()).await)
 }
 
-#[openapi(tag = "status")]
-#[get("/gateways/detailed")]
 pub async fn get_gateways_detailed(
-    cache: &State<NodeStatusCache>,
+    State(state): State<AxumAppState>,
 ) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_gateways_detailed(cache).await)
+    Json(_get_gateways_detailed(state.node_status_cache()).await)
 }
 
-#[openapi(tag = "status")]
-#[get("/gateways/detailed-unfiltered")]
 pub async fn get_gateways_detailed_unfiltered(
-    cache: &State<NodeStatusCache>,
+    State(state): State<AxumAppState>,
 ) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_gateways_detailed_unfiltered(cache).await)
+    Json(_get_gateways_detailed_unfiltered(state.node_status_cache()).await)
 }
 
 pub mod unstable {
-    use crate::node_status_api::models::ErrorResponse;
+    use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
     use crate::support::http::helpers::PaginationRequest;
     use crate::support::storage::NymApiStorage;
+    use crate::v2::AxumAppState;
+    use axum::extract::{Path, Query, State};
+    use axum::Json;
     use nym_api_requests::models::{
         GatewayTestResultResponse, MixnodeTestResultResponse, PartialTestResult, TestNode,
         TestRoute,
     };
     use nym_api_requests::pagination::Pagination;
     use nym_mixnet_contract_common::MixId;
-    use rocket::http::Status;
-    use rocket::serde::json::Json;
-    use rocket::State;
-    use rocket_okapi::openapi;
     use std::cmp::min;
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -251,7 +325,7 @@ pub mod unstable {
     pub type DbId = i64;
 
     // a simply in-memory cache of node details
-    #[derive(Debug, Default)]
+    #[derive(Debug, Clone, Default)]
     pub struct NodeInfoCache {
         inner: Arc<RwLock<NodeInfoCacheInner>>,
     }
@@ -324,7 +398,7 @@ pub mod unstable {
         }
     }
 
-    #[derive(Debug, Default)]
+    #[derive(Debug, Clone, Default)]
     struct NodeInfoCacheInner {
         mixnodes: HashMap<DbId, TestNode>,
         gateways: HashMap<DbId, TestNode>,
@@ -337,8 +411,8 @@ pub mod unstable {
         mix_id: MixId,
         page: u32,
         per_page: u32,
-        info_cache: &State<NodeInfoCache>,
-        storage: &State<NymApiStorage>,
+        info_cache: &NodeInfoCache,
+        storage: &NymApiStorage,
     ) -> anyhow::Result<MixnodeTestResultResponse> {
         // convert to db offset
         // we're paging from page 0 like civilised people,
@@ -392,14 +466,11 @@ pub mod unstable {
         })
     }
 
-    #[openapi(tag = "UNSTABLE - DO **NOT** USE")]
-    #[get("/mixnodes/unstable/<mix_id>/test-results?<pagination..>")]
     pub async fn mixnode_test_results(
-        mix_id: MixId,
-        pagination: PaginationRequest,
-        info_cache: &State<NodeInfoCache>,
-        storage: &State<NymApiStorage>,
-    ) -> Result<Json<MixnodeTestResultResponse>, ErrorResponse> {
+        Path(mix_id): Path<MixId>,
+        Query(pagination): Query<PaginationRequest>,
+        State(state): State<AxumAppState>,
+    ) -> AxumResult<Json<MixnodeTestResultResponse>> {
         let page = pagination.page.unwrap_or_default();
         let per_page = min(
             pagination
@@ -408,12 +479,19 @@ pub mod unstable {
             MAX_TEST_RESULTS_PAGE_SIZE,
         );
 
-        match _mixnode_test_results(mix_id, page, per_page, info_cache, storage).await {
+        match _mixnode_test_results(
+            mix_id,
+            page,
+            per_page,
+            state.node_info_cache(),
+            state.storage(),
+        )
+        .await
+        {
             Ok(res) => Ok(Json(res)),
-            Err(err) => Err(ErrorResponse::new(
-                format!("failed to retrieve mixnode test results for node {mix_id}: {err}"),
-                Status::InternalServerError,
-            )),
+            Err(err) => Err(AxumErrorResponse::internal_msg(format!(
+                "failed to retrieve mixnode test results for node {mix_id}: {err}"
+            ))),
         }
     }
 
@@ -421,8 +499,8 @@ pub mod unstable {
         gateway_identity: &str,
         page: u32,
         per_page: u32,
-        info_cache: &State<NodeInfoCache>,
-        storage: &State<NymApiStorage>,
+        info_cache: &NodeInfoCache,
+        storage: &NymApiStorage,
     ) -> anyhow::Result<GatewayTestResultResponse> {
         // convert to db offset
         // we're paging from page 0 like civilised people,
@@ -476,14 +554,11 @@ pub mod unstable {
         })
     }
 
-    #[openapi(tag = "UNSTABLE - DO **NOT** USE")]
-    #[get("/gateways/unstable/<gateway_identity>/test-results?<pagination..>")]
     pub async fn gateway_test_results(
-        gateway_identity: &str,
-        pagination: PaginationRequest,
-        info_cache: &State<NodeInfoCache>,
-        storage: &State<NymApiStorage>,
-    ) -> Result<Json<GatewayTestResultResponse>, ErrorResponse> {
+        Path(gateway_identity): Path<String>,
+        Query(pagination): Query<PaginationRequest>,
+        State(state): State<AxumAppState>,
+    ) -> AxumResult<Json<GatewayTestResultResponse>> {
         let page = pagination.page.unwrap_or_default();
         let per_page = min(
             pagination
@@ -492,14 +567,19 @@ pub mod unstable {
             MAX_TEST_RESULTS_PAGE_SIZE,
         );
 
-        match _gateway_test_results(gateway_identity, page, per_page, info_cache, storage).await {
+        match _gateway_test_results(
+            &gateway_identity,
+            page,
+            per_page,
+            state.node_info_cache(),
+            state.storage(),
+        )
+        .await
+        {
             Ok(res) => Ok(Json(res)),
-            Err(err) => Err(ErrorResponse::new(
-                format!(
-                    "failed to retrieve mixnode test results for gateway {gateway_identity}: {err}"
-                ),
-                Status::InternalServerError,
-            )),
+            Err(err) => Err(AxumErrorResponse::internal_msg(format!(
+                "failed to retrieve mixnode test results for gateway {gateway_identity}: {err}"
+            ))),
         }
     }
 }

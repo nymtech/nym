@@ -267,14 +267,11 @@ impl RewardedSetUpdater {
     pub(crate) fn start(
         nyxd_client: Client,
         nym_contract_cache: &NymContractCache,
-        storage: &NymApiStorage,
+        storage: NymApiStorage,
         shutdown: &TaskManager,
     ) {
-        let mut rewarded_set_updater = RewardedSetUpdater::new(
-            nyxd_client,
-            nym_contract_cache.to_owned(),
-            storage.to_owned(),
-        );
+        let mut rewarded_set_updater =
+            RewardedSetUpdater::new(nyxd_client, nym_contract_cache.to_owned(), storage);
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });
     }

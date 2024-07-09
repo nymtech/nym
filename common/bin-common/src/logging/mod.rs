@@ -41,6 +41,8 @@ pub fn setup_logging() {
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
         .filter_module("handlebars", log::LevelFilter::Warn)
         .filter_module("sled", log::LevelFilter::Warn)
+        .filter_module("axum", log::LevelFilter::Info)
+        .filter_module("nym_api", log::LevelFilter::Info)
         .init();
 }
 

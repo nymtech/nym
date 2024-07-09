@@ -30,6 +30,7 @@ pub mod entry_gateway;
 pub mod exit_gateway;
 pub mod helpers;
 pub mod mixnode;
+mod old_configs;
 pub mod persistence;
 mod template;
 pub mod upgrade_helpers;

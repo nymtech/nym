@@ -1034,6 +1034,7 @@ impl super::client::Client for DummyClient {
                 events: vec![cosmwasm_std::Event::new("wasm")
                     .add_attribute(NODE_INDEX, assigned_index.to_string())],
             }],
+            events: Default::default(),
             data: Default::default(),
             transaction_hash,
             gas_info: Default::default(),
@@ -1067,6 +1068,7 @@ impl super::client::Client for DummyClient {
 
         Ok(ExecuteResult {
             logs: vec![],
+            events: Default::default(),
             data: Default::default(),
             transaction_hash,
             gas_info: Default::default(),
@@ -1101,6 +1103,7 @@ impl super::client::Client for DummyClient {
 
         Ok(ExecuteResult {
             logs: vec![],
+            events: Default::default(),
             data: Default::default(),
             transaction_hash,
             gas_info: Default::default(),
@@ -1177,6 +1180,7 @@ impl super::client::Client for DummyClient {
                 events: vec![cosmwasm_std::Event::new("wasm")
                     .add_attribute(DKG_PROPOSAL_ID, proposal_id.to_string())],
             }],
+            events: Default::default(),
             data: Default::default(),
             transaction_hash,
             gas_info: Default::default(),

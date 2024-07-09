@@ -500,14 +500,14 @@ Now you are ready to set up WSS, ether using a [script](#using-a-script) or [ste
 
 Using a script is a more convenient option but it takes away some customization possibilities. If you like to have your setup fully in your hands, use [*Step by step guide*](#step-by-step-guide). Before you move on, make sure you went through [*Preliminary steps*](#preliminary-steps).
 
-1. Create a script by copying the block below and save it on your VPS as `install_run_nginx.sh`.
+1. Create a script by copying the block below and save it on your VPS as `wss_nginx_setup.sh`.
 
-~~~admonish example collapsible=true title="install_run_nginx.sh"
+~~~admonish example collapsible=true title="Script `wss_nginx_setup.sh`"
 ```bash
 #!/bin/bash
 
 if [ "$#" -ne 2 ]; then
-    echo "usage: sudo ./install_run_nginx.sh <host_name> <port_to_run_wss>"
+    echo "usage: sudo ./wss_nginx_setup.sh <host_name> <port_to_run_wss>"
     exit 1
 fi
 
@@ -574,9 +574,9 @@ server {
 
     location / {
         proxy_pass http://127.0.0.1:8080;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
   }
 }
 
@@ -585,13 +585,9 @@ server {
     listen 80;
     listen [::]:80;
 
-    if ($host = ${host_name}) {
-      return 301 https://$host$request_uri;
-  }
-
   server_name ${host_name} www.${host_name};
 
-  return 301 https://${host_name}$request_uri;
+  return 301 https://${host_name}\$request_uri;
 }
 
 # WSS configuration
@@ -605,9 +601,9 @@ server {
 	    add_header 'Access-Control-Allow-Headers' '*';
 
 	    proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "Upgrade";
-        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-For \$remote_addr;
         proxy_pass http://localhost:9000;
         proxy_intercept_errors on; # Enable intercepting errors from the proxy
     }
@@ -650,12 +646,12 @@ exit 0
 
 2. Make the script executable:
 ```sh
-chmod u+x install_run_nginx.sh
+chmod u+x wss_nginx_setup.sh
 ```
 
 3. Run the script as root (with `sudo` or from the root shell):
 ```sh
-./install_run_nginx <HOSTNAME> <WSS_PORT>
+./wss_nginx_setup.sh <HOSTNAME> <WSS_PORT>
 # hostname is your domain
 # wss default port is 9001
 ```
@@ -667,10 +663,8 @@ systemctl daemon-reload
 service nym-node restart
 ```
 
-Your `nym-node` should be configured to run over WSS now. You can do a few quick checks to test that the setup worked out using `wscat`.
-```sh
-wscat -c ws://<HOSTNAME>:<WSS_PORT>
-```
+Your `nym-node` should be configured to run over WSS now. Test it using the steps in the chapter [below](#test-wss-setup)
+
 
 ### Step by Step Guide
 
@@ -703,7 +697,7 @@ ufw status
 We made the landing page customization directory in [*Preliminary steps*](#preliminary-steps), next steps will configure that with Nginx.
 
 3. Configure your site to work with `nginx`. Open a new text file `/etc/nginx/sites-available/<HOSTNAME>` and paste the block below. Don't forget to insert your correct values.
-~~~admonish example collapsible=true title="site configuration"
+~~~admonish example collapsible=true title="Site configuration `/etc/nginx/sites-available/<HOSTNAME>`"
 ```bash
 #################################################################
 # EXCHANGE ALL <HOSTNAME>, <WSS_PORT> AND <PATH_TO> VARIABLES ! #
@@ -811,3 +805,22 @@ To test your WSS setup, use `wscat`
 ```sh
 wscat --connect wss://<HOSTNAME>:<WSS_PORT>
 ```
+
+Your `nym-node` should be configured to run over WSS now. Test it using the steps in the chapter [below](#test-wss-setup).
+
+### Test WSS Setup
+
+You can do a few quick checks to test that your installation worked out and your `nym-node` is running correctly using WSS:
+
+- Check out connection with `wscat` from another (local) machine:
+```sh
+# install
+sudo apt install node-ws
+
+# run
+wscat -c ws://<HOSTNAME>:<WSS_PORT>
+```
+
+- Browse your `<HOSTNAME>` as URL and see your landing page.
+
+- Check Swagger API of your node using the hostname: `https://<HOSTNAME>/api/v1/swagger/#/`

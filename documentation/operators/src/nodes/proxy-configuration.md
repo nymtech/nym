@@ -796,16 +796,6 @@ systemctl daemon-reload
 service nym-node restart
 ```
 
-Now your `nginx` should be configured, up and running. Test it by inserting your `<HOSTNAME>` as a URL in a browser.
-
-**Testing WSS**
-
-To test your WSS setup, use `wscat`
-
-```sh
-wscat --connect wss://<HOSTNAME>:<WSS_PORT>
-```
-
 Your `nym-node` should be configured to run over WSS now. Test it using the steps in the chapter [below](#test-wss-setup).
 
 ### Test WSS Setup

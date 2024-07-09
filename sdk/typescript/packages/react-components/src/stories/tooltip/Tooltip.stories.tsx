@@ -1,6 +1,6 @@
 import React from 'react';
 import { ComponentMeta } from '@storybook/react';
-import { Tooltip } from '@lib/components/tooltip';
+import { Tooltip } from '../../../lib/components/tooltip/Tooltip';
 
 export default {
   title: 'Basics/Tooltip',

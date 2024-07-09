@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",
-    "@nymproject/eslint-config-react-typescript": "^1.0.0",
+    "@nymproject/eslint-config-react-typescript": "workspace:^1.0.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.4",
     "@storybook/addon-actions": "^6.5.8",
     "@storybook/addon-essentials": "^6.5.8",

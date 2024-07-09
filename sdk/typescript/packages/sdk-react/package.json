@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.17.5",
-    "@nymproject/eslint-config-react-typescript": "^1.0.0",
+    "@nymproject/eslint-config-react-typescript": "workspace: ^1.0.0",
     "@storybook/addon-actions": "^6.5.8",
     "@storybook/addon-essentials": "^6.5.8",
     "@storybook/addon-interactions": "^6.5.8",

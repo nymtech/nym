@@ -1,10 +1,13 @@
 packages:
+  - clients/validator
   - dist/wasm/**
   - dist/node/**
   - dist/ts/**
-  - sdk/typescript/packages/mui-theme
+  - explorer-nextjs
   - sdk/typescript/packages/react-components
   - sdk/typescript/packages/validator-client
+  - sdk/typescript/packages/mui-theme
+  - sdk/typescript/packages/**
+  - sdk/typescript/examples/**
+  - sdk/typescript/codegen/**
   - ts-packages/**
-  - explorer-nextjs
-  - clients/validator

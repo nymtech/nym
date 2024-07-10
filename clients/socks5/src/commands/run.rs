@@ -116,7 +116,13 @@ pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn std::error::Error +
     let storage =
         OnDiskPersistent::from_paths(config.storage_paths.common_paths, &config.core.base.debug)
             .await?;
-    NymClient::new(config.core, storage, args.common_args.custom_mixnet)
-        .run_forever()
-        .await
+    let user_agent = nym_bin_common::bin_info!().into();
+    NymClient::new(
+        config.core,
+        storage,
+        user_agent,
+        args.common_args.custom_mixnet,
+    )
+    .run_forever()
+    .await
 }

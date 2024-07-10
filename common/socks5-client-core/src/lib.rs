@@ -27,6 +27,7 @@ use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
 
 use anyhow::anyhow;
+use nym_validator_client::UserAgent;
 use std::error::Error;
 use std::path::PathBuf;
 
@@ -61,6 +62,8 @@ pub struct NymClient<S> {
 
     setup_method: GatewaySetup,
 
+    user_agent: UserAgent,
+
     /// Optional path to a .json file containing standalone network details.
     custom_mixnet: Option<PathBuf>,
 }
@@ -74,11 +77,17 @@ where
     <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
-    pub fn new(config: Config, storage: S, custom_mixnet: Option<PathBuf>) -> Self {
+    pub fn new(
+        config: Config,
+        storage: S,
+        user_agent: UserAgent,
+        custom_mixnet: Option<PathBuf>,
+    ) -> Self {
         NymClient {
             config,
             storage,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
+            user_agent,
             custom_mixnet,
         }
     }
@@ -226,7 +235,8 @@ where
 
         let mut base_builder =
             BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client)
-                .with_gateway_setup(self.setup_method);
+                .with_gateway_setup(self.setup_method)
+                .with_user_agent(self.user_agent);
 
         if let Some(custom_mixnet) = &self.custom_mixnet {
             base_builder = base_builder.with_stored_topology(custom_mixnet)?;

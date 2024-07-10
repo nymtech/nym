@@ -24,4 +24,4 @@ log = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
-fastrand = "1.8"
+fastrand = { workspace = true }

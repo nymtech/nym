@@ -27,7 +27,6 @@ pub const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
-pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
@@ -110,10 +109,6 @@ pub fn export_to_env() {
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
-    set_var_to_default(
-        var_names::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-        STATISTICS_SERVICE_DOMAIN_ADDRESS,
-    );
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
     set_var_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
@@ -154,10 +149,6 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
-    );
-    set_var_conditionally_to_default(
-        var_names::STATISTICS_SERVICE_DOMAIN_ADDRESS,
-        STATISTICS_SERVICE_DOMAIN_ADDRESS,
     );
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);

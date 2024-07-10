@@ -12,16 +12,16 @@ aes = { workspace = true, optional = true }
 bs58 = { workspace = true }
 blake3 = { workspace = true, features = ["traits-preview"], optional = true }
 ctr = { workspace = true, optional = true }
-digest = { version = "0.10.3", optional = true }
+digest = { workspace = true, optional = true }
 generic-array = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }
 cipher = { workspace = true, optional = true }
-x25519-dalek = { version = "2.0", optional = true, features = ["static_secrets"]}
-ed25519-dalek = { version = "2.1", features = ["rand_core"], optional = true }
+x25519-dalek = { workspace = true, features = ["static_secrets"], optional = true }
+ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
 rand = { workspace = true, optional = true }
 serde_bytes = { version = "0.11.6", optional = true }
-serde_crate = { version = "1.0", optional = true, default_features = false, features = ["derive"], package = "serde" }
+serde_crate = { version = "1.0", optional = true, default-features = false, features = ["derive"], package = "serde" }
 subtle-encoding = { workspace = true, features = ["bech32-preview"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true, optional = true, features = ["zeroize_derive"] }
@@ -31,7 +31,7 @@ nym-sphinx-types = { path = "../nymsphinx/types", version = "0.2.0", default-fea
 nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
 
 [dev-dependencies]
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }
 
 [features]
 default = ["sphinx"]

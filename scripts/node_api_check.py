@@ -135,10 +135,13 @@ class MainFunctions:
             routing_history = api_data[f"/status/gateway/{identity}/history"]["history"]
             del api_data[f"/status/gateway/{identity}/history"]["history"]
             swagger_data = self.get_swagger_data(host,swagger,swagger_data)
-            if swagger_data["/roles"]["network_requester_enabled"]== True and swagger_data["/roles"]["ip_packet_router_enabled"] == True:
-                role = "exit-gateway"
+            if swagger_data:
+                if swagger_data["/roles"]["network_requester_enabled"] == True and swagger_data["/roles"]["ip_packet_router_enabled"] == True:
+                    role = "exit-gateway"
+                else:
+                    role = "entry-gateway"
             else:
-                role = "entry-gateway"
+                role = None
         elif mode == "mixnode":
             mix_id = str(node_dict["mixnode_details"]["bond_information"]["mix_id"])
             for key in endpoints:

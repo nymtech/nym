@@ -14,8 +14,11 @@ use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
+pub use event::BandwidthStatusMessage;
+
 pub mod acquire;
 pub mod error;
+mod event;
 mod utils;
 
 #[derive(Debug)]

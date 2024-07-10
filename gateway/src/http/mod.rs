@@ -257,7 +257,7 @@ impl<'a> HttpApiBuilder<'a> {
         }
 
         let bind_address = self.gateway_config.http.bind_address;
-        let router = nym_node_http_api::NymNodeRouter::new(config, None, None);
+        let router = nym_node_http_api::NymNodeRouter::new(config, None);
 
         tokio::spawn(async move {
             let server = match router.build_server(&bind_address).await {

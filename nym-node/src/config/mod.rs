@@ -25,10 +25,12 @@ use std::time::Duration;
 use tracing::{debug, error};
 use url::Url;
 
+pub mod authenticator;
 pub mod entry_gateway;
 pub mod exit_gateway;
 pub mod helpers;
 pub mod mixnode;
+mod old_configs;
 pub mod persistence;
 mod template;
 pub mod upgrade_helpers;
@@ -535,6 +537,17 @@ impl Wireguard {
 impl From<Wireguard> for nym_wireguard_types::Config {
     fn from(value: Wireguard) -> Self {
         nym_wireguard_types::Config {
+            bind_address: value.bind_address,
+            private_ip: value.private_ip,
+            announced_port: value.announced_port,
+            private_network_prefix: value.private_network_prefix,
+        }
+    }
+}
+
+impl From<Wireguard> for nym_authenticator::config::Authenticator {
+    fn from(value: Wireguard) -> Self {
+        nym_authenticator::config::Authenticator {
             bind_address: value.bind_address,
             private_ip: value.private_ip,
             announced_port: value.announced_port,

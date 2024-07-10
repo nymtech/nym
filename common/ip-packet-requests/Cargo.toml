@@ -14,7 +14,7 @@ bytes = { workspace = true }
 nym-bin-common = { path = "../bin-common" }
 nym-crypto = { path = "../crypto" }
 nym-sphinx = { path = "../nymsphinx" }
-rand = "0.8.5"
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 time = { workspace = true }

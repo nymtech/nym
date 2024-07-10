@@ -124,7 +124,6 @@ pub struct GatewayNetworkRequesterDetails {
     pub encryption_key: String,
 
     pub open_proxy: bool,
-    pub enabled_statistics: bool,
 
     // just a convenience wrapper around all the keys
     pub address: String,
@@ -142,8 +141,7 @@ impl fmt::Display for GatewayNetworkRequesterDetails {
         writeln!(f, "\tencryption key: {}", self.encryption_key)?;
         writeln!(f, "\taddress: {}", self.address)?;
 
-        writeln!(f, "\tuses open proxy: {}", self.open_proxy)?;
-        writeln!(f, "\tsends statistics: {}", self.enabled_statistics)
+        writeln!(f, "\tuses open proxy: {}", self.open_proxy)
     }
 }
 

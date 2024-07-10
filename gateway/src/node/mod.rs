@@ -15,14 +15,12 @@ use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use crate::node::statistics::collector::GatewayStatisticsCollector;
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
-use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
@@ -36,7 +34,6 @@ use std::sync::Arc;
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
-pub(crate) mod statistics;
 pub(crate) mod storage;
 
 pub use storage::{InMemStorage, PersistentStorage, Storage};
@@ -92,7 +89,7 @@ pub async fn create_gateway(
 
     let ip_opts = ip_packet_router_config.map(|config| LocalIpPacketRouterOpts {
         config,
-        custom_mixnet_path: custom_mixnet,
+        custom_mixnet_path: custom_mixnet.clone(),
     });
 
     Gateway::new(config, nr_opts, ip_opts, storage)
@@ -112,12 +109,23 @@ pub struct LocalIpPacketRouterOpts {
     pub custom_mixnet_path: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct LocalAuthenticatorOpts {
+    pub config: nym_authenticator::Config,
+
+    pub custom_mixnet_path: Option<PathBuf>,
+}
+
 pub struct Gateway<St = PersistentStorage> {
     config: Config,
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
     ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
+
+    // Use None when wireguard feature is not enabled too
+    #[allow(dead_code)]
+    authenticator_opts: Option<LocalAuthenticatorOpts>,
 
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
@@ -149,6 +157,7 @@ impl<St> Gateway<St> {
             config,
             network_requester_opts,
             ip_packet_router_opts,
+            authenticator_opts: None,
             #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
@@ -160,6 +169,7 @@ impl<St> Gateway<St> {
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
         ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
+        authenticator_opts: Option<LocalAuthenticatorOpts>,
         identity_keypair: Arc<identity::KeyPair>,
         sphinx_keypair: Arc<encryption::KeyPair>,
         storage: St,
@@ -168,6 +178,7 @@ impl<St> Gateway<St> {
             config,
             network_requester_opts,
             ip_packet_router_opts,
+            authenticator_opts,
             identity_keypair,
             sphinx_keypair,
             storage,
@@ -225,11 +236,18 @@ impl<St> Gateway<St> {
     }
 
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
-    async fn start_wireguard(
+    async fn start_authenticator(
         &mut self,
+        opts: &LocalAuthenticatorOpts,
         shutdown: TaskClient,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         if let Some(wireguard_data) = self.wireguard_data.take() {
+            let authenticator_server = nym_authenticator::Authenticator::new(
+                opts.config.clone(),
+                wireguard_data.inner.clone(),
+            )
+            .with_shutdown(shutdown.fork("authenticator"));
+            tokio::spawn(async move { authenticator_server.run_service_provider().await });
             nym_wireguard::start_wireguard(shutdown, wireguard_data).await
         } else {
             Err(Box::new(GatewayError::WireguardNotSet))
@@ -237,8 +255,12 @@ impl<St> Gateway<St> {
     }
 
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
-    async fn start_wireguard(&self, _shutdown: TaskClient) {
-        nym_wireguard::start_wireguard().await
+    async fn start_authenticator(
+        &self,
+        _opts: &LocalAuthenticatorOpts,
+        _shutdown: TaskClient,
+    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+        todo!("Authenticator is currently only supported on Linux");
     }
 
     fn start_client_websocket_listener(
@@ -507,19 +529,6 @@ impl<St> Gateway<St> {
             shutdown.fork("mixnet_handling::Listener"),
         );
 
-        if self.config.gateway.enabled_statistics {
-            let statistics_service_url = self.config.get_statistics_service_url();
-            let stats_collector = GatewayStatisticsCollector::new(
-                self.identity_keypair.public_key().to_base58_string(),
-                active_clients_store.clone(),
-                statistics_service_url,
-            );
-            let mut stats_sender = StatisticsSender::new(stats_collector);
-            tokio::spawn(async move {
-                stats_sender.run().await;
-            });
-        }
-
         self.start_client_websocket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
@@ -554,6 +563,17 @@ impl<St> Gateway<St> {
             info!("embedded ip packet router is disabled");
         };
 
+        #[cfg(feature = "wireguard")]
+        let _wg_api = if let Some(opts) = self.authenticator_opts.clone() {
+            Some(
+                self.start_authenticator(&opts, shutdown.fork("wireguard"))
+                    .await
+                    .map_err(|source| GatewayError::AuthenticatorStartError { source })?,
+            )
+        } else {
+            None
+        };
+
         if self.run_http_server {
             HttpApiBuilder::new(
                 &self.config,
@@ -565,17 +585,6 @@ impl<St> Gateway<St> {
             .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))
             .start(shutdown.fork("http-api"))?;
         }
-
-        // Once this is a bit more mature, make this a commandline flag instead of a compile time
-        // flag
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        let _wg_api = self
-            .start_wireguard(shutdown.fork("wireguard"))
-            .await
-            .map_err(|source| GatewayError::StdError { source })?;
-
-        #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
-        self.start_wireguard(shutdown.fork("wireguard")).await;
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

@@ -9,7 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 rand = { workspace = true }
-serde_crate = { version = "1.0", optional = true, default_features = false, features = ["derive"], package = "serde" }
+serde_crate = { version = "1.0", optional = true, default-features = false, features = ["derive"], package = "serde" }
 generic-array = { workspace = true, optional = true, features = ["serde"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true }

@@ -10,7 +10,7 @@ license.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-base64 = "0.21.2"
+base64 = { workspace = true }
 bs58 = { workspace = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, optional = true }
@@ -20,7 +20,7 @@ log = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sha2 = "0.10.6"
+sha2 = { workspace = true }
 si-scale = { workspace = true }
 tap = { workspace = true }
 thiserror = { workspace = true }

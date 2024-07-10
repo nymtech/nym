@@ -41,8 +41,8 @@ jobs:
 # This is a workaround replacement which builds on the last working commit b332a6b55668f60988e36961f3f62a794ba82ddb and then on current branch
       - name: Save current branch to ~/current_branch
         run: git rev-parse --abbrev-ref HEAD > ~/current_branch
-      - name: Git pull & switch to b332a6b55668f60988e36961f3f62a794ba82ddb
-        run: git pull && git checkout b332a6b55668f60988e36961f3f62a794ba82ddb
+      - name: Git pull, reset & switch to b332a6b55668f60988e36961f3f62a794ba82ddb
+        run: git pull && git reset --hard && git checkout b332a6b55668f60988e36961f3f62a794ba82ddb
       - name: Build all projects in documentation/ & move to ~/dist/docs/ from b332a6b55668f60988e36961f3f62a794ba82ddb
         run: cd documentation && ./build_all_to_dist.sh
 

@@ -22,8 +22,9 @@ impl AsRef<CommonClientAddGatewayArgs> for Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), Socks5ClientError> {
+    let user_agent = nym_bin_common::bin_info!().into();
     let output = args.output;
-    let res = add_gateway::<CliSocks5Client, _>(args).await?;
+    let res = add_gateway::<CliSocks5Client, _>(args, Some(user_agent)).await?;
 
     println!("{}", output.format(&res));
     Ok(())

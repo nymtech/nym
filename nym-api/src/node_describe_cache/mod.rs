@@ -8,11 +8,11 @@ use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use futures::{stream, StreamExt};
 use nym_api_requests::models::{
-    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
+    AuthenticatorDetails, IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
 };
+use nym_api_requests::nym_nodes::NodeRole;
 use nym_config::defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
 use nym_contracts_common::IdentityKey;
-use nym_mixnet_contract_common::Gateway;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -56,8 +56,6 @@ pub enum NodeDescribeCacheError {
 }
 
 pub struct NodeDescriptionProvider {
-    // for now we only care about gateways, nothing more
-    // network_gateways: SharedCache<Vec<GatewayBond>>,
     contract_cache: NymContractCache,
 
     batch_size: usize,
@@ -79,18 +77,23 @@ impl NodeDescriptionProvider {
 }
 
 async fn try_get_client(
-    gateway: &Gateway,
+    host: &str,
+    identity_key: &IdentityKey,
+    port: Option<u16>,
 ) -> Result<nym_node_requests::api::Client, NodeDescribeCacheError> {
-    let gateway_host = &gateway.host;
-
     // first try the standard port in case the operator didn't put the node behind the proxy,
     // then default https (443)
     // finally default http (80)
-    let addresses_to_try = vec![
-        format!("http://{gateway_host}:{DEFAULT_NYM_NODE_HTTP_PORT}"),
-        format!("https://{gateway_host}"),
-        format!("http://{gateway_host}"),
+    let mut addresses_to_try = vec![
+        format!("http://{host}:{DEFAULT_NYM_NODE_HTTP_PORT}"),
+        format!("http://{host}:8000"),
+        format!("https://{host}"),
+        format!("http://{host}"),
     ];
+
+    if let Some(port) = port {
+        addresses_to_try.insert(0, format!("http://{host}:{port}"));
+    }
 
     for address in addresses_to_try {
         // if provided host was malformed, no point in continuing
@@ -98,8 +101,8 @@ async fn try_get_client(
             Ok(client) => client,
             Err(err) => {
                 return Err(NodeDescribeCacheError::MalformedHost {
-                    host: gateway_host.clone(),
-                    gateway: gateway.identity_key.clone(),
+                    host: host.to_string(),
+                    gateway: identity_key.clone(),
                     source: err,
                 });
             }
@@ -112,28 +115,28 @@ async fn try_get_client(
     }
 
     Err(NodeDescribeCacheError::NoHttpPortsAvailable {
-        host: gateway_host.clone(),
-        gateway: gateway.identity_key.clone(),
+        host: host.to_string(),
+        gateway: identity_key.to_string(),
     })
 }
 
-async fn get_gateway_description(
-    gateway: Gateway,
+async fn try_get_description(
+    data: RefreshData,
 ) -> Result<(IdentityKey, NymNodeDescription), NodeDescribeCacheError> {
-    let client = try_get_client(&gateway).await?;
+    let client = try_get_client(&data.host(), &data.identity_key(), data.port()).await?;
 
     let host_info =
         client
             .get_host_information()
             .await
             .map_err(|err| NodeDescribeCacheError::ApiFailure {
-                gateway: gateway.identity_key.clone(),
+                gateway: data.identity_key().to_string(),
                 source: err,
             })?;
 
     if !host_info.verify_host_information() {
         return Err(NodeDescribeCacheError::MissignedHostInformation {
-            gateway: gateway.identity_key,
+            gateway: data.identity_key().clone(),
         });
     }
 
@@ -142,13 +145,13 @@ async fn get_gateway_description(
             .get_build_information()
             .await
             .map_err(|err| NodeDescribeCacheError::ApiFailure {
-                gateway: gateway.identity_key.clone(),
+                gateway: data.identity_key().clone(),
                 source: err,
             })?;
 
     // this can be an old node that hasn't yet exposed this
     let auxiliary_details = client.get_auxiliary_details().await.inspect_err(|err| {
-        debug!("could not obtain auxiliary details of gateway {}: {err} is it running an old version?", gateway.identity_key);
+        debug!("could not obtain auxiliary details of node {}: {err} is it running an old version?", data.identity_key());
     }).unwrap_or_default();
 
     let websockets =
@@ -156,7 +159,7 @@ async fn get_gateway_description(
             .get_mixnet_websockets()
             .await
             .map_err(|err| NodeDescribeCacheError::ApiFailure {
-                gateway: gateway.identity_key.clone(),
+                gateway: data.identity_key().clone(),
                 source: err,
             })?;
 
@@ -164,7 +167,7 @@ async fn get_gateway_description(
         if let Ok(nr) = client.get_network_requester().await {
             let exit_policy = client.get_exit_policy().await.map_err(|err| {
                 NodeDescribeCacheError::ApiFailure {
-                    gateway: gateway.identity_key.clone(),
+                    gateway: data.identity_key().clone(),
                     source: err,
                 }
             })?;
@@ -186,17 +189,61 @@ async fn get_gateway_description(
         None
     };
 
+    let authenticator = if let Ok(auth) = client.get_authenticator().await {
+        Some(AuthenticatorDetails {
+            address: auth.address,
+        })
+    } else {
+        None
+    };
+
     let description = NymNodeDescription {
         host_information: host_info.data.into(),
         last_polled: OffsetDateTime::now_utc().into(),
         build_information: build_info,
         network_requester,
         ip_packet_router,
+        authenticator,
         mixnet_websockets: websockets.into(),
         auxiliary_details,
+        role: data.role(),
     };
 
-    Ok((gateway.identity_key, description))
+    Ok((data.identity_key().clone(), description))
+}
+
+struct RefreshData {
+    host: String,
+    identity_key: IdentityKey,
+    role: NodeRole,
+    port: Option<u16>,
+}
+
+impl RefreshData {
+    pub fn new(host: String, identity_key: IdentityKey, role: NodeRole, port: Option<u16>) -> Self {
+        RefreshData {
+            host,
+            identity_key,
+            role,
+            port,
+        }
+    }
+
+    pub fn host(&self) -> String {
+        self.host.clone()
+    }
+
+    pub fn identity_key(&self) -> IdentityKey {
+        self.identity_key.clone()
+    }
+
+    pub fn port(&self) -> Option<u16> {
+        self.port
+    }
+
+    pub fn role(&self) -> NodeRole {
+        self.role.clone()
+    }
 }
 
 #[async_trait]
@@ -209,36 +256,56 @@ impl CacheItemProvider for NodeDescriptionProvider {
     }
 
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {
-        let gateways = self.contract_cache.gateways_all().await;
+        let mut host_id_pairs = self
+            .contract_cache
+            .gateways_all()
+            .await
+            .into_iter()
+            .map(|full| {
+                RefreshData::new(
+                    full.gateway.host,
+                    full.gateway.identity_key,
+                    NodeRole::EntryGateway,
+                    None,
+                )
+            })
+            .collect::<Vec<RefreshData>>();
 
-        // let guard = self.network_gateways.get().await?;
-        // let gateways = &*guard;
+        host_id_pairs.extend(
+            self.contract_cache
+                .mixnodes_all()
+                .await
+                .into_iter()
+                .map(|full| {
+                    RefreshData::new(
+                        full.bond_information.mix_node.host,
+                        full.bond_information.mix_node.identity_key,
+                        NodeRole::Mixnode {
+                            layer: full.bond_information.layer.into(),
+                        },
+                        Some(full.bond_information.mix_node.mix_port),
+                    )
+                })
+                .collect::<Vec<RefreshData>>(),
+        );
 
-        if gateways.is_empty() {
+        if host_id_pairs.is_empty() {
             return Ok(HashMap::new());
         }
 
-        // TODO: somehow bypass the 'higher-ranked lifetime error' and remove that redundant clone
-        let node_description = stream::iter(
-            gateways
-                // .deref()
-                // .clone()
-                .into_iter()
-                .map(|bond| bond.gateway)
-                .map(get_gateway_description),
-        )
-        .buffer_unordered(self.batch_size)
-        .filter_map(|res| async move {
-            match res {
-                Ok((identity, description)) => Some((identity, description)),
-                Err(err) => {
-                    debug!("failed to obtain gateway self-described data: {err}");
-                    None
+        let node_description = stream::iter(host_id_pairs.into_iter().map(try_get_description))
+            .buffer_unordered(self.batch_size)
+            .filter_map(|res| async move {
+                match res {
+                    Ok((identity, description)) => Some((identity, description)),
+                    Err(err) => {
+                        debug!("failed to obtain gateway self-described data: {err}");
+                        None
+                    }
                 }
-            }
-        })
-        .collect::<HashMap<_, _>>()
-        .await;
+            })
+            .collect::<HashMap<_, _>>()
+            .await;
 
         Ok(node_description)
     }

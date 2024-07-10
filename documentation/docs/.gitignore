@@ -1,6 +1,5 @@
 # mdbook files
 book/
-theme/
 
 # Compiled assets
 .sass-cache

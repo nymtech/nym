@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use log::{debug, error, warn};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::{NymTopology, NymTopologyError};
+use nym_validator_client::UserAgent;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use url::Url;
@@ -39,14 +40,26 @@ pub(crate) struct NymApiTopologyProvider {
 }
 
 impl NymApiTopologyProvider {
-    pub(crate) fn new(config: Config, mut nym_api_urls: Vec<Url>, client_version: String) -> Self {
+    pub(crate) fn new(
+        config: Config,
+        mut nym_api_urls: Vec<Url>,
+        client_version: String,
+        user_agent: Option<UserAgent>,
+    ) -> Self {
         nym_api_urls.shuffle(&mut thread_rng());
+
+        let validator_client = if let Some(user_agent) = user_agent {
+            nym_validator_client::client::NymApiClient::new_with_user_agent(
+                nym_api_urls[0].clone(),
+                user_agent,
+            )
+        } else {
+            nym_validator_client::client::NymApiClient::new(nym_api_urls[0].clone())
+        };
 
         NymApiTopologyProvider {
             config,
-            validator_client: nym_validator_client::client::NymApiClient::new(
-                nym_api_urls[0].clone(),
-            ),
+            validator_client,
             nym_api_urls,
             client_version,
             currently_used_api: 0,

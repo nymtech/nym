@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-pub use crate::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 use crate::error::NymNodeHttpError;
 use crate::middleware::logging;
 use crate::state::AppState;
@@ -9,6 +8,7 @@ use crate::NymNodeHTTPServer;
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
+use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
@@ -54,6 +54,7 @@ impl Config {
                     mixnode: Default::default(),
                     network_requester: Default::default(),
                     ip_packet_router: Default::default(),
+                    authenticator: Default::default(),
                 },
             },
         }
@@ -148,6 +149,12 @@ impl Config {
         self.api.v1_config.ip_packet_router.details = Some(ip_packet_router);
         self
     }
+
+    #[must_use]
+    pub fn with_authenticator_details(mut self, authenticator: Authenticator) -> Self {
+        self.api.v1_config.authenticator.details = Some(authenticator);
+        self
+    }
 }
 
 pub struct NymNodeRouter {
@@ -156,11 +163,7 @@ pub struct NymNodeRouter {
 
 impl NymNodeRouter {
     // TODO: move the wg state to a builder
-    pub fn new(
-        config: Config,
-        app_state: Option<AppState>,
-        initial_wg_state: Option<WireguardAppState>,
-    ) -> NymNodeRouter {
+    pub fn new(config: Config, app_state: Option<AppState>) -> NymNodeRouter {
         let state = app_state.unwrap_or(AppState::new());
 
         NymNodeRouter {
@@ -189,10 +192,7 @@ impl NymNodeRouter {
                     }),
                 )
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
-                .nest(
-                    routes::API,
-                    api::routes(config.api, initial_wg_state.unwrap_or_default()),
-                )
+                .nest(routes::API, api::routes(config.api))
                 .layer(axum::middleware::from_fn(logging::logger))
                 .with_state(state),
         }

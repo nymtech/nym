@@ -58,6 +58,7 @@ zeroize = { workspace = true }
 
 # internal
 
+nym-authenticator = { path = "../service-providers/authenticator" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-config = { path = "../common/config" }

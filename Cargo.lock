@@ -3951,6 +3951,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-authenticator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bs58 0.5.1",
+ "bytes",
+ "clap 4.5.4",
+ "fastrand 2.1.0",
+ "futures",
+ "ipnetwork 0.16.0",
+ "log",
+ "nym-authenticator-requests",
+ "nym-bin-common",
+ "nym-client-core",
+ "nym-config",
+ "nym-crypto",
+ "nym-id",
+ "nym-network-defaults",
+ "nym-sdk",
+ "nym-service-providers-common",
+ "nym-sphinx",
+ "nym-task",
+ "nym-types",
+ "nym-wireguard",
+ "nym-wireguard-types",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
+name = "nym-authenticator-requests"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "nym-sphinx",
+ "nym-wireguard-types",
+ "rand 0.8.5",
+ "serde",
+]
+
+[[package]]
 name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
@@ -4514,6 +4562,7 @@ dependencies = [
  "ipnetwork 0.16.0",
  "log",
  "nym-api-requests",
+ "nym-authenticator",
  "nym-bin-common",
  "nym-config",
  "nym-credentials",
@@ -4964,6 +5013,7 @@ dependencies = [
  "cupid",
  "humantime-serde",
  "ipnetwork 0.16.0",
+ "nym-authenticator",
  "nym-bin-common",
  "nym-client-core-config-types",
  "nym-config",

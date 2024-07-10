@@ -1,0 +1,17 @@
+[package]
+name = "nym-authenticator-requests"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+bincode = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+nym-sphinx = { path = "../nymsphinx" }
+nym-wireguard-types = { path = "../wireguard-types" }

@@ -8,7 +8,6 @@ use crate::node::helpers::{
     store_x25519_sphinx_keypair, DisplayDetails,
 };
 use crate::node::http::{sign_host_details, system_info::get_system_info};
-use ipnetwork::IpNetwork;
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::Gateway;
@@ -26,7 +25,6 @@ use nym_node::config::{
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
-use nym_node_http_api::router::WireguardAppState;
 use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 use nym_node_http_api::state::AppState;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
@@ -68,7 +66,6 @@ impl MixnodeData {
 pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
-    wireguard_data: WireguardGatewayData,
 }
 
 impl EntryGatewayData {
@@ -86,10 +83,7 @@ impl EntryGatewayData {
         Ok(())
     }
 
-    async fn new(
-        config: &EntryGatewayConfig,
-        wireguard_data: WireguardGatewayData,
-    ) -> Result<EntryGatewayData, EntryGatewayError> {
+    async fn new(config: &EntryGatewayConfig) -> Result<EntryGatewayData, EntryGatewayError> {
         Ok(EntryGatewayData {
             mnemonic: config.storage_paths.load_mnemonic_from_file()?,
             client_storage: nym_gateway::node::PersistentStorage::init(
@@ -98,7 +92,6 @@ impl EntryGatewayData {
             )
             .await
             .map_err(nym_gateway::GatewayError::from)?,
-            wireguard_data: wireguard_data.clone(),
         })
     }
 }
@@ -113,6 +106,9 @@ pub struct ExitGatewayData {
 
     ipr_ed25519: ed25519::PublicKey,
     ipr_x25519: x25519::PublicKey,
+
+    auth_ed25519: ed25519::PublicKey,
+    auth_x25519: x25519::PublicKey,
 }
 
 impl ExitGatewayData {
@@ -243,11 +239,24 @@ impl ExitGatewayData {
             "ip packet router x25519",
         )?;
 
+        let auth_paths = &config.storage_paths.authenticator;
+        let auth_ed25519 = load_key(
+            &auth_paths.public_ed25519_identity_key_file,
+            "authenticator ed25519",
+        )?;
+
+        let auth_x25519 = load_key(
+            &auth_paths.public_x25519_diffie_hellman_key_file,
+            "authenticator x25519",
+        )?;
+
         Ok(ExitGatewayData {
             nr_ed25519,
             nr_x25519,
             ipr_ed25519,
             ipr_x25519,
+            auth_ed25519,
+            auth_x25519,
         })
     }
 }
@@ -386,11 +395,7 @@ impl NymNode {
             description: load_node_description(&config.storage_paths.description)?,
             verloc_stats: Default::default(),
             mixnode: MixnodeData::new(&config.mixnode)?,
-            entry_gateway: EntryGatewayData::new(
-                &config.entry_gateway,
-                wireguard_data.inner.clone(),
-            )
-            .await?,
+            entry_gateway: EntryGatewayData::new(&config.entry_gateway).await?,
             exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
             wireguard: wireguard_data,
             config,
@@ -418,6 +423,14 @@ impl NymNode {
         Recipient::new(
             self.exit_gateway.ipr_ed25519,
             self.exit_gateway.ipr_x25519,
+            *self.ed25519_identity_keys.public_key(),
+        )
+    }
+
+    fn exit_authenticator_address(&self) -> Recipient {
+        Recipient::new(
+            self.exit_gateway.auth_ed25519,
+            self.exit_gateway.auth_x25519,
             *self.ed25519_identity_keys.public_key(),
         )
     }
@@ -487,6 +500,7 @@ impl NymNode {
             config,
             None,
             None,
+            None,
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.entry_gateway.client_storage.clone(),
@@ -514,6 +528,7 @@ impl NymNode {
             config.gateway,
             Some(config.nr_opts),
             Some(config.ipr_opts),
+            Some(config.auth_opts),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.entry_gateway.client_storage.clone(),
@@ -584,6 +599,13 @@ impl NymNode {
             encoded_x25519_key: self.exit_gateway.ipr_x25519.to_base58_string(),
             address: self.exit_ip_packet_router_address().to_string(),
         };
+
+        let auth_details = api_requests::v1::authenticator::models::Authenticator {
+            encoded_identity_key: self.exit_gateway.auth_ed25519.to_base58_string(),
+            encoded_x25519_key: self.exit_gateway.auth_x25519.to_base58_string(),
+            address: self.exit_authenticator_address().to_string(),
+        };
+
         let exit_policy_details =
             api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy {
                 enabled: true,
@@ -597,24 +619,13 @@ impl NymNode {
                 policy: None,
             };
 
-        let wireguard_private_network = IpNetwork::new(
-            self.config.wireguard.private_ip,
-            self.config.wireguard.private_network_prefix,
-        )?;
-
-        let wg_state = WireguardAppState::new(
-            self.entry_gateway.wireguard_data.clone(),
-            Default::default(),
-            self.config.wireguard.bind_address.port(),
-            wireguard_private_network,
-        )?;
-
         let mut config = nym_node_http_api::Config::new(bin_info_owned!(), host_details)
             .with_landing_page_assets(self.config.http.landing_page_assets_path.as_ref())
             .with_mixnode_details(mixnode_details)
             .with_gateway_details(gateway_details)
             .with_network_requester_details(nr_details)
             .with_ip_packet_router_details(ipr_details)
+            .with_authenticator_details(auth_details)
             .with_used_exit_policy(exit_policy_details)
             .with_description(self.description.clone())
             .with_auxiliary_details(auxiliary_details);
@@ -640,7 +651,7 @@ impl NymNode {
             .with_verloc_stats(self.verloc_stats.clone())
             .with_metrics_key(self.config.http.access_token.clone());
 
-        Ok(NymNodeRouter::new(config, Some(app_state), Some(wg_state))
+        Ok(NymNodeRouter::new(config, Some(app_state))
             .build_server(&self.config.http.bind_address)
             .await?)
     }

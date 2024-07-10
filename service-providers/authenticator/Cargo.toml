@@ -1,0 +1,43 @@
+[package]
+name = "nym-authenticator"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+bincode = { workspace = true }
+bs58 = { workspace = true }
+bytes = { workspace = true }
+clap = { workspace = true }
+fastrand = { workspace = true }
+futures = { workspace = true }
+ipnetwork = { workspace = true }
+log = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "net"] }
+tokio-stream = { workspace = true }
+tokio-util = { workspace = true, features = ["codec"] }
+url = { workspace = true }
+
+nym-authenticator-requests = { path = "../../common/authenticator-requests" }
+nym-bin-common = { path = "../../common/bin-common" }
+nym-client-core = { path = "../../common/client-core" }
+nym-config = { path = "../../common/config" }
+nym-crypto = { path = "../../common/crypto" }
+nym-id = { path = "../../common/nym-id" }
+nym-network-defaults = { path = "../../common/network-defaults" }
+nym-sdk = { path = "../../sdk/rust/nym-sdk" }
+nym-service-providers-common = { path = "../common" }
+nym-sphinx = { path = "../../common/nymsphinx" }
+nym-task = { path = "../../common/task" }
+nym-types = { path = "../../common/types" }
+nym-wireguard = { path = "../../common/wireguard" }
+nym-wireguard-types = { path = "../../common/wireguard-types" }

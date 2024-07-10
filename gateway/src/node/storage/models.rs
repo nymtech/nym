@@ -27,7 +27,7 @@ pub struct StoredMessage {
 #[derive(Debug, Clone, FromRow)]
 pub struct PersistedBandwidth {
     #[allow(dead_code)]
-    pub(crate) client_address_bs58: String,
+    pub(crate) client_id: i64,
     pub(crate) available: i64,
     pub(crate) expiration: Option<OffsetDateTime>,
 }

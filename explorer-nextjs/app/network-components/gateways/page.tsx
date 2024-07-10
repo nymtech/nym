@@ -29,6 +29,7 @@ import {
   GatewayRowType,
   gatewayToGridRow,
 } from "@/app/components/Gateways/Gateways";
+import { InfoOutlined } from "@mui/icons-material";
 
 const PageGateways = () => {
   const { gateways } = useMainContext();
@@ -134,6 +135,9 @@ const PageGateways = () => {
                     }
                     maxWidth={230}
                     arrow
+                    TooltipIcon={
+                      <InfoOutlined sx={{ width: 18, height: 18, mr: 1 }} />
+                    }
                   />
                   <CustomColumnHeading headingTitle="Routing Score" />
                 </Box>
@@ -251,6 +255,7 @@ const PageGateways = () => {
             bgColor={theme.palette.nym.networkExplorer.tooltip.background}
             maxWidth={230}
             arrow
+            TooltipIcon={<InfoOutlined sx={{ width: 18, height: 18, mr: 1 }} />}
           />
           <CustomColumnHeading headingTitle="Routing Score" />
         </>

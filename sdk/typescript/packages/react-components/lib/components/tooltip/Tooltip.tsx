@@ -21,6 +21,7 @@ export type CustomTooltipProps = {
   textColor?: string;
   bgColor?: string;
   maxWidth?: number;
+  TooltipIcon?: React.ReactElement;
 };
 
 const TooltipInfoIcon: React.ReactElement<any, any> = (
@@ -43,7 +44,7 @@ const TooltipInfoIcon: React.ReactElement<any, any> = (
 );
 
 export const Tooltip = (props: CustomTooltipProps) => {
-  const { title, arrow, id, placement, textColor, bgColor, maxWidth } = props;
+  const { title, arrow, id, placement, textColor, bgColor, maxWidth, TooltipIcon } = props;
   return (
     <MUITooltip
       title={title}
@@ -63,7 +64,7 @@ export const Tooltip = (props: CustomTooltipProps) => {
         },
       }}
     >
-      {TooltipInfoIcon}
+      {TooltipIcon || TooltipInfoIcon}
     </MUITooltip>
   );
 };

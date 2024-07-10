@@ -810,7 +810,7 @@ pub async fn try_upgrade_config_1_1_3<P: AsRef<Path>>(
             .ip_packet_router
             .private_ed25519_identity_key_file
             .parent()
-            .unwrap(),
+            .ok_or(NymNodeError::DataDirDerivationFailure)?,
     );
 
     let cfg = Config {

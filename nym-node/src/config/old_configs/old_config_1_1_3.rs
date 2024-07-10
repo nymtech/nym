@@ -2,11 +2,24 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #![allow(dead_code)]
-use crate::config::*;
+
+use crate::{config::*, error::KeyIOFailure};
+use entry_gateway::Debug as EntryGatewayConfigDebug;
+use exit_gateway::{IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug};
+use mixnode::{Verloc, VerlocDebug};
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::serde_helpers::de_maybe_port;
-use nym_crypto::asymmetric::encryption::KeyPair;
-use nym_pemstore::store_keypair;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_network_requester::{
+    set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
+    GatewayDetails,
+};
+use nym_pemstore::{load_key, store_key, store_keypair};
+use nym_sphinx_acknowledgements::AckKey;
+use persistence::{
+    AuthenticatorPaths, EntryGatewayPaths, ExitGatewayPaths, IpPacketRouterPaths, KeysPaths,
+    MixnodePaths, NetworkRequesterPaths, WireguardPaths,
+};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
@@ -75,6 +88,16 @@ pub enum NodeMode1_1_3 {
 
     #[clap(alias = "exit")]
     ExitGateway,
+}
+
+impl From<NodeMode1_1_3> for NodeMode {
+    fn from(config: NodeMode1_1_3) -> Self {
+        match config {
+            NodeMode1_1_3::Mixnode => NodeMode::Mixnode,
+            NodeMode1_1_3::EntryGateway => NodeMode::EntryGateway,
+            NodeMode1_1_3::ExitGateway => NodeMode::ExitGateway,
+        }
+    }
 }
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
@@ -730,37 +753,303 @@ impl Config1_1_3 {
     }
 }
 
-fn initialise(config: &Wireguard1_1_3) -> std::io::Result<()> {
+pub async fn initialise(
+    paths: &AuthenticatorPaths,
+    public_key: nym_crypto::asymmetric::identity::PublicKey,
+) -> Result<(), NymNodeError> {
     let mut rng = OsRng;
-    let x25519_keys = KeyPair::new(&mut rng);
+    let ed25519_keys = ed25519::KeyPair::new(&mut rng);
+    let x25519_keys = x25519::KeyPair::new(&mut rng);
+    let aes128ctr_key = AckKey::new(&mut rng);
+    let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
 
-    store_keypair(
-        &x25519_keys,
-        &config.storage_paths.x25519_wireguard_storage_paths(),
-    )?;
+    store_keypair(&ed25519_keys, &paths.ed25519_identity_storage_paths()).map_err(|e| {
+        KeyIOFailure::KeyPairStoreFailure {
+            keys: "ed25519-identity".to_string(),
+            paths: paths.ed25519_identity_storage_paths(),
+            err: e,
+        }
+    })?;
+    store_keypair(&x25519_keys, &paths.x25519_diffie_hellman_storage_paths()).map_err(|e| {
+        KeyIOFailure::KeyPairStoreFailure {
+            keys: "x25519-dh".to_string(),
+            paths: paths.x25519_diffie_hellman_storage_paths(),
+            err: e,
+        }
+    })?;
+    store_key(&aes128ctr_key, &paths.ack_key_file).map_err(|e| KeyIOFailure::KeyStoreFailure {
+        key: "ack".to_string(),
+        path: paths.ack_key_file.clone(),
+        err: e,
+    })?;
+
+    // insert all required information into the gateways store
+    // (I hate that we have to do it, but that's currently the simplest thing to do)
+    let storage = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    store_gateway_details(&storage, &gateway_details).await?;
+    set_active_gateway(&storage, &gateway_details.gateway_id().to_base58_string()).await?;
 
     Ok(())
 }
 
-// currently there are no upgrades
-pub async fn try_upgrade_config_1_1_3<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError> {
-    let old_cfg = Config::read_from_path(&path)?;
+pub async fn try_upgrade_config_1_1_3<P: AsRef<Path>>(
+    path: P,
+    prev_config: Option<Config1_1_3>,
+) -> Result<Config, NymNodeError> {
+    tracing::debug!("Updating from 1.1.3");
+    let old_cfg = if let Some(prev_config) = prev_config {
+        prev_config
+    } else {
+        Config1_1_3::read_from_path(&path)?
+    };
+
+    let authenticator_paths = AuthenticatorPaths::new(
+        old_cfg
+            .exit_gateway
+            .storage_paths
+            .ip_packet_router
+            .private_ed25519_identity_key_file
+            .parent()
+            .unwrap(),
+    );
+
     let cfg = Config {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
-        mode: old_cfg.mode,
-        host: old_cfg.host,
-        mixnet: old_cfg.mixnet,
-        storage_paths: old_cfg.storage_paths,
-        http: old_cfg.http,
-        wireguard: old_cfg.wireguard,
-        mixnode: old_cfg.mixnode,
-        entry_gateway: old_cfg.entry_gateway,
-        exit_gateway: old_cfg.exit_gateway,
-        logging: old_cfg.logging,
+        mode: old_cfg.mode.into(),
+        host: Host {
+            public_ips: old_cfg.host.public_ips,
+            hostname: old_cfg.host.hostname,
+            location: old_cfg.host.location,
+        },
+        mixnet: Mixnet {
+            bind_address: old_cfg.mixnet.bind_address,
+            nym_api_urls: old_cfg.mixnet.nym_api_urls,
+            nyxd_urls: old_cfg.mixnet.nyxd_urls,
+            debug: MixnetDebug {
+                packet_forwarding_initial_backoff: old_cfg
+                    .mixnet
+                    .debug
+                    .packet_forwarding_initial_backoff,
+                packet_forwarding_maximum_backoff: old_cfg
+                    .mixnet
+                    .debug
+                    .packet_forwarding_maximum_backoff,
+                initial_connection_timeout: old_cfg.mixnet.debug.initial_connection_timeout,
+                maximum_connection_buffer_size: old_cfg.mixnet.debug.maximum_connection_buffer_size,
+                unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
+            },
+        },
+        storage_paths: NymNodePaths {
+            keys: KeysPaths {
+                private_ed25519_identity_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_ed25519_identity_key_file,
+                public_ed25519_identity_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .public_ed25519_identity_key_file,
+                private_x25519_sphinx_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_x25519_sphinx_key_file,
+                public_x25519_sphinx_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .public_x25519_sphinx_key_file,
+                private_x25519_noise_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .private_x25519_noise_key_file,
+                public_x25519_noise_key_file: old_cfg
+                    .storage_paths
+                    .keys
+                    .public_x25519_noise_key_file,
+            },
+            description: old_cfg.storage_paths.description,
+        },
+        http: Http {
+            bind_address: old_cfg.http.bind_address,
+            landing_page_assets_path: old_cfg.http.landing_page_assets_path,
+            access_token: old_cfg.http.access_token,
+            expose_system_info: old_cfg.http.expose_system_info,
+            expose_system_hardware: old_cfg.http.expose_system_hardware,
+            expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
+        },
+        wireguard: Wireguard {
+            enabled: old_cfg.wireguard.enabled,
+            bind_address: old_cfg.wireguard.bind_address,
+            private_ip: old_cfg.wireguard.private_ip,
+            announced_port: old_cfg.wireguard.announced_port,
+            private_network_prefix: old_cfg.wireguard.private_network_prefix,
+            storage_paths: WireguardPaths {
+                private_diffie_hellman_key_file: old_cfg
+                    .wireguard
+                    .storage_paths
+                    .private_diffie_hellman_key_file,
+                public_diffie_hellman_key_file: old_cfg
+                    .wireguard
+                    .storage_paths
+                    .public_diffie_hellman_key_file,
+            },
+        },
+        mixnode: MixnodeConfig {
+            storage_paths: MixnodePaths {},
+            verloc: Verloc {
+                bind_address: old_cfg.mixnode.verloc.bind_address,
+                debug: VerlocDebug {
+                    packets_per_node: old_cfg.mixnode.verloc.debug.packets_per_node,
+                    connection_timeout: old_cfg.mixnode.verloc.debug.connection_timeout,
+                    packet_timeout: old_cfg.mixnode.verloc.debug.packet_timeout,
+                    delay_between_packets: old_cfg.mixnode.verloc.debug.delay_between_packets,
+                    tested_nodes_batch_size: old_cfg.mixnode.verloc.debug.tested_nodes_batch_size,
+                    testing_interval: old_cfg.mixnode.verloc.debug.testing_interval,
+                    retry_timeout: old_cfg.mixnode.verloc.debug.retry_timeout,
+                },
+            },
+            debug: mixnode::Debug {
+                node_stats_logging_delay: old_cfg.mixnode.debug.node_stats_logging_delay,
+                node_stats_updating_delay: old_cfg.mixnode.debug.node_stats_updating_delay,
+            },
+        },
+        entry_gateway: EntryGatewayConfig {
+            storage_paths: EntryGatewayPaths {
+                clients_storage: old_cfg.entry_gateway.storage_paths.clients_storage,
+                cosmos_mnemonic: old_cfg.entry_gateway.storage_paths.cosmos_mnemonic,
+                authenticator: authenticator_paths.clone(),
+            },
+            enforce_zk_nyms: old_cfg.entry_gateway.enforce_zk_nyms,
+            bind_address: old_cfg.entry_gateway.bind_address,
+            announce_ws_port: old_cfg.entry_gateway.announce_ws_port,
+            announce_wss_port: old_cfg.entry_gateway.announce_wss_port,
+            debug: EntryGatewayConfigDebug {
+                message_retrieval_limit: old_cfg.entry_gateway.debug.message_retrieval_limit,
+            },
+        },
+        exit_gateway: ExitGatewayConfig {
+            storage_paths: ExitGatewayPaths {
+                network_requester: NetworkRequesterPaths {
+                    private_ed25519_identity_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .network_requester
+                        .private_ed25519_identity_key_file,
+                    public_ed25519_identity_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .network_requester
+                        .public_ed25519_identity_key_file,
+                    private_x25519_diffie_hellman_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .network_requester
+                        .private_x25519_diffie_hellman_key_file,
+                    public_x25519_diffie_hellman_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .network_requester
+                        .public_x25519_diffie_hellman_key_file,
+                    ack_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .network_requester
+                        .ack_key_file,
+                    reply_surb_database: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .network_requester
+                        .reply_surb_database,
+                    gateway_registrations: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .network_requester
+                        .gateway_registrations,
+                },
+                ip_packet_router: IpPacketRouterPaths {
+                    private_ed25519_identity_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .ip_packet_router
+                        .private_ed25519_identity_key_file,
+                    public_ed25519_identity_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .ip_packet_router
+                        .public_ed25519_identity_key_file,
+                    private_x25519_diffie_hellman_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .ip_packet_router
+                        .private_x25519_diffie_hellman_key_file,
+                    public_x25519_diffie_hellman_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .ip_packet_router
+                        .public_x25519_diffie_hellman_key_file,
+                    ack_key_file: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .ip_packet_router
+                        .ack_key_file,
+                    reply_surb_database: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .ip_packet_router
+                        .reply_surb_database,
+                    gateway_registrations: old_cfg
+                        .exit_gateway
+                        .storage_paths
+                        .ip_packet_router
+                        .gateway_registrations,
+                },
+                authenticator: authenticator_paths.clone(),
+            },
+            open_proxy: old_cfg.exit_gateway.open_proxy,
+            upstream_exit_policy_url: old_cfg.exit_gateway.upstream_exit_policy_url,
+            network_requester: NetworkRequester {
+                debug: NetworkRequesterDebug {
+                    enabled: old_cfg.exit_gateway.network_requester.debug.enabled,
+                    disable_poisson_rate: old_cfg
+                        .exit_gateway
+                        .network_requester
+                        .debug
+                        .disable_poisson_rate,
+                    client_debug: old_cfg.exit_gateway.network_requester.debug.client_debug,
+                },
+            },
+            ip_packet_router: IpPacketRouter {
+                debug: IpPacketRouterDebug {
+                    enabled: old_cfg.exit_gateway.ip_packet_router.debug.enabled,
+                    disable_poisson_rate: old_cfg
+                        .exit_gateway
+                        .ip_packet_router
+                        .debug
+                        .disable_poisson_rate,
+                    client_debug: old_cfg.exit_gateway.ip_packet_router.debug.client_debug,
+                },
+            },
+        },
+        authenticator: Default::default(),
+        logging: LoggingSettings {},
     };
 
-    cfg.save()?;
+    let public_key = load_key(
+        cfg.storage_paths
+            .keys
+            .ed25519_identity_storage_paths()
+            .public_key_path,
+    )
+    .map_err(|source| NymNodeError::DescriptionLoadFailure {
+        path: cfg
+            .storage_paths
+            .keys
+            .ed25519_identity_storage_paths()
+            .public_key_path,
+        source,
+    })?;
 
-    Ok(())
+    initialise(&authenticator_paths, public_key).await?;
+
+    Ok(cfg)
 }

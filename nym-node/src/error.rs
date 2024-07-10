@@ -143,6 +143,13 @@ pub enum NymNodeError {
 
     #[error(transparent)]
     ExitGatewayFailure(#[from] ExitGatewayError),
+
+    // TODO: more granular errors
+    #[error(transparent)]
+    ExternalClientCore(#[from] ClientCoreError),
+
+    #[error("failed upgrade")]
+    FailedUpgrade,
 }
 
 impl From<nym_mixnode::error::MixnodeError> for NymNodeError {
@@ -172,6 +179,13 @@ pub enum MixnodeError {
 
 #[derive(Debug, Error)]
 pub enum EntryGatewayError {
+    #[error(transparent)]
+    KeyFailure(#[from] KeyIOFailure),
+
+    // TODO: more granular errors
+    #[error(transparent)]
+    ExternalClientCore(#[from] ClientCoreError),
+
     #[error("failed to load entry gateway account mnemonic from {}: {source}", path.display())]
     MnemonicLoadFailure {
         path: PathBuf,

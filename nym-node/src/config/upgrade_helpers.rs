@@ -1,8 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use tracing::debug;
-
 use crate::config::old_configs::*;
 use crate::config::Config;
 use crate::error::NymNodeError;
@@ -10,14 +8,14 @@ use std::path::Path;
 
 // currently there are no upgrades
 async fn try_upgrade_config(path: &Path) -> Result<(), NymNodeError> {
-    if try_upgrade_config_1_1_2(path).await.is_ok() {
-        debug!("Updated from 1.1.2 or previous");
+    let cfg = try_upgrade_config_1_1_2(path, None).await.ok();
+    match try_upgrade_config_1_1_3(path, cfg).await {
+        Ok(cfg) => cfg.save(),
+        Err(e) => {
+            tracing::error!("Failed to finish upgrade - {e}");
+            Err(NymNodeError::FailedUpgrade)
+        }
     }
-    if try_upgrade_config_1_1_3(path).await.is_ok() {
-        debug!("Updated from 1.1.3");
-    }
-
-    Ok(())
 }
 
 pub async fn try_load_current_config<P: AsRef<Path>>(

@@ -754,9 +754,16 @@ fn initialise(config: &Wireguard1_1_3) -> std::io::Result<()> {
     Ok(())
 }
 
-// currently there are no upgrades
-pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(path: P) -> Result<(), NymNodeError> {
-    let old_cfg = Config1_1_2::read_from_path(&path)?;
+pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
+    path: P,
+    prev_config: Option<Config1_1_2>,
+) -> Result<Config1_1_3, NymNodeError> {
+    tracing::debug!("Updating from 1.1.2");
+    let old_cfg = if let Some(prev_config) = prev_config {
+        prev_config
+    } else {
+        Config1_1_2::read_from_path(&path)?
+    };
     let wireguard = Wireguard1_1_3 {
         enabled: old_cfg.wireguard.enabled,
         bind_address: old_cfg.wireguard.bind_address,
@@ -972,7 +979,5 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(path: P) -> Result<(), Nym
         logging: LoggingSettings1_1_3 {},
     };
 
-    cfg.save()?;
-
-    Ok(())
+    Ok(cfg)
 }

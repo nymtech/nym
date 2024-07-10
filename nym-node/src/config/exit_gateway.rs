@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
-use super::{authenticator::Authenticator, LocalWireguardOpts};
+use super::LocalWireguardOpts;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -32,8 +32,6 @@ pub struct ExitGatewayConfig {
     pub network_requester: NetworkRequester,
 
     pub ip_packet_router: IpPacketRouter,
-
-    pub authenticator: Authenticator,
 }
 
 impl ExitGatewayConfig {
@@ -49,7 +47,6 @@ impl ExitGatewayConfig {
                 .expect("invalid default exit policy URL"),
             network_requester: Default::default(),
             ip_packet_router: Default::default(),
-            authenticator: Default::default(),
         }
     }
 }
@@ -244,7 +241,7 @@ pub fn ephemeral_exit_gateway_config(
         config: nym_authenticator::Config {
             base: nym_client_core_config_types::Config {
                 client: base_client_config(&config),
-                debug: config.exit_gateway.authenticator.debug.client_debug,
+                debug: config.authenticator.debug.client_debug,
             },
             authenticator: config.wireguard.clone().into(),
             storage_paths: nym_authenticator::config::AuthenticatorPaths {

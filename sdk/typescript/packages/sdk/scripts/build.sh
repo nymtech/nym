@@ -20,6 +20,19 @@ rm -f src/mixnet/wasm/worker.js
 mv dist/worker.js src/mixnet/wasm/worker.js
 
 #-------------------------------------------------------
+# WEB WORKER (zk-nym WASM)
+#-------------------------------------------------------
+# The web worker needs to be bundled because the WASM bundle needs to be loaded synchronously and all dependencies
+# must be included in the worker script (because it is not loaded as an ES Module)
+
+# build the worker
+rollup -c rollup-zk-nym-worker.config.mjs
+
+# move it next to the Typescript `src/index.ts` so it can be inlined by rollup
+cp dist/worker.js src/zk-nym/worker.js || true
+rm dist/worker.js || true
+
+#-------------------------------------------------------
 # ESM
 #-------------------------------------------------------
 

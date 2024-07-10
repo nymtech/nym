@@ -119,7 +119,8 @@ members = [
     # "wasm/full-nym-wasm",  # If we uncomment this again, remember to also uncomment the profile settings below
     "wasm/mix-fetch",
     "wasm/node-tester",
-    "wasm/zknym-lib",
+    "wasm/zk-nym-lib",
+    "wasm/zk-nym-faucet-lib",
 ]
 
 default-members = [
@@ -346,7 +347,6 @@ wasm-bindgen-futures = "0.4.39"
 wasmtimer = "0.2.0"
 web-sys = "0.3.69"
 itertools = "0.12.0"
-
 
 # Profile settings for individual crates
 

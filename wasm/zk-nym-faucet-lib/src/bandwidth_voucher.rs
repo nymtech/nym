@@ -4,7 +4,7 @@
 use crate::error::ZkNymError;
 use crate::generic_scheme::get_params;
 use crate::types::{CredentialWrapper, ParametersWrapper, UnblindableShare};
-use crate::vpn_api_client::types::{
+use crate::zk_nym_faucet_client::types::{
     AttributesResponse, BandwidthVoucherResponse, PartialVerificationKeysResponse,
 };
 use nym_coconut::{
@@ -200,7 +200,7 @@ pub struct SerialisedNymIssuedBandwidthVoucher {
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
-//     use crate::vpn_api_client::client::{new_client, NymVpnApiClient};
+//     use crate::zk_nym_faucet_client::client::{new_client, NymVpnApiClient};
 //
 //     #[ignore]
 //     #[tokio::test]

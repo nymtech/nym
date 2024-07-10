@@ -3,19 +3,6 @@
 
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-// #[derive(Clone)]
-// pub struct CoconutCredential {
-//     #[allow(dead_code)]
-//     pub id: i64,
-//     pub voucher_value: String,
-//     pub voucher_info: String,
-//     pub serial_number: String,
-//     pub binding_number: String,
-//     pub signature: String,
-//     pub epoch_id: String,
-//     pub consumed: bool,
-// }
-
 #[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
 #[derive(Zeroize, ZeroizeOnDrop, Clone)]
 pub struct StoredIssuedCredential {

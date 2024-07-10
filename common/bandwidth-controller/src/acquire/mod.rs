@@ -17,13 +17,17 @@ use zeroize::Zeroizing;
 
 pub mod state;
 
-pub async fn deposit<C>(client: &C, amount: Coin) -> Result<State, BandwidthControllerError>
+pub async fn deposit<C>(
+    client: &C,
+    amount: impl Into<Coin>,
+) -> Result<State, BandwidthControllerError>
 where
     C: CoconutBandwidthSigningClient + Sync,
 {
     let mut rng = OsRng;
     let signing_key = identity::PrivateKey::new(&mut rng);
     let encryption_key = encryption::PrivateKey::new(&mut rng);
+    let amount = amount.into();
 
     let tx_hash = client
         .deposit(

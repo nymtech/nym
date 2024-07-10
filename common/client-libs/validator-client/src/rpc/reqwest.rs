@@ -109,7 +109,8 @@ trait TendermintRpcErrorMap {
 
 impl TendermintRpcErrorMap for reqwest::Error {
     fn into_rpc_err(self) -> Error {
-        todo!()
+        // that's not the best error converion, but it's better than a panic
+        Error::client_internal(self.to_string())
     }
 }
 

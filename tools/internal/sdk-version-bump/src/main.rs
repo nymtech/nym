@@ -229,6 +229,7 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_cargo("wasm/node-tester");
     // packages.register_cargo("wasm/full-nym-wasm");
     packages.register_cargo("nym-browser-extension/storage");
+    packages.register_cargo("wasm/zknym-lib");
 
     // js packages that will have their package.json modified
     packages.register_json("nym-wallet");
@@ -242,6 +243,7 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_json("sdk/typescript/examples/node-tester/parcel");
     packages.register_json("sdk/typescript/examples/node-tester/plain-html");
     packages.register_json("sdk/typescript/examples/node-tester/react");
+    packages.register_json("sdk/typescript/examples/zk-nyms/browser");
     packages.register_json("sdk/typescript/packages/mix-fetch");
     packages.register_json("sdk/typescript/packages/mix-fetch-node");
     packages.register_json("sdk/typescript/packages/mix-fetch/internal-dev");
@@ -275,6 +277,8 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_known_js_dependency("@nymproject/nym-validator-client");
     packages.register_known_js_dependency("@nymproject/ts-sdk-docs");
     packages.register_known_js_dependency("@nymproject/contract-clients");
+
+    packages.register_known_js_dependency("@nymproject/zknym-lib");
 
     packages
 }

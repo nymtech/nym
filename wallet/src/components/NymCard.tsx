@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, CardHeader, SxProps } from '@mui/material';
 import { styled, Theme } from '@mui/material/styles';
 import { Title } from './Title';

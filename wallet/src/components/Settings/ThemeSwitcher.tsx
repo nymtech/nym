@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Stack, Switch, Typography } from '@mui/material';
 import ModeNightOutlinedIcon from '@mui/icons-material/ModeNightOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';

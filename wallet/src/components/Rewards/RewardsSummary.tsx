@@ -1,4 +1,3 @@
-import React from 'react';
 import { CircularProgress, Stack, StackProps, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useDelegationContext } from '@src/context/delegations';

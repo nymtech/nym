@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, CircularProgress, DialogActions, DialogContent, Typography } from '@mui/material';
 import { useKeyPress } from '@src/hooks/useKeyPress';
 import { PasswordInput } from '@nymproject/react';

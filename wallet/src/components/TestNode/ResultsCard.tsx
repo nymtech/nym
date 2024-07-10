@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stack, Typography, Card } from '@mui/material';
 
 export const ResultsCardDetail = ({

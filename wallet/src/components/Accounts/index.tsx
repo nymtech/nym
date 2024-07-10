@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { AccountsProvider, AppContext } from '@src/context';
 import { Accounts, SingleAccount } from './Accounts';
 

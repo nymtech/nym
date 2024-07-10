@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CurrencyDenom,
   DecCoin,
@@ -193,8 +193,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     };
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const undelegateVesting = async (mix_id: number, _fee?: FeeDetails) => ({
+  const undelegateVesting = async (_: number, _fee?: FeeDetails) => ({
     logs_json: '',
     data_json: '',
     transaction_hash: '',

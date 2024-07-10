@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { Delegate, Undelegate } from '../../svg-icons';
 import { ActionsMenu, ActionsMenuItem } from '../ActionsMenu';

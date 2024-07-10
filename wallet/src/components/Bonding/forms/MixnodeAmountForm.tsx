@@ -1,7 +1,7 @@
-import React, { useContext, useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Box, FormHelperText, Stack, TextField, Typography } from '@mui/material';
-import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
+import { yupResolver } from '@hookform/resolvers/yup/dist/yup.js';
 import { CurrencyFormField } from '@nymproject/react';
 import { CurrencyDenom } from '@nymproject/types';
 import { amountSchema } from './mixnodeValidationSchema';

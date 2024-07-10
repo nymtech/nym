@@ -44,7 +44,7 @@ const Settings = () => {
               <Tabs
                 tabs={tabs}
                 selectedTab={currentTab}
-                onChange={(e, tab) => setCurrentTab(tab as SettingsTabs)}
+                onChange={(_, tab) => setCurrentTab(tab as SettingsTabs)}
                 tabSx={{
                   bgcolor: 'transparent',
                   borderBottom: 'none',

@@ -1,9 +1,9 @@
 /* eslint-disable no-nested-ternary */
-import React, { useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Box, Button, Chip, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';
 import { PercentOutlined } from '@mui/icons-material';
-import { yupResolver } from '@hookform/resolvers/yup';
+import { yupResolver } from '@hookform/resolvers/yup/dist/yup.js';
 import { InclusionProbabilityResponse, SelectionChance } from '@nymproject/types';
 import { validationSchema } from './validationSchema';
 import { InfoTooltip } from '../../components';

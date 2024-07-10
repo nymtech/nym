@@ -1,3 +1,4 @@
+import React from 'react';
 import { NymWalletThemeWithMode } from '../src/theme/NymWalletTheme';
 import { Box } from '@mui/material';
 

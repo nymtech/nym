@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Box, Stack, SxProps } from '@mui/material';
 import { FeeDetails, DecCoin, CurrencyDenom } from '@nymproject/types';
 import { AppContext } from 'src/context';

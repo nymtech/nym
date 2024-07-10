@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useEffect, useMemo, useState } from 'react';
 import { createMnemonic } from '@src/requests';
 import { TMnemonicWords } from '@src/pages/auth/types';
 

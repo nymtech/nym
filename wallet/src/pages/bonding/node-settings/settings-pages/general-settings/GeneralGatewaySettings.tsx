@@ -1,7 +1,7 @@
-import React, { useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { clean } from 'semver';
-import { yupResolver } from '@hookform/resolvers/yup';
+import { yupResolver } from '@hookform/resolvers/yup/dist/yup.js';
 import { Button, Divider, Typography, TextField, Grid, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import {

@@ -1,4 +1,4 @@
-import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { AccountEntry } from '@nymproject/types';
 import { addAccount as addAccountRequest, renameAccount, showMnemonicForAccount } from '@src/requests';
 import { useSnackbar } from 'notistack';

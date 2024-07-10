@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stack, Typography, SxProps } from '@mui/material';
 import { Link } from '@nymproject/react';
 import { ConfirmationModal } from '@src/components/Modals/ConfirmationModal';

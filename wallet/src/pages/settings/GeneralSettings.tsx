@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Divider, Stack, Typography } from '@mui/material';
 import { AppVersion, ThemeSwitcher } from '../../components/Settings';
 

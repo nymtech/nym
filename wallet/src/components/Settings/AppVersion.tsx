@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Button, Stack, Typography } from '@mui/material';
 import { checkUpdate } from '@tauri-apps/api/updater';
 import { AppContext } from '../../context';

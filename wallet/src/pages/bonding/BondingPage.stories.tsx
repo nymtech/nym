@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { BondingPage } from './Bonding';
 import { MockBondingContextProvider } from '../../context/mocks/bonding';
 

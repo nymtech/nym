@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, Dialog, Divider } from '@mui/material';
 
 import { sleep } from '@src/utils/sleep';
 import { ResultsCardDetail } from './ResultsCard';
+import { NymLogo } from '@nymproject/react';
 
 export const PrintResults = ({
   packetsSent,

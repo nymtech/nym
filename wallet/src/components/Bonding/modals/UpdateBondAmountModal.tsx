@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Box, Stack } from '@mui/material';
 import Big from 'big.js';
 import { CurrencyFormField } from '@nymproject/react';

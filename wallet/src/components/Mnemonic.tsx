@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Checkbox, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
 import { Title } from '@src/pages/auth/components/heading';
 import { Warning } from './Warning';

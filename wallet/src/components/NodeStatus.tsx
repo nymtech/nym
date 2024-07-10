@@ -1,4 +1,3 @@
-import React from 'react';
 import { Typography } from '@mui/material';
 import { CircleOutlined, PauseCircleOutlined, CheckCircleOutline } from '@mui/icons-material';
 import { MixnodeStatus } from '@nymproject/types';

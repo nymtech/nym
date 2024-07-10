@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Refresh } from '@mui/icons-material';
 import { Grid, IconButton, Typography } from '@mui/material';
 import { useSnackbar } from 'notistack';

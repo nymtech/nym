@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Alert, Box, CircularProgress } from '@mui/material';
 import { SimpleModal } from '@src/components/Modals/SimpleModal';
 import { ModalListItem } from '@src/components/Modals/ModalListItem';

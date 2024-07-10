@@ -1,4 +1,3 @@
-import React from 'react';
 import { InfoOutlined } from '@mui/icons-material';
 import { Tooltip, TooltipProps } from '@mui/material';
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react';

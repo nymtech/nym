@@ -1,4 +1,3 @@
-import React from 'react';
 import { FeeDetails } from '@nymproject/types';
 import { CircularProgress } from '@mui/material';
 import { ModalListItem } from './ModalListItem';

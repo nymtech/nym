@@ -1,4 +1,5 @@
-import React, { useContext, useState } from 'react';
+import React from 'react';
+import { useContext, useState } from 'react';
 import { Alert, Box, Paper, Dialog, Typography } from '@mui/material';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import RefreshIcon from '@mui/icons-material/Refresh';

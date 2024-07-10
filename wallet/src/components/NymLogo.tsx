@@ -1,4 +1,3 @@
-import React from 'react';
 import { NymLogo as NymLogoReact } from '@nymproject/react';
 
 const imgSize = {

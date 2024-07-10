@@ -1,4 +1,3 @@
-import React from 'react';
 import { Avatar, Typography } from '@mui/material';
 import stc from 'string-to-color';
 import { TAccount } from '@src/types';

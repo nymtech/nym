@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import { AccountsContext, AppContext } from '@src/context';
 import { EditAccountModal } from './modals/EditAccountModal';
 import { AddAccountModal } from './modals/AddAccountModal';

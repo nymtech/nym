@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Button, Modal, SxProps, Typography } from '@mui/material';
 import { modalStyle } from './styles';
 

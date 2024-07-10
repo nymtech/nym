@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { AppBar as MuiAppBar, Grid, IconButton, Toolbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { Logout, SettingsOutlined as SettingsIcon } from '@mui/icons-material';

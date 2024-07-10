@@ -1,4 +1,4 @@
-import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getDelegationSummary, undelegateFromMixnode } from '@src/requests/delegation';
 import {
   DecCoin,
@@ -69,8 +69,7 @@ export const DelegationContext = createContext<TDelegationContext>({
 export const DelegationContextProvider: FC<{
   network?: Network;
   children: React.ReactNode;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-}> = ({ network, children }) => {
+}> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [delegationItemErrors, setDelegationItemErrors] = useState<{ nodeId: string; errors: string }>();
   const [delegations, setDelegations] = useState<undefined | TDelegations>();

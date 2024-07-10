@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, SxProps } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 

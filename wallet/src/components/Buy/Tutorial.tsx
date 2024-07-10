@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import { useContext, useState } from 'react';
 import { Button, Stack, Typography, Grid, useMediaQuery, useTheme } from '@mui/material';
 import { Tune as TuneIcon, BorderColor as BorderColorIcon } from '@mui/icons-material';
 import { CoinMark } from '@nymproject/react';

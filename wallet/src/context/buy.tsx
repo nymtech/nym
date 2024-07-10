@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { sign } from '@src/requests';
 import { Console } from '@src/utils/console';
 // import { AppContext } from './main';

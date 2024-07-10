@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React from 'react';
 import { DelegationPage } from './index';
 import { MockDelegationContextProvider } from '../../context/mocks/delegations';
 import { MockRewardsContextProvider } from '../../context/mocks/rewards';

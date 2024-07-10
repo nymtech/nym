@@ -1,4 +1,3 @@
-import React from 'react';
 import { Typography, SxProps, Stack } from '@mui/material';
 import { Link } from '@nymproject/react';
 import { LoadingModal } from '../Modals/LoadingModal';

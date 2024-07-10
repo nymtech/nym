@@ -1,4 +1,3 @@
-import React from 'react';
 import { Tab, Tabs as MuiTabs, Box } from '@mui/material';
 
 export const Tabs: FCWithChildren<{

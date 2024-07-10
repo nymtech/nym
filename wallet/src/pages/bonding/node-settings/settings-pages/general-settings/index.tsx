@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Button, Divider, Grid } from '@mui/material';
 import { isGateway, isMixnode } from '@src/types';
 import { TBondedMixnode, TBondedGateway } from '@src/context/bonding';

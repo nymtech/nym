@@ -1,11 +1,10 @@
-import React from 'react';
 import { FeeDetails } from '@nymproject/types';
 import { Box } from '@mui/material';
 import { useTheme, Theme } from '@mui/material/styles';
 import { SimpleModal } from './Modals/SimpleModal';
 import { ModalFee } from './Modals/ModalFee';
 import { ModalDivider } from './Modals/ModalDivider';
-import { backDropStyles, modalStyles } from '../../.storybook/storiesStyles';
+import { backDropStyles, modalStyles } from './Modals/styles';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook

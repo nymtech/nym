@@ -1,4 +1,3 @@
-import React from 'react';
 import { SxProps } from '@mui/material';
 import { SimpleModal } from '../Modals/SimpleModal';
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Card, CardContent, CardHeader, Grid, Typography } from '@mui/material';
 import { ResultsTable } from '@src/components/RewardsPlayground/ResultsTable';
 import { getDelegationSummary } from '@src/requests';

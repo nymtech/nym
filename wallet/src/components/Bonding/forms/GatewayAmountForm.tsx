@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { CurrencyDenom } from '@nymproject/types';
 import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
+import { yupResolver } from '@hookform/resolvers/yup/dist/yup.js';
 import { CurrencyFormField } from '@nymproject/react';
 import { Box, Stack } from '@mui/material';
 import { amountSchema } from './gatewayValidationSchema';

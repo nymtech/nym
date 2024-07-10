@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Card, CardHeader, Grid, Typography, Stack, Fade } from '@mui/material';
 import { THiddenMnemonicWord, THiddenMnemonicWords, TMnemonicWords } from '../types';
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react';
 import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';

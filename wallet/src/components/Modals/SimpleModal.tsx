@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Button, Modal, Stack, SxProps, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';

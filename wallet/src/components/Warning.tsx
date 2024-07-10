@@ -1,4 +1,3 @@
-import * as React from 'react';
 import Alert, { AlertProps } from '@mui/material/Alert';
 import { alpha, styled } from '@mui/material/styles';
 

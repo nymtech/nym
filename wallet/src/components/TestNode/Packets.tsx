@@ -1,4 +1,3 @@
-import React from 'react';
 import { Divider, Typography } from '@mui/material';
 import { TestStatus } from './types';
 import { ResultsCard, ResultsCardDetail } from './ResultsCard';

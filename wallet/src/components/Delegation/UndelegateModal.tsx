@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import { Box, SxProps } from '@mui/material';
 import { FeeDetails } from '@nymproject/types';
 import { useGetFee } from '@src/hooks/useGetFee';

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { clean } from 'semver';
 import { Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react';
-import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
+import { yupResolver } from '@hookform/resolvers/yup/dist/yup.js';
 import { GatewayData } from '../../../pages/bonding/types';
 import { gatewayValidationSchema } from './gatewayValidationSchema';
 

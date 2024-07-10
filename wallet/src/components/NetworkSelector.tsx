@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { Button, List, ListItemButton, ListItemIcon, ListItemText, ListSubheader, Popover, Stack } from '@mui/material';
 import { ArrowDropDown, Check } from '@mui/icons-material';
 import { Network } from '@src/types';

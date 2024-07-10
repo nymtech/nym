@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { ResultsCard } from './ResultsCard';
 

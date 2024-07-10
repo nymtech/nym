@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stack, Typography } from '@mui/material';
 import { SimpleModal } from '@src/components/Modals/SimpleModal';
 

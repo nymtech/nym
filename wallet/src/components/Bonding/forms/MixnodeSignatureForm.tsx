@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, TextField, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { costParamsToTauri, mixnodeToTauri } from '../utils';

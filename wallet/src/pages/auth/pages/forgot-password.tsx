@@ -1,5 +1,5 @@
 /* eslint-disable react/no-unused-prop-types */
-import React from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import { Button, Stack, Typography } from '@mui/material';
 import { Subtitle } from '../components';

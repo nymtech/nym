@@ -1,4 +1,4 @@
-import * as React from 'react';
+import { useState } from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Stack, TextField } from '@mui/material';
 import { PasswordStrength } from './password-strength';
@@ -8,8 +8,8 @@ export default {
   component: PasswordStrength,
 } as ComponentMeta<typeof PasswordStrength>;
 
-const Template: ComponentStory<typeof PasswordStrength> = ({ password, withWarnings, handleIsSafePassword }) => {
-  const [value, setValue] = React.useState(password);
+const Template: ComponentStory<typeof PasswordStrength> = ({ password, withWarnings, handleIsSafePassword }: any) => {
+  const [value, setValue] = useState(password);
   return (
     <Stack alignContent="center">
       <TextField value={value} onChange={(e) => setValue(e.target.value)} sx={{ mb: 0.5 }} />

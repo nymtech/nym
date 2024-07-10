@@ -323,7 +323,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       },
       MuiMenu: {
         styleOverrides: {
-          list: ({ _, theme }) => ({
+          list: ({ theme }) => ({
             backgroundColor: theme.palette.mode === 'dark' ? darkMode.background.main : undefined,
             border: `1px solid ${theme.palette.nym.border.menu}`,
             borderRadius: '8px',

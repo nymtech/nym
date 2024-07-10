@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Box, Button, Typography, Grid, TextField, Stack } from '@mui/material';
 import { TBondedMixnode, TBondedGateway } from '@src/context/bonding';
 import { Error } from '@src/components/Error';

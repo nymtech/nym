@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { MnemonicInput } from '@nymproject/react';

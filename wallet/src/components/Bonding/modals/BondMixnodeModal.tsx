@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from '@src/components/ConfirmTX';
 import { ModalListItem } from '@src/components/Modals/ModalListItem';

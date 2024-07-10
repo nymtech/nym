@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import { IdentityKeyFormField } from '@nymproject/react';
 import { CurrencyDenom, FeeDetails } from '@nymproject/types';
 import { Box, SxProps } from '@mui/material';

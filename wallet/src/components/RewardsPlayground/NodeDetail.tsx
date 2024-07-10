@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, CardContent, Divider, Stack, Typography } from '@mui/material';
 import { SelectionChance } from '@nymproject/types';
 import { InclusionProbability } from './InclusionProbability';

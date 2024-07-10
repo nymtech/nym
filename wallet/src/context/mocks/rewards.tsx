@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DelegationWithEverything, TransactionExecuteResult } from '@nymproject/types';
 import { RewardsContext, TRewardsTransaction } from '../rewards';
 import { useDelegationContext } from '../delegations';

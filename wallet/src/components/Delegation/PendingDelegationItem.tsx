@@ -1,4 +1,3 @@
-import React from 'react';
 import { Chip, TableCell, TableRow, Tooltip } from '@mui/material';
 import { WrappedDelegationEvent } from '@nymproject/types';
 import { Link } from '@nymproject/react';

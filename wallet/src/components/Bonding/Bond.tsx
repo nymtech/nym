@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from '@nymproject/react';
 import { Box, Button, Typography } from '@mui/material';
 import { NymCard } from '../NymCard';

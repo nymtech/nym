@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Grid, Stack, Typography } from '@mui/material';
 import { isPasswordCreated } from '../../requests';
 import { PasswordCreateForm, PasswordUpdateForm } from '../../components/Settings';

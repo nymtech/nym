@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Typography } from '@mui/material';
 import { DelegationWithEverything } from '@nymproject/types';
 import { Link } from '@nymproject/react';

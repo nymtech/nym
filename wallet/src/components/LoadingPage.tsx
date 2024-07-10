@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, LinearProgress, Stack } from '@mui/material';
 // import { NymWordmark } from '@nymproject/react';
 import { AuthTheme } from '@src/theme';

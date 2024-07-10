@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card, Stack, Button } from '@mui/material';
 import { ModalListItem } from '@src/components/Modals/ModalListItem';
 

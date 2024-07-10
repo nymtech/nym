@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box } from '@mui/material';
 
 export const PageLayout: FCWithChildren<{ position?: 'flex-start' | 'flex-end'; children: React.ReactNode }> = ({

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { Check, ContentCopy } from '@mui/icons-material';
 import { clipboard } from '@tauri-apps/api';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Alert as MuiAlert, IconButton, SxProps } from '@mui/material';
 import { Close } from '@mui/icons-material';
 

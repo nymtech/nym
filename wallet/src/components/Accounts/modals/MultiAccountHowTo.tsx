@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stack, Typography } from '@mui/material';
 import { ConfirmationModal } from '../../Modals/ConfirmationModal';
 import { Alert } from '../../Alert';

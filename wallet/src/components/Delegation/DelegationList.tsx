@@ -90,7 +90,6 @@ export const DelegationList: FCWithChildren<{
   items: TDelegations;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
   explorerUrl: string;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ isLoading, items, onItemActionClick, explorerUrl }) => {
   const [order, setOrder] = React.useState<Order>('asc');
   const [orderBy, setOrderBy] = React.useState<SortingKeys>('delegated_on_iso_datetime');

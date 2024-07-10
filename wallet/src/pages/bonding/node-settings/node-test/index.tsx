@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Box, Button } from '@mui/material';
 import { Download } from '@mui/icons-material';
 import { NodeTestResultResponse, NodeTester, createNodeTesterClient } from '@nymproject/node-tester';

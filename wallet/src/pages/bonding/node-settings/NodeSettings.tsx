@@ -1,4 +1,5 @@
-import React, { useContext, useState, useEffect } from 'react';
+import * as React from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { Box, Typography, Stack, IconButton, Divider } from '@mui/material';

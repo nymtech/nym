@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, SxProps } from '@mui/material';
 
 export const ModalDivider: FCWithChildren<{

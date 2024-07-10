@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { AppContext } from '@src/context';
 import { Box, Stack, SxProps } from '@mui/material';
 import QRCode from 'qrcode.react';

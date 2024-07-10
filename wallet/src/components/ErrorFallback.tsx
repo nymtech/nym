@@ -1,4 +1,3 @@
-import React from 'react';
 import { FallbackProps } from 'react-error-boundary';
 import { Alert, AlertTitle, Button } from '@mui/material';
 

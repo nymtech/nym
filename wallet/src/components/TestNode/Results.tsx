@@ -1,4 +1,3 @@
-import React from 'react';
 import { Grid } from '@mui/material';
 import { TestStatus } from './types';
 import { Packets } from './Packets';

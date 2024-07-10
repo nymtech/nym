@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { NymWordmark } from '@nymproject/react';
 import { Stack, Box } from '@mui/material';
 import { AppContext } from '@src/context';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { TBondedMixnode } from '@src/context';

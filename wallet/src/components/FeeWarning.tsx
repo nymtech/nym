@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Warning } from '@mui/icons-material';
 import { FeeDetails } from '@nymproject/types';
 import { Alert, AlertTitle, Box } from '@mui/material';

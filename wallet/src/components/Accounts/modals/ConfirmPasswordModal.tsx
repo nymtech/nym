@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Paper, Dialog, DialogTitle, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { ConfirmPassword } from '@src/components/ConfirmPassword';

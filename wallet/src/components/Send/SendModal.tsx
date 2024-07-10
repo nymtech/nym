@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { DecCoin } from '@nymproject/types';
 import { AppContext, urls } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';

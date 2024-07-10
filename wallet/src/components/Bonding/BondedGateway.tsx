@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react';
 import { TBondedGateway, urls } from '@src/context';

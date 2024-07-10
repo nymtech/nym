@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Alert, Box, Button, CircularProgress, FormControl, Grid, TextField } from '@mui/material';
 import { TauriContractStateParams } from '@src/types';

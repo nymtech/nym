@@ -1,13 +1,12 @@
 import React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { useTheme, Theme } from '@mui/material/styles';
-import { MockMainContextProvider } from 'src/context/mocks/main';
 import { SendDetailsModal } from './SendDetailsModal';
 import { SendSuccessModal } from './SendSuccessModal';
 import { SendErrorModal } from './SendErrorModal';
 import { SendInputModal } from './SendInputModal';
 import { Send } from '.';
-import { backDropStyles, modalStyles, dialogStyles } from '../../../.storybook/storiesStyles';
+import { backDropStyles, dialogStyles, modalStyles } from '../Modals/styles';
 
 const storybookStylesModal = (theme: Theme) => ({
   backdropProps: backDropStyles(theme),

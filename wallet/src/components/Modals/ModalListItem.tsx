@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Stack, SxProps, Typography, TypographyProps } from '@mui/material';
 import { ModalDivider } from './ModalDivider';
 

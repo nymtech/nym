@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { Box, Button, Divider, Stack, Typography } from '@mui/material';
 import { helpLogToggleWindow } from '../../requests';
 import { AppContext } from '../../context';

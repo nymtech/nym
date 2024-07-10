@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Button, FormHelperText, TextField, Typography } from '@mui/material';
 import { SimpleModal } from '@src/components/Modals/SimpleModal';
 import { Node as NodeIcon } from '@src/svg-icons/node';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, SxProps, Typography } from '@mui/material';
 
 export const Title: FCWithChildren<{ title: string | React.ReactNode; Icon?: React.ReactNode; sx?: SxProps }> = ({

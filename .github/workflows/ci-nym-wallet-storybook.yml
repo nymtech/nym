@@ -35,11 +35,11 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build dependencies
-        run: pnpm i && pnpm run build
+        run: pnpm build
 
       - name: Build storybook
         run: pnpm run storybook:build
-        working-directory: ./nym-wallet
+        working-directory: ./wallet
 
       - name: Deploy branch to CI www (storybook)
         continue-on-error: true

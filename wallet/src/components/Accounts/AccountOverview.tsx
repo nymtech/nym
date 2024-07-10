@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button } from '@mui/material';
 import { AccountEntry } from '@nymproject/types';
 import { AccountAvatar } from './AccountAvatar';

@@ -1,4 +1,4 @@
-import React, { FC, useContext, useEffect, useState } from 'react';
+import { FC, useContext, useEffect, useState } from 'react';
 import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { Theme, useTheme } from '@mui/material/styles';
 import { DecCoin, decimalToFloatApproximation, DelegationWithEverything, FeeDetails } from '@nymproject/types';
@@ -19,7 +19,7 @@ import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
 import { DelegationListItemActions } from '../../components/Delegation/DelegationActions';
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
-import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+import { backDropStyles, modalStyles } from '@src/components/Modals/styles';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook
@@ -274,7 +274,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
-  const handleRedeem = async (mixId: number, identityKey: string, fee?: FeeDetails) => {
+  const handleRedeem = async (mixId: number, _: string, fee?: FeeDetails) => {
     setConfirmationModalProps({
       status: 'loading',
       action: 'redeem',

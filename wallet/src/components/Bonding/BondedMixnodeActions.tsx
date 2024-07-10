@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Typography } from '@mui/material';
 import { ActionsMenu, ActionsMenuItem } from '@src/components/ActionsMenu';
 import { Unbond as UnbondIcon, Bond as BondIcon } from '../../svg-icons';

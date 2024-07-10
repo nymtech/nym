@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react';
 import { CurrencyFormField } from '@nymproject/react';
@@ -176,12 +176,12 @@ export const DelegateModal: FCWithChildren<{
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     validate();
   }, [amount, identityKey, mixIdError]);
 
   const resolveMixId = useCallback(
-    debounce(async (idKey) => {
+    debounce(async (idKey: string) => {
       if (!idKey || !validateKey(idKey, 32)) {
         return;
       }
@@ -202,7 +202,11 @@ export const DelegateModal: FCWithChildren<{
     [],
   );
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!identityKey) {
+      setMixId(undefined);
+      return;
+    }
     resolveMixId(identityKey);
   }, [identityKey]);
 

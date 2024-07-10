@@ -1,5 +1,5 @@
 /* eslint-disable react/no-array-index-key */
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';
 import { format } from 'date-fns';

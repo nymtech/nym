@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { Typography } from '@mui/material';
 import { useLocation } from 'react-router-dom';
 

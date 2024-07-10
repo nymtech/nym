@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useEffect, useMemo, useState } from 'react';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';

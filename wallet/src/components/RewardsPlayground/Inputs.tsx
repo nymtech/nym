@@ -1,9 +1,9 @@
-import React, { useCallback } from 'react';
-import { yupResolver } from '@hookform/resolvers/yup';
+import { useCallback } from 'react';
 import { Button, Grid, TextField, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { DefaultInputValues } from '@src/pages/bonding/node-settings/apy-playground';
 import { inputValidationSchema } from './inputsValidationSchema';
+import { yupResolver } from '@hookform/resolvers/yup/dist/yup.js';
 
 export type InputFields = {
   label: string;

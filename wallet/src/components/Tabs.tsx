@@ -1,4 +1,3 @@
-import React from 'react';
 import { Tab, Tabs as MuiTabs, SxProps } from '@mui/material';
 
 type Props = {

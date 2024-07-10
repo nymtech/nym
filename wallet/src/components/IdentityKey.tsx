@@ -1,4 +1,3 @@
-import React from 'react';
 import { Stack, Typography } from '@mui/material';
 import { CopyToClipboard } from '@nymproject/react';
 import { splice } from '@src/utils';

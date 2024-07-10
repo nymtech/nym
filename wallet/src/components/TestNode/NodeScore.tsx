@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, CircularProgress, CircularProgressProps, Stack, Typography } from '@mui/material';
 import { ResultsCard } from './ResultsCard';
 

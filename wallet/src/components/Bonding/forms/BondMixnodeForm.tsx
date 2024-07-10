@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box } from '@mui/material';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { NodeTypeSelector } from '@src/components';

@@ -47,6 +47,14 @@ struct StartedNetworkRequester {
     handle: LocalEmbeddedClientHandle,
 }
 
+// TODO: should this struct live here?
+struct StartedAuthenticator {
+    wg_api: Arc<nym_wireguard::WgApiWrapper>,
+
+    /// Handle to interact with the local authenticator
+    handle: LocalEmbeddedClientHandle,
+}
+
 /// Wire up and create Gateway instance
 pub async fn create_gateway(
     config: Config,
@@ -239,18 +247,59 @@ impl<St> Gateway<St> {
     async fn start_authenticator(
         &mut self,
         opts: &LocalAuthenticatorOpts,
+        forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
-    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
+        let (router_tx, mut router_rx) = oneshot::channel();
+        let (auth_mix_sender, auth_mix_receiver) = mpsc::unbounded();
+        let router_shutdown = shutdown.fork("message_router");
+        let transceiver = LocalGateway::new(
+            *self.identity_keypair.public_key(),
+            forwarding_channel,
+            router_tx,
+        );
+
         if let Some(wireguard_data) = self.wireguard_data.take() {
-            let authenticator_server = nym_authenticator::Authenticator::new(
+            let (on_start_tx, on_start_rx) = oneshot::channel();
+            let mut authenticator_server = nym_authenticator::Authenticator::new(
                 opts.config.clone(),
                 wireguard_data.inner.clone(),
             )
+            .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_shutdown(shutdown.fork("authenticator"))
             .with_wait_for_gateway(true)
-            .with_minimum_gateway_performance(0);
-            tokio::spawn(async move { authenticator_server.run_service_provider().await });
-            nym_wireguard::start_wireguard(shutdown, wireguard_data).await
+            .with_minimum_gateway_performance(0)
+            .with_on_start(on_start_tx);
+
+            if let Some(custom_mixnet) = &opts.custom_mixnet_path {
+                authenticator_server = authenticator_server.with_stored_topology(custom_mixnet)?
+            }
+
+            tokio::spawn(async move {
+                if let Err(e) = authenticator_server.run_service_provider().await {
+                    log::error!("Run authenticator server - {e}");
+                }
+            });
+
+            let start_data = on_start_rx
+                .await
+                .map_err(|_| GatewayError::AuthenticatorStartupFailure)?;
+
+            // this should be instantaneous since the data is sent on this channel before the on start is called;
+            // the failure should be impossible
+            let Ok(Some(packet_router)) = router_rx.try_recv() else {
+                return Err(Box::new(GatewayError::AuthenticatorStartupFailure));
+            };
+
+            MessageRouter::new(auth_mix_receiver, packet_router)
+                .start_with_shutdown(router_shutdown);
+
+            let wg_api = nym_wireguard::start_wireguard(shutdown, wireguard_data).await?;
+
+            Ok(StartedAuthenticator {
+                wg_api,
+                handle: LocalEmbeddedClientHandle::new(start_data.address, auth_mix_sender),
+            })
         } else {
             Err(Box::new(GatewayError::WireguardNotSet))
         }
@@ -556,7 +605,7 @@ impl<St> Gateway<St> {
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_packet_router(
-                    mix_forwarding_channel,
+                    mix_forwarding_channel.clone(),
                     shutdown.fork("ip_service_provider"),
                 )
                 .await?;
@@ -567,11 +616,16 @@ impl<St> Gateway<St> {
 
         #[cfg(feature = "wireguard")]
         let _wg_api = if let Some(opts) = self.authenticator_opts.clone() {
-            Some(
-                self.start_authenticator(&opts, shutdown.fork("wireguard"))
-                    .await
-                    .map_err(|source| GatewayError::AuthenticatorStartError { source })?,
-            )
+            let embedded_auth = self
+                .start_authenticator(
+                    &opts,
+                    mix_forwarding_channel,
+                    shutdown.fork("authenticator"),
+                )
+                .await
+                .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
+            active_clients_store.insert_embedded(embedded_auth.handle);
+            Some(embedded_auth.wg_api)
         } else {
             info!("embedded authenticator is disabled");
             None

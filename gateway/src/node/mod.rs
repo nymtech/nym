@@ -573,6 +573,7 @@ impl<St> Gateway<St> {
                     .map_err(|source| GatewayError::AuthenticatorStartError { source })?,
             )
         } else {
+            info!("embedded authenticator is disabled");
             None
         };
 

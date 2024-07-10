@@ -17,18 +17,22 @@ jobs:
       - uses: rlespinasse/github-slug-action@v3.x
       - uses: actions/setup-node@v3
         with:
-          node-version: 18.17
+          node-version: 18
+
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Setup yarn
-        run: npm install -g yarn
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: true
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: "1.20"
 
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
@@ -36,15 +40,14 @@ jobs:
       - name: Install wasm-opt
         uses: ./.github/actions/install-wasm-opt
         with:
-          version: '116'
+          version: "116"
 
       - name: Build branch WASM packages
         run: make sdk-wasm-build
 
-      - name: Install
-        run: yarn
       - name: Build
-        run: yarn docs:prod:build
+        run: pnpm docs:prod:build
+
       - name: Deploy branch to CI www (docs)
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main

@@ -45,10 +45,10 @@ importers:
         version: 2.13.1(encoding@0.1.13)
       '@cosmos-kit/keplr-extension':
         specifier: ^2.12.2
-        version: 2.12.2(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)(encoding@0.1.13)
+        version: 2.12.2(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)(encoding@0.1.13)
       '@cosmos-kit/react':
         specifier: ^2.17.2
-        version: 2.17.2(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)(@interchain-ui/react@1.23.24(@types/react@18.2.78)(babel-plugin-macros@3.1.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@types/react-dom@18.2.25)(@types/react@18.2.78)(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        version: 2.17.2(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)(@interchain-ui/react@1.23.24(@types/react@18.2.78)(babel-plugin-macros@3.1.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@types/react-dom@18.2.25)(@types/react@18.2.78)(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@mui/base':
         specifier: 5.0.0-beta.40
         version: 5.0.0-beta.40(@types/react@18.2.78)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -175,6 +175,13 @@ importers:
         version: 5.4.5
 
   sdk/typescript/codegen/contract-clients:
+    dependencies:
+      '@cosmjs/amino':
+        specifier: ^0.32.4
+        version: 0.32.4
+      '@cosmjs/cosmwasm-stargate':
+        specifier: ^0.29.5
+        version: 0.29.5
     devDependencies:
       '@cosmwasm/ts-codegen':
         specifier: ^0.35.3
@@ -1133,6 +1140,9 @@ importers:
       comlink:
         specifier: ^4.3.1
         version: 4.4.1
+      ws:
+        specifier: ^8.18.0
+        version: 8.18.0
     devDependencies:
       '@babel/core':
         specifier: ^7.15.0
@@ -1182,6 +1192,9 @@ importers:
       '@types/node':
         specifier: ^16.7.13
         version: 16.18.96
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.5.10
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.13.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)
@@ -1294,6 +1307,9 @@ importers:
       '@types/node':
         specifier: ^16.7.13
         version: 16.18.96
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.5.10
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.13.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)
@@ -1748,6 +1764,9 @@ importers:
       '@types/node':
         specifier: ^16.7.13
         version: 16.18.96
+      '@types/ws':
+        specifier: ^8.5.10
+        version: 8.5.10
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.13.0
         version: 5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)
@@ -3640,9 +3659,6 @@ packages:
 
   '@cosmjs/amino@0.29.5':
     resolution: {integrity: sha512-Qo8jpC0BiziTSUqpkNatBcwtKNhCovUnFul9SlT/74JUCdLYaeG5hxr3q1cssQt++l4LvlcpF+OUXL48XjNjLw==}
-
-  '@cosmjs/amino@0.32.3':
-    resolution: {integrity: sha512-G4zXl+dJbqrz1sSJ56H/25l5NJEk/pAPIr8piAHgbXYw88OdAOlpA26PQvk2IbSN/rRgVbvlLTNgX2tzz1dyUA==}
 
   '@cosmjs/amino@0.32.4':
     resolution: {integrity: sha512-zKYOt6hPy8obIFtLie/xtygCkH9ZROiQ12UHfKsOkWaZfPQUvVbtgmu6R4Kn1tFLI/SRkw7eqhaogmW/3NYu/Q==}
@@ -18694,13 +18710,6 @@ snapshots:
       '@cosmjs/math': 0.29.5
       '@cosmjs/utils': 0.29.5
 
-  '@cosmjs/amino@0.32.3':
-    dependencies:
-      '@cosmjs/crypto': 0.32.3
-      '@cosmjs/encoding': 0.32.3
-      '@cosmjs/math': 0.32.3
-      '@cosmjs/utils': 0.32.3
-
   '@cosmjs/amino@0.32.4':
     dependencies:
       '@cosmjs/crypto': 0.32.4
@@ -18910,7 +18919,7 @@ snapshots:
 
   '@cosmjs/proto-signing@0.32.3':
     dependencies:
-      '@cosmjs/amino': 0.32.3
+      '@cosmjs/amino': 0.32.4
       '@cosmjs/crypto': 0.32.3
       '@cosmjs/encoding': 0.32.3
       '@cosmjs/math': 0.32.3
@@ -19005,7 +19014,7 @@ snapshots:
   '@cosmjs/stargate@0.32.3':
     dependencies:
       '@confio/ics23': 0.6.8
-      '@cosmjs/amino': 0.32.3
+      '@cosmjs/amino': 0.32.4
       '@cosmjs/encoding': 0.32.3
       '@cosmjs/math': 0.32.3
       '@cosmjs/proto-signing': 0.32.3
@@ -19132,11 +19141,11 @@ snapshots:
       '@chain-registry/client': 1.48.13(encoding@0.1.13)
       '@chain-registry/keplr': 1.68.16
       '@chain-registry/types': 0.45.13
-      '@cosmjs/amino': 0.32.3
+      '@cosmjs/amino': 0.32.4
       '@cosmjs/cosmwasm-stargate': 0.32.4
       '@cosmjs/proto-signing': 0.32.3
       '@cosmjs/stargate': 0.32.3
-      '@dao-dao/cosmiframe': 0.1.0(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)
+      '@dao-dao/cosmiframe': 0.1.0(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)
       '@walletconnect/types': 2.11.0
       bowser: 2.11.0
       cosmjs-types: 0.9.0
@@ -19164,10 +19173,10 @@ snapshots:
       - uWebSockets.js
       - utf-8-validate
 
-  '@cosmos-kit/keplr-extension@2.12.2(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)(encoding@0.1.13)':
+  '@cosmos-kit/keplr-extension@2.12.2(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)(encoding@0.1.13)':
     dependencies:
       '@chain-registry/keplr': 1.68.16
-      '@cosmjs/amino': 0.32.3
+      '@cosmjs/amino': 0.32.4
       '@cosmjs/proto-signing': 0.32.3
       '@cosmos-kit/core': 2.13.1(encoding@0.1.13)
       '@keplr-wallet/provider-extension': 0.12.107
@@ -19193,11 +19202,11 @@ snapshots:
       - uWebSockets.js
       - utf-8-validate
 
-  '@cosmos-kit/react-lite@2.12.2(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)(@types/react-dom@18.2.25)(@types/react@18.2.78)(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+  '@cosmos-kit/react-lite@2.12.2(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)(@types/react-dom@18.2.25)(@types/react@18.2.78)(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@chain-registry/types': 0.45.13
       '@cosmos-kit/core': 2.13.1(encoding@0.1.13)
-      '@dao-dao/cosmiframe': 0.1.0(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)
+      '@dao-dao/cosmiframe': 0.1.0(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)
       '@types/react': 18.2.78
       '@types/react-dom': 18.2.25
       react: 18.2.0
@@ -19225,11 +19234,11 @@ snapshots:
       - uWebSockets.js
       - utf-8-validate
 
-  '@cosmos-kit/react@2.17.2(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)(@interchain-ui/react@1.23.24(@types/react@18.2.78)(babel-plugin-macros@3.1.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@types/react-dom@18.2.25)(@types/react@18.2.78)(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
+  '@cosmos-kit/react@2.17.2(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)(@interchain-ui/react@1.23.24(@types/react@18.2.78)(babel-plugin-macros@3.1.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(@types/react-dom@18.2.25)(@types/react@18.2.78)(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)':
     dependencies:
       '@chain-registry/types': 0.45.13
       '@cosmos-kit/core': 2.13.1(encoding@0.1.13)
-      '@cosmos-kit/react-lite': 2.12.2(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)(@types/react-dom@18.2.25)(@types/react@18.2.78)(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      '@cosmos-kit/react-lite': 2.12.2(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)(@types/react-dom@18.2.25)(@types/react@18.2.78)(encoding@0.1.13)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@interchain-ui/react': 1.23.24(@types/react@18.2.78)(babel-plugin-macros@3.1.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       '@react-icons/all-files': 4.1.0(react@18.2.0)
       '@types/react': 18.2.78
@@ -19295,9 +19304,9 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@dao-dao/cosmiframe@0.1.0(@cosmjs/amino@0.32.3)(@cosmjs/proto-signing@0.32.3)':
+  '@dao-dao/cosmiframe@0.1.0(@cosmjs/amino@0.32.4)(@cosmjs/proto-signing@0.32.3)':
     dependencies:
-      '@cosmjs/amino': 0.32.3
+      '@cosmjs/amino': 0.32.4
       '@cosmjs/proto-signing': 0.32.3
       uuid: 9.0.1
 

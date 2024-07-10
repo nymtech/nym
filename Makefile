@@ -107,12 +107,12 @@ sdk-wasm-build:
 	$(MAKE) -C wasm/zknym-lib
 	#$(MAKE) -C wasm/full-nym-wasm
 
-# run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
+# run this from npm/pnpm to ensure tools are in the path, e.g. pnpm build:sdk from root of repo
 sdk-typescript-build:
 	npx lerna run --scope @nymproject/sdk build --stream
 	npx lerna run --scope @nymproject/mix-fetch build --stream
 	npx lerna run --scope @nymproject/node-tester build --stream
-	yarn --cwd sdk/typescript/codegen/contract-clients build
+	pnpm --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
 WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm zknym-lib
@@ -170,10 +170,10 @@ build-nym-mixnode:
 
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
-	yarn types:lint:fix
+	pnpm types:lint:fix
 
 run-api-tests:
-	cd nym-api/tests/functional_test && yarn test:qa
+	cd nym-api/tests/functional_test && pnpm test:qa
 
 # Build debian package, and update PPA
 deb-mixnode: build-nym-mixnode

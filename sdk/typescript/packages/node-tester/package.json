@@ -20,7 +20,7 @@
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "start": "tsc -w",
-    "start:dev": "nodemon --watch src -e ts,json --exec 'yarn build:dev:esm'",
+    "start:dev": "nodemon --watch src -e ts,json --exec 'pnpm build:dev:esm'",
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache",
     "tsc": "tsc --noEmit true"
   },

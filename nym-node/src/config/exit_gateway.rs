@@ -14,7 +14,10 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
-use super::{helpers::{base_client_config, EphemeralConfig}, LocalWireguardOpts};
+use super::{
+    helpers::{base_client_config, EphemeralConfig},
+    LocalWireguardOpts,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

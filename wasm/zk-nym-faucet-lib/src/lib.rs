@@ -20,7 +20,7 @@ pub mod types;
 
 // keep in internal to the crate since I'm not sure how temporary this thing is going to be
 // I mostly got it, so I could test the whole thing end to end
-pub(crate) mod vpn_api_client;
+pub(crate) mod zk_nym_faucet_client;
 
 pub(crate) static GLOBAL_COCONUT_PARAMS: OnceLock<Parameters> = OnceLock::new();
 
@@ -29,7 +29,7 @@ pub(crate) static GLOBAL_COCONUT_PARAMS: OnceLock<Parameters> = OnceLock::new();
 pub fn main() {
     wasm_utils::console_log!("[rust main]: rust module loaded");
     wasm_utils::console_log!(
-        "wasm zk-nym version used: {}",
+        "wasm zk-nym faucet client version used: {}",
         nym_bin_common::bin_info_owned!()
     );
 }

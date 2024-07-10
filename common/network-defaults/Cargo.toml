@@ -14,10 +14,12 @@ schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 url = { workspace = true, optional = true }
 
-# please be extremely careful when adding new dependencies because this crate is imported by the ecash contract,
-# so if anything new is added, consider feature-locking it and then just adding it to default feature
+# 'wasm-serde-types' feature
+tsify = { workspace = true, features = ["js"], optional = true }
+wasm-bindgen = { workspace = true, optional = true }
 
 [features]
+wasm-serde-types = ["tsify", "wasm-bindgen"]
 default = ["env", "network"]
 env = ["dotenvy", "log"]
 network = ["schemars", "serde", "url"]

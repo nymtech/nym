@@ -125,7 +125,8 @@ members = [
     # "wasm/full-nym-wasm",  # If we uncomment this again, remember to also uncomment the profile settings below
     "wasm/mix-fetch",
     "wasm/node-tester",
-    "wasm/zknym-lib",
+    "wasm/zk-nym-lib",
+    "wasm/zk-nym-faucet-lib",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
 ]

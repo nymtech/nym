@@ -5407,7 +5407,9 @@ dependencies = [
  "log",
  "schemars",
  "serde",
+ "tsify",
  "url",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -10651,8 +10653,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "zknym-lib"
-version = "0.1.0"
+name = "zk-nym-faucet-lib"
+version = "1.3.0-rc.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10675,5 +10677,29 @@ dependencies = [
  "wasm-bindgen",
  "wasm-utils",
  "wasmtimer",
+ "zeroize",
+]
+
+[[package]]
+name = "zk-nym-lib"
+version = "1.3.0-rc.0"
+dependencies = [
+ "bip39",
+ "js-sys",
+ "nym-bandwidth-controller",
+ "nym-bin-common",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-credentials-interface",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "thiserror",
+ "tsify",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
+ "wasm-utils",
  "zeroize",
 ]

@@ -17,6 +17,10 @@ gloo-utils = { workspace = true }
 gloo-net = { workspace = true, features = ["websocket"], optional = true }
 #gloo-net = { path = "../../../../gloo/crates/net", features = ["websocket"], optional = true }
 
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
 console_error_panic_hook = { workspace = true, optional = true }
 
 # we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums

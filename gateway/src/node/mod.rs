@@ -310,7 +310,7 @@ impl<St> Gateway<St> {
         &self,
         _opts: &LocalAuthenticatorOpts,
         _shutdown: TaskClient,
-    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
         todo!("Authenticator is currently only supported on Linux");
     }
 

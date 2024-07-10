@@ -606,6 +606,9 @@ pub struct NymNodeDescription {
     #[serde(default)]
     pub ip_packet_router: Option<IpPacketRouterDetails>,
 
+    #[serde(default)]
+    pub authenticator: Option<AuthenticatorDetails>,
+
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
 
@@ -654,6 +657,12 @@ pub struct NetworkRequesterDetails {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IpPacketRouterDetails {
     /// address of the embedded ip packet router
+    pub address: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct AuthenticatorDetails {
+    /// address of the embedded authenticator
     pub address: String,
 }
 

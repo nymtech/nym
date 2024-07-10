@@ -29,7 +29,7 @@
     "comlink": "^4.3.1",
     "fake-indexeddb": "^4.0.2",
     "rollup-plugin-polyfill": "^4.2.0",
-    "ws": "^8.14.2"
+    "ws": "^8.17.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^24.0.1",

@@ -66,7 +66,6 @@ Quite a bit of stuff gets built. The key working parts are:
 
 The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
 * [Nym Wallet](../wallet/desktop-wallet.md)
-* [Nym Connect](https://nymtech.net/developers/quickstart/nymconnect-gui.html)
 * [Network Explorer UI](../explorers/mixnet-explorer.md)
 
 > You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.

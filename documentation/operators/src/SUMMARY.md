@@ -3,6 +3,8 @@
 
 - [Introduction](introduction.md)
 - [Changelog](changelog.md)
+- [Release Cycle](release-cycle.md)
+- [Sandbox Testnet](sandbox.md)
 
 # Binaries
 
@@ -30,6 +32,7 @@
 - [Performance Monitoring & Testing](testing/performance.md)
   <!--- [Node Setup](testing/node-setup.md)-->
   - [Gateway Probe](testing/gateway-probe.md)
+  - [Node API Check](testing/node-api-check.md)
   - [Prometheus & Grafana](testing/prometheus-grafana.md)
     - [ExploreNYM scripts](testing/explorenym-scripts.md)
 <!--    - [Run in a Docker](testing/docker-monitor.md) -->

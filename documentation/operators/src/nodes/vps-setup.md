@@ -102,7 +102,7 @@ ufw allow 1789,1790,8000,9000,9001,22/tcp
 ufw allow 9001/tcp
 
 # in case of reverse proxy for the swagger page (for Gateway optionality)
-ufw allow 8080,80,443
+ufw allow 8080,80,443/tcp
 
 # for validator
 ufw allow 1317,26656,26660,22,80,443/tcp

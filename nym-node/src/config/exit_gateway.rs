@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
-use super::{helpers::base_client_config, LocalWireguardOpts};
+use super::{helpers::{base_client_config, EphemeralConfig}, LocalWireguardOpts};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -133,14 +133,6 @@ impl Default for IpPacketRouterDebug {
             client_debug: Default::default(),
         }
     }
-}
-
-pub struct EphemeralConfig {
-    pub gateway: nym_gateway::config::Config,
-    pub nr_opts: Option<LocalNetworkRequesterOpts>,
-    pub ipr_opts: Option<LocalIpPacketRouterOpts>,
-    pub auth_opts: LocalAuthenticatorOpts,
-    pub wg_opts: LocalWireguardOpts,
 }
 
 // that function is rather disgusting, but I hope it's not going to live for too long

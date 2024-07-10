@@ -13,8 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::path::Path;
 
-use super::exit_gateway::EphemeralConfig;
-use super::helpers::base_client_config;
+use super::helpers::{base_client_config, EphemeralConfig};
 use super::LocalWireguardOpts;
 
 pub const DEFAULT_WS_PORT: u16 = DEFAULT_CLIENT_LISTENING_PORT;

@@ -120,7 +120,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
 
     setCurrentDelegationListActionItem(item);
-    // eslint-disable-next-line default-case
     switch (action) {
       case 'delegate':
         setShowDelegateMoreModal(true);

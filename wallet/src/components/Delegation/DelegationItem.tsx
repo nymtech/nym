@@ -12,7 +12,6 @@ const getStakeSaturation = (item: DelegationWithEverything) =>
   !item.stake_saturation ? '-' : `${decimalToPercentage(item.stake_saturation)}%`;
 
 const getRewardValue = (item: DelegationWithEverything) => {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   const { unclaimed_rewards } = item;
   return !unclaimed_rewards ? '-' : `${unclaimed_rewards.amount} ${unclaimed_rewards.denom}`;
 };

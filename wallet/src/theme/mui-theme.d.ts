@@ -1,5 +1,3 @@
-/* eslint-disable no-shadow,@typescript-eslint/no-unused-vars,@typescript-eslint/no-empty-interface */
-import { Theme, ThemeOptions, Palette, PaletteOptions } from '@mui/material/styles';
 import { PaletteMode } from '@mui/material';
 
 /**

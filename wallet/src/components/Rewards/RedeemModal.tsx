@@ -20,7 +20,7 @@ export const RedeemModal: FCWithChildren<{
   denom: CurrencyDenom;
   message: string;
   sx?: SxProps;
-  backdropProps?: Object;
+  backdropProps?: object;
   usesVestingTokens: boolean;
 }> = ({ open, onClose, onOk, mixId, identityKey, amount, denom, message, usesVestingTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();

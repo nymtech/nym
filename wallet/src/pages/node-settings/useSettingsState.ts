@@ -30,7 +30,6 @@ export const useSettingsState = () => {
   const getMixnodeInclusionProbability = async (mixId: number) => {
     const probability = await getInclusionProbability(mixId);
     if (probability) {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       setInclusionProbability({ in_active: probability.in_active, in_reserve: probability.in_reserve });
     }
   };

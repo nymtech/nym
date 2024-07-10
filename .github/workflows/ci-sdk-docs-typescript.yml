@@ -27,6 +27,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          version: 9
           run_install: true
 
       - name: Set up Go
@@ -48,7 +49,7 @@ jobs:
       - name: Build
         run: pnpm docs:prod:build
 
-      - name: Deploy branch to CI www (docs)
+        - name: Deploy branch to CI www (docs)
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:
@@ -60,7 +61,7 @@ jobs:
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/sdk-ts-docs-${{ env.GITHUB_REF_SLUG }}
           EXCLUDE: "/dist/, /node_modules/"
       - name: Matrix - Node Install
-        run: npm install
+        run: pnpm install
         working-directory: .github/workflows/support-files
       - name: Matrix - Send Notification
         env:

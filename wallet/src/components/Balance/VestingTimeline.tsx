@@ -1,4 +1,3 @@
-/* eslint-disable react/no-array-index-key */
 import { useContext } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { Box, Stack, Tooltip, Typography } from '@mui/material';

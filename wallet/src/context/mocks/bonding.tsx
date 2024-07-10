@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network } from '@src/types';
 import { BondingContext, TBondedGateway, TBondedMixnode } from '../bonding';
 import { mockSleep } from './utils';
-import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs } from '../../types';
 
 const SLEEP_MS = 1000;
 
@@ -162,7 +161,7 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const getFee = async (_feeOperation: any, _args: any) => {
+  const getFee = async () => {
     setFeeLoading(true);
     await mockSleep(SLEEP_MS);
     setFeeLoading(false);
@@ -170,7 +169,7 @@ export const MockBondingContextProvider = ({
     return feeMock;
   };
 
-  const generateMixnodeMsgPayload = async (_data: TBondMixnodeSignatureArgs) => {
+  const generateMixnodeMsgPayload = async () => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
@@ -178,7 +177,7 @@ export const MockBondingContextProvider = ({
     return '77dcaba7f41409984f4ebce4a386f59b10f1e65ed5514d1acdccae30174bd84b';
   };
 
-  const generateGatewayMsgPayload = async (_data: TBondGatewaySignatureArgs) => {
+  const generateGatewayMsgPayload = async () => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();

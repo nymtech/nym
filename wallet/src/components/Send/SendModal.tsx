@@ -12,7 +12,7 @@ import { SendInputModal } from './SendInputModal';
 import { SendSuccessModal } from './SendSuccessModal';
 import { TTransactionDetails } from './types';
 
-export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void; hasStorybookStyles?: {} }) => {
+export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void; hasStorybookStyles?: object }) => {
   const [toAddress, setToAddress] = useState<string>('');
   const [amount, setAmount] = useState<DecCoin>();
   const [modal, setModal] = useState<'send' | 'send details'>('send');

@@ -1,16 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  CurrencyDenom,
-  DecCoin,
-  DelegationWithEverything,
-  Fee,
-  FeeDetails,
-  TransactionExecuteResult,
-} from '@nymproject/types';
+import { CurrencyDenom, DecCoin, DelegationWithEverything, TransactionExecuteResult } from '@nymproject/types';
 import { DelegationContext, TDelegationTransaction } from '../delegations';
 
 import { mockSleep } from './utils';
-import { TPoolOption } from '../../components';
 
 const SLEEP_MS = 1000;
 
@@ -85,11 +77,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     setTotalDelegations(newTotalDelegations);
   };
 
-  const addDelegation = async (
-    data: { mix_id: number; amount: DecCoin },
-    _tokenPool: TPoolOption,
-    _fee?: FeeDetails,
-  ): Promise<TransactionExecuteResult> => {
+  const addDelegation = async (data: { mix_id: number; amount: DecCoin }): Promise<TransactionExecuteResult> => {
     await mockSleep(SLEEP_MS);
     // mockDelegations.push({ ...newDelegation });
     await recalculate();
@@ -164,7 +152,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     };
   };
 
-  const undelegate = async (mix_id: number, _fee?: Fee): Promise<TransactionExecuteResult> => {
+  const undelegate = async (mix_id: number): Promise<TransactionExecuteResult> => {
     await mockSleep(SLEEP_MS);
     mockDelegations = mockDelegations.map((d) => {
       if (d.mix_id === mix_id) {
@@ -193,7 +181,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     };
   };
 
-  const undelegateVesting = async (_: number, _fee?: FeeDetails) => ({
+  const undelegateVesting = async () => ({
     logs_json: '',
     data_json: '',
     transaction_hash: '',

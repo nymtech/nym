@@ -7,7 +7,6 @@ import { ErrorModal } from '../Modals/ErrorModal';
 export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
 
 const actionToHeader = (action: ActionType): string => {
-  // eslint-disable-next-line default-case
   switch (action) {
     case 'redeem':
       return 'Rewards redeemed successfully';

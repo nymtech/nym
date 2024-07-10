@@ -9,7 +9,7 @@ export const SendErrorModal = ({
 }: {
   onClose: () => void;
   sx?: SxProps;
-  backdropProps?: {};
+  backdropProps?: object;
   error?: string;
 }) => (
   <SimpleModal

@@ -1,7 +1,7 @@
 import { Console } from 'src/utils/console';
 
-export type TauriReq<Req extends Function & ((a: any, b?: any) => Promise<any>)> = {
-  name: Req['name'];
+export type TauriReq<Req extends (...args: any[]) => Promise<any>> = {
+  name: Req extends { name: infer N } ? N : never;
   request: () => ReturnType<Req>;
   onFulfilled: (value: Awaited<ReturnType<Req>>) => void;
 };

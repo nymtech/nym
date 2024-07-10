@@ -109,9 +109,9 @@ sdk-wasm-build:
 
 # run this from npm/pnpm to ensure tools are in the path, e.g. pnpm build:sdk from root of repo
 sdk-typescript-build:
-	npx lerna run --scope @nymproject/sdk build --stream
-	npx lerna run --scope @nymproject/mix-fetch build --stream
-	npx lerna run --scope @nymproject/node-tester build --stream
+	pnpm run --filter @nymproject/sdk --stream build
+	pnpm run --filter @nymproject/mix-fetch --stream build
+	pnpm run --filter @nymproject/node-tester --stream build
 	pnpm --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)

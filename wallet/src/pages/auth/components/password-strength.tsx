@@ -1,5 +1,3 @@
-/* eslint-disable no-nested-ternary */
-
 import zxcvbn, { ZXCVBNScore } from 'zxcvbn';
 import { LockOutlined } from '@mui/icons-material';
 import { LinearProgress, Stack, Typography, Box } from '@mui/material';

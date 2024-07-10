@@ -76,7 +76,6 @@ export const ApyPlayground = ({ bondedNode }: { bondedNode: TBondedMixnode }) =>
 
   const handleCalculateEstimate = async ({ bond, delegations, uptime, profitMargin, operatorCost }: CalculateArgs) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       const { estimation, reward_params } = await computeEstimate({
         mixId: bondedNode.mixId,
         uptime,

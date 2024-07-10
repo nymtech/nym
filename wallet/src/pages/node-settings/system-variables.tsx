@@ -1,4 +1,3 @@
-/* eslint-disable no-nested-ternary */
 import { useContext, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Box, Button, Chip, CircularProgress, Grid, LinearProgress, Stack, TextField, Typography } from '@mui/material';

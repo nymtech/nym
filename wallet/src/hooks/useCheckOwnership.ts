@@ -22,20 +22,20 @@ export const useCheckOwnership = () => {
     try {
       const [ownsMixnode, ownsGateway] = await Promise.all([checkMixnodeOwnership(), checkGatewayOwnership()]);
 
-      if (ownsMixnode) {
+      if (ownsMixnode && clientDetails?.client_address) {
         status.hasOwnership = true;
         status.nodeType = EnumNodeType.mixnode;
         status.vestingPledge = await getVestingPledgeInfo({
-          address: clientDetails?.client_address!,
+          address: clientDetails.client_address,
           type: EnumNodeType.mixnode,
         });
       }
 
-      if (ownsGateway) {
+      if (ownsGateway && clientDetails?.client_address) {
         status.hasOwnership = true;
         status.nodeType = EnumNodeType.gateway;
         status.vestingPledge = await getVestingPledgeInfo({
-          address: clientDetails?.client_address!,
+          address: clientDetails.client_address,
           type: EnumNodeType.gateway,
         });
       }

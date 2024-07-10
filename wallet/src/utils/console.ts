@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { config } from '../config';
 
 export const Console = {

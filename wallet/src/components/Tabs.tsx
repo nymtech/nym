@@ -7,7 +7,7 @@ type Props = {
   onChange?: (event: React.SyntheticEvent, tab: string) => void;
   disableActiveTabHighlight?: boolean;
   tabSx?: SxProps;
-  tabIndicatorStyles?: {};
+  tabIndicatorStyles?: object;
 };
 
 export const Tabs = ({

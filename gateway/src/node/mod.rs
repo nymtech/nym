@@ -246,7 +246,9 @@ impl<St> Gateway<St> {
                 opts.config.clone(),
                 wireguard_data.inner.clone(),
             )
-            .with_shutdown(shutdown.fork("authenticator"));
+            .with_shutdown(shutdown.fork("authenticator"))
+            .with_wait_for_gateway(true)
+            .with_minimum_gateway_performance(0);
             tokio::spawn(async move { authenticator_server.run_service_provider().await });
             nym_wireguard::start_wireguard(shutdown, wireguard_data).await
         } else {

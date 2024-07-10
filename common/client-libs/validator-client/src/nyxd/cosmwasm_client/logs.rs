@@ -9,16 +9,12 @@ pub use nym_coconut_bandwidth_contract_common::event_attributes::*;
 pub use nym_coconut_dkg_common::event_attributes::*;
 
 // it seems that currently validators just emit stringified events (which are also returned as part of deliverTx response)
-// as theirs logs
+// as their logs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Log {
     #[serde(default)]
     // weird thing is that the first msg_index seems to always be undefined on the raw logs
     pub msg_index: usize,
-    // unless I'm missing something obvious, the "log" type in cosmjs is always an empty string
-    // and launchpad cosmos validator was setting it to what essentially is just the raw version of what
-    // we received (and we don't care about launchpad, we, as the time of writing this, work on the stargate)
-    // log: String,
     pub events: Vec<cosmwasm_std::Event>,
 }
 
@@ -37,8 +33,13 @@ pub fn find_attribute<'a>(
         .find(|attr| attr.key == attribute_key)
 }
 
-// those two functions were separated so that the internal logic could actually be tested
+// these two functions were separated so that the internal logic could actually be tested
 fn parse_raw_str_logs(raw: &str) -> Result<Vec<Log>, NyxdError> {
+    // From Cosmos SDK > 0.50 onwards, log field is not populated
+    if raw.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let logs: Vec<Log> = serde_json::from_str(raw).map_err(|_| NyxdError::MalformedLogString)?;
     if logs.len() != logs.iter().unique_by(|log| log.msg_index).count() {
         // this check is only here because I don't yet fully understand raw log string generation and

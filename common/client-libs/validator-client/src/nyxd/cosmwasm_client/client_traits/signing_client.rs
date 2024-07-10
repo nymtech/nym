@@ -3,7 +3,7 @@
 
 use crate::nyxd::cosmwasm_client::client_traits::CosmWasmClient;
 use crate::nyxd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
-use crate::nyxd::cosmwasm_client::logs::{self, parse_raw_logs};
+use crate::nyxd::cosmwasm_client::logs::parse_raw_logs;
 use crate::nyxd::cosmwasm_client::types::*;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
@@ -19,6 +19,7 @@ use cosmrs::feegrant::{
 };
 use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
+use cosmrs::tendermint::abci::{Event, EventAttribute};
 use cosmrs::tx::{self, Msg};
 use cosmrs::{cosmwasm, AccountId, Any, Tx};
 use log::debug;
@@ -50,6 +51,20 @@ fn single_unspecified_signer_auth(
         sequence: sequence_number,
     }
     .auth_info(empty_fee())
+}
+// Searches in events for an event of the given event type which contains an
+// attribute for with the given key.
+fn find_attribute<'a>(
+    events: &'a [Event],
+    event_type: &str,
+    attr_key: &str,
+) -> Option<&'a EventAttribute> {
+    events
+        .iter()
+        .find(|attr| attr.kind == event_type)?
+        .attributes
+        .iter()
+        .find(|attr| attr.key == attr_key)
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -118,6 +133,7 @@ where
             .check_response()?;
 
         let logs = parse_raw_logs(tx_res.tx_result.log)?;
+        let events = tx_res.tx_result.events;
         let gas_info = GasInfo {
             gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
             gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
@@ -127,7 +143,7 @@ where
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
         // fields do not exist or code_id is not a number, there's no way we can recover, we're probably connected
         // to wrong validator or something
-        let code_id = logs::find_attribute(&logs, "store_code", "code_id")
+        let code_id = find_attribute(&events, "store_code", "code_id")
             .unwrap()
             .value
             .parse()
@@ -140,6 +156,7 @@ where
             compressed_checksum,
             code_id,
             logs,
+            events,
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -182,6 +199,7 @@ where
             .check_response()?;
 
         let logs = parse_raw_logs(tx_res.tx_result.log)?;
+        let events = tx_res.tx_result.events;
         let gas_info = GasInfo {
             gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
             gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
@@ -190,7 +208,7 @@ where
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
         // fields do not exist or address is malformed, there's no way we can recover, we're probably connected
         // to wrong validator or something
-        let contract_address = logs::find_attribute(&logs, "instantiate", "_contract_address")
+        let contract_address = find_attribute(&events, "instantiate", "_contract_address")
             .unwrap()
             .value
             .parse()
@@ -199,6 +217,7 @@ where
         Ok(InstantiateResult {
             contract_address,
             logs,
+            events,
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -231,6 +250,7 @@ where
         };
         Ok(ChangeAdminResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            events: tx_res.tx_result.events,
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -261,6 +281,7 @@ where
         };
         Ok(ChangeAdminResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            events: tx_res.tx_result.events,
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -298,6 +319,7 @@ where
         };
         Ok(MigrateResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            events: tx_res.tx_result.events,
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -335,6 +357,7 @@ where
         };
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            events: tx_res.tx_result.events,
             data: tx_res.tx_result.data.into(),
             transaction_hash: tx_res.hash,
             gas_info,
@@ -378,6 +401,7 @@ where
         };
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
+            events: tx_res.tx_result.events,
             data: tx_res.tx_result.data.into(),
             transaction_hash: tx_res.hash,
             gas_info,

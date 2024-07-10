@@ -4,6 +4,28 @@
 
 Nym Node can be configured directly by editing the config file (`config.toml`) located at `~/.nym/nym-nodes/<ID>/config/config.toml` (by default `~/.nym/nym-nodes/default-nym-node/config/config.toml`) or through commands on the binary.
 
+### Node Description
+
+Operators can add a description themselves to share more information about their `nym-node` publicly.
+
+To add or change `nym-node` description is done by editing `description.toml` file located in `~/.nym/nym-nodes/<NODE_ID>/data/description.toml`. After saving, don't forget to reload and restart your node [service](#systemd) or simply restart your `nym-node` if you run it without a service (not recommended).
+
+**Query description**
+
+Nodes description can be queried from API endpoint `/api/v1/description` or via Swagger API UI page `/api/v1/swagger/#/Node/description`.
+
+```bash
+curl -X 'GET' \
+  'http://<NODE_IP_ADDRESS>:8080/api/v1/description' \
+  -H 'accept: application/json'
+
+# or for https reversed proxy or WSS setup
+
+curl -X 'GET' \
+  'https://<HOSTNAME>/api/v1/description' \
+  -H 'accept: application/json'
+```
+
 ### Commands & Examples
 
 Disable sharing of system hardware info with the network:

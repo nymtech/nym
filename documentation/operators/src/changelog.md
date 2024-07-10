@@ -6,7 +6,7 @@ This page displays a full list of all the changes during our release cycle from 
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.7-doubledecker)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.7-doubledecker/CHANGELOG.md)
-- [`nym-node`](nodes/bym-node.md) version `1.1.4`
+- [`nym-node`](nodes/nym-node.md) version `1.1.4`
 
 ~~~admonish example collapsible=true title='CHANGELOG.md'
 - Add an early return in `parse_raw_str_logs` for empty raw log strings. ([#4686])

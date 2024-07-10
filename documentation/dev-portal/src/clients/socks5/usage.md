@@ -22,8 +22,9 @@ Any application which can be redirected over Socks5 proxy should work. Nym commu
 - Telegram chat
 - Element/Matrix chat
 - Firo wallet
-- ircd chat
 - Blockstream Green
+
+> DarkFi's ircd chat was previously supported: they have moved to DarkIrc: whether the existing integration work is still operational needs to be tested. 
 
 Keep in mind that Nym has been developing a new client **[NymVPN](https://nymvpn.com) (GUI and CLI) routing all users traffic through the Mixnet.**
 

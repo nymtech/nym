@@ -154,18 +154,6 @@ impl Config {
         self
     }
 
-    #[must_use]
-    pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
-        self.network_requester.enabled_statistics = enabled_statistics;
-        self
-    }
-
-    #[must_use]
-    pub fn with_statistics_recipient(mut self, statistics_recipient: String) -> Self {
-        self.network_requester.statistics_recipient = Some(statistics_recipient);
-        self
-    }
-
     // poor man's 'builder' method
     #[allow(unused)]
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
@@ -215,17 +203,11 @@ impl Config {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct NetworkRequester {
     /// specifies whether this network requester should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.
     pub open_proxy: bool,
-
-    /// specifies whether this network requester would send anonymized statistics to a statistics aggregator server
-    pub enabled_statistics: bool,
-
-    /// in case of enabled statistics, specifies mixnet client address where a statistics aggregator is running
-    pub statistics_recipient: Option<String>,
 
     /// Disable Poisson sending rate.
     /// This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
@@ -240,8 +222,6 @@ impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester {
             open_proxy: false,
-            enabled_statistics: false,
-            statistics_recipient: None,
             disable_poisson_rate: true,
             upstream_exit_policy_url: Some(
                 mainnet::EXIT_POLICY_URL

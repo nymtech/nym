@@ -44,6 +44,10 @@ pub struct BinaryBuildInformation {
     /// Provides the cargo debug mode that was used for the build.
     // NOTE: keep the old name cargo_profile instead of cargo_debug for backwards compatibility
     pub cargo_profile: &'static str,
+
+    // VERGEN_CARGO_TARGET_TRIPLE
+    /// Provides the cargo target triple that was used for the build.
+    pub cargo_triple: &'static str,
 }
 
 impl BinaryBuildInformation {
@@ -66,6 +70,7 @@ impl BinaryBuildInformation {
             rustc_version: env!("VERGEN_RUSTC_SEMVER"),
             rustc_channel: env!("VERGEN_RUSTC_CHANNEL"),
             cargo_profile,
+            cargo_triple: env!("VERGEN_CARGO_TARGET_TRIPLE"),
         }
     }
 
@@ -95,6 +100,7 @@ impl BinaryBuildInformation {
             rustc_version: env!("VERGEN_RUSTC_SEMVER"),
             rustc_channel: env!("VERGEN_RUSTC_CHANNEL"),
             cargo_profile,
+            cargo_triple: env!("VERGEN_CARGO_TARGET_TRIPLE"),
         }
     }
 
@@ -109,6 +115,7 @@ impl BinaryBuildInformation {
             rustc_version: self.rustc_version.to_owned(),
             rustc_channel: self.rustc_channel.to_owned(),
             cargo_profile: self.cargo_profile.to_owned(),
+            cargo_triple: self.cargo_triple.to_owned(),
         }
     }
 
@@ -156,6 +163,15 @@ pub struct BinaryBuildInformationOwned {
     /// Provides the cargo debug mode that was used for the build.
     // NOTE: keep the old name cargo_profile instead of cargo_debug for backwards compatibility
     pub cargo_profile: String,
+
+    // VERGEN_CARGO_TARGET_TRIPLE
+    /// Provides the cargo target triple that was used for the build.
+    #[serde(default = "unknown")]
+    pub cargo_triple: String,
+}
+
+fn unknown() -> String {
+    "unknown".to_string()
 }
 
 impl Display for BinaryBuildInformationOwned {

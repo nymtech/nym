@@ -2100,7 +2100,7 @@ dependencies = [
  "dotenvy",
  "humantime-serde",
  "isocountry",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "log",
  "maxminddb",
  "nym-bin-common",
@@ -2221,7 +2221,7 @@ dependencies = [
  "atomic 0.6.0",
  "pear",
  "serde",
- "toml 0.8.12",
+ "toml 0.8.14",
  "uncased",
  "version_check",
 ]
@@ -3274,15 +3274,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
@@ -3960,6 +3951,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-authenticator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bs58 0.5.1",
+ "bytes",
+ "clap 4.5.4",
+ "fastrand 2.1.0",
+ "futures",
+ "ipnetwork 0.16.0",
+ "log",
+ "nym-authenticator-requests",
+ "nym-bin-common",
+ "nym-client-core",
+ "nym-config",
+ "nym-crypto",
+ "nym-id",
+ "nym-network-defaults",
+ "nym-sdk",
+ "nym-service-providers-common",
+ "nym-sphinx",
+ "nym-task",
+ "nym-types",
+ "nym-wireguard",
+ "nym-wireguard-types",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
+name = "nym-authenticator-requests"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "nym-sphinx",
+ "nym-wireguard-types",
+ "rand 0.8.5",
+ "serde",
+]
+
+[[package]]
 name = "nym-bandwidth-controller"
 version = "0.1.0"
 dependencies = [
@@ -4282,7 +4321,7 @@ dependencies = [
  "ff",
  "getrandom 0.2.15",
  "group",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "nym-dkg",
  "nym-pemstore",
  "rand 0.8.5",
@@ -4523,6 +4562,7 @@ dependencies = [
  "ipnetwork 0.16.0",
  "log",
  "nym-api-requests",
+ "nym-authenticator",
  "nym-bin-common",
  "nym-config",
  "nym-credentials",
@@ -4537,7 +4577,6 @@ dependencies = [
  "nym-node-http-api",
  "nym-pemstore",
  "nym-sphinx",
- "nym-statistics-common",
  "nym-task",
  "nym-types",
  "nym-validator-client",
@@ -4633,6 +4672,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "http 1.1.0",
+ "nym-bin-common",
  "reqwest 0.12.4",
  "serde",
  "serde_json",
@@ -4939,7 +4979,6 @@ dependencies = [
  "nym-socks5-proxy-helpers",
  "nym-socks5-requests",
  "nym-sphinx",
- "nym-statistics-common",
  "nym-task",
  "nym-types",
  "pretty_env_logger",
@@ -4991,6 +5030,7 @@ dependencies = [
  "cupid",
  "humantime-serde",
  "ipnetwork 0.16.0",
+ "nym-authenticator",
  "nym-bin-common",
  "nym-client-core-config-types",
  "nym-config",
@@ -5014,7 +5054,7 @@ dependencies = [
  "sysinfo 0.30.12",
  "thiserror",
  "tokio",
- "toml 0.8.12",
+ "toml 0.8.14",
  "tracing",
  "url",
  "zeroize",
@@ -5160,7 +5200,7 @@ dependencies = [
  "chacha20poly1305",
  "criterion",
  "curve25519-dalek 4.1.2",
- "fastrand 1.9.0",
+ "fastrand 2.1.0",
  "getrandom 0.2.15",
  "log",
  "rand 0.8.5",
@@ -5260,6 +5300,7 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-sphinx",
  "nym-topology",
+ "nym-validator-client",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -5506,20 +5547,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-statistics-common"
-version = "1.0.1"
-dependencies = [
- "async-trait",
- "log",
- "reqwest 0.12.4",
- "serde",
- "serde_json",
- "sqlx",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "nym-store-cipher"
 version = "0.1.0"
 dependencies = [
@@ -5593,7 +5620,7 @@ dependencies = [
  "cosmwasm-std",
  "eyre",
  "hmac",
- "itertools 0.11.0",
+ "itertools 0.12.1",
  "log",
  "nym-config",
  "nym-crypto",
@@ -5632,7 +5659,7 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "log",
  "nym-api-requests",
  "nym-coconut",
@@ -7594,9 +7621,9 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
-version = "0.6.5"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb3622f419d1296904700073ea6cc23ad690adbd66f13ea683df73298736f0c1"
+checksum = "79e674e01f999af37c49f70a6ede167a8a60b2503e56c5599532a65baa5969a0"
 dependencies = [
  "serde",
 ]
@@ -8616,21 +8643,21 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "0.8.12"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9dd1545e8208b4a5af1aa9bbd0b4cf7e9ea08fabc5d0a5c67fcaafa17433aa3"
+checksum = "6f49eb2ab21d2f26bd6db7bf383edc527a7ebaee412d17af4d40fdccd442f335"
 dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "toml_edit 0.22.12",
+ "toml_edit 0.22.14",
 ]
 
 [[package]]
 name = "toml_datetime"
-version = "0.6.5"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3550f4e9685620ac18a50ed434eb3aec30db8ba93b0287467bca5826ea25baf1"
+checksum = "4badfd56924ae69bcc9039335b2e017639ce3f9b001c393c1b2d1ef846ce2cbf"
 dependencies = [
  "serde",
 ]
@@ -8650,9 +8677,9 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
-version = "0.22.12"
+version = "0.22.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3328d4f68a705b2a4498da1d580585d39a6510f98318a2cec3018a7ec61ddef"
+checksum = "f21c7aaf97f1bd9ca9d4f9e73b0a6c74bd5afef56f2bc931943a6e1c37e04e38"
 dependencies = [
  "indexmap 2.2.6",
  "serde",

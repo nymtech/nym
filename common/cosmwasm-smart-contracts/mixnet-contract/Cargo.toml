@@ -29,7 +29,7 @@ time = { workspace = true, features = ["parsing", "formatting"] }
 ts-rs = { workspace = true, optional = true }
 
 [dev-dependencies]
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }
 time = { workspace = true, features = ["serde", "macros"] }
 
 [features]

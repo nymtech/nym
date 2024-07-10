@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nym_nodes::NodeRole;
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::families::FamilyHead;
@@ -8,7 +9,7 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
-    GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
+    GatewayBond, IdentityKey, Interval, MixId, MixNode, MixNodeBond, Percent, RewardedSetNodeStatus,
 };
 use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, BinaryBuildInformationOwned};
 use schemars::gen::SchemaGenerator;
@@ -605,8 +606,13 @@ pub struct NymNodeDescription {
     #[serde(default)]
     pub ip_packet_router: Option<IpPacketRouterDetails>,
 
+    #[serde(default)]
+    pub authenticator: Option<AuthenticatorDetails>,
+
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
+
+    pub role: NodeRole,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
@@ -625,6 +631,21 @@ impl From<GatewayBond> for DescribedGateway {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct DescribedMixNode {
+    pub bond: MixNodeBond,
+    pub self_described: Option<NymNodeDescription>,
+}
+
+impl From<MixNodeBond> for DescribedMixNode {
+    fn from(bond: MixNodeBond) -> Self {
+        DescribedMixNode {
+            bond,
+            self_described: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NetworkRequesterDetails {
     /// address of the embedded network requester
     pub address: String,
@@ -636,6 +657,12 @@ pub struct NetworkRequesterDetails {
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IpPacketRouterDetails {
     /// address of the embedded ip packet router
+    pub address: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct AuthenticatorDetails {
+    /// address of the embedded authenticator
     pub address: String,
 }
 

@@ -8,8 +8,8 @@ use crate::routes;
 use async_trait::async_trait;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_http_api_client::{ApiClient, HttpClientError};
-use nym_wireguard_types::{ClientMessage, ClientRegistrationResponse};
 
+use crate::api::v1::authenticator::models::Authenticator;
 use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
@@ -65,15 +65,9 @@ pub trait NymNodeApiClientExt: ApiClient {
             .await
     }
 
-    async fn post_gateway_register_client(
-        &self,
-        client_message: &ClientMessage,
-    ) -> Result<ClientRegistrationResponse, NymNodeApiClientError> {
-        self.post_json_data_to(
-            routes::api::v1::gateway::client_interfaces::wireguard::client_absolute(),
-            client_message,
-        )
-        .await
+    async fn get_authenticator(&self) -> Result<Authenticator, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::authenticator_absolute())
+            .await
     }
 }
 

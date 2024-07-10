@@ -84,5 +84,6 @@
 ---
 # Misc.
 - [Code of Conduct](coc.md)
+- [Terms & Conditions](toc.md)
 - [Licensing](licensing.md)
 ---

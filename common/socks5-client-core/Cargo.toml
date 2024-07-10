@@ -8,7 +8,7 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-dirs = "4.0"
+dirs = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 pin-project = { workspace = true }

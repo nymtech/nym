@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 use axum::routing::get;
 use axum::Router;
 use nym_node_requests::api::v1::gateway::models;
@@ -15,10 +14,7 @@ pub struct Config {
     pub details: Option<models::Gateway>,
 }
 
-pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
-    config: Config,
-    initial_wg_state: WireguardAppState,
-) -> Router<S> {
+pub(crate) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {
     Router::new()
         .route(
             "/",
@@ -29,9 +25,6 @@ pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
         )
         .nest(
             gateway::CLIENT_INTERFACES,
-            client_interfaces::routes(
-                config.details.map(|g| g.client_interfaces),
-                initial_wg_state,
-            ),
+            client_interfaces::routes(config.details.map(|g| g.client_interfaces)),
         )
 }

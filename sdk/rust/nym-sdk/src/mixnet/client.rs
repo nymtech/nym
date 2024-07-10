@@ -33,7 +33,7 @@ use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
-use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
+use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::net::IpAddr;
 use std::path::Path;
@@ -55,6 +55,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
+    user_agent: Option<UserAgent>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -94,6 +95,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_shutdown: None,
             custom_gateway_transceiver: None,
             force_tls: false,
+            user_agent: None,
         })
     }
 }
@@ -121,6 +123,7 @@ where
             custom_gateway_transceiver: None,
             custom_shutdown: None,
             force_tls: false,
+            user_agent: None,
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -139,6 +142,7 @@ where
             custom_gateway_transceiver: self.custom_gateway_transceiver,
             custom_shutdown: self.custom_shutdown,
             force_tls: self.force_tls,
+            user_agent: self.user_agent,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -233,6 +237,12 @@ where
         self
     }
 
+    #[must_use]
+    pub fn with_user_agent(mut self, user_agent: UserAgent) -> Self {
+        self.user_agent = Some(user_agent);
+        self
+    }
+
     /// Use custom mixnet sender that might not be the default websocket gateway connection.
     /// only for advanced use
     #[must_use]
@@ -261,6 +271,7 @@ where
         client.wireguard_mode = self.wireguard_mode;
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
+        client.user_agent = self.user_agent;
 
         Ok(client)
     }
@@ -309,6 +320,8 @@ where
 
     /// Allows passing an externally controlled shutdown handle.
     custom_shutdown: Option<TaskClient>,
+
+    user_agent: Option<UserAgent>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -358,6 +371,7 @@ where
             wait_for_gateway: false,
             force_tls: false,
             custom_shutdown: None,
+            user_agent: None,
         })
     }
 
@@ -458,8 +472,10 @@ where
             self.force_tls,
         );
 
+        let user_agent = self.user_agent.clone();
+
         let mut rng = OsRng;
-        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints).await?;
+        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints, user_agent).await?;
 
         Ok(GatewaySetup::New {
             specification: selection_spec,
@@ -566,51 +582,9 @@ where
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_wireguard_connection(self.wireguard_mode);
 
-        // let mut base_builder: BaseClientBuilder<_, _> = if !known_gateway {
-        //     // we need to setup a new gateway
-        //     let setup = self.new_gateway_setup().await;
-        //
-        //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-        //         .with_wait_for_gateway(self.wait_for_gateway)
-        //         .with_gateway_setup(setup)
-        // // } else if self.wireguard_mode {
-        // //     // load current active gateway in wireguard mode
-        // //     details_store.set_wireguard_mode(true).await?;
-        // //
-        // //     if let Ok(PersistedGatewayDetails::Default(mut config)) = self
-        // //         .storage
-        // //         .gateway_details_store()
-        // //         .load_gateway_details()
-        // //         .await
-        // //     {
-        // //         config.details.gateway_listener = format!(
-        // //             "ws://{}:{}",
-        // //             WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
-        // //         );
-        // //         if let Err(e) = self
-        // //             .storage
-        // //             .gateway_details_store()
-        // //             .store_gateway_details(&PersistedGatewayDetails::Default(config))
-        // //             .await
-        // //         {
-        // //             warn!("Could not switch to using wireguard mode - {:?}", e);
-        // //         }
-        // //     } else {
-        // //         warn!("Storage type not supported with wireguard mode");
-        // //     }
-        // //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-        // //         .with_wait_for_gateway(self.wait_for_gateway)
-        // } else {
-        //     // load current active gateway in non-wireguard mode
-        //
-        //     // make sure our current storage mode matches the desired wg mode
-        //     details_store
-        //         .set_wireguard_mode(self.wireguard_mode)
-        //         .await?;
-        //
-        //     BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-        //         .with_wait_for_gateway(self.wait_for_gateway)
-        // };
+        if let Some(user_agent) = self.user_agent {
+            base_builder = base_builder.with_user_agent(user_agent);
+        }
 
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);

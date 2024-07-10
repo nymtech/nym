@@ -8,12 +8,14 @@ use crate::error::ExitGatewayError;
 use clap::crate_version;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::mainnet;
-use nym_gateway::node::{LocalIpPacketRouterOpts, LocalNetworkRequesterOpts};
+use nym_gateway::node::{
+    LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
-use super::LocalWireguardOpts;
+use super::{authenticator::Authenticator, LocalWireguardOpts};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -30,6 +32,8 @@ pub struct ExitGatewayConfig {
     pub network_requester: NetworkRequester,
 
     pub ip_packet_router: IpPacketRouter,
+
+    pub authenticator: Authenticator,
 }
 
 impl ExitGatewayConfig {
@@ -45,6 +49,7 @@ impl ExitGatewayConfig {
                 .expect("invalid default exit policy URL"),
             network_requester: Default::default(),
             ip_packet_router: Default::default(),
+            authenticator: Default::default(),
         }
     }
 }
@@ -138,6 +143,7 @@ pub struct EphemeralConfig {
     pub gateway: nym_gateway::config::Config,
     pub nr_opts: LocalNetworkRequesterOpts,
     pub ipr_opts: LocalIpPacketRouterOpts,
+    pub auth_opts: LocalAuthenticatorOpts,
     pub wg_opts: LocalWireguardOpts,
 }
 
@@ -165,8 +171,6 @@ pub fn ephemeral_exit_gateway_config(
             },
             network_requester: nym_network_requester::config::NetworkRequester {
                 open_proxy: config.exit_gateway.open_proxy,
-                enabled_statistics: false,
-                statistics_recipient: None,
                 disable_poisson_rate: config
                     .exit_gateway
                     .network_requester
@@ -236,6 +240,26 @@ pub fn ephemeral_exit_gateway_config(
         ipr_opts.config.base.set_no_poisson_process()
     }
 
+    let auth_opts = LocalAuthenticatorOpts {
+        config: nym_authenticator::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config.exit_gateway.authenticator.debug.client_debug,
+            },
+            authenticator: config.wireguard.clone().into(),
+            storage_paths: nym_authenticator::config::AuthenticatorPaths {
+                common_paths: config
+                    .exit_gateway
+                    .storage_paths
+                    .authenticator
+                    .to_common_client_paths(),
+                authenticator_description: Default::default(),
+            },
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
     let pub_id_path = config
         .storage_paths
         .keys
@@ -268,6 +292,7 @@ pub fn ephemeral_exit_gateway_config(
     Ok(EphemeralConfig {
         nr_opts,
         ipr_opts,
+        auth_opts,
         wg_opts,
         gateway,
     })

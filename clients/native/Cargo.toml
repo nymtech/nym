@@ -23,7 +23,7 @@ url = { workspace = true }
 
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
-dirs = "4.0"
+dirs = { workspace = true }
 log = { workspace = true } # self explanatory
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
@@ -37,7 +37,7 @@ zeroize = { workspace = true }
 
 ## internal
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "clap"] }
 nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage", "cli"] }
 nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage" }

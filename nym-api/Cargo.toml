@@ -22,9 +22,9 @@ bip39 = { workspace = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 console-subscriber = { workspace = true, optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
-dirs = "4.0"
+dirs = { workspace = true }
 futures = { workspace = true }
-itertools = "0.12.0"
+itertools = { workspace = true }
 humantime-serde = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
 log = { workspace = true }
@@ -116,6 +116,6 @@ sqlx = { workspace = true, features = [
 tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }
 sha2 = "0.9"
 

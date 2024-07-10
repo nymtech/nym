@@ -560,10 +560,10 @@ impl NymNode {
         let config =
             ephemeral_entry_gateway_config(self.config.clone(), &self.entry_gateway.mnemonic)?;
         let mut entry_gateway = Gateway::new_loaded(
-            config,
-            None,
-            None,
-            None,
+            config.gateway,
+            config.nr_opts,
+            config.ipr_opts,
+            Some(config.auth_opts),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.entry_gateway.client_storage.clone(),
@@ -589,8 +589,8 @@ impl NymNode {
 
         let mut exit_gateway = Gateway::new_loaded(
             config.gateway,
-            Some(config.nr_opts),
-            Some(config.ipr_opts),
+            config.nr_opts,
+            config.ipr_opts,
             Some(config.auth_opts),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),

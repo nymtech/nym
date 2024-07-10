@@ -80,3 +80,14 @@ pub fn ephemeral_gateway_config(
         },
     ))
 }
+
+pub fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
+    nym_client_core_config_types::Client {
+        version: format!("{}-nym-node", crate_version!()),
+        id: config.id.clone(),
+        // irrelevant field - no need for credentials in embedded mode
+        disabled_credentials_mode: true,
+        nyxd_urls: config.mixnet.nyxd_urls.clone(),
+        nym_api_urls: config.mixnet.nym_api_urls.clone(),
+    }
+}

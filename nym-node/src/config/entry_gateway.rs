@@ -8,9 +8,14 @@ use crate::error::EntryGatewayError;
 use nym_config::defaults::DEFAULT_CLIENT_LISTENING_PORT;
 use nym_config::helpers::inaddr_any;
 use nym_config::serde_helpers::de_maybe_port;
+use nym_gateway::node::LocalAuthenticatorOpts;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::path::Path;
+
+use super::exit_gateway::EphemeralConfig;
+use super::helpers::base_client_config;
+use super::LocalWireguardOpts;
 
 pub const DEFAULT_WS_PORT: u16 = DEFAULT_CLIENT_LISTENING_PORT;
 
@@ -78,6 +83,45 @@ impl EntryGatewayConfig {
 pub fn ephemeral_entry_gateway_config(
     config: Config,
     mnemonic: &bip39::Mnemonic,
-) -> Result<nym_gateway::config::Config, EntryGatewayError> {
-    Ok(ephemeral_gateway_config(config, mnemonic)?)
+) -> Result<EphemeralConfig, EntryGatewayError> {
+    let auth_opts = LocalAuthenticatorOpts {
+        config: nym_authenticator::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config.authenticator.debug.client_debug,
+            },
+            authenticator: config.wireguard.clone().into(),
+            storage_paths: nym_authenticator::config::AuthenticatorPaths {
+                common_paths: config
+                    .exit_gateway
+                    .storage_paths
+                    .authenticator
+                    .to_common_client_paths(),
+                authenticator_description: Default::default(),
+            },
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
+    let wg_opts = LocalWireguardOpts {
+        config: super::Wireguard {
+            enabled: config.wireguard.enabled,
+            bind_address: config.wireguard.bind_address,
+            private_ip: config.wireguard.private_ip,
+            announced_port: config.wireguard.announced_port,
+            private_network_prefix: config.wireguard.private_network_prefix,
+            storage_paths: config.wireguard.storage_paths.clone(),
+        },
+        custom_mixnet_path: None,
+    };
+
+    let gateway = ephemeral_gateway_config(config, mnemonic)?;
+    Ok(EphemeralConfig {
+        nr_opts: None,
+        ipr_opts: None,
+        auth_opts,
+        wg_opts,
+        gateway,
+    })
 }

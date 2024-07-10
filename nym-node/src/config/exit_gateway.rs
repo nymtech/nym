@@ -5,7 +5,6 @@ use crate::config::helpers::ephemeral_gateway_config;
 use crate::config::persistence::ExitGatewayPaths;
 use crate::config::Config;
 use crate::error::ExitGatewayError;
-use clap::crate_version;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::mainnet;
 use nym_gateway::node::{
@@ -15,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
-use super::LocalWireguardOpts;
+use super::{helpers::base_client_config, LocalWireguardOpts};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -138,21 +137,10 @@ impl Default for IpPacketRouterDebug {
 
 pub struct EphemeralConfig {
     pub gateway: nym_gateway::config::Config,
-    pub nr_opts: LocalNetworkRequesterOpts,
-    pub ipr_opts: LocalIpPacketRouterOpts,
+    pub nr_opts: Option<LocalNetworkRequesterOpts>,
+    pub ipr_opts: Option<LocalIpPacketRouterOpts>,
     pub auth_opts: LocalAuthenticatorOpts,
     pub wg_opts: LocalWireguardOpts,
-}
-
-fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
-    nym_client_core_config_types::Client {
-        version: format!("{}-nym-node", crate_version!()),
-        id: config.id.clone(),
-        // irrelevant field - no need for credentials in embedded mode
-        disabled_credentials_mode: true,
-        nyxd_urls: config.mixnet.nyxd_urls.clone(),
-        nym_api_urls: config.mixnet.nym_api_urls.clone(),
-    }
 }
 
 // that function is rather disgusting, but I hope it's not going to live for too long
@@ -287,8 +275,8 @@ pub fn ephemeral_exit_gateway_config(
     gateway.storage_paths.keys.public_identity_key_file = pub_id_path;
 
     Ok(EphemeralConfig {
-        nr_opts,
-        ipr_opts,
+        nr_opts: Some(nr_opts),
+        ipr_opts: Some(ipr_opts),
         auth_opts,
         wg_opts,
         gateway,

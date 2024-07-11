@@ -79,7 +79,7 @@ pub(crate) enum Commands {
     /// Attempt to load testnet network details
     LoadNetworkDetails(load_network_details::Args),
 
-    /// Attempt to bypass the DKG by ovewriting the contract state with pre-generated keys
+    /// Attempt to bypass the DKG by overwriting the contract state with pre-generated keys
     BypassDkg(bypass_dkg::Args),
 
     /// Initialise new network and bypass the DKG.

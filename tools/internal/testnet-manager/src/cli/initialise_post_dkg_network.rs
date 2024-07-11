@@ -4,6 +4,7 @@
 use crate::cli::CommonArgs;
 use crate::error::NetworkManagerError;
 use crate::helpers::default_storage_dir;
+use crate::manager::env::Env;
 use crate::manager::network::LoadedNetwork;
 use nym_bin_common::output_format::OutputFormat;
 use std::path::PathBuf;
@@ -34,6 +35,7 @@ pub(crate) struct Args {
     bypass_dkg_contract: PathBuf,
 
     /// Specifies custom duration of mixnet epochs
+    /// It's recommended to set it to rather low value (like 60s) if you intend to bond the mixnet afterward.
     #[clap(long)]
     custom_epoch_duration_secs: Option<u64>,
 
@@ -59,7 +61,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NetworkManagerError> {
         default_storage_dir().join(&network.name)
     };
 
-    let env = network.to_env_file_section();
+    let env = Env::from(&network);
 
     manager
         .attempt_bypass_dkg(

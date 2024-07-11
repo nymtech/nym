@@ -18,6 +18,7 @@ use zeroize::Zeroizing;
 
 mod contract;
 mod dkg_skip;
+pub(crate) mod env;
 mod local_apis;
 mod local_client;
 mod local_nodes;

@@ -3,6 +3,7 @@
 
 use crate::error::NetworkManagerError;
 use crate::helpers::default_db_file;
+use crate::manager::env::Env;
 use crate::manager::NetworkManager;
 use nym_bin_common::output_format::OutputFormat;
 use std::path::PathBuf;
@@ -27,10 +28,8 @@ pub(crate) async fn execute(args: Args) -> Result<(), NetworkManagerError> {
         .load_existing_network(args.network_name)
         .await?;
 
-    println!(
-        "add the following to your .env file: \n{}",
-        network.to_env_file_section()
-    );
+    let env = Env::from(&network);
+    println!("add the following to your .env file: \n{env}",);
 
     Ok(())
 }

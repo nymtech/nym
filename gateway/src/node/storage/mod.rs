@@ -451,9 +451,6 @@ impl Storage for PersistentStorage {
     }
 
     async fn update_rejected_ticket(&self, ticket_id: i64) -> Result<(), StorageError> {
-        // TODO:
-        error!("unimplemented: decrease clients bandwidth");
-
         // set the ticket as rejected
         self.ticket_manager.set_rejected_ticket(ticket_id).await?;
 

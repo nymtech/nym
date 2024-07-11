@@ -3,6 +3,7 @@
 
 use crate::cli::CommonArgs;
 use crate::error::NetworkManagerError;
+use crate::manager::env::Env;
 use nym_bin_common::output_format::OutputFormat;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -20,6 +21,7 @@ pub(crate) struct Args {
     network_name: Option<String>,
 
     /// Specifies custom duration of mixnet epochs
+    /// It's recommended to set it to rather low value (like 60s) if you intend to bond the mixnet afterward.
     #[clap(long)]
     custom_epoch_duration_secs: Option<u64>,
 
@@ -37,12 +39,11 @@ pub(crate) async fn execute(args: Args) -> Result<(), NetworkManagerError> {
             args.network_name,
             args.custom_epoch_duration_secs.map(Duration::from_secs),
         )
-        .await?;
+        .await?
+        .into_loaded();
 
-    println!(
-        "add the following to your .env file: \n{}",
-        network.unchecked_to_env_file_section()
-    );
+    let env = Env::from(&network);
+    println!("add the following to your .env file: \n{env}",);
 
     Ok(())
 }

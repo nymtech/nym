@@ -4,6 +4,7 @@
 use crate::error::NetworkManagerError;
 use crate::helpers::{ProgressCtx, ProgressTracker, RunCommands};
 use crate::manager::dkg_skip::EcashSignerWithPaths;
+use crate::manager::env::Env;
 use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
 use console::style;
@@ -11,8 +12,6 @@ use nym_config::{
     must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_NYM_APIS_DIR, NYM_DIR,
 };
 use std::fs;
-use std::fs::File;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::Command;
@@ -183,21 +182,15 @@ impl NetworkManager {
         ctx: &LocalApisCtx,
         env_file: P,
     ) -> Result<(), NetworkManagerError> {
-        let base_env = ctx.network.to_env_file_section();
-        let updated_env = format!("{base_env}NYM_API={}", ctx.signers[0].data.endpoint);
-
-        let env_file_path = env_file.as_ref();
-        if let Some(parent) = env_file_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
+        let env = Env::from(ctx.network).with_nym_api(ctx.signers[0].data.endpoint.as_ref());
 
         let latest = self.default_latest_env_file_path();
         if fs::read_link(&latest).is_ok() {
             fs::remove_file(&latest)?;
         }
 
-        let mut env_file = File::create(env_file_path)?;
-        env_file.write_all(updated_env.as_bytes())?;
+        let env_file_path = env_file.as_ref();
+        env.save(env_file_path)?;
 
         // make symlink for usability purposes
         std::os::unix::fs::symlink(env_file_path, &latest)?;

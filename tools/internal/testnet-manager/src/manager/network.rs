@@ -27,35 +27,8 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn unchecked_to_env_file_section(&self) -> String {
-        format!(
-            "CONFIGURED=true\n\
-\n\
-BECH32_PREFIX=n\n\
-MIX_DENOM=unym\n\
-MIX_DENOM_DISPLAY=nym\n\
-STAKE_DENOM=unyx\n\
-STAKE_DENOM_DISPLAY=nyx\n\
-DENOMS_EXPONENT=6\n\
-\n\
-REWARDING_VALIDATOR_ADDRESS={}\n\
-MIXNET_CONTRACT_ADDRESS={}\n\
-VESTING_CONTRACT_ADDRESS={}\n\
-ECASH_CONTRACT_ADDRESS={}\n\
-GROUP_CONTRACT_ADDRESS={}\n\
-MULTISIG_CONTRACT_ADDRESS={}\n\
-COCONUT_DKG_CONTRACT_ADDRESS={}\n\
-NYXD={}\n\
-",
-            self.auxiliary_addresses.mixnet_rewarder.address,
-            self.contracts.mixnet.address().unwrap(),
-            self.contracts.vesting.address().unwrap(),
-            self.contracts.ecash.address().unwrap(),
-            self.contracts.cw4_group.address().unwrap(),
-            self.contracts.cw3_multisig.address().unwrap(),
-            self.contracts.dkg.address().unwrap(),
-            self.rpc_endpoint,
-        )
+    pub fn into_loaded(self) -> LoadedNetwork {
+        self.into()
     }
 }
 
@@ -150,37 +123,6 @@ impl LoadedNetwork {
             self.rpc_endpoint.as_str(),
             self.contracts.cw4_group.admin_mnemonic.clone(),
         )?)
-    }
-
-    pub fn to_env_file_section(&self) -> String {
-        format!(
-            "CONFIGURED=true\n\
-\n\
-BECH32_PREFIX=n\n\
-MIX_DENOM=unym\n\
-MIX_DENOM_DISPLAY=nym\n\
-STAKE_DENOM=unyx\n\
-STAKE_DENOM_DISPLAY=nyx\n\
-DENOMS_EXPONENT=6\n\
-\n\
-REWARDING_VALIDATOR_ADDRESS={}\n\
-MIXNET_CONTRACT_ADDRESS={}\n\
-VESTING_CONTRACT_ADDRESS={}\n\
-ECASH_CONTRACT_ADDRESS={}\n\
-GROUP_CONTRACT_ADDRESS={}\n\
-MULTISIG_CONTRACT_ADDRESS={}\n\
-COCONUT_DKG_CONTRACT_ADDRESS={}\n\
-NYXD={}\n\
-",
-            self.auxiliary_addresses.mixnet_rewarder.address,
-            self.contracts.mixnet.address,
-            self.contracts.vesting.address,
-            self.contracts.ecash.address,
-            self.contracts.cw4_group.address,
-            self.contracts.cw3_multisig.address,
-            self.contracts.dkg.address,
-            self.rpc_endpoint,
-        )
     }
 }
 

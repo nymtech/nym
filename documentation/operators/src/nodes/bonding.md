@@ -34,11 +34,11 @@ You can bond your `nym-node` via the Desktop wallet.
 | :--                    | :--                                 | :--                |
 | Mixnode                | Mix port                            | `1789`             |
 | Mixnode                | Verloc port                         | `1790`             |
-| Mixnode                | HTTP api port (see pictures below!) | `8080`             |
+| Mixnode                | HTTP api port (picture below) | `8080`             |
 | Gateway (entry & exit) | Mix port                            | `1789`             |
 | Gateway (entry & exit) | Client WS API port                  | `9000`             |
 
-- If you bonding `nym-node --mode mixnode` through *Bond mixnode* desktop wallet menu, change manually value of *HTTP api port* value from deprecated `8000` to `8080` - a generic `nym-node` HTTP port (for all modes).
+- If you bonding `nym-node --mode mixnode` through *Bond mixnode* desktop wallet menu, change manually *HTTP api port* value from deprecated `8000` to `8080` - a generic `nym-node` HTTP port (for all modes).
 
 ![](../images/wallet-screenshots/new_http_port.png)
 

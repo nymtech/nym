@@ -282,12 +282,12 @@ less ~/.nym/nym-nodes/default-nym-node/config/config.toml
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 
-### Nym Node: Minode mode port reference
+### Nym Node: Mixnode mode port reference
 | Default port | Use                       |
 | ------------ | ------------------------- |
 | `1789`       | Listen for Mixnet traffic |
 | `1790`       | Listen for VerLoc traffic |
-| `8000`       | Metrics http API endpoint |
+| `8080`       | Metrics http API endpoint |
 
 
 ### Nym Node: Gateway modes port reference

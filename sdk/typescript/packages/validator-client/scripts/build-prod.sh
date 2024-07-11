@@ -13,7 +13,7 @@ pnpm build
 
 # Bundle types
 
-pnp, build:types
+pnpm build:types
 
 # Build package.json for bundle
 

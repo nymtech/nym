@@ -1,5 +1,5 @@
 {
-  "name": "@nymproject/nym-wallet-app",
+  "name": "@nymproject/wallet",
   "version": "1.2.13",
   "license": "MIT",
   "main": "index.js",
@@ -13,6 +13,7 @@
     "tauri:build": "pnpm tauri build",
     "tauri:dev": "pnpm tauri dev",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --fix",
     "preview": "vite preview",
     "prebuild": "pnpm -C .. build",
     "storybook": "storybook dev -p 6006",

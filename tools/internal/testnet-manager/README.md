@@ -72,7 +72,7 @@ and `bypass-dkg` separately:
 1. runs equivalent of `initialise-new-network`
 2. runs equivalent of `bypass-dkg`
 
-## `create-local-ecash-apis`(local_ecash_apis::Args),
+## `create-local-ecash-apis`
 
 pre-requisites:
 

@@ -14,7 +14,6 @@ import {
   Toolbar,
 } from "@mui/material";
 import { Menu } from "@mui/icons-material";
-import { MaintenanceBanner } from "@nymproject/react";
 import { useIsMobile } from "@/app/hooks/useIsMobile";
 import { MobileDrawerClose } from "@/app/icons/MobileDrawerClose";
 import { Footer } from "../Footer";
@@ -23,7 +22,9 @@ import { ConnectKeplrWallet } from "../Wallet/ConnectKeplrWallet";
 import { NetworkTitle } from "../NetworkTitle";
 import { originalNavOptions } from "@/app/context/nav";
 
-export const MobileNav: FCWithChildren = ({ children }) => {
+export const MobileNav: FCWithChildren<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const theme = useTheme();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   // Set maintenance banner to false by default to don't display it
@@ -46,10 +47,6 @@ export const MobileNav: FCWithChildren = ({ children }) => {
           borderRadius: 0,
         }}
       >
-        <MaintenanceBanner
-          open={openMaintenance}
-          onClick={() => setOpenMaintenance(false)}
-        />
         <Toolbar
           sx={{
             display: "flex",
@@ -126,8 +123,7 @@ export const MobileNav: FCWithChildren = ({ children }) => {
           </List>
         </Box>
       </Drawer>
-
-      <Box sx={{ width: "100%", p: 4, mt: 7 }}>
+      <Box sx={{ width: "100%", p: 4, mt: 7, bgcolor: "background.default" }}>
         {children}
         <Footer />
       </Box>

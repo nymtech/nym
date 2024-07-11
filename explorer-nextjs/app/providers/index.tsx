@@ -1,8 +1,8 @@
-import React from 'react'
-import CosmosKitProvider from '@/app/context/cosmos-kit'
-import { WalletProvider } from '@/app/context/wallet'
-import { NetworkExplorerThemeProvider } from '@/app/theme'
-import { MainContextProvider } from '@/app/context/main'
+import React from "react";
+import CosmosKitProvider from "@/app/context/cosmos-kit";
+import { WalletProvider } from "@/app/context/wallet";
+import { NetworkExplorerThemeProvider } from "@/app/theme";
+import { MainContextProvider } from "@/app/context/main";
 
 const Providers = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -13,7 +13,7 @@ const Providers = ({ children }: { children: React.ReactNode }) => {
         </CosmosKitProvider>
       </NetworkExplorerThemeProvider>
     </MainContextProvider>
-  )
-}
+  );
+};
 
-export { Providers }
+export { Providers };

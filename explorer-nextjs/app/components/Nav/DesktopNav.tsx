@@ -88,7 +88,7 @@ type ExpandableButtonType = {
   fixDrawerClose?: () => void;
 };
 
-export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
+export const ExpandableButton = ({
   title,
   url,
   drawIsTempOpen,
@@ -101,7 +101,7 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
   openDrawer,
   closeDrawer,
   fixDrawerClose,
-}) => {
+}: ExpandableButtonType) => {
   const { palette } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
@@ -183,7 +183,7 @@ export const ExpandableButton: FCWithChildren<ExpandableButtonType> = ({
   );
 };
 
-export const Nav: FCWithChildren = ({ children }) => {
+export const Nav = ({ children }: { children: React.ReactNode }) => {
   const { environment } = useMainContext();
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
   const [fixedOpen, setFixedOpen] = React.useState(false);
@@ -364,7 +364,7 @@ export const Nav: FCWithChildren = ({ children }) => {
       </Drawer>
       <Box
         style={{ width: `calc(100% - ${drawerWidth}px` }}
-        sx={{ py: 5, px: 6, mt: 7 }}
+        sx={{ py: 5, px: 6, mt: 7, bgcolor: "background.default" }}
       >
         {children}
         <Footer />

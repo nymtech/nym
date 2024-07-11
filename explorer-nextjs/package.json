@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:prod": "yarn --cwd .. build && next build",
+    "build:prod": "pnpm i && pnpm -C .. build && next build",
     "start": "next start",
     "lint": "next lint"
   },

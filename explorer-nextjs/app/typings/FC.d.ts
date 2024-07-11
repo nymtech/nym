@@ -1,1 +1,1 @@
-declare type FCWithChildren<P = {}> = React.FC<React.PropsWithChildren<P>>;
+declare type FCWithChildren<P = object> = React.FC<React.PropsWithChildren<P>>;

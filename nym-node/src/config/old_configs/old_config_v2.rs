@@ -2,27 +2,38 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 #![allow(dead_code)]
-use crate::config::*;
-use crate::error::KeyIOFailure;
+
+use crate::{config::*, error::KeyIOFailure};
+use entry_gateway::Debug as EntryGatewayConfigDebug;
+use exit_gateway::{IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug};
+use mixnode::{Verloc, VerlocDebug};
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::serde_helpers::de_maybe_port;
-use nym_crypto::asymmetric::encryption::KeyPair;
-use nym_pemstore::store_keypair;
-use old_configs::old_config_1_1_3::*;
+use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_network_requester::{
+    set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
+    GatewayDetails,
+};
+use nym_pemstore::{load_key, store_key, store_keypair};
+use nym_sphinx_acknowledgements::AckKey;
+use persistence::{
+    AuthenticatorPaths, EntryGatewayPaths, ExitGatewayPaths, IpPacketRouterPaths, KeysPaths,
+    MixnodePaths, NetworkRequesterPaths, WireguardPaths,
+};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct WireguardPaths1_1_2 {
+pub struct WireguardPathsV2 {
     pub private_diffie_hellman_key_file: PathBuf,
     pub public_diffie_hellman_key_file: PathBuf,
 }
 
-impl WireguardPaths1_1_2 {
+impl WireguardPathsV2 {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         let data_dir = data_dir.as_ref();
-        WireguardPaths1_1_2 {
+        WireguardPathsV2 {
             private_diffie_hellman_key_file: data_dir
                 .join(persistence::DEFAULT_X25519_WG_DH_KEY_FILENAME),
             public_diffie_hellman_key_file: data_dir
@@ -40,7 +51,7 @@ impl WireguardPaths1_1_2 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Wireguard1_1_2 {
+pub struct WireguardV2 {
     /// Specifies whether the wireguard service is enabled on this node.
     pub enabled: bool,
 
@@ -50,7 +61,7 @@ pub struct Wireguard1_1_2 {
 
     /// Ip address of the private wireguard network.
     /// default: `10.1.0.0`
-    pub private_network_ip: IpAddr,
+    pub private_ip: IpAddr,
 
     /// Port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
@@ -61,13 +72,13 @@ pub struct Wireguard1_1_2 {
     pub private_network_prefix: u8,
 
     /// Paths for wireguard keys, client registries, etc.
-    pub storage_paths: WireguardPaths1_1_2,
+    pub storage_paths: WireguardPathsV2,
 }
 
 // a temporary solution until all "types" are run at the same time
 #[derive(Debug, Default, Serialize, Deserialize, ValueEnum, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
-pub enum NodeMode1_1_2 {
+pub enum NodeModeV2 {
     #[default]
     #[clap(alias = "mix")]
     Mixnode,
@@ -79,12 +90,12 @@ pub enum NodeMode1_1_2 {
     ExitGateway,
 }
 
-impl From<NodeMode1_1_2> for NodeMode1_1_3 {
-    fn from(config: NodeMode1_1_2) -> Self {
+impl From<NodeModeV2> for NodeMode {
+    fn from(config: NodeModeV2) -> Self {
         match config {
-            NodeMode1_1_2::Mixnode => NodeMode1_1_3::Mixnode,
-            NodeMode1_1_2::EntryGateway => NodeMode1_1_3::EntryGateway,
-            NodeMode1_1_2::ExitGateway => NodeMode1_1_3::ExitGateway,
+            NodeModeV2::Mixnode => NodeMode::Mixnode,
+            NodeModeV2::EntryGateway => NodeMode::EntryGateway,
+            NodeModeV2::ExitGateway => NodeMode::ExitGateway,
         }
     }
 }
@@ -93,7 +104,7 @@ impl From<NodeMode1_1_2> for NodeMode1_1_3 {
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct Host1_1_2 {
+pub struct HostV2 {
     /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
     /// If no values are provided, when this node gets included in the network,
     /// its ip addresses will be populated by whatever value is resolved by associated nym-api.
@@ -112,7 +123,7 @@ pub struct Host1_1_2 {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct MixnetDebug1_1_2 {
+pub struct MixnetDebugV2 {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     #[serde(with = "humantime_serde")]
@@ -134,16 +145,16 @@ pub struct MixnetDebug1_1_2 {
     pub unsafe_disable_noise: bool,
 }
 
-impl MixnetDebug1_1_2 {
+impl MixnetDebugV2 {
     const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
     const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
     const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
     const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 }
 
-impl Default for MixnetDebug1_1_2 {
+impl Default for MixnetDebugV2 {
     fn default() -> Self {
-        MixnetDebug1_1_2 {
+        MixnetDebugV2 {
             packet_forwarding_initial_backoff: Self::DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
@@ -154,7 +165,7 @@ impl Default for MixnetDebug1_1_2 {
     }
 }
 
-impl Default for Mixnet1_1_2 {
+impl Default for MixnetV2 {
     fn default() -> Self {
         // SAFETY:
         // our hardcoded values should always be valid
@@ -173,7 +184,7 @@ impl Default for Mixnet1_1_2 {
             vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")]
         };
 
-        Mixnet1_1_2 {
+        MixnetV2 {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_MIXNET_PORT),
             nym_api_urls,
             nyxd_urls,
@@ -185,7 +196,7 @@ impl Default for Mixnet1_1_2 {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct Mixnet1_1_2 {
+pub struct MixnetV2 {
     /// Address this node will bind to for listening for mixnet packets
     /// default: `0.0.0.0:1789`
     pub bind_address: SocketAddr,
@@ -197,12 +208,12 @@ pub struct Mixnet1_1_2 {
     pub nyxd_urls: Vec<Url>,
 
     #[serde(default)]
-    pub debug: MixnetDebug1_1_2,
+    pub debug: MixnetDebugV2,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct KeysPaths1_1_2 {
+pub struct KeysPathsV2 {
     /// Path to file containing ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -224,8 +235,8 @@ pub struct KeysPaths1_1_2 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct NymNodePaths1_1_2 {
-    pub keys: KeysPaths1_1_2,
+pub struct NymNodePathsV2 {
+    pub keys: KeysPathsV2,
 
     /// Path to a file containing basic node description: human-readable name, website, details, etc.
     pub description: PathBuf,
@@ -234,7 +245,7 @@ pub struct NymNodePaths1_1_2 {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct Http1_1_2 {
+pub struct HttpV2 {
     /// Socket address this node will use for binding its http API.
     /// default: `0.0.0.0:8080`
     pub bind_address: SocketAddr,
@@ -263,9 +274,9 @@ pub struct Http1_1_2 {
     pub expose_crypto_hardware: bool,
 }
 
-impl Default for Http1_1_2 {
+impl Default for HttpV2 {
     fn default() -> Self {
-        Http1_1_2 {
+        HttpV2 {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
             access_token: None,
@@ -278,11 +289,11 @@ impl Default for Http1_1_2 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnodePaths1_1_2 {}
+pub struct MixnodePathsV2 {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Debug1_1_2 {
+pub struct DebugV2 {
     /// Delay between each subsequent node statistics being logged to the console
     #[serde(with = "humantime_serde")]
     pub node_stats_logging_delay: Duration,
@@ -294,7 +305,7 @@ pub struct Debug1_1_2 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct VerlocDebug1_1_2 {
+pub struct VerlocDebugV2 {
     /// Specifies number of echo packets sent to each node during a measurement run.
     pub packets_per_node: usize,
 
@@ -325,16 +336,16 @@ pub struct VerlocDebug1_1_2 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Verloc1_1_2 {
+pub struct VerlocV2 {
     /// Socket address this node will use for binding its verloc API.
     /// default: `0.0.0.0:1790`
     pub bind_address: SocketAddr,
 
     #[serde(default)]
-    pub debug: VerlocDebug1_1_2,
+    pub debug: VerlocDebugV2,
 }
 
-impl VerlocDebug1_1_2 {
+impl VerlocDebugV2 {
     const DEFAULT_PACKETS_PER_NODE: usize = 100;
     const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_millis(5000);
     const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
@@ -344,9 +355,9 @@ impl VerlocDebug1_1_2 {
     const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 }
 
-impl Default for VerlocDebug1_1_2 {
+impl Default for VerlocDebugV2 {
     fn default() -> Self {
-        VerlocDebug1_1_2 {
+        VerlocDebugV2 {
             packets_per_node: Self::DEFAULT_PACKETS_PER_NODE,
             connection_timeout: Self::DEFAULT_CONNECTION_TIMEOUT,
             packet_timeout: Self::DEFAULT_PACKET_TIMEOUT,
@@ -360,23 +371,23 @@ impl Default for VerlocDebug1_1_2 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnodeConfig1_1_2 {
-    pub storage_paths: MixnodePaths1_1_2,
+pub struct MixnodeConfigV2 {
+    pub storage_paths: MixnodePathsV2,
 
-    pub verloc: Verloc1_1_2,
+    pub verloc: VerlocV2,
 
     #[serde(default)]
-    pub debug: Debug1_1_2,
+    pub debug: DebugV2,
 }
 
-impl Debug1_1_2 {
+impl DebugV2 {
     const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
     const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000);
 }
 
-impl Default for Debug1_1_2 {
+impl Default for DebugV2 {
     fn default() -> Self {
-        Debug1_1_2 {
+        DebugV2 {
             node_stats_logging_delay: Self::DEFAULT_NODE_STATS_LOGGING_DELAY,
             node_stats_updating_delay: Self::DEFAULT_NODE_STATS_UPDATING_DELAY,
         }
@@ -385,7 +396,7 @@ impl Default for Debug1_1_2 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct EntryGatewayPaths1_1_2 {
+pub struct EntryGatewayPathsV2 {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys and available client bandwidths.
     pub clients_storage: PathBuf,
@@ -396,18 +407,18 @@ pub struct EntryGatewayPaths1_1_2 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EntryGatewayConfigDebug1_1_2 {
+pub struct EntryGatewayConfigDebugV2 {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
 }
 
-impl EntryGatewayConfigDebug1_1_2 {
+impl EntryGatewayConfigDebugV2 {
     const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 }
 
-impl Default for EntryGatewayConfigDebug1_1_2 {
+impl Default for EntryGatewayConfigDebugV2 {
     fn default() -> Self {
-        EntryGatewayConfigDebug1_1_2 {
+        EntryGatewayConfigDebugV2 {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
         }
     }
@@ -415,8 +426,8 @@ impl Default for EntryGatewayConfigDebug1_1_2 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EntryGatewayConfig1_1_2 {
-    pub storage_paths: EntryGatewayPaths1_1_2,
+pub struct EntryGatewayConfigV2 {
+    pub storage_paths: EntryGatewayPathsV2,
 
     /// Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet
     /// or if it also accepts non-paying clients
@@ -438,12 +449,12 @@ pub struct EntryGatewayConfig1_1_2 {
     pub announce_wss_port: Option<u16>,
 
     #[serde(default)]
-    pub debug: EntryGatewayConfigDebug1_1_2,
+    pub debug: EntryGatewayConfigDebugV2,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct NetworkRequesterPaths1_1_2 {
+pub struct NetworkRequesterPathsV2 {
     /// Path to file containing network requester ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -473,7 +484,7 @@ pub struct NetworkRequesterPaths1_1_2 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct IpPacketRouterPaths1_1_2 {
+pub struct IpPacketRouterPathsV2 {
     /// Path to file containing ip packet router ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -503,15 +514,15 @@ pub struct IpPacketRouterPaths1_1_2 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ExitGatewayPaths1_1_2 {
-    pub network_requester: NetworkRequesterPaths1_1_2,
+pub struct ExitGatewayPathsV2 {
+    pub network_requester: NetworkRequesterPathsV2,
 
-    pub ip_packet_router: IpPacketRouterPaths1_1_2,
+    pub ip_packet_router: IpPacketRouterPathsV2,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct IpPacketRouterDebug1_1_2 {
+pub struct IpPacketRouterDebugV2 {
     /// Specifies whether ip packet routing service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run **both**
     /// network requester and an ip packet router.
@@ -527,9 +538,9 @@ pub struct IpPacketRouterDebug1_1_2 {
     pub client_debug: ClientDebugConfig,
 }
 
-impl Default for IpPacketRouterDebug1_1_2 {
+impl Default for IpPacketRouterDebugV2 {
     fn default() -> Self {
-        IpPacketRouterDebug1_1_2 {
+        IpPacketRouterDebugV2 {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),
@@ -538,22 +549,22 @@ impl Default for IpPacketRouterDebug1_1_2 {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct IpPacketRouter1_1_2 {
+pub struct IpPacketRouterV2 {
     #[serde(default)]
-    pub debug: IpPacketRouterDebug1_1_2,
+    pub debug: IpPacketRouterDebugV2,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for IpPacketRouter1_1_2 {
+impl Default for IpPacketRouterV2 {
     fn default() -> Self {
-        IpPacketRouter1_1_2 {
+        IpPacketRouterV2 {
             debug: Default::default(),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-pub struct NetworkRequesterDebug1_1_2 {
+pub struct NetworkRequesterDebugV2 {
     /// Specifies whether network requester service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run **both**
     /// network requester and an ip packet router.
@@ -569,9 +580,9 @@ pub struct NetworkRequesterDebug1_1_2 {
     pub client_debug: ClientDebugConfig,
 }
 
-impl Default for NetworkRequesterDebug1_1_2 {
+impl Default for NetworkRequesterDebugV2 {
     fn default() -> Self {
-        NetworkRequesterDebug1_1_2 {
+        NetworkRequesterDebugV2 {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),
@@ -580,15 +591,15 @@ impl Default for NetworkRequesterDebug1_1_2 {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-pub struct NetworkRequester1_1_2 {
+pub struct NetworkRequesterV2 {
     #[serde(default)]
-    pub debug: NetworkRequesterDebug1_1_2,
+    pub debug: NetworkRequesterDebugV2,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for NetworkRequester1_1_2 {
+impl Default for NetworkRequesterV2 {
     fn default() -> Self {
-        NetworkRequester1_1_2 {
+        NetworkRequesterV2 {
             debug: Default::default(),
         }
     }
@@ -596,8 +607,8 @@ impl Default for NetworkRequester1_1_2 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ExitGatewayConfig1_1_2 {
-    pub storage_paths: ExitGatewayPaths1_1_2,
+pub struct ExitGatewayConfigV2 {
+    pub storage_paths: ExitGatewayPathsV2,
 
     /// specifies whether this exit node should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.
@@ -606,20 +617,20 @@ pub struct ExitGatewayConfig1_1_2 {
     /// Specifies the url for an upstream source of the exit policy used by this node.
     pub upstream_exit_policy_url: Url,
 
-    pub network_requester: NetworkRequester1_1_2,
+    pub network_requester: NetworkRequesterV2,
 
-    pub ip_packet_router: IpPacketRouter1_1_2,
+    pub ip_packet_router: IpPacketRouterV2,
 }
 
 #[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct LoggingSettings1_1_2 {
+pub struct LoggingSettingsV2 {
     // well, we need to implement something here at some point...
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Config1_1_2 {
+pub struct ConfigV2 {
     // additional metadata holding on-disk location of this config file
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
@@ -629,37 +640,37 @@ pub struct Config1_1_2 {
 
     /// Current mode of this nym-node.
     /// Expect this field to be changed in the future to allow running the node in multiple modes (i.e. mixnode + gateway)
-    pub mode: NodeMode1_1_2,
+    pub mode: NodeModeV2,
 
-    pub host: Host1_1_2,
+    pub host: HostV2,
 
-    pub mixnet: Mixnet1_1_2,
+    pub mixnet: MixnetV2,
 
     /// Storage paths to persistent nym-node data, such as its long term keys.
-    pub storage_paths: NymNodePaths1_1_2,
+    pub storage_paths: NymNodePathsV2,
 
     #[serde(default)]
-    pub http: Http1_1_2,
+    pub http: HttpV2,
 
-    pub wireguard: Wireguard1_1_2,
+    pub wireguard: WireguardV2,
 
-    pub mixnode: MixnodeConfig1_1_2,
+    pub mixnode: MixnodeConfigV2,
 
-    pub entry_gateway: EntryGatewayConfig1_1_2,
+    pub entry_gateway: EntryGatewayConfigV2,
 
-    pub exit_gateway: ExitGatewayConfig1_1_2,
+    pub exit_gateway: ExitGatewayConfigV2,
 
     #[serde(default)]
-    pub logging: LoggingSettings1_1_2,
+    pub logging: LoggingSettingsV2,
 }
 
-impl NymConfigTemplate for Config1_1_2 {
+impl NymConfigTemplate for ConfigV2 {
     fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
     }
 }
 
-impl Config1_1_2 {
+impl ConfigV2 {
     pub fn save(&self) -> Result<(), NymNodeError> {
         let save_location = self.save_location();
         debug!(
@@ -727,7 +738,7 @@ impl Config1_1_2 {
     // simple wrapper that reads config file and assigns path location
     fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
         let path = path.as_ref();
-        let mut loaded: Config1_1_2 =
+        let mut loaded: ConfigV2 =
             read_config_from_toml_file(path).map_err(|source| NymNodeError::ConfigLoadFailure {
                 path: path.to_path_buf(),
                 source,
@@ -742,55 +753,80 @@ impl Config1_1_2 {
     }
 }
 
-fn initialise(config: &Wireguard1_1_3) -> std::io::Result<()> {
+pub async fn initialise(
+    paths: &AuthenticatorPaths,
+    public_key: nym_crypto::asymmetric::identity::PublicKey,
+) -> Result<(), NymNodeError> {
     let mut rng = OsRng;
-    let x25519_keys = KeyPair::new(&mut rng);
+    let ed25519_keys = ed25519::KeyPair::new(&mut rng);
+    let x25519_keys = x25519::KeyPair::new(&mut rng);
+    let aes128ctr_key = AckKey::new(&mut rng);
+    let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
 
-    store_keypair(
-        &x25519_keys,
-        &config.storage_paths.x25519_wireguard_storage_paths(),
-    )?;
+    store_keypair(&ed25519_keys, &paths.ed25519_identity_storage_paths()).map_err(|e| {
+        KeyIOFailure::KeyPairStoreFailure {
+            keys: "ed25519-identity".to_string(),
+            paths: paths.ed25519_identity_storage_paths(),
+            err: e,
+        }
+    })?;
+    store_keypair(&x25519_keys, &paths.x25519_diffie_hellman_storage_paths()).map_err(|e| {
+        KeyIOFailure::KeyPairStoreFailure {
+            keys: "x25519-dh".to_string(),
+            paths: paths.x25519_diffie_hellman_storage_paths(),
+            err: e,
+        }
+    })?;
+    store_key(&aes128ctr_key, &paths.ack_key_file).map_err(|e| KeyIOFailure::KeyStoreFailure {
+        key: "ack".to_string(),
+        path: paths.ack_key_file.clone(),
+        err: e,
+    })?;
+
+    // insert all required information into the gateways store
+    // (I hate that we have to do it, but that's currently the simplest thing to do)
+    let storage = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
+    store_gateway_details(&storage, &gateway_details).await?;
+    set_active_gateway(&storage, &gateway_details.gateway_id().to_base58_string()).await?;
 
     Ok(())
 }
 
-pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
+pub async fn try_upgrade_config_v2<P: AsRef<Path>>(
     path: P,
-    prev_config: Option<Config1_1_2>,
-) -> Result<Config1_1_3, NymNodeError> {
-    tracing::debug!("Updating from 1.1.2");
+    prev_config: Option<ConfigV2>,
+) -> Result<Config, NymNodeError> {
+    tracing::debug!("Updating from 1.1.3");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {
-        Config1_1_2::read_from_path(&path)?
+        ConfigV2::read_from_path(&path)?
     };
-    let wireguard = Wireguard1_1_3 {
-        enabled: old_cfg.wireguard.enabled,
-        bind_address: old_cfg.wireguard.bind_address,
-        private_ip: old_cfg.wireguard.private_network_ip,
-        announced_port: old_cfg.wireguard.announced_port,
-        private_network_prefix: old_cfg.wireguard.private_network_prefix,
-        storage_paths: WireguardPaths1_1_3::new(Config1_1_3::default_data_directory(path)?),
-    };
-    initialise(&wireguard).map_err(|err| KeyIOFailure::KeyPairStoreFailure {
-        keys: "wg-x25519-dh".to_string(),
-        paths: wireguard.storage_paths.x25519_wireguard_storage_paths(),
-        err,
-    })?;
-    let cfg = Config1_1_3 {
+
+    let authenticator_paths = AuthenticatorPaths::new(
+        old_cfg
+            .exit_gateway
+            .storage_paths
+            .ip_packet_router
+            .private_ed25519_identity_key_file
+            .parent()
+            .ok_or(NymNodeError::DataDirDerivationFailure)?,
+    );
+
+    let cfg = Config {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
         mode: old_cfg.mode.into(),
-        host: Host1_1_3 {
+        host: Host {
             public_ips: old_cfg.host.public_ips,
             hostname: old_cfg.host.hostname,
             location: old_cfg.host.location,
         },
-        mixnet: Mixnet1_1_3 {
+        mixnet: Mixnet {
             bind_address: old_cfg.mixnet.bind_address,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
             nyxd_urls: old_cfg.mixnet.nyxd_urls,
-            debug: MixnetDebug1_1_3 {
+            debug: MixnetDebug {
                 packet_forwarding_initial_backoff: old_cfg
                     .mixnet
                     .debug
@@ -804,8 +840,8 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
             },
         },
-        storage_paths: NymNodePaths1_1_3 {
-            keys: KeysPaths1_1_3 {
+        storage_paths: NymNodePaths {
+            keys: KeysPaths {
                 private_ed25519_identity_key_file: old_cfg
                     .storage_paths
                     .keys
@@ -833,7 +869,7 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
             },
             description: old_cfg.storage_paths.description,
         },
-        http: Http1_1_3 {
+        http: Http {
             bind_address: old_cfg.http.bind_address,
             landing_page_assets_path: old_cfg.http.landing_page_assets_path,
             access_token: old_cfg.http.access_token,
@@ -841,12 +877,28 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
             expose_system_hardware: old_cfg.http.expose_system_hardware,
             expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
         },
-        wireguard,
-        mixnode: MixnodeConfig1_1_3 {
-            storage_paths: MixnodePaths1_1_3 {},
-            verloc: Verloc1_1_3 {
+        wireguard: Wireguard {
+            enabled: old_cfg.wireguard.enabled,
+            bind_address: old_cfg.wireguard.bind_address,
+            private_ip: old_cfg.wireguard.private_ip,
+            announced_port: old_cfg.wireguard.announced_port,
+            private_network_prefix: old_cfg.wireguard.private_network_prefix,
+            storage_paths: WireguardPaths {
+                private_diffie_hellman_key_file: old_cfg
+                    .wireguard
+                    .storage_paths
+                    .private_diffie_hellman_key_file,
+                public_diffie_hellman_key_file: old_cfg
+                    .wireguard
+                    .storage_paths
+                    .public_diffie_hellman_key_file,
+            },
+        },
+        mixnode: MixnodeConfig {
+            storage_paths: MixnodePaths {},
+            verloc: Verloc {
                 bind_address: old_cfg.mixnode.verloc.bind_address,
-                debug: VerlocDebug1_1_3 {
+                debug: VerlocDebug {
                     packets_per_node: old_cfg.mixnode.verloc.debug.packets_per_node,
                     connection_timeout: old_cfg.mixnode.verloc.debug.connection_timeout,
                     packet_timeout: old_cfg.mixnode.verloc.debug.packet_timeout,
@@ -856,27 +908,28 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
                     retry_timeout: old_cfg.mixnode.verloc.debug.retry_timeout,
                 },
             },
-            debug: Debug1_1_3 {
+            debug: mixnode::Debug {
                 node_stats_logging_delay: old_cfg.mixnode.debug.node_stats_logging_delay,
                 node_stats_updating_delay: old_cfg.mixnode.debug.node_stats_updating_delay,
             },
         },
-        entry_gateway: EntryGatewayConfig1_1_3 {
-            storage_paths: EntryGatewayPaths1_1_3 {
+        entry_gateway: EntryGatewayConfig {
+            storage_paths: EntryGatewayPaths {
                 clients_storage: old_cfg.entry_gateway.storage_paths.clients_storage,
                 cosmos_mnemonic: old_cfg.entry_gateway.storage_paths.cosmos_mnemonic,
+                authenticator: authenticator_paths.clone(),
             },
             enforce_zk_nyms: old_cfg.entry_gateway.enforce_zk_nyms,
             bind_address: old_cfg.entry_gateway.bind_address,
             announce_ws_port: old_cfg.entry_gateway.announce_ws_port,
             announce_wss_port: old_cfg.entry_gateway.announce_wss_port,
-            debug: EntryGatewayConfigDebug1_1_3 {
+            debug: EntryGatewayConfigDebug {
                 message_retrieval_limit: old_cfg.entry_gateway.debug.message_retrieval_limit,
             },
         },
-        exit_gateway: ExitGatewayConfig1_1_3 {
-            storage_paths: ExitGatewayPaths1_1_3 {
-                network_requester: NetworkRequesterPaths1_1_3 {
+        exit_gateway: ExitGatewayConfig {
+            storage_paths: ExitGatewayPaths {
+                network_requester: NetworkRequesterPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -913,7 +966,7 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
                         .network_requester
                         .gateway_registrations,
                 },
-                ip_packet_router: IpPacketRouterPaths1_1_3 {
+                ip_packet_router: IpPacketRouterPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -950,11 +1003,12 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
                         .ip_packet_router
                         .gateway_registrations,
                 },
+                authenticator: authenticator_paths.clone(),
             },
             open_proxy: old_cfg.exit_gateway.open_proxy,
             upstream_exit_policy_url: old_cfg.exit_gateway.upstream_exit_policy_url,
-            network_requester: NetworkRequester1_1_3 {
-                debug: NetworkRequesterDebug1_1_3 {
+            network_requester: NetworkRequester {
+                debug: NetworkRequesterDebug {
                     enabled: old_cfg.exit_gateway.network_requester.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .exit_gateway
@@ -964,8 +1018,8 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
                     client_debug: old_cfg.exit_gateway.network_requester.debug.client_debug,
                 },
             },
-            ip_packet_router: IpPacketRouter1_1_3 {
-                debug: IpPacketRouterDebug1_1_3 {
+            ip_packet_router: IpPacketRouter {
+                debug: IpPacketRouterDebug {
                     enabled: old_cfg.exit_gateway.ip_packet_router.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .exit_gateway
@@ -976,8 +1030,26 @@ pub async fn try_upgrade_config_1_1_2<P: AsRef<Path>>(
                 },
             },
         },
-        logging: LoggingSettings1_1_3 {},
+        authenticator: Default::default(),
+        logging: LoggingSettings {},
     };
+
+    let public_key = load_key(
+        cfg.storage_paths
+            .keys
+            .ed25519_identity_storage_paths()
+            .public_key_path,
+    )
+    .map_err(|source| NymNodeError::DescriptionLoadFailure {
+        path: cfg
+            .storage_paths
+            .keys
+            .ed25519_identity_storage_paths()
+            .public_key_path,
+        source,
+    })?;
+
+    initialise(&authenticator_paths, public_key).await?;
 
     Ok(cfg)
 }

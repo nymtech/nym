@@ -8,8 +8,8 @@ use std::path::Path;
 
 // currently there are no upgrades
 async fn try_upgrade_config(path: &Path) -> Result<(), NymNodeError> {
-    let cfg = try_upgrade_config_1_1_2(path, None).await.ok();
-    match try_upgrade_config_1_1_3(path, cfg).await {
+    let cfg = try_upgrade_config_v1(path, None).await.ok();
+    match try_upgrade_config_v2(path, cfg).await {
         Ok(cfg) => cfg.save(),
         Err(e) => {
             tracing::error!("Failed to finish upgrade - {e}");

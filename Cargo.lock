@@ -5000,23 +5000,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-network-statistics"
-version = "1.1.34"
-dependencies = [
- "dirs 4.0.0",
- "log",
- "nym-bin-common",
- "nym-statistics-common",
- "nym-task",
- "pretty_env_logger",
- "rocket",
- "serde",
- "sqlx",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "nym-node"
 version = "1.1.4"
 dependencies = [

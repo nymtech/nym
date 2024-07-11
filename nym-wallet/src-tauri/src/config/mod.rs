@@ -507,7 +507,6 @@ struct NetworkDetails {
     stake_denom: DenomDetailsOwned,
     mixnet_contract_address: String,
     vesting_contract_address: String,
-    statistics_service_url: String,
     validators: Vec<ValidatorDetails>,
 }
 
@@ -527,7 +526,6 @@ impl From<NymNetworkDetails> for NetworkDetails {
                 .contracts
                 .vesting_contract_address
                 .unwrap_or_default(),
-            statistics_service_url: "".to_string(),
             validators: details.endpoints,
         }
     }

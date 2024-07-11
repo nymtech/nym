@@ -17,3 +17,11 @@ schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"]}
 thiserror = { workspace = true }
 url = { workspace = true }
+
+# 'wasm-serde-types' feature
+tsify = { workspace = true, features = ["js"], optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+
+[features]
+default = []
+wasm-serde-types = ["tsify", "wasm-bindgen"]

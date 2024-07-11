@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const RUST_WASM_URL = "zknym_lib_bg.wasm"
+const RUST_WASM_URL = "zk_nym_faucet_lib_bg.wasm"
 
-importScripts('zknym_lib.js');
+importScripts('zk_nym_faucet_lib.js');
 
 console.log('Initializing worker');
 

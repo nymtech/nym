@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::NymVpnApiClientError;
+use super::NymZkNymFaucetClientError;
 use crate::error::ZkNymError;
-use crate::vpn_api_client::types::{
+use crate::zk_nym_faucet_client::types::{
     AttributesResponse, BandwidthVoucherRequest, BandwidthVoucherResponse,
     MasterVerificationKeyResponse, PartialVerificationKeysResponse,
 };
@@ -15,7 +15,7 @@ use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 
 #[allow(dead_code)]
-pub struct VpnApiClient {
+pub struct NymZkNymFaucetClientErrorApiClient {
     inner: Client,
     bearer_token: String,
 }
@@ -24,8 +24,8 @@ pub struct VpnApiClient {
 pub fn new_client(
     base_url: impl IntoUrl,
     bearer_token: impl Into<String>,
-) -> Result<VpnApiClient, ZkNymError> {
-    Ok(VpnApiClient {
+) -> Result<NymZkNymFaucetClientErrorApiClient, ZkNymError> {
+    Ok(NymZkNymFaucetClientErrorApiClient {
         inner: Client::builder(base_url)?
             .with_user_agent(format!("nym-wasm-znym-lib/{}", env!("CARGO_PKG_VERSION")))
             .build()?,
@@ -36,14 +36,14 @@ pub fn new_client(
 // TODO: do it properly by implementing auth headers on `ApiClient` trait
 #[allow(dead_code)]
 #[async_trait(?Send)]
-pub trait NymVpnApiClient {
-    async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, NymVpnApiClientError>
+pub trait NymNymZkNymFaucetClientErrorApiClient {
+    async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, NymZkNymFaucetClientError>
     where
         T: DeserializeOwned;
 
     async fn get_prehashed_public_attributes(
         &self,
-    ) -> Result<AttributesResponse, NymVpnApiClientError> {
+    ) -> Result<AttributesResponse, NymZkNymFaucetClientError> {
         self.simple_get(&[
             "/api",
             "/v1",
@@ -55,7 +55,7 @@ pub trait NymVpnApiClient {
 
     async fn get_partial_verification_keys(
         &self,
-    ) -> Result<PartialVerificationKeysResponse, NymVpnApiClientError> {
+    ) -> Result<PartialVerificationKeysResponse, NymZkNymFaucetClientError> {
         self.simple_get(&[
             "/api",
             "/v1",
@@ -67,7 +67,7 @@ pub trait NymVpnApiClient {
 
     async fn get_master_verification_key(
         &self,
-    ) -> Result<MasterVerificationKeyResponse, NymVpnApiClientError> {
+    ) -> Result<MasterVerificationKeyResponse, NymZkNymFaucetClientError> {
         self.simple_get(&[
             "/api",
             "/v1",
@@ -80,12 +80,12 @@ pub trait NymVpnApiClient {
     async fn get_bandwidth_voucher_blinded_shares(
         &self,
         blind_sign_request: BlindSignRequest,
-    ) -> Result<BandwidthVoucherResponse, NymVpnApiClientError>;
+    ) -> Result<BandwidthVoucherResponse, NymZkNymFaucetClientError>;
 }
 
 #[async_trait(?Send)]
-impl NymVpnApiClient for VpnApiClient {
-    async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, NymVpnApiClientError>
+impl NymNymZkNymFaucetClientErrorApiClient for NymZkNymFaucetClientErrorApiClient {
+    async fn simple_get<T>(&self, path: PathSegments<'_>) -> Result<T, NymZkNymFaucetClientError>
     where
         T: DeserializeOwned,
     {
@@ -112,7 +112,7 @@ impl NymVpnApiClient for VpnApiClient {
     async fn get_bandwidth_voucher_blinded_shares(
         &self,
         blind_sign_request: BlindSignRequest,
-    ) -> Result<BandwidthVoucherResponse, NymVpnApiClientError> {
+    ) -> Result<BandwidthVoucherResponse, NymZkNymFaucetClientError> {
         let req = self.inner.create_post_request(
             &["/api", "/v1", "/bandwidth-voucher", "/obtain"],
             NO_PARAMS,

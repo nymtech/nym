@@ -21,7 +21,7 @@
     "rust",
     "webpack"
   ],
-  "author": "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+  "author": "Gala Calero <https://github.com/gala1234>",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/nymtech/nym/issues"
@@ -35,6 +35,6 @@
     "webpack-dev-server": "^4.7.4"
   },
   "dependencies": {
-    "@nymproject/nym-zknym-lib": "file:../pkg"
+    "@nymproject/zk-nym-lib": "file:../pkg"
   }
 }

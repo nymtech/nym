@@ -1,6 +1,6 @@
 [package]
-name = "zknym-lib"
-version = "0.1.0"
+name = "zk-nym-faucet-lib"
+version = "1.3.0-rc.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

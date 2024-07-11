@@ -1,2 +1,4 @@
 src/mixnet/wasm/worker.js
+src/zk-nym/worker.js
+src/zk-nym-faucet/worker.js
 docs/

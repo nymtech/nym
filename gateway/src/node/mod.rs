@@ -48,7 +48,9 @@ struct StartedNetworkRequester {
 }
 
 // TODO: should this struct live here?
+#[allow(unused)]
 struct StartedAuthenticator {
+    #[cfg(feature = "wireguard")]
     wg_api: Arc<nym_wireguard::WgApiWrapper>,
 
     /// Handle to interact with the local authenticator
@@ -309,6 +311,7 @@ impl<St> Gateway<St> {
     async fn start_authenticator(
         &self,
         _opts: &LocalAuthenticatorOpts,
+        _forwarding_channel: MixForwardingSender,
         _shutdown: TaskClient,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
         todo!("Authenticator is currently only supported on Linux");

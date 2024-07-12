@@ -221,4 +221,24 @@ impl MixnodeBondingAccount for Account {
             .add_message(update_mixnode_costs_msg)
             .add_event(new_vesting_update_mixnode_cost_params_event()))
     }
+
+    fn try_track_migrated_mixnode(
+        &self,
+        storage: &mut dyn Storage,
+    ) -> Result<(), VestingContractError> {
+        let Some(pledge) = self.load_mixnode_pledge(storage)? else {
+            return Err(VestingContractError::NoBondFound(
+                self.owner_address().as_str().to_string(),
+            ));
+        };
+
+        // treat the tokens that were used for bonding as 'withdrawn'
+        let current_withdrawn = self.load_withdrawn(storage)?;
+        self.save_withdrawn(current_withdrawn + pledge.amount.amount, storage)?;
+
+        // don't change the balance as the tokens are left in the mixnet contract
+
+        // remove the pledge data since it no longer belongs to the vesting account
+        self.remove_mixnode_pledge(storage)
+    }
 }

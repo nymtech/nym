@@ -253,6 +253,14 @@ pub fn execute(
             crate::rewards::transactions::try_withdraw_delegator_reward(deps, info, mix_id)
         }
 
+        // vesting migration:
+        ExecuteMsg::MigrateVestedMixNode { .. } => {
+            crate::vesting_migration::try_migrate_vested_mixnode(deps, info)
+        }
+        ExecuteMsg::MigratedVestedDelegation { mix_id } => {
+            crate::vesting_migration::try_migrate_vested_delegation(deps, info, mix_id)
+        }
+
         // legacy vesting
         ExecuteMsg::CreateFamilyOnBehalf { .. }
         | ExecuteMsg::JoinFamilyOnBehalf { .. }

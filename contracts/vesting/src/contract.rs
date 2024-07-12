@@ -70,55 +70,12 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, VestingContractError> {
     match msg {
-        ExecuteMsg::CreateFamily { label } => try_create_family(info, deps, label),
-        ExecuteMsg::JoinFamily {
-            join_permit,
-            family_head,
-        } => try_join_family(info, deps, join_permit, family_head),
-        ExecuteMsg::LeaveFamily { family_head } => try_leave_family(info, deps, family_head),
-        ExecuteMsg::KickFamilyMember { member } => try_kick_family_member(info, deps, member),
-        ExecuteMsg::UpdateLockedPledgeCap { address, cap } => {
-            try_update_locked_pledge_cap(address, cap, info, deps)
-        }
         ExecuteMsg::TrackReward { amount, address } => {
             try_track_reward(deps, info, amount, &address)
-        }
-        ExecuteMsg::ClaimOperatorReward {} => try_claim_operator_reward(deps, info),
-        ExecuteMsg::ClaimDelegatorReward { mix_id } => {
-            try_claim_delegator_reward(deps, info, mix_id)
-        }
-        ExecuteMsg::UpdateMixnodeConfig { new_config } => {
-            try_update_mixnode_config(new_config, info, deps)
-        }
-        ExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
-            try_update_mixnode_cost_params(new_costs, info, deps)
         }
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
-        ExecuteMsg::DelegateToMixnode {
-            mix_id,
-            amount,
-            on_behalf_of,
-        } => try_delegate_to_mixnode(mix_id, amount, on_behalf_of, info, env, deps),
-        ExecuteMsg::UndelegateFromMixnode {
-            mix_id,
-            on_behalf_of,
-        } => try_undelegate_from_mixnode(mix_id, on_behalf_of, info, deps),
-        ExecuteMsg::CreateAccount {
-            owner_address,
-            staking_address,
-            vesting_spec,
-            cap,
-        } => try_create_periodic_vesting_account(
-            &owner_address,
-            staking_address,
-            vesting_spec,
-            cap,
-            info,
-            env,
-            deps,
-        ),
         ExecuteMsg::WithdrawVestedCoins { amount } => {
             try_withdraw_vested_coins(amount, env, info, deps)
         }
@@ -127,47 +84,23 @@ pub fn execute(
             mix_id,
             amount,
         } => try_track_undelegation(&owner, mix_id, amount, info, deps),
-        ExecuteMsg::BondMixnode {
-            mix_node,
-            cost_params,
-            owner_signature,
-            amount,
-        } => try_bond_mixnode(
-            mix_node,
-            cost_params,
-            owner_signature,
-            amount,
-            info,
-            env,
-            deps,
-        ),
-        ExecuteMsg::PledgeMore { amount } => try_pledge_more(deps, env, info, amount),
-        ExecuteMsg::DecreasePledge { amount } => try_decrease_pledge(deps, info, amount),
-        ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
             try_track_unbond_mixnode(&owner, amount, info, deps)
         }
         ExecuteMsg::TrackDecreasePledge { owner, amount } => {
             try_track_decrease_mixnode_pledge(&owner, amount, info, deps)
         }
-        ExecuteMsg::BondGateway {
-            gateway,
-            owner_signature,
-            amount,
-        } => try_bond_gateway(gateway, owner_signature, amount, info, env, deps),
         ExecuteMsg::UnbondGateway {} => try_unbond_gateway(info, deps),
         ExecuteMsg::TrackUnbondGateway { owner, amount } => {
             try_track_unbond_gateway(&owner, amount, info, deps)
         }
-        ExecuteMsg::UpdateGatewayConfig { new_config } => {
-            try_update_gateway_config(new_config, info, deps)
+        ExecuteMsg::TrackMigratedMixnode { owner } => try_track_migrate_mixnode(&owner, info, deps),
+        ExecuteMsg::TrackMigratedDelegation { owner, mix_id } => {
+            try_track_migrate_delegation(&owner, mix_id, info, deps)
         }
-        ExecuteMsg::TransferOwnership { to_address } => {
-            try_transfer_ownership(to_address, info, deps)
-        }
-        ExecuteMsg::UpdateStakingAddress { to_address } => {
-            try_update_staking_address(to_address, info, deps)
-        }
+        _ => Err(VestingContractError::Other {
+            message: "the contract has been disabled".to_string(),
+        }),
     }
 }
 

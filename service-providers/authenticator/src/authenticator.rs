@@ -6,7 +6,7 @@ use std::path::Path;
 use futures::channel::oneshot;
 use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
-use nym_sdk::mixnet::Recipient;
+use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::{TaskClient, TaskHandle};
 use nym_wireguard::WireguardGatewayData;
 
@@ -28,6 +28,7 @@ pub struct Authenticator {
     config: Config,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+    custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
@@ -39,6 +40,7 @@ impl Authenticator {
             config,
             wait_for_gateway: false,
             custom_topology_provider: None,
+            custom_gateway_transceiver: None,
             wireguard_gateway_data,
             shutdown: None,
             on_start: None,
@@ -60,9 +62,25 @@ impl Authenticator {
     }
 
     #[must_use]
+    pub fn with_minimum_gateway_performance(mut self, minimum_gateway_performance: u8) -> Self {
+        self.config.base.debug.topology.minimum_gateway_performance = minimum_gateway_performance;
+        self
+    }
+
+    #[must_use]
     #[allow(unused)]
     pub fn with_on_start(mut self, on_start: oneshot::Sender<OnStartData>) -> Self {
         self.on_start = Some(on_start);
+        self
+    }
+
+    #[must_use]
+    #[allow(unused)]
+    pub fn with_custom_gateway_transceiver(
+        mut self,
+        gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
+    ) -> Self {
+        self.custom_gateway_transceiver = Some(gateway_transceiver);
         self
     }
 
@@ -94,7 +112,7 @@ impl Authenticator {
         let mixnet_client = crate::mixnet_client::create_mixnet_client(
             &self.config.base,
             task_handle.get_handle().named("nym_sdk::MixnetClient"),
-            None,
+            self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,
             &self.config.storage_paths.common_paths,

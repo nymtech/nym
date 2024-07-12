@@ -4,6 +4,7 @@
 use crate::config::persistence::NymNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
+use authenticator::Authenticator;
 use celes::Country;
 use clap::ValueEnum;
 use nym_bin_common::logging::LoggingSettings;
@@ -113,6 +114,8 @@ pub struct ConfigBuilder {
 
     pub exit_gateway: Option<ExitGatewayConfig>,
 
+    pub authenticator: Option<Authenticator>,
+
     pub logging: Option<LoggingSettings>,
 }
 
@@ -131,6 +134,7 @@ impl ConfigBuilder {
             mixnode: None,
             entry_gateway: None,
             exit_gateway: None,
+            authenticator: None,
             logging: None,
         }
     }
@@ -207,6 +211,7 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| ExitGatewayConfig::new_default(&self.data_dir)),
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
+            authenticator: self.authenticator.unwrap_or_default(),
         }
     }
 }
@@ -242,6 +247,8 @@ pub struct Config {
     pub entry_gateway: EntryGatewayConfig,
 
     pub exit_gateway: ExitGatewayConfig,
+
+    pub authenticator: Authenticator,
 
     #[serde(default)]
     pub logging: LoggingSettings,

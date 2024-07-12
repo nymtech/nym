@@ -248,10 +248,13 @@ impl<St> Gateway<St> {
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     async fn start_authenticator(
         &mut self,
-        opts: &LocalAuthenticatorOpts,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
+        let opts = self
+            .authenticator_opts
+            .as_ref()
+            .ok_or(GatewayError::UnspecifiedAuthenticatorConfig)?;
         let (router_tx, mut router_rx) = oneshot::channel();
         let (auth_mix_sender, auth_mix_receiver) = mpsc::unbounded();
         let router_shutdown = shutdown.fork("message_router");
@@ -310,7 +313,6 @@ impl<St> Gateway<St> {
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
     async fn start_authenticator(
         &self,
-        _opts: &LocalAuthenticatorOpts,
         _forwarding_channel: MixForwardingSender,
         _shutdown: TaskClient,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
@@ -618,20 +620,13 @@ impl<St> Gateway<St> {
         };
 
         #[cfg(feature = "wireguard")]
-        let _wg_api = if let Some(opts) = self.authenticator_opts.clone() {
+        let _wg_api = {
             let embedded_auth = self
-                .start_authenticator(
-                    &opts,
-                    mix_forwarding_channel,
-                    shutdown.fork("authenticator"),
-                )
+                .start_authenticator(mix_forwarding_channel, shutdown.fork("authenticator"))
                 .await
                 .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
             active_clients_store.insert_embedded(embedded_auth.handle);
             Some(embedded_auth.wg_api)
-        } else {
-            info!("embedded authenticator is disabled");
-            None
         };
 
         if self.run_http_server {

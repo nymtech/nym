@@ -149,6 +149,8 @@ pub struct EntryGatewayPaths {
 
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
+
+    pub authenticator: AuthenticatorPaths,
 }
 
 impl EntryGatewayPaths {
@@ -156,6 +158,7 @@ impl EntryGatewayPaths {
         EntryGatewayPaths {
             clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
+            authenticator: AuthenticatorPaths::new(data_dir),
         }
     }
 

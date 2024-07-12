@@ -96,7 +96,6 @@ pub fn ephemeral_entry_gateway_config(
                     .storage_paths
                     .authenticator
                     .to_common_client_paths(),
-                authenticator_description: Default::default(),
             },
             logging: config.logging,
         },

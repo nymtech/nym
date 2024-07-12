@@ -71,9 +71,6 @@ allowed_list_location = '{{ storage_paths.allowed_list_location }}'
 # Location of the file containing our unknown.list
 unknown_list_location = '{{ storage_paths.unknown_list_location }}'
 
-# Path to file containing description of this authenticator.
-authenticator_description = '{{ storage_paths.authenticator_description }}'
-
 
 ##### logging configuration options #####
 

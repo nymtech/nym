@@ -1146,6 +1146,42 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "migrate_vested_mix_node"
+        ],
+        "properties": {
+          "migrate_vested_mix_node": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "migrate_vested_delegation"
+        ],
+        "properties": {
+          "migrate_vested_delegation": {
+            "type": "object",
+            "required": [
+              "mix_id"
+            ],
+            "properties": {
+              "mix_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {

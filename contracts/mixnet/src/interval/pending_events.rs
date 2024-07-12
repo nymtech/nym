@@ -180,7 +180,7 @@ pub(crate) fn unbond_mixnode(
     cleanup_post_unbond_mixnode_storage(deps.storage, env, &node_details)?;
 
     let response = Response::new()
-        .send_tokens(&owner, tokens.clone())
+        .send_tokens(owner, tokens.clone())
         .add_event(new_mixnode_unbonding_event(created_at, mix_id));
 
     Ok(response)
@@ -889,7 +889,7 @@ mod tests {
             try_increase_pledge(
                 test.deps_mut(),
                 env.clone(),
-                mock_info(owner, &*change.clone()),
+                mock_info(owner, &change.clone()),
             )
             .unwrap();
 

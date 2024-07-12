@@ -657,25 +657,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clap_complete"
-version = "4.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fc443334c81a804575546c5a8a79b4913b50e28d69232903604cada1de817ce"
-dependencies = [
- "clap",
-]
-
-[[package]]
-name = "clap_complete_fig"
-version = "4.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99fee1d30a51305a6c2ed3fc5709be3c8af626c9c958e04dd9ae94e27bcbce9f"
-dependencies = [
- "clap",
- "clap_complete",
-]
-
-[[package]]
 name = "clap_derive"
 version = "4.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3128,9 +3109,6 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.6.0"
 dependencies = [
- "clap",
- "clap_complete",
- "clap_complete_fig",
  "const-str",
  "log",
  "pretty_env_logger",
@@ -3283,6 +3261,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "http 1.1.0",
+ "nym-bin-common",
  "reqwest 0.12.4",
  "serde",
  "serde_json",

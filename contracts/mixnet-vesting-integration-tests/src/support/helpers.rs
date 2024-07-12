@@ -12,27 +12,33 @@ pub fn mixnet_owner() -> Addr {
     Addr::unchecked(MIXNET_OWNER)
 }
 
+#[allow(unused)]
 pub fn vesting_owner() -> Addr {
     Addr::unchecked(VESTING_OWNER)
 }
 
+#[allow(unused)]
 pub fn rewarding_validator() -> Addr {
     Addr::unchecked(REWARDING_VALIDATOR)
 }
 
+#[allow(unused)]
 pub fn mix_coins(amount: u128) -> Vec<Coin> {
     coins(amount, MIX_DENOM)
 }
 
+#[allow(unused)]
 pub fn mix_coin(amount: u128) -> Coin {
     coin(amount, MIX_DENOM)
 }
 
+#[allow(unused)]
 pub fn test_rng() -> ChaCha20Rng {
     let dummy_seed = [42u8; 32];
     ChaCha20Rng::from_seed(dummy_seed)
 }
 
+#[allow(unused)]
 pub fn mixnet_contract_wrapper() -> Box<dyn Contract<Empty>> {
     Box::new(
         ContractWrapper::new(

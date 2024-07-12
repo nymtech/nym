@@ -257,7 +257,7 @@ pub fn execute(
         ExecuteMsg::MigrateVestedMixNode { .. } => {
             crate::vesting_migration::try_migrate_vested_mixnode(deps, info)
         }
-        ExecuteMsg::MigratedVestedDelegation { mix_id } => {
+        ExecuteMsg::MigrateVestedDelegation { mix_id } => {
             crate::vesting_migration::try_migrate_vested_delegation(deps, info, mix_id)
         }
 

@@ -90,7 +90,6 @@ pub fn execute(
         ExecuteMsg::TrackDecreasePledge { owner, amount } => {
             try_track_decrease_mixnode_pledge(&owner, amount, info, deps)
         }
-        ExecuteMsg::UnbondGateway {} => try_unbond_gateway(info, deps),
         ExecuteMsg::TrackUnbondGateway { owner, amount } => {
             try_track_unbond_gateway(&owner, amount, info, deps)
         }

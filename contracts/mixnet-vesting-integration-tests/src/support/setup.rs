@@ -26,6 +26,7 @@ pub const VESTING_OWNER: &str = "vesting-owner";
 pub const REWARDING_VALIDATOR: &str = "rewarding-validator";
 pub const MIX_DENOM: &str = "unym";
 
+#[allow(unused)]
 pub struct ContractInstantiationResult {
     mixnet_contract_address: Addr,
     vesting_contract_address: Addr,
@@ -69,6 +70,7 @@ impl TestSetupBuilder {
     }
 }
 
+#[allow(unused)]
 pub struct TestSetup {
     pub app: App,
     pub rng: ChaCha20Rng,
@@ -76,6 +78,7 @@ pub struct TestSetup {
     pub mixnet_contract: Addr,
 }
 
+#[allow(unused)]
 impl TestSetup {
     pub fn new_simple() -> Self {
         TestSetup::new(Default::default(), fixtures::default_mixnet_init_msg())

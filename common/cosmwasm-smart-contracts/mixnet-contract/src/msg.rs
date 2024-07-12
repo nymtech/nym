@@ -271,7 +271,7 @@ pub enum ExecuteMsg {
 
     // vesting migration:
     MigrateVestedMixNode {},
-    MigratedVestedDelegation {
+    MigrateVestedDelegation {
         mix_id: MixId,
     },
 
@@ -388,7 +388,7 @@ impl ExecuteMsg {
                 format!("withdrawing delegator reward from mixnode {mix_id} on behalf")
             }
             ExecuteMsg::MigrateVestedMixNode { .. } => "migrate vested mixnode".into(),
-            ExecuteMsg::MigratedVestedDelegation { .. } => "migrate vested delegation".to_string(),
+            ExecuteMsg::MigrateVestedDelegation { .. } => "migrate vested delegation".to_string(),
 
             #[cfg(feature = "contract-testing")]
             ExecuteMsg::TestingResolveAllPendingEvents { .. } => {

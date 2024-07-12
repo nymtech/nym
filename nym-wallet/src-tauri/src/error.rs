@@ -134,6 +134,10 @@ pub enum BackendError {
     WalletValidatorConnectionFailed,
     #[error("No defined default validator URL")]
     WalletNoDefaultValidator,
+    #[error(
+        "this vesting operation has been disabled. please use the non-vesting variant instead."
+    )]
+    UnsupportedVestingOperation,
 
     #[error(transparent)]
     WalletError {

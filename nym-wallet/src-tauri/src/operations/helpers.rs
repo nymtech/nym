@@ -223,16 +223,8 @@ mod tests {
             dummy_pledge.clone(),
             true,
         )
-        .await
-        .unwrap();
-
-        let plaintext_vesting = signing_msg_vesting.to_plaintext().unwrap();
-        let sig_vesting: MessageSignature = identity_keypair
-            .private_key()
-            .sign(&plaintext_vesting)
-            .to_bytes()
-            .as_ref()
-            .into();
+        .await;
+        assert!(signing_msg_vesting.is_err());
 
         let res = verify_mixnode_bonding_sign_payload(
             &dummy_client,
@@ -244,28 +236,6 @@ mod tests {
         )
         .await;
         assert!(res.is_ok());
-
-        let res = verify_mixnode_bonding_sign_payload(
-            &dummy_client,
-            &dummy_mixnode,
-            &dummy_cost_params,
-            &dummy_pledge,
-            true,
-            &sig_vesting,
-        )
-        .await;
-        assert!(res.is_ok());
-
-        let res = verify_mixnode_bonding_sign_payload(
-            &dummy_client,
-            &dummy_mixnode,
-            &dummy_cost_params,
-            &dummy_pledge,
-            false,
-            &sig_vesting,
-        )
-        .await;
-        assert!(res.is_err());
 
         let res = verify_mixnode_bonding_sign_payload(
             &dummy_client,
@@ -324,16 +294,8 @@ mod tests {
             dummy_pledge.clone(),
             true,
         )
-        .await
-        .unwrap();
-
-        let plaintext_vesting = signing_msg_vesting.to_plaintext().unwrap();
-        let sig_vesting: MessageSignature = identity_keypair
-            .private_key()
-            .sign(&plaintext_vesting)
-            .to_bytes()
-            .as_ref()
-            .into();
+        .await;
+        assert!(signing_msg_vesting.is_err());
 
         let res = verify_gateway_bonding_sign_payload(
             &dummy_client,
@@ -344,26 +306,6 @@ mod tests {
         )
         .await;
         assert!(res.is_ok());
-
-        let res = verify_gateway_bonding_sign_payload(
-            &dummy_client,
-            &dummy_gateway,
-            &dummy_pledge,
-            true,
-            &sig_vesting,
-        )
-        .await;
-        assert!(res.is_ok());
-
-        let res = verify_gateway_bonding_sign_payload(
-            &dummy_client,
-            &dummy_gateway,
-            &dummy_pledge,
-            false,
-            &sig_vesting,
-        )
-        .await;
-        assert!(res.is_err());
 
         let res = verify_gateway_bonding_sign_payload(
             &dummy_client,

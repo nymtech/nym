@@ -269,6 +269,12 @@ pub enum ExecuteMsg {
         owner: String,
     },
 
+    // vesting migration:
+    MigrateVestedMixNode {},
+    MigratedVestedDelegation {
+        mix_id: MixId,
+    },
+
     // testing-only
     #[cfg(feature = "contract-testing")]
     TestingResolveAllPendingEvents {
@@ -381,6 +387,9 @@ impl ExecuteMsg {
             ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, .. } => {
                 format!("withdrawing delegator reward from mixnode {mix_id} on behalf")
             }
+            ExecuteMsg::MigrateVestedMixNode { .. } => "migrate vested mixnode".into(),
+            ExecuteMsg::MigratedVestedDelegation { .. } => "migrate vested delegation".to_string(),
+
             #[cfg(feature = "contract-testing")]
             ExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 "resolving all pending events".into()

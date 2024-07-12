@@ -76,6 +76,12 @@ pub enum MixnetContractError {
     #[error("Received multiple coin types during staking")]
     MultipleDenoms,
 
+    #[error("Proxy address ({received}) is not set to the vesting contract ({vesting_contract})")]
+    ProxyIsNotVestingContract {
+        received: Addr,
+        vesting_contract: Addr,
+    },
+
     #[error("Failed to recover ed25519 public key from its base58 representation - {0}")]
     MalformedEd25519IdentityKey(String),
 
@@ -226,6 +232,14 @@ pub enum MixnetContractError {
 
     #[error("this operation is no longer allowed to be performed with vesting tokens. please move them to your liquid balance and try again")]
     DisabledVestingOperation,
+
+    #[error(
+        "this mixnode has not been bonded with the vesting tokens or has already been migrated"
+    )]
+    NotAVestingMixnode,
+
+    #[error("this delegation has not been performed with the vesting tokens or has already been migrated")]
+    NotAVestingDelegation,
 }
 
 impl MixnetContractError {

@@ -19,6 +19,7 @@ use nym_network_requester::{
 use nym_node::config::entry_gateway::ephemeral_entry_gateway_config;
 use nym_node::config::exit_gateway::ephemeral_exit_gateway_config;
 use nym_node::config::mixnode::ephemeral_mixnode_config;
+use nym_node::config::persistence::AuthenticatorPaths;
 use nym_node::config::{
     Config, EntryGatewayConfig, ExitGatewayConfig, MixnodeConfig, NodeMode, Wireguard,
 };
@@ -202,7 +203,7 @@ impl ExitGatewayData {
         config: &ExitGatewayConfig,
         public_key: ed25519::PublicKey,
     ) -> Result<(), ExitGatewayError> {
-        // generate all the keys for NR and IPR
+        // generate all the keys for NR, IPR and AUTH
         let mut rng = OsRng;
 
         let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
@@ -328,6 +329,57 @@ pub(crate) struct NymNode {
 }
 
 impl NymNode {
+    fn initialise_client_keys<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        typ: &str,
+        ed25519_paths: nym_pemstore::KeyPairPath,
+        x25519_paths: nym_pemstore::KeyPairPath,
+        ack_key_path: &Path,
+    ) -> Result<(), EntryGatewayError> {
+        let ed25519_keys = ed25519::KeyPair::new(rng);
+        let x25519_keys = x25519::KeyPair::new(rng);
+        let aes128ctr_key = AckKey::new(rng);
+
+        store_keypair(
+            &ed25519_keys,
+            ed25519_paths,
+            format!("{typ}-ed25519-identity"),
+        )?;
+        store_keypair(&x25519_keys, x25519_paths, format!("{typ}-x25519-dh"))?;
+        store_key(&aes128ctr_key, ack_key_path, format!("{typ}-ack-key"))?;
+
+        Ok(())
+    }
+
+    async fn initialise_client_gateway_storage(
+        storage_path: &Path,
+        registration: &GatewayRegistration,
+    ) -> Result<(), EntryGatewayError> {
+        // insert all required information into the gateways store
+        // (I hate that we have to do it, but that's currently the simplest thing to do)
+        let storage = setup_fs_gateways_storage(storage_path).await?;
+        store_gateway_details(&storage, registration).await?;
+        set_active_gateway(&storage, &registration.gateway_id().to_base58_string()).await?;
+        Ok(())
+    }
+
+    pub async fn initialise_authenticator<R: RngCore + CryptoRng>(
+        rng: &mut R,
+        paths: &AuthenticatorPaths,
+        registration: &GatewayRegistration,
+    ) -> Result<(), NymNodeError> {
+        trace!("initialising authenticator keys");
+        Self::initialise_client_keys(
+            rng,
+            "authenticator",
+            paths.ed25519_identity_storage_paths(),
+            paths.x25519_diffie_hellman_storage_paths(),
+            &paths.ack_key_file,
+        )?;
+        Self::initialise_client_gateway_storage(&paths.gateway_registrations, registration).await?;
+        Ok(())
+    }
+
     pub(crate) async fn initialise(
         config: &Config,
         custom_mnemonic: Option<Zeroizing<bip39::Mnemonic>>,
@@ -373,6 +425,17 @@ impl NymNode {
         // exit gateway initialisation
         ExitGatewayData::initialise(&config.exit_gateway, *ed25519_identity_keys.public_key())
             .await?;
+
+        // authenticator initialization:
+        Self::initialise_authenticator(
+            &mut rng,
+            &config.entry_gateway.storage_paths.authenticator,
+            &GatewayDetails::Custom(CustomGatewayDetails::new(
+                *ed25519_identity_keys.public_key(),
+            ))
+            .into(),
+        )
+        .await?;
 
         // wireguard initialisation
         WireguardData::initialise(&config.wireguard)?;
@@ -497,10 +560,10 @@ impl NymNode {
         let config =
             ephemeral_entry_gateway_config(self.config.clone(), &self.entry_gateway.mnemonic)?;
         let mut entry_gateway = Gateway::new_loaded(
-            config,
-            None,
-            None,
-            None,
+            config.gateway,
+            config.nr_opts,
+            config.ipr_opts,
+            Some(config.auth_opts),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.entry_gateway.client_storage.clone(),
@@ -526,8 +589,8 @@ impl NymNode {
 
         let mut exit_gateway = Gateway::new_loaded(
             config.gateway,
-            Some(config.nr_opts),
-            Some(config.ipr_opts),
+            config.nr_opts,
+            config.ipr_opts,
             Some(config.auth_opts),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),

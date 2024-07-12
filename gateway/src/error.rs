@@ -148,6 +148,9 @@ pub enum GatewayError {
     #[error("failed to startup local ip packet router")]
     IpPacketRouterStartupFailure,
 
+    #[error("failed to startup local authenticator")]
+    AuthenticatorStartupFailure,
+
     #[error("there are no nym API endpoints available")]
     NoNymApisAvailable,
 

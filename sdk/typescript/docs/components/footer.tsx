@@ -4,7 +4,7 @@ import Stack from '@mui/material/Stack';
 const links = [
   ['Twitter', 'https://twitter.com/nymproject'],
   ['Telegram', 'https://t.me/nymchan'],
-  ['Discord', 'https://discord.gg/nymproject'],
+  ['Discord', 'https://discord.gg/nym'],
   ['GitHub', 'https://github.com/nymtech/nym'],
   ['Nym Wallet', 'https://nymtech.net/download/wallet'],
   ['Nym Explorer', 'https://explorer.nymtech.net/'],

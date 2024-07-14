@@ -52,7 +52,7 @@ References for developers:
 
 You can chat to us in two places:
 * The #dev channel on [Matrix](https://matrix.to/#/#dev:nymtech.chat)
-* The various developer channels on [Discord](https://discord.gg/nymproject)
+* The various developer channels on [Discord](https://discord.gg/nym)
 
 ### Tokenomics & Rewards
 

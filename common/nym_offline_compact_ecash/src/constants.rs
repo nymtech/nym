@@ -12,7 +12,7 @@ pub const CRED_VALIDITY_PERIOD_DAYS: u64 = 30;
 pub(crate) const SECONDS_PER_DAY: u64 = 86400;
 
 /// Total number of tickets in each issued ticket book.
-pub const NB_TICKETS: u64 = 1000;
+pub const NB_TICKETS: u64 = 100;
 
 pub const TYPE_EXP: Scalar = Scalar::from_raw([
     u64::from_le_bytes(*b"ZKNYMEXP"),

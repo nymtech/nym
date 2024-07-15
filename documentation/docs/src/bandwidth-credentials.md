@@ -36,7 +36,7 @@ Create an account on Sandbox using the nym-cli:
 
 ```./nym-cli --config-env-file <path-to>sandbox.env account create```
 
-You will need `nymt` funds sent to this account. Get in touch via Nym [Telegram](https://t.me/nymchan) or [Discord](https://discord.gg/nymproject) and we can send them to you. 
+You will need `nymt` funds sent to this account. Get in touch via Nym [Telegram](https://t.me/nymchan) or [Discord](https://nymtech.net/go/discord) and we can send them to you. 
 
 Next, you init the nym-client with the enabled credentials mode set to true:  
 

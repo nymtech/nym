@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 // #![warn(clippy::pedantic)]
 // #![warn(clippy::expect_used)]
@@ -13,6 +16,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver};
 
 const WG_TUN_NAME: &str = "nymwg";
 
+pub(crate) mod error;
 pub mod peer_controller;
 
 pub struct WgApiWrapper {
@@ -135,7 +139,11 @@ pub async fn start_wireguard(
     wg_api.configure_peer_routing(&[catch_all_peer])?;
 
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
-    let mut controller = PeerController::new(wg_api.clone(), wireguard_data.peer_rx);
+    let mut controller = PeerController::new(
+        wg_api.clone(),
+        interface_config.peers,
+        wireguard_data.peer_rx,
+    );
     tokio::spawn(async move { controller.run(task_client).await });
 
     Ok(wg_api)

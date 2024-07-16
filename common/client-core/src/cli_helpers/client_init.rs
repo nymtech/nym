@@ -70,6 +70,13 @@ pub struct CommonClientInitArgs {
     )]
     pub nym_apis: Option<Vec<url::Url>>,
 
+    ///Comma separated list of urls to use for domain fronting
+    #[cfg_attr(
+        feature = "cli",
+        clap(long, value_delimiter = ',', requires = "nym_apis", hide = true)
+    )]
+    pub fronting_domains: Option<Vec<url::Url>>,
+
     /// Path to .json file containing custom network specification.
     #[cfg_attr(feature = "cli", clap(long, group = "network", hide = true))]
     pub custom_mixnet: Option<PathBuf>,
@@ -144,6 +151,16 @@ where
             .collect::<Vec<&str>>()
             .join(",")
     );
+    if let Some(fronting_domains) = &core.client.fronting_domains {
+        log::info!(
+            "fronted by : {}",
+            fronting_domains
+                .iter()
+                .map(|url| url.host_str().unwrap_or_default())
+                .collect::<Vec<&str>>()
+                .join(",")
+        );
+    }
 
     let key_store = OnDiskKeys::new(paths.keys.clone());
     let details_store = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
@@ -163,7 +180,12 @@ where
         hardcoded_topology.get_gateways()
     } else {
         let mut rng = rand::thread_rng();
-        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
+        crate::init::helpers::current_gateways(
+            &mut rng,
+            &core.client.nym_api_urls,
+            core.client.fronting_domains.as_ref(),
+        )
+        .await?
     };
 
     let gateway_setup = GatewaySetup::New {

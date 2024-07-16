@@ -95,6 +95,7 @@ impl From<ConfigV5> for Config {
                 id: value.client.id,
                 disabled_credentials_mode: value.client.disabled_credentials_mode,
                 nyxd_urls: value.client.nyxd_urls,
+                fronting_domains: None, //SW need proper migrations if it gets applied
                 nym_api_urls: value.client.nym_api_urls,
             },
             debug: DebugConfig {

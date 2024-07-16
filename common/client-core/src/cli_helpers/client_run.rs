@@ -35,6 +35,13 @@ pub struct CommonClientRunArgs {
     )]
     pub nym_apis: Option<Vec<url::Url>>,
 
+    ///Comma separated list of urls to use for domain fronting
+    #[cfg_attr(
+        feature = "cli",
+        clap(long, value_delimiter = ',', requires = "nym_apis", hide = true)
+    )]
+    pub fronting_domains: Option<Vec<url::Url>>,
+
     /// Path to .json file containing custom network specification.
     #[cfg_attr(feature = "cli", clap(long, group = "network", hide = true))]
     pub custom_mixnet: Option<PathBuf>,

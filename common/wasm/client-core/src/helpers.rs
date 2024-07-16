@@ -122,7 +122,7 @@ pub async fn setup_gateway_from_api(
     nym_apis: &[Url],
 ) -> Result<InitialisationResult, WasmCoreError> {
     let mut rng = thread_rng();
-    let gateways = current_gateways(&mut rng, nym_apis).await?;
+    let gateways = current_gateways(&mut rng, nym_apis, None).await?;
     setup_gateway_wasm(client_store, force_tls, chosen_gateway, &gateways).await
 }
 

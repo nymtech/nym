@@ -258,6 +258,12 @@ impl NymApiClient {
         NymApiClient { nym_api }
     }
 
+    pub fn new_fronted(api_url: Url, fronting_url: Url) -> Self {
+        let nym_api = nym_api::Client::new_fronted(api_url, fronting_url, None);
+
+        NymApiClient { nym_api }
+    }
+
     pub fn api_url(&self) -> &Url {
         self.nym_api.current_url()
     }

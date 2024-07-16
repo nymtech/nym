@@ -9,6 +9,7 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
 use nym_topology::{filter::VersionFilterable, gateway, mix};
 use nym_validator_client::client::IdentityKeyRef;
+use rand::seq::IteratorRandom;
 use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
 use tungstenite::Message;
@@ -59,13 +60,29 @@ impl<'a> GatewayWithLatency<'a> {
 pub async fn current_gateways<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
+    fronting_domains: Option<&Vec<Url>>,
 ) -> Result<Vec<gateway::Node>, ClientCoreError> {
-    let nym_api = nym_apis
-        .choose(rng)
-        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
+    let client = match fronting_domains {
+        Some(domains) => {
+            let (api_url, fronting_url) = nym_apis
+                .iter()
+                .zip(domains)
+                .choose(rng)
+                .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
 
-    log::debug!("Fetching list of gateways from: {nym_api}");
+            nym_validator_client::client::NymApiClient::new_fronted(
+                api_url.clone(),
+                fronting_url.clone(),
+            )
+        }
+        None => {
+            let nym_api = nym_apis
+                .choose(rng)
+                .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
+            nym_validator_client::client::NymApiClient::new(nym_api.clone())
+        }
+    };
+    log::debug!("Fetching list of gateways from: {}", client.api_url());
 
     let gateways = client.get_cached_described_gateways().await?;
     log::debug!("Found {} gateways", gateways.len());

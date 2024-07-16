@@ -36,6 +36,7 @@ impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
             nym_apis: run_config.common_args.nym_apis,
+            fronting_domains: run_config.common_args.fronting_domains,
             disable_socket: run_config.disable_socket,
             port: run_config.port,
             host: run_config.host,

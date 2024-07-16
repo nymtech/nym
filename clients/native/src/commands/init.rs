@@ -73,6 +73,7 @@ impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
             nym_apis: init_config.common_args.nym_apis,
+            fronting_domains: init_config.common_args.fronting_domains,
             disable_socket: init_config.disable_socket,
             port: init_config.port,
             host: init_config.host,

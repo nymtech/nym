@@ -459,7 +459,7 @@ where
         );
 
         let mut rng = OsRng;
-        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints).await?;
+        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints, None).await?;
 
         Ok(GatewaySetup::New {
             specification: selection_spec,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
+use http::header;
 use reqwest::header::HeaderValue;
 use reqwest::{RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
@@ -96,6 +97,13 @@ impl ClientBuilder {
         self
     }
 
+    pub fn with_host_header(mut self, host: &str) -> Self {
+        let mut headers = header::HeaderMap::new();
+        headers.insert(header::HOST, HeaderValue::from_str(host).unwrap()); //SW Handle this unwrap later
+        self.reqwest_client_builder = self.reqwest_client_builder.default_headers(headers);
+        self
+    }
+
     pub fn with_user_agent<V>(mut self, value: V) -> Self
     where
         V: TryInto<HeaderValue>,
@@ -153,6 +161,23 @@ impl Client {
         Self::new_url::<_, String>(base_url, timeout).expect(
             "we provided valid url and we were unwrapping previous construction errors anyway",
         )
+    }
+
+    pub fn new_fronted(base_url: Url, fronting_url: Url, timeout: Option<Duration>) -> Self {
+        let host = base_url.host_str().unwrap();
+        let mut fronted_url = base_url.clone();
+        fronted_url.set_host(fronting_url.host_str()).unwrap();
+        let builder = ClientBuilder::new::<_, String>(fronted_url)
+            .expect(
+                "we provided valid url and we were unwrapping previous construction errors anyway",
+            )
+            .with_host_header(host);
+
+        //SW polish that later if needed
+        match timeout {
+            Some(timeout) => builder.with_timeout(timeout).build::<String>().unwrap(),
+            None => builder.build::<String>().unwrap(),
+        }
     }
 
     pub fn new_url<U, E>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError<E>>

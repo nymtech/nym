@@ -274,7 +274,7 @@ where
             specification: GatewaySelectionSpecification::UniformRemote {
                 must_use_tls: false,
             },
-            available_gateways: current_gateways(&mut rng, &nym_apis).await?,
+            available_gateways: current_gateways(&mut rng, &nym_apis, None).await?,
             wg_tun_address: None,
         });
 

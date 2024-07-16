@@ -97,6 +97,7 @@ pub(crate) enum Commands {
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
     nym_apis: Option<Vec<url::Url>>,
+    fronting_domains: Option<Vec<url::Url>>,
     disable_socket: Option<bool>,
     port: Option<u16>,
     host: Option<IpAddr>,
@@ -133,6 +134,10 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional(Config::with_port, args.port)
         .with_optional(Config::with_host, args.host)
+        .with_optional_ext(
+            BaseClientConfig::with_fronting_domains,
+            args.fronting_domains,
+        )
         .with_optional_custom_env_ext(
             BaseClientConfig::with_custom_nym_apis,
             args.nym_apis,

@@ -117,6 +117,11 @@ impl Config {
         self
     }
 
+    pub fn with_fronting_domains(mut self, fronting_domains: Vec<Url>) -> Self {
+        self.client.fronting_domains = Some(fronting_domains);
+        self
+    }
+
     pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
         self.client.nym_api_urls = nym_api_urls;
     }
@@ -314,6 +319,9 @@ pub struct Client {
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     #[serde(alias = "validator_api_urls")]
     pub nym_api_urls: Vec<Url>,
+
+    /// Domain to use for domain fronting censorship circumvention
+    pub fronting_domains: Option<Vec<Url>>,
 }
 
 impl Client {
@@ -340,6 +348,7 @@ impl Client {
             disabled_credentials_mode: true,
             nyxd_urls,
             nym_api_urls,
+            fronting_domains: None,
         }
     }
 
@@ -349,6 +358,7 @@ impl Client {
         disabled_credentials_mode: bool,
         nyxd_urls: Vec<Url>,
         nym_api_urls: Vec<Url>,
+        fronting_domains: Option<Vec<Url>>,
     ) -> Self {
         Client {
             version: version.into(),
@@ -356,6 +366,7 @@ impl Client {
             disabled_credentials_mode,
             nyxd_urls,
             nym_api_urls,
+            fronting_domains,
         }
     }
 }

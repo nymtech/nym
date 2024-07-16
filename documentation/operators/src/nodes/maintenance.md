@@ -226,9 +226,9 @@ scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER
 
 **On new/target machine**
 
-* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP.
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP. You can get that one running a command `echo "$(curl -4 https://ifconfig.me)"`.
 * Setup the [systemd](#systemd) automation, reload the daemon and run the service, or just simply run the node if you don't use automation
-* Change the node smart contract info via the wallet interface. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks.
+* Change the node smart contract info via the wallet interface. Open Nym Wallet, go to *Bonding*, open *Gateway Settings* or *Mixnode Settings* and change *Host* value to the new `nym-node` IP address. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks, returning zero performance.
 
 ## Rename node local ID
 
@@ -282,12 +282,12 @@ less ~/.nym/nym-nodes/default-nym-node/config/config.toml
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 
-### Nym Node: Minode mode port reference
+### Nym Node: Mixnode mode port reference
 | Default port | Use                       |
 | ------------ | ------------------------- |
 | `1789`       | Listen for Mixnet traffic |
 | `1790`       | Listen for VerLoc traffic |
-| `8000`       | Metrics http API endpoint |
+| `8080`       | Metrics http API endpoint |
 
 
 ### Nym Node: Gateway modes port reference

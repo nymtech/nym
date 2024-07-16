@@ -81,6 +81,25 @@ pub fn ephemeral_gateway_config(
             maximum_connection_buffer_size: config.mixnet.debug.maximum_connection_buffer_size,
             message_retrieval_limit: config.entry_gateway.debug.message_retrieval_limit,
             use_legacy_framed_packet_version: false,
+            zk_nym_tickets: nym_gateway::config::ZkNymTicketHandlerDebug {
+                revocation_bandwidth_penalty: config
+                    .entry_gateway
+                    .debug
+                    .zk_nym_tickets
+                    .revocation_bandwidth_penalty,
+                pending_poller: config.entry_gateway.debug.zk_nym_tickets.pending_poller,
+                minimum_api_quorum: config.entry_gateway.debug.zk_nym_tickets.minimum_api_quorum,
+                minimum_redemption_tickets: config
+                    .entry_gateway
+                    .debug
+                    .zk_nym_tickets
+                    .minimum_redemption_tickets,
+                maximum_time_between_redemption: config
+                    .entry_gateway
+                    .debug
+                    .zk_nym_tickets
+                    .maximum_time_between_redemption,
+            },
             ..Default::default()
         },
     ))

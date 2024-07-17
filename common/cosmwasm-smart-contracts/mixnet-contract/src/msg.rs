@@ -57,6 +57,25 @@ pub struct InstantiateMsg {
     pub epochs_in_interval: u32,
     pub epoch_duration: Duration,
     pub initial_rewarding_params: InitialRewardingParams,
+
+    #[serde(default)]
+    pub profit_margin: ProfitMarginRange,
+}
+
+#[cw_serde]
+#[derive(Copy)]
+pub struct ProfitMarginRange {
+    pub minimum: Percent,
+    pub maximum: Percent,
+}
+
+impl Default for ProfitMarginRange {
+    fn default() -> Self {
+        ProfitMarginRange {
+            minimum: Percent::zero(),
+            maximum: Percent::hundred(),
+        }
+    }
 }
 
 #[cw_serde]

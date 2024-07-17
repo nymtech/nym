@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::Layer;
+use crate::{Layer, ProfitMarginRange};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
@@ -154,4 +154,9 @@ pub struct ContractStateParams {
 
     /// Minimum amount a gateway must pledge to get into the system.
     pub minimum_gateway_pledge: Coin,
+
+    /// Defines the allowed profit margin range of operators.
+    /// default: 0% - 100%
+    #[serde(default)]
+    pub profit_margin: ProfitMarginRange,
 }

@@ -45,6 +45,7 @@ pub(crate) mod tests {
                 minimum_mixnode_delegation: None,
                 minimum_mixnode_pledge: coin(123u128, "unym"),
                 minimum_gateway_pledge: coin(456u128, "unym"),
+                profit_margin: Default::default(),
             },
         };
 

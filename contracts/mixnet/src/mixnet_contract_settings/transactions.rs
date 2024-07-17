@@ -121,6 +121,7 @@ pub mod tests {
                 denom,
                 amount: INITIAL_GATEWAY_PLEDGE_AMOUNT + Uint128::new(1234),
             },
+            profit_margin: Default::default(),
         };
 
         let initial_params = storage::CONTRACT_STATE

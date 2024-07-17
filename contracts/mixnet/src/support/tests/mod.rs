@@ -996,6 +996,7 @@ pub mod test_helpers {
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),
             initial_rewarding_params: initial_rewarding_params(),
+            profit_margin: Default::default(),
         };
         let env = mock_env();
         let info = mock_info("creator", &[]);

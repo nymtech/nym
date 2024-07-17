@@ -1,4 +1,4 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::delegation::{self, OwnerProxySubKey};
@@ -12,6 +12,7 @@ use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
 use crate::types::{ContractStateParams, LayerAssignment, MixId};
+use crate::ProfitMarginRange;
 use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
@@ -60,22 +61,6 @@ pub struct InstantiateMsg {
 
     #[serde(default)]
     pub profit_margin: ProfitMarginRange,
-}
-
-#[cw_serde]
-#[derive(Copy)]
-pub struct ProfitMarginRange {
-    pub minimum: Percent,
-    pub maximum: Percent,
-}
-
-impl Default for ProfitMarginRange {
-    fn default() -> Self {
-        ProfitMarginRange {
-            minimum: Percent::zero(),
-            maximum: Percent::hundred(),
-        }
-    }
 }
 
 #[cw_serde]

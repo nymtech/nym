@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, Storage};
 use cosmwasm_std::{Coin, StdResult};
 use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::ContractState;
+use mixnet_contract_common::{ContractState, ProfitMarginRange};
 
 pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
 
@@ -26,6 +26,14 @@ pub(crate) fn minimum_gateway_pledge(storage: &dyn Storage) -> Result<Coin, Mixn
     Ok(CONTRACT_STATE
         .load(storage)
         .map(|state| state.params.minimum_gateway_pledge)?)
+}
+
+pub(crate) fn profit_margin_range(
+    storage: &dyn Storage,
+) -> Result<ProfitMarginRange, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.params.profit_margin)?)
 }
 
 #[allow(unused)]

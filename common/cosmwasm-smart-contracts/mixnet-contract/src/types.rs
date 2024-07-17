@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::{Layer, ProfitMarginRange};
+use crate::Layer;
+use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
@@ -14,6 +15,34 @@ pub type SphinxKeyRef<'a> = &'a str;
 
 pub type MixId = u32;
 pub type BlockHeight = u64;
+
+#[cw_serde]
+#[derive(Copy)]
+pub struct ProfitMarginRange {
+    pub minimum: Percent,
+    pub maximum: Percent,
+}
+
+impl Default for ProfitMarginRange {
+    fn default() -> Self {
+        ProfitMarginRange {
+            minimum: Percent::zero(),
+            maximum: Percent::hundred(),
+        }
+    }
+}
+
+impl ProfitMarginRange {
+    pub fn normalise(&self, profit_margin: Percent) -> Percent {
+        if profit_margin < self.minimum {
+            self.minimum
+        } else if profit_margin > self.maximum {
+            self.maximum
+        } else {
+            profit_margin
+        }
+    }
+}
 
 /// Specifies layer assignment for the given mixnode.
 #[cw_serde]

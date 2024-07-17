@@ -11,7 +11,8 @@ use cosmwasm_std::{
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
+    ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg,
+    ProfitMarginRange, QueryMsg,
 };
 use nym_contracts_common::set_build_information;
 
@@ -24,6 +25,7 @@ fn default_initial_state(
     rewarding_validator_address: Addr,
     rewarding_denom: String,
     vesting_contract_address: Addr,
+    profit_margin: ProfitMarginRange,
 ) -> ContractState {
     ContractState {
         owner,
@@ -40,6 +42,7 @@ fn default_initial_state(
                 denom: rewarding_denom,
                 amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
             },
+            profit_margin,
         },
     }
 }
@@ -71,6 +74,7 @@ pub fn instantiate(
         rewarding_validator_address.clone(),
         msg.rewarding_denom,
         vesting_contract_address,
+        msg.profit_margin,
     );
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
@@ -657,6 +661,10 @@ mod tests {
                 rewarded_set_size: 543,
                 active_set_size: 123,
             },
+            profit_margin: ProfitMarginRange {
+                minimum: "0.05".parse().unwrap(),
+                maximum: "0.95".parse().unwrap(),
+            },
         };
 
         let sender = mock_info("sender", &[]);
@@ -677,6 +685,10 @@ mod tests {
                 minimum_gateway_pledge: Coin {
                     denom: "uatom".into(),
                     amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
+                },
+                profit_margin: ProfitMarginRange {
+                    minimum: Percent::from_percentage_value(5).unwrap(),
+                    maximum: Percent::from_percentage_value(95).unwrap(),
                 },
             },
         };

@@ -66,12 +66,12 @@ impl PeerController {
         } else {
             for (key, peer) in host.peers.iter() {
                 let prev_peer = self.active_peers.get(key).ok_or(Error::PeerMismatch)?;
-                let data_usage =
-                    (peer.rx_bytes + peer.tx_bytes) - (prev_peer.rx_bytes + prev_peer.tx_bytes);
+                let data_usage = (peer.rx_bytes + peer.tx_bytes)
+                    .saturating_sub(prev_peer.rx_bytes + prev_peer.tx_bytes);
                 if data_usage > BANDWIDTH_CAP_PER_DAY {
                     let (moved_key, moved_peer) = self
                         .active_peers
-                        .remove_entry(&key)
+                        .remove_entry(key)
                         .ok_or(Error::PeerMismatch)?;
                     self.suspended_peers.insert(moved_key, moved_peer);
                 }

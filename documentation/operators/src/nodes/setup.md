@@ -227,7 +227,7 @@ Initialise only with a custom `--id` and `--init-only` command:
 
 Run the node with custom `--id` without initialising:
 ```sh
-./nym-node run --id <ID> --deny-init --mode mixnode --accept-operator-terms-and-conditions
+./nym-node run --id <ID> --deny-init --mode mixnode
 ```
 
 Run the node with custom `--id` without initialising:

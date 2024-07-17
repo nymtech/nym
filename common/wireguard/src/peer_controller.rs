@@ -50,10 +50,10 @@ impl PeerController {
     }
 
     fn check_peers(&mut self) -> Result<(), Error> {
-        // Add 1 second to cover edge cases. At worst, we give one second worth of bandwidth
+        // Add 10 seconds to cover edge cases. At worst, we give ten free seconds worth of bandwidth
         // by resetting the bandwidth twice
         let reset = Utc::now().num_seconds_from_midnight() as u64
-            <= DEFAULT_PEER_TIMEOUT_CHECK.as_secs() + 1;
+            <= DEFAULT_PEER_TIMEOUT_CHECK.as_secs() + 10;
 
         if reset {
             for (_, peer) in self.suspended_peers.drain() {

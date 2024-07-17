@@ -34,7 +34,7 @@ You can bond your `nym-node` via the Desktop wallet.
 | :--                    | :--                                 | :--                |
 | Mixnode                | Mix port                            | `1789`             |
 | Mixnode                | Verloc port                         | `1790`             |
-| Mixnode                | HTTP api port (picture below) | `8080`             |
+| Mixnode                | HTTP api port (picture below)       | `8080`             |
 | Gateway (entry & exit) | Mix port                            | `1789`             |
 | Gateway (entry & exit) | Client WS API port                  | `9000`             |
 
@@ -59,6 +59,7 @@ You can bond your `nym-node` via the Desktop wallet.
 ```
 
 ![Paste Signature](../images/wallet-screenshots/wallet-sign.png)
+
 *This image is just an example, copy-paste your own base58-encoded signature*
 
 6. Your node will now be bonded and ready to recieve traffic, latest at the beginning of the next epoch (at most 1 hour)

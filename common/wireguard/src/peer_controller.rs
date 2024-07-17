@@ -69,6 +69,7 @@ impl PeerController {
                 let data_usage = (peer.rx_bytes + peer.tx_bytes)
                     .saturating_sub(prev_peer.rx_bytes + prev_peer.tx_bytes);
                 if data_usage > BANDWIDTH_CAP_PER_DAY {
+                    self.wg_api.inner.remove_peer(key)?;
                     let (moved_key, moved_peer) = self
                         .active_peers
                         .remove_entry(key)

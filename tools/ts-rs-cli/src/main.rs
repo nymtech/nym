@@ -27,7 +27,7 @@ use nym_types::transaction::{
 };
 use nym_types::vesting::{OriginalVestingResponse, PledgeData, VestingAccountInfo, VestingPeriod};
 use nym_vesting_contract_common::Period;
-use nym_wallet_types::admin::TauriContractStateParams;
+use nym_wallet_types::admin::{TauriContractStateParams, TauriOperatingCostRange, TauriProfitMarginRange};
 use nym_wallet_types::app::AppEnv;
 use nym_wallet_types::app::AppVersion;
 use nym_wallet_types::interval::Interval;
@@ -131,6 +131,8 @@ fn main() {
     do_export!(Interval);
     do_export!(Network);
     do_export!(TauriContractStateParams);
+    do_export!(TauriOperatingCostRange);
+    do_export!(TauriProfitMarginRange);
     do_export!(Validator);
     do_export!(ValidatorUrl);
     do_export!(ValidatorUrls);

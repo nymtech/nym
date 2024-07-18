@@ -1811,7 +1811,7 @@ importers:
         version: 2.29.1(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)
       eslint-plugin-jest:
         specifier: ^26.1.1
-        version: 26.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(jest@27.5.1(ts-node@10.9.2(typescript@4.9.5)))(typescript@4.9.5)
+        version: 26.9.0(@typescript-eslint/eslint-plugin@5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(jest@27.5.1(ts-node@10.9.2(@swc/core@1.6.13)(@types/node@20.14.10)(typescript@4.9.5)))(typescript@4.9.5)
       eslint-plugin-jsx-a11y:
         specifier: ^6.5.1
         version: 6.8.0(eslint@8.57.0)
@@ -2545,7 +2545,7 @@ importers:
         specifier: ^27.0.5
         version: 27.1.5(@babel/core@7.24.7)(@types/jest@27.5.2)(babel-jest@27.5.1(@babel/core@7.24.7))(jest@27.5.1(ts-node@10.9.2(typescript@4.9.5)))(typescript@4.9.5)
       typescript:
-        specifier: ^4.6.2
+        specifier: ^4.9.5
         version: 4.9.5
 
   ts-packages/webpack:
@@ -20574,7 +20574,7 @@ snapshots:
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-changed-files: 27.5.1
-      jest-config: 27.5.1(ts-node@10.9.2(typescript@4.9.5))
+      jest-config: 27.5.1(ts-node@10.9.2(@swc/core@1.6.13)(@types/node@20.14.10)(typescript@4.9.5))
       jest-haste-map: 27.5.1
       jest-message-util: 27.5.1
       jest-regex-util: 27.5.1
@@ -20648,7 +20648,7 @@ snapshots:
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-changed-files: 27.5.1
-      jest-config: 27.5.1(ts-node@10.9.2(typescript@4.9.5))
+      jest-config: 27.5.1(ts-node@10.9.2(@swc/core@1.6.13)(@types/node@20.14.10)(typescript@4.9.5))
       jest-haste-map: 27.5.1
       jest-message-util: 27.5.1
       jest-regex-util: 27.5.1
@@ -32691,7 +32691,7 @@ snapshots:
       exit: 0.1.2
       graceful-fs: 4.2.11
       import-local: 3.1.0
-      jest-config: 27.5.1(ts-node@10.9.2(typescript@4.9.5))
+      jest-config: 27.5.1(ts-node@10.9.2(@swc/core@1.6.13)(@types/node@20.14.10)(typescript@4.9.5))
       jest-util: 27.5.1
       jest-validate: 27.5.1
       prompts: 2.4.2
@@ -32733,7 +32733,7 @@ snapshots:
       exit: 0.1.2
       graceful-fs: 4.2.11
       import-local: 3.1.0
-      jest-config: 27.5.1(ts-node@10.9.2(typescript@4.9.5))
+      jest-config: 27.5.1(ts-node@10.9.2(@swc/core@1.6.13)(@types/node@20.14.10)(typescript@4.9.5))
       jest-util: 27.5.1
       jest-validate: 27.5.1
       prompts: 2.4.2
@@ -32784,6 +32784,40 @@ snapshots:
       - ts-node
     optional: true
 
+  jest-config@27.5.1(ts-node@10.9.2(@swc/core@1.6.13)(@types/node@20.14.10)(typescript@4.9.5)):
+    dependencies:
+      '@babel/core': 7.24.7
+      '@jest/test-sequencer': 27.5.1
+      '@jest/types': 27.5.1
+      babel-jest: 27.5.1(@babel/core@7.24.7)
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      deepmerge: 4.3.1
+      glob: 7.2.3
+      graceful-fs: 4.2.11
+      jest-circus: 27.5.1
+      jest-environment-jsdom: 27.5.1
+      jest-environment-node: 27.5.1
+      jest-get-type: 27.5.1
+      jest-jasmine2: 27.5.1
+      jest-regex-util: 27.5.1
+      jest-resolve: 27.5.1
+      jest-runner: 27.5.1
+      jest-util: 27.5.1
+      jest-validate: 27.5.1
+      micromatch: 4.0.5
+      parse-json: 5.2.0
+      pretty-format: 27.5.1
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      ts-node: 10.9.2(@swc/core@1.6.13)(@types/node@20.14.10)(typescript@4.9.5)
+    transitivePeerDependencies:
+      - bufferutil
+      - canvas
+      - supports-color
+      - utf-8-validate
+
   jest-config@27.5.1(ts-node@10.9.2(@types/node@16.18.96)(typescript@4.9.5)):
     dependencies:
       '@babel/core': 7.24.7
@@ -32812,40 +32846,6 @@ snapshots:
       strip-json-comments: 3.1.1
     optionalDependencies:
       ts-node: 10.9.2(@types/node@16.18.96)(typescript@4.9.5)
-    transitivePeerDependencies:
-      - bufferutil
-      - canvas
-      - supports-color
-      - utf-8-validate
-
-  jest-config@27.5.1(ts-node@10.9.2(typescript@4.9.5)):
-    dependencies:
-      '@babel/core': 7.24.7
-      '@jest/test-sequencer': 27.5.1
-      '@jest/types': 27.5.1
-      babel-jest: 27.5.1(@babel/core@7.24.7)
-      chalk: 4.1.2
-      ci-info: 3.9.0
-      deepmerge: 4.3.1
-      glob: 7.2.3
-      graceful-fs: 4.2.11
-      jest-circus: 27.5.1
-      jest-environment-jsdom: 27.5.1
-      jest-environment-node: 27.5.1
-      jest-get-type: 27.5.1
-      jest-jasmine2: 27.5.1
-      jest-regex-util: 27.5.1
-      jest-resolve: 27.5.1
-      jest-runner: 27.5.1
-      jest-util: 27.5.1
-      jest-validate: 27.5.1
-      micromatch: 4.0.5
-      parse-json: 5.2.0
-      pretty-format: 27.5.1
-      slash: 3.0.0
-      strip-json-comments: 3.1.1
-    optionalDependencies:
-      ts-node: 10.9.2(@swc/core@1.6.13)(@types/node@20.14.10)(typescript@4.9.5)
     transitivePeerDependencies:
       - bufferutil
       - canvas

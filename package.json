@@ -6,7 +6,7 @@
   "scripts": {
     "nuke": "npx rimraf **/node_modules node_modules",
     "scrub": "npx rimraf **/dist dist",
-    "build": "run-s build:types build:packages",
+    "build": "pnpm build:types && pnpm build:packages",
     "build:wasm": "make sdk-wasm-build",
     "build:types": "pnpm run --filter @nymproject/types --stream build",
     "build:packages": "run-s build:packages:theme build:packages:react",

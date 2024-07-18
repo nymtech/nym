@@ -30,6 +30,8 @@ export const WorldMap: FCWithChildren<MapProps> = ({
 }) => {
   const { palette } = useTheme();
 
+ // tooltip needs fixing
+ 
   const colorScale = React.useMemo(() => {
     if (countryData?.data) {
       const heighestNumberOfNodes = Math.max(

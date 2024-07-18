@@ -350,6 +350,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
                 </Button>
               </Alert>
               <VestingWarningModal
+                kind="delegations"
                 isVisible={showVestingWarningModal}
                 handleClose={(result) => {
                   setShowVestingWarningModal(false);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::gateways::storage as gateways_storage;
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;

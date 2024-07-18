@@ -5,6 +5,7 @@ use super::storage;
 use crate::delegations::storage as delegations_storage;
 use crate::interval::storage as interval_storage;
 use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
+use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;

@@ -8,7 +8,7 @@ repository = ""
 default-run = "nym_wallet"
 edition = "2021"
 build = "src/build.rs"
-rust-version = "1.58"
+rust-version = "1.76"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

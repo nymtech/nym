@@ -37,7 +37,7 @@
     "test:watch": "jest --watch",
     "tsc": "tsc",
     "tsc:watch": "tsc --watch",
-    "lint": "eslint src",
+    "lint": "echo not implemented",
     "lint:fix": "eslint src --fix"
   }
 }

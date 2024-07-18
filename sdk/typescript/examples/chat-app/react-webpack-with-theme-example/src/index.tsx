@@ -1,5 +1,11 @@
 import * as React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { App } from './App';
 
-ReactDOM.render(<App />, document.getElementById('app'));
+const element = document.getElementById('app');
+
+if (!element) {
+  throw new Error('Element not found');
+}
+
+createRoot(element).render(<App />);

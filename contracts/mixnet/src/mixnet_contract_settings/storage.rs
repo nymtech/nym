@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, Storage};
 use cosmwasm_std::{Coin, StdResult};
 use cw_storage_plus::Item;
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{ContractState, ProfitMarginRange};
+use mixnet_contract_common::{ContractState, OperatingCostRange, ProfitMarginRange};
 
 pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
 
@@ -34,6 +34,14 @@ pub(crate) fn profit_margin_range(
     Ok(CONTRACT_STATE
         .load(storage)
         .map(|state| state.params.profit_margin)?)
+}
+
+pub(crate) fn interval_oprating_cost_range(
+    storage: &dyn Storage,
+) -> Result<OperatingCostRange, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.params.interval_operating_cost)?)
 }
 
 #[allow(unused)]

@@ -12,7 +12,7 @@ use cosmwasm_std::{
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg,
-    ProfitMarginRange, QueryMsg,
+    OperatingCostRange, ProfitMarginRange, QueryMsg,
 };
 use nym_contracts_common::set_build_information;
 
@@ -26,6 +26,7 @@ fn default_initial_state(
     rewarding_denom: String,
     vesting_contract_address: Addr,
     profit_margin: ProfitMarginRange,
+    interval_operating_cost: OperatingCostRange,
 ) -> ContractState {
     ContractState {
         owner,
@@ -43,6 +44,7 @@ fn default_initial_state(
                 amount: INITIAL_GATEWAY_PLEDGE_AMOUNT,
             },
             profit_margin,
+            interval_operating_cost,
         },
     }
 }
@@ -75,6 +77,7 @@ pub fn instantiate(
         msg.rewarding_denom,
         vesting_contract_address,
         msg.profit_margin,
+        msg.interval_operating_cost,
     );
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
@@ -551,7 +554,7 @@ pub fn migrate(
 mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::Decimal;
+    use cosmwasm_std::{Decimal, Uint128};
     use mixnet_contract_common::reward_params::{IntervalRewardParams, RewardingParams};
     use mixnet_contract_common::{InitialRewardingParams, Percent};
     use std::time::Duration;
@@ -581,6 +584,10 @@ mod tests {
                 minimum: "0.05".parse().unwrap(),
                 maximum: "0.95".parse().unwrap(),
             },
+            interval_operating_cost: OperatingCostRange {
+                minimum: "1000".parse().unwrap(),
+                maximum: "10000".parse().unwrap(),
+            },
         };
 
         let sender = mock_info("sender", &[]);
@@ -605,6 +612,10 @@ mod tests {
                 profit_margin: ProfitMarginRange {
                     minimum: Percent::from_percentage_value(5).unwrap(),
                     maximum: Percent::from_percentage_value(95).unwrap(),
+                },
+                interval_operating_cost: OperatingCostRange {
+                    minimum: Uint128::new(1000),
+                    maximum: Uint128::new(10000),
                 },
             },
         };

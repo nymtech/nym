@@ -1,7 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{EpochEventId, EpochState, IdentityKey, MixId, ProfitMarginRange};
+use crate::{EpochEventId, EpochState, IdentityKey, MixId, OperatingCostRange, ProfitMarginRange};
 use contracts_common::signing::verifier::ApiVerifierError;
 use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
@@ -246,6 +246,13 @@ pub enum MixnetContractError {
     ProfitMarginOutsideRange {
         provided: Percent,
         range: ProfitMarginRange,
+    },
+
+    #[error("the provided interval operating cost ({provided}{denom}) is outside the allowed range: {range}")]
+    OperatingCostOutsideRange {
+        denom: String,
+        provided: Uint128,
+        range: OperatingCostRange,
     },
 }
 

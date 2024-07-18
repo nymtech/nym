@@ -12,7 +12,7 @@ use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
 use crate::types::{ContractStateParams, LayerAssignment, MixId};
-use crate::ProfitMarginRange;
+use crate::{OperatingCostRange, ProfitMarginRange};
 use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
@@ -61,6 +61,9 @@ pub struct InstantiateMsg {
 
     #[serde(default)]
     pub profit_margin: ProfitMarginRange,
+
+    #[serde(default)]
+    pub interval_operating_cost: OperatingCostRange,
 }
 
 #[cw_serde]

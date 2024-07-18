@@ -24,7 +24,9 @@ use crate::mixnodes::signature_helpers::verify_mixnode_bonding_signature;
 use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_no_existing_bond,
-    ensure_no_pending_pledge_changes, ensure_profit_margin_within_range, validate_pledge,
+    ensure_no_pending_pledge_changes, ensure_operating_cost_within_range,
+    ensure_profit_margin_within_range,
+    validate_pledge,
 };
 
 use super::storage;
@@ -71,6 +73,9 @@ pub(crate) fn try_add_mixnode(
 ) -> Result<Response, MixnetContractError> {
     // ensure the profit margin is within the defined range
     ensure_profit_margin_within_range(deps.storage, cost_params.profit_margin_percent)?;
+
+    // ensure the operating cost is within the defined range
+    ensure_operating_cost_within_range(deps.storage, &cost_params.interval_operating_cost)?;
 
     // check if the pledge contains any funds of the appropriate denomination
     let minimum_pledge = mixnet_params_storage::minimum_mixnode_pledge(deps.storage)?;
@@ -300,6 +305,9 @@ pub(crate) fn try_update_mixnode_cost_params(
 
     // ensure the profit margin is within the defined range
     ensure_profit_margin_within_range(deps.storage, new_costs.profit_margin_percent)?;
+
+    // ensure the operating cost is within the defined range
+    ensure_operating_cost_within_range(deps.storage, &new_costs.interval_operating_cost)?;
 
     let cosmos_event = new_mixnode_pending_cost_params_update_event(
         existing_bond.mix_id,

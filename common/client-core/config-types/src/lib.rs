@@ -294,6 +294,10 @@ impl Config {
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
         self.client.nym_api_urls.clone()
     }
+
+    pub fn get_fronting_domains(&self) -> Option<Vec<Url>> {
+        self.client.fronting_domains.clone()
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]

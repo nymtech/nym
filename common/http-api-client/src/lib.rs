@@ -204,6 +204,21 @@ impl Client {
         self.base_url = new_url
     }
 
+    pub fn change_fronted_url(&mut self, new_api_url: Url, new_fronting_url: Url) {
+        let host = new_api_url.host_str().unwrap();
+        let mut new_fronted_url = new_api_url.clone();
+        new_fronted_url
+            .set_host(new_fronting_url.host_str())
+            .unwrap();
+        let mut headers = header::HeaderMap::new();
+        headers.insert(header::HOST, HeaderValue::from_str(host).unwrap()); //SW Handle this unwrap later
+        self.reqwest_client = reqwest::ClientBuilder::new()
+            .default_headers(headers)
+            .build()
+            .unwrap();
+        self.base_url = new_fronted_url
+    }
+
     pub fn current_url(&self) -> &Url {
         &self.base_url
     }

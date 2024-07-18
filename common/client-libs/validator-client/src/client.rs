@@ -272,6 +272,15 @@ impl NymApiClient {
         self.nym_api.change_base_url(new_endpoint);
     }
 
+    pub fn change_nym_api_with_fronting(
+        &mut self,
+        new_api_endpoint: Url,
+        new_fronting_domain: Url,
+    ) {
+        self.nym_api
+            .change_fronted_url(new_api_endpoint, new_fronting_domain);
+    }
+
     pub async fn get_basic_mixnodes(
         &self,
         semver_compatibility: Option<String>,

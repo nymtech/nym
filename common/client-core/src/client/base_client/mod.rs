@@ -3,6 +3,7 @@
 
 use super::packet_statistics_control::PacketStatisticsReporter;
 use super::received_buffer::ReceivedBufferMessage;
+use super::topology_control::fronted_api_provider::FrontedApiTopologyProvider;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
@@ -467,17 +468,29 @@ where
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         config_topology: config::Topology,
         nym_api_urls: Vec<Url>,
+        fronting_domains: Option<Vec<Url>>,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
-            config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
-                nym_api_provider::Config {
-                    min_mixnode_performance: config_topology.minimum_mixnode_performance,
-                    min_gateway_performance: config_topology.minimum_gateway_performance,
-                },
-                nym_api_urls,
-                env!("CARGO_PKG_VERSION").to_string(),
-            )),
+            config::TopologyStructure::NymApi => match fronting_domains {
+                Some(domains) => Box::new(FrontedApiTopologyProvider::new(
+                    nym_api_provider::Config {
+                        min_mixnode_performance: config_topology.minimum_mixnode_performance,
+                        min_gateway_performance: config_topology.minimum_gateway_performance,
+                    },
+                    nym_api_urls,
+                    domains,
+                    env!("CARGO_PKG_VERSION").to_string(),
+                )),
+                None => Box::new(NymApiTopologyProvider::new(
+                    nym_api_provider::Config {
+                        min_mixnode_performance: config_topology.minimum_mixnode_performance,
+                        min_gateway_performance: config_topology.minimum_gateway_performance,
+                    },
+                    nym_api_urls,
+                    env!("CARGO_PKG_VERSION").to_string(),
+                )),
+            },
             config::TopologyStructure::GeoAware(group_by) => {
                 Box::new(GeoAwareTopologyProvider::new(
                     nym_api_urls,
@@ -689,6 +702,7 @@ where
             self.custom_topology_provider.take(),
             self.config.debug.topology,
             self.config.get_nym_api_endpoints(),
+            self.config.get_fronting_domains(),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway

@@ -17,6 +17,7 @@ use tokio::time::sleep;
 use wasmtimer::tokio::sleep;
 
 mod accessor;
+pub(crate) mod fronted_api_provider;
 pub mod geo_aware_provider;
 pub(crate) mod nym_api_provider;
 

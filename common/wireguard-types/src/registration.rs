@@ -33,6 +33,7 @@ pub type Taken = Option<SystemTime>;
 pub enum ClientMessage {
     Initial(InitMessage),
     Final(GatewayClient),
+    Query(PeerPublicKey),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

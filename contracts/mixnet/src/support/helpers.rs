@@ -447,3 +447,19 @@ pub(crate) fn ensure_profit_margin_within_range(
 
     Ok(())
 }
+
+pub fn ensure_operating_cost_within_range(
+    storage: &dyn Storage,
+    operating_cost: &Coin,
+) -> Result<(), MixnetContractError> {
+    let range = mixnet_params_storage::interval_oprating_cost_range(storage)?;
+    if !range.within_range(operating_cost.amount) {
+        return Err(MixnetContractError::OperatingCostOutsideRange {
+            denom: operating_cost.denom.clone(),
+            provided: operating_cost.amount,
+            range,
+        });
+    }
+
+    Ok(())
+}

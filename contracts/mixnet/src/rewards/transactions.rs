@@ -113,8 +113,11 @@ pub(crate) fn try_reward_mixnode(
 
     // make sure node's profit margin is within the allowed range,
     // if not adjust it accordingly
-    let profit_margin_range = mixnet_params_storage::profit_margin_range(deps.storage)?;
-    mix_rewarding.normalise_profit_margin(profit_margin_range);
+    let params = mixnet_params_storage::CONTRACT_STATE
+        .load(deps.storage)?
+        .params;
+    mix_rewarding.normalise_profit_margin(params.profit_margin);
+    mix_rewarding.normalise_operating_cost(params.interval_operating_cost);
 
     let rewarding_params = storage::REWARDING_PARAMS.load(deps.storage)?;
     let node_reward_params = NodeRewardParams::new(node_performance, node_status.is_active());

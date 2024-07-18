@@ -5,8 +5,8 @@ use crate::error::MixnetContractError;
 use crate::Layer;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
+use cosmwasm_std::{Addr, Uint128};
 use std::fmt::{Display, Formatter};
 use std::ops::Index;
 
@@ -18,13 +18,20 @@ pub type MixId = u32;
 pub type BlockHeight = u64;
 
 #[cw_serde]
-#[derive(Copy)]
-pub struct ProfitMarginRange {
-    pub minimum: Percent,
-    pub maximum: Percent,
+pub struct RangedValue<T> {
+    pub minimum: T,
+    pub maximum: T,
 }
 
-impl Display for ProfitMarginRange {
+impl<T> Copy for RangedValue<T> where T: Copy {}
+
+pub type ProfitMarginRange = RangedValue<Percent>;
+pub type OperatingCostRange = RangedValue<Uint128>;
+
+impl<T> Display for RangedValue<T>
+where
+    T: Display,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} - {}", self.minimum, self.maximum)
     }
@@ -39,19 +46,33 @@ impl Default for ProfitMarginRange {
     }
 }
 
-impl ProfitMarginRange {
-    pub fn normalise(&self, profit_margin: Percent) -> Percent {
-        if profit_margin < self.minimum {
+impl Default for OperatingCostRange {
+    fn default() -> Self {
+        OperatingCostRange {
+            minimum: Uint128::zero(),
+
+            // 1 billion (native tokens, i.e. 1 billion * 1'000'000 base tokens) - the total supply
+            maximum: Uint128::new(1_000_000_000_000_000),
+        }
+    }
+}
+
+impl<T> RangedValue<T>
+where
+    T: Copy + PartialOrd + PartialEq,
+{
+    pub fn normalise(&self, value: T) -> T {
+        if value < self.minimum {
             self.minimum
-        } else if profit_margin > self.maximum {
+        } else if value > self.maximum {
             self.maximum
         } else {
-            profit_margin
+            value
         }
     }
 
-    pub fn within_range(&self, profit_margin: Percent) -> bool {
-        profit_margin >= self.minimum && profit_margin <= self.maximum
+    pub fn within_range(&self, value: T) -> bool {
+        value >= self.minimum && value <= self.maximum
     }
 }
 
@@ -199,4 +220,9 @@ pub struct ContractStateParams {
     /// default: 0% - 100%
     #[serde(default)]
     pub profit_margin: ProfitMarginRange,
+
+    /// Defines the allowed interval operating cost range of operators.
+    /// default: 0 - 1'000'000'000'000'000 (1 Billion native tokens - the total supply)
+    #[serde(default)]
+    pub interval_operating_cost: OperatingCostRange,
 }

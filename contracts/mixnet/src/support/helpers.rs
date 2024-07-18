@@ -8,6 +8,7 @@ use cosmwasm_std::{wasm_execute, Addr, BankMsg, Coin, CosmosMsg, MessageInfo, Re
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::PendingMixNodeChanges;
 use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixId, MixNodeBond};
+use nym_contracts_common::Percent;
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 // helper trait to attach `Msg` to a response if it's provided
@@ -430,4 +431,19 @@ pub(crate) fn decode_ed25519_identity_key(
     }
 
     Ok(public_key)
+}
+
+pub(crate) fn ensure_profit_margin_within_range(
+    storage: &dyn Storage,
+    profit_margin: Percent,
+) -> Result<(), MixnetContractError> {
+    let range = mixnet_params_storage::profit_margin_range(storage)?;
+    if !range.within_range(profit_margin) {
+        return Err(MixnetContractError::ProfitMarginOutsideRange {
+            provided: profit_margin,
+            range,
+        });
+    }
+
+    Ok(())
 }

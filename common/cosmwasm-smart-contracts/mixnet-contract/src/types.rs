@@ -7,6 +7,7 @@ use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
+use std::fmt::{Display, Formatter};
 use std::ops::Index;
 
 // type aliases for better reasoning about available data
@@ -21,6 +22,12 @@ pub type BlockHeight = u64;
 pub struct ProfitMarginRange {
     pub minimum: Percent,
     pub maximum: Percent,
+}
+
+impl Display for ProfitMarginRange {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - {}", self.minimum, self.maximum)
+    }
 }
 
 impl Default for ProfitMarginRange {
@@ -41,6 +48,10 @@ impl ProfitMarginRange {
         } else {
             profit_margin
         }
+    }
+
+    pub fn within_range(&self, profit_margin: Percent) -> bool {
+        profit_margin >= self.minimum && profit_margin <= self.maximum
     }
 }
 

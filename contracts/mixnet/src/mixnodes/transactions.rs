@@ -25,8 +25,8 @@ use crate::mixnodes::signature_helpers::verify_mixnode_bonding_signature;
 use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_no_existing_bond,
-    ensure_no_pending_pledge_changes, ensure_proxy_match, ensure_sent_by_vesting_contract,
-    validate_pledge,
+    ensure_no_pending_pledge_changes, ensure_profit_margin_within_range, ensure_proxy_match,
+    ensure_sent_by_vesting_contract, validate_pledge,
 };
 
 use super::storage;
@@ -121,6 +121,9 @@ fn _try_add_mixnode(
     owner_signature: MessageSignature,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
+    // ensure the profit margin is within the defined range
+    ensure_profit_margin_within_range(deps.storage, cost_params.profit_margin_percent)?;
+
     // check if the pledge contains any funds of the appropriate denomination
     let minimum_pledge = mixnet_params_storage::minimum_mixnode_pledge(deps.storage)?;
     let pledge = validate_pledge(pledge, minimum_pledge)?;
@@ -476,6 +479,9 @@ pub(crate) fn _try_update_mixnode_cost_params(
 
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
     ensure_bonded(&existing_bond)?;
+
+    // ensure the profit margin is within the defined range
+    ensure_profit_margin_within_range(deps.storage, new_costs.profit_margin_percent)?;
 
     let cosmos_event = new_mixnode_pending_cost_params_update_event(
         existing_bond.mix_id,

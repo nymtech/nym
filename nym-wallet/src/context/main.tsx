@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { Account, AccountEntry, MixNodeDetails } from '@nymproject/types';
 import { getVersion } from '@tauri-apps/api/app';
-import { AppEnv, Network } from '../types';
+import { AppEnv, Network, TauriContractStateParams } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
 import {
+  getContractParams,
   getEnv,
   getMixnodeBondDetails,
   listAccounts,
@@ -67,6 +68,7 @@ export type TAppContext = {
   keepState: () => Promise<void>;
   printBalance: string;
   printVestedBalance?: string; // spendable vested token
+  mixnetContractParams?: TauriContractStateParams;
 };
 
 interface RustState {
@@ -94,6 +96,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [printBalance, setPrintBalance] = useState<string>('-');
   const [printVestedBalance, setPrintVestedBalance] = useState<string | undefined>();
+  const [mixnetContractParams, setMixnetContractParams] = useState<TauriContractStateParams>();
 
   const userBalance = useGetBalance(clientDetails);
   const navigate = useNavigate();
@@ -230,6 +233,10 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       }
     }
     setIsAdminAddress(newValue);
+
+    getContractParams().then((params) => {
+      setMixnetContractParams(params);
+    });
   }, [appEnv, network, clientDetails?.client_address]);
 
   const logIn = async ({ type, value }: { type: TLoginType; value: string }) => {
@@ -329,6 +336,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       handleSwitchMode,
       printBalance,
       printVestedBalance,
+      mixnetContractParams,
     }),
     [
       appVersion,
@@ -347,6 +355,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       showTerminal,
       showSendModal,
       showReceiveModal,
+      mixnetContractParams,
     ],
   );
 

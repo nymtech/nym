@@ -8,6 +8,7 @@ import {
   validateRawPort,
   validateVersion,
 } from 'src/utils';
+import { TauriContractStateParams } from '../../../types';
 
 export const mixnodeValidationSchema = Yup.object().shape({
   identityKey: Yup.string()
@@ -41,7 +42,7 @@ export const mixnodeValidationSchema = Yup.object().shape({
     .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
 });
 
-const operatingCostAndPmValidation = {
+const operatingCostAndPmValidation = (params?: TauriContractStateParams) => ({
   profitMargin: Yup.number().required('Profit Percentage is required').min(4).max(80),
   operatorCost: Yup.object().shape({
     amount: Yup.string()
@@ -58,22 +59,23 @@ const operatingCostAndPmValidation = {
         },
       ),
   }),
-};
-
-export const amountSchema = Yup.object().shape({
-  amount: Yup.object().shape({
-    amount: Yup.string()
-      .required('An amount is required')
-      .test('valid-amount', 'Pledge error', async function isValidAmount(this, value) {
-        const isValid = await validateAmount(value || '', '100');
-        if (!isValid) {
-          return this.createError({ message: 'A valid amount is required (min 100)' });
-        }
-        return true;
-      }),
-  }),
-  ...operatingCostAndPmValidation,
 });
+
+export const amountSchema = (params?: TauriContractStateParams) =>
+  Yup.object().shape({
+    amount: Yup.object().shape({
+      amount: Yup.string()
+        .required('An amount is required')
+        .test('valid-amount', 'Pledge error', async function isValidAmount(this, value) {
+          const isValid = await validateAmount(value || '', '100');
+          if (!isValid) {
+            return this.createError({ message: 'A valid amount is required (min 100)' });
+          }
+          return true;
+        }),
+    }),
+    ...operatingCostAndPmValidation(params),
+  });
 
 export const bondedInfoParametersValidationSchema = Yup.object().shape({
   host: Yup.string()
@@ -99,6 +101,7 @@ export const bondedInfoParametersValidationSchema = Yup.object().shape({
     .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
 });
 
-export const bondedNodeParametersValidationSchema = Yup.object().shape({
-  ...operatingCostAndPmValidation,
-});
+export const bondedNodeParametersValidationSchema = (params?: TauriContractStateParams) =>
+  Yup.object().shape({
+    ...operatingCostAndPmValidation(params),
+  });

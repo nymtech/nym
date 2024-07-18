@@ -22,6 +22,8 @@ const MixnodeAmountForm = ({
   denom: CurrencyDenom;
   onNext: (data: MixnodeAmount) => void;
 }) => {
+  const { mixnetContractParams } = useContext(AppContext);
+
   const {
     register,
     formState: { errors },
@@ -29,7 +31,7 @@ const MixnodeAmountForm = ({
     setValue,
     getValues,
     setError,
-  } = useForm({ resolver: yupResolver(amountSchema), defaultValues: amountData });
+  } = useForm({ resolver: yupResolver(amountSchema(mixnetContractParams)), defaultValues: amountData });
 
   const { userBalance } = useContext(AppContext);
 

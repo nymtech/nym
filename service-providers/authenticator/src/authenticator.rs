@@ -8,7 +8,8 @@ use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::{TaskClient, TaskHandle};
-use nym_wireguard::WireguardGatewayData;
+use nym_wireguard::{peer_controller::PeerControlResponse, WireguardGatewayData};
+use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::{config::Config, error::AuthenticatorError};
 
@@ -30,18 +31,24 @@ pub struct Authenticator {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
+    response_rx: UnboundedReceiver<PeerControlResponse>,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
 impl Authenticator {
-    pub fn new(config: Config, wireguard_gateway_data: WireguardGatewayData) -> Self {
+    pub fn new(
+        config: Config,
+        wireguard_gateway_data: WireguardGatewayData,
+        response_rx: UnboundedReceiver<PeerControlResponse>,
+    ) -> Self {
         Self {
             config,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             wireguard_gateway_data,
+            response_rx,
             shutdown: None,
             on_start: None,
         }
@@ -129,6 +136,7 @@ impl Authenticator {
             self.config,
             private_ip_network,
             self.wireguard_gateway_data,
+            self.response_rx,
             mixnet_client,
             task_handle,
         );

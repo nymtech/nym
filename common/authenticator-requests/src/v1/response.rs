@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_sphinx::addressing::Recipient;
-use nym_wireguard_types::registration::RegistrationData;
+use nym_wireguard_types::registration::{RegistrationData, RemainingBandwidthData};
 use serde::{Deserialize, Serialize};
 
 use crate::make_bincode_serializer;
@@ -44,6 +44,22 @@ impl AuthenticatorResponse {
         }
     }
 
+    pub fn new_remaining_bandwidth(
+        remaining_bandwidth_data: Option<RemainingBandwidthData>,
+        reply_to: Recipient,
+        request_id: u64,
+    ) -> Self {
+        Self {
+            version: VERSION,
+            data: AuthenticatorResponseData::RemainingBandwidth(RemainingBandwidthResponse {
+                reply: remaining_bandwidth_data,
+                reply_to,
+                request_id,
+            }),
+            reply_to,
+        }
+    }
+
     pub fn recipient(&self) -> Recipient {
         self.reply_to
     }
@@ -64,6 +80,7 @@ impl AuthenticatorResponse {
         match &self.data {
             AuthenticatorResponseData::PendingRegistration(response) => Some(response.request_id),
             AuthenticatorResponseData::Registered(response) => Some(response.request_id),
+            AuthenticatorResponseData::RemainingBandwidth(response) => Some(response.request_id),
         }
     }
 }
@@ -72,6 +89,7 @@ impl AuthenticatorResponse {
 pub enum AuthenticatorResponseData {
     PendingRegistration(PendingRegistrationResponse),
     Registered(RegisteredResponse),
+    RemainingBandwidth(RemainingBandwidthResponse),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -85,4 +103,11 @@ pub struct PendingRegistrationResponse {
 pub struct RegisteredResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RemainingBandwidthResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
+    pub reply: Option<RemainingBandwidthData>,
 }

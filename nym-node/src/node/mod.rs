@@ -32,7 +32,7 @@ use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{TaskClient, TaskManager};
-use nym_wireguard::{peer_controller::PeerControlMessage, WireguardGatewayData};
+use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
@@ -264,7 +264,7 @@ impl ExitGatewayData {
 
 pub struct WireguardData {
     inner: WireguardGatewayData,
-    peer_rx: UnboundedReceiver<PeerControlMessage>,
+    peer_rx: UnboundedReceiver<PeerControlRequest>,
 }
 
 impl WireguardData {

@@ -60,6 +60,12 @@ pub struct RegistrationData {
     pub wg_port: u16,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RemainingBandwidthData {
+    pub available_bandwidth: u64,
+    pub suspended: bool,
+}
+
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.
 /// Gateway/Nym node can then verify pub_key payload using the same process
 #[derive(Serialize, Deserialize, Debug, Clone)]

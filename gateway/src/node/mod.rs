@@ -257,6 +257,7 @@ impl<St> Gateway<St> {
             .ok_or(GatewayError::UnspecifiedAuthenticatorConfig)?;
         let (router_tx, mut router_rx) = oneshot::channel();
         let (auth_mix_sender, auth_mix_receiver) = mpsc::unbounded();
+        let (peer_response_tx, peer_response_rx) = tokio::sync::mpsc::unbounded_channel();
         let router_shutdown = shutdown.fork("message_router");
         let transceiver = LocalGateway::new(
             *self.identity_keypair.public_key(),
@@ -269,6 +270,7 @@ impl<St> Gateway<St> {
             let mut authenticator_server = nym_authenticator::Authenticator::new(
                 opts.config.clone(),
                 wireguard_data.inner.clone(),
+                peer_response_rx,
             )
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_shutdown(shutdown.fork("authenticator"))
@@ -299,7 +301,8 @@ impl<St> Gateway<St> {
             MessageRouter::new(auth_mix_receiver, packet_router)
                 .start_with_shutdown(router_shutdown);
 
-            let wg_api = nym_wireguard::start_wireguard(shutdown, wireguard_data).await?;
+            let wg_api =
+                nym_wireguard::start_wireguard(shutdown, wireguard_data, peer_response_tx).await?;
 
             Ok(StartedAuthenticator {
                 wg_api,

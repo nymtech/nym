@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_sphinx::addressing::Recipient;
-use nym_wireguard_types::{GatewayClient, InitMessage};
+use nym_wireguard_types::{GatewayClient, InitMessage, PeerPublicKey};
 use serde::{Deserialize, Serialize};
 
 use crate::make_bincode_serializer;
@@ -57,6 +57,19 @@ impl AuthenticatorRequest {
         )
     }
 
+    pub fn new_query_request(peer_public_key: PeerPublicKey, reply_to: Recipient) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                version: VERSION,
+                data: AuthenticatorRequestData::QueryBandwidth(peer_public_key),
+                reply_to,
+                request_id,
+            },
+            request_id,
+        )
+    }
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
         make_bincode_serializer().serialize(self)
@@ -67,4 +80,5 @@ impl AuthenticatorRequest {
 pub enum AuthenticatorRequestData {
     Initial(InitMessage),
     Final(GatewayClient),
+    QueryBandwidth(PeerPublicKey),
 }

@@ -9,10 +9,10 @@
 use dashmap::DashMap;
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi};
 use nym_crypto::asymmetric::encryption::KeyPair;
-use nym_wireguard_types::{Config, Error, GatewayClient, GatewayClientRegistry};
-use peer_controller::PeerControlMessage;
+use nym_wireguard_types::{Config, Error, GatewayClient, GatewayClientRegistry, PeerPublicKey};
+use peer_controller::PeerControlRequest;
 use std::sync::Arc;
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 const WG_TUN_NAME: &str = "nymwg";
 
@@ -43,14 +43,14 @@ pub struct WireguardGatewayData {
     config: Config,
     keypair: Arc<KeyPair>,
     client_registry: Arc<GatewayClientRegistry>,
-    peer_tx: mpsc::UnboundedSender<PeerControlMessage>,
+    peer_tx: UnboundedSender<PeerControlRequest>,
 }
 
 impl WireguardGatewayData {
     pub fn new(
         config: Config,
         keypair: Arc<KeyPair>,
-    ) -> (Self, mpsc::UnboundedReceiver<PeerControlMessage>) {
+    ) -> (Self, UnboundedReceiver<PeerControlRequest>) {
         let (peer_tx, peer_rx) = mpsc::unbounded_channel();
         (
             WireguardGatewayData {
@@ -79,20 +79,26 @@ impl WireguardGatewayData {
         let mut peer = Peer::new(Key::new(client.pub_key.to_bytes()));
         peer.allowed_ips
             .push(IpAddrMask::new(client.private_ip, 32));
-        let msg = PeerControlMessage::AddPeer(peer);
+        let msg = PeerControlRequest::AddPeer(peer);
         self.peer_tx.send(msg).map_err(|_| Error::PeerModifyStopped)
     }
 
     pub fn remove_peer(&self, client: &GatewayClient) -> Result<(), Error> {
         let key = Key::new(client.pub_key().to_bytes());
-        let msg = PeerControlMessage::RemovePeer(key);
+        let msg = PeerControlRequest::RemovePeer(key);
+        self.peer_tx.send(msg).map_err(|_| Error::PeerModifyStopped)
+    }
+
+    pub fn query_bandwidth(&self, peer_public_key: PeerPublicKey) -> Result<(), Error> {
+        let key = Key::new(peer_public_key.to_bytes());
+        let msg = PeerControlRequest::QueryBandwidth(key);
         self.peer_tx.send(msg).map_err(|_| Error::PeerModifyStopped)
     }
 }
 
 pub struct WireguardData {
     pub inner: WireguardGatewayData,
-    pub peer_rx: UnboundedReceiver<PeerControlMessage>,
+    pub peer_rx: UnboundedReceiver<PeerControlRequest>,
 }
 
 /// Start wireguard device
@@ -100,6 +106,7 @@ pub struct WireguardData {
 pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
+    control_tx: UnboundedSender<peer_controller::PeerControlResponse>,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
@@ -143,13 +150,9 @@ pub async fn start_wireguard(
         wg_api.clone(),
         interface_config.peers,
         wireguard_data.peer_rx,
+        control_tx,
     );
     tokio::spawn(async move { controller.run(task_client).await });
 
     Ok(wg_api)
-}
-
-#[cfg(not(target_os = "linux"))]
-pub async fn start_wireguard() {
-    todo!("WireGuard is currently only supported on Linux");
 }

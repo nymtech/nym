@@ -3,6 +3,7 @@
 
 use chrono::{Timelike, Utc};
 use defguard_wireguard_rs::{host::Peer, key::Key, WireguardInterfaceApi};
+use nym_wireguard_types::registration::RemainingBandwidthData;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
@@ -13,24 +14,40 @@ use crate::WgApiWrapper;
 const DEFAULT_PEER_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
 const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
 
-pub enum PeerControlMessage {
+pub enum PeerControlRequest {
     AddPeer(Peer),
     RemovePeer(Key),
+    QueryBandwidth(Key),
+}
+
+pub enum PeerControlResponse {
+    AddPeer {
+        success: bool,
+    },
+    RemovePeer {
+        success: bool,
+    },
+    QueryBandwidth {
+        bandwidth_data: Option<RemainingBandwidthData>,
+    },
 }
 
 pub struct PeerController {
-    peer_rx: mpsc::UnboundedReceiver<PeerControlMessage>,
+    request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
+    response_tx: mpsc::UnboundedSender<PeerControlResponse>,
     wg_api: Arc<WgApiWrapper>,
     timeout_check_interval: IntervalStream,
     active_peers: HashMap<Key, Peer>,
     suspended_peers: HashMap<Key, Peer>,
+    last_seen_bandwidth: HashMap<Key, u64>,
 }
 
 impl PeerController {
     pub fn new(
         wg_api: Arc<WgApiWrapper>,
         peers: Vec<Peer>,
-        peer_rx: mpsc::UnboundedReceiver<PeerControlMessage>,
+        request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
+        response_tx: mpsc::UnboundedSender<PeerControlResponse>,
     ) -> Self {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
@@ -42,10 +59,12 @@ impl PeerController {
 
         PeerController {
             wg_api,
-            peer_rx,
+            request_rx,
+            response_tx,
             timeout_check_interval,
             active_peers,
             suspended_peers: HashMap::new(),
+            last_seen_bandwidth: HashMap::new(),
         }
     }
 
@@ -61,6 +80,11 @@ impl PeerController {
             }
         }
         let host = self.wg_api.inner.read_interface_data()?;
+        self.last_seen_bandwidth = host
+            .peers
+            .iter()
+            .map(|(key, peer)| (key.clone(), peer.rx_bytes + peer.tx_bytes))
+            .collect();
         if reset {
             self.active_peers = host.peers;
         } else {
@@ -94,22 +118,38 @@ impl PeerController {
                     log::trace!("PeerController handler: Received shutdown");
                     break;
                 }
-                msg = self.peer_rx.recv() => {
+                msg = self.request_rx.recv() => {
                     match msg {
-                        Some(PeerControlMessage::AddPeer(peer)) => {
-                            if let Err(e) = self.wg_api.inner.configure_peer(&peer) {
+                        Some(PeerControlRequest::AddPeer(peer)) => {
+                            let success = if let Err(e) = self.wg_api.inner.configure_peer(&peer) {
                                 log::error!("Could not configure peer: {:?}", e);
+                                false
                             } else {
                                 self.active_peers.insert(peer.public_key.clone(), peer);
-                            }
+                                true
+                            };
+                            self.response_tx.send(PeerControlResponse::AddPeer { success }).ok();
                         }
-                        Some(PeerControlMessage::RemovePeer(peer_pubkey)) => {
-                            if let Err(e) = self.wg_api.inner.remove_peer(&peer_pubkey) {
+                        Some(PeerControlRequest::RemovePeer(peer_pubkey)) => {
+                            let success = if let Err(e) = self.wg_api.inner.remove_peer(&peer_pubkey) {
                                 log::error!("Could not remove peer: {:?}", e);
+                                false
                             } else {
                                 self.active_peers.remove(&peer_pubkey);
                                 self.suspended_peers.remove(&peer_pubkey);
-                            }
+                                true
+                            };
+                            self.response_tx.send(PeerControlResponse::RemovePeer { success }).ok();
+                        }
+                        Some(PeerControlRequest::QueryBandwidth(peer_pubkey)) => {
+                            let msg = if self.suspended_peers.contains_key(&peer_pubkey) {
+                                PeerControlResponse::QueryBandwidth { bandwidth_data: Some(RemainingBandwidthData{ available_bandwidth: 0, suspended: true }) }
+                            } else if let Some(&available_bandwidth) = self.last_seen_bandwidth.get(&peer_pubkey) {
+                                PeerControlResponse::QueryBandwidth { bandwidth_data: Some(RemainingBandwidthData{ available_bandwidth, suspended: false })}
+                            } else {
+                                PeerControlResponse::QueryBandwidth { bandwidth_data: None }
+                            };
+                            self.response_tx.send(msg).ok();
                         }
                         None => {
                             log::trace!("PeerController [main loop]: stopping since channel closed");

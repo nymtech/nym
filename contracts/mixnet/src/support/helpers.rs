@@ -7,6 +7,7 @@ use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::PendingMixNodeChanges;
 use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixNodeBond};
+use nym_contracts_common::Percent;
 
 // helper trait to attach `Msg` to a response if it's provided
 #[allow(dead_code)]
@@ -266,4 +267,19 @@ pub(crate) fn decode_ed25519_identity_key(
     }
 
     Ok(public_key)
+}
+
+pub(crate) fn ensure_profit_margin_within_range(
+    storage: &dyn Storage,
+    profit_margin: Percent,
+) -> Result<(), MixnetContractError> {
+    let range = mixnet_params_storage::profit_margin_range(storage)?;
+    if !range.within_range(profit_margin) {
+        return Err(MixnetContractError::ProfitMarginOutsideRange {
+            provided: profit_margin,
+            range,
+        });
+    }
+
+    Ok(())
 }

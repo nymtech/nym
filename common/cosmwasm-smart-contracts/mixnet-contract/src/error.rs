@@ -1,8 +1,9 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{EpochEventId, EpochState, IdentityKey, MixId};
+use crate::{EpochEventId, EpochState, IdentityKey, MixId, ProfitMarginRange};
 use contracts_common::signing::verifier::ApiVerifierError;
+use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use thiserror::Error;
 
@@ -240,6 +241,12 @@ pub enum MixnetContractError {
 
     #[error("this delegation has not been performed with the vesting tokens or has already been migrated")]
     NotAVestingDelegation,
+
+    #[error("the provided profit margin ({provided}) is outside the allowed range: {range}")]
+    ProfitMarginOutsideRange {
+        provided: Percent,
+        range: ProfitMarginRange,
+    },
 }
 
 impl MixnetContractError {

@@ -25,8 +25,7 @@ use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_no_existing_bond,
     ensure_no_pending_pledge_changes, ensure_operating_cost_within_range,
-    ensure_profit_margin_within_range,
-    validate_pledge,
+    ensure_profit_margin_within_range, validate_pledge,
 };
 
 use super::storage;

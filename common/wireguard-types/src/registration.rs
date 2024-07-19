@@ -27,6 +27,8 @@ pub type HmacSha256 = Hmac<Sha256>;
 pub type Nonce = u64;
 pub type Taken = Option<SystemTime>;
 
+pub const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

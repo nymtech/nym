@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_sphinx::addressing::Recipient;
-use nym_wireguard_types::registration::{RegistrationData, RemainingBandwidthData};
+use nym_wireguard_types::registration::{RegistrationData, RegistredData, RemainingBandwidthData};
 use serde::{Deserialize, Serialize};
 
 use crate::make_bincode_serializer;
@@ -33,10 +33,15 @@ impl AuthenticatorResponse {
         }
     }
 
-    pub fn new_registered(reply_to: Recipient, request_id: u64) -> Self {
+    pub fn new_registered(
+        registred_data: RegistredData,
+        reply_to: Recipient,
+        request_id: u64,
+    ) -> Self {
         Self {
             version: VERSION,
             data: AuthenticatorResponseData::Registered(RegisteredResponse {
+                reply: registred_data,
                 reply_to,
                 request_id,
             }),
@@ -103,6 +108,7 @@ pub struct PendingRegistrationResponse {
 pub struct RegisteredResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
+    pub reply: RegistredData,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

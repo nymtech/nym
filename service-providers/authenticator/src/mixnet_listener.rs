@@ -19,7 +19,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use nym_wireguard::{peer_controller::PeerControlResponse, WireguardGatewayData};
 use nym_wireguard_types::{
-    registration::{PendingRegistrations, PrivateIPs, RegistrationData},
+    registration::{PendingRegistrations, PrivateIPs, RegistrationData, RegistredData},
     GatewayClient, InitMessage, PeerPublicKey,
 };
 use rand::{prelude::IteratorRandom, thread_rng};
@@ -78,22 +78,6 @@ impl MixnetListener {
         }
     }
 
-    fn remove_from_registry(
-        &self,
-        remote_public: &PeerPublicKey,
-        gateway_client: &GatewayClient,
-    ) -> Result<()> {
-        self.wireguard_gateway_data
-            .remove_peer(gateway_client)
-            .map_err(|err| {
-                AuthenticatorError::InternalError(format!("could not remove peer: {:?}", err))
-            })?;
-        self.wireguard_gateway_data
-            .client_registry()
-            .remove(remote_public);
-        Ok(())
-    }
-
     fn remove_stale_registrations(&self) -> Result<()> {
         for reg in self.registration_in_progres.iter().map(|reg| reg.clone()) {
             let mut ip = self
@@ -141,42 +125,20 @@ impl MixnetListener {
                 reply_to,
             ));
         }
-        let gateway_client_opt = if let Some(gateway_client) = self
+        if let Some(gateway_client) = self
             .wireguard_gateway_data
             .client_registry()
             .get(&remote_public)
         {
-            let mut private_ip_ref = self
-                .free_private_network_ips
-                .get_mut(&gateway_client.private_ip)
-                .ok_or(AuthenticatorError::InternalError(String::from(
-                    "could not find private IP",
-                )))?;
-            *private_ip_ref = None;
-            Some(gateway_client.clone())
-        } else {
-            None
-        };
-        if let Some(gateway_client) = gateway_client_opt {
-            self.remove_from_registry(&remote_public, &gateway_client)?;
-
-            let PeerControlResponse::RemovePeer { success } =
-                self.response_rx
-                    .recv()
-                    .await
-                    .ok_or(AuthenticatorError::InternalError(
-                        "no response for remove peer".to_string(),
-                    ))?
-            else {
-                return Err(AuthenticatorError::InternalError(
-                    "unexpected response type".to_string(),
-                ));
-            };
-            if !success {
-                return Err(AuthenticatorError::InternalError(
-                    "removing peer could not be performed".to_string(),
-                ));
-            }
+            return Ok(AuthenticatorResponse::new_registered(
+                RegistredData {
+                    pub_key: gateway_client.pub_key,
+                    private_ip: gateway_client.private_ip,
+                    wg_port: self.config.authenticator.announced_port,
+                },
+                reply_to,
+                request_id,
+            ));
         }
         let mut private_ip_ref = self
             .free_private_network_ips
@@ -256,7 +218,15 @@ impl MixnetListener {
                 .client_registry()
                 .insert(gateway_client.pub_key(), gateway_client);
 
-            Ok(AuthenticatorResponse::new_registered(reply_to, request_id))
+            Ok(AuthenticatorResponse::new_registered(
+                RegistredData {
+                    pub_key: registration_data.gateway_data.pub_key,
+                    private_ip: registration_data.gateway_data.private_ip,
+                    wg_port: registration_data.wg_port,
+                },
+                reply_to,
+                request_id,
+            ))
         } else {
             Err(AuthenticatorError::MacVerificationFailure)
         }

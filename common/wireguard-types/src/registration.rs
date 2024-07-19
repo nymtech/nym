@@ -64,6 +64,13 @@ pub struct RegistrationData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegistredData {
+    pub pub_key: PeerPublicKey,
+    pub private_ip: IpAddr,
+    pub wg_port: u16,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RemainingBandwidthData {
     pub available_bandwidth: u64,
     pub suspended: bool,

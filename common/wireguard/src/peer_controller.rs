@@ -4,6 +4,7 @@
 use chrono::{Timelike, Utc};
 use defguard_wireguard_rs::{host::Peer, key::Key, WireguardInterfaceApi};
 use nym_wireguard_types::registration::RemainingBandwidthData;
+use std::time::SystemTime;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::sync::mpsc;
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
@@ -11,6 +12,9 @@ use tokio_stream::{wrappers::IntervalStream, StreamExt};
 use crate::error::Error;
 use crate::WgApiWrapper;
 
+// To avoid any problems, keep this stale check time bigger (>2x) then the bandwidth cap
+// reset time (currently that one is 24h, at UTC midnight)
+const DEFAULT_PEER_TIMEOUT: Duration = Duration::from_secs(60 * 60 * 24 * 3); // 3 days
 const DEFAULT_PEER_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
 const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
 
@@ -68,6 +72,37 @@ impl PeerController {
         }
     }
 
+    fn check_stale_peer(&self, peer: &Peer, current_timestamp: SystemTime) -> Result<bool, Error> {
+        if let Some(timestamp) = peer.last_handshake {
+            if let Ok(duration_since_handshake) = current_timestamp.duration_since(timestamp) {
+                if duration_since_handshake > DEFAULT_PEER_TIMEOUT {
+                    self.wg_api.inner.remove_peer(&peer.public_key)?;
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
+    fn check_suspend_peer(&mut self, peer: &Peer) -> Result<(), Error> {
+        let prev_peer = self
+            .active_peers
+            .get(&peer.public_key)
+            .ok_or(Error::PeerMismatch)?;
+        let data_usage =
+            (peer.rx_bytes + peer.tx_bytes).saturating_sub(prev_peer.rx_bytes + prev_peer.tx_bytes);
+        if data_usage > BANDWIDTH_CAP_PER_DAY {
+            self.wg_api.inner.remove_peer(&peer.public_key)?;
+            let (moved_key, moved_peer) = self
+                .active_peers
+                .remove_entry(&peer.public_key)
+                .ok_or(Error::PeerMismatch)?;
+            self.suspended_peers.insert(moved_key, moved_peer);
+        }
+        Ok(())
+    }
+
     fn check_peers(&mut self) -> Result<(), Error> {
         // Add 10 seconds to cover edge cases. At worst, we give ten free seconds worth of bandwidth
         // by resetting the bandwidth twice
@@ -88,17 +123,10 @@ impl PeerController {
         if reset {
             self.active_peers = host.peers;
         } else {
-            for (key, peer) in host.peers.iter() {
-                let prev_peer = self.active_peers.get(key).ok_or(Error::PeerMismatch)?;
-                let data_usage = (peer.rx_bytes + peer.tx_bytes)
-                    .saturating_sub(prev_peer.rx_bytes + prev_peer.tx_bytes);
-                if data_usage > BANDWIDTH_CAP_PER_DAY {
-                    self.wg_api.inner.remove_peer(key)?;
-                    let (moved_key, moved_peer) = self
-                        .active_peers
-                        .remove_entry(key)
-                        .ok_or(Error::PeerMismatch)?;
-                    self.suspended_peers.insert(moved_key, moved_peer);
+            let current_timestamp = SystemTime::now();
+            for peer in host.peers.values() {
+                if !self.check_stale_peer(peer, current_timestamp)? {
+                    self.check_suspend_peer(peer)?;
                 }
             }
         }

@@ -171,8 +171,8 @@ impl PeerController {
                         Some(PeerControlRequest::QueryBandwidth(peer_pubkey)) => {
                             let msg = if self.suspended_peers.contains_key(&peer_pubkey) {
                                 PeerControlResponse::QueryBandwidth { bandwidth_data: Some(RemainingBandwidthData{ available_bandwidth: 0, suspended: true }) }
-                            } else if let Some(&available_bandwidth) = self.last_seen_bandwidth.get(&peer_pubkey) {
-                                PeerControlResponse::QueryBandwidth { bandwidth_data: Some(RemainingBandwidthData{ available_bandwidth, suspended: false })}
+                            } else if let Some(&consumed_bandwidth) = self.last_seen_bandwidth.get(&peer_pubkey) {
+                                PeerControlResponse::QueryBandwidth { bandwidth_data: Some(RemainingBandwidthData{ available_bandwidth: BANDWIDTH_CAP_PER_DAY - consumed_bandwidth, suspended: false })}
                             } else {
                                 PeerControlResponse::QueryBandwidth { bandwidth_data: None }
                             };

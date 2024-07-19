@@ -5,6 +5,8 @@ import json
 import sys
 import pandas as pd
 from collections import namedtuple
+from time import gmtime, strftime
+import time
 
 ############################################
 ############## GENERAL FNs #################
@@ -27,6 +29,12 @@ def subparser_read(args):
     r = requests.get(url)
     response = r.json()
     return response
+
+def print_time_now(args):
+    #now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    #now = time.ctime()
+    now = strftime("%a, %d %b %Y %X +0000", gmtime())
+    print(now)
 
 ############################################
 ########### NYX RELATED FNs ################
@@ -116,7 +124,7 @@ def parser_main():
     subparsers = parser.add_subparsers(help="")
     parser_supply = subparsers.add_parser('supply',
             help='reads API on supply',
-            aliases=['s','S']
+            aliases=['s',]
             )
 
     parser_supply.add_argument(
@@ -138,10 +146,17 @@ def parser_main():
 
     parser_supply.set_defaults(func=read_supply)
 
+    parser_time_now = subparsers.add_parser('time_now',
+            help='Prints UTC time now',
+            aliases=['t']
+            )
+
+    parser_time_now.set_defaults(func=print_time_now)
+
 
     parser_nym_vpn = subparsers.add_parser('nym_vpn',
             help='reads NymVPN latest version',
-            aliases=['n','N']
+            aliases=['n']
             )
 
     parser_nym_vpn.add_argument(
@@ -167,6 +182,9 @@ def parser_main():
 
 
     parser_nym_vpn.set_defaults(func=get_nym_vpn_version)
+
+
+
 
     args = parser.parse_args()
     try:

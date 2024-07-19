@@ -1,5 +1,19 @@
 <!-- THIS PAGE IS ALL COMMENTED FROM SUMMARY - NO NEED TO REVIEW YET!!! -->
 
+
+
+
+```admonish info
+All values were last time updated on <!--cmdrun ../../../scripts/cmdrun/python3 api_targets.py time_now-->.
+```
+
+
+
+## Supply
+
+<!--cmdrun ../../../scripts/cdmrun/python3 api_targets.py s --api mainnet --endpoint circulating-supply --format-->
+
+
 <!-- DROPPING THIS FROM THE MAINTENANCE -->
 
 ### Mix Node Reward Estimation API endpoint

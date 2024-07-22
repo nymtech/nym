@@ -246,7 +246,7 @@ scp -r <LOCAL_NODE_CONFIGURATION_FOLDER> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:~/.n
 
 5. Configure your node on the new VPS:
 
-* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP. It's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]`. You can get your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
 * Try to run the node and see if everything works.
 * Setup the [systemd](#systemd) automation (don't forget to add the [terms and conditions flag](setup.md#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
 
@@ -275,7 +275,7 @@ scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER
 
 **On new/target VPS**
 
-* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP. It's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]`. You can get your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
 * Try to run the node and see if everything works.
 * Setup the [systemd](#systemd) automation (don't forget to add the [terms and conditions flag](setup.md#terms--conditions)) to `ExecStart` command, reload the daemon and run the service. If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic:
 ```sh

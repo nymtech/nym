@@ -32,7 +32,7 @@ On modern Debian based Linux distributions, network is being configure by either
 1. If you have the following folder `/etc/netplan` which has got a YAML file - you are likely to have Netplan.
 2. If you have the following folder `/etc/network` and it is not empty - you are likely to have ifup/down.
 
-Most contemporary Ubuntu/Debian distributions come with Netplan, however it is possibly that your hosting provider is using a custom version of ISO. For example, Debian 12 (latest version as of June 2024) may come with ifup/down.
+Most contemporary Ubuntu/Debian distributions come with Netplan, however it is possible that your hosting provider is using a custom version of ISO. For example, Debian 12 (latest version as of June 2024) may come with ifup/down.
 
 Nym operator community members have tested a VPS with Netplan and where in some cases `nym-node --mode exit-gateway` was not routing IP packets properly even after running `network_tunnel_manager.sh` script. We are working on a guide to setup Netplan configuration manually for such cases.
 
@@ -56,7 +56,7 @@ iface eth0 inet6 static
 post-up /sbin/ip -r route add <YOUR_IPV6_GATEWAY> dev eth0
 post-up /sbin/ip -r route add default via <YOUR_IPV6_GATEWAY>
 ```
-Last two lines are particularly important as they enable IPv6 routing. 
+Last two lines are particularly important as they enable IPv6 routing. You can find YOUR_IPV6_GATEWAY using your server's control panel. There is no single way to find the gateway, so please access your control panel to find yours or open a support ticket. Here is an example of how it looks on [OVH](https://help.ovhcloud.com/csm/en-ie-vps-configuring-ipv6?id=kb_article_view&sysparm_article=KB0047567).
 
 ```admonish warning title="WARNING"
 Be extra careful editing this file since you may lock yourself out of the server. If it happens, you can always access the server via the hoster's VNC panel.

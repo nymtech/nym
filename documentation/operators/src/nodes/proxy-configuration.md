@@ -592,15 +592,28 @@ server {
 
 # WSS configuration
 server {
-    listen ${port_value};
+    listen ${port_value} ssl http2;
+    listen [::]:${port_value} ssl http2;
+
+    server_name ${host_name};
+
+    ssl_certificate /etc/letsencrypt/live/${host_name}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${host_name}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
     location / {
 
-	    add_header 'Access-Control-Allow-Origin' '*';
+	add_header 'Access-Control-Allow-Origin' '*';
         add_header 'Access-Control-Allow-Credentials' 'true';
         add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD';
-	    add_header 'Access-Control-Allow-Headers' '*';
+	add_header 'Access-Control-Allow-Headers' '*';
 
-	    proxy_http_version 1.1;
+	proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "Upgrade";
         proxy_set_header X-Forwarded-For \$remote_addr;
@@ -699,9 +712,9 @@ We made the landing page customization directory in [*Preliminary steps*](#preli
 3. Configure your site to work with `nginx`. Open a new text file `/etc/nginx/sites-available/<HOSTNAME>` and paste the block below. Don't forget to insert your correct values.
 ~~~admonish example collapsible=true title="Site configuration `/etc/nginx/sites-available/<HOSTNAME>`"
 ```bash
-#################################################################
-# EXCHANGE ALL <HOSTNAME>, <WSS_PORT> AND <PATH_TO> VARIABLES ! #
-#################################################################
+#####################################################
+# EXCHANGE ALL <HOSTNAME> & <WSS_PORT> VARIABLES ! #
+####################################################
 
 # Reversed proxy configuration for landing page
 server {
@@ -744,15 +757,27 @@ server {
 
 # WSS configuration
 server {
-    listen <WSS_PORT>;
+    listen <WSS_PORT> ssl http2;
+    listen [::]:<WSS_PORT> ssl http2;
+
+    server_name <HOSTNAME>;
+
+    ssl_certificate /etc/letsencrypt/live/<HOSTNAME>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<HOSTNAME>/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
     location / {
 
-	    add_header 'Access-Control-Allow-Origin' '*';
+	add_header 'Access-Control-Allow-Origin' '*';
         add_header 'Access-Control-Allow-Credentials' 'true';
         add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD';
-	    add_header 'Access-Control-Allow-Headers' '*';
+        add_header 'Access-Control-Allow-Headers' '*';
 
-	    proxy_http_version 1.1;
+	proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "Upgrade";
         proxy_set_header X-Forwarded-For $remote_addr;

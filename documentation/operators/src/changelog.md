@@ -42,17 +42,17 @@ This page displays a full list of all the changes during our release cycle from 
 
 ### Features
 
-- [Remove the `nym-mixnode` and `nym-gateway` binaries from the CI upload builds action](https://github.com/nymtech/nym/pull/4693): 
+- [Remove the `nym-mixnode` and `nym-gateway` binaries from the CI upload builds action](https://github.com/nymtech/nym/pull/4693):
 - [Add an early return in `parse_raw_str_logs` for empty raw log strings.](https://github.com/nymtech/nym/pull/4686): This accommodates for the v50 + chain upgrade.
 - [Bump braces from `3.0.2` to `3.0.3` in `/wasm/mix-fetch/internal-dev`](https://github.com/nymtech/nym/pull/4672): Version update of [braces](https://github.com/micromatch/braces)
 - [Bump braces from `3.0.2` to `3.0.3` in `/clients/native/examples/js-examples/websocket`](https://github.com/nymtech/nym/pull/4663): Version update of [braces](https://github.com/micromatch/braces).
 - [Bump braces from `3.0.2` to `3.0.3` in `/nym-api/tests`](https://github.com/nymtech/nym/pull/4659): Version update of [braces](https://github.com/micromatch/braces).
 - [Bump braces from `3.0.2` to `3.0.3` in `/docker/typescript_client/upload_contract`](https://github.com/nymtech/nym/pull/4658): Version update of  [braces](https://github.com/micromatch/braces).
-- [Bump `ws` from `8.13.0` to `8.17.1` in `/wasm/client/internal-dev-node`](https://github.com/nymtech/nym/pull/4665): Version update of [`ws`](https://github.com/websockets/ws). 
-- [Bump `ws` from `8.14.2` to `8.17.1` in `/sdk/typescript/packages/nodejs-client`](https://github.com/nymtech/nym/pull/4662): Version update of [`ws`](https://github.com/websockets/ws). 
+- [Bump `ws` from `8.13.0` to `8.17.1` in `/wasm/client/internal-dev-node`](https://github.com/nymtech/nym/pull/4665): Version update of [`ws`](https://github.com/websockets/ws).
+- [Bump `ws` from `8.14.2` to `8.17.1` in `/sdk/typescript/packages/nodejs-client`](https://github.com/nymtech/nym/pull/4662): Version update of [`ws`](https://github.com/websockets/ws).
 - [Add expiry returned on import](https://github.com/nymtech/nym/pull/4670): We need to return the expiry on import for desktop daemon `nym-vpnd`.
 - [New clippy lints](https://github.com/nymtech/nym/pull/4660)
-- [Remove `nym-connect` directory](https://github.com/nymtech/nym/pull/4643): Since the `nym-vpn` has superseded `nym-connect`, remove `nym-connect` from the repo. 
+- [Remove `nym-connect` directory](https://github.com/nymtech/nym/pull/4643): Since the `nym-vpn` has superseded `nym-connect`, remove `nym-connect` from the repo.
 - [Remove old PR template](https://github.com/nymtech/nym/pull/4639)
 
 ### Bugfix
@@ -62,7 +62,7 @@ This page displays a full list of all the changes during our release cycle from 
 ### Operators Guide updates
 
 - [Node description guide](nodes/configuration.md#node-description): Steps to add self-description to `nym-node` and query this information from any node.
-- [Web Secure Socket (WSS) guide and reverse proxy update](/nodes/proxy-configuration.md), PR [here](https://github.com/nymtech/nym/pull/4694): A guide to setup `nym-node` in a secure fashion, using WSS via Nginx and Certbot. Landing page (reversed proxy) is updated and simplified.
+- [Web Secure Socket (WSS) guide and reverse proxy update](nodes/proxy-configuration.md), PR [here](https://github.com/nymtech/nym/pull/4694): A guide to setup `nym-node` in a secure fashion, using WSS via Nginx and Certbot. Landing page (reversed proxy) is updated and simplified.
 
 ---
 

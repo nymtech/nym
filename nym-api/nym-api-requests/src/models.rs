@@ -612,7 +612,13 @@ pub struct NymNodeDescription {
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
 
+    #[serde(default = "default_node_role")]
     pub role: NodeRole,
+}
+
+// For backwards compatibility, set a slightly artificial default
+fn default_node_role() -> NodeRole {
+    NodeRole::Inactive
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]

@@ -248,7 +248,7 @@ scp -r <LOCAL_NODE_CONFIGURATION_FOLDER> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:~/.n
 
 * Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP. It's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]`. You can get your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
 * Try to run the node and see if everything works.
-* Setup the [systemd](#systemd) automation (don't forget to add the [terms and conditions flag](setup.md#terms--conditions) to `ExecStart` command, reload the daemon and run the service.
+* Setup the [systemd](#systemd) automation (don't forget to add the [terms and conditions flag](setup.md#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
 
 6. And finally change the node smart contract info via the wallet interface. Open Nym Wallet, go to *Bonding*, open *Gateway Settings* or *Mixnode Settings* and change *Host* value to the new `nym-node` IP address. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks, returning zero performance.
 
@@ -277,7 +277,7 @@ scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER
 
 * Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP. It's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]`. You can get your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
 * Try to run the node and see if everything works.
-* Setup the [systemd](#systemd) automation (don't forget to add the [terms and conditions flag](setup.md#terms--conditions) to `ExecStart` command, reload the daemon and run the service. If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic:
+* Setup the [systemd](#systemd) automation (don't forget to add the [terms and conditions flag](setup.md#terms--conditions)) to `ExecStart` command, reload the daemon and run the service. If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic:
 ```sh
 scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/etc/systemd/system/nym-node.service <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:/etc/systemd/system/nym-node.service
 ```

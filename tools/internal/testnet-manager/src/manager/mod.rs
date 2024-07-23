@@ -24,6 +24,7 @@ mod local_client;
 mod local_nodes;
 pub(crate) mod network;
 mod network_init;
+mod node;
 pub(crate) mod storage;
 
 pub(crate) struct NetworkManager {

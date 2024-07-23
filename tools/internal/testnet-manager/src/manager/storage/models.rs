@@ -60,7 +60,6 @@ impl TryFrom<RawContract> for LoadedContract {
 
 #[derive(FromRow)]
 pub(crate) struct RawNetwork {
-    #[allow(unused)]
     pub(crate) id: i64,
     pub(crate) name: String,
     pub(crate) created_at: OffsetDateTime,

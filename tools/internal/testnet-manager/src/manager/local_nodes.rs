@@ -3,17 +3,12 @@
 
 use crate::error::NetworkManagerError;
 use crate::helpers::{ProgressCtx, ProgressTracker, RunCommands};
-use crate::manager::contract::Account;
 use crate::manager::network::LoadedNetwork;
+use crate::manager::node::NymNode;
 use crate::manager::NetworkManager;
 use console::style;
-use nym_contracts_common::signing::MessageSignature;
-use nym_mixnet_contract_common::{
-    construct_gateway_bonding_sign_payload, construct_mixnode_bonding_sign_payload, Addr, Gateway,
-    Layer, LayerAssignment, MixNode, MixNodeCostParams, Percent,
-};
+use nym_mixnet_contract_common::{Layer, LayerAssignment};
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
-use nym_validator_client::nyxd::CosmWasmCoin;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -23,99 +18,6 @@ use std::process::Stdio;
 use tokio::process::Command;
 use zeroize::Zeroizing;
 
-struct NymNode {
-    // host is always 127.0.0.1
-    mix_port: u16,
-    verloc_port: u16,
-    http_port: u16,
-    clients_port: u16,
-    sphinx_key: String,
-    identity_key: String,
-    version: String,
-
-    owner: Account,
-    bonding_signature: String,
-}
-
-impl NymNode {
-    fn new_empty() -> NymNode {
-        NymNode {
-            mix_port: 0,
-            verloc_port: 0,
-            http_port: 0,
-            clients_port: 0,
-            sphinx_key: "".to_string(),
-            identity_key: "".to_string(),
-            version: "".to_string(),
-            owner: Account::new(),
-            bonding_signature: "".to_string(),
-        }
-    }
-
-    fn pledge(&self) -> CosmWasmCoin {
-        CosmWasmCoin::new(100_000000, "unym")
-    }
-
-    fn gateway(&self) -> Gateway {
-        Gateway {
-            host: "127.0.0.1".to_string(),
-            mix_port: self.mix_port,
-            clients_port: self.clients_port,
-            location: "foomp".to_string(),
-            sphinx_key: self.sphinx_key.clone(),
-            identity_key: self.identity_key.clone(),
-            version: self.version.clone(),
-        }
-    }
-
-    fn mixnode(&self) -> MixNode {
-        MixNode {
-            host: "127.0.0.1".to_string(),
-            mix_port: self.mix_port,
-            verloc_port: self.verloc_port,
-            http_api_port: self.http_port,
-            sphinx_key: self.sphinx_key.clone(),
-            identity_key: self.identity_key.clone(),
-            version: self.version.clone(),
-        }
-    }
-
-    fn cost_params(&self) -> MixNodeCostParams {
-        MixNodeCostParams {
-            profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-            interval_operating_cost: CosmWasmCoin::new(40_000000, "unym"),
-        }
-    }
-
-    fn bonding_signature(&self) -> MessageSignature {
-        // this is a valid bs58
-        self.bonding_signature.parse().unwrap()
-    }
-
-    fn mixnode_bonding_payload(&self) -> String {
-        let payload = construct_mixnode_bonding_sign_payload(
-            0,
-            Addr::unchecked(self.owner.address.to_string()),
-            None,
-            self.pledge(),
-            self.mixnode(),
-            self.cost_params(),
-        );
-        payload.to_base58_string().unwrap()
-    }
-
-    fn gateway_bonding_payload(&self) -> String {
-        let payload = construct_gateway_bonding_sign_payload(
-            0,
-            Addr::unchecked(self.owner.address.to_string()),
-            None,
-            self.pledge(),
-            self.gateway(),
-        );
-        payload.to_base58_string().unwrap()
-    }
-}
-
 struct LocalNodesCtx<'a> {
     nym_node_binary: PathBuf,
 
@@ -124,7 +26,7 @@ struct LocalNodesCtx<'a> {
     admin: DirectSigningHttpRpcNyxdClient,
 
     mix_nodes: Vec<NymNode>,
-    gateway: Option<NymNode>,
+    gateways: Vec<NymNode>,
 }
 
 impl<'a> ProgressCtx for LocalNodesCtx<'a> {
@@ -135,7 +37,7 @@ impl<'a> ProgressCtx for LocalNodesCtx<'a> {
 
 impl<'a> LocalNodesCtx<'a> {
     fn nym_node_id(&self, node: &NymNode) -> String {
-        format!("{}-{}", node.owner.address, self.network.name)
+        format!("{}-{}", self.network.name, node.identity_key)
     }
 
     fn new(
@@ -158,7 +60,7 @@ impl<'a> LocalNodesCtx<'a> {
             )?,
             mix_nodes: Vec::new(),
             progress,
-            gateway: None,
+            gateways: Vec::new(),
         })
     }
 
@@ -335,7 +237,7 @@ impl NetworkManager {
         ));
 
         if is_gateway {
-            ctx.gateway = Some(node)
+            ctx.gateways.push(node)
         } else {
             ctx.mix_nodes.push(node)
         }
@@ -345,16 +247,24 @@ impl NetworkManager {
     async fn initialise_nym_nodes<'a>(
         &self,
         ctx: &mut LocalNodesCtx<'a>,
+        num_mixnodes: u16,
+        num_gateways: u16,
     ) -> Result<(), NetworkManagerError> {
+        const OFFSET: u16 = 100;
+        if num_mixnodes > OFFSET {
+            panic!("seriously? over 100 mixnodes?")
+        }
+
         ctx.println(format!(
             "🔏 {}Initialising local nym-nodes...",
-            style("[1/4]").bold().dim()
+            style("[1/5]").bold().dim()
         ));
 
-        // 3 mixnodes, 1 gateway; maybe at some point make it configurable
-        for i in 0..4 {
-            let is_gateway = i == 0;
-            self.initialise_nym_node(ctx, i, is_gateway).await?;
+        for i in 0..num_mixnodes {
+            self.initialise_nym_node(ctx, i, false).await?;
+        }
+        for i in 0..num_gateways {
+            self.initialise_nym_node(ctx, i + OFFSET, true).await?;
         }
 
         ctx.println("\t✅ all nym nodes got initialised!");
@@ -368,15 +278,11 @@ impl NetworkManager {
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "💸 {}Transferring tokens to the bond owners...",
-            style("[2/4]").bold().dim()
+            style("[2/5]").bold().dim()
         ));
 
         let mut receivers = Vec::new();
-        for node in ctx
-            .mix_nodes
-            .iter()
-            .chain(std::iter::once(ctx.gateway.as_ref().unwrap()))
-        {
+        for node in ctx.mix_nodes.iter().chain(ctx.gateways.iter()) {
             // send 101nym to the owner
             receivers.push((node.owner.address.clone(), ctx.admin.mix_coins(101_000000)))
         }
@@ -439,13 +345,14 @@ impl NetworkManager {
     async fn bond_nym_nodes<'a>(&self, ctx: &LocalNodesCtx<'a>) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "⛓️ {}Bonding the local nym-nodes...",
-            style("[3/4]").bold().dim()
+            style("[3/5]").bold().dim()
         ));
 
-        self.bond_node(ctx, ctx.gateway.as_ref().unwrap(), true)
-            .await?;
         for mix_node in &ctx.mix_nodes {
             self.bond_node(ctx, mix_node, false).await?;
+        }
+        for gateway in &ctx.gateways {
+            self.bond_node(ctx, gateway, true).await?;
         }
 
         ctx.println("\t✅ all nym nodes got bonded!");
@@ -459,7 +366,7 @@ impl NetworkManager {
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "🔌 {}Assigning mixnodes to the active set...",
-            style("[4/4]").bold().dim()
+            style("[4/5]").bold().dim()
         ));
 
         let rewarder = ctx.signing_rewarder()?;
@@ -500,12 +407,23 @@ impl NetworkManager {
         let env_canon_display = env_canon.display();
 
         let mut cmds = Vec::new();
-        for node in ctx
-            .mix_nodes
-            .iter()
-            .chain(std::iter::once(ctx.gateway.as_ref().unwrap()))
-        {
-            let id = ctx.nym_node_id(node);
+        for mixnode in ctx.mix_nodes.iter() {
+            ctx.println(format!(
+                "\tpreparing node {} (mixnode)",
+                mixnode.identity_key
+            ));
+            let id = ctx.nym_node_id(mixnode);
+            cmds.push(format!(
+                "{bin_canon_display} -c {env_canon_display} run --id {id} --local"
+            ));
+        }
+
+        for gateway in ctx.gateways.iter() {
+            ctx.println(format!(
+                "\tpreparing node {} (mixnode)",
+                gateway.identity_key
+            ));
+            let id = ctx.nym_node_id(gateway);
             cmds.push(format!(
                 "{bin_canon_display} -c {env_canon_display} run --id {id} --local"
             ));
@@ -518,10 +436,36 @@ impl NetworkManager {
         ctx.progress.output_run_commands(cmds)
     }
 
+    async fn persist_nodes_in_database<'a>(
+        &self,
+        ctx: &LocalNodesCtx<'a>,
+    ) -> Result<(), NetworkManagerError> {
+        ctx.println(format!(
+            "📦 {}Storing the node information in the database",
+            style("[5/5]").bold().dim()
+        ));
+
+        ctx.set_pb_message("attempting to persist node information...");
+        let mix_save_future = self
+            .storage
+            .persist_mixnodes(&ctx.mix_nodes, ctx.network.id);
+        let gw_save_future = self.storage.persist_gateways(&ctx.gateways, ctx.network.id);
+        ctx.async_with_progress(mix_save_future).await?;
+        ctx.async_with_progress(gw_save_future).await?;
+
+        ctx.println(
+            "\t✅ the bonded node information got persisted in the database for future use",
+        );
+
+        Ok(())
+    }
+
     pub(crate) async fn init_local_nym_nodes<P: AsRef<Path>>(
         &self,
         nym_node_binary: P,
         network: &LoadedNetwork,
+        num_mixnodes: u16,
+        num_gateways: u16,
     ) -> Result<RunCommands, NetworkManagerError> {
         let mut ctx = LocalNodesCtx::new(
             nym_node_binary.as_ref().to_path_buf(),
@@ -534,10 +478,12 @@ impl NetworkManager {
             return Err(NetworkManagerError::EnvFileNotGenerated);
         }
 
-        self.initialise_nym_nodes(&mut ctx).await?;
+        self.initialise_nym_nodes(&mut ctx, num_mixnodes, num_gateways)
+            .await?;
         self.transfer_bonding_tokens(&ctx).await?;
         self.bond_nym_nodes(&ctx).await?;
         self.assign_to_active_set(&ctx).await?;
+        self.persist_nodes_in_database(&ctx).await?;
         let cmds = self.prepare_nym_nodes_run_commands(&ctx)?;
         self.output_nym_nodes_run_commands(&ctx, &cmds);
 

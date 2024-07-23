@@ -662,7 +662,7 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn persist_in_database(&self, ctx: &InitCtx) -> Result<(), NetworkManagerError> {
+    async fn persist_network_in_database(&self, ctx: &InitCtx) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "📦 {}Storing all the results in the database",
             style("[8/8]").bold().dim()
@@ -694,7 +694,7 @@ impl NetworkManager {
             .await?;
         self.perform_final_migrations(&mut ctx).await?;
         self.get_build_info(&mut ctx).await?;
-        self.persist_in_database(&ctx).await?;
+        self.persist_network_in_database(&ctx).await?;
 
         Ok(ctx.network.clone())
     }

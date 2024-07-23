@@ -178,6 +178,9 @@ impl NetworkManager {
         let id = &ctx.client_id;
 
         self.wait_for_gateway(ctx).await?;
+        let mut rng = thread_rng();
+        let mut port = rng.next_u32();
+        port = (port + 1000) % (u16::MAX as u32);
 
         ctx.set_pb_message(format!("initialising client {id}..."));
         ctx.println(format!("\tinitialising client {id}..."));
@@ -190,6 +193,8 @@ impl NetworkManager {
                 id,
                 "--enabled-credentials-mode",
                 "true",
+                "--port",
+                &port.to_string(),
             ])
             .stdout(Stdio::null())
             .stdin(Stdio::null())

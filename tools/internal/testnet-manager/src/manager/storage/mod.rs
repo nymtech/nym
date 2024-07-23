@@ -4,6 +4,7 @@ use std::fs;
 use crate::error::NetworkManagerError;
 use crate::manager::contract::{Account, Contract, LoadedNymContracts};
 use crate::manager::network::{LoadedNetwork, Network, SpecialAddresses};
+use crate::manager::node::NymNode;
 use crate::manager::storage::manager::StorageManager;
 use sqlx::ConnectOptions;
 use std::path::Path;
@@ -117,12 +118,68 @@ impl NetworkManagerStorage {
             .await?)
     }
 
+    async fn persist_mixnode(
+        &self,
+        node: &NymNode,
+        network_id: i64,
+    ) -> Result<(), NetworkManagerError> {
+        Ok(self
+            .manager
+            .save_node(
+                &node.identity_key,
+                network_id,
+                "mixnode",
+                node.owner.address.as_ref(),
+            )
+            .await?)
+    }
+
+    async fn persist_gateway(
+        &self,
+        node: &NymNode,
+        network_id: i64,
+    ) -> Result<(), NetworkManagerError> {
+        Ok(self
+            .manager
+            .save_node(
+                &node.identity_key,
+                network_id,
+                "gateway",
+                node.owner.address.as_ref(),
+            )
+            .await?)
+    }
+
     async fn persist_account(&self, account: &Account) -> Result<(), NetworkManagerError> {
         let as_str = Zeroizing::new(account.mnemonic.to_string());
         Ok(self
             .manager
             .save_account(account.address.as_ref(), as_str.as_str())
             .await?)
+    }
+
+    pub(crate) async fn persist_mixnodes(
+        &self,
+        nodes: &[NymNode],
+        network_id: i64,
+    ) -> Result<(), NetworkManagerError> {
+        for node in nodes {
+            self.persist_account(&node.owner).await?;
+            self.persist_mixnode(node, network_id).await?;
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn persist_gateways(
+        &self,
+        nodes: &[NymNode],
+        network_id: i64,
+    ) -> Result<(), NetworkManagerError> {
+        for node in nodes {
+            self.persist_account(&node.owner).await?;
+            self.persist_gateway(node, network_id).await?;
+        }
+        Ok(())
     }
 
     pub(crate) async fn persist_network(
@@ -191,6 +248,7 @@ impl NetworkManagerStorage {
             .ok_or_else(|| NetworkManagerError::RpcEndpointNotSet)?;
 
         Ok(LoadedNetwork {
+            id: base_network.id,
             name: base_network.name,
             rpc_endpoint,
             created_at: base_network.created_at,

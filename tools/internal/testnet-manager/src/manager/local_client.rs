@@ -25,6 +25,7 @@ use url::Url;
 struct LocalClientCtx<'a> {
     nym_client_binary: PathBuf,
     client_id: String,
+    gateway: Option<String>,
 
     progress: ProgressTracker,
     network: &'a LoadedNetwork,
@@ -39,6 +40,7 @@ impl<'a> ProgressCtx for LocalClientCtx<'a> {
 impl<'a> LocalClientCtx<'a> {
     fn new(
         nym_client_binary: PathBuf,
+        gateway: Option<String>,
         network: &'a LoadedNetwork,
     ) -> Result<Self, NetworkManagerError> {
         let progress = ProgressTracker::new(format!(
@@ -53,6 +55,7 @@ impl<'a> LocalClientCtx<'a> {
             network,
             progress,
             client_id,
+            gateway,
         })
     }
 
@@ -105,6 +108,21 @@ impl NetworkManager {
                         }
                     };
 
+                    // if we explicitly specified some identity, find THIS node
+                    if let Some(identity) = ctx.gateway.as_ref() {
+                        if let Some(node) = gateways
+                            .nodes
+                            .iter()
+                            .find(|gw| &gw.ed25519_identity_pubkey == identity)
+                        {
+                            return SocketAddr::new(
+                                node.ip_addresses[0],
+                                node.entry.clone().unwrap().ws_port,
+                            );
+                        }
+                    }
+
+                    // otherwise look for ANY node
                     if let Some(node) = gateways.nodes.pop() {
                         return SocketAddr::new(node.ip_addresses[0], node.entry.unwrap().ws_port);
                     }
@@ -184,23 +202,28 @@ impl NetworkManager {
 
         ctx.set_pb_message(format!("initialising client {id}..."));
         ctx.println(format!("\tinitialising client {id}..."));
-        let mut child = Command::new(&ctx.nym_client_binary)
-            .args([
-                "-c",
-                &env.display().to_string(),
-                "init",
-                "--id",
-                id,
-                "--enabled-credentials-mode",
-                "true",
-                "--port",
-                &port.to_string(),
-            ])
-            .stdout(Stdio::null())
-            .stdin(Stdio::null())
-            .stderr(Stdio::null())
-            .kill_on_drop(true)
-            .spawn()?;
+        let mut cmd = Command::new(&ctx.nym_client_binary);
+        cmd.args([
+            "-c",
+            &env.display().to_string(),
+            "init",
+            "--id",
+            id,
+            "--enabled-credentials-mode",
+            "true",
+            "--port",
+            &port.to_string(),
+        ])
+        .stdout(Stdio::null())
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .kill_on_drop(true);
+
+        if let Some(gateway) = &ctx.gateway {
+            cmd.args(["--gateway", &gateway]);
+        }
+
+        let mut child = cmd.spawn()?;
 
         let child_fut = child.wait();
         let out = ctx.async_with_progress(child_fut).await?;
@@ -251,8 +274,9 @@ minimum_gateway_performance = 0
         &self,
         nym_client_binary: P,
         network: &LoadedNetwork,
+        gateway: Option<String>,
     ) -> Result<String, NetworkManagerError> {
-        let ctx = LocalClientCtx::new(nym_client_binary.as_ref().to_path_buf(), network)?;
+        let ctx = LocalClientCtx::new(nym_client_binary.as_ref().to_path_buf(), gateway, network)?;
 
         let env_file = ctx.network.default_env_file_path();
         if !env_file.exists() {

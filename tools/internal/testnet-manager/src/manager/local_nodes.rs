@@ -37,7 +37,7 @@ impl<'a> ProgressCtx for LocalNodesCtx<'a> {
 
 impl<'a> LocalNodesCtx<'a> {
     fn nym_node_id(&self, node: &NymNode) -> String {
-        format!("{}-{}", self.network.name, node.identity_key)
+        format!("{}-{}", self.network.name, node.owner.address)
     }
 
     fn new(
@@ -247,11 +247,11 @@ impl NetworkManager {
     async fn initialise_nym_nodes<'a>(
         &self,
         ctx: &mut LocalNodesCtx<'a>,
-        num_mixnodes: u16,
-        num_gateways: u16,
+        mixnodes: u16,
+        gateways: u16,
     ) -> Result<(), NetworkManagerError> {
         const OFFSET: u16 = 100;
-        if num_mixnodes > OFFSET {
+        if mixnodes > OFFSET {
             panic!("seriously? over 100 mixnodes?")
         }
 
@@ -260,10 +260,10 @@ impl NetworkManager {
             style("[1/5]").bold().dim()
         ));
 
-        for i in 0..num_mixnodes {
+        for i in 0..mixnodes {
             self.initialise_nym_node(ctx, i, false).await?;
         }
-        for i in 0..num_gateways {
+        for i in 0..gateways {
             self.initialise_nym_node(ctx, i + OFFSET, true).await?;
         }
 
@@ -317,25 +317,31 @@ impl NetworkManager {
 
         let owner = ctx.signing_node_owner(node)?;
 
-        let bonding_fut = if is_gateway {
-            owner.bond_gateway(
-                node.gateway(),
-                node.bonding_signature(),
-                node.pledge().into(),
-                None,
+        let (bonding_fut, typ) = if is_gateway {
+            (
+                owner.bond_gateway(
+                    node.gateway(),
+                    node.bonding_signature(),
+                    node.pledge().into(),
+                    None,
+                ),
+                "gateway",
             )
         } else {
-            owner.bond_mixnode(
-                node.mixnode(),
-                node.cost_params(),
-                node.bonding_signature(),
-                node.pledge().into(),
-                None,
+            (
+                owner.bond_mixnode(
+                    node.mixnode(),
+                    node.cost_params(),
+                    node.bonding_signature(),
+                    node.pledge().into(),
+                    None,
+                ),
+                "mixnode",
             )
         };
         let res = ctx.async_with_progress(bonding_fut).await?;
         ctx.println(format!(
-            "\t{id} bonded in transaction: {}",
+            "\t{id} ({typ}) bonded in transaction: {}",
             res.transaction_hash
         ));
 
@@ -420,7 +426,7 @@ impl NetworkManager {
 
         for gateway in ctx.gateways.iter() {
             ctx.println(format!(
-                "\tpreparing node {} (mixnode)",
+                "\tpreparing node {} (gateway)",
                 gateway.identity_key
             ));
             let id = ctx.nym_node_id(gateway);
@@ -464,8 +470,8 @@ impl NetworkManager {
         &self,
         nym_node_binary: P,
         network: &LoadedNetwork,
-        num_mixnodes: u16,
-        num_gateways: u16,
+        mixnodes: u16,
+        gateways: u16,
     ) -> Result<RunCommands, NetworkManagerError> {
         let mut ctx = LocalNodesCtx::new(
             nym_node_binary.as_ref().to_path_buf(),
@@ -478,7 +484,7 @@ impl NetworkManager {
             return Err(NetworkManagerError::EnvFileNotGenerated);
         }
 
-        self.initialise_nym_nodes(&mut ctx, num_mixnodes, num_gateways)
+        self.initialise_nym_nodes(&mut ctx, mixnodes, gateways)
             .await?;
         self.transfer_bonding_tokens(&ctx).await?;
         self.bond_nym_nodes(&ctx).await?;

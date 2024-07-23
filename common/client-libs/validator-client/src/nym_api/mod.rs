@@ -31,6 +31,7 @@ pub mod routes;
 
 use nym_api_requests::coconut::models::FreePassNonceResponse;
 use nym_api_requests::coconut::FreePassRequest;
+use nym_api_requests::models::DescribedMixNode;
 use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
 pub use nym_http_api_client::Client;
 
@@ -91,6 +92,14 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_gateways_described(&self) -> Result<Vec<DescribedGateway>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_mixnodes_described(&self) -> Result<Vec<DescribedMixNode>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::MIXNODES, routes::DESCRIBED],
             NO_PARAMS,
         )
         .await

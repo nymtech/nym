@@ -822,7 +822,7 @@ impl EcashState {
         // sanity check:
         assert_eq!(
             cutoff,
-            today + (constants::CRED_VALIDITY_PERIOD_DAYS as i64).days()
+            today + (constants::CRED_VALIDITY_PERIOD_DAYS as i64 - 1).days()
         );
 
         // remove the data we no longer need to hold, i.e. partial bloomfilters beyond max credential validity

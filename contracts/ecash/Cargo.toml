@@ -1,10 +1,18 @@
 [package]
 name = "nym-ecash"
 version = "0.1.0"
-edition = "2021"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
 
 [lib]
-crate-type = ["cdylib"]
+name = "ecash_contract"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bs58.workspace = true
@@ -26,9 +34,12 @@ semver = { workspace = true, default-features = false }
 nym-ecash-contract-common = { path = "../../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
-
+nym-network-defaults = { path = "../../common/network-defaults", default-features = false }
 
 [dev-dependencies]
 sylvia = { workspace = true, features = ["mt"] }
 nym-crypto = { path = "../../common/crypto", features = ["rand", "asymmetric"] }
 rand_chacha = "0.3"
+
+[features]
+schema-gen = ["nym-ecash-contract-common/schema"]

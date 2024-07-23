@@ -1,4 +1,4 @@
-schema: coconut-bandwidth-schema coconut-dkg-schema mixnet-schema vesting-schema multisig-schema group-schema
+schema: coconut-bandwidth-schema coconut-dkg-schema mixnet-schema vesting-schema multisig-schema group-schema ecash-schema
 
 coconut-bandwidth-schema:
 	$(MAKE) -C coconut-bandwidth generate-schema
@@ -11,6 +11,9 @@ mixnet-schema:
 
 vesting-schema:
 	$(MAKE) -C vesting generate-schema
+
+ecash-schema:
+	$(MAKE) -C ecash generate-schema
 
 multisig-schema:
 	$(MAKE) -C multisig/cw3-flex-multisig generate-schema

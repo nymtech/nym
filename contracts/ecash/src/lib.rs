@@ -6,6 +6,7 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
+mod constants;
 pub mod contract;
 mod deposit;
 mod helpers;

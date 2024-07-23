@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod blacklist;
+pub mod counters;
 pub mod deposit;
 pub mod error;
 pub mod event_attributes;

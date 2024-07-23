@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "group_addr",
+    "holding_account",
+    "mix_denom",
+    "multisig_addr"
+  ],
+  "properties": {
+    "group_addr": {
+      "type": "string"
+    },
+    "holding_account": {
+      "type": "string"
+    },
+    "mix_denom": {
+      "type": "string"
+    },
+    "multisig_addr": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

@@ -7,7 +7,6 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
-use nym_ecash_contract_common::events::TICKET_BOOK_VALUE;
 use nym_ecash_contract_common::msg::ExecuteMsg as EcashExecuteMsg;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -24,13 +23,13 @@ pub trait EcashSigningClient {
     async fn make_ticketbook_deposit(
         &self,
         public_key: String,
+        deposit_amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = EcashExecuteMsg::DepositTicketBookFunds {
             identity_key: public_key,
         };
-        let amount = Coin::new(TICKET_BOOK_VALUE, "unym");
-        self.execute_ecash_contract(fee, req, "Ecash::Deposit".to_string(), vec![amount])
+        self.execute_ecash_contract(fee, req, "Ecash::Deposit".to_string(), vec![deposit_amount])
             .await
     }
 
@@ -45,6 +44,28 @@ pub trait EcashSigningClient {
             number_of_tickets,
         };
         self.execute_ecash_contract(fee, req, Default::default(), vec![])
+            .await
+    }
+
+    async fn update_admin(
+        &self,
+        admin: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = EcashExecuteMsg::UpdateAdmin { admin };
+        self.execute_ecash_contract(fee, req, "Ecash::UpdateAdmin".to_string(), vec![])
+            .await
+    }
+
+    async fn update_deposit_value(
+        &self,
+        new_deposit: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let req = EcashExecuteMsg::UpdateDepositValue {
+            new_deposit: new_deposit.into(),
+        };
+        self.execute_ecash_contract(fee, req, "Ecash::UpdateDepositValue".to_string(), vec![])
             .await
     }
 
@@ -95,7 +116,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nyxd::contract_traits::tests::IgnoreValue;
+    use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
     use nym_ecash_contract_common::msg::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
@@ -106,7 +127,7 @@ mod tests {
     ) {
         match msg {
             EcashExecuteMsg::DepositTicketBookFunds { identity_key } => client
-                .make_ticketbook_deposit(identity_key.to_string(), None)
+                .make_ticketbook_deposit(identity_key.to_string(), mock_coin(), None)
                 .ignore(),
             EcashExecuteMsg::AddToBlacklist { public_key: _ } => unimplemented!(), //no add to blacklist method on client
             EcashExecuteMsg::ProposeToBlacklist { public_key } => {
@@ -119,6 +140,10 @@ mod tests {
                 .request_ticket_redemption(commitment_bs58, number_of_tickets, None)
                 .ignore(),
             ExecuteMsg::RedeemTickets { .. } => unimplemented!(), // no redeem tickets method for the client
+            ExecuteMsg::UpdateAdmin { admin } => client.update_admin(admin, None).ignore(),
+            ExecuteMsg::UpdateDepositValue { new_deposit } => client
+                .update_deposit_value(new_deposit.into(), None)
+                .ignore(),
         };
     }
 }

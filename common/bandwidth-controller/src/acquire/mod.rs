@@ -12,8 +12,8 @@ use nym_crypto::asymmetric::identity;
 use nym_ecash_time::{ecash_default_expiration_date, Date};
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::contract_traits::EcashSigningClient;
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, EcashQueryClient};
 use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
 use nym_validator_client::EcashApiClient;
 use rand::rngs::OsRng;
@@ -24,14 +24,20 @@ pub async fn make_deposit<C>(
     expiration: Option<Date>,
 ) -> Result<IssuanceTicketBook, BandwidthControllerError>
 where
-    C: EcashSigningClient + Sync,
+    C: EcashSigningClient + EcashQueryClient + Sync,
 {
     let mut rng = OsRng;
     let signing_key = identity::PrivateKey::new(&mut rng);
     let expiration = expiration.unwrap_or_else(ecash_default_expiration_date);
 
+    let deposit_amount = client.get_required_deposit_amount().await?;
+    info!("we'll need to deposit {deposit_amount} to obtain the ticketbook");
     let result = client
-        .make_ticketbook_deposit(signing_key.public_key().to_base58_string(), None)
+        .make_ticketbook_deposit(
+            signing_key.public_key().to_base58_string(),
+            deposit_amount.into(),
+            None,
+        )
         .await?;
 
     let deposit_id = result.parse_singleton_u32_contract_data()?;

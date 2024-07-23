@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PagedDepositsResponse",
+  "type": "object",
+  "required": [
+    "deposits"
+  ],
+  "properties": {
+    "deposits": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/DepositData"
+      }
+    },
+    "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Deposit": {
+      "type": "object",
+      "required": [
+        "bs58_encoded_ed25519_pubkey"
+      ],
+      "properties": {
+        "bs58_encoded_ed25519_pubkey": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DepositData": {
+      "type": "object",
+      "required": [
+        "deposit",
+        "id"
+      ],
+      "properties": {
+        "deposit": {
+          "$ref": "#/definitions/Deposit"
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

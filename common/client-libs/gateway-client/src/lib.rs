@@ -52,10 +52,7 @@ pub(crate) fn try_decrypt_binary_message(
             BinaryResponse::PushedMixMessage(plaintext) => Some(plaintext),
         },
         Err(err) => {
-            warn!(
-                "message received from the gateway was malformed! - {:?}",
-                err
-            );
+            warn!("message received from the gateway was malformed! - {err}",);
             None
         }
     }

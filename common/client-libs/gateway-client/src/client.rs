@@ -6,7 +6,7 @@ use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
-use crate::socket_state::{ws_fd, PartiallyDelegated, SocketState};
+use crate::socket_state::{ws_fd, PartiallyDelegatedHandle, SocketState};
 use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
@@ -809,7 +809,7 @@ impl<C, St> GatewayClient<C, St> {
         let partially_delegated =
             match std::mem::replace(&mut self.connection, SocketState::Invalid) {
                 SocketState::Available(conn) => {
-                    PartiallyDelegated::split_and_listen_for_mixnet_messages(
+                    PartiallyDelegatedHandle::split_and_listen_for_mixnet_messages(
                         *conn,
                         self.packet_router.clone(),
                         Arc::clone(

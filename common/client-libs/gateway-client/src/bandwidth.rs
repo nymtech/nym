@@ -49,8 +49,14 @@ impl ClientBandwidth {
     pub(crate) fn log_bandwidth(&self, now: Option<OffsetDateTime>) {
         let now = now.unwrap_or_else(OffsetDateTime::now_utc);
 
-        let remaining_bi2 = bibytes2(self.inner.available.load(Ordering::Relaxed) as f64);
-        log::info!("remaining bandwidth: {remaining_bi2}");
+        let remaining = self.remaining();
+        let remaining_bi2 = bibytes2(remaining as f64);
+
+        if remaining < 0 {
+            log::warn!("OUT OF BANDWIDTH. remaining: {remaining_bi2}");
+        } else {
+            log::info!("remaining bandwidth: {remaining_bi2}");
+        }
 
         self.inner
             .last_logged_ts

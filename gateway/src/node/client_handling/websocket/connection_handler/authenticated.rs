@@ -26,7 +26,7 @@ use nym_credentials_interface::CredentialSpendingData;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
-    ClientControlRequest, GatewayRequestsError,
+    ClientControlRequest, GatewayRequestsError, SimpleGatewayRequestsError,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
@@ -106,7 +106,19 @@ pub enum RequestHandlingError {
 
 impl RequestHandlingError {
     fn into_error_message(self) -> Message {
-        ServerResponse::new_error(self.to_string()).into()
+        let server_response = match self {
+            RequestHandlingError::OutOfBandwidth {
+                required,
+                available,
+            } => ServerResponse::TypedError {
+                error: SimpleGatewayRequestsError::OutOfBandwidth {
+                    required,
+                    available,
+                },
+            },
+            other => ServerResponse::new_error(other.to_string()),
+        };
+        server_response.into()
     }
 }
 

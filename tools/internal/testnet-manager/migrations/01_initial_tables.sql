@@ -36,5 +36,16 @@ CREATE TABLE contract (
 
 CREATE TABLE account (
     address TEXT NOT NULL UNIQUE,
+    -- for the future 'import' feature this will have to be nullable   
     mnemonic TEXT NOT NULL
+);
+
+CREATE TABLE node (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    identity_key TEXT NOT NULL,
+    network_id INTEGER NOT NULL REFERENCES network(id),
+    
+    -- i.e. mixnode or gateway   
+    bonded_type TEXT NOT NULL,
+    owner_address TEXT NOT NULL REFERENCES account(address)
 );

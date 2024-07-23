@@ -180,4 +180,26 @@ impl StorageManager {
             .fetch_one(&self.connection_pool)
             .await
     }
+
+    pub(crate) async fn save_node(
+        &self,
+        identity_key: &str,
+        network_id: i64,
+        bonded_type: &str,
+        owner_address: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            INSERT INTO node(identity_key, network_id, bonded_type, owner_address)
+            VALUES (?, ?, ?, ?) 
+        "#,
+            identity_key,
+            network_id,
+            bonded_type,
+            owner_address
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
 }

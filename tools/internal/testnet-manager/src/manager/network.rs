@@ -34,6 +34,7 @@ impl Network {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct LoadedNetwork {
+    pub(crate) id: i64,
     pub(crate) name: String,
 
     pub(crate) rpc_endpoint: Url,
@@ -49,6 +50,7 @@ pub(crate) struct LoadedNetwork {
 impl From<Network> for LoadedNetwork {
     fn from(value: Network) -> Self {
         LoadedNetwork {
+            id: i64::MAX,
             name: value.name,
             rpc_endpoint: value.rpc_endpoint,
             created_at: value.created_at,

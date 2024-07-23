@@ -10,7 +10,7 @@ pub const COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE: &str = "wasm-deposited-funds";
 pub const DEPOSIT_ID: &str = "deposit-id";
 
 pub const TICKET_BOOK_VALUE: u128 = 50_000_000;
-pub const TICKET_VALUE: u128 = 50_000;
+// pub const TICKET_VALUE: u128 = 50_000;
 
 pub const WASM_EVENT_NAME: &str = "wasm";
 pub const PROPOSAL_ID_ATTRIBUTE_NAME: &str = "proposal_id";

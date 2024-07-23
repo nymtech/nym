@@ -1,18 +1,16 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::{BLACKLIST_PROPOSAL_REPLY_ID, REDEMPTION_PROPOSAL_REPLY_ID};
 use cosmwasm_std::{
-    to_binary, Addr, CosmosMsg, Decimal, Reply, StdError, StdResult, SubMsg, SubMsgResult, WasmMsg,
+    to_binary, Addr, Coin, CosmosMsg, Decimal, Reply, StdError, StdResult, SubMsg, SubMsgResult,
+    WasmMsg,
 };
 use cw4::Cw4Contract;
 use nym_contracts_common::events::try_find_attribute;
-use nym_ecash_contract_common::events::{
-    PROPOSAL_ID_ATTRIBUTE_NAME, REDEMPTION_PROPOSAL_REPLY_ID, WASM_EVENT_NAME,
-};
+use nym_ecash_contract_common::events::{PROPOSAL_ID_ATTRIBUTE_NAME, WASM_EVENT_NAME};
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
-use nym_ecash_contract_common::{
-    events::BLACKLIST_PROPOSAL_REPLY_ID, msg::ExecuteMsg, EcashContractError,
-};
+use nym_ecash_contract_common::{msg::ExecuteMsg, EcashContractError};
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 use serde::{Deserialize, Serialize};
 
@@ -23,10 +21,10 @@ pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Config {
     pub group_addr: Cw4Contract,
-    pub mix_denom: String,
     pub holding_account: Addr,
 
     pub redemption_gateway_share: Decimal,
+    pub deposit_amount: Coin,
 }
 
 //type aliases for easier reasoning

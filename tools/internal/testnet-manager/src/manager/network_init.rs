@@ -199,7 +199,7 @@ impl NetworkManager {
                 .to_string(),
             multisig_addr: ctx.network.contracts.cw3_multisig.address()?.to_string(),
             group_addr: ctx.network.contracts.cw4_group.address()?.to_string(),
-            mix_denom: ctx.admin.mix_coin(0).denom,
+            deposit_amount: ctx.admin.mix_coin(75_000_000).into(),
         })
     }
 

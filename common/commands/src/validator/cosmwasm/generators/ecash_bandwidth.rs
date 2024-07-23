@@ -4,6 +4,7 @@
 use std::str::FromStr;
 
 use clap::Parser;
+use cosmwasm_std::Coin;
 use log::{debug, info};
 
 use nym_ecash_contract_common::msg::InstantiateMsg;
@@ -20,8 +21,8 @@ pub struct Args {
     #[clap(long)]
     pub holding_account: AccountId,
 
-    #[clap(long)]
-    pub mix_denom: Option<String>,
+    #[clap(long, default_value = "75000000unym")]
+    pub deposit_amount: Coin,
 }
 
 pub async fn generate(args: Args) {
@@ -43,15 +44,11 @@ pub async fn generate(args: Args) {
             .expect("Failed converting multisig address to AccountId")
     });
 
-    let mix_denom = args.mix_denom.unwrap_or_else(|| {
-        std::env::var(nym_network_defaults::var_names::MIX_DENOM).expect("Mix denom has to be set")
-    });
-
     let instantiate_msg = InstantiateMsg {
         holding_account: args.holding_account.to_string(),
         group_addr: group_addr.to_string(),
         multisig_addr: multisig_addr.to_string(),
-        mix_denom,
+        deposit_amount: args.deposit_amount,
     };
 
     debug!("instantiate_msg: {:?}", instantiate_msg);

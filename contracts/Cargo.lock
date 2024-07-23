@@ -1233,6 +1233,7 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-contract-common",
  "nym-multisig-contract-common",
+ "nym-network-defaults",
  "rand_chacha",
  "schemars",
  "semver",
@@ -1250,6 +1251,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
+ "cw2",
  "nym-multisig-contract-common",
  "thiserror",
 ]
@@ -1319,6 +1321,10 @@ dependencies = [
  "serde",
  "thiserror",
 ]
+
+[[package]]
+name = "nym-network-defaults"
+version = "0.1.0"
 
 [[package]]
 name = "nym-pemstore"

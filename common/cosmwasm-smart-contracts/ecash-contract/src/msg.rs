@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
 
 #[cfg(feature = "schema")]
 use crate::blacklist::{BlacklistedAccountResponse, PagedBlacklistedAccountResponse};
@@ -9,15 +10,13 @@ use crate::blacklist::{BlacklistedAccountResponse, PagedBlacklistedAccountRespon
 use crate::deposit::{DepositResponse, PagedDepositsResponse};
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
-#[cfg(feature = "schema")]
-use cosmwasm_std::Coin;
 
 #[cw_serde]
 pub struct InstantiateMsg {
     pub holding_account: String,
     pub multisig_addr: String,
     pub group_addr: String,
-    pub mix_denom: String,
+    pub deposit_amount: Coin,
 }
 
 #[cw_serde]
@@ -38,10 +37,16 @@ pub enum ExecuteMsg {
         n: u16,
         gw: String,
     },
-    // SpendCredential {
-    //     serial_number: String,
-    //     gateway_cosmos_address: String,
-    // },
+
+    UpdateAdmin {
+        admin: String,
+    },
+
+    UpdateDepositValue {
+        new_deposit: Coin,
+    },
+
+    // TODO: properly implement
     ProposeToBlacklist {
         public_key: String,
     },
@@ -74,3 +79,6 @@ pub enum QueryMsg {
         start_after: Option<u32>,
     },
 }
+
+#[cw_serde]
+pub struct MigrateMsg {}

@@ -10,7 +10,7 @@ use nym_credential_storage::storage::Storage;
 use nym_ecash_time::ecash_default_expiration_date;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::{
-    dkg_query_client::EpochState, DkgQueryClient, EcashSigningClient,
+    dkg_query_client::EpochState, DkgQueryClient, EcashQueryClient, EcashSigningClient,
 };
 use std::path::PathBuf;
 use std::time::Duration;
@@ -18,7 +18,7 @@ use time::OffsetDateTime;
 
 pub async fn issue_credential<C, S>(client: &C, storage: &S, client_id: &[u8]) -> Result<()>
 where
-    C: DkgQueryClient + EcashSigningClient + Send + Sync,
+    C: DkgQueryClient + EcashSigningClient + EcashQueryClient + Send + Sync,
     S: Storage,
     <S as Storage>::StorageError: Send + Sync + 'static,
 {

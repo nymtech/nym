@@ -15,7 +15,7 @@ pub enum EcashContractError {
     InvalidDeposit(#[from] PaymentError),
 
     #[error("received wrong amount for deposit. got: {received}. required: {amount}")]
-    WrongAmount { received: u128, amount: u128 },
+    WrongAmount { received: Coin, amount: Coin },
 
     #[error("There aren't enough funds in the contract")]
     NotEnoughFunds,
@@ -57,12 +57,12 @@ pub enum EcashContractError {
     #[error("the provided ed25519 identity was malformed")]
     MalformedEd25519Identity,
 
-    #[error("the required deposit amount has changed since the contract was created! This was not expected! It used to be {at_init} but it's {current} now! Please let the developers know ASAP!")]
-    DepositAmountChanged { at_init: Coin, current: Coin },
-
-    #[error("the e-cash ticket value has changed since the contract was created! This was not expected! It used to be {at_init} but it's {current} now! Please let the developers know ASAP!")]
-    TicketValueChanged { at_init: Coin, current: Coin },
+    #[error("the ticket book size has changed since the contract was created! This was not expected! It used to be {at_init} but it's {current} now! Please let the developers know ASAP!")]
+    TicketBookSizeChanged { at_init: u64, current: u64 },
 
     #[error("the provided tickets redemption commitment is malformed")]
     MalformedRedemptionCommitment,
+
+    #[error("the account blacklisting hasn't been fully implemented yet")]
+    UnimplementedBlacklisting,
 }

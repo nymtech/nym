@@ -220,7 +220,7 @@ impl NetworkManager {
         .kill_on_drop(true);
 
         if let Some(gateway) = &ctx.gateway {
-            cmd.args(["--gateway", &gateway]);
+            cmd.args(["--gateway", gateway]);
         }
 
         let mut child = cmd.spawn()?;

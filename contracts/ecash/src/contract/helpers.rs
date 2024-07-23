@@ -4,19 +4,33 @@
 use crate::contract::NymEcashContract;
 use crate::helpers::{create_batch_redemption_proposal, create_blacklist_proposal, ProposalId};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_binary, Addr, Coin, Deps, SubMsg};
+use cosmwasm_std::{to_binary, Addr, Deps, Storage, SubMsg};
 use cw3::ProposalResponse;
 use nym_ecash_contract_common::EcashContractError;
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
+use nym_network_defaults::TICKETBOOK_SIZE;
 use sylvia::types::ExecCtx;
 
 #[cw_serde]
 pub(crate) struct Invariants {
-    pub(crate) ticket_book_value: Coin,
-    pub(crate) ticket_value: Coin,
+    pub(crate) ticket_book_size: u64,
 }
 
 impl NymEcashContract<'_> {
+    pub(crate) fn get_ticketbook_size(
+        &self,
+        storage: &dyn Storage,
+    ) -> Result<u64, EcashContractError> {
+        let invariants = self.expected_invariants.load(storage)?;
+        if invariants.ticket_book_size != TICKETBOOK_SIZE {
+            return Err(EcashContractError::TicketBookSizeChanged {
+                at_init: invariants.ticket_book_size,
+                current: TICKETBOOK_SIZE,
+            });
+        }
+        Ok(TICKETBOOK_SIZE)
+    }
+
     fn must_get_multisig_addr(&self, deps: Deps) -> Result<Addr, EcashContractError> {
         // SAFETY: multisig admin MUST always be set on initialisation,
         // if the call fails, we're in some weird UB land
@@ -45,6 +59,8 @@ impl NymEcashContract<'_> {
         .map_err(Into::into)
     }
 
+    // temporarily dead
+    #[allow(dead_code)]
     pub(crate) fn create_blacklist_proposal(
         &self,
         ctx: ExecCtx,

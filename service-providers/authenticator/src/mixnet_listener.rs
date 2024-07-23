@@ -132,7 +132,13 @@ impl MixnetListener {
         {
             return Ok(AuthenticatorResponse::new_registered(
                 RegistredData {
-                    pub_key: gateway_client.pub_key,
+                    pub_key: PeerPublicKey::new(
+                        self.wireguard_gateway_data
+                            .keypair()
+                            .public_key()
+                            .to_bytes()
+                            .into(),
+                    ),
                     private_ip: gateway_client.private_ip,
                     wg_port: self.config.authenticator.announced_port,
                 },

@@ -16,10 +16,10 @@ pub(crate) struct Args {
     nym_node_bin: PathBuf,
 
     #[clap(long, default_value_t = 3)]
-    num_mixnodes: u16,
+    mixnodes: u16,
 
     #[clap(long, default_value_t = 1)]
-    num_gateways: u16,
+    gateways: u16,
 
     #[clap(long)]
     network_name: Option<String>,
@@ -33,12 +33,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NetworkManagerError> {
     let network = manager.load_existing_network(args.network_name).await?;
 
     let run_cmds = manager
-        .init_local_nym_nodes(
-            args.nym_node_bin,
-            &network,
-            args.num_mixnodes,
-            args.num_gateways,
-        )
+        .init_local_nym_nodes(args.nym_node_bin, &network, args.mixnodes, args.gateways)
         .await?;
 
     if !args.output.is_text() {

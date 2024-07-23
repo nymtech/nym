@@ -16,6 +16,9 @@ pub(crate) struct Args {
     nym_client_bin: PathBuf,
 
     #[clap(long)]
+    gateway: Option<String>,
+
+    #[clap(long)]
     network_name: Option<String>,
 
     #[clap(short, long, default_value_t = OutputFormat::default())]
@@ -27,7 +30,7 @@ pub(crate) async fn execute(args: Args) -> Result<(), NetworkManagerError> {
     let network = manager.load_existing_network(args.network_name).await?;
 
     let run_cmd = manager
-        .init_local_nym_client(args.nym_client_bin, &network)
+        .init_local_nym_client(args.nym_client_bin, &network, args.gateway)
         .await?;
 
     if !args.output.is_text() {

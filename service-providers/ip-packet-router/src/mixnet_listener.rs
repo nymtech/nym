@@ -297,6 +297,7 @@ impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
         connect_request: StaticConnectRequest,
+        client_version: u8,
     ) -> PacketHandleResult {
         log::info!(
             "Received static connect request from {sender_address}",
@@ -341,6 +342,7 @@ impl MixnetListener {
                         reply_to,
                         reply_to_hops,
                         buffer_timeout,
+                        client_version,
                         self.mixnet_client.split_sender(),
                     );
 
@@ -379,6 +381,7 @@ impl MixnetListener {
     async fn on_dynamic_connect_request(
         &mut self,
         connect_request: DynamicConnectRequest,
+        client_version: u8,
     ) -> PacketHandleResult {
         log::info!(
             "Received dynamic connect request from {sender_address}",
@@ -428,6 +431,7 @@ impl MixnetListener {
                 reply_to,
                 reply_to_hops,
                 buffer_timeout,
+                client_version,
                 self.mixnet_client.split_sender(),
             );
 
@@ -445,7 +449,11 @@ impl MixnetListener {
         )))
     }
 
-    fn on_disconnect_request(&self, _disconnect_request: DisconnectRequest) -> PacketHandleResult {
+    fn on_disconnect_request(
+        &self,
+        _disconnect_request: DisconnectRequest,
+        _client_version: u8,
+    ) -> PacketHandleResult {
         log::info!("Received disconnect request: not implemented, dropping");
         Ok(None)
     }
@@ -550,7 +558,7 @@ impl MixnetListener {
             reconstructed.sender_tag
         );
 
-        let request = match deserialize_request(&reconstructed) {
+        let (request, client_version) = match deserialize_request(&reconstructed) {
             Err(IpPacketRouterError::InvalidPacketVersion(version)) => {
                 return Ok(vec![self.on_version_mismatch(version, &reconstructed)]);
             }
@@ -561,17 +569,25 @@ impl MixnetListener {
             IpPacketRequestData::StaticConnect(signed_connect_request) => {
                 verify_signed_request(&signed_connect_request)?;
                 let connect_request = signed_connect_request.request;
-                Ok(vec![self.on_static_connect_request(connect_request).await])
+                Ok(vec![
+                    self.on_static_connect_request(connect_request, client_version)
+                        .await,
+                ])
             }
             IpPacketRequestData::DynamicConnect(signed_connect_request) => {
                 verify_signed_request(&signed_connect_request)?;
                 let connect_request = signed_connect_request.request;
-                Ok(vec![self.on_dynamic_connect_request(connect_request).await])
+                Ok(vec![
+                    self.on_dynamic_connect_request(connect_request, client_version)
+                        .await,
+                ])
             }
             IpPacketRequestData::Disconnect(signed_disconnect_request) => {
                 verify_signed_request(&signed_disconnect_request)?;
                 let disconnect_request = signed_disconnect_request.request;
-                Ok(vec![self.on_disconnect_request(disconnect_request)])
+                Ok(vec![
+                    self.on_disconnect_request(disconnect_request, client_version)
+                ])
             }
             IpPacketRequestData::Data(data_request) => self.on_data_request(data_request).await,
             IpPacketRequestData::Ping(_) => {
@@ -687,14 +703,14 @@ impl MixnetListener {
     }
 }
 
-fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<IpPacketRequest> {
+fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<(IpPacketRequest, u8)> {
     let request_version = *reconstructed
         .message
         .first()
         .ok_or(IpPacketRouterError::EmptyPacket)?;
 
     // Check version of the request and convert to the latest version if necessary
-    match request_version {
+    let request = match request_version {
         6 => v6::request::IpPacketRequest::from_reconstructed_message(reconstructed)
             .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })
             .map(|r| r.into()),
@@ -704,7 +720,10 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<IpPacketR
             log::info!("Received packet with invalid version: v{request_version}");
             Err(IpPacketRouterError::InvalidPacketVersion(request_version))
         }
-    }
+    };
+
+    // Tag the request with the version of the request
+    request.map(|r| (r, request_version))
 }
 
 fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {

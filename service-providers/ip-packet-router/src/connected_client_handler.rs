@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use bytes::Bytes;
-use nym_ip_packet_requests::{codec::MultiIpPacketCodec, v6::response::IpPacketResponse};
+use nym_ip_packet_requests::codec::MultiIpPacketCodec;
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 
 use crate::{
@@ -18,13 +18,29 @@ use crate::{
 // This handler is spawned as a task, and it listens to IP packets passed from the tun_listener,
 // encodes it, and then sends to mixnet.
 pub(crate) struct ConnectedClientHandler {
+    // The address of the client that this handler is connected to
     nym_address: Recipient,
+
+    // The number of hops the packet should take before reaching the client
     mix_hops: Option<u8>,
+
+    // Channel to receive packets from the tun_listener
     forward_from_tun_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
+
+    // Channel to send packets to the mixnet
     mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+
+    // Channel to receive close signal
     close_rx: tokio::sync::oneshot::Receiver<()>,
+
+    // Interval to check for activity timeout
     activity_timeout: tokio::time::Interval,
+
+    // Encoder to bundle multiple packets into a single one
     encoder: MultiIpPacketCodec,
+
+    // The version of the client
+    client_version: u8,
 }
 
 impl ConnectedClientHandler {
@@ -32,6 +48,7 @@ impl ConnectedClientHandler {
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         buffer_timeout: std::time::Duration,
+        client_version: u8,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     ) -> (
         tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
@@ -55,6 +72,7 @@ impl ConnectedClientHandler {
             close_rx,
             activity_timeout,
             encoder,
+            client_version,
         };
 
         let handle = tokio::spawn(async move {
@@ -67,9 +85,21 @@ impl ConnectedClientHandler {
     }
 
     async fn send_packets_to_mixnet(&mut self, packets: Bytes) -> Result<()> {
-        let response_packet = IpPacketResponse::new_ip_packet(packets)
-            .to_bytes()
-            .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })?;
+        let response_packet = match self.client_version {
+            6 => nym_ip_packet_requests::v6::response::IpPacketResponse::new_ip_packet(packets)
+                .to_bytes(),
+
+            7 => nym_ip_packet_requests::v7::response::IpPacketResponse::new_ip_packet(packets)
+                .to_bytes(),
+            _ => {
+                // This should not happen as we have already validated the version
+                return Err(IpPacketRouterError::InvalidConnectedClientVersion {
+                    version: self.client_version,
+                });
+            }
+        }
+        .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })?;
+
         let input_message = create_input_message(self.nym_address, response_packet, self.mix_hops);
 
         self.mixnet_client_sender

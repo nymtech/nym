@@ -1,20 +1,47 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-/// How much bandwidth (in bytes) one ticket can buy
-pub const TICKET_BANDWIDTH_VALUE: u64 = 100 * 1024 * 1024; // 100 MB
+/// Specifies the maximum validity of the issued ticketbooks.
+pub const TICKETBOOK_VALIDITY_DAYS: u64 = 7;
 
-///Tickets to spend per payment
-pub const SPEND_TICKETS: u64 = 1;
-/// Threshold for claiming more bandwidth: 1 MB
-pub const REMAINING_BANDWIDTH_THRESHOLD: i64 = 1024 * 1024;
+/// Specifies the number of tickets in each issued ticketbook.
+pub const TICKETBOOK_SIZE: u64 = 50;
+
+#[derive(Default, Copy, Clone, Debug, PartialEq)]
+#[repr(u8)]
+pub enum TicketbookType {
+    #[default]
+    MixnetEntry = 0,
+    MixnetExit = 1,
+    WireguardEntry = 2,
+    WireguardExit = 3,
+}
+
+impl TicketbookType {
+    pub const WIREGUARD_ENTRY_TICKET_SIZE: u64 = 500 * 1024 * 1024; // 500 MB
+
+    // TBD:
+    pub const WIREGUARD_EXIT_TICKET_SIZE: u64 = Self::WIREGUARD_ENTRY_TICKET_SIZE;
+    pub const MIXNET_ENTRY_TICKET_SIZE: u64 = Self::WIREGUARD_ENTRY_TICKET_SIZE;
+    pub const MIXNET_EXIT_TICKET_SIZE: u64 = Self::WIREGUARD_ENTRY_TICKET_SIZE;
+
+    /// How much bandwidth (in bytes) one ticket can grant
+    pub const fn bandwidth_value(&self) -> u64 {
+        match self {
+            TicketbookType::MixnetEntry => Self::MIXNET_ENTRY_TICKET_SIZE,
+            TicketbookType::MixnetExit => Self::MIXNET_EXIT_TICKET_SIZE,
+            TicketbookType::WireguardEntry => Self::WIREGUARD_ENTRY_TICKET_SIZE,
+            TicketbookType::WireguardExit => Self::WIREGUARD_EXIT_TICKET_SIZE,
+        }
+    }
+}
 
 // Constants for bloom filter for double spending detection
 //Chosen for FP of
 //Calculator at https://hur.st/bloomfilter/
 pub const ECASH_DS_BLOOMFILTER_PARAMS: BloomfilterParameters = BloomfilterParameters {
-    num_hashes: 13,
-    bitmap_size: 250_000,
+    num_hashes: 10,
+    bitmap_size: 1_500_000_000,
     sip_keys: [
         (12345678910111213141, 1415926535897932384),
         (7182818284590452353, 3571113171923293137),

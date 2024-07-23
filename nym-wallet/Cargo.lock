@@ -3150,6 +3150,7 @@ dependencies = [
  "ff",
  "group",
  "itertools 0.12.1",
+ "nym-network-defaults",
  "nym-pemstore",
  "rand 0.8.5",
  "serde",
@@ -3309,14 +3310,10 @@ dependencies = [
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
- "cfg-if",
  "dotenvy",
- "hex-literal",
  "log",
- "once_cell",
  "schemars",
  "serde",
- "thiserror",
  "url",
 ]
 

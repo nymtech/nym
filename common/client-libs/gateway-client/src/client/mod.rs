@@ -1,6 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
+use crate::bandwidth::ClientBandwidth;
+use crate::client::config::GatewayClientConfig;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
@@ -23,13 +24,11 @@ use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
     CURRENT_PROTOCOL_VERSION,
 };
-use nym_network_defaults::REMAINING_BANDWIDTH_THRESHOLD;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::sync::Arc;
-use std::time::Duration;
 use tungstenite::protocol::Message;
 use url::Url;
 
@@ -40,7 +39,6 @@ use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
-use crate::bandwidth::ClientBandwidth;
 #[cfg(not(unix))]
 use std::os::raw::c_int as RawFd;
 #[cfg(target_arch = "wasm32")]
@@ -48,12 +46,7 @@ use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
 
-// Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
-// bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
-// bandwidth bridging protocol, we can come back to a smaller timeout value
-const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
-const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
-const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
+pub mod config;
 
 pub struct GatewayConfig {
     pub gateway_identity: identity::PublicKey,
@@ -80,8 +73,9 @@ impl GatewayConfig {
 
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
 pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
+    pub cfg: GatewayClientConfig,
+
     authenticated: bool,
-    disabled_credentials_mode: bool,
     bandwidth: ClientBandwidth,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
@@ -89,17 +83,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState,
     packet_router: PacketRouter,
-    response_timeout_duration: Duration,
     bandwidth_controller: Option<BandwidthController<C, St>>,
-
-    // reconnection related variables
-    /// Specifies whether client should try to reconnect to gateway on connection failure.
-    should_reconnect_on_failure: bool,
-    /// Specifies maximum number of attempts client will try to reconnect to gateway on failure
-    /// before giving up.
-    reconnection_attempts: usize,
-    /// Delay between each subsequent reconnection attempt.
-    reconnection_backoff: Duration,
 
     // currently unused (but populated)
     negotiated_protocol: Option<u8>,
@@ -110,7 +94,8 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
 impl<C, St> GatewayClient<C, St> {
     pub fn new(
-        config: GatewayConfig,
+        cfg: GatewayClientConfig,
+        gateway_config: GatewayConfig,
         local_identity: Arc<identity::KeyPair>,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedKeys>>,
@@ -119,53 +104,19 @@ impl<C, St> GatewayClient<C, St> {
         task_client: TaskClient,
     ) -> Self {
         GatewayClient {
+            cfg,
             authenticated: false,
-            disabled_credentials_mode: true,
             bandwidth: ClientBandwidth::new_empty(),
-            gateway_address: config.gateway_listener,
-            gateway_identity: config.gateway_identity,
+            gateway_address: gateway_config.gateway_listener,
+            gateway_identity: gateway_config.gateway_identity,
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
             packet_router,
-            response_timeout_duration: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             bandwidth_controller,
-            should_reconnect_on_failure: true,
-            reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
-            reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
             negotiated_protocol: None,
             task_client,
         }
-    }
-
-    #[must_use]
-    pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
-        self.disabled_credentials_mode = disabled_credentials_mode;
-        self
-    }
-
-    #[must_use]
-    pub fn with_reconnection_on_failure(mut self, should_reconnect_on_failure: bool) -> Self {
-        self.should_reconnect_on_failure = should_reconnect_on_failure;
-        self
-    }
-
-    #[must_use]
-    pub fn with_response_timeout(mut self, response_timeout_duration: Duration) -> Self {
-        self.response_timeout_duration = response_timeout_duration;
-        self
-    }
-
-    #[must_use]
-    pub fn with_reconnection_attempts(mut self, reconnection_attempts: usize) -> Self {
-        self.reconnection_attempts = reconnection_attempts;
-        self
-    }
-
-    #[must_use]
-    pub fn with_reconnection_backoff(mut self, backoff: Duration) -> Self {
-        self.reconnection_backoff = backoff;
-        self
     }
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
@@ -257,18 +208,21 @@ impl<C, St> GatewayClient<C, St> {
         info!("Attempting gateway reconnection...");
         self.authenticated = false;
 
-        for i in 1..self.reconnection_attempts {
+        for i in 1..self.cfg.connection.reconnection_attempts {
             info!("reconnection attempt {}...", i);
             if self.try_reconnect().await.is_ok() {
                 info!("managed to reconnect!");
                 return Ok(());
             }
 
-            sleep(self.reconnection_backoff).await;
+            sleep(self.cfg.connection.reconnection_backoff).await;
         }
 
         // final attempt (done separately to be able to return a proper error)
-        info!("reconnection attempt {}", self.reconnection_attempts);
+        info!(
+            "reconnection attempt {}",
+            self.cfg.connection.reconnection_attempts
+        );
         match self.try_reconnect().await {
             Ok(_) => {
                 info!("managed to reconnect!");
@@ -277,7 +231,7 @@ impl<C, St> GatewayClient<C, St> {
             Err(err) => {
                 error!(
                     "failed to reconnect after {} attempts",
-                    self.reconnection_attempts
+                    self.cfg.connection.reconnection_attempts
                 );
                 Err(err)
             }
@@ -293,7 +247,7 @@ impl<C, St> GatewayClient<C, St> {
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         };
 
-        let timeout = sleep(self.response_timeout_duration);
+        let timeout = sleep(self.cfg.connection.response_timeout_duration);
         tokio::pin!(timeout);
 
         loop {
@@ -462,7 +416,7 @@ impl<C, St> GatewayClient<C, St> {
                 ws_stream,
                 self.local_identity.as_ref(),
                 self.gateway_identity,
-                !self.disabled_credentials_mode,
+                self.cfg.bandwidth.require_tickets,
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),
@@ -524,7 +478,7 @@ impl<C, St> GatewayClient<C, St> {
             self_address,
             encrypted_address,
             iv,
-            !self.disabled_credentials_mode,
+            self.cfg.bandwidth.require_tickets,
         )
         .into();
 
@@ -638,12 +592,12 @@ impl<C, St> GatewayClient<C, St> {
         if self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
         }
-        if self.bandwidth_controller.is_none() && !self.disabled_credentials_mode {
+        if self.bandwidth_controller.is_none() && self.cfg.bandwidth.require_tickets {
             return Err(GatewayClientError::NoBandwidthControllerAvailable);
         }
 
         warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
-        if self.disabled_credentials_mode {
+        if !self.cfg.bandwidth.require_tickets {
             info!("The client is running in disabled credentials mode - attempting to claim bandwidth without a credential");
             return self.try_claim_testnet_bandwidth().await;
         }
@@ -698,7 +652,10 @@ impl<C, St> GatewayClient<C, St> {
             return Err(GatewayClientError::NotAuthenticated);
         }
         let bandwidth_remaining = self.bandwidth.remaining();
-        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+        if bandwidth_remaining < self.cfg.bandwidth.remaining_bandwidth_threshold {
+            self.cfg
+                .bandwidth
+                .ensure_above_cutoff(bandwidth_remaining)?;
             self.claim_bandwidth().await?;
         }
 
@@ -721,7 +678,7 @@ impl<C, St> GatewayClient<C, St> {
             .batch_send_websocket_messages_without_response(messages)
             .await
         {
-            if err.is_closed_connection() && self.should_reconnect_on_failure {
+            if err.is_closed_connection() && self.cfg.connection.should_reconnect_on_failure {
                 self.attempt_reconnection().await
             } else {
                 Err(err)
@@ -736,7 +693,7 @@ impl<C, St> GatewayClient<C, St> {
         msg: Message,
     ) -> Result<(), GatewayClientError> {
         if let Err(err) = self.send_websocket_message_without_response(msg).await {
-            if err.is_closed_connection() && self.should_reconnect_on_failure {
+            if err.is_closed_connection() && self.cfg.connection.should_reconnect_on_failure {
                 debug!("Going to attempt a reconnection");
                 self.attempt_reconnection().await
             } else {
@@ -770,7 +727,10 @@ impl<C, St> GatewayClient<C, St> {
             return Err(GatewayClientError::NotAuthenticated);
         }
         let bandwidth_remaining = self.bandwidth.remaining();
-        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+        if bandwidth_remaining < self.cfg.bandwidth.remaining_bandwidth_threshold {
+            self.cfg
+                .bandwidth
+                .ensure_above_cutoff(bandwidth_remaining)?;
             self.claim_bandwidth().await?;
         }
 
@@ -869,7 +829,10 @@ impl<C, St> GatewayClient<C, St> {
         }
         let shared_key = self.perform_initial_authentication().await?;
         let bandwidth_remaining = self.bandwidth.remaining();
-        if bandwidth_remaining < REMAINING_BANDWIDTH_THRESHOLD {
+        if bandwidth_remaining < self.cfg.bandwidth.remaining_bandwidth_threshold {
+            self.cfg
+                .bandwidth
+                .ensure_above_cutoff(bandwidth_remaining)?;
             info!("Claiming more bandwidth with existing credentials. Stop the process now if you don't want that to happen.");
             self.claim_bandwidth().await?;
         }
@@ -905,8 +868,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         let packet_router = PacketRouter::new(ack_tx, mix_tx, task_client.clone());
 
         GatewayClient {
+            cfg: GatewayClientConfig::default().with_disabled_credentials_mode(true),
             authenticated: false,
-            disabled_credentials_mode: true,
             bandwidth: ClientBandwidth::new_empty(),
             gateway_address: gateway_listener.to_string(),
             gateway_identity,
@@ -914,11 +877,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             shared_key: None,
             connection: SocketState::NotConnected,
             packet_router,
-            response_timeout_duration: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             bandwidth_controller: None,
-            should_reconnect_on_failure: false,
-            reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
-            reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
             negotiated_protocol: None,
             task_client,
         }
@@ -937,8 +896,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         assert!(self.shared_key.is_some());
 
         GatewayClient {
+            cfg: self.cfg,
             authenticated: self.authenticated,
-            disabled_credentials_mode: self.disabled_credentials_mode,
             bandwidth: self.bandwidth,
             gateway_address: self.gateway_address,
             gateway_identity: self.gateway_identity,
@@ -946,11 +905,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             shared_key: self.shared_key,
             connection: self.connection,
             packet_router,
-            response_timeout_duration: self.response_timeout_duration,
             bandwidth_controller,
-            should_reconnect_on_failure: self.should_reconnect_on_failure,
-            reconnection_attempts: self.reconnection_attempts,
-            reconnection_backoff: self.reconnection_backoff,
             negotiated_protocol: self.negotiated_protocol,
             task_client,
         }

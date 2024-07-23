@@ -380,8 +380,8 @@ where
     async fn revoke_ticket_bandwidth(&self, ticket_id: i64) -> Result<(), EcashTicketError> {
         warn!("revoking bandwidth associated with ticket {ticket_id} since it failed verification");
 
-        let bytes_to_revoke =
-            Bandwidth::ticket_amount().value() as f32 * self.config.revocation_bandwidth_penalty;
+        let bytes_to_revoke = Bandwidth::ticket_amount(Default::default()).value() as f32
+            * self.config.revocation_bandwidth_penalty;
         let to_revoke_bi2 = bibytes2(bytes_to_revoke as f64);
 
         info!(to_revoke_bi2);

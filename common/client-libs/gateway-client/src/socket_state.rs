@@ -12,12 +12,8 @@ use log::*;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
 use nym_task::TaskClient;
-use si_scale::helpers::bibytes2;
 use std::os::raw::c_int as RawFd;
-use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
-use time::OffsetDateTime;
 use tungstenite::Message;
 
 #[cfg(unix)]
@@ -27,6 +23,7 @@ use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
+use crate::bandwidth::ClientBandwidth;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 
@@ -53,21 +50,6 @@ pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
     None
 }
 
-// disgusting? absolutely, but does the trick for now
-static LAST_LOGGED_BANDWIDTH_TS: AtomicI64 = AtomicI64::new(0);
-
-fn maybe_log_bandwidth(remaining: i64) {
-    // SAFETY: this value is always populated with valid timestamps
-    let last =
-        OffsetDateTime::from_unix_timestamp(LAST_LOGGED_BANDWIDTH_TS.load(Ordering::Relaxed))
-            .unwrap();
-    let now = OffsetDateTime::now_utc();
-    if last + Duration::from_secs(10) < now {
-        log::info!("remaining bandwidth: {}", bibytes2(remaining as f64));
-        LAST_LOGGED_BANDWIDTH_TS.store(now.unix_timestamp(), Ordering::Relaxed)
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct PartiallyDelegated {
     sink_half: SplitSink<WsConn, Message>,
@@ -76,10 +58,12 @@ pub(crate) struct PartiallyDelegated {
 }
 
 impl PartiallyDelegated {
+    // fn try_recover_plaintext(ws_message: Message, shared_key: &SharedKeys, )
+
     fn recover_received_plaintexts(
         ws_msgs: Vec<Message>,
         shared_key: &SharedKeys,
-        bandwidth_remaining: Arc<AtomicI64>,
+        client_bandwidth: ClientBandwidth,
     ) -> Result<Vec<Vec<u8>>, GatewayClientError> {
         let mut plaintexts = Vec::with_capacity(ws_msgs.len());
         for ws_msg in ws_msgs {
@@ -105,14 +89,14 @@ impl PartiallyDelegated {
                     {
                         ServerResponse::Send {
                             remaining_bandwidth,
-                        } => {
-                            maybe_log_bandwidth(remaining_bandwidth);
-                            bandwidth_remaining
-                                .store(remaining_bandwidth, std::sync::atomic::Ordering::Release)
-                        }
+                        } => client_bandwidth.update_and_maybe_log(remaining_bandwidth),
                         ServerResponse::Error { message } => {
-                            error!("gateway failure: {message}");
+                            error!("[1] gateway failure: {message}");
                             return Err(GatewayClientError::GatewayError(message));
+                        }
+                        ServerResponse::TypedError { error } => {
+                            error!("[2] gateway failure: {error}");
+                            return Err(GatewayClientError::TypedGatewayError(error));
                         }
                         other => {
                             warn!(
@@ -134,10 +118,9 @@ impl PartiallyDelegated {
         ws_msgs: Vec<Message>,
         packet_router: &PacketRouter,
         shared_key: &SharedKeys,
-        bandwidth_remaining: Arc<AtomicI64>,
+        client_bandwidth: ClientBandwidth,
     ) -> Result<(), GatewayClientError> {
-        let plaintexts =
-            Self::recover_received_plaintexts(ws_msgs, shared_key, bandwidth_remaining)?;
+        let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key, client_bandwidth)?;
         packet_router.route_received(plaintexts)
     }
 
@@ -145,7 +128,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         mut packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-        bandwidth_remaining: Arc<AtomicI64>,
+        client_bandwidth: ClientBandwidth,
         mut shutdown: TaskClient,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
@@ -177,12 +160,12 @@ impl PartiallyDelegated {
                             Ok(msgs) => msgs
                         };
 
-                        if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref(), bandwidth_remaining.clone()) {
+                        if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref(), client_bandwidth.clone()) {
                             log::error!("Route socket messages failed: {err}");
                             break Err(err)
                         }
                     }
-                };
+                }
             };
 
             if match ret_err {

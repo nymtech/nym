@@ -84,6 +84,14 @@ impl TryInto<String> for RegistrationHandshake {
     }
 }
 
+// specific errors (that should not be nested!!) for clients to match on
+#[derive(Debug, Error, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SimpleGatewayRequestsError {
+    #[error("insufficient bandwidth available to process the request. required: {required}B, available: {available}B")]
+    OutOfBandwidth { required: i64, available: i64 },
+}
+
 #[derive(Debug, Error)]
 pub enum GatewayRequestsError {
     #[error("the request is too short")]
@@ -136,6 +144,10 @@ pub enum GatewayRequestsError {
 
     #[error("the provided [v1] credential has invalid number of parameters - {0}")]
     InvalidNumberOfEmbededParameters(u32),
+
+    // variant to catch legacy errors
+    #[error("{0}")]
+    Other(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -283,8 +295,14 @@ pub enum ServerResponse {
     Send {
         remaining_bandwidth: i64,
     },
+    // Generic error
     Error {
         message: String,
+    },
+    // Specific typed errors
+    // so that clients could match on this variant without doing naive string matching
+    TypedError {
+        error: SimpleGatewayRequestsError,
     },
 }
 
@@ -296,6 +314,7 @@ impl ServerResponse {
             ServerResponse::Bandwidth { .. } => "Bandwidth".to_string(),
             ServerResponse::Send { .. } => "Send".to_string(),
             ServerResponse::Error { .. } => "Error".to_string(),
+            ServerResponse::TypedError { .. } => "TypedError".to_string(),
         }
     }
     pub fn new_error<S: Into<String>>(msg: S) -> Self {

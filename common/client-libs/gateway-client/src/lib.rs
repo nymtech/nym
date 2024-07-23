@@ -14,6 +14,7 @@ pub use packet_router::{
 };
 pub use traits::GatewayPacketRouter;
 
+mod bandwidth;
 pub mod client;
 pub mod error;
 pub mod packet_router;

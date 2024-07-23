@@ -27,12 +27,15 @@ pub type HmacSha256 = Hmac<Sha256>;
 pub type Nonce = u64;
 pub type Taken = Option<SystemTime>;
 
+pub const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ClientMessage {
     Initial(InitMessage),
     Final(GatewayClient),
+    Query(PeerPublicKey),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -58,6 +61,19 @@ pub struct RegistrationData {
     pub nonce: u64,
     pub gateway_data: GatewayClient,
     pub wg_port: u16,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegistredData {
+    pub pub_key: PeerPublicKey,
+    pub private_ip: IpAddr,
+    pub wg_port: u16,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RemainingBandwidthData {
+    pub available_bandwidth: u64,
+    pub suspended: bool,
 }
 
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.

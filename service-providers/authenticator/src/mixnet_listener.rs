@@ -17,12 +17,13 @@ use nym_authenticator_requests::v1::{
 use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
-use nym_wireguard::WireguardGatewayData;
+use nym_wireguard::{peer_controller::PeerControlResponse, WireguardGatewayData};
 use nym_wireguard_types::{
-    registration::{PendingRegistrations, PrivateIPs, RegistrationData},
+    registration::{PendingRegistrations, PrivateIPs, RegistrationData, RegistredData},
     GatewayClient, InitMessage, PeerPublicKey,
 };
 use rand::{prelude::IteratorRandom, thread_rng};
+use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_stream::wrappers::IntervalStream;
 
 use crate::{config::Config, error::*};
@@ -45,6 +46,8 @@ pub(crate) struct MixnetListener {
 
     pub(crate) wireguard_gateway_data: WireguardGatewayData,
 
+    pub(crate) response_rx: UnboundedReceiver<PeerControlResponse>,
+
     pub(crate) free_private_network_ips: Arc<PrivateIPs>,
 
     pub(crate) timeout_check_interval: IntervalStream,
@@ -55,6 +58,7 @@ impl MixnetListener {
         config: Config,
         private_ip_network: IpNetwork,
         wireguard_gateway_data: WireguardGatewayData,
+        response_rx: UnboundedReceiver<PeerControlResponse>,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
     ) -> Self {
@@ -66,27 +70,12 @@ impl MixnetListener {
             task_handle,
             registration_in_progres: Default::default(),
             wireguard_gateway_data,
+            response_rx,
             free_private_network_ips: Arc::new(
                 private_ip_network.iter().map(|ip| (ip, None)).collect(),
             ),
             timeout_check_interval,
         }
-    }
-
-    fn remove_from_registry(
-        &self,
-        remote_public: &PeerPublicKey,
-        gateway_client: &GatewayClient,
-    ) -> Result<()> {
-        self.wireguard_gateway_data
-            .remove_peer(gateway_client)
-            .map_err(|err| {
-                AuthenticatorError::InternalError(format!("could not remove peer: {:?}", err))
-            })?;
-        self.wireguard_gateway_data
-            .client_registry()
-            .remove(remote_public);
-        Ok(())
     }
 
     fn remove_stale_registrations(&self) -> Result<()> {
@@ -121,7 +110,7 @@ impl MixnetListener {
         Ok(())
     }
 
-    fn on_initial_request(
+    async fn on_initial_request(
         &mut self,
         init_message: InitMessage,
         request_id: u64,
@@ -136,24 +125,26 @@ impl MixnetListener {
                 reply_to,
             ));
         }
-        let gateway_client_opt = if let Some(gateway_client) = self
+        if let Some(gateway_client) = self
             .wireguard_gateway_data
             .client_registry()
             .get(&remote_public)
         {
-            let mut private_ip_ref = self
-                .free_private_network_ips
-                .get_mut(&gateway_client.private_ip)
-                .ok_or(AuthenticatorError::InternalError(String::from(
-                    "could not find private IP",
-                )))?;
-            *private_ip_ref = None;
-            Some(gateway_client.clone())
-        } else {
-            None
-        };
-        if let Some(gateway_client) = gateway_client_opt {
-            self.remove_from_registry(&remote_public, &gateway_client)?;
+            return Ok(AuthenticatorResponse::new_registered(
+                RegistredData {
+                    pub_key: PeerPublicKey::new(
+                        self.wireguard_gateway_data
+                            .keypair()
+                            .public_key()
+                            .to_bytes()
+                            .into(),
+                    ),
+                    private_ip: gateway_client.private_ip,
+                    wg_port: self.config.authenticator.announced_port,
+                },
+                reply_to,
+                request_id,
+            ));
         }
         let mut private_ip_ref = self
             .free_private_network_ips
@@ -184,7 +175,7 @@ impl MixnetListener {
         ))
     }
 
-    fn on_final_request(
+    async fn on_final_request(
         &mut self,
         gateway_client: GatewayClient,
         request_id: u64,
@@ -209,16 +200,75 @@ impl MixnetListener {
                 .map_err(|err| {
                     AuthenticatorError::InternalError(format!("could not add peer: {:?}", err))
                 })?;
+
+            let PeerControlResponse::AddPeer { success } =
+                self.response_rx
+                    .recv()
+                    .await
+                    .ok_or(AuthenticatorError::InternalError(
+                        "no response for add peer".to_string(),
+                    ))?
+            else {
+                return Err(AuthenticatorError::InternalError(
+                    "unexpected response type".to_string(),
+                ));
+            };
+            if !success {
+                return Err(AuthenticatorError::InternalError(
+                    "adding peer could not be performed".to_string(),
+                ));
+            }
             self.registration_in_progres
                 .remove(&gateway_client.pub_key());
             self.wireguard_gateway_data
                 .client_registry()
                 .insert(gateway_client.pub_key(), gateway_client);
 
-            Ok(AuthenticatorResponse::new_registered(reply_to, request_id))
+            Ok(AuthenticatorResponse::new_registered(
+                RegistredData {
+                    pub_key: registration_data.gateway_data.pub_key,
+                    private_ip: registration_data.gateway_data.private_ip,
+                    wg_port: registration_data.wg_port,
+                },
+                reply_to,
+                request_id,
+            ))
         } else {
             Err(AuthenticatorError::MacVerificationFailure)
         }
+    }
+
+    async fn on_query_bandwidth_request(
+        &mut self,
+        peer_public_key: PeerPublicKey,
+        request_id: u64,
+        reply_to: Recipient,
+    ) -> AuthenticatorHandleResult {
+        self.wireguard_gateway_data
+            .query_bandwidth(peer_public_key)
+            .map_err(|err| {
+                AuthenticatorError::InternalError(format!(
+                    "could not query peer bandwidth: {:?}",
+                    err
+                ))
+            })?;
+        let PeerControlResponse::QueryBandwidth { bandwidth_data } = self
+            .response_rx
+            .recv()
+            .await
+            .ok_or(AuthenticatorError::InternalError(
+                "no response for query".to_string(),
+            ))?
+        else {
+            return Err(AuthenticatorError::InternalError(
+                "unexpected response type".to_string(),
+            ));
+        };
+        Ok(AuthenticatorResponse::new_remaining_bandwidth(
+            bandwidth_data,
+            reply_to,
+            request_id,
+        ))
     }
 
     async fn on_reconstructed_message(
@@ -240,9 +290,19 @@ impl MixnetListener {
         match request.data {
             AuthenticatorRequestData::Initial(init_msg) => {
                 self.on_initial_request(init_msg, request.request_id, request.reply_to)
+                    .await
             }
             AuthenticatorRequestData::Final(client) => {
                 self.on_final_request(client, request.request_id, request.reply_to)
+                    .await
+            }
+            AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
+                self.on_query_bandwidth_request(
+                    peer_public_key,
+                    request.request_id,
+                    request.reply_to,
+                )
+                .await
             }
         }
     }

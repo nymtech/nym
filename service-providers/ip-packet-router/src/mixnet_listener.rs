@@ -4,15 +4,9 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
+use nym_ip_packet_requests::v7::response::{DynamicConnectFailureReason, InfoLevel, InfoResponseReply, IpPacketResponse, StaticConnectFailureReason};
 use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec,
-    v6::{
-        self,
-        response::{
-            DynamicConnectFailureReason, InfoLevel, InfoResponseReply, IpPacketResponse,
-            StaticConnectFailureReason,
-        },
-    },
     v7::{
         self,
         request::{
@@ -266,7 +260,7 @@ impl Drop for CloseTx {
     }
 }
 
-type PacketHandleResult = Result<Option<v6::response::IpPacketResponse>>;
+type PacketHandleResult = Result<Option<v7::response::IpPacketResponse>>;
 
 #[cfg(target_os = "linux")]
 pub(crate) struct MixnetListener {
@@ -532,7 +526,7 @@ impl MixnetListener {
     ) -> PacketHandleResult {
         // If it's possible to parse, do so and return back a response, otherwise just drop
         let (id, recipient) =
-            v6::request::IpPacketRequest::from_reconstructed_message(reconstructed)
+            nym_ip_packet_requests::v6::request::IpPacketRequest::from_reconstructed_message(reconstructed)
                 .ok()
                 .and_then(|request| {
                     request
@@ -622,6 +616,9 @@ impl MixnetListener {
     // When an incoming mixnet message triggers a response that we send back, such as during
     // connect handshake.
     async fn handle_response(&self, response: IpPacketResponse) -> Result<()> {
+        // Convert to earlier version if needed
+        let response: nym_ip_packet_requests::v6::response::IpPacketResponse = response.into();
+
         let Some(recipient) = response.recipient() else {
             log::error!("No recipient in response packet, this should NOT happen!");
             return Err(IpPacketRouterError::NoRecipientInResponse);
@@ -711,10 +708,10 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<(IpPacket
 
     // Check version of the request and convert to the latest version if necessary
     let request = match request_version {
-        6 => v6::request::IpPacketRequest::from_reconstructed_message(reconstructed)
+        6 => nym_ip_packet_requests::v6::request::IpPacketRequest::from_reconstructed_message(reconstructed)
             .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })
             .map(|r| r.into()),
-        7 => v7::request::IpPacketRequest::from_reconstructed_message(reconstructed)
+        7 => nym_ip_packet_requests::v7::request::IpPacketRequest::from_reconstructed_message(reconstructed)
             .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err }),
         _ => {
             log::info!("Received packet with invalid version: v{request_version}");

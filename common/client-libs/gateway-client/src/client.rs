@@ -592,6 +592,9 @@ impl<C, St> GatewayClient<C, St> {
         let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            ServerResponse::TypedError { error } => {
+                Err(GatewayClientError::TypedGatewayError(error))
+            }
             _ => Err(GatewayClientError::UnexpectedResponse),
         }?;
 
@@ -664,10 +667,17 @@ impl<C, St> GatewayClient<C, St> {
         match self.claim_ecash_bandwidth(prepared_credential.data).await {
             Ok(_) => Ok(()),
             Err(err) => {
-                error!("failed to claim ecash bandwidth with the gateway... attempting to revert storage withdrawal");
-                self.unchecked_bandwidth_controller()
-                    .attempt_revert_ticket_usage(prepared_credential.metadata)
-                    .await?;
+                error!("failed to claim ecash bandwidth with the gateway...: {err}");
+                if err.is_ticket_replay() {
+                    warn!("this was due to our ticket being replayed! have you messed with the database file?")
+                } else {
+                    // TODO: tracing span
+                    info!("attempting to revert ticket withdrawal...");
+                    self.unchecked_bandwidth_controller()
+                        .attempt_revert_ticket_usage(prepared_credential.metadata)
+                        .await?;
+                }
+
                 Err(err)
             }
         }

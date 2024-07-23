@@ -118,4 +118,11 @@ impl GatewayClientError {
             _ => false,
         }
     }
+
+    pub fn is_ticket_replay(&self) -> bool {
+        match self {
+            GatewayClientError::TypedGatewayError(err) => err.is_ticket_replay(),
+            _ => false,
+        }
+    }
 }

@@ -85,11 +85,20 @@ impl TryInto<String> for RegistrationHandshake {
 }
 
 // specific errors (that should not be nested!!) for clients to match on
-#[derive(Debug, Error, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Error, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SimpleGatewayRequestsError {
     #[error("insufficient bandwidth available to process the request. required: {required}B, available: {available}B")]
     OutOfBandwidth { required: i64, available: i64 },
+
+    #[error("the provided ticket has already been spent before at this gateway")]
+    TicketReplay,
+}
+
+impl SimpleGatewayRequestsError {
+    pub fn is_ticket_replay(&self) -> bool {
+        matches!(self, SimpleGatewayRequestsError::TicketReplay)
+    }
 }
 
 #[derive(Debug, Error)]

@@ -17,6 +17,7 @@ use std::os::raw::c_int as RawFd;
 use std::sync::Arc;
 use tungstenite::{protocol::Message, Error as WsError};
 
+use si_scale::helpers::bibytes2;
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 #[cfg(not(target_arch = "wasm32"))]
@@ -168,14 +169,17 @@ impl PartiallyDelegatedRouter {
                         required,
                         available,
                     } => {
-                        warn!("run out of bandwidth when attempting to send the message! we got {available}B available, but needed at least {required}B to send the previous message");
+                        let available_bi2 = bibytes2(available as f64);
+                        let required_bi2 = bibytes2(required as f64);
+                        warn!("run out of bandwidth when attempting to send the message! we got {available_bi2} available, but needed at least {required_bi2} to send the previous message");
                         self.client_bandwidth.update_and_log(available);
                         // UNIMPLEMENTED: we should stop sending messages until we recover bandwidth
                         Ok(())
-                    } // _ => {
-                      //     error!("[2] gateway failure: {error}");
-                      //     Err(GatewayClientError::TypedGatewayError(error))
-                      // }
+                    }
+                    _ => {
+                        error!("[2] gateway failure: {error}");
+                        Err(GatewayClientError::TypedGatewayError(error))
+                    }
                 }
             }
             other => {

@@ -8,6 +8,7 @@ use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 use crate::{
     constants::CLIENT_HANDLER_ACTIVITY_TIMEOUT,
     error::{IpPacketRouterError, Result},
+    mixnet_listener::SupportedClientVersion,
     util::create_message::create_input_message,
 };
 
@@ -40,7 +41,7 @@ pub(crate) struct ConnectedClientHandler {
     encoder: MultiIpPacketCodec,
 
     // The version of the client
-    client_version: u8,
+    client_version: SupportedClientVersion,
 }
 
 impl ConnectedClientHandler {
@@ -48,7 +49,7 @@ impl ConnectedClientHandler {
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         buffer_timeout: std::time::Duration,
-        client_version: u8,
+        client_version: SupportedClientVersion,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     ) -> (
         tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
@@ -86,16 +87,13 @@ impl ConnectedClientHandler {
 
     async fn send_packets_to_mixnet(&mut self, packets: Bytes) -> Result<()> {
         let response_packet = match self.client_version {
-            6 => nym_ip_packet_requests::v6::response::IpPacketResponse::new_ip_packet(packets)
-                .to_bytes(),
-
-            7 => nym_ip_packet_requests::v7::response::IpPacketResponse::new_ip_packet(packets)
-                .to_bytes(),
-            _ => {
-                // This should not happen as we have already validated the version
-                return Err(IpPacketRouterError::InvalidConnectedClientVersion {
-                    version: self.client_version,
-                });
+            SupportedClientVersion::V6 => {
+                nym_ip_packet_requests::v6::response::IpPacketResponse::new_ip_packet(packets)
+                    .to_bytes()
+            }
+            SupportedClientVersion::V7 => {
+                nym_ip_packet_requests::v7::response::IpPacketResponse::new_ip_packet(packets)
+                    .to_bytes()
             }
         }
         .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })?;

@@ -5,8 +5,7 @@ use std::{collections::HashMap, net::SocketAddr};
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
 use nym_ip_packet_requests::v7::response::{
-    DynamicConnectFailureReason, InfoLevel, InfoResponseReply,
-    StaticConnectFailureReason,
+    DynamicConnectFailureReason, InfoLevel, InfoResponseReply, StaticConnectFailureReason,
 };
 use nym_ip_packet_requests::{
     codec::MultiIpPacketCodec,
@@ -283,16 +282,15 @@ impl Response {
     fn new_static_connect_success(
         request_id: u64,
         reply_to: Recipient,
-        client_version: u8,
+        client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            6 => Response::V6(v6::response::IpPacketResponse::new_static_connect_success(
-                request_id, reply_to,
-            )),
-            7 => Response::V7(v7::response::IpPacketResponse::new_static_connect_success(
-                request_id, reply_to,
-            )),
-            _ => todo!(),
+            SupportedClientVersion::V6 => Response::V6(
+                v6::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
+            ),
+            SupportedClientVersion::V7 => Response::V7(
+                v7::response::IpPacketResponse::new_static_connect_success(request_id, reply_to),
+            ),
         }
     }
 
@@ -300,18 +298,21 @@ impl Response {
         request_id: u64,
         reply_to: Recipient,
         reason: StaticConnectFailureReason,
-        client_version: u8,
+        client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            6 => Response::V6(v6::response::IpPacketResponse::new_static_connect_failure(
-                request_id,
-                reply_to,
-                reason.into(),
-            )),
-            7 => Response::V7(v7::response::IpPacketResponse::new_static_connect_failure(
-                request_id, reply_to, reason,
-            )),
-            _ => todo!(),
+            SupportedClientVersion::V6 => {
+                Response::V6(v6::response::IpPacketResponse::new_static_connect_failure(
+                    request_id,
+                    reply_to,
+                    reason.into(),
+                ))
+            }
+            SupportedClientVersion::V7 => {
+                Response::V7(v7::response::IpPacketResponse::new_static_connect_failure(
+                    request_id, reply_to, reason,
+                ))
+            }
         }
     }
 
@@ -319,16 +320,19 @@ impl Response {
         request_id: u64,
         reply_to: Recipient,
         ips: IpPair,
-        client_version: u8,
+        client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            6 => Response::V6(v6::response::IpPacketResponse::new_dynamic_connect_success(
-                request_id, reply_to, ips,
-            )),
-            7 => Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_success(
-                request_id, reply_to, ips,
-            )),
-            _ => todo!(),
+            SupportedClientVersion::V6 => {
+                Response::V6(v6::response::IpPacketResponse::new_dynamic_connect_success(
+                    request_id, reply_to, ips,
+                ))
+            }
+            SupportedClientVersion::V7 => {
+                Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_success(
+                    request_id, reply_to, ips,
+                ))
+            }
         }
     }
 
@@ -336,18 +340,21 @@ impl Response {
         request_id: u64,
         reply_to: Recipient,
         reason: DynamicConnectFailureReason,
-        client_version: u8,
+        client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            6 => Response::V6(v6::response::IpPacketResponse::new_dynamic_connect_failure(
-                request_id,
-                reply_to,
-                reason.into(),
-            )),
-            7 => Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_failure(
-                request_id, reply_to, reason,
-            )),
-            _ => todo!(),
+            SupportedClientVersion::V6 => {
+                Response::V6(v6::response::IpPacketResponse::new_dynamic_connect_failure(
+                    request_id,
+                    reply_to,
+                    reason.into(),
+                ))
+            }
+            SupportedClientVersion::V7 => {
+                Response::V7(v7::response::IpPacketResponse::new_dynamic_connect_failure(
+                    request_id, reply_to, reason,
+                ))
+            }
         }
     }
 
@@ -355,18 +362,19 @@ impl Response {
         reply_to: Recipient,
         reply: InfoResponseReply,
         level: InfoLevel,
-        client_version: u8,
+        client_version: SupportedClientVersion,
     ) -> Self {
         match client_version {
-            6 => Response::V6(v6::response::IpPacketResponse::new_data_info_response(
-                reply_to,
-                reply.into(),
-                level.into(),
-            )),
-            7 => Response::V7(v7::response::IpPacketResponse::new_data_info_response(
-                reply_to, reply, level,
-            )),
-            _ => todo!(),
+            SupportedClientVersion::V6 => {
+                Response::V6(v6::response::IpPacketResponse::new_data_info_response(
+                    reply_to,
+                    reply.into(),
+                    level.into(),
+                ))
+            }
+            SupportedClientVersion::V7 => Response::V7(
+                v7::response::IpPacketResponse::new_data_info_response(reply_to, reply, level),
+            ),
         }
     }
 
@@ -374,7 +382,8 @@ impl Response {
         match self {
             Response::V6(response) => response.to_bytes(),
             Response::V7(response) => response.to_bytes(),
-        }.map_err(|err| {
+        }
+        .map_err(|err| {
             log::error!("Failed to serialize response packet");
             IpPacketRouterError::FailedToSerializeResponsePacket { source: err }
         })
@@ -410,7 +419,7 @@ impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
         connect_request: StaticConnectRequest,
-        client_version: u8,
+        client_version: SupportedClientVersion,
     ) -> PacketHandleResult {
         log::info!(
             "Received static connect request from {sender_address}",
@@ -500,7 +509,7 @@ impl MixnetListener {
     async fn on_dynamic_connect_request(
         &mut self,
         connect_request: DynamicConnectRequest,
-        client_version: u8,
+        client_version: SupportedClientVersion,
     ) -> PacketHandleResult {
         log::info!(
             "Received dynamic connect request from {sender_address}",
@@ -576,13 +585,17 @@ impl MixnetListener {
     fn on_disconnect_request(
         &self,
         _disconnect_request: DisconnectRequest,
-        _client_version: u8,
+        _client_version: SupportedClientVersion,
     ) -> PacketHandleResult {
         log::info!("Received disconnect request: not implemented, dropping");
         Ok(None)
     }
 
-    async fn handle_packet(&mut self, ip_packet: &Bytes, client_version: u8) -> PacketHandleResult {
+    async fn handle_packet(
+        &mut self,
+        ip_packet: &Bytes,
+        client_version: SupportedClientVersion,
+    ) -> PacketHandleResult {
         log::trace!("Received data request");
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
@@ -638,7 +651,7 @@ impl MixnetListener {
     async fn on_data_request(
         &mut self,
         data_request: DataRequest,
-        client_version: u8,
+        client_version: SupportedClientVersion,
     ) -> Result<Vec<PacketHandleResult>> {
         let mut responses = Vec::new();
         let mut decoder = MultiIpPacketCodec::new(nym_ip_packet_requests::codec::BUFFER_TIMEOUT);
@@ -815,7 +828,9 @@ impl MixnetListener {
     }
 }
 
-fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<(IpPacketRequest, u8)> {
+fn deserialize_request(
+    reconstructed: &ReconstructedMessage,
+) -> Result<(IpPacketRequest, SupportedClientVersion)> {
     let request_version = *reconstructed
         .message
         .first()
@@ -838,8 +853,28 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<(IpPacket
         }
     };
 
+    let Some(request_version) = SupportedClientVersion::new(request_version) else {
+        return Err(IpPacketRouterError::InvalidPacketVersion(request_version));
+    };
+
     // Tag the request with the version of the request
     request.map(|r| (r, request_version))
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum SupportedClientVersion {
+    V6,
+    V7,
+}
+
+impl SupportedClientVersion {
+    fn new(request_version: u8) -> Option<Self> {
+        match request_version {
+            6 => Some(SupportedClientVersion::V6),
+            7 => Some(SupportedClientVersion::V7),
+            _ => None,
+        }
+    }
 }
 
 fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {

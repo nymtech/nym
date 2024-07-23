@@ -67,6 +67,12 @@ pub enum GatewayClientError {
     #[error("There are no more bandwidth credentials acquired. Please buy some more if you want to use the mixnet")]
     NoMoreBandwidthCredentials,
 
+    #[error("the current available bandwidth ({available_bi2}) is below the minimum cutoff threshold off {cutoff_bi2}")]
+    BandwidthBelowCutoffValue {
+        available_bi2: String,
+        cutoff_bi2: String,
+    },
+
     #[error("Received an unexpected response")]
     UnexpectedResponse,
 

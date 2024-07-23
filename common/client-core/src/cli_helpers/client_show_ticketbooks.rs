@@ -6,7 +6,7 @@ use crate::error::ClientCoreError;
 use nym_credential_storage::models::BasicTicketbookInformation;
 use nym_credential_storage::storage::Storage;
 use nym_ecash_time::ecash_today;
-use nym_network_defaults::TICKET_BANDWIDTH_VALUE;
+use nym_network_defaults::TicketbookType::MixnetEntry;
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -62,7 +62,9 @@ impl From<BasicTicketbookInformation> for AvailableTicketbook {
             expiration: value.expiration_date,
             issued_tickets: value.total_tickets,
             claimed_tickets: value.used_tickets,
-            ticket_size: TICKET_BANDWIDTH_VALUE,
+
+            // TODO: this will change when 'type' field is introduced; for now doesn't matter what we put there
+            ticket_size: MixnetEntry.bandwidth_value(),
         }
     }
 }

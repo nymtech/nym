@@ -2,17 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bls12_381::Scalar;
+use nym_network_defaults::ecash::TICKETBOOK_VALIDITY_DAYS;
+use nym_network_defaults::TICKETBOOK_SIZE;
 
 pub const PUBLIC_ATTRIBUTES_LEN: usize = 1; //expiration date
 pub const PRIVATE_ATTRIBUTES_LEN: usize = 2; //user and wallet secret
 pub const ATTRIBUTES_LEN: usize = PUBLIC_ATTRIBUTES_LEN + PRIVATE_ATTRIBUTES_LEN; // number of attributes encoded in a single zk-nym credential
 
-pub const CRED_VALIDITY_PERIOD_DAYS: u64 = 30;
+pub const CRED_VALIDITY_PERIOD_DAYS: u64 = TICKETBOOK_VALIDITY_DAYS;
 
 pub(crate) const SECONDS_PER_DAY: u64 = 86400;
 
 /// Total number of tickets in each issued ticket book.
-pub const NB_TICKETS: u64 = 100;
+pub const NB_TICKETS: u64 = TICKETBOOK_SIZE;
 
 pub const TYPE_EXP: Scalar = Scalar::from_raw([
     u64::from_le_bytes(*b"ZKNYMEXP"),

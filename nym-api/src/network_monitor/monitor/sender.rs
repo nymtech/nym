@@ -13,9 +13,9 @@ use futures::task::Context;
 use futures::{Future, Stream};
 use log::{debug, info, trace, warn};
 use nym_bandwidth_controller::BandwidthController;
-use nym_config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
+use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::client::GatewayConfig;
 use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::{
@@ -205,15 +205,16 @@ impl PacketSender {
         );
 
         let gateway_client = GatewayClient::new(
+            GatewayClientConfig::new_default()
+                .with_disabled_credentials_mode(fresh_gateway_client_data.disabled_credentials_mode)
+                .with_response_timeout(fresh_gateway_client_data.gateway_response_timeout),
             config,
             Arc::clone(&fresh_gateway_client_data.local_identity),
             None,
             gateway_packet_router,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
             task_client,
-        )
-        .with_disabled_credentials_mode(fresh_gateway_client_data.disabled_credentials_mode)
-        .with_response_timeout(fresh_gateway_client_data.gateway_response_timeout);
+        );
 
         (
             GatewayClientHandle::new(gateway_client),
@@ -325,9 +326,9 @@ impl PacketSender {
     async fn check_remaining_bandwidth(
         client: &mut GatewayClient<nyxd::Client, PersistentStorage>,
     ) -> Result<(), GatewayClientError> {
-        if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
+        if client.remaining_bandwidth() < client.cfg.bandwidth.remaining_bandwidth_threshold {
             Err(GatewayClientError::NotEnoughBandwidth(
-                REMAINING_BANDWIDTH_THRESHOLD,
+                client.cfg.bandwidth.remaining_bandwidth_threshold,
                 client.remaining_bandwidth(),
             ))
         } else {

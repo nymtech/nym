@@ -1,15 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::var_names;
+#[cfg(feature = "network")]
 use crate::{DenomDetails, ValidatorDetails};
-use std::str::FromStr;
 
 pub const NETWORK_NAME: &str = "mainnet";
 
 pub const BECH32_PREFIX: &str = "n";
 
+#[cfg(feature = "network")]
 pub const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
+#[cfg(feature = "network")]
 pub const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
 pub const MIXNET_CONTRACT_ADDRESS: &str =
@@ -36,6 +37,7 @@ pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
 pub const EXIT_POLICY_URL: &str =
     "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
 
+#[cfg(feature = "network")]
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         NYXD_URL,
@@ -44,23 +46,28 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
     )]
 }
 
+#[cfg(feature = "env")]
 const DEFAULT_SUFFIX: &str = "_MAINNET_DEFAULT";
 
+#[cfg(all(feature = "env", feature = "network"))]
 fn set_var_to_default(var: &str, value: &str) {
     std::env::set_var(var, value);
     std::env::set_var(format!("{var}{DEFAULT_SUFFIX}"), "1")
 }
 
+#[cfg(all(feature = "env", feature = "network"))]
 fn set_var_conditionally_to_default(var: &str, value: &str) {
     if std::env::var(var).is_err() {
         set_var_to_default(var, value)
     }
 }
 
+#[cfg(feature = "env")]
 pub fn uses_default(var: &str) -> bool {
     std::env::var(format!("{var}{DEFAULT_SUFFIX}")).is_ok()
 }
 
+#[cfg(feature = "env")]
 pub fn read_var_if_not_default(var: &str) -> Option<String> {
     if uses_default(var) {
         None
@@ -69,13 +76,19 @@ pub fn read_var_if_not_default(var: &str) -> Option<String> {
     }
 }
 
-pub fn read_parsed_var_if_not_default<T: FromStr>(var: &str) -> Option<Result<T, T::Err>> {
+#[cfg(feature = "env")]
+pub fn read_parsed_var_if_not_default<T: std::str::FromStr>(
+    var: &str,
+) -> Option<Result<T, T::Err>> {
     read_var_if_not_default(var)
         .as_deref()
-        .map(FromStr::from_str)
+        .map(std::str::FromStr::from_str)
 }
 
+#[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env() {
+    use crate::var_names;
+
     set_var_to_default(var_names::CONFIGURED, "true");
     set_var_to_default(var_names::NETWORK_NAME, NETWORK_NAME);
     set_var_to_default(var_names::BECH32_PREFIX, BECH32_PREFIX);
@@ -113,7 +126,10 @@ pub fn export_to_env() {
     set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
 }
 
+#[cfg(all(feature = "env", feature = "network"))]
 pub fn export_to_env_if_not_set() {
+    use crate::var_names;
+
     set_var_conditionally_to_default(var_names::CONFIGURED, "true");
     set_var_conditionally_to_default(var_names::NETWORK_NAME, NETWORK_NAME);
     set_var_conditionally_to_default(var_names::BECH32_PREFIX, BECH32_PREFIX);

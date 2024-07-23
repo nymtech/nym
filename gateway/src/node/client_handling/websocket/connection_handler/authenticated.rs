@@ -427,7 +427,7 @@ where
         // TODO: double storing?
         // self.store_spent_credential(serial_number_bs58).await?;
 
-        let bandwidth = Bandwidth::ticket_amount();
+        let bandwidth = Bandwidth::ticket_amount(Default::default());
 
         self.increase_bandwidth(bandwidth, spend_date).await?;
 

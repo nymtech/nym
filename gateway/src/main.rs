@@ -27,6 +27,10 @@ struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    /// Force run the binary bypassing the deprecation in favour of nym-node
+    #[clap(long, hide = true)]
+    pub(crate) force_run: bool,
+
     /// Flag used for disabling the printed banner in tty.
     #[clap(long)]
     pub(crate) no_banner: bool,

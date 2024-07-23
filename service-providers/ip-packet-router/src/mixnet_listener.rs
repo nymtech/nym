@@ -264,7 +264,6 @@ impl Drop for CloseTx {
     }
 }
 
-// type PacketHandleResult = Result<Option<v7::response::IpPacketResponse>>;
 type PacketHandleResult = Result<Option<Response>>;
 
 #[derive(Debug, Clone)]
@@ -371,34 +370,14 @@ impl Response {
         }
     }
 
-    fn new_version_mismatch(
-        id: u64,
-        recipient: Recipient,
-        version: u8,
-        current_version: u8,
-    ) -> Self {
-        match version {
-            6 => Response::V6(v6::response::IpPacketResponse::new_version_mismatch(
-                id,
-                recipient,
-                version,
-                current_version,
-            )),
-            7 => Response::V7(v7::response::IpPacketResponse::new_version_mismatch(
-                id,
-                recipient,
-                version,
-                current_version,
-            )),
-            _ => todo!(),
-        }
-    }
-
-    fn to_bytes(&self) -> std::result::Result<Vec<u8>, Box<bincode::ErrorKind>> {
+    fn to_bytes(&self) -> Result<Vec<u8>> {
         match self {
             Response::V6(response) => response.to_bytes(),
             Response::V7(response) => response.to_bytes(),
-        }
+        }.map_err(|err| {
+            log::error!("Failed to serialize response packet");
+            IpPacketRouterError::FailedToSerializeResponsePacket { source: err }
+        })
     }
 }
 
@@ -674,28 +653,13 @@ impl MixnetListener {
 
     fn on_version_mismatch(
         &self,
-        version: u8,
-        reconstructed: &ReconstructedMessage,
+        _version: u8,
+        _reconstructed: &ReconstructedMessage,
     ) -> PacketHandleResult {
-        // If it's possible to parse, do so and return back a response, otherwise just drop
-        let (id, recipient) =
-            nym_ip_packet_requests::v6::request::IpPacketRequest::from_reconstructed_message(
-                reconstructed,
-            )
-            .ok()
-            .and_then(|request| {
-                request
-                    .recipient()
-                    .map(|recipient| (request.id().unwrap_or(0), *recipient))
-            })
-            .ok_or(IpPacketRouterError::InvalidPacketVersion(version))?;
-
-        Ok(Some(Response::new_version_mismatch(
-            id,
-            recipient,
-            version,
-            nym_ip_packet_requests::CURRENT_VERSION,
-        )))
+        // Just drop it. In the future we might want to return a response here, if for example
+        // the client is connecting with a version that is older than the currently supported
+        // ones.
+        Ok(None)
     }
 
     async fn on_reconstructed_message(
@@ -778,10 +742,7 @@ impl MixnetListener {
             return Err(IpPacketRouterError::NoRecipientInResponse);
         };
 
-        let response_packet = response.to_bytes().map_err(|err| {
-            log::error!("Failed to serialize response packet");
-            IpPacketRouterError::FailedToSerializeResponsePacket { source: err }
-        })?;
+        let response_packet = response.to_bytes()?;
 
         // We could avoid this lookup if we check this when we create the response.
         let mix_hops = if let Some(c) = self

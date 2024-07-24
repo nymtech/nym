@@ -11,11 +11,10 @@ use itertools::Itertools;
 use crate::common_types::{PartialSignature, Signature, SignatureShare, SignerIndex};
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::expiration_date_signatures::scalar_date;
-use crate::scheme::expiration_date_signatures::scalar_type;
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::withdrawal::RequestInfo;
 use crate::scheme::{PartialWallet, Wallet, WalletSignatures};
-use crate::utils::{check_bilinear_pairing, perform_lagrangian_interpolation_at_origin};
+use crate::utils::{check_bilinear_pairing, perform_lagrangian_interpolation_at_origin, scalar_type};
 use crate::{ecash_group_parameters, Attribute};
 
 pub(crate) trait Aggregatable: Sized {

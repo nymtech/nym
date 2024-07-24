@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 import os
 import requests
@@ -33,7 +35,16 @@ def subparser_read(args):
 def print_time_now(args):
     #now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     #now = time.ctime()
-    now = strftime("%a, %d %b %Y %X +0000", gmtime())
+    day = strftime("%d", gmtime())
+    if day == "1" or day == "21" or day == "31":
+        suffix = "st"
+    elif day == "2" or day == "22":
+        suffix = "nd"
+    elif day == "3" or day == "23":
+        suffix = "rd"
+    else:
+        suffix = "th"
+    now = strftime(f"%A, %B %d{suffix} %Y, %X UTC", gmtime())
     print(now)
 
 ############################################
@@ -65,6 +76,7 @@ def display_supply_table(response, args):
     df['**Item**'] = df['**Item**'].apply(remove_underscore)
     df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(convert_u_nym)
     df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(thousand_separator)
+    df.insert(1, '**Description**', ['foo', 'bar', 'lol', 'go'], True)
     table = df.to_markdown(index=False)
     print(table)
 

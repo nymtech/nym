@@ -47,9 +47,9 @@
 
 # Token Economics
 
-<!-- - [Fair Mixnet](tokenomics/fair-mixnet.md) -->
-<!--    - [Mixnet: Nym Node Rewards](tokenomics/mixnet-rewards.md) -->
-- [Nyx: Validator Rewards](tokenomics/validator-rewards.md)
+- [Fair Mixnet](tokenomics/fair-mixnet.md)
+  - [Nym: Operators Rewards](tokenomics/mixnet-rewards.md)
+  - [Nyx: Validator Rewards](tokenomics/validator-rewards.md)
 
 # FAQ
 

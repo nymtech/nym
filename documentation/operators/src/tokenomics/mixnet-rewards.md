@@ -1,17 +1,20 @@
-<!-- THIS PAGE IS ALL COMMENTED FROM SUMMARY - NO NEED TO REVIEW YET!!! -->
-
-
-
+# Nym Operators Rewards
 
 ```admonish info
-All values were last time updated on <!--cmdrun ../../../scripts/cmdrun/python3 api_targets.py time_now-->.
+**The data on this page were last time updated on <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py time_now-->.**
 ```
 
 
 
 ## Supply
 
-<!--cmdrun ../../../scripts/cdmrun/python3 api_targets.py s --api mainnet --endpoint circulating-supply --format-->
+<!--cmdrun cd ../../../scripts/cdmrun && ./api_targets.py s --api mainnet --endpoint circulating-supply --format -->
+
+
+
+
+
+
 
 
 <!-- DROPPING THIS FROM THE MAINTENANCE -->

@@ -1,38 +1,42 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { scaleLinear } from 'd3-scale'
+import * as React from "react";
+import { scaleLinear } from "d3-scale";
 import {
   ComposableMap,
   Geographies,
   Geography,
   Marker,
   ZoomableGroup,
-} from 'react-simple-maps'
-import ReactTooltip from 'react-tooltip'
-import { CircularProgress } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
-import { ApiState, CountryDataResponse } from '../typeDefs/explorer-api'
-import MAP_TOPOJSON from '../assets/world-110m.json'
+} from "react-simple-maps";
+import { Tooltip as ReactTooltip } from "react-tooltip";
+import { CircularProgress } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { ApiState, CountryDataResponse } from "../typeDefs/explorer-api";
+import MAP_TOPOJSON from "../assets/world-110m.json";
+
+import "react-tooltip/dist/react-tooltip.css";
 
 type MapProps = {
-  userLocation?: [number, number]
-  countryData?: ApiState<CountryDataResponse>
-  loading: boolean
-}
+  userLocation?: [number, number];
+  countryData?: ApiState<CountryDataResponse>;
+  loading: boolean;
+};
 
 export const WorldMap: FCWithChildren<MapProps> = ({
   countryData,
   userLocation,
   loading,
 }) => {
-  const { palette } = useTheme()
+  const { palette } = useTheme();
 
+ // tooltip needs fixing
+ 
   const colorScale = React.useMemo(() => {
     if (countryData?.data) {
       const heighestNumberOfNodes = Math.max(
         ...Object.values(countryData.data).map((country) => country.nodes)
-      )
+      );
       return scaleLinear<string, string>()
         .domain([
           0,
@@ -42,17 +46,17 @@ export const WorldMap: FCWithChildren<MapProps> = ({
           heighestNumberOfNodes,
         ])
         .range(palette.nym.networkExplorer.map.fills)
-        .unknown(palette.nym.networkExplorer.map.fills[0])
+        .unknown(palette.nym.networkExplorer.map.fills[0]);
     }
-    return () => palette.nym.networkExplorer.map.fills[0]
-  }, [countryData, palette])
+    return () => palette.nym.networkExplorer.map.fills[0];
+  }, [countryData, palette]);
 
   const [tooltipContent, setTooltipContent] = React.useState<string | null>(
     null
-  )
+  );
 
   if (loading) {
-    return <CircularProgress />
+    return <CircularProgress />;
   }
 
   return (
@@ -61,8 +65,8 @@ export const WorldMap: FCWithChildren<MapProps> = ({
         data-tip=""
         style={{
           backgroundColor: palette.nym.networkExplorer.background.tertiary,
-          width: '100%',
-          height: 'auto',
+          width: "100%",
+          height: "auto",
         }}
         viewBox="0, 50, 800, 350"
         projection="geoMercator"
@@ -75,7 +79,7 @@ export const WorldMap: FCWithChildren<MapProps> = ({
           <Geographies geography={MAP_TOPOJSON}>
             {({ geographies }) =>
               geographies.map((geo) => {
-                const d = (countryData?.data || {})[geo.properties.ISO_A3]
+                const d = (countryData?.data || {})[geo.properties.ISO_A3];
                 return (
                   <Geography
                     key={geo.rsmKey}
@@ -84,25 +88,25 @@ export const WorldMap: FCWithChildren<MapProps> = ({
                     stroke={palette.nym.networkExplorer.map.stroke}
                     strokeWidth={0.2}
                     onMouseEnter={() => {
-                      const { NAME_LONG } = geo.properties
+                      const { NAME_LONG } = geo.properties;
                       if (!userLocation) {
-                        setTooltipContent(`${NAME_LONG} | ${d?.nodes || 0}`)
+                        setTooltipContent(`${NAME_LONG} | ${d?.nodes || 0}`);
                       }
                     }}
                     onMouseLeave={() => {
-                      setTooltipContent('')
+                      setTooltipContent("");
                     }}
                     style={{
                       hover:
                         !userLocation && countryData
                           ? {
                               fill: palette.nym.highlight,
-                              outline: 'white',
+                              outline: "white",
                             }
                           : undefined,
                     }}
                   />
-                )
+                );
               })
             }
           </Geographies>
@@ -123,7 +127,7 @@ export const WorldMap: FCWithChildren<MapProps> = ({
           )}
         </ZoomableGroup>
       </ComposableMap>
-      <ReactTooltip>{tooltipContent}</ReactTooltip>
+      <ReactTooltip id="tooltip">{tooltipContent}</ReactTooltip>
     </>
-  )
-}
+  );
+};

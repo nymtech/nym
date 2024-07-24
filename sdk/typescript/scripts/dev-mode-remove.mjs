@@ -1,11 +1,18 @@
 import fs from 'fs';
+import yaml from 'js-yaml';
 
-const packageJson = JSON.parse(fs.readFileSync('package.json').toString());
+// Load the pnpm-workspace.yaml file
+const pnpmWorkspaceYamlPath = 'pnpm-workspace.yaml';
+const pnpmWorkspaceContent = fs.readFileSync(pnpmWorkspaceYamlPath, 'utf8');
+const pnpmWorkspace = yaml.load(pnpmWorkspaceContent);
 
 const devWorkspace = ['sdk/typescript/packages/**', 'sdk/typescript/examples/**', 'sdk/typescript/codegen/**'];
 
-// remove
-packageJson.workspaces = packageJson.workspaces.filter((w) => !devWorkspace.includes(w));
+// Remove specified workspaces
+pnpmWorkspace.packages = pnpmWorkspace.packages.filter((w) => !devWorkspace.includes(w));
 
-// write out modified file
-fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
+// Convert the modified object back to YAML
+const newYamlContent = yaml.dump(pnpmWorkspace);
+
+// Write out the modified pnpm-workspace.yaml file
+fs.writeFileSync(pnpmWorkspaceYamlPath, newYamlContent, 'utf8');

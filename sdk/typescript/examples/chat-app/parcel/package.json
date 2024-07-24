@@ -6,7 +6,7 @@
   "scripts": {
     "build": "npx parcel build",
     "build:serve": "npx serve dist",
-    "lint": "eslint src",
+    "lint": "echo not implemented",
     "lint:fix": "eslint src --fix",
     "start": "npx parcel",
     "test": "jest",

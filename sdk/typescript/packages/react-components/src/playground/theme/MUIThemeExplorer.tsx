@@ -1,16 +1,22 @@
-/* eslint-disable react/no-array-index-key */
 import * as React from 'react';
 import type { Theme } from '@mui/material/styles';
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 import { Box } from '@mui/material';
 
-const MUIThemeExplorerItem: FCWithChildren<{
+const MUIThemeExplorerItem = ({
+  theme,
+  item,
+  parentKey,
+  path,
+  isArrayItem,
+}: {
   path: string;
   parentKey: string;
   theme: Theme;
   item: any;
   isArrayItem?: boolean;
-}> = ({ theme, item, parentKey, path, isArrayItem }) => {
+  children: React.ReactNode;
+}) => {
   if (!item) {
     return null;
   }

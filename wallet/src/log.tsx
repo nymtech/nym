@@ -1,0 +1,18 @@
+import { createRoot } from 'react-dom/client';
+import { ErrorBoundary } from 'react-error-boundary';
+import { LogViewer } from './components/LogViewer';
+import { ErrorFallback } from './components';
+import { NymWalletTheme } from './theme';
+
+const elem = document.getElementById('root-log');
+
+if (elem) {
+  const root = createRoot(elem);
+  root.render(
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <NymWalletTheme>
+        <LogViewer />
+      </NymWalletTheme>
+    </ErrorBoundary>,
+  );
+}

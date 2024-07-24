@@ -2,12 +2,8 @@
 
 import React, { useMemo } from 'react'
 import {
-  Alert,
   Box,
-  CircularProgress,
   Grid,
-  SelectChangeEvent,
-  Typography,
 } from '@mui/material'
 import { ContentCard } from '@/app/components/ContentCard'
 import { TableToolbar } from '@/app/components/TableToolbar'

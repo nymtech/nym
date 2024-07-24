@@ -6,13 +6,16 @@
   "types": "dist/index.d.ts",
   "peerDependencies": {
     "@cosmjs/math": "^0.27.1",
-    "bs58": "4",
-    "bech32": "^1.1.4"
+    "bech32": "^1.1.4",
+    "bs58": "4"
   },
   "devDependencies": {
-    "@nymproject/eslint-config-react-typescript": "^1.0.0",
+    "@nymproject/eslint-config-react-typescript": "workspace:1.0.0",
+    "@types/bs58": "^4.0.1",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
     "@typescript-eslint/parser": "^5.13.0",
+    "babel-plugin-root-import": "^5.1.0",
+    "bs58": "^4.0.1",
     "eslint": "^8.10.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-config-airbnb-typescript": "^16.1.0",
@@ -24,12 +27,11 @@
     "eslint-plugin-prettier": "^4.0.0",
     "eslint-plugin-react": "^7.29.2",
     "eslint-plugin-react-hooks": "^4.3.0",
-    "prettier": "^2.8.7",
-    "typescript": "^4.6.2",
-    "ts-jest": "^27.0.5",
     "jest": "^27.1.0",
-    "babel-plugin-root-import": "^5.1.0",
-    "rimraf": "^3.0.2"
+    "prettier": "^2.8.7",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^27.0.5",
+    "typescript": "^4.9.5"
   },
   "scripts": {
     "clean": "rimraf dist",

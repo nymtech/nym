@@ -36,7 +36,7 @@
     "zod": "^3.21.4"
   },
   "devDependencies": {
-    "@nymproject/eslint-config-react-typescript": "^1.0.0",
+    "@nymproject/eslint-config-react-typescript": "workspace:^1.0.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.4",
     "@svgr/webpack": "^6.1.1",
     "@testing-library/jest-dom": "^5.14.1",

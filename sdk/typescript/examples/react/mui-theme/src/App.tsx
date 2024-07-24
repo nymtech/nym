@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { Box, Container, Grid, Typography } from '@mui/material';
-import { NymLogo } from '@nymproject/react/logo/NymLogo';
-import { Playground } from '@nymproject/react/playground/Playground';
-import { useIsMounted } from '@nymproject/react/hooks/useIsMounted';
+import { NymLogo } from '@nymproject/react';
+import { useIsMounted } from '@nymproject/react';
 import { NymThemeProvider } from '@nymproject/mui-theme';
 import { useTheme } from '@mui/material/styles';
 import { ThemeToggle } from './ThemeToggle';
@@ -65,8 +64,6 @@ export const Content: FCWithChildren = () => {
           ))}
         </Grid>
       </Box>
-      <h1>Component playground</h1>
-      <Playground />
     </Container>
   );
 };

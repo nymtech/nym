@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'explorer/**'
+      - "explorer/**"
 
 defaults:
   run:
@@ -14,78 +14,82 @@ jobs:
   build:
     runs-on: custom-linux
     steps:
-    - uses: actions/checkout@v2
-    - name: Install rsync
-      run: sudo apt-get install rsync
-      continue-on-error: true
-    - uses: rlespinasse/github-slug-action@v3.x
-    - uses: actions/setup-node@v3
-      with:
-        node-version: 18
-    - name: Setup yarn
-      run: npm install -g yarn
-      continue-on-error: true
-    - name: Build shared packages
-      run: cd .. && yarn && yarn build
-    - name: Set environment from the example
-      run: cp .env.prod .env
-#    - run: yarn test
-#      continue-on-error: true
-    - run: yarn && yarn build
-      continue-on-error: true
-    - run: yarn storybook:build
-      name: Build storybook
-    - name: Deploy branch to CI www
-      continue-on-error: true
-      uses: easingthemes/ssh-deploy@main
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-        ARGS: "-rltgoDzvO --delete"
-        SOURCE: "explorer/dist/"
-        REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-        REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/network-explorer-${{ env.GITHUB_REF_SLUG }}
-        EXCLUDE: "/dist/, /node_modules/"
-    - name: Deploy storybook to CI www
-      continue-on-error: true
-      uses: easingthemes/ssh-deploy@main
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-        ARGS: "-rltgoDzvO --delete"
-        SOURCE: "explorer/storybook-static/"
-        REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
-        REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-        TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/ne-sb-${{ env.GITHUB_REF_SLUG }}
-        EXCLUDE: "/dist/, /node_modules/"
-    - name: Matrix - Node Install
-      run: npm install
-      working-directory: .github/workflows/support-files
-    - name: Matrix - Send Notification
-      env:
-        NYM_NOTIFICATION_KIND: network-explorer
-        NYM_PROJECT_NAME: "Network Explorer"
-        NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
-        NYM_CI_WWW_LOCATION: "network-explorer-${{ env.GITHUB_REF_SLUG }}"
-        NYM_CI_WWW_LOCATION_STORYBOOK: "ne-sb-${{ env.GITHUB_REF_SLUG }}"
-        GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
-        GIT_BRANCH: "${GITHUB_REF##*/}"
-        IS_SUCCESS: "${{ job.status == 'success' }}"
-        MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
-        MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
-        MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
-        MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
-        MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
-      uses: docker://keybaseio/client:stable-node
-      with:
-        args: .github/workflows/support-files/notifications/entry_point.sh
-    - name: Deploy
-      if: github.event_name == 'workflow_dispatch'
-      uses: easingthemes/ssh-deploy@main
-      env:
-        SSH_PRIVATE_KEY: ${{ secrets.CD_PROD_NE_SSH_PRIVATE_KEY }}
-        ARGS: "-rltgoDzvO --delete"
-        SOURCE: "explorer/dist/"
-        REMOTE_HOST: ${{ secrets.CD_PROD_NE_REMOTE_HOST }}
-        REMOTE_USER: ${{ secrets.CD_PROD_NE_REMOTE_USER }}
-        TARGET: ${{ secrets.CD_PROD_NE_REMOTE_TARGET }}
-        EXCLUDE: "/dist/, /node_modules/"
+      - uses: actions/checkout@v2
+      - name: Install rsync
+        run: sudo apt-get install rsync
+        continue-on-error: true
+      - uses: rlespinasse/github-slug-action@v3.x
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+        continue-on-error: true
+      - name: Build shared packages
+        run: cd .. && yarn && yarn build
+      - name: Set environment from the example
+        run: cp .env.prod .env
+      #    - run: yarn test
+      #      continue-on-error: true
+      - run: yarn && yarn build
+        continue-on-error: true
+      - run: yarn storybook:build
+        name: Build storybook
+      - name: Deploy branch to CI www
+        continue-on-error: true
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+          ARGS: "-rltgoDzvO --delete"
+          SOURCE: "explorer/dist/"
+          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/network-explorer-${{ env.GITHUB_REF_SLUG }}
+          EXCLUDE: "/dist/, /node_modules/"
+      - name: Deploy storybook to CI www
+        continue-on-error: true
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+          ARGS: "-rltgoDzvO --delete"
+          SOURCE: "explorer/storybook-static/"
+          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/ne-sb-${{ env.GITHUB_REF_SLUG }}
+          EXCLUDE: "/dist/, /node_modules/"
+      - name: Matrix - Node Install
+        run: npm install
+        working-directory: .github/workflows/support-files
+      - name: Matrix - Send Notification
+        env:
+          NYM_NOTIFICATION_KIND: network-explorer
+          NYM_PROJECT_NAME: "Network Explorer"
+          NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
+          NYM_CI_WWW_LOCATION: "network-explorer-${{ env.GITHUB_REF_SLUG }}"
+          NYM_CI_WWW_LOCATION_STORYBOOK: "ne-sb-${{ env.GITHUB_REF_SLUG }}"
+          GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
+          GIT_BRANCH: "${GITHUB_REF##*/}"
+          IS_SUCCESS: "${{ job.status == 'success' }}"
+          MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
+          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
+          MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
+          MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
+          MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
+        uses: docker://keybaseio/client:stable-node
+        with:
+          args: .github/workflows/support-files/notifications/entry_point.sh
+      - name: Deploy
+        if: github.event_name == 'workflow_dispatch'
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CD_PROD_NE_SSH_PRIVATE_KEY }}
+          ARGS: "-rltgoDzvO --delete"
+          SOURCE: "explorer/dist/"
+          REMOTE_HOST: ${{ secrets.CD_PROD_NE_REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.CD_PROD_NE_REMOTE_USER }}
+          TARGET: ${{ secrets.CD_PROD_NE_REMOTE_TARGET }}
+          EXCLUDE: "/dist/, /node_modules/"

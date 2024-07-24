@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import * as React from 'react'
-import { useTheme } from '@mui/material/styles'
+import * as React from "react";
+import { useTheme } from "@mui/material/styles";
 import {
   AppBar,
   Box,
@@ -12,61 +12,58 @@ import {
   ListItemButton,
   ListItemIcon,
   Toolbar,
-} from '@mui/material'
-import { Menu } from '@mui/icons-material'
-import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner'
-import { useIsMobile } from '@/app/hooks/useIsMobile'
-import { MobileDrawerClose } from '@/app/icons/MobileDrawerClose'
-import { Footer } from '../Footer'
-import { ExpandableButton } from './DesktopNav'
-import { ConnectKeplrWallet } from '../Wallet/ConnectKeplrWallet'
-import { NetworkTitle } from '../NetworkTitle'
-import { originalNavOptions } from '@/app/context/nav'
+} from "@mui/material";
+import { Menu } from "@mui/icons-material";
+import { useIsMobile } from "@/app/hooks/useIsMobile";
+import { MobileDrawerClose } from "@/app/icons/MobileDrawerClose";
+import { Footer } from "../Footer";
+import { ExpandableButton } from "./DesktopNav";
+import { ConnectKeplrWallet } from "../Wallet/ConnectKeplrWallet";
+import { NetworkTitle } from "../NetworkTitle";
+import { originalNavOptions } from "@/app/context/nav";
 
-export const MobileNav: FCWithChildren = ({ children }) => {
-  const theme = useTheme()
-  const [drawerOpen, setDrawerOpen] = React.useState(false)
+export const MobileNav: FCWithChildren<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const theme = useTheme();
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
   // Set maintenance banner to false by default to don't display it
-  const [openMaintenance, setOpenMaintenance] = React.useState(false)
-  const isSmallMobile = useIsMobile(400)
+  const [openMaintenance, setOpenMaintenance] = React.useState(false);
+  const isSmallMobile = useIsMobile(400);
 
   const toggleDrawer = () => {
-    setDrawerOpen(!drawerOpen)
-  }
+    setDrawerOpen(!drawerOpen);
+  };
 
   const openDrawer = () => {
-    setDrawerOpen(true)
-  }
+    setDrawerOpen(true);
+  };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
       <AppBar
         sx={{
           background: theme.palette.nym.networkExplorer.topNav.appBar,
           borderRadius: 0,
         }}
       >
-        <MaintenanceBanner
-          open={openMaintenance}
-          onClick={() => setOpenMaintenance(false)}
-        />
         <Toolbar
           sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            width: '100%',
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            width: "100%",
           }}
         >
           <Box
             sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
             }}
           >
             <IconButton onClick={toggleDrawer}>
-              <Menu sx={{ color: 'primary.contrastText' }} />
+              <Menu sx={{ color: "primary.contrastText" }} />
             </IconButton>
             {!isSmallMobile && <NetworkTitle />}
           </Box>
@@ -91,7 +88,7 @@ export const MobileNav: FCWithChildren = ({ children }) => {
               sx={{
                 height: 64,
                 background: theme.palette.nym.networkExplorer.nav.background,
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
               }}
             >
               <ListItemButton
@@ -100,8 +97,8 @@ export const MobileNav: FCWithChildren = ({ children }) => {
                   pt: 2,
                   pb: 2,
                   background: theme.palette.nym.networkExplorer.nav.background,
-                  display: 'flex',
-                  justifyContent: 'flex-start',
+                  display: "flex",
+                  justifyContent: "flex-start",
                 }}
               >
                 <ListItemIcon>
@@ -126,11 +123,10 @@ export const MobileNav: FCWithChildren = ({ children }) => {
           </List>
         </Box>
       </Drawer>
-
-      <Box sx={{ width: '100%', p: 4, mt: 7 }}>
+      <Box sx={{ width: "100%", p: 4, mt: 7, bgcolor: "background.default" }}>
         {children}
         <Footer />
       </Box>
     </Box>
-  )
-}
+  );
+};

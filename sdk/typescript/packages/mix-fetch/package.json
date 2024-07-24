@@ -24,18 +24,19 @@
     "docs:generate:prod": "typedoc --basePath ./docs/tsdoc/nymproject/sdk/",
     "docs:prod:build": "scripts/build-prod-docs-collect.sh",
     "docs:serve": "reload -b -d ./docs -p 3000",
-    "docs:watch": "nodemon --ext ts --watch './src/**/*' --watch './typedoc.json' --exec \"yarn docs:generate\"",
+    "docs:watch": "nodemon --ext ts --watch './src/**/*' --watch './typedoc.json' --exec \"pnpm docs:generate\"",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "prebuild": "node scripts/showDependencyLocation.cjs",
     "start": "tsc -w",
-    "start:dev": "nodemon --watch src -e ts,json --exec 'yarn build:dev:esm'",
+    "start:dev": "nodemon --watch src -e ts,json --exec 'pnpm build:dev:esm'",
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache",
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
     "@nymproject/mix-fetch-wasm": ">=1.2.4-rc.2 || ^1",
-    "comlink": "^4.3.1"
+    "comlink": "^4.3.1",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",
@@ -43,7 +44,7 @@
     "@babel/preset-env": "^7.15.0",
     "@babel/preset-react": "^7.14.5",
     "@babel/preset-typescript": "^7.15.0",
-    "@nymproject/eslint-config-react-typescript": "^1.0.0",
+    "@nymproject/eslint-config-react-typescript": "workspace: ^1.0.0",
     "@rollup/plugin-commonjs": "^24.0.1",
     "@rollup/plugin-inject": "^5.0.3",
     "@rollup/plugin-json": "^6.0.0",
@@ -54,6 +55,7 @@
     "@rollup/plugin-wasm": "^6.1.1",
     "@types/jest": "^27.0.1",
     "@types/node": "^16.7.13",
+    "@types/ws": "^8.5.10",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
     "@typescript-eslint/parser": "^5.13.0",
     "eslint": "^8.10.0",

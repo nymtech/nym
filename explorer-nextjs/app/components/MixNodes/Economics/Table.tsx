@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 import {
   Paper,
   Table,
@@ -8,26 +8,26 @@ import {
   TableHead,
   TableRow,
   Typography,
-} from '@mui/material'
-import { Box } from '@mui/system'
-import { useTheme } from '@mui/material/styles'
-import { Tooltip } from '@nymproject/react/tooltip/Tooltip'
-import { EconomicsRowsType, EconomicsInfoRowWithIndex } from './types'
-import { UniversalTableProps } from '@/app/components/DetailTable'
-import { textColour } from '@/app/utils'
+} from "@mui/material";
+import { Box } from "@mui/system";
+import { useTheme } from "@mui/material/styles";
+import { Tooltip } from "@nymproject/react";
+import { EconomicsRowsType, EconomicsInfoRowWithIndex } from "./types";
+import { UniversalTableProps } from "@/app/components/DetailTable";
+import { textColour } from "@/app/utils";
 
 const formatCellValues = (value: EconomicsRowsType, field: string) => (
-  <Box sx={{ display: 'flex', alignItems: 'center' }} id="field">
-    <Typography sx={{ mr: 1, fontWeight: '600', fontSize: '12px' }} id={field}>
+  <Box sx={{ display: "flex", alignItems: "center" }} id="field">
+    <Typography sx={{ mr: 1, fontWeight: "600", fontSize: "12px" }} id={field}>
       {value.value}
     </Typography>
   </Box>
-)
+);
 
 export const DelegatorsInfoTable: FCWithChildren<
   UniversalTableProps<EconomicsInfoRowWithIndex>
 > = ({ tableName, columnsData, rows }) => {
-  const theme = useTheme()
+  const theme = useTheme();
 
   return (
     <TableContainer component={Paper}>
@@ -39,7 +39,7 @@ export const DelegatorsInfoTable: FCWithChildren<
                 key={field}
                 sx={{ fontSize: 14, fontWeight: 600, width }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
                   {tooltipInfo && (
                     <Tooltip
                       title={tooltipInfo}
@@ -65,27 +65,27 @@ export const DelegatorsInfoTable: FCWithChildren<
           {rows?.map((eachRow) => (
             <TableRow
               key={eachRow.id}
-              sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+              sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
             >
               {columnsData?.map((_, index: number) => {
-                const { field } = columnsData[index]
-                const value: EconomicsRowsType = (eachRow as any)[field]
+                const { field } = columnsData[index];
+                const value: EconomicsRowsType = (eachRow as any)[field];
                 return (
                   <TableCell
                     key={_.title}
                     sx={{
                       color: textColour(value, field, theme),
                     }}
-                    data-testid={`${_.title.replace(/ /g, '-')}-value`}
+                    data-testid={`${_.title.replace(/ /g, "-")}-value`}
                   >
                     {formatCellValues(value, columnsData[index].field)}
                   </TableCell>
-                )
+                );
               })}
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </TableContainer>
-  )
-}
+  );
+};

@@ -1,5 +1,3 @@
-import * as React from 'react';
-
 const CONTENT = 'The quick brown fox jumped over the white fence';
 
 const WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];

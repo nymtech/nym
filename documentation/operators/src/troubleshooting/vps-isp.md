@@ -27,7 +27,7 @@ Begin with the steps listed in [*Connectivity Test and Configuration*](../nodes/
 
 ### Network configuration
 
-On modern Debian based Linux distributions, network is being configure by either [Netplan](www.netplan.io) or [ifup/ifdown](https://manpages.debian.org/testing/ifupdown/ifup.8.en.html) utilities . It is very easy to check which one you have.
+On modern Debian based Linux distributions, the network is configured by either [Netplan](https://netplan.io/) or [ifup/ifdown](https://manpages.debian.org/testing/ifupdown/ifup.8.en.html) utilities . It is very easy to check which one you have.
 
 1. If you have the following folder `/etc/netplan` which has got a YAML file - you are likely to have Netplan.
 2. If you have the following folder `/etc/network` and it is not empty - you are likely to have ifup/down.

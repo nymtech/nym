@@ -114,6 +114,8 @@ tmux attach-session
 
 #### systemd
 
+> Configuration of `systemd` service files for `nym-node` is under [Nym Node - Configuration](configuration.md#systemd) page.
+
 ##### For Nymvisor
 > Since you're running your node via a Nymvisor instance, as well as creating a Nymvisor `.service` file, you will also want to **stop any previous node automation process you already have running**.
 
@@ -277,10 +279,12 @@ scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER
 
 * Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
 * Try to run the node and see if everything works.
-* Setup the [systemd](#systemd) automation (don't forget to add the [terms and conditions flag](setup.md#terms--conditions)) to `ExecStart` command, reload the daemon and run the service. If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic:
+* Setup the [systemd](#systemd) automation. If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic by opening your **local terminal** (as that one's ssh key is authorized in both of the VPS) and running:
 ```sh
 scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/etc/systemd/system/nym-node.service <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:/etc/systemd/system/nym-node.service
 ```
+
+Note: [Accepting T&Cs](setup.md#terms--conditions) is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use [systemd](configuration.md#systemd) automation, add the flag to your service file's `ExecStart` line.
 
 **In your desktop wallet**
 

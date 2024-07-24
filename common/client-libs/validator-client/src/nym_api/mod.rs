@@ -31,6 +31,7 @@ pub use nym_api_requests::{
     },
 };
 pub use nym_coconut_dkg_common::types::EpochId;
+use nym_contracts_common::IdentityKey;
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
@@ -434,6 +435,22 @@ pub trait NymApiClientExt: ApiClient {
                 &mix_id.to_string(),
                 routes::AVG_UPTIME,
             ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_mixnodes_blacklisted(&self) -> Result<Vec<MixId>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::MIXNODES, routes::BLACKLISTED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_gateways_blacklisted(&self) -> Result<Vec<IdentityKey>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::GATEWAYS, routes::BLACKLISTED],
             NO_PARAMS,
         )
         .await

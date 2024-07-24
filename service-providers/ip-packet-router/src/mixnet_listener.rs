@@ -16,7 +16,7 @@ use nym_ip_packet_requests::{
             DataRequest, DisconnectRequest, DynamicConnectRequest, IpPacketRequest,
             IpPacketRequestData, StaticConnectRequest,
         },
-        signature::{SignatureError, SignedRequest},
+        signature::SignedRequest,
     },
     IpPair,
 };
@@ -693,7 +693,7 @@ impl MixnetListener {
 
         match request.data {
             IpPacketRequestData::StaticConnect(signed_connect_request) => {
-                verify_signed_request(&signed_connect_request)?;
+                verify_signed_request(&signed_connect_request, client_version)?;
                 let connect_request = signed_connect_request.request;
                 Ok(vec![
                     self.on_static_connect_request(connect_request, client_version)
@@ -701,7 +701,7 @@ impl MixnetListener {
                 ])
             }
             IpPacketRequestData::DynamicConnect(signed_connect_request) => {
-                verify_signed_request(&signed_connect_request)?;
+                verify_signed_request(&signed_connect_request, client_version)?;
                 let connect_request = signed_connect_request.request;
                 Ok(vec![
                     self.on_dynamic_connect_request(connect_request, client_version)
@@ -709,7 +709,7 @@ impl MixnetListener {
                 ])
             }
             IpPacketRequestData::Disconnect(signed_disconnect_request) => {
-                verify_signed_request(&signed_disconnect_request)?;
+                verify_signed_request(&signed_disconnect_request, client_version)?;
                 let disconnect_request = signed_disconnect_request.request;
                 Ok(vec![
                     self.on_disconnect_request(disconnect_request, client_version)
@@ -861,7 +861,7 @@ fn deserialize_request(
     request.map(|r| (r, request_version))
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum SupportedClientVersion {
     V6,
     V7,
@@ -877,13 +877,16 @@ impl SupportedClientVersion {
     }
 }
 
-fn verify_signed_request(request: &impl SignedRequest) -> Result<()> {
+fn verify_signed_request(
+    request: &impl SignedRequest,
+    client_version: SupportedClientVersion,
+) -> Result<()> {
     if let Err(err) = request.verify() {
-        // Once we start to require clients to send v7 requests, we will enfore checking
-        // signatures. Until then, we only check if they are present.
-        if !matches!(err, SignatureError::MissingSignature) {
-            return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
+        // If the client is V6, we don't care about missing signature
+        if client_version == SupportedClientVersion::V6 {
+            return Ok(());
         }
+        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
     }
     Ok(())
 }

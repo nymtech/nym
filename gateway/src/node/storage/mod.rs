@@ -17,6 +17,7 @@ use sqlx::ConnectOptions;
 use std::path::Path;
 use time::OffsetDateTime;
 use tracing::{debug, error};
+use wireguard_peers::WgPeerManager;
 
 mod bandwidth;
 pub(crate) mod error;
@@ -24,6 +25,8 @@ mod inboxes;
 pub(crate) mod models;
 mod shared_keys;
 mod tickets;
+#[cfg(feature = "wireguard")]
+mod wireguard_peers;
 
 #[async_trait]
 pub trait Storage: Send + Sync {
@@ -216,6 +219,8 @@ pub struct PersistentStorage {
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
     ticket_manager: TicketStorageManager,
+    #[cfg(feature = "wireguard")]
+    wireguard_peer_manager: WgPeerManager,
 }
 
 impl PersistentStorage {
@@ -259,6 +264,8 @@ impl PersistentStorage {
 
         // the cloning here are cheap as connection pool is stored behind an Arc
         Ok(PersistentStorage {
+            #[cfg(feature = "wireguard")]
+            wireguard_peer_manager: WgPeerManager::new(connection_pool.clone()),
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
             bandwidth_manager: BandwidthManager::new(connection_pool.clone()),

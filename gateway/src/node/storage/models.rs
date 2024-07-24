@@ -5,7 +5,7 @@ use crate::node::client_handling::websocket::connection_handler::ecash::ClientTi
 use crate::node::client_handling::websocket::connection_handler::AvailableBandwidth;
 use crate::node::storage::error::StorageError;
 use nym_credentials_interface::CredentialSpendingData;
-use sqlx::FromRow;
+use sqlx::{types::chrono::NaiveDateTime, FromRow};
 use time::OffsetDateTime;
 
 pub struct PersistedSharedKeys {
@@ -81,4 +81,32 @@ impl TryFrom<UnverifiedTicketData> for ClientTicket {
             ticket_id: value.ticket_id,
         })
     }
+}
+
+#[cfg(feature = "wireguard")]
+#[derive(Debug, Clone, FromRow)]
+pub struct WireguardPeer {
+    pub(crate) public_key: String,
+    pub(crate) preshared_key: Option<String>,
+    pub(crate) protocol_version: Option<i64>,
+    pub(crate) endpoint: Option<String>,
+    pub(crate) last_handshake: Option<NaiveDateTime>,
+    pub(crate) tx_bytes: i64,
+    pub(crate) rx_bytes: i64,
+    pub(crate) persistent_keepalive_interval: Option<i64>,
+    pub(crate) allowed_ips: Vec<u8>,
+}
+
+#[cfg(feature = "wireguard")]
+#[derive(Debug, Clone, FromRow)]
+pub struct WireguardPeer {
+    pub(crate) public_key: String,
+    pub(crate) preshared_key: Option<String>,
+    pub(crate) protocol_version: Option<i64>,
+    pub(crate) endpoint: Option<String>,
+    pub(crate) last_handshake: Option<NaiveDateTime>,
+    pub(crate) tx_bytes: i64,
+    pub(crate) rx_bytes: i64,
+    pub(crate) persistent_keepalive_interval: Option<i64>,
+    pub(crate) allowed_ips: Vec<u8>,
 }

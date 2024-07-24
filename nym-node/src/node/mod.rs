@@ -469,7 +469,7 @@ impl NymNode {
             verloc_stats: Default::default(),
             mixnode: MixnodeData::new(&config.mixnode)?,
             entry_gateway: EntryGatewayData::new(&config.entry_gateway).await?,
-            exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
+            exit_gateway: ExitGatewayData::new(&config.exit_gateway).await?,
             wireguard: wireguard_data,
             config,
             accepted_operator_terms_and_conditions: false,
@@ -604,7 +604,7 @@ impl NymNode {
             Some(config.auth_opts),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
-            self.entry_gateway.client_storage.clone(),
+            self.exit_gateway.client_storage.clone(),
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);

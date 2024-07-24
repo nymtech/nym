@@ -465,6 +465,7 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                                 .unwrap_or_default(),
                         },
                     },
+                    debug: Default::default(),
                 }),
         )
         .build();

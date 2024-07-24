@@ -2,6 +2,216 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+## `v2024.8-wispa`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.8-wispa)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.8-wispa/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.5`
+
+~~~admonish example collapsible=true title='CHANGELOG.md'
+- add event parsing to support cosmos_sdk > 0.50 ([#4697])
+- Fix NR config compatibility ([#4690])
+- Remove UserAgent constructor since it's weakly typed ([#4689])
+- [bugfix]: Node_api_check CLI looked over roles on blacklisted nodes ([#4687])
+- Add mixnodes to self describing api cache ([#4684])
+- Move and whole bump of crates to workspace and upgrade some ([#4680])
+- Remove code that refers to removed nym-network-statistics ([#4679])
+- Remove nym-network-statistics ([#4678])
+- Create UserAgent that can be passed from the binary to the nym api client ([#4677])
+- Add authenticator ([#4667])
+
+[#4697]: https://github.com/nymtech/nym/pull/4697
+[#4690]: https://github.com/nymtech/nym/pull/4690
+[#4689]: https://github.com/nymtech/nym/pull/4689
+[#4687]: https://github.com/nymtech/nym/pull/4687
+[#4684]: https://github.com/nymtech/nym/pull/4684
+[#4680]: https://github.com/nymtech/nym/pull/4680
+[#4679]: https://github.com/nymtech/nym/pull/4679
+[#4678]: https://github.com/nymtech/nym/pull/4678
+[#4677]: https://github.com/nymtech/nym/pull/4677
+[#4667]: https://github.com/nymtech/nym/pull/4667
+~~~
+
+
+### Features
+
+* [Default construct NodeRole](https://github.com/nymtech/nym/pull/4721): To preserve compatibility with newer clients interacting with older `nym-api`
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the changes in the `nym-api-requests/src/models.rs` file.
+ 2. Verified that the `NymNodeDescription` struct includes the new `role` field with a default value set by `default_node_role`.
+ 3. Checked the implementation of the `default_node_role` function to ensure it returns `NodeRole::Inactive`.
+ 4. Ran the updated code in the sandbox environment.
+ 5. Monitored the sandbox environment for any issues or errors related to the changes.
+ 
+ 
+ **Notes (if any):**
+ The test was successful. No issues were flagged during the testing in the sandbox environment. The new default value for `NodeRole` ensures backward compatibility without causing disruptions.
+~~~
+
+* [Default construct NodeRole for backwards compatibility (apply [\#4721](https://github.com/nymtech/nym/pull/4721) on develop)](https://github.com/nymtech/nym/pull/4722)
+* [Add upgrades to `nym-node` for `authenticator` changes](https://github.com/nymtech/nym/pull/4703)
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the changes in the `gateway/src/error.rs` and `gateway/src/node/mod.rs` files.
+ 2. Verified the new error enum `AuthenticatorStartupFailure` was added to `GatewayError`.
+ 3. Confirmed the implementation of the `StartedAuthenticator` struct and its usage in the `start_authenticator` function.
+ 4. Ran the updated code in the canary environment.
+ 5. Monitored the canary environment for any issues or errors related to the changes.
+~~~
+
+* [Add event parsing to support `cosmos_sdk` > `0.50`](https://github.com/nymtech/nym/pull/4697)
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the changes in `common/client-libs/validator-client/src/nyxd/cosmwasm_client/client_traits/signing_client.rs`, `logs.rs`, `types.rs`, and `nym-api/src/coconut/tests/mod.rs` files.
+ 2. Verified the addition of event parsing in the relevant functions and structs.
+ 3. Ensured that the `find_attribute` function correctly parses event attributes.
+ 4. Ran the updated code in the sandbox environment.
+ 5. Broadcasted transactions on the sandbox network to test the changes.
+ 6. Monitored the sandbox network for any malformed responses or errors after the test chain upgrade.
+~~~
+
+* [Send bandwidth status messages when connecting](https://github.com/nymtech/nym/pull/4691): When connecting to the gateway we get received the available bandwidth left. Emit a status messages for this, for consumption by the application layer.
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the changes in `common/bandwidth-controller/src/event.rs`, `common/bandwidth-controller/src/lib.rs`, and `common/client-libs/gateway-client/src/client.rs` files.
+ 2. Verified the implementation of `BandwidthStatusMessage` enum for emitting status messages.
+ 3. Ensured `GatewayClient` is updated to send bandwidth status messages when connecting.
+ 4. Deployed the updated code on the canary environment.
+ 5. Connected to the gateway and checked for the emission of bandwidth status messages.
+ 6. Verified that the messages were correctly parsed and consumed by the application layer.
+ 7. Ran the VPN client to observe the parsed events.
+ ~~~
+
+* [Fix NR config compatibility](https://github.com/nymtech/nym/pull/4690): Recently we deleted the old statistics service provider. This fixes some issues where old configs didn't work with the latest changes.
+    - Make NR able to read config with old keys in
+    - Remove deleted config keys from NR template
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the changes in the `service-providers/network-requester/src/config/mod.rs` and `service-providers/network-requester/src/config/template.rs` files.
+ 2. Ensured `NetworkRequester` config is able to read old keys for compatibility.
+ 3. Removed old and deleted config keys from the `NetworkRequester` template.
+ 4. Compiled the project to verify no issues or warnings appeared.
+ 5. Ran all tests to ensure that the changes did not affect the functionality.
+ 6. Validated that no leftover code from the old statistics service provider caused any issues.
+ ~~~
+
+* [Remove `UserAgent` constructor since it's weakly typed](https://github.com/nymtech/nym/pull/4689): 
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the changes in `common/http-api-client/src/user_agent.rs` file.
+ 2. Verified the removal of the `UserAgent` constructor and ensured that all instances of `UserAgent::new` are updated accordingly.
+ 3. Checked the implementation of `UserAgent` struct using `BinaryBuildInformation` and `BinaryBuildInformationOwned`.
+ 4. Deployed the updated code across different environments (QA, sandbox, and canary).
+ 5. Ran tests to ensure that the `UserAgent` struct functions correctly without the constructor.
+ ~~~
+ 
+* [Add mixnodes to self describing api cache](https://github.com/nymtech/nym/pull/4684):
+    - Abstracts getting the self describing info a bit
+    - Adds mixnodes to the cache refresher as well
+    - Adds `role` field to the `NodeDescription` struct, to be able to distinguish between mixnodes and gateways
+    - Switched to using `NodeStatusCache` instead of `ContractCache`
+~~~admonish example collapsible=true title='Testing steps performed'
+Called the new `/mixnodes/described` endpoint as well as the existing `/gateways/described` endpoint and verified that the data returned for each was correct based on the settings that different nodes have when they are setup. 
+
+For gateway endpoint, the “role” for now does not differentiate between entry and exit gateways, this will be implemented in the future.
+~~~
+
+* [Move and whole bump of crates to workspace and upgrade some](https://github.com/nymtech/nym/pull/4680):
+    - Fix cargo warning for `default_features`
+    - Move dirs 4.0 to workspace
+    - Use workspace `base64` dep
+    - Move `rand_chacha` and `x25519-dalek` to workspace
+    - Use workspace `ed25519-dalek` dep
+    - Move `itertools` to workspace deps and upgrade
+    - Move a few partial deps to workspace  while preserving versions
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the changes to move and upgrade crates to the workspace.
+ 2. Verified the updated dependencies:
+    - Moved `dirs` to version 4.0 in the workspace.
+    - Updated the `base64` dependency to use the workspace version.
+    - Moved `rand_chacha` and `x25519-dalek` to the workspace.
+    - Updated `ed25519-dalek` to use the workspace version.
+    - Moved and upgraded `itertools` in the workspace.
+    - Moved other partial dependencies to the workspace while preserving their versions.
+ 3. Ensured the `Cargo.toml` files across the project reflect these changes correctly.
+ 4. Compiled the entire project to check for any issues or warnings.
+ 5. Verified that all tests pass successfully after the changes.
+ ~~~
+
+* [Remove `nym-network-statistics`](https://github.com/nymtech/nym/pull/4678): Remove `nym-network-statistics` service provider that is no longer used.
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the project to identify all references to `nym-network-statistics`.
+ 2. Removed all code and dependencies associated with `nym-network-statistics`.
+ 3. Ensured that no references to `nym-network-statistics` remain in the codebase, including comments, imports, and configuration files.
+ 4. Compiled the project to check for any issues or warnings.
+ 5. Ran all tests to ensure the removal did not affect the functionality of the project.
+ ~~~
+
+ 
+* [Remove code that refers to removed `nym-network-statistics`](https://github.com/nymtech/nym/pull/4679): Follow up to [\#4678](https://github.com/nymtech/nym/pull/4678) where all code interacting with it is removed.
+~~~admonish example collapsible=true title='Testing steps performed'
+ 1. Reviewed the project to identify all references to `nym-network-statistics`.
+ 2. Removed all code and dependencies associated with `nym-network-statistics`.
+ 3. Ensured that no references to `nym-network-statistics` remain in the codebase, including comments, imports, and configuration files.
+ 4. Compiled the project to check for any issues or warnings.
+ 5. Ran all tests to ensure the removal did not affect the functionality of the project.
+ ~~~
+
+* [Create `UserAgent` that can be passed from the binary to the `nym-api` client](https://github.com/nymtech/nym/pull/4677):
+    - Support setting `UserAgent` for the validator client
+    - Support setting `UserAgent` in the SDK `MixnetClient`
+     - Set `UserAgent` when getting the list of gateways and topology in
+         - `nym-client`
+         - `nym-socks5-client`
+         - Standalone `ip-packet-router`
+ 
+~~~admonish example collapsible=true title='Testing steps performed'
+Used the nym-vpn-cli to test this, and we can visibly see the `UserAgent`, no issues with the comments mentioned above.
+
+Example of the user agent sent:
+`nym-client/1.1.36/x86_64-unknown-linux-gnu/e18bb70`
+
+<img width="1435" alt="image" src="https://github.com/nymtech/nym/assets/60836166/5d4cc76f-84e6-45cb-9102-adc2b58a25d9">
+ 
+Connected with no problems
+~~~
+
+* [Add `authenticator`](https://github.com/nymtech/nym/pull/4667)
+
+### Bugfix
+
+* [`Node_api_check.py` CLI looked over roles on blacklisted nodes](https://github.com/nymtech/nym/pull/4687): Removing/correcting this redundant function which results in unwanted error print, will resolve in the program not looking up the `roles` endpoint for blacklisted GWs, instead just ignores the role description and still return all other endpoints.
+
+### Operators Guide updates
+
+* [Create a guide to backup and restore `nym-node`](https://nymtech.net/operators/nodes/maintenance.html#backup-a-node), PR [\#4720](https://github.com/nymtech/nym/pull/4720)
+* [Add manual IPv6 ifup/down network configuration](https://nymtech.net/operators/troubleshooting/vps-isp.html#network-configuration), PR [\#4651](https://github.com/nymtech/nym/pull/4651)
+* [Extend up ISP list](https://nymtech.net/operators/legal/isp-list.html)
+* [Add SSL cert bot block to WSS setup](https://nymtech.net/operators/nodes/proxy-configuration.html#web-secure-socket-setup), [PR here](https://github.com/nymtech/nym/commits/develop/): WSS setup fully works!
+* [Correct `HTTP API port` in bonding page](https://nymtech.net/operators/nodes/bonding.html#bond-via-the-desktop-wallet-recommended) , [PR \#4707](https://github.com/nymtech/nym/pull/4707): Change `HTTP API port` to `8080` on every `nym-node` by opening `config.toml` and making sure that your binding addresses and ports are as in the block below. Then go to desktop wallet and open the box called `Show advanced options` and make sure all your ports are set correctly (usually this means to change `HTTP api port` to `8080` for `mixnode` mode).
+~~~admonish example collapsible=true title='snap of binding addresses and ports in `config.toml`'
+```toml
+[host]
+public_ips = [
+'<YOUR_PUBLIC_IPv4>'
+]
+
+[mixnet]
+bind_address = '0.0.0.0:1789'
+
+[http]
+bind_address = '0.0.0.0:8080'
+
+[mixnode]
+[mixnode.verloc]
+bind_address = '0.0.0.0:1790'
+
+[entry_gateway]
+bind_address = '0.0.0.0:9000'
+```
+~~~
+
+* [Comment our deprecated node pages in `/docs`](https://github.com/nymtech/nym/pull/4727)
+    - Fixes [issue \#4632](https://github.com/nymtech/nym/issues/4632)
+* [Remove redundant syntax from the setup guide](https://github.com/nymtech/nym/pull/4682)
+
+---
+
 ## `v2024.7-doubledecker`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.7-doubledecker)
@@ -42,7 +252,7 @@ This page displays a full list of all the changes during our release cycle from 
 
 ### Features
 
-- [Remove the `nym-mixnode` and `nym-gateway` binaries from the CI upload builds action](https://github.com/nymtech/nym/pull/4693):
+- [Remove the `nym-mixnode` and `nym-gateway` binaries from the CI upload builds action](https://github.com/nymtech/nym/pull/4693)
 - [Add an early return in `parse_raw_str_logs` for empty raw log strings.](https://github.com/nymtech/nym/pull/4686): This accommodates for the v50 + chain upgrade.
 - [Bump braces from `3.0.2` to `3.0.3` in `/wasm/mix-fetch/internal-dev`](https://github.com/nymtech/nym/pull/4672): Version update of [braces](https://github.com/micromatch/braces)
 - [Bump braces from `3.0.2` to `3.0.3` in `/clients/native/examples/js-examples/websocket`](https://github.com/nymtech/nym/pull/4663): Version update of [braces](https://github.com/micromatch/braces).

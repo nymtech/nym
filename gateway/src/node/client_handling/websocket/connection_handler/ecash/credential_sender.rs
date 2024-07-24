@@ -815,12 +815,12 @@ where
                 if latest_stored.created_at + self.config.maximum_time_between_redemption < now {
                     {}
                 } else {
-                    info!("we only have {} verified tickets. there's no point in creating a redemption request yet. (we need at least {} (configurable))", verified_tickets.len(), self.config.minimum_redemption_tickets);
+                    debug!("we only have {} verified tickets. there's no point in creating a redemption request yet. (we need at least {} (configurable))", verified_tickets.len(), self.config.minimum_redemption_tickets);
                     return Ok(());
                 }
             } else {
                 // first proposal
-                info!("we only have {} verified tickets. there's no point in creating a redemption request yet. (we need at least {} (configurable))", verified_tickets.len(), self.config.minimum_redemption_tickets);
+                debug!("we only have {} verified tickets. there's no point in creating a redemption request yet. (we need at least {} (configurable))", verified_tickets.len(), self.config.minimum_redemption_tickets);
                 return Ok(());
             }
         }

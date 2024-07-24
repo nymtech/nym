@@ -17,7 +17,7 @@ clap.workspace = true
 etherparse = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
-nym-bin-common = { path = "../../common/bin-common" }
+nym-bin-common = { path = "../../common/bin-common", features = ["clap"] }
 nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }

@@ -3,8 +3,13 @@
 
 use crate::config::Config;
 use clap::crate_version;
+use nym_gateway::node::{
+    LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
+};
 use std::net::IpAddr;
 use thiserror::Error;
+
+use super::LocalWireguardOpts;
 
 #[derive(Debug, Error)]
 #[error("currently it's not supported to have different ip addresses for clients and mixnet ({clients_bind_ip} and {mix_bind_ip} were used)")]
@@ -48,8 +53,6 @@ pub fn ephemeral_gateway_config(
         mix_port: config.mixnet.bind_address.port(),
         clients_port: config.entry_gateway.bind_address.port(),
         clients_wss_port: config.entry_gateway.announce_wss_port,
-        enabled_statistics: false,
-        statistics_service_url: "https://nymtech.net/foobar".parse().unwrap(),
         nym_api_urls: config.mixnet.nym_api_urls,
         nyxd_urls: config.mixnet.nyxd_urls,
 
@@ -81,4 +84,23 @@ pub fn ephemeral_gateway_config(
             ..Default::default()
         },
     ))
+}
+
+pub fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
+    nym_client_core_config_types::Client {
+        version: format!("{}-nym-node", crate_version!()),
+        id: config.id.clone(),
+        // irrelevant field - no need for credentials in embedded mode
+        disabled_credentials_mode: true,
+        nyxd_urls: config.mixnet.nyxd_urls.clone(),
+        nym_api_urls: config.mixnet.nym_api_urls.clone(),
+    }
+}
+
+pub struct EphemeralConfig {
+    pub gateway: nym_gateway::config::Config,
+    pub nr_opts: Option<LocalNetworkRequesterOpts>,
+    pub ipr_opts: Option<LocalIpPacketRouterOpts>,
+    pub auth_opts: LocalAuthenticatorOpts,
+    pub wg_opts: LocalWireguardOpts,
 }

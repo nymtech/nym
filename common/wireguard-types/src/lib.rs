@@ -10,8 +10,7 @@ pub use config::Config;
 pub use error::Error;
 pub use public_key::PeerPublicKey;
 pub use registration::{
-    ClientMac, ClientMessage, ClientRegistrationResponse, GatewayClient, GatewayClientRegistry,
-    InitMessage, Nonce,
+    ClientMac, ClientMessage, GatewayClient, GatewayClientRegistry, InitMessage, Nonce,
 };
 
 #[cfg(feature = "verify")]

@@ -4,37 +4,29 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [2024.7-doubledecker] (2024-07-04)
+## [2024.8-wispa] (2024-07-10)
 
-- Add an early return in `parse_raw_str_logs` for empty raw log strings. ([#4686])
-- Bump braces from 3.0.2 to 3.0.3 in /wasm/mix-fetch/internal-dev ([#4672])
-- add expiry returned on import ([#4670])
-- [bugfix] missing rustls feature ([#4666])
-- Bump ws from 8.13.0 to 8.17.1 in /wasm/client/internal-dev-node ([#4665])
-- Bump braces from 3.0.2 to 3.0.3 in /clients/native/examples/js-examples/websocket ([#4663])
-- Bump ws from 8.14.2 to 8.17.1 in /sdk/typescript/packages/nodejs-client ([#4662])
-- Update setup.md ([#4661])
-- New clippy lints ([#4660])
-- Bump braces from 3.0.2 to 3.0.3 in /nym-api/tests ([#4659])
-- Bump braces from 3.0.2 to 3.0.3 in /docker/typescript_client/upload_contract ([#4658])
-- Update vps-setup.md ([#4656])
-- Update configuration.md ([#4655])
-- Remove old PR template ([#4639])
+- add event parsing to support cosmos_sdk > 0.50 ([#4697])
+- Fix NR config compatibility ([#4690])
+- Remove UserAgent constructor since it's weakly typed ([#4689])
+- [bugfix]: Node_api_check CLI looked over roles on blacklisted nodes ([#4687])
+- Add mixnodes to self describing api cache ([#4684])
+- Move and whole bump of crates to workspace and upgrade some ([#4680])
+- Remove code that refers to removed nym-network-statistics ([#4679])
+- Remove nym-network-statistics ([#4678])
+- Create UserAgent that can be passed from the binary to the nym api client ([#4677])
+- Add authenticator ([#4667])
 
-[#4686]: https://github.com/nymtech/nym/pull/4686
-[#4672]: https://github.com/nymtech/nym/pull/4672
-[#4670]: https://github.com/nymtech/nym/pull/4670
-[#4666]: https://github.com/nymtech/nym/pull/4666
-[#4665]: https://github.com/nymtech/nym/pull/4665
-[#4663]: https://github.com/nymtech/nym/pull/4663
-[#4662]: https://github.com/nymtech/nym/pull/4662
-[#4661]: https://github.com/nymtech/nym/pull/4661
-[#4660]: https://github.com/nymtech/nym/pull/4660
-[#4659]: https://github.com/nymtech/nym/pull/4659
-[#4658]: https://github.com/nymtech/nym/pull/4658
-[#4656]: https://github.com/nymtech/nym/pull/4656
-[#4655]: https://github.com/nymtech/nym/pull/4655
-[#4639]: https://github.com/nymtech/nym/pull/4639
+[#4697]: https://github.com/nymtech/nym/pull/4697
+[#4690]: https://github.com/nymtech/nym/pull/4690
+[#4689]: https://github.com/nymtech/nym/pull/4689
+[#4687]: https://github.com/nymtech/nym/pull/4687
+[#4684]: https://github.com/nymtech/nym/pull/4684
+[#4680]: https://github.com/nymtech/nym/pull/4680
+[#4679]: https://github.com/nymtech/nym/pull/4679
+[#4678]: https://github.com/nymtech/nym/pull/4678
+[#4677]: https://github.com/nymtech/nym/pull/4677
+[#4667]: https://github.com/nymtech/nym/pull/4667
 
 ## [2024.6-chomp] (2024-06-25)
 

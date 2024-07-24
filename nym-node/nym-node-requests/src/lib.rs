@@ -42,6 +42,7 @@ pub mod routes {
             pub const METRICS: &str = "/metrics";
             pub const NETWORK_REQUESTER: &str = "/network-requester";
             pub const IP_PACKET_ROUTER: &str = "/ip-packet-router";
+            pub const AUTHENTICATOR: &str = "/authenticator";
 
             // define helper functions to get absolute routes
             absolute_route!(health_absolute, v1_absolute(), HEALTH);
@@ -57,6 +58,7 @@ pub mod routes {
             absolute_route!(metrics_absolute, v1_absolute(), METRICS);
             absolute_route!(network_requester_absolute, v1_absolute(), NETWORK_REQUESTER);
             absolute_route!(ip_packet_router_absolute, v1_absolute(), IP_PACKET_ROUTER);
+            absolute_route!(authenticator_absolute, v1_absolute(), AUTHENTICATOR);
             absolute_route!(swagger_absolute, v1_absolute(), SWAGGER);
 
             pub mod metrics {

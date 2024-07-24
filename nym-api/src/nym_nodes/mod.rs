@@ -12,7 +12,7 @@ mod unstable_routes;
 /// Merges the routes with http information and returns it to Rocket for serving
 pub(crate) fn nym_node_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
-        settings: routes::get_gateways_described
+        settings: routes::get_gateways_described, routes::get_mixnodes_described
     ]
 }
 

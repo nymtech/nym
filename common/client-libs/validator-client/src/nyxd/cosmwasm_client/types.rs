@@ -232,6 +232,8 @@ pub struct UploadResult {
 
     pub logs: Vec<Log>,
 
+    pub events: Vec<abci::Event>,
+
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,
 
@@ -269,6 +271,8 @@ pub struct InstantiateResult {
 
     pub logs: Vec<Log>,
 
+    pub events: Vec<abci::Event>,
+
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,
 
@@ -279,6 +283,8 @@ pub struct InstantiateResult {
 pub struct ChangeAdminResult {
     pub logs: Vec<Log>,
 
+    pub events: Vec<abci::Event>,
+
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,
 
@@ -288,6 +294,8 @@ pub struct ChangeAdminResult {
 #[derive(Debug, Serialize)]
 pub struct MigrateResult {
     pub logs: Vec<Log>,
+
+    pub events: Vec<abci::Event>,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,
@@ -300,6 +308,8 @@ pub struct ExecuteResult {
     pub logs: Vec<Log>,
 
     pub data: Vec<u8>,
+
+    pub events: Vec<abci::Event>,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,

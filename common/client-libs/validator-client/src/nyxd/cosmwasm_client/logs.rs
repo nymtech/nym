@@ -35,6 +35,7 @@ pub fn find_attribute<'a>(
 
 // these two functions were separated so that the internal logic could actually be tested
 fn parse_raw_str_logs(raw: &str) -> Result<Vec<Log>, NyxdError> {
+    // From Cosmos SDK > 0.50 onwards, log field is not populated
     if raw.is_empty() {
         return Ok(Vec::new());
     }

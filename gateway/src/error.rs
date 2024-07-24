@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::storage::error::StorageError;
+use nym_authenticator::error::AuthenticatorError;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
@@ -61,6 +62,16 @@ pub enum GatewayError {
     },
 
     #[error(
+        "failed to load config file for authenticator (gateway-id: '{id}') using path '{}'. detailed message: {source}",
+        path.display()
+    )]
+    AuthenticatorConfigLoadFailure {
+        id: String,
+        path: PathBuf,
+        source: io::Error,
+    },
+
+    #[error(
         "failed to load config file for wireguard (gateway-id: '{id}') using path '{}'. detailed message: {source}",
         path.display()
     )]
@@ -110,6 +121,9 @@ pub enum GatewayError {
     #[error("Path to ip packet router configuration file hasn't been specified. Perhaps try to run `setup-ip-packet-router`?")]
     UnspecifiedIpPacketRouterConfig,
 
+    #[error("Path to authenticator configuration file hasn't been specified. Perhaps try to run `setup-authenticator`?")]
+    UnspecifiedAuthenticatorConfig,
+
     #[error("there was an issue with the local network requester: {source}")]
     NetworkRequesterFailure {
         #[from]
@@ -122,11 +136,20 @@ pub enum GatewayError {
         source: IpPacketRouterError,
     },
 
+    #[error("there was an issue with the local authenticator: {source}")]
+    AuthenticatorFailure {
+        #[from]
+        source: AuthenticatorError,
+    },
+
     #[error("failed to startup local network requester")]
     NetworkRequesterStartupFailure,
 
     #[error("failed to startup local ip packet router")]
     IpPacketRouterStartupFailure,
+
+    #[error("failed to startup local authenticator")]
+    AuthenticatorStartupFailure,
 
     #[error("there are no nym API endpoints available")]
     NoNymApisAvailable,
@@ -174,9 +197,8 @@ pub enum GatewayError {
     #[error("wireguard not set")]
     WireguardNotSet,
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
-    #[error("failed to catch an interrupt: {source}")]
-    StdError {
+    #[error("failed to start authenticator: {source}")]
+    AuthenticatorStartError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
 }

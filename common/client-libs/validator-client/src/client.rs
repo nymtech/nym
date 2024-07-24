@@ -19,6 +19,7 @@ use nym_api_requests::models::{
     RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::nym_nodes::SkimmedNode;
+use nym_http_api_client::UserAgent;
 use nym_network_defaults::NymNetworkDetails;
 use url::Url;
 
@@ -254,6 +255,16 @@ pub struct NymApiClient {
 impl NymApiClient {
     pub fn new(api_url: Url) -> Self {
         let nym_api = nym_api::Client::new(api_url, None);
+
+        NymApiClient { nym_api }
+    }
+
+    pub fn new_with_user_agent(api_url: Url, user_agent: UserAgent) -> Self {
+        let nym_api = nym_api::Client::builder::<_, ValidatorClientError>(api_url)
+            .expect("invalid api url")
+            .with_user_agent(user_agent)
+            .build::<ValidatorClientError>()
+            .expect("failed to build nym api client");
 
         NymApiClient { nym_api }
     }

@@ -104,6 +104,8 @@ jobs:
           name: nym-binaries-artifacts
           path: |
             target/release/nym-client
+            target/release/nym-gateway
+            target/release/nym-mixnode
             target/release/nym-socks5-client
             target/release/nym-api
             target/release/nym-network-requester
@@ -121,6 +123,8 @@ jobs:
           OUTPUT_DIR: ci-builds/${{ github.ref_name }}
         run: |
           cp target/release/nym-client $OUTPUT_DIR
+          cp target/release/nym-gateway $OUTPUT_DIR
+          cp target/release/nym-mixnode $OUTPUT_DIR
           cp target/release/nym-socks5-client $OUTPUT_DIR
           cp target/release/nym-api $OUTPUT_DIR
           cp target/release/nym-network-requester $OUTPUT_DIR

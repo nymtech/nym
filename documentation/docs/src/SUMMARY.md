@@ -15,10 +15,6 @@
 
 # Nodes
 - [Node Types (Previously Setup Guides)](nodes/overview.md)
-    - [Mix Node](nodes/mixnode.md)
-    - [Gateway](nodes/gateway.md)
-    - [Network Requester](nodes/network-requester.md)
-    - [Validator](nodes/validator.md)
 
 # Wallet
 - [Desktop Wallet](wallet/desktop-wallet.md)

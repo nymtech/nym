@@ -7,6 +7,7 @@ pub const API_VERSION: &str = NYM_API_VERSION;
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 pub const DESCRIBED: &str = "described";
+pub const BLACKLISTED: &str = "blacklisted";
 
 pub const DETAILED: &str = "detailed";
 pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";

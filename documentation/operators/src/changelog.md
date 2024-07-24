@@ -2,6 +2,70 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+## `v2024.7-doubledecker`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.7-doubledecker)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.7-doubledecker/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.4`
+
+~~~admonish example collapsible=true title='CHANGELOG.md'
+- Add an early return in `parse_raw_str_logs` for empty raw log strings. ([#4686])
+- Bump braces from 3.0.2 to 3.0.3 in /wasm/mix-fetch/internal-dev ([#4672])
+- add expiry returned on import ([#4670])
+- [bugfix] missing rustls feature ([#4666])
+- Bump ws from 8.13.0 to 8.17.1 in /wasm/client/internal-dev-node ([#4665])
+- Bump braces from 3.0.2 to 3.0.3 in /clients/native/examples/js-examples/websocket ([#4663])
+- Bump ws from 8.14.2 to 8.17.1 in /sdk/typescript/packages/nodejs-client ([#4662])
+- Update setup.md ([#4661])
+- New clippy lints ([#4660])
+- Bump braces from 3.0.2 to 3.0.3 in /nym-api/tests ([#4659])
+- Bump braces from 3.0.2 to 3.0.3 in /docker/typescript_client/upload_contract ([#4658])
+- Update vps-setup.md ([#4656])
+- Update configuration.md ([#4655])
+- Remove old PR template ([#4639])
+
+[#4686]: https://github.com/nymtech/nym/pull/4686
+[#4672]: https://github.com/nymtech/nym/pull/4672
+[#4670]: https://github.com/nymtech/nym/pull/4670
+[#4666]: https://github.com/nymtech/nym/pull/4666
+[#4665]: https://github.com/nymtech/nym/pull/4665
+[#4663]: https://github.com/nymtech/nym/pull/4663
+[#4662]: https://github.com/nymtech/nym/pull/4662
+[#4661]: https://github.com/nymtech/nym/pull/4661
+[#4660]: https://github.com/nymtech/nym/pull/4660
+[#4659]: https://github.com/nymtech/nym/pull/4659
+[#4658]: https://github.com/nymtech/nym/pull/4658
+[#4656]: https://github.com/nymtech/nym/pull/4656
+[#4655]: https://github.com/nymtech/nym/pull/4655
+[#4639]: https://github.com/nymtech/nym/pull/4639
+~~~
+
+### Features
+
+- [Remove the `nym-mixnode` and `nym-gateway` binaries from the CI upload builds action](https://github.com/nymtech/nym/pull/4693):
+- [Add an early return in `parse_raw_str_logs` for empty raw log strings.](https://github.com/nymtech/nym/pull/4686): This accommodates for the v50 + chain upgrade.
+- [Bump braces from `3.0.2` to `3.0.3` in `/wasm/mix-fetch/internal-dev`](https://github.com/nymtech/nym/pull/4672): Version update of [braces](https://github.com/micromatch/braces)
+- [Bump braces from `3.0.2` to `3.0.3` in `/clients/native/examples/js-examples/websocket`](https://github.com/nymtech/nym/pull/4663): Version update of [braces](https://github.com/micromatch/braces).
+- [Bump braces from `3.0.2` to `3.0.3` in `/nym-api/tests`](https://github.com/nymtech/nym/pull/4659): Version update of [braces](https://github.com/micromatch/braces).
+- [Bump braces from `3.0.2` to `3.0.3` in `/docker/typescript_client/upload_contract`](https://github.com/nymtech/nym/pull/4658): Version update of  [braces](https://github.com/micromatch/braces).
+- [Bump `ws` from `8.13.0` to `8.17.1` in `/wasm/client/internal-dev-node`](https://github.com/nymtech/nym/pull/4665): Version update of [`ws`](https://github.com/websockets/ws).
+- [Bump `ws` from `8.14.2` to `8.17.1` in `/sdk/typescript/packages/nodejs-client`](https://github.com/nymtech/nym/pull/4662): Version update of [`ws`](https://github.com/websockets/ws).
+- [Add expiry returned on import](https://github.com/nymtech/nym/pull/4670): We need to return the expiry on import for desktop daemon `nym-vpnd`.
+- [New clippy lints](https://github.com/nymtech/nym/pull/4660)
+- [Remove `nym-connect` directory](https://github.com/nymtech/nym/pull/4643): Since the `nym-vpn` has superseded `nym-connect`, remove `nym-connect` from the repo.
+- [Remove old PR template](https://github.com/nymtech/nym/pull/4639)
+
+### Bugfix
+
+- [missing rustls feature](https://github.com/nymtech/nym/pull/4666): It just happens to work due to `feature-unification`. It should probably have this feature inbuild.
+
+### Operators Guide updates
+
+- [Node description guide](nodes/configuration.md#node-description): Steps to add self-description to `nym-node` and query this information from any node.
+- [Web Secure Socket (WSS) guide and reverse proxy update](nodes/proxy-configuration.md), PR [here](https://github.com/nymtech/nym/pull/4694): A guide to setup `nym-node` in a secure fashion, using WSS via Nginx and Certbot. Landing page (reversed proxy) is updated and simplified.
+
+---
+
 ## `v2024.6-chomp`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.6-chomp)

@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::commands::upgrade_helpers;
 use log::{error, info};
 use nym_config::{save_formatted_config_to_file, OptionalSet};
 use nym_crypto::asymmetric::identity;
@@ -122,8 +121,6 @@ pub(crate) fn ensure_correct_bech32_prefix(address: &AccountId) -> Result<(), Ga
 }
 
 pub(crate) fn try_load_current_config(id: &str) -> Result<Config, GatewayError> {
-    upgrade_helpers::try_upgrade_config(id)?;
-
     Config::read_from_default_path(id).map_err(|err| {
         error!(
             "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})",

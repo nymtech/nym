@@ -14,6 +14,7 @@ use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_task::TaskHandle;
 use nym_wireguard::WireguardGatewayData;
 use rand::rngs::OsRng;
+use tokio::sync::mpsc::unbounded_channel;
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Args, Clone)]
@@ -48,11 +49,13 @@ pub(crate) async fn execute(args: &Run) -> Result<(), AuthenticatorError> {
         Arc::new(KeyPair::new(&mut OsRng)),
     );
     let task_handler = TaskHandle::default();
-    let handler = DummyHandler::new(peer_rx, task_handler.fork("peer-handler"));
+    let (response_tx, response_rx) = unbounded_channel();
+    let handler = DummyHandler::new(peer_rx, response_tx, task_handler.fork("peer-handler"));
     tokio::spawn(async move {
         handler.run().await;
     });
-    let mut server = nym_authenticator::Authenticator::new(config, wireguard_gateway_data);
+    let mut server =
+        nym_authenticator::Authenticator::new(config, wireguard_gateway_data, response_rx);
     if let Some(custom_mixnet) = &args.common_args.custom_mixnet {
         server = server.with_stored_topology(custom_mixnet)?
     }

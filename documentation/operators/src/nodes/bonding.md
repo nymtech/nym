@@ -28,16 +28,29 @@ You can bond your `nym-node` via the Desktop wallet.
   - To find out your `nym-node` details, run `./nym-node bonding-information --id <ID>`
   - To get a correct host address, run `echo "$(curl -4 https://ifconfig.me)"`
 
+2. Open the box called `Show advanced options` and make sure all your ports are set correctly, like the values in this table:
 
-2. Enter the `Amount`, `Operating cost` and `Profit margin` and press `Next`.
+| Node type              | Port name                           | Correct port value |
+| :--                    | :--                                 | :--                |
+| Mixnode                | Mix port                            | `1789`             |
+| Mixnode                | Verloc port                         | `1790`             |
+| Mixnode                | HTTP api port (picture below)       | `8080`             |
+| Gateway (entry & exit) | Mix port                            | `1789`             |
+| Gateway (entry & exit) | Client WS API port                  | `9000`             |
 
-3. You will be asked to run a `sign` command with your `nym-node` - copy and paste the long signature as the value of `--contract-msg` and run it.
+- If you bonding `nym-node --mode mixnode` through *Bond mixnode* desktop wallet menu, change manually *HTTP api port* value from deprecated `8000` to `8080` - a generic `nym-node` HTTP port (for all modes).
+
+![](../images/wallet-screenshots/new_http_port.png)
+
+3. Enter the `Amount`, `Operating cost` and `Profit margin` and press `Next`.
+
+4. You will be asked to run a `sign` command with your `nym-node` - copy and paste the long signature as the value of `--contract-msg` and run it.
 
 ```
 ./nym-node sign --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>
 ```
 
-4. Copy the resulting signature string and paste it into the wallet nodal, press `Next` and confirm the transaction:
+5. Copy the resulting signature string and paste it into the wallet nodal, press `Next` and confirm the transaction:
 
 ```sh
 # This is just an example, copy the one from your process
@@ -46,9 +59,10 @@ You can bond your `nym-node` via the Desktop wallet.
 ```
 
 ![Paste Signature](../images/wallet-screenshots/wallet-sign.png)
+
 *This image is just an example, copy-paste your own base58-encoded signature*
 
-5. Your node will now be bonded and ready to recieve traffic, latest at the beginning of the next epoch (at most 1 hour)
+6. Your node will now be bonded and ready to recieve traffic, latest at the beginning of the next epoch (at most 1 hour)
 
 
 If everything worked, you'll see your node running on the either the [Sandbox testnet network explorer](https://sandbox-explorer.nymtech.net) or the [mainnet network explorer](https://explorer.nymtech.net), depending on which network you're running.

@@ -11,6 +11,6 @@ If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog
 
 ## Where can I get more help?
 
-The fastest way to reach one of us or get a help from the community, visit our [Telegram Node Setup Help Chat](https://t.me/nymchan_help_chat) or head to our [Discord](https://discord.gg/FaTJb8q8).
+The fastest way to reach one of us or get a help from the community, visit our [Telegram Node Setup Help Chat](https://t.me/nymchan_help_chat) or head to our [Discord](https://nymtech.net/go/discord).
 
 For more tech heavy question join our [Matrix core community channel](https://matrix.to/#/#general:nymtech.chat), where you can meet other builders and Nym core team members.

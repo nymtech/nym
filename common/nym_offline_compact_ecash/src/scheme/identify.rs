@@ -74,11 +74,12 @@ mod tests {
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let spend_date = 1701907200; // Dec 07 2023 00:00:00
         let expiration_date = 1702166400; // Dec 10 2023 00:00:00
+        let t_type = 1;
 
         let user_keypair = generate_keypair_user();
 
         let (req, req_info) =
-            withdrawal_request(user_keypair.secret_key(), expiration_date).unwrap();
+            withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
         let authorities_keypairs = ttp_keygen(2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
         let secret_keys_authorities: Vec<&SecretKeyAuth> = authorities_keypairs
@@ -120,6 +121,7 @@ mod tests {
                 user_keypair.public_key(),
                 &req,
                 expiration_date,
+                t_type,
             );
             wallet_blinded_signatures.push(blind_signature.unwrap());
         }
@@ -182,11 +184,12 @@ mod tests {
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let spend_date = 1701907200; // Dec 07 2023 00:00:00
         let expiration_date = 1702166400; // Dec 10 2023 00:00:00
+        let t_type = 1;
 
         let user_keypair = generate_keypair_user();
 
         let (req, req_info) =
-            withdrawal_request(user_keypair.secret_key(), expiration_date).unwrap();
+            withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
         let authorities_keypairs = ttp_keygen(2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
         let secret_keys_authorities: Vec<&SecretKeyAuth> = authorities_keypairs
@@ -228,6 +231,7 @@ mod tests {
                 user_keypair.public_key(),
                 &req,
                 expiration_date,
+                t_type,
             );
             wallet_blinded_signatures.push(blind_signature.unwrap());
         }
@@ -306,6 +310,7 @@ mod tests {
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let spend_date = 1701907200; // Dec 07 2023 00:00:00
         let expiration_date = 1702166400; // Dec 10 2023 00:00:00
+        let t_type = 1;
 
         let user_keypair = generate_keypair_user();
 
@@ -320,7 +325,7 @@ mod tests {
         public_keys.push(user_keypair.public_key().clone());
 
         let (req, req_info) =
-            withdrawal_request(user_keypair.secret_key(), expiration_date).unwrap();
+            withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
         let authorities_keypairs = ttp_keygen(2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
         let secret_keys_authorities: Vec<&SecretKeyAuth> = authorities_keypairs
@@ -362,6 +367,7 @@ mod tests {
                 user_keypair.public_key(),
                 &req,
                 expiration_date,
+                t_type,
             );
             wallet_blinded_signatures.push(blind_signature.unwrap());
         }
@@ -447,6 +453,7 @@ mod tests {
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let spend_date = 1701907200; // Dec 07 2023 00:00:00
         let expiration_date = 1702166400; // Dec 10 2023 00:00:00
+        let t_type = 1;
 
         let user_keypair = generate_keypair_user();
 
@@ -461,7 +468,7 @@ mod tests {
         public_keys.push(user_keypair.public_key().clone());
 
         let (req, req_info) =
-            withdrawal_request(user_keypair.secret_key(), expiration_date).unwrap();
+            withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
         let authorities_keypairs = ttp_keygen(2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
         let secret_keys_authorities: Vec<&SecretKeyAuth> = authorities_keypairs
@@ -504,6 +511,7 @@ mod tests {
                 user_keypair.public_key(),
                 &req,
                 expiration_date,
+                t_type,
             );
             wallet_blinded_signatures.push(blind_signature.unwrap());
         }

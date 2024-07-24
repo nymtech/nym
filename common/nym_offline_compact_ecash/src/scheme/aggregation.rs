@@ -11,6 +11,7 @@ use itertools::Itertools;
 use crate::common_types::{PartialSignature, Signature, SignatureShare, SignerIndex};
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::expiration_date_signatures::scalar_date;
+use crate::scheme::expiration_date_signatures::scalar_type;
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::withdrawal::RequestInfo;
 use crate::scheme::{PartialWallet, Wallet, WalletSignatures};
@@ -144,17 +145,20 @@ pub fn aggregate_wallets(
         sk_user.sk,
         *req_info.get_v(),
         *req_info.get_expiration_date(),
+        *req_info.get_t_type(),
     ];
     let aggregated_signature =
         aggregate_signature_shares(verification_key, &attributes, &signature_shares)?;
 
     let expiration_date_timestamp = req_info.get_expiration_date();
+    let t_type = req_info.get_t_type();
 
     Ok(Wallet {
         signatures: WalletSignatures {
             sig: aggregated_signature,
             v: *req_info.get_v(),
             expiration_date_timestamp: scalar_date(expiration_date_timestamp),
+            t_type: scalar_type(t_type),
         },
         tickets_spent: 0,
     })

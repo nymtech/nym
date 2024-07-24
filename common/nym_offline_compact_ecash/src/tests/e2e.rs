@@ -24,6 +24,7 @@ mod tests {
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let spend_date = 1701907200; // Dec 07 2023 00:00:00
         let expiration_date = 1702166400; // Dec 10 2023 00:00:00
+        let t_type = 1;
         let user_keypair = generate_keypair_user();
 
         // generate authorities keys
@@ -61,7 +62,7 @@ mod tests {
 
         // request a wallet
         let (req, req_info) =
-            withdrawal_request(user_keypair.secret_key(), expiration_date).unwrap();
+            withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
         let req_bytes = req.to_bytes();
         let req2 = WithdrawalRequest::try_from(req_bytes.as_slice()).unwrap();
         assert_eq!(req, req2);
@@ -74,6 +75,7 @@ mod tests {
                 user_keypair.public_key(),
                 &req,
                 expiration_date,
+                t_type,
             );
             wallet_blinded_signatures.push(blind_signature.unwrap());
         }

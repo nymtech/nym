@@ -57,6 +57,7 @@ pub struct RequestInfo {
     private_attributes_openings: Vec<Scalar>,
     wallet_secret: Scalar,
     expiration_date: Scalar,
+    t_type: Scalar,
 }
 
 impl RequestInfo {
@@ -74,6 +75,9 @@ impl RequestInfo {
     }
     pub fn get_expiration_date(&self) -> &Scalar {
         &self.expiration_date
+    }
+    pub fn get_t_type(&self) -> &Scalar {
+        &self.t_type
     }
 }
 
@@ -117,6 +121,7 @@ fn compute_private_attribute_commitments(
 ///
 /// * `sk_user` - A reference to the user's secret key.
 /// * `expiration_date` - The expiration date for the withdrawal request.
+/// * `t_type` - The type of the ticket book
 ///
 /// # Returns
 ///
@@ -137,6 +142,7 @@ fn compute_private_attribute_commitments(
 pub fn withdrawal_request(
     sk_user: &SecretKeyUser,
     expiration_date: u64,
+    t_type: u64,
 ) -> Result<(WithdrawalRequest, RequestInfo)> {
     let params = ecash_group_parameters();
     // Generate random and unique wallet secret
@@ -152,8 +158,9 @@ pub fn withdrawal_request(
     // Compute commitment hash h
     #[allow(clippy::unwrap_used)]
     let joined_commitment_hash = hash_g1(
-        (joined_commitment + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date))
-            .to_bytes(),
+        (joined_commitment
+            + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date)
+            + params.gamma_idx(3).unwrap() * Scalar::from(t_type)).to_bytes(),
     );
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
@@ -192,6 +199,7 @@ pub fn withdrawal_request(
             private_attributes_openings: private_attributes_openings.clone(),
             wallet_secret: v,
             expiration_date: Scalar::from(expiration_date),
+            t_type: Scalar::from(t_type),
         },
     ))
 }
@@ -203,7 +211,8 @@ pub fn withdrawal_request(
 ///
 /// * `req` - The withdrawal request to be verified.
 /// * `pk_user` - Public key of the user associated with the withdrawal request.
-/// * `expiration_date` - Expiration date for the withdrawal request.
+/// * `expiration_date` - Expiration date for the ticket book.
+/// * `t_type` - The type of the ticket book
 ///
 /// # Returns
 ///
@@ -213,13 +222,16 @@ pub fn request_verify(
     req: &WithdrawalRequest,
     pk_user: PublicKeyUser,
     expiration_date: u64,
+    t_type: u64,
 ) -> Result<()> {
     let params = ecash_group_parameters();
     // Verify the joined commitment hash
     //SAFETY: params is static with length 3
     #[allow(clippy::unwrap_used)]
     let expected_commitment_hash = hash_g1(
-        (req.joined_commitment + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date))
+        (req.joined_commitment
+            + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date)
+            + params.gamma_idx(3).unwrap() * Scalar::from(t_type))
             .to_bytes(),
     );
     if req.joined_commitment_hash != expected_commitment_hash {
@@ -266,6 +278,32 @@ fn sign_expiration_date(
     joined_commitment_hash * (yi * Scalar::from(expiration_date))
 }
 
+/// Signs a transaction type using a joined commitment hash and a secret key.
+///
+/// Given a joined commitment hash (`joined_commitment_hash`), a ticket type (`t_type`),
+/// and a secret key for authentication (`sk_auth`), this function computes the signature of the
+/// ticket type.
+///
+/// # Arguments
+///
+/// * `joined_commitment_hash` - The G1Projective point representing the joined commitment hash.
+/// * `t_type` - The ticket type identifier to be signed.
+/// * `sk_auth` - The secret key of the signing authority.
+///
+/// # Returns
+///
+/// The resulting G1Projective point representing the signed ticket type.
+fn sign_t_type(
+    joined_commitment_hash: &G1Projective,
+    t_type: u64,
+    sk_auth: &SecretKeyAuth,
+) -> G1Projective {
+    //SAFETY : this fn assumes a long enough key
+    #[allow(clippy::unwrap_used)]
+        let yi = sk_auth.get_y_by_idx(3).unwrap();
+    joined_commitment_hash * (yi * Scalar::from(t_type))
+}
+
 /// Issues a blinded signature for a withdrawal request, after verifying its integrity.
 ///
 /// This function first verifies the withdrawal request using the provided group parameters,
@@ -289,9 +327,10 @@ pub fn issue(
     pk_user: PublicKeyUser,
     withdrawal_req: &WithdrawalRequest,
     expiration_date: u64,
+    t_type: u64,
 ) -> Result<BlindedSignature> {
     // Verify the withdrawal request
-    request_verify(withdrawal_req, pk_user, expiration_date)?;
+    request_verify(withdrawal_req, pk_user, expiration_date, t_type)?;
     // Verify `sk_auth` is long enough
     if sk_auth.ys.len() < constants::ATTRIBUTES_LEN {
         return Err(CompactEcashError::KeyTooShort);
@@ -310,9 +349,15 @@ pub fn issue(
         expiration_date,
         sk_auth,
     );
+    // Sign the type
+    let t_type_sign = sign_t_type(
+        &withdrawal_req.joined_commitment_hash,
+        t_type,
+        sk_auth,
+    );
     // Combine both signatures
     let signature =
-        blind_signatures + withdrawal_req.joined_commitment_hash * sk_auth.x + expiration_date_sign;
+        blind_signatures + withdrawal_req.joined_commitment_hash * sk_auth.x + expiration_date_sign + t_type_sign;
 
     Ok(BlindedSignature {
         h: withdrawal_req.joined_commitment_hash,
@@ -361,7 +406,7 @@ pub fn issue_verify(
         .sum::<G1Projective>();
     let unblinded_c = blind_signature.c - blinding_removers;
 
-    let attr = [sk_user.sk, req_info.wallet_secret, req_info.expiration_date];
+    let attr = [sk_user.sk, req_info.wallet_secret, req_info.expiration_date, req_info.t_type];
 
     let signed_attributes = attr
         .iter()
@@ -387,6 +432,7 @@ pub fn issue_verify(
         v: req_info.wallet_secret,
         idx: signer_index,
         expiration_date: req_info.expiration_date,
+        t_type: req_info.t_type,
     })
 }
 

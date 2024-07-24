@@ -41,6 +41,7 @@ pub struct PartialWallet {
     v: Scalar,
     idx: SignerIndex,
     expiration_date: Scalar,
+    t_type: Scalar,
 }
 
 impl PartialWallet {
@@ -54,23 +55,27 @@ impl PartialWallet {
     pub fn expiration_date(&self) -> Scalar {
         self.expiration_date
     }
+    pub fn t_type(&self) -> Scalar {
+        self.t_type
+    }
 
     /// Converts the `PartialWallet` to a fixed-size byte array.
     ///
-    /// The resulting byte array has a length of 168 bytes and contains serialized
+    /// The resulting byte array has a length of 200 bytes and contains serialized
     /// representations of the `Signature` (`sig`), scalar value (`v`),
     /// expiration date (`expiration_date`), and `idx` fields of the `PartialWallet` struct.
     ///
     /// # Returns
     ///
-    /// A fixed-size byte array (`[u8; 168]`) representing the serialized form of the `PartialWallet`.
+    /// A fixed-size byte array (`[u8; 200]`) representing the serialized form of the `PartialWallet`.
     ///
-    pub fn to_bytes(&self) -> [u8; 168] {
-        let mut bytes = [0u8; 168];
+    pub fn to_bytes(&self) -> [u8; 200] {
+        let mut bytes = [0u8; 200];
         bytes[0..96].copy_from_slice(&self.sig.to_bytes());
         bytes[96..128].copy_from_slice(&self.v.to_bytes());
         bytes[128..160].copy_from_slice(&self.expiration_date.to_bytes());
-        bytes[160..168].copy_from_slice(&self.idx.to_le_bytes());
+        bytes[160..192].copy_from_slice(&self.t_type.to_bytes());
+        bytes[192..200].copy_from_slice(&self.idx.to_le_bytes());
         bytes
     }
 
@@ -91,9 +96,10 @@ impl PartialWallet {
         const SIGNATURE_BYTES: usize = 96;
         const V_BYTES: usize = 32;
         const EXPIRATION_DATE_BYTES: usize = 32;
+        const T_TYPE_BYTES: usize = 32;
         const IDX_BYTES: usize = 8;
         const EXPECTED_LENGTH: usize =
-            SIGNATURE_BYTES + V_BYTES + EXPIRATION_DATE_BYTES + IDX_BYTES;
+            SIGNATURE_BYTES + V_BYTES + EXPIRATION_DATE_BYTES + T_TYPE_BYTES + IDX_BYTES;
 
         if bytes.len() != EXPECTED_LENGTH {
             return Err(CompactEcashError::DeserializationLengthMismatch {
@@ -119,6 +125,11 @@ impl PartialWallet {
         let expiration_date_bytes = bytes[j..j + EXPIRATION_DATE_BYTES].try_into().unwrap();
         let expiration_date = try_deserialize_scalar(expiration_date_bytes)?;
         j += EXPIRATION_DATE_BYTES;
+        //SAFETY: slice to array after length check
+        #[allow(clippy::unwrap_used)]
+        let t_type_bytes = bytes[j..j + T_TYPE_BYTES].try_into().unwrap();
+        let t_type = try_deserialize_scalar(t_type_bytes)?;
+        j += T_TYPE_BYTES;
 
         //SAFETY: slice to array after length check
         #[allow(clippy::unwrap_used)]
@@ -130,6 +141,7 @@ impl PartialWallet {
             v,
             idx,
             expiration_date,
+            t_type,
         })
     }
 }
@@ -258,6 +270,7 @@ pub struct WalletSignatures {
     sig: Signature,
     v: Scalar,
     expiration_date_timestamp: u64,
+    t_type: u64,
 }
 
 impl WalletSignatures {
@@ -301,8 +314,8 @@ pub fn compute_pay_info_hash(pay_info: &PayInfo, k: u64) -> Scalar {
 }
 
 impl WalletSignatures {
-    // signature size (96) + secret size (32) + expiration size (8)
-    pub const SERIALISED_SIZE: usize = 136;
+    // signature size (96) + secret size (32) + expiration size (8) + t_type (8)
+    pub const SERIALISED_SIZE: usize = 144;
 
     pub fn signature(&self) -> &Signature {
         &self.sig
@@ -323,6 +336,7 @@ impl WalletSignatures {
         bytes[0..96].copy_from_slice(&self.sig.to_bytes());
         bytes[96..128].copy_from_slice(&self.v.to_bytes());
         bytes[128..136].copy_from_slice(&self.expiration_date_timestamp.to_be_bytes());
+        bytes[136..144].copy_from_slice(&self.t_type.to_be_bytes());
         bytes
     }
 
@@ -342,16 +356,21 @@ impl WalletSignatures {
         let v_bytes: &[u8; 32] = &bytes[96..128].try_into().unwrap();
 
         #[allow(clippy::unwrap_used)]
-        let expiration_date_bytes = bytes[128..].try_into().unwrap();
+        let expiration_date_bytes = bytes[128..136].try_into().unwrap();
+
+        #[allow(clippy::unwrap_used)]
+        let t_type_bytes = bytes[136..].try_into().unwrap();
 
         let sig = Signature::try_from(sig_bytes.as_slice())?;
         let v = Scalar::from_bytes(v_bytes).unwrap();
         let expiration_date_timestamp = u64::from_be_bytes(expiration_date_bytes);
+        let t_type = u64::from_be_bytes(t_type_bytes);
 
         Ok(WalletSignatures {
             sig,
             v,
             expiration_date_timestamp,
+            t_type,
         })
     }
 
@@ -550,6 +569,7 @@ impl WalletSignatures {
             aa: aa.clone(),
             spend_value,
             cc,
+            t_type: self.t_type,
             zk_proof,
         };
 
@@ -669,6 +689,7 @@ pub struct Payment {
     pub aa: Vec<G1Projective>,
     pub spend_value: u64,
     pub cc: G1Projective,
+    pub t_type: u64,
     pub zk_proof: SpendProof,
 }
 
@@ -693,15 +714,16 @@ impl Payment {
     /// - The element `h` of the payment signature equals the identity.
     /// - The bilinear pairing check for `kappa` fails.
     ///
-    pub fn check_signature_validity(&self) -> Result<()> {
+    pub fn check_signature_validity(&self, verification_key: &VerificationKeyAuth) -> Result<()> {
         let params = ecash_group_parameters();
         if bool::from(self.sig.h.is_identity()) {
             return Err(CompactEcashError::SpendSignaturesValidity);
         }
 
+        let kappa_type = self.kappa + verification_key.beta_g2[3] * Scalar::from(self.t_type);
         if !check_bilinear_pairing(
             &self.sig.h.to_affine(),
-            &G2Prepared::from(self.kappa.to_affine()),
+            &G2Prepared::from(kappa_type.to_affine()),
             &self.sig.s.to_affine(),
             params.prepared_miller_g2(),
         ) {
@@ -935,7 +957,7 @@ impl Payment {
         // verify the zk proof
         self.verify_spend_proof(verification_key, pay_info)?;
         // Verify whether the payment signature and kappa are correct
-        self.check_signature_validity()?;
+        self.check_signature_validity(verification_key)?;
         // Verify whether the expiration date signature and kappa_e are correct
         self.check_exp_signature_validity(verification_key, spend_date)?;
         // Verify whether the coin indices signatures and kappa_k are correct

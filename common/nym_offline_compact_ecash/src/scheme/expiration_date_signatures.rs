@@ -411,6 +411,15 @@ pub fn scalar_date(scalar: &Scalar) -> u64 {
     u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]])
 }
 
+pub fn type_scalar(t_type: u64) -> Scalar {
+    Scalar::from(t_type)
+}
+
+pub fn scalar_type(scalar: &Scalar) -> u64 {
+    let b = scalar.to_bytes();
+    u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -83,6 +83,7 @@ pub fn payment_from_keys_and_expiration_date(
     ecash_keypairs: &Vec<KeyPairAuth>,
     indices: &[SignerIndex],
     expiration_date: u64,
+    t_type: u64,
 ) -> Result<(Payment, PayInfo)> {
     let total_coins = 32;
     let params = Parameters::new(total_coins);
@@ -121,7 +122,7 @@ pub fn payment_from_keys_and_expiration_date(
     //SAFETY : method intended for test only
     #[allow(clippy::unwrap_used)]
     // request a wallet
-    let (req, req_info) = withdrawal_request(user_keypair.secret_key(), expiration_date).unwrap();
+    let (req, req_info) = withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
 
     // generate blinded signatures
     let mut wallet_blinded_signatures = Vec::new();
@@ -132,6 +133,7 @@ pub fn payment_from_keys_and_expiration_date(
             user_keypair.public_key(),
             &req,
             expiration_date,
+            t_type,
         )?;
         wallet_blinded_signatures.push(blinded_signature)
     }

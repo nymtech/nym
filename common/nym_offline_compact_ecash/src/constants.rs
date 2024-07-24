@@ -5,7 +5,7 @@ use bls12_381::Scalar;
 use nym_network_defaults::ecash::TICKETBOOK_VALIDITY_DAYS;
 use nym_network_defaults::TICKETBOOK_SIZE;
 
-pub const PUBLIC_ATTRIBUTES_LEN: usize = 1; //expiration date
+pub const PUBLIC_ATTRIBUTES_LEN: usize = 2; //expiration date and ticket type
 pub const PRIVATE_ATTRIBUTES_LEN: usize = 2; //user and wallet secret
 pub const ATTRIBUTES_LEN: usize = PUBLIC_ATTRIBUTES_LEN + PRIVATE_ATTRIBUTES_LEN; // number of attributes encoded in a single zk-nym credential
 

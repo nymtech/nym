@@ -114,7 +114,7 @@ From `nym-node` version `1.1.3` onward is required to accept [**Operators Terms 
 
 There has been a long ongoing discussion whether and how to apply Terms and Conditions for Nym network operators, with an aim to stay aligned with the philosophy of Free Software and provide legal defense for both node operators and Nym developers. To understand better the reasoning behind this decision, you can listen to the first [Nym Operator Town Hall](https://www.youtube.com/live/7hwb8bAZIuc?si=3mQ2ed7AyUA1SsCp&t=915) introducing the T&Cs or to [Operator AMA with CEO Harry Halpin](https://www.youtube.com/watch?v=yIN-zYQw0I0) from June 4th, 2024, explaining pros and cons of T&Cs implementation.
 
-Accepting T&Cs is done via an explicit flag `--accept-operator-terms-and-conditions` added to `nym-node run` command.
+Accepting T&Cs is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use [systemd](configuration.md#systemd) automation, add the flag to your service file's `ExecStart` line.
 
 To check whether any node has T&Cs accepted or not can be done by querying Swagger API endpoint `/auxiliary_details` via one of these ports (depending on node setup):
 ```sh

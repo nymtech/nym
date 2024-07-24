@@ -9,6 +9,7 @@
 use dashmap::DashMap;
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi};
 use nym_crypto::asymmetric::encryption::KeyPair;
+use nym_gateway_storage::Storage;
 use nym_wireguard_types::{Config, Error, GatewayClient, GatewayClientRegistry, PeerPublicKey};
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
@@ -103,7 +104,8 @@ pub struct WireguardData {
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]
-pub async fn start_wireguard(
+pub async fn start_wireguard<St: Storage + 'static>(
+    storage: St,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
     control_tx: UnboundedSender<peer_controller::PeerControlResponse>,
@@ -147,6 +149,7 @@ pub async fn start_wireguard(
 
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(
+        storage,
         wg_api.clone(),
         interface_config.peers,
         wireguard_data.peer_rx,

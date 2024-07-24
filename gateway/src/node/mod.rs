@@ -250,7 +250,10 @@ impl<St> Gateway<St> {
         &mut self,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
-    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>>
+    where
+        St: Storage + Clone + 'static,
+    {
         let opts = self
             .authenticator_opts
             .as_ref()
@@ -301,8 +304,13 @@ impl<St> Gateway<St> {
             MessageRouter::new(auth_mix_receiver, packet_router)
                 .start_with_shutdown(router_shutdown);
 
-            let wg_api =
-                nym_wireguard::start_wireguard(shutdown, wireguard_data, peer_response_tx).await?;
+            let wg_api = nym_wireguard::start_wireguard(
+                self.storage.clone(),
+                shutdown,
+                wireguard_data,
+                peer_response_tx,
+            )
+            .await?;
 
             Ok(StartedAuthenticator {
                 wg_api,

@@ -6214,6 +6214,7 @@ dependencies = [
  "ip_network",
  "log",
  "nym-crypto",
+ "nym-gateway-storage",
  "nym-network-defaults",
  "nym-task",
  "nym-wireguard-types",

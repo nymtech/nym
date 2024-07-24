@@ -3,6 +3,7 @@
 
 use chrono::{Timelike, Utc};
 use defguard_wireguard_rs::{host::Peer, key::Key, WireguardInterfaceApi};
+use nym_gateway_storage::Storage;
 use nym_wireguard_types::registration::{RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY};
 use std::time::SystemTime;
 use std::{collections::HashMap, sync::Arc, time::Duration};
@@ -35,7 +36,8 @@ pub enum PeerControlResponse {
     },
 }
 
-pub struct PeerController {
+pub struct PeerController<St: Storage> {
+    storage: St,
     request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
     response_tx: mpsc::UnboundedSender<PeerControlResponse>,
     wg_api: Arc<WgApiWrapper>,
@@ -45,8 +47,9 @@ pub struct PeerController {
     last_seen_bandwidth: HashMap<Key, u64>,
 }
 
-impl PeerController {
+impl<St: Storage> PeerController<St> {
     pub fn new(
+        storage: St,
         wg_api: Arc<WgApiWrapper>,
         peers: Vec<Peer>,
         request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
@@ -61,6 +64,7 @@ impl PeerController {
             .collect();
 
         PeerController {
+            storage,
             wg_api,
             request_rx,
             response_tx,

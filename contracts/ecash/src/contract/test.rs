@@ -3,7 +3,7 @@
 
 use crate::contract::NymEcashContract;
 use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
-use cosmwasm_std::{Addr, Empty, Env, MemoryStorage, OwnedDeps};
+use cosmwasm_std::{coin, Addr, Empty, Env, MemoryStorage, OwnedDeps};
 use sylvia::types::{InstantiateCtx, QueryCtx};
 
 pub const TEST_DENOM: &str = "unym";
@@ -37,7 +37,7 @@ impl TestSetup {
                 holding.to_string(),
                 multisig_contract.to_string(),
                 group_contract.to_string(),
-                TEST_DENOM.to_string(),
+                coin(75000000, TEST_DENOM),
             )
             .unwrap();
 

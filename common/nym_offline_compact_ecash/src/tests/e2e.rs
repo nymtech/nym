@@ -22,8 +22,8 @@ mod tests {
         let total_coins = 32;
         let params = Parameters::new(total_coins);
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
-        let expiration_date = 1703721600; // Dec 28 2023 00:00:00
         let spend_date = 1701907200; // Dec 07 2023 00:00:00
+        let expiration_date = 1702166400; // Dec 10 2023 00:00:00
         let user_keypair = generate_keypair_user();
 
         // generate authorities keys

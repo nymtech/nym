@@ -18,7 +18,9 @@ pub use nym_client_core::*;
 pub use nym_client_core::{
     client::key_manager::ClientKeys, error::ClientCoreError, init::types::InitialisationResult,
 };
-pub use nym_gateway_client::{error::GatewayClientError, GatewayClient, GatewayConfig};
+pub use nym_gateway_client::{
+    error::GatewayClientError, GatewayClient, GatewayClientConfig, GatewayConfig,
+};
 pub use nym_sphinx::{
     addressing::{clients::Recipient, nodes::NodeIdentity},
     params::PacketType,

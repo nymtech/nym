@@ -181,7 +181,7 @@ Connected with no problems
 
 * [Create a guide to backup and restore `nym-node`](https://nymtech.net/operators/nodes/maintenance.html#backup-a-node), PR [\#4720](https://github.com/nymtech/nym/pull/4720)
 * [Add manual IPv6 ifup/down network configuration](https://nymtech.net/operators/troubleshooting/vps-isp.html#network-configuration), PR [\#4651](https://github.com/nymtech/nym/pull/4651)
-* [Extend up ISP list](https://nymtech.net/operators/legal/isp-list.html)
+* [Extend ISP list](https://nymtech.net/operators/legal/isp-list.html)
 * [Add SSL cert bot block to WSS setup](https://nymtech.net/operators/nodes/proxy-configuration.html#web-secure-socket-setup), [PR here](https://github.com/nymtech/nym/commits/develop/): WSS setup fully works!
 * [Correct `HTTP API port` in bonding page](https://nymtech.net/operators/nodes/bonding.html#bond-via-the-desktop-wallet-recommended) , [PR \#4707](https://github.com/nymtech/nym/pull/4707): Change `HTTP API port` to `8080` on every `nym-node` by opening `config.toml` and making sure that your binding addresses and ports are as in the block below. Then go to desktop wallet and open the box called `Show advanced options` and make sure all your ports are set correctly (usually this means to change `HTTP api port` to `8080` for `mixnode` mode).
 ~~~admonish example collapsible=true title='snap of binding addresses and ports in `config.toml`'

@@ -122,7 +122,8 @@ pub fn payment_from_keys_and_expiration_date(
     //SAFETY : method intended for test only
     #[allow(clippy::unwrap_used)]
     // request a wallet
-    let (req, req_info) = withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
+    let (req, req_info) =
+        withdrawal_request(user_keypair.secret_key(), expiration_date, t_type).unwrap();
 
     // generate blinded signatures
     let mut wallet_blinded_signatures = Vec::new();

@@ -160,7 +160,8 @@ pub fn withdrawal_request(
     let joined_commitment_hash = hash_g1(
         (joined_commitment
             + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date)
-            + params.gamma_idx(3).unwrap() * Scalar::from(t_type)).to_bytes(),
+            + params.gamma_idx(3).unwrap() * Scalar::from(t_type))
+        .to_bytes(),
     );
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
@@ -232,7 +233,7 @@ pub fn request_verify(
         (req.joined_commitment
             + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date)
             + params.gamma_idx(3).unwrap() * Scalar::from(t_type))
-            .to_bytes(),
+        .to_bytes(),
     );
     if req.joined_commitment_hash != expected_commitment_hash {
         return Err(CompactEcashError::WithdrawalRequestVerification);
@@ -300,7 +301,7 @@ fn sign_t_type(
 ) -> G1Projective {
     //SAFETY : this fn assumes a long enough key
     #[allow(clippy::unwrap_used)]
-        let yi = sk_auth.get_y_by_idx(3).unwrap();
+    let yi = sk_auth.get_y_by_idx(3).unwrap();
     joined_commitment_hash * (yi * Scalar::from(t_type))
 }
 
@@ -350,14 +351,12 @@ pub fn issue(
         sk_auth,
     );
     // Sign the type
-    let t_type_sign = sign_t_type(
-        &withdrawal_req.joined_commitment_hash,
-        t_type,
-        sk_auth,
-    );
+    let t_type_sign = sign_t_type(&withdrawal_req.joined_commitment_hash, t_type, sk_auth);
     // Combine both signatures
-    let signature =
-        blind_signatures + withdrawal_req.joined_commitment_hash * sk_auth.x + expiration_date_sign + t_type_sign;
+    let signature = blind_signatures
+        + withdrawal_req.joined_commitment_hash * sk_auth.x
+        + expiration_date_sign
+        + t_type_sign;
 
     Ok(BlindedSignature {
         h: withdrawal_req.joined_commitment_hash,
@@ -406,7 +405,12 @@ pub fn issue_verify(
         .sum::<G1Projective>();
     let unblinded_c = blind_signature.c - blinding_removers;
 
-    let attr = [sk_user.sk, req_info.wallet_secret, req_info.expiration_date, req_info.t_type];
+    let attr = [
+        sk_user.sk,
+        req_info.wallet_secret,
+        req_info.expiration_date,
+        req_info.t_type,
+    ];
 
     let signed_attributes = attr
         .iter()

@@ -86,3 +86,103 @@ pub struct WireguardPeer {
     pub allowed_ips: Vec<u8>,
     pub suspended: bool,
 }
+
+#[cfg(feature = "wireguard")]
+impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
+    fn from(value: defguard_wireguard_rs::host::Peer) -> Self {
+        WireguardPeer {
+            public_key: value.public_key.to_string(),
+            preshared_key: value.preshared_key.as_ref().map(|k| k.to_string()),
+            protocol_version: value.protocol_version.map(|v| v as i64),
+            endpoint: value.endpoint.map(|e| e.to_string()),
+            last_handshake: value
+                .last_handshake
+                .map(|t| {
+                    if let Ok(d) = t.duration_since(std::time::UNIX_EPOCH) {
+                        if let Some(millis) = d.as_millis().try_into().ok() {
+                            sqlx::types::chrono::DateTime::from_timestamp_millis(millis)
+                                .map(|d| d.naive_utc())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .flatten(),
+            tx_bytes: value.tx_bytes as i64,
+            rx_bytes: value.rx_bytes as i64,
+            persistent_keepalive_interval: value.persistent_keepalive_interval.map(|v| v as i64),
+            allowed_ips: bincode::Options::serialize(
+                bincode::DefaultOptions::new(),
+                &value.allowed_ips,
+            )
+            .unwrap(),
+            suspended: false,
+        }
+    }
+}
+
+#[cfg(feature = "wireguard")]
+impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
+    type Error = crate::error::StorageError;
+
+    fn try_from(value: WireguardPeer) -> Result<Self, Self::Error> {
+        Ok(Self {
+            public_key: value
+                .public_key
+                .as_str()
+                .try_into()
+                .map_err(|e| Self::Error::TypeConversion(format!("public key {e}")))?,
+            preshared_key: value
+                .preshared_key
+                .as_deref()
+                .map(TryFrom::try_from)
+                .transpose()
+                .map_err(|e| Self::Error::TypeConversion(format!("preshared key {e}")))?,
+            protocol_version: value
+                .protocol_version
+                .map(TryFrom::try_from)
+                .transpose()
+                .map_err(|e| Self::Error::TypeConversion(format!("protocol version {e}")))?,
+            endpoint: value
+                .endpoint
+                .as_deref()
+                .map(|e| e.parse())
+                .transpose()
+                .map_err(|e| Self::Error::TypeConversion(format!("endpoint {e}")))?,
+            last_handshake: value
+                .last_handshake
+                .map(|t| {
+                    let unix_time = std::time::UNIX_EPOCH;
+                    if let Some(millis) = t.and_utc().timestamp_millis().try_into().ok() {
+                        let duration = std::time::Duration::from_millis(millis);
+                        unix_time.checked_add(duration)
+                    } else {
+                        None
+                    }
+                })
+                .flatten(),
+            tx_bytes: value
+                .tx_bytes
+                .try_into()
+                .map_err(|e| Self::Error::TypeConversion(format!("tx bytes {e}")))?,
+            rx_bytes: value
+                .rx_bytes
+                .try_into()
+                .map_err(|e| Self::Error::TypeConversion(format!("rx bytes {e}")))?,
+            persistent_keepalive_interval: value
+                .persistent_keepalive_interval
+                .map(TryFrom::try_from)
+                .transpose()
+                .map_err(|e| {
+                    Self::Error::TypeConversion(format!("persistent keepalive interval {e}"))
+                })?,
+            allowed_ips: bincode::Options::deserialize(
+                bincode::DefaultOptions::new(),
+                &value.allowed_ips,
+            )
+            .map_err(|e| Self::Error::TypeConversion(format!("allowed ips {e}")))?,
+        })
+    }
+}

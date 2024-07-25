@@ -52,6 +52,7 @@ impl<St: Storage> PeerController<St> {
         storage: St,
         wg_api: Arc<WgApiWrapper>,
         peers: Vec<Peer>,
+        suspended_peers: Vec<Peer>,
         request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
         response_tx: mpsc::UnboundedSender<PeerControlResponse>,
     ) -> Self {
@@ -59,6 +60,10 @@ impl<St: Storage> PeerController<St> {
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
         let active_peers = peers
+            .into_iter()
+            .map(|peer| (peer.public_key.clone(), peer))
+            .collect();
+        let suspended_peers = suspended_peers
             .into_iter()
             .map(|peer| (peer.public_key.clone(), peer))
             .collect();
@@ -70,7 +75,7 @@ impl<St: Storage> PeerController<St> {
             response_tx,
             timeout_check_interval,
             active_peers,
-            suspended_peers: HashMap::new(),
+            suspended_peers,
             last_seen_bandwidth: HashMap::new(),
         }
     }

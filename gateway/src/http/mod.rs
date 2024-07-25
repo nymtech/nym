@@ -272,19 +272,3 @@ impl<'a> HttpApiBuilder<'a> {
         Ok(())
     }
 }
-
-// pub(crate) fn start_http_api(
-//     gateway_config: &Config,
-//     network_requester_config: Option<&nym_network_requester::Config>,
-//     client_registry: Arc<GatewayClientRegistry>,
-//     identity_keypair: &identity::KeyPair,
-//     // TODO: this should be a wg specific key and not re-used sphinx
-//     sphinx_keypair: Arc<encryption::KeyPair>,
-//
-//     task_client: TaskClient,
-// ) -> Result<(), GatewayError> {
-//     HttpApiBuilder::new(gateway_config, identity_keypair, sphinx_keypair)
-//         .with_wireguard_client_registry(client_registry)
-//         .with_network_requester(network_requester_config)
-//         .start(task_client)
-// }

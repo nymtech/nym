@@ -17,7 +17,6 @@ use nym_crypto::asymmetric::encryption::PrivateKey;
 #[cfg(feature = "verify")]
 use sha2::Sha256;
 
-pub type GatewayClientRegistry = DashMap<PeerPublicKey, GatewayClient>;
 pub type PendingRegistrations = DashMap<PeerPublicKey, RegistrationData>;
 pub type PrivateIPs = DashMap<IpAddr, Taken>;
 

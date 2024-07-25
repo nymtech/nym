@@ -220,9 +220,6 @@ impl MixnetListener {
             }
             self.registration_in_progres
                 .remove(&gateway_client.pub_key());
-            self.wireguard_gateway_data
-                .client_registry()
-                .insert(gateway_client.pub_key(), gateway_client);
 
             Ok(AuthenticatorResponse::new_registered(
                 RegistredData {

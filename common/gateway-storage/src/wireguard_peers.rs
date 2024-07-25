@@ -56,6 +56,19 @@ impl WgPeerManager {
         .await
     }
 
+    /// Retrieve all wireguard peers.
+    pub(crate) async fn retrieve_all_peers(&self) -> Result<Vec<WireguardPeer>, sqlx::Error> {
+        sqlx::query_as!(
+            WireguardPeer,
+            r#"
+                    SELECT *
+                    FROM wireguard_peer;
+                "#,
+        )
+        .fetch_all(&self.connection_pool)
+        .await
+    }
+
     /// Retrieve the wireguard peer with the provided public key from the storage.
     ///
     /// # Arguments

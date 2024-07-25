@@ -12,6 +12,7 @@ license.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
+bincode = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
 defguard_wireguard_rs = { workspace = true }

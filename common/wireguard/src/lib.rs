@@ -6,11 +6,10 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use dashmap::DashMap;
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi};
 use nym_crypto::asymmetric::encryption::KeyPair;
 use nym_gateway_storage::Storage;
-use nym_wireguard_types::{Config, Error, GatewayClient, GatewayClientRegistry, PeerPublicKey};
+use nym_wireguard_types::{Config, Error, GatewayClient, PeerPublicKey};
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -43,7 +42,6 @@ impl Drop for WgApiWrapper {
 pub struct WireguardGatewayData {
     config: Config,
     keypair: Arc<KeyPair>,
-    client_registry: Arc<GatewayClientRegistry>,
     peer_tx: UnboundedSender<PeerControlRequest>,
 }
 
@@ -57,7 +55,6 @@ impl WireguardGatewayData {
             WireguardGatewayData {
                 config,
                 keypair,
-                client_registry: Arc::new(DashMap::default()),
                 peer_tx,
             },
             peer_rx,
@@ -70,10 +67,6 @@ impl WireguardGatewayData {
 
     pub fn keypair(&self) -> &Arc<KeyPair> {
         &self.keypair
-    }
-
-    pub fn client_registry(&self) -> &Arc<GatewayClientRegistry> {
-        &self.client_registry
     }
 
     pub fn add_peer(&self, client: &GatewayClient) -> Result<(), Error> {
@@ -116,11 +109,15 @@ pub async fn start_wireguard<St: Storage + 'static>(
     use peer_controller::PeerController;
 
     let mut peers = vec![];
-    for peer_client in wireguard_data.inner.client_registry().iter() {
-        let mut peer = Peer::new(Key::new(peer_client.pub_key.to_bytes()));
-        let peer_ip_mask = IpAddrMask::new(peer_client.private_ip, 32);
-        peer.set_allowed_ips(vec![peer_ip_mask]);
-        peers.push(peer);
+    let mut suspended_peers = vec![];
+    for storage_peer in storage.get_all_wireguard_peers().await? {
+        let suspended = storage_peer.suspended;
+        let peer = Peer::try_from(storage_peer)?;
+        if suspended {
+            suspended_peers.push(peer);
+        } else {
+            peers.push(peer);
+        }
     }
 
     let ifname = String::from(WG_TUN_NAME);
@@ -152,6 +149,7 @@ pub async fn start_wireguard<St: Storage + 'static>(
         storage,
         wg_api.clone(),
         interface_config.peers,
+        suspended_peers,
         wireguard_data.peer_rx,
         control_tx,
     );

@@ -16,4 +16,7 @@ pub enum StorageError {
 
     #[error("the stored data associated with ticket {ticket_id} is malformed!")]
     MalformedStoredTicketData { ticket_id: i64 },
+
+    #[error("Failed to convert from type of database: {0}")]
+    TypeConversion(String),
 }

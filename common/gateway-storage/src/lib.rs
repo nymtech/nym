@@ -9,7 +9,7 @@ use models::{
     PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage, VerifiedTicket,
     WireguardPeer,
 };
-use nym_credentials_interface::{ ClientTicket};
+use nym_credentials_interface::ClientTicket;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
@@ -230,16 +230,22 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be retrieved.
+    #[cfg(feature = "wireguard")]
     async fn get_wireguard_peer(
         &self,
         peer_public_key: &str,
     ) -> Result<Option<WireguardPeer>, StorageError>;
+
+    /// Retrieves all wireguard peers.
+    #[cfg(feature = "wireguard")]
+    async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError>;
 
     /// Remove a wireguard peer from the storage.
     ///
     /// # Arguments
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be removed.
+    #[cfg(feature = "wireguard")]
     async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError>;
 }
 
@@ -621,38 +627,8 @@ impl Storage for PersistentStorage {
         peer: &defguard_wireguard_rs::host::Peer,
         suspended: bool,
     ) -> Result<(), StorageError> {
-        let peer = WireguardPeer {
-            public_key: peer.public_key.to_string(),
-            preshared_key: peer.preshared_key.as_ref().map(|k| k.to_string()),
-            protocol_version: peer.protocol_version.map(|v| v as i64),
-            endpoint: peer.endpoint.map(|e| e.to_string()),
-            last_handshake: peer
-                .last_handshake
-                .map(|t| {
-                    if let Ok(d) = t.duration_since(std::time::UNIX_EPOCH) {
-                        if let Some(nanos) = d.as_nanos().try_into().ok() {
-                            Some(
-                                sqlx::types::chrono::DateTime::from_timestamp_nanos(nanos)
-                                    .naive_utc(),
-                            )
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                })
-                .flatten(),
-            tx_bytes: peer.tx_bytes as i64,
-            rx_bytes: peer.rx_bytes as i64,
-            persistent_keepalive_interval: peer.persistent_keepalive_interval.map(|v| v as i64),
-            allowed_ips: bincode::Options::serialize(
-                bincode::DefaultOptions::new(),
-                &peer.allowed_ips,
-            )
-            .unwrap(),
-            suspended,
-        };
+        let mut peer = WireguardPeer::from(peer.clone());
+        peer.suspended = suspended;
         self.wireguard_peer_manager.insert_peer(&peer).await?;
         Ok(())
     }
@@ -670,10 +646,154 @@ impl Storage for PersistentStorage {
     }
 
     #[cfg(feature = "wireguard")]
+    async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError> {
+        let ret = self.wireguard_peer_manager.retrieve_all_peers().await?;
+        Ok(ret)
+    }
+
+    #[cfg(feature = "wireguard")]
     async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError> {
         self.wireguard_peer_manager
             .remove_peer(peer_public_key)
             .await?;
         Ok(())
+    }
+}
+
+/// In-memory implementation of `Storage`. The intention is primarily in testing environments.
+#[derive(Clone)]
+pub struct InMemStorage;
+
+//#[cfg(test)]
+//impl InMemStorage {
+//    #[allow(unused)]
+//    async fn init<P: AsRef<Path> + Send>() -> Result<Self, StorageError> {
+//        todo!()
+//    }
+//}
+
+#[cfg(test)]
+#[async_trait]
+impl Storage for InMemStorage {
+    async fn insert_shared_keys(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _shared_keys: &SharedKeys,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn get_shared_keys(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<Option<PersistedSharedKeys>, StorageError> {
+        todo!()
+    }
+
+    async fn remove_shared_keys(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn store_message(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _message: Vec<u8>,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn retrieve_messages(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _start_after: Option<i64>,
+    ) -> Result<(Vec<StoredMessage>, Option<i64>), StorageError> {
+        todo!()
+    }
+
+    async fn remove_messages(&self, _ids: Vec<i64>) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn create_bandwidth_entry(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn set_freepass_expiration(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _freepass_expiration: OffsetDateTime,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn reset_freepass_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn get_available_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<Option<PersistedBandwidth>, StorageError> {
+        todo!()
+    }
+
+    async fn set_bandwidth(
+        &self,
+        _client_address: DestinationAddressBytes,
+        _amount: i64,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn insert_spent_credential(
+        &self,
+        _blinded_serial_number: BlindedSerialNumber,
+        _was_freepass: bool,
+        _client_address: DestinationAddressBytes,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn contains_credential(
+        &self,
+        _blinded_serial_number: &BlindedSerialNumber,
+    ) -> Result<bool, StorageError> {
+        todo!()
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn insert_wireguard_peer(
+        &self,
+        _peer: &defguard_wireguard_rs::host::Peer,
+        _suspended: bool,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn get_wireguard_peer(
+        &self,
+        _peer_public_key: &str,
+    ) -> Result<Option<WireguardPeer>, StorageError> {
+        todo!()
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError> {
+        todo!()
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn remove_wireguard_peer(&self, _peer_public_key: &str) -> Result<(), StorageError> {
+        todo!()
     }
 }

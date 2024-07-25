@@ -1,7 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_network_defaults::TicketbookType;
+use nym_network_defaults::TicketTypeRepr;
 use std::num::ParseIntError;
 use thiserror::Error;
 use time::error::ComponentRange;
@@ -42,7 +42,7 @@ impl Bandwidth {
         Bandwidth { value }
     }
 
-    pub fn ticket_amount(typ: TicketbookType) -> Self {
+    pub fn ticket_amount(typ: TicketTypeRepr) -> Self {
         Bandwidth {
             value: typ.bandwidth_value(),
         }

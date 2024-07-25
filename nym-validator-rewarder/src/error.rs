@@ -115,9 +115,8 @@ pub enum NymRewarderError {
         received: usize,
     },
 
-    #[error("the following private attribute commitment is malformed: {raw}: {source}")]
+    #[error("one of the provided private attribute commitment is malformed: {source}")]
     MalformedCredentialCommitment {
-        raw: String,
         #[source]
         source: CompactEcashError,
     },

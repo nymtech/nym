@@ -4,15 +4,16 @@
 use crate::ecash::error::EcashError;
 use crate::node_status_api::models::NymApiStorageError;
 use nym_api_requests::ecash::models::{
-    EpochCredentialsResponse, IssuedCredential as ApiIssuedCredential,
-    IssuedCredentialBody as ApiIssuedCredentialInner,
+    EpochCredentialsResponse, IssuedTicketbook as ApiIssuedCredential,
+    IssuedTicketbookBody as ApiIssuedCredentialInner,
 };
 use nym_api_requests::ecash::BlindedSignatureResponse;
-use nym_compact_ecash::{Base58, BlindedSignature};
+use nym_compact_ecash::BlindedSignature;
 use nym_config::defaults::BloomfilterParameters;
+use nym_credentials_interface::TicketType;
+use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::DepositId;
 use sqlx::FromRow;
-use std::fmt::Display;
 use std::ops::Deref;
 use time::{Date, OffsetDateTime};
 
@@ -71,21 +72,22 @@ pub struct VerifiedTicket {
 }
 
 #[derive(FromRow)]
-pub struct IssuedCredential {
+pub struct IssuedTicketbook {
     pub id: i64,
     pub epoch_id: u32,
     pub deposit_id: DepositId,
 
-    /// base58-encoded issued credential
-    pub bs58_partial_credential: String,
+    pub partial_credential: Vec<u8>,
 
-    /// base58-encoded signature on the issued credential (and the attributes)
-    pub bs58_signature: String,
+    /// signature on the issued credential (and the attributes)
+    pub signature: Vec<u8>,
 
     // i.e. "'attr1','attr2',..."
-    pub joined_private_commitments: String,
+    pub joined_private_commitments: Vec<u8>,
 
     pub expiration_date: Date,
+
+    pub ticketbook_type_repr: u8,
 }
 
 #[derive(FromRow)]
@@ -141,58 +143,61 @@ impl<'a> TryFrom<&'a StoredBloomfilterParams> for BloomfilterParameters {
     }
 }
 
-impl TryFrom<IssuedCredential> for ApiIssuedCredentialInner {
+impl TryFrom<IssuedTicketbook> for ApiIssuedCredentialInner {
     type Error = EcashError;
 
-    fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
+    fn try_from(value: IssuedTicketbook) -> Result<Self, Self::Error> {
         Ok(ApiIssuedCredentialInner {
             credential: ApiIssuedCredential {
                 id: value.id,
                 epoch_id: value.epoch_id,
                 deposit_id: value.deposit_id,
-                blinded_partial_credential: BlindedSignature::try_from_bs58(
-                    value.bs58_partial_credential,
+                blinded_partial_credential: BlindedSignature::from_bytes(
+                    &value.partial_credential,
                 )?,
-                bs58_encoded_private_attributes_commitments: split_attributes(
-                    &value.joined_private_commitments,
+                encoded_private_attributes_commitments: split_attributes(
+                    value.joined_private_commitments,
                 ),
                 expiration_date: value.expiration_date,
+                ticketbook_type: TicketType::try_from_encoded(value.ticketbook_type_repr)?,
             },
-            signature: value.bs58_signature.parse()?,
+            signature: ed25519::Signature::from_bytes(&value.signature)?,
         })
     }
 }
 
-impl TryFrom<IssuedCredential> for BlindedSignatureResponse {
+impl TryFrom<IssuedTicketbook> for BlindedSignatureResponse {
     type Error = EcashError;
 
-    fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
+    fn try_from(value: IssuedTicketbook) -> Result<Self, Self::Error> {
         Ok(BlindedSignatureResponse {
-            blinded_signature: BlindedSignature::try_from_bs58(value.bs58_partial_credential)?,
+            blinded_signature: BlindedSignature::from_bytes(&value.partial_credential)?,
         })
     }
 }
 
-impl TryFrom<IssuedCredential> for BlindedSignature {
+impl TryFrom<IssuedTicketbook> for BlindedSignature {
     type Error = EcashError;
 
-    fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
-        Ok(BlindedSignature::try_from_bs58(
-            value.bs58_partial_credential,
-        )?)
+    fn try_from(value: IssuedTicketbook) -> Result<Self, Self::Error> {
+        Ok(BlindedSignature::from_bytes(&value.partial_credential)?)
     }
 }
 
-pub fn join_attributes<I, M>(attrs: I) -> String
-where
-    I: IntoIterator<Item = M>,
-    M: Display,
-{
-    // I could have used `attrs.into_iter().join(",")`,
-    // but my IDE didn't like it (compiler was fine)
-    itertools::Itertools::join(&mut attrs.into_iter(), ",")
+pub(crate) fn join_attributes(attrs: Vec<Vec<u8>>) -> Vec<u8> {
+    // note: 48 is length of encoded G1 element
+    let mut out = Vec::with_capacity(48 * attrs.len());
+    for mut attr in attrs {
+        // since this is called internally only, we expect valid attributes here!
+        assert_eq!(attr.len(), 48);
+
+        out.append(&mut attr)
+    }
+
+    out
 }
 
-pub fn split_attributes(attrs: &str) -> Vec<String> {
-    attrs.split(',').map(|s| s.to_string()).collect()
+pub(crate) fn split_attributes(attrs: Vec<u8>) -> Vec<Vec<u8>> {
+    assert_eq!(attrs.len() % 48, 0, "database corruption");
+    attrs.chunks_exact(48).map(|c| c.to_vec()).collect()
 }

@@ -23,8 +23,8 @@ use nym_api_requests::ecash::VerificationKeyResponse;
 pub use nym_api_requests::{
     ecash::{
         models::{
-            EpochCredentialsResponse, IssuedCredential, IssuedCredentialBody,
-            IssuedCredentialResponse, IssuedCredentialsResponse, SpentCredentialsResponse,
+            EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
+            IssuedTicketbook, IssuedTicketbookBody, SpentCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
         PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,

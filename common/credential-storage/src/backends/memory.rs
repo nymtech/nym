@@ -175,6 +175,7 @@ impl MemoryEcachTicketbookManager {
             .map(|t| BasicTicketbookInformation {
                 id: t.ticketbook_id,
                 expiration_date: t.ticketbook.expiration_date(),
+                ticketbook_type: t.ticketbook.ticketbook_type().to_string(),
                 epoch_id: t.ticketbook.epoch_id() as u32,
                 total_tickets: t.ticketbook.spent_tickets() as u32,
                 used_tickets: t.ticketbook.params_total_tickets() as u32,

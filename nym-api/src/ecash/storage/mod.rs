@@ -8,7 +8,7 @@ use crate::ecash::storage::helpers::{
 };
 use crate::ecash::storage::manager::EcashStorageManagerExt;
 use crate::ecash::storage::models::{
-    join_attributes, EpochCredentials, IssuedCredential, SerialNumberWrapper, TicketProvider,
+    join_attributes, EpochCredentials, IssuedTicketbook, SerialNumberWrapper, TicketProvider,
 };
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
@@ -16,9 +16,10 @@ use nym_api_requests::ecash::models::Pagination;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::BlindedSignature;
-use nym_compact_ecash::{Base58, VerificationKeyAuth};
+use nym_compact_ecash::VerificationKeyAuth;
 use nym_config::defaults::BloomfilterParameters;
 use nym_credentials::CredentialSpendingData;
+use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::nyxd::AccountId;
@@ -81,12 +82,12 @@ pub trait EcashStorageExt {
     async fn get_issued_credential(
         &self,
         credential_id: i64,
-    ) -> Result<Option<IssuedCredential>, NymApiStorageError>;
+    ) -> Result<Option<IssuedTicketbook>, NymApiStorageError>;
 
     async fn get_issued_bandwidth_credential_by_deposit_id(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<IssuedCredential>, NymApiStorageError>;
+    ) -> Result<Option<IssuedTicketbook>, NymApiStorageError>;
 
     async fn store_issued_credential(
         &self,
@@ -94,19 +95,20 @@ pub trait EcashStorageExt {
         deposit_id: DepositId,
         partial_credential: &BlindedSignature,
         signature: identity::Signature,
-        private_commitments: Vec<String>,
+        private_commitments: Vec<Vec<u8>>,
         expiration_date: Date,
+        ticketbook_type: TicketType,
     ) -> Result<i64, NymApiStorageError>;
 
     async fn get_issued_credentials(
         &self,
         credential_ids: Vec<i64>,
-    ) -> Result<Vec<IssuedCredential>, NymApiStorageError>;
+    ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError>;
 
     async fn get_issued_credentials_paged(
         &self,
         pagination: Pagination<i64>,
-    ) -> Result<Vec<IssuedCredential>, NymApiStorageError>;
+    ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError>;
     //
     // async fn insert_credential(
     //     &self,
@@ -308,14 +310,14 @@ impl EcashStorageExt for NymApiStorage {
     async fn get_issued_credential(
         &self,
         credential_id: i64,
-    ) -> Result<Option<IssuedCredential>, NymApiStorageError> {
+    ) -> Result<Option<IssuedTicketbook>, NymApiStorageError> {
         Ok(self.manager.get_issued_credential(credential_id).await?)
     }
 
     async fn get_issued_bandwidth_credential_by_deposit_id(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<IssuedCredential>, NymApiStorageError> {
+    ) -> Result<Option<IssuedTicketbook>, NymApiStorageError> {
         Ok(self
             .manager
             .get_issued_bandwidth_credential_by_deposit_id(deposit_id)
@@ -328,18 +330,20 @@ impl EcashStorageExt for NymApiStorage {
         deposit_id: DepositId,
         partial_credential: &BlindedSignature,
         signature: identity::Signature,
-        private_commitments: Vec<String>,
+        private_commitments: Vec<Vec<u8>>,
         expiration_date: Date,
+        ticketbook_type: TicketType,
     ) -> Result<i64, NymApiStorageError> {
         Ok(self
             .manager
-            .store_issued_credential(
+            .store_issued_ticketbook(
                 epoch_id,
                 deposit_id,
-                partial_credential.to_bs58(),
-                signature.to_base58_string(),
-                join_attributes(private_commitments),
+                &partial_credential.to_bytes(),
+                &signature.to_bytes(),
+                &join_attributes(private_commitments),
                 expiration_date,
+                ticketbook_type.encode(),
             )
             .await?)
     }
@@ -347,14 +351,14 @@ impl EcashStorageExt for NymApiStorage {
     async fn get_issued_credentials(
         &self,
         credential_ids: Vec<i64>,
-    ) -> Result<Vec<IssuedCredential>, NymApiStorageError> {
-        Ok(self.manager.get_issued_credentials(credential_ids).await?)
+    ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError> {
+        Ok(self.manager.get_issued_ticketbooks(credential_ids).await?)
     }
 
     async fn get_issued_credentials_paged(
         &self,
         pagination: Pagination<i64>,
-    ) -> Result<Vec<IssuedCredential>, NymApiStorageError> {
+    ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError> {
         // rows start at 1
         let start_after = pagination.last_key.unwrap_or(0);
         let limit = match pagination.limit {
@@ -370,7 +374,7 @@ impl EcashStorageExt for NymApiStorage {
 
         Ok(self
             .manager
-            .get_issued_credentials_paged(start_after, limit)
+            .get_issued_ticketbooks_paged(start_after, limit)
             .await?)
     }
 

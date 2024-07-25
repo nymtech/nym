@@ -3,6 +3,7 @@
 
 use crate::node_status_api::models::NymApiStorageError;
 use nym_coconut_dkg_common::types::{ChunkIndex, DealingIndex, EpochId};
+use nym_credentials_interface::UnknownTicketType;
 use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
@@ -213,6 +214,9 @@ pub enum EcashError {
 
     #[error("could not obtain enough shares for aggregation. got {shares} shares whilst the threshold is {threshold}")]
     InsufficientNumberOfShares { threshold: Threshold, shares: usize },
+
+    #[error(transparent)]
+    UnknownTicketBookType(#[from] UnknownTicketType),
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for EcashError {

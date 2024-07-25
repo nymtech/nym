@@ -18,7 +18,9 @@ async fn main() -> anyhow::Result<()> {
         .enable_credentials_mode()
         .build()?;
 
-    let bandwidth_client = mixnet_client.create_bandwidth_client(mnemonic).await?;
+    let bandwidth_client = mixnet_client
+        .create_bandwidth_client(mnemonic, Default::default())
+        .await?;
 
     // Get a bandwidth credential for the mixnet_client
     bandwidth_client.acquire().await?;

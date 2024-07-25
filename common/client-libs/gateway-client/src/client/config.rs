@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::GatewayClientError;
-use nym_network_defaults::TicketbookType::MixnetEntry;
+use nym_network_defaults::TicketTypeRepr::V1MixnetEntry;
 use si_scale::helpers::bibytes2;
 use std::time::Duration;
 
@@ -103,7 +103,7 @@ impl BandwidthTickets {
 
     // 20% of entry ticket value
     pub const DEFAULT_REMAINING_BANDWIDTH_THRESHOLD: i64 =
-        (MixnetEntry.bandwidth_value() / 5) as i64;
+        (V1MixnetEntry.bandwidth_value() / 5) as i64;
 
     pub const DEFAULT_CUTOFF_REMAINING_BANDWIDTH_THRESHOLD: Option<i64> = None;
 

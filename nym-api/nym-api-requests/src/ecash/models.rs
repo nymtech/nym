@@ -6,6 +6,8 @@ use crate::helpers::PlaceholderJsonSchemaImpl;
 use cosmrs::AccountId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
+use nym_compact_ecash::Bytable;
+use nym_credentials_interface::TicketType;
 use nym_credentials_interface::{
     BlindedSignature, CompactEcashError, CredentialSpendingData, PublicKeyUser,
     VerificationKeyAuth, WithdrawalRequest,
@@ -115,6 +117,9 @@ pub struct BlindSignRequestBody {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     pub expiration_date: Date,
+
+    #[schemars(with = "String")]
+    pub ticketbook_type: TicketType,
 }
 
 impl BlindSignRequestBody {
@@ -124,6 +129,7 @@ impl BlindSignRequestBody {
         signature: identity::Signature,
         ecash_pubkey: PublicKeyUser,
         expiration_date: Date,
+        ticketbook_type: TicketType,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
             inner_sign_request,
@@ -131,16 +137,15 @@ impl BlindSignRequestBody {
             signature,
             ecash_pubkey,
             expiration_date,
+            ticketbook_type,
         }
     }
 
-    pub fn encode_commitments(&self) -> Vec<String> {
-        use nym_compact_ecash::Base58;
-
+    pub fn encode_commitments(&self) -> Vec<Vec<u8>> {
         self.inner_sign_request
             .get_private_attributes_commitments()
             .iter()
-            .map(|c| c.to_bs58())
+            .map(|c| c.to_byte_vec())
             .collect()
     }
 }
@@ -371,26 +376,26 @@ pub struct EpochCredentialsResponse {
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialsResponse {
     // note: BTreeMap returns ordered results so it's fine to use it with pagination
-    pub credentials: BTreeMap<i64, IssuedCredentialBody>,
+    pub credentials: BTreeMap<i64, IssuedTicketbookBody>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialResponse {
-    pub credential: Option<IssuedCredentialBody>,
+    pub credential: Option<IssuedTicketbookBody>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedCredentialBody {
-    pub credential: IssuedCredential,
+pub struct IssuedTicketbookBody {
+    pub credential: IssuedTicketbook,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub signature: identity::Signature,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedCredential {
+pub struct IssuedTicketbook {
     pub id: i64,
     pub epoch_id: u32,
     pub deposit_id: u32,
@@ -400,22 +405,26 @@ pub struct IssuedCredential {
     // so that nym-api wouldn't need to parse the value out of its storage
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub blinded_partial_credential: BlindedSignature,
-    pub bs58_encoded_private_attributes_commitments: Vec<String>,
+    pub encoded_private_attributes_commitments: Vec<Vec<u8>>,
 
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     pub expiration_date: Date,
+
+    #[schemars(with = "String")]
+    pub ticketbook_type: TicketType,
 }
 
-impl IssuedCredential {
+impl IssuedTicketbook {
     // this method doesn't have to be reversible so just naively concatenate everything
     pub fn signable_plaintext(&self) -> Vec<u8> {
         issued_credential_plaintext(
             self.epoch_id,
             self.deposit_id,
             &self.blinded_partial_credential,
-            &self.bs58_encoded_private_attributes_commitments,
+            &self.encoded_private_attributes_commitments,
             self.expiration_date,
+            self.ticketbook_type,
         )
     }
 }

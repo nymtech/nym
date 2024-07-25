@@ -3193,8 +3193,10 @@ dependencies = [
  "bls12_381",
  "nym-compact-ecash",
  "nym-ecash-time",
+ "nym-network-defaults",
  "rand 0.8.5",
  "serde",
+ "strum 0.25.0",
  "thiserror",
  "time",
 ]

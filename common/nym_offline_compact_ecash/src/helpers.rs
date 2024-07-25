@@ -36,7 +36,7 @@ pub(crate) fn recover_g1_tuple<T: Any>(
     Ok((first, second))
 }
 
-pub(crate) fn date_scalar(date: EncodedDate) -> Scalar {
+pub fn date_scalar(date: EncodedDate) -> Scalar {
     Scalar::from(date as u64)
 }
 
@@ -48,7 +48,7 @@ pub(crate) fn scalar_date(scalar: &Scalar) -> EncodedDate {
     u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]) as EncodedDate
 }
 
-pub(crate) fn type_scalar(t_type: EncodedTicketType) -> Scalar {
+pub fn type_scalar(t_type: EncodedTicketType) -> Scalar {
     Scalar::from(t_type as u64)
 }
 

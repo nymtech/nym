@@ -1,3 +1,6 @@
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::errors::{Error, Result};
 use log::*;
 use nym_bandwidth_controller::acquire::{
@@ -7,6 +10,7 @@ use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_credential_storage::storage::Storage;
+use nym_credentials_interface::TicketType;
 use nym_ecash_time::ecash_default_expiration_date;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::{
@@ -16,7 +20,12 @@ use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
 
-pub async fn issue_credential<C, S>(client: &C, storage: &S, client_id: &[u8]) -> Result<()>
+pub async fn issue_credential<C, S>(
+    client: &C,
+    storage: &S,
+    client_id: &[u8],
+    typ: TicketType,
+) -> Result<()>
 where
     C: DkgQueryClient + EcashSigningClient + EcashQueryClient + Send + Sync,
     S: Storage,
@@ -49,6 +58,7 @@ where
         client,
         client_id,
         Some(ticketbook_expiration),
+        typ,
     )
     .await?;
     info!("Deposit done");
@@ -65,7 +75,7 @@ where
         }).map_err(Error::storage_error)?
     }
 
-    info!("Succeeded adding a ticketbook");
+    info!("Succeeded adding a ticketbook of type '{typ}'");
 
     Ok(())
 }

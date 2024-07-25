@@ -35,6 +35,9 @@ CREATE TABLE ecash_ticketbook
     -- introduce a way for us to introduce breaking changes in serialization of data
     serialization_revision INTEGER NOT NULL,
     
+    -- the type of the associated ticketbook   
+    ticketbook_type TEXT NOT NULL,
+    
     -- the actual crypto data of the ticketbook (wallet, keys, etc.)
     ticketbook_data BLOB NOT NULL UNIQUE,
     

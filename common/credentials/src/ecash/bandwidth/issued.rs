@@ -6,8 +6,8 @@ use crate::ecash::bandwidth::CredentialSpendingData;
 use crate::ecash::utils::ecash_today;
 use crate::error::Error;
 use nym_credentials_interface::{
-    CoinIndexSignature, ExpirationDateSignature, PayInfo, SecretKeyUser, VerificationKeyAuth,
-    Wallet, WalletSignatures,
+    CoinIndexSignature, ExpirationDateSignature, PayInfo, SecretKeyUser, TicketType,
+    VerificationKeyAuth, Wallet, WalletSignatures,
 };
 use nym_ecash_time::EcashTime;
 use nym_validator_client::nym_api::EpochId;
@@ -36,6 +36,10 @@ pub struct IssuedTicketBook {
     /// expiration_date for easier discarding
     #[zeroize(skip)]
     expiration_date: Date,
+
+    /// the type of the ticketbook to got issued
+    #[zeroize(skip)]
+    ticketbook_type: TicketType,
 }
 
 impl IssuedTicketBook {
@@ -43,6 +47,7 @@ impl IssuedTicketBook {
         wallet: WalletSignatures,
         epoch_id: EpochId,
         ecash_secret_key: SecretKeyUser,
+        ticketbook_type: TicketType,
         expiration_date: Date,
     ) -> Self {
         IssuedTicketBook {
@@ -51,6 +56,7 @@ impl IssuedTicketBook {
             epoch_id,
             ecash_secret_key,
             expiration_date,
+            ticketbook_type,
         }
     }
 
@@ -58,6 +64,7 @@ impl IssuedTicketBook {
         signatures_wallet: WalletSignatures,
         epoch_id: EpochId,
         ecash_secret_key: SecretKeyUser,
+        ticketbook_type: TicketType,
         expiration_date: Date,
         spent_tickets: u64,
     ) -> Self {
@@ -67,6 +74,7 @@ impl IssuedTicketBook {
             epoch_id,
             ecash_secret_key,
             expiration_date,
+            ticketbook_type,
         }
     }
 
@@ -76,6 +84,10 @@ impl IssuedTicketBook {
 
     pub fn epoch_id(&self) -> EpochId {
         self.epoch_id
+    }
+
+    pub fn ticketbook_type(&self) -> TicketType {
+        self.ticketbook_type
     }
 
     pub fn current_serialization_revision(&self) -> u8 {

@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::error::Result;
-use crate::ecash::storage::models::IssuedCredential;
-use nym_api_requests::ecash::models::IssuedCredentialBody;
+use crate::ecash::storage::models::IssuedTicketbook;
 use nym_api_requests::ecash::models::IssuedCredentialsResponse;
+use nym_api_requests::ecash::models::IssuedTicketbookBody;
 use std::collections::BTreeMap;
 
 pub(crate) fn build_credentials_response(
-    raw: Vec<IssuedCredential>,
+    raw: Vec<IssuedTicketbook>,
 ) -> Result<IssuedCredentialsResponse> {
     let mut credentials = BTreeMap::new();
 
     for raw_credential in raw {
         let id = raw_credential.id;
-        let api_issued = IssuedCredentialBody::try_from(raw_credential)?;
+        let api_issued = IssuedTicketbookBody::try_from(raw_credential)?;
         let old = credentials.insert(id, api_issued);
         if old.is_some() {
             // why do we panic here rather than return an error? because it's a critical failure because

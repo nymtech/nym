@@ -61,11 +61,13 @@ impl SqliteEcashTicketbookManager {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn insert_new_ticketbook(
         &self,
         serialisation_revision: u8,
         data: &[u8],
         expiration_date: Date,
+        typ: &str,
         epoch_id: u32,
         total_tickets: u32,
         used_tickets: u32,
@@ -73,12 +75,13 @@ impl SqliteEcashTicketbookManager {
         sqlx::query!(
             r#"
                 INSERT INTO ecash_ticketbook
-                (serialization_revision, ticketbook_data, expiration_date, epoch_id, total_tickets, used_tickets)
-                VALUES (?, ?, ?, ?, ?, ?)
+                (serialization_revision, ticketbook_data, expiration_date, ticketbook_type, epoch_id, total_tickets, used_tickets)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             "#,
             serialisation_revision,
             data,
             expiration_date,
+            typ,
             epoch_id,
             total_tickets,
             used_tickets,
@@ -92,7 +95,7 @@ impl SqliteEcashTicketbookManager {
     ) -> Result<Vec<BasicTicketbookInformation>, sqlx::Error> {
         sqlx::query_as(
             r#"
-                    SELECT id, expiration_date, epoch_id, total_tickets, used_tickets
+                    SELECT id, expiration_date, ticketbook_type, epoch_id, total_tickets, used_tickets
                     FROM ecash_ticketbook
                 "#,
         )

@@ -12,13 +12,12 @@ use crate::rewarder::storage::RewarderStorage;
 use bip39::rand::prelude::SliceRandom;
 use bip39::rand::thread_rng;
 use nym_coconut_dkg_common::types::EpochId;
-use nym_compact_ecash::scheme::expiration_date_signatures::date_scalar;
 use nym_compact_ecash::scheme::withdrawal::verify_partial_blind_signature;
-use nym_compact_ecash::{Base58, G1Projective, VerificationKeyAuth};
+use nym_compact_ecash::{date_scalar, type_scalar, Bytable, G1Projective, VerificationKeyAuth};
 use nym_credentials::ecash::utils::EcashTime;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::TaskClient;
-use nym_validator_client::nym_api::{IssuedCredential, IssuedCredentialBody, NymApiClientExt};
+use nym_validator_client::nym_api::{IssuedTicketbook, IssuedTicketbookBody, NymApiClientExt};
 use std::cmp::max;
 use tokio::time::interval;
 use tracing::{debug, error, info, instrument, trace};
@@ -47,7 +46,7 @@ impl CredentialIssuanceMonitor {
 
     fn validate_credential_signature(
         &mut self,
-        issued_credential: &IssuedCredentialBody,
+        issued_credential: &IssuedTicketbookBody,
         identity_key: &ed25519::PublicKey,
     ) -> Result<(), NymRewarderError> {
         let plaintext = issued_credential.credential.signable_plaintext();
@@ -66,7 +65,7 @@ impl CredentialIssuanceMonitor {
     async fn check_deposit_reuse(
         &mut self,
         issuer_identity: &str,
-        credential_info: &IssuedCredentialBody,
+        credential_info: &IssuedTicketbookBody,
     ) -> Result<bool, NymRewarderError> {
         let credential_id = credential_info.credential.id;
         let deposit_id = credential_info.credential.deposit_id;
@@ -102,7 +101,7 @@ impl CredentialIssuanceMonitor {
 
     async fn validate_deposit(
         &mut self,
-        issued_credential: &IssuedCredentialBody,
+        issued_credential: &IssuedTicketbookBody,
     ) -> Result<(), NymRewarderError> {
         // check if this deposit even exists
         let deposit_id = issued_credential.credential.deposit_id;
@@ -115,51 +114,18 @@ impl CredentialIssuanceMonitor {
     }
 
     fn verify_credential(
-        &mut self,
+        &self,
         vk: &VerificationKeyAuth,
-        credential: &IssuedCredential,
+        credential: &IssuedTicketbook,
     ) -> Result<(), NymRewarderError> {
-        let public_attributes = [date_scalar(
-            credential.expiration_date.ecash_unix_timestamp(),
-        )];
-
-        #[allow(clippy::map_identity)]
-        let attributes_refs = public_attributes.iter().collect::<Vec<_>>();
-
-        let mut public_attribute_commitments =
-            Vec::with_capacity(credential.bs58_encoded_private_attributes_commitments.len());
-
-        for raw_cm in &credential.bs58_encoded_private_attributes_commitments {
-            match G1Projective::try_from_bs58(raw_cm) {
-                Ok(cm) => public_attribute_commitments.push(cm),
-                Err(source) => {
-                    return Err(NymRewarderError::MalformedCredentialCommitment {
-                        raw: raw_cm.clone(),
-                        source,
-                    })
-                }
-            }
-        }
-
-        // actually do verify the credential now
-        if !verify_partial_blind_signature(
-            &public_attribute_commitments,
-            &attributes_refs,
-            &credential.blinded_partial_credential,
-            vk,
-        ) {
-            return Err(NymRewarderError::BlindVerificationFailure);
-        }
-        trace!("credential correctly verifies");
-
-        Ok(())
+        verify_credential(vk, credential)
     }
 
     #[instrument(skip_all, fields(credential_id = %issued_credential.credential.id, deposit_id = %issued_credential.credential.deposit_id))]
     async fn validate_issued_credential(
         &mut self,
         issuer: &CredentialIssuer,
-        issued_credential: &IssuedCredentialBody,
+        issued_credential: &IssuedTicketbookBody,
     ) -> Result<(), NymRewarderError> {
         // check if the issuer has actually signed that issued credential information
         self.validate_credential_signature(issued_credential, &issuer.public_key)?;
@@ -321,5 +287,94 @@ impl CredentialIssuanceMonitor {
                 }
             }
         }
+    }
+}
+
+fn verify_credential(
+    vk: &VerificationKeyAuth,
+    credential: &IssuedTicketbook,
+) -> Result<(), NymRewarderError> {
+    let public_attributes = [
+        date_scalar(credential.expiration_date.ecash_unix_timestamp()),
+        type_scalar(credential.ticketbook_type.encode()),
+    ];
+
+    #[allow(clippy::map_identity)]
+    let attributes_refs = public_attributes.iter().collect::<Vec<_>>();
+
+    let mut public_attribute_commitments =
+        Vec::with_capacity(credential.encoded_private_attributes_commitments.len());
+
+    for raw_cm in &credential.encoded_private_attributes_commitments {
+        match G1Projective::try_from_byte_slice(raw_cm) {
+            Ok(cm) => public_attribute_commitments.push(cm),
+            Err(source) => return Err(NymRewarderError::MalformedCredentialCommitment { source }),
+        }
+    }
+
+    // actually do verify the credential now
+    if !verify_partial_blind_signature(
+        &public_attribute_commitments,
+        &attributes_refs,
+        &credential.blinded_partial_credential,
+        vk,
+    ) {
+        return Err(NymRewarderError::BlindVerificationFailure);
+    }
+    trace!("credential correctly verifies");
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nym_compact_ecash::ttp_keygen;
+    use nym_credentials::IssuanceTicketBook;
+    use nym_crypto::asymmetric::{ed25519, identity};
+    use rand_chacha::rand_core::{RngCore, SeedableRng};
+
+    #[test]
+    fn verify_issued_partial_credential() -> anyhow::Result<()> {
+        let dummy_seed = [42u8; 32];
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+
+        let ecash_keypair = ttp_keygen(1, 1)?.pop().unwrap();
+
+        let deposit_id = rng.next_u32();
+
+        // create dummy ticketbook
+        let identity_keypair = ed25519::KeyPair::new(&mut rng);
+        let id_priv =
+            identity::PrivateKey::from_bytes(&identity_keypair.private_key().to_bytes()).unwrap();
+        let identifier = [44u8; 32];
+
+        let issuance = IssuanceTicketBook::new(deposit_id, identifier, id_priv, Default::default());
+        let signing_data = issuance.prepare_for_signing();
+        let request = issuance.create_blind_sign_request_body(&signing_data);
+
+        let partial = nym_compact_ecash::scheme::withdrawal::issue(
+            ecash_keypair.secret_key(),
+            request.ecash_pubkey.clone(),
+            &request.inner_sign_request,
+            request.expiration_date.ecash_unix_timestamp(),
+            request.ticketbook_type.encode(),
+        )?;
+
+        let commitments = request.encode_commitments();
+
+        let issued = IssuedTicketbook {
+            id: 0,
+            epoch_id: 0,
+            deposit_id,
+            blinded_partial_credential: partial,
+            encoded_private_attributes_commitments: commitments,
+            expiration_date: issuance.expiration_date(),
+            ticketbook_type: issuance.ticketbook_type(),
+        };
+
+        assert!(verify_credential(ecash_keypair.verification_key_ref(), &issued).is_ok());
+
+        Ok(())
     }
 }

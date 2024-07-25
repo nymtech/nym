@@ -4,6 +4,7 @@
 use crate::error::Result;
 use nym_credential_storage::storage::Storage;
 use nym_credential_utils::utils::issue_credential;
+use nym_credentials_interface::TicketType;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use zeroize::Zeroizing;
@@ -17,6 +18,7 @@ pub struct BandwidthAcquireClient<'a, St: Storage> {
     client: DirectSigningHttpRpcNyxdClient,
     storage: &'a St,
     client_id: Zeroizing<String>,
+    ticketbook_type: TicketType,
 }
 
 impl<'a, St> BandwidthAcquireClient<'a, St>
@@ -29,6 +31,7 @@ where
         mnemonic: String,
         storage: &'a St,
         client_id: String,
+        ticketbook_type: TicketType,
     ) -> Result<Self> {
         let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();
         let config = nyxd::Config::try_from_nym_network_details(&network_details)?;
@@ -42,11 +45,18 @@ where
             client,
             storage,
             client_id: client_id.into(),
+            ticketbook_type,
         })
     }
 
     pub async fn acquire(&self) -> Result<()> {
-        issue_credential(&self.client, self.storage, self.client_id.as_bytes()).await?;
+        issue_credential(
+            &self.client,
+            self.storage,
+            self.client_id.as_bytes(),
+            self.ticketbook_type,
+        )
+        .await?;
         Ok(())
     }
 }

@@ -8,6 +8,7 @@ use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::IssuanceTicketBook;
 use nym_credentials::ecash::utils::obtain_aggregate_wallet;
 use nym_credentials::IssuedTicketBook;
+use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
 use nym_ecash_time::{ecash_default_expiration_date, Date};
 use nym_validator_client::coconut::all_ecash_api_clients;
@@ -22,6 +23,7 @@ pub async fn make_deposit<C>(
     client: &C,
     client_id: &[u8],
     expiration: Option<Date>,
+    ticketbook_type: TicketType,
 ) -> Result<IssuanceTicketBook, BandwidthControllerError>
 where
     C: EcashSigningClient + EcashQueryClient + Sync,
@@ -48,6 +50,7 @@ where
         deposit_id,
         client_id,
         signing_key,
+        ticketbook_type,
         expiration,
     ))
 }

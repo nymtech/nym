@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ecash::bandwidth::issued::IssuedTicketBook;
+use crate::ecash::bandwidth::serialiser::VersionedSerialise;
 use crate::ecash::bandwidth::CredentialSigningData;
 use crate::ecash::utils::cred_exp_date;
 use crate::error::Error;
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_credentials_interface::{
     aggregate_wallets, generate_keypair_user_from_seed, issue_verify, withdrawal_request,
-    BlindedSignature, KeyPairUser, PartialWallet, VerificationKeyAuth, WalletSignatures,
-    WithdrawalRequest,
+    BlindedSignature, KeyPairUser, PartialWallet, TicketType, VerificationKeyAuth,
+    WalletSignatures, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::DepositId;
@@ -18,7 +19,6 @@ use nym_validator_client::nym_api::EpochId;
 use serde::{Deserialize, Serialize};
 use time::Date;
 
-use crate::ecash::bandwidth::serialiser::VersionedSerialise;
 pub use nym_validator_client::nyxd::{Coin, Hash};
 
 #[derive(Serialize, Deserialize)]
@@ -32,6 +32,9 @@ pub struct IssuanceTicketBook {
     /// ecash keypair related to the credential
     ecash_keypair: KeyPairUser,
 
+    /// the type of the ticketbook to be issued
+    ticketbook_type: TicketType,
+
     /// expiration_date of that credential
     expiration_date: Date,
 }
@@ -41,12 +44,14 @@ impl IssuanceTicketBook {
         deposit_id: DepositId,
         identifier: M,
         signing_key: identity::PrivateKey,
+        ticketbook_type: TicketType,
     ) -> Self {
         //this expiration date will get fed to the ecash library, force midnight to be set
         Self::new_with_expiration(
             deposit_id,
             identifier,
             signing_key,
+            ticketbook_type,
             ecash_default_expiration_date(),
         )
     }
@@ -55,6 +60,7 @@ impl IssuanceTicketBook {
         deposit_id: DepositId,
         identifier: M,
         signing_key: identity::PrivateKey,
+        ticketbook_type: TicketType,
         expiration_date: Date,
     ) -> Self {
         let ecash_keypair = generate_keypair_user_from_seed(identifier);
@@ -62,6 +68,7 @@ impl IssuanceTicketBook {
             deposit_id,
             signing_key,
             ecash_keypair,
+            ticketbook_type,
             expiration_date,
         }
     }
@@ -74,6 +81,10 @@ impl IssuanceTicketBook {
 
     pub fn expiration_date(&self) -> Date {
         self.expiration_date
+    }
+
+    pub fn ticketbook_type(&self) -> TicketType {
+        self.ticketbook_type
     }
 
     pub fn request_plaintext(request: &WithdrawalRequest, deposit_id: DepositId) -> Vec<u8> {
@@ -99,6 +110,7 @@ impl IssuanceTicketBook {
             request_signature,
             signing_request.ecash_pub_key.clone(),
             signing_request.expiration_date,
+            signing_request.ticketbook_type,
         )
     }
 
@@ -133,6 +145,7 @@ impl IssuanceTicketBook {
         let (withdrawal_request, request_info) = withdrawal_request(
             self.ecash_keypair.secret_key(),
             self.expiration_date.ecash_unix_timestamp(),
+            self.ticketbook_type.encode(),
         )
         .unwrap();
 
@@ -141,6 +154,7 @@ impl IssuanceTicketBook {
             request_info,
             ecash_pub_key: self.ecash_keypair.public_key(),
             expiration_date: self.expiration_date,
+            ticketbook_type: self.ticketbook_type,
         }
     }
 
@@ -218,6 +232,7 @@ impl IssuanceTicketBook {
             wallet,
             epoch_id,
             self.ecash_keypair.secret_key().clone(),
+            self.ticketbook_type,
             self.expiration_date,
         )
     }

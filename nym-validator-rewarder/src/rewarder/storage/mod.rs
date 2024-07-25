@@ -6,7 +6,7 @@ use crate::rewarder::credential_issuance::types::CredentialIssuer;
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::storage::manager::StorageManager;
 use crate::rewarder::{EpochRewards, RewardingResult};
-use nym_validator_client::nym_api::IssuedCredentialBody;
+use nym_validator_client::nym_api::IssuedTicketbookBody;
 use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
 use nym_validator_client::nyxd::Coin;
 use sqlx::ConnectOptions;
@@ -95,7 +95,7 @@ impl RewarderStorage {
     pub(crate) async fn insert_validated_deposit(
         &self,
         operator_identity_bs58: String,
-        credential_info: &IssuedCredentialBody,
+        credential_info: &IssuedTicketbookBody,
     ) -> Result<(), NymRewarderError> {
         self.manager
             .insert_validated_deposit(
@@ -113,7 +113,7 @@ impl RewarderStorage {
         &self,
         operator_identity_bs58: String,
         original_credential_id: i64,
-        credential_info: &IssuedCredentialBody,
+        credential_info: &IssuedTicketbookBody,
     ) -> Result<(), NymRewarderError> {
         self.manager
             .insert_double_signing_evidence(
@@ -131,7 +131,7 @@ impl RewarderStorage {
     pub(crate) async fn insert_issuance_foul_play_evidence(
         &self,
         issuer: &CredentialIssuer,
-        credential_info: &IssuedCredentialBody,
+        credential_info: &IssuedTicketbookBody,
         error_message: String,
     ) -> Result<(), NymRewarderError> {
         self.manager

@@ -148,9 +148,7 @@ async fn issued_credential() {
 
     assert_eq!(
         request1.encode_commitments(),
-        issued1
-            .credential
-            .bs58_encoded_private_attributes_commitments
+        issued1.credential.encoded_private_attributes_commitments
     );
     assert_eq!(
         voucher1.expiration_date(),
@@ -167,9 +165,7 @@ async fn issued_credential() {
 
     assert_eq!(
         request2.encode_commitments(),
-        issued2
-            .credential
-            .bs58_encoded_private_attributes_commitments
+        issued2.credential.encoded_private_attributes_commitments
     );
     assert_eq!(
         voucher2.expiration_date(),

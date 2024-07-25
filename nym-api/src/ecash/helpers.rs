@@ -7,7 +7,7 @@ use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
-use nym_compact_ecash::BlindedSignature;
+use nym_compact_ecash::{BlindedSignature, EncodedDate, EncodedTicketType};
 use nym_compact_ecash::{PublicKeyUser, WithdrawalRequest};
 use nym_ecash_time::EcashTime;
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,8 @@ pub(crate) struct IssuedCoinIndicesSignatures {
 
 pub(crate) trait CredentialRequest {
     fn withdrawal_request(&self) -> &WithdrawalRequest;
-    fn expiration_date_timestamp(&self) -> u64;
+    fn expiration_date_timestamp(&self) -> EncodedDate;
+    fn ticketbook_type(&self) -> EncodedTicketType;
     fn ecash_pubkey(&self) -> PublicKeyUser;
 }
 
@@ -40,8 +41,12 @@ impl CredentialRequest for BlindSignRequestBody {
         &self.inner_sign_request
     }
 
-    fn expiration_date_timestamp(&self) -> u64 {
+    fn expiration_date_timestamp(&self) -> EncodedDate {
         self.expiration_date.ecash_unix_timestamp()
+    }
+
+    fn ticketbook_type(&self) -> EncodedTicketType {
+        self.ticketbook_type.encode()
     }
 
     fn ecash_pubkey(&self) -> PublicKeyUser {
@@ -58,6 +63,7 @@ pub(crate) fn blind_sign<C: CredentialRequest>(
         request.ecash_pubkey().clone(),
         request.withdrawal_request(),
         request.expiration_date_timestamp(),
+        request.ticketbook_type(),
     )?)
 }
 

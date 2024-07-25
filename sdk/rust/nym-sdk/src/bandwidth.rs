@@ -15,7 +15,7 @@
 //!         .build()
 //!         .unwrap();
 //!
-//!     let bandwidth_client = mixnet_client.create_bandwidth_client(String::from("my super secret mnemonic")).await.unwrap();
+//!     let bandwidth_client = mixnet_client.create_bandwidth_client(String::from("my super secret mnemonic"), Default::default()).await.unwrap();
 //!
 //!     // Get a bandwidth credential for the mixnet_client
 //!     bandwidth_client.acquire().await.unwrap();

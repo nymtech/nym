@@ -7,17 +7,19 @@ pub const TICKETBOOK_VALIDITY_DAYS: u32 = 7;
 /// Specifies the number of tickets in each issued ticketbook.
 pub const TICKETBOOK_SIZE: u64 = 50;
 
+/// This type is defined mostly for the purposes of having constants (like sizes) associated with given variants
+/// It's not meant to be serialised or have any fancy traits defined on it (in this crate)
 #[derive(Default, Copy, Clone, Debug, PartialEq)]
 #[repr(u8)]
-pub enum TicketbookType {
+pub enum TicketTypeRepr {
     #[default]
-    MixnetEntry = 0,
-    MixnetExit = 1,
-    WireguardEntry = 2,
-    WireguardExit = 3,
+    V1MixnetEntry = 0,
+    V1MixnetExit = 1,
+    V1WireguardEntry = 2,
+    V1WireguardExit = 3,
 }
 
-impl TicketbookType {
+impl TicketTypeRepr {
     pub const WIREGUARD_ENTRY_TICKET_SIZE: u64 = 500 * 1024 * 1024; // 500 MB
 
     // TBD:
@@ -28,10 +30,10 @@ impl TicketbookType {
     /// How much bandwidth (in bytes) one ticket can grant
     pub const fn bandwidth_value(&self) -> u64 {
         match self {
-            TicketbookType::MixnetEntry => Self::MIXNET_ENTRY_TICKET_SIZE,
-            TicketbookType::MixnetExit => Self::MIXNET_EXIT_TICKET_SIZE,
-            TicketbookType::WireguardEntry => Self::WIREGUARD_ENTRY_TICKET_SIZE,
-            TicketbookType::WireguardExit => Self::WIREGUARD_EXIT_TICKET_SIZE,
+            TicketTypeRepr::V1MixnetEntry => Self::MIXNET_ENTRY_TICKET_SIZE,
+            TicketTypeRepr::V1MixnetExit => Self::MIXNET_EXIT_TICKET_SIZE,
+            TicketTypeRepr::V1WireguardEntry => Self::WIREGUARD_ENTRY_TICKET_SIZE,
+            TicketTypeRepr::V1WireguardExit => Self::WIREGUARD_EXIT_TICKET_SIZE,
         }
     }
 }

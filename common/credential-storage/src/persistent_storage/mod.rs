@@ -114,6 +114,7 @@ impl Storage for PersistentStorage {
                 serialisation_revision,
                 &data,
                 ticketbook.expiration_date(),
+                &ticketbook.ticketbook_type().to_string(),
                 ticketbook.epoch_id() as u32,
                 ticketbook.params_total_tickets() as u32,
                 ticketbook.spent_tickets() as u32,

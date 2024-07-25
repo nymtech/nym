@@ -1,8 +1,10 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_network_defaults::TicketTypeRepr;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 use time::{Date, OffsetDateTime};
 
 pub use nym_compact_ecash::{
@@ -15,7 +17,6 @@ pub use nym_compact_ecash::{
         PartialCoinIndexSignature,
     },
     scheme::expiration_date_signatures::aggregate_expiration_signatures,
-    scheme::expiration_date_signatures::date_scalar,
     scheme::expiration_date_signatures::{
         AnnotatedExpirationDateSignature, ExpirationDateSignature, ExpirationDateSignatureShare,
         PartialExpirationDateSignature,
@@ -24,8 +25,8 @@ pub use nym_compact_ecash::{
     scheme::withdrawal::RequestInfo,
     scheme::Payment,
     scheme::{Wallet, WalletSignatures},
-    withdrawal_request, Base58, BlindedSignature, Bytable, PartialWallet, PayInfo, PublicKeyUser,
-    SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
+    withdrawal_request, Base58, BlindedSignature, Bytable, EncodedDate, EncodedTicketType,
+    PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
 use nym_ecash_time::EcashTime;
 
@@ -38,6 +39,8 @@ pub struct CredentialSigningData {
     pub ecash_pub_key: PublicKeyUser,
 
     pub expiration_date: Date,
+
+    pub ticketbook_type: TicketType,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -58,7 +61,7 @@ impl CredentialSpendingData {
         self.payment.spend_verify(
             verification_key,
             &self.pay_info,
-            date_scalar(self.spend_date.ecash_unix_timestamp()),
+            self.spend_date.ecash_unix_timestamp(),
         )
     }
 
@@ -213,6 +216,79 @@ impl From<PayInfo> for NymPayInfo {
             randomness,
             timestamp,
             provider_public_key,
+        }
+    }
+}
+
+#[derive(
+    Default,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum TicketType {
+    #[default]
+    V1MixnetEntry,
+    V1MixnetExit,
+    V1WireguardEntry,
+    V1WireguardExit,
+}
+
+#[derive(Debug, Copy, Clone, Error)]
+#[error("provided unknown ticketbook type")]
+pub struct UnknownTicketType;
+
+impl TicketType {
+    pub fn to_repr(&self) -> TicketTypeRepr {
+        (*self).into()
+    }
+
+    pub fn encode(&self) -> EncodedTicketType {
+        self.to_repr() as EncodedTicketType
+    }
+
+    pub fn try_from_encoded(val: EncodedTicketType) -> Result<Self, UnknownTicketType> {
+        match val {
+            n if n == TicketTypeRepr::V1MixnetEntry as u8 => {
+                Ok(TicketTypeRepr::V1MixnetEntry.into())
+            }
+            n if n == TicketTypeRepr::V1MixnetExit as u8 => Ok(TicketTypeRepr::V1MixnetExit.into()),
+            n if n == TicketTypeRepr::V1WireguardEntry as u8 => {
+                Ok(TicketTypeRepr::V1WireguardEntry.into())
+            }
+            n if n == TicketTypeRepr::V1WireguardExit as u8 => {
+                Ok(TicketTypeRepr::V1WireguardExit.into())
+            }
+            _ => Err(UnknownTicketType),
+        }
+    }
+}
+
+impl From<TicketType> for TicketTypeRepr {
+    fn from(value: TicketType) -> Self {
+        match value {
+            TicketType::V1MixnetEntry => TicketTypeRepr::V1MixnetEntry,
+            TicketType::V1MixnetExit => TicketTypeRepr::V1MixnetExit,
+            TicketType::V1WireguardEntry => TicketTypeRepr::V1WireguardEntry,
+            TicketType::V1WireguardExit => TicketTypeRepr::V1WireguardExit,
+        }
+    }
+}
+
+impl From<TicketTypeRepr> for TicketType {
+    fn from(value: TicketTypeRepr) -> Self {
+        match value {
+            TicketTypeRepr::V1MixnetEntry => TicketType::V1MixnetEntry,
+            TicketTypeRepr::V1MixnetExit => TicketType::V1MixnetExit,
+            TicketTypeRepr::V1WireguardEntry => TicketType::V1WireguardEntry,
+            TicketTypeRepr::V1WireguardExit => TicketType::V1WireguardExit,
         }
     }
 }

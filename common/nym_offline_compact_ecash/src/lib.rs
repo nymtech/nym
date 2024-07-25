@@ -13,6 +13,7 @@ pub use crate::error::CompactEcashError;
 pub use crate::traits::Bytable;
 pub use bls12_381::G1Projective;
 pub use common_types::{BlindedSignature, Signature};
+pub use helpers::{date_scalar, type_scalar};
 pub use scheme::aggregation::aggregate_verification_keys;
 pub use scheme::aggregation::aggregate_wallets;
 pub use scheme::identify;

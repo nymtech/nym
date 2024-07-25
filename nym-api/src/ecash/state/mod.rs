@@ -599,12 +599,13 @@ impl EcashState {
             blinded_signature,
             &encoded_commitments,
             request_body.expiration_date,
+            request_body.ticketbook_type,
         );
 
         let signature = self.local.identity_keypair.private_key().sign(plaintext);
 
-        // note: we have a UNIQUE constraint on the tx_hash column of the credential
-        // and so if the api is processing request for the same hash at the same time,
+        // note: we have a UNIQUE constraint on the deposit_id column of the credential
+        // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
         let credential_id = self
             .aux
@@ -616,6 +617,7 @@ impl EcashState {
                 signature,
                 encoded_commitments,
                 request_body.expiration_date,
+                request_body.ticketbook_type,
             )
             .await?;
 

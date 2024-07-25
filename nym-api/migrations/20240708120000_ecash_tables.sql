@@ -64,17 +64,17 @@ CREATE TABLE partial_expiration_date_signatures (
  
 DROP TABLE issued_credential;
  
--- particular **partial** ecash credential issued in this epoch
-CREATE TABLE issued_credential
+-- particular **partial** ecash ticketbook issued in this epoch
+CREATE TABLE issued_ticketbook
 (
-    id                         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    epoch_id                   INTEGER NOT NULL,
-    deposit_id                 INTEGER NOT NULL UNIQUE,
---    at some point those should be blobified
-    bs58_partial_credential    VARCHAR NOT NULL,
-    bs58_signature             VARCHAR NOT NULL,
-    joined_private_commitments VARCHAR NOT NULL,
-    expiration_date            DATE NOT NULL
+    id                              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    epoch_id                        INTEGER NOT NULL,
+    deposit_id                      INTEGER NOT NULL UNIQUE,
+    partial_credential              BLOB NOT NULL,
+    signature                       BLOB NOT NULL,
+    joined_private_commitments      BLOB NOT NULL,
+    expiration_date                 DATE NOT NULL,
+    ticketbook_type_repr            INTEGER NOT NULL
 );
  
 CREATE TABLE ticket_providers

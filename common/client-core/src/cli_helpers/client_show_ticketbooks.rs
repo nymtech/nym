@@ -5,14 +5,15 @@ use crate::cli_helpers::{CliClient, CliClientConfig};
 use crate::error::ClientCoreError;
 use nym_credential_storage::models::BasicTicketbookInformation;
 use nym_credential_storage::storage::Storage;
+use nym_credentials_interface::TicketType;
 use nym_ecash_time::ecash_today;
-use nym_network_defaults::TicketbookType::MixnetEntry;
 use serde::{Deserialize, Serialize};
 use time::Date;
 
 #[derive(Serialize, Deserialize)]
 pub struct AvailableTicketbook {
     pub id: i64,
+    pub typ: TicketType,
     pub expiration: Date,
     pub issued_tickets: u32,
     pub claimed_tickets: u32,
@@ -45,6 +46,7 @@ impl AvailableTicketbook {
 
         vec![
             comfy_table::Cell::new(self.id.to_string()),
+            comfy_table::Cell::new(self.typ),
             expiration,
             comfy_table::Cell::new(format!("{issued} ({si_issued})")),
             comfy_table::Cell::new(format!("{claimed} ({si_claimed})")),
@@ -55,17 +57,22 @@ impl AvailableTicketbook {
     }
 }
 
-impl From<BasicTicketbookInformation> for AvailableTicketbook {
-    fn from(value: BasicTicketbookInformation) -> Self {
-        AvailableTicketbook {
+impl TryFrom<BasicTicketbookInformation> for AvailableTicketbook {
+    type Error = ClientCoreError;
+
+    fn try_from(value: BasicTicketbookInformation) -> Result<Self, Self::Error> {
+        let typ = value
+            .ticketbook_type
+            .parse()
+            .map_err(|_| ClientCoreError::UnknownTicketType)?;
+        Ok(AvailableTicketbook {
             id: value.id,
+            typ,
             expiration: value.expiration_date,
             issued_tickets: value.total_tickets,
             claimed_tickets: value.used_tickets,
-
-            // TODO: this will change when 'type' field is introduced; for now doesn't matter what we put there
-            ticket_size: MixnetEntry.bandwidth_value(),
-        }
+            ticket_size: typ.to_repr().bandwidth_value(),
+        })
     }
 }
 
@@ -79,6 +86,7 @@ impl std::fmt::Display for AvailableTicketbooks {
         let mut table = comfy_table::Table::new();
         table.set_header(vec![
             "id",
+            "type",
             "expiration",
             "issued tickets (bandwidth)",
             "claimed tickets (bandwidth)",
@@ -124,6 +132,9 @@ where
         })?;
 
     Ok(AvailableTicketbooks(
-        ticketbooks.into_iter().map(Into::into).collect(),
+        ticketbooks
+            .into_iter()
+            .map(TryInto::<AvailableTicketbook>::try_into)
+            .collect::<Result<_, _>>()?,
     ))
 }

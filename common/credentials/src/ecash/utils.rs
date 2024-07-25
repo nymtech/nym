@@ -36,22 +36,6 @@ pub fn aggregate_verification_keys(
     )?)
 }
 
-pub fn obtain_aggregated_verification_key(
-    _api_clients: &[EcashApiClient],
-) -> Result<VerificationKeyAuth, Error> {
-    // TODO:
-    // let total = api_clients.len();
-    // let mut rng = thread_rng();
-    // let indices = sample(&mut rng, total, total);
-    // for index in indices {
-    //     // randomly try apis until we succeed
-    //     // if let Ok(res) = api_clients[index].api_client.get_aggregated_verification_key().await {
-    //     //     //
-    //     // }
-    // }
-    todo!()
-}
-
 pub async fn obtain_expiration_date_signatures(
     ecash_api_clients: &[EcashApiClient],
     verification_key: &VerificationKeyAuth,
@@ -63,7 +47,7 @@ pub async fn obtain_expiration_date_signatures(
 
     let mut signatures_shares: Vec<_> = Vec::with_capacity(ecash_api_clients.len());
 
-    let expiration_date = cred_exp_date().unix_timestamp() as u64;
+    let expiration_date = cred_exp_date().ecash_unix_timestamp();
     for ecash_api_client in ecash_api_clients.iter() {
         match ecash_api_client
             .api_client

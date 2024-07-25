@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::storage::models::{
-    EpochCredentials, IssuedCredential, RawExpirationDateSignatures, SerialNumberWrapper,
+    EpochCredentials, IssuedTicketbook, RawExpirationDateSignatures, SerialNumberWrapper,
     StoredBloomfilterParams, TicketProvider, VerifiedTicket,
 };
 use crate::support::storage::manager::StorageManager;
@@ -49,7 +49,7 @@ pub trait EcashStorageManagerExt {
     async fn get_issued_credential(
         &self,
         credential_id: i64,
-    ) -> Result<Option<IssuedCredential>, sqlx::Error>;
+    ) -> Result<Option<IssuedTicketbook>, sqlx::Error>;
 
     /// Attempts to retrieve an issued credential from the data store.
     ///
@@ -59,17 +59,18 @@ pub trait EcashStorageManagerExt {
     async fn get_issued_bandwidth_credential_by_deposit_id(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<IssuedCredential>, sqlx::Error>;
+    ) -> Result<Option<IssuedTicketbook>, sqlx::Error>;
 
     /// Store the provided issued credential information and return its (database) id.
-    async fn store_issued_credential(
+    async fn store_issued_ticketbook(
         &self,
         epoch_id: u32,
         deposit_id: DepositId,
-        bs58_partial_credential: String,
-        bs58_signature: String,
-        joined_private_commitments: String,
+        partial_credential: &[u8],
+        signature: &[u8],
+        joined_private_commitments: &[u8],
         expiration_date: Date,
+        ticketbook_type_repr: u8,
     ) -> Result<i64, sqlx::Error>;
 
     /// Attempts to retrieve issued credentials from the data store using provided ids.    
@@ -77,10 +78,10 @@ pub trait EcashStorageManagerExt {
     /// # Arguments
     ///
     /// * `credential_ids`: (database) ids of the issued credentials
-    async fn get_issued_credentials(
+    async fn get_issued_ticketbooks(
         &self,
         credential_ids: Vec<i64>,
-    ) -> Result<Vec<IssuedCredential>, sqlx::Error>;
+    ) -> Result<Vec<IssuedTicketbook>, sqlx::Error>;
 
     /// Attempts to retrieve issued credentials from the data store using pagination specification.    
     ///
@@ -88,11 +89,11 @@ pub trait EcashStorageManagerExt {
     ///
     /// * `start_after`: the value preceding the first retrieved result
     /// * `limit`: the maximum number of entries to retrieve
-    async fn get_issued_credentials_paged(
+    async fn get_issued_ticketbooks_paged(
         &self,
         start_after: i64,
         limit: u32,
-    ) -> Result<Vec<IssuedCredential>, sqlx::Error>;
+    ) -> Result<Vec<IssuedTicketbook>, sqlx::Error>;
 
     async fn insert_ticket_provider(&self, gateway_address: &str) -> Result<i64, sqlx::Error>;
 
@@ -360,12 +361,20 @@ impl EcashStorageManagerExt for StorageManager {
     async fn get_issued_credential(
         &self,
         credential_id: i64,
-    ) -> Result<Option<IssuedCredential>, sqlx::Error> {
+    ) -> Result<Option<IssuedTicketbook>, sqlx::Error> {
         sqlx::query_as!(
-            IssuedCredential,
+            IssuedTicketbook,
             r#"
-                SELECT id, epoch_id as "epoch_id: u32", deposit_id as "deposit_id: DepositId", bs58_partial_credential, bs58_signature,joined_private_commitments, expiration_date as "expiration_date: Date"
-                FROM issued_credential
+                SELECT 
+                    id,
+                    epoch_id as "epoch_id: u32",
+                    deposit_id as "deposit_id: DepositId",
+                    partial_credential,
+                    signature,
+                    joined_private_commitments,
+                    expiration_date as "expiration_date: Date",
+                    ticketbook_type_repr as "ticketbook_type_repr: u8"
+                FROM issued_ticketbook
                 WHERE id = ?
             "#,
             credential_id
@@ -382,38 +391,47 @@ impl EcashStorageManagerExt for StorageManager {
     async fn get_issued_bandwidth_credential_by_deposit_id(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<IssuedCredential>, sqlx::Error> {
+    ) -> Result<Option<IssuedTicketbook>, sqlx::Error> {
         sqlx::query_as!(
-            IssuedCredential,
+            IssuedTicketbook,
             r#"
-                SELECT id, epoch_id as "epoch_id: u32", deposit_id as "deposit_id: u32", bs58_partial_credential, bs58_signature,joined_private_commitments, expiration_date as "expiration_date: Date"
-                FROM issued_credential
+                SELECT 
+                    id,
+                    epoch_id as "epoch_id: u32",
+                    deposit_id as "deposit_id: DepositId",
+                    partial_credential,
+                    signature,
+                    joined_private_commitments,
+                    expiration_date as "expiration_date: Date",
+                    ticketbook_type_repr as "ticketbook_type_repr: u8"
+                FROM issued_ticketbook
                 WHERE deposit_id = ?
             "#,
             deposit_id
         )
-            .fetch_optional(&self.connection_pool)
-            .await
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     /// Store the provided issued credential information and return its (database) id.
-    async fn store_issued_credential(
+    async fn store_issued_ticketbook(
         &self,
         epoch_id: u32,
         deposit_id: DepositId,
-        bs58_partial_credential: String,
-        bs58_signature: String,
-        joined_private_commitments: String,
+        partial_credential: &[u8],
+        signature: &[u8],
+        joined_private_commitments: &[u8],
         expiration_date: Date,
+        ticketbook_type_repr: u8,
     ) -> Result<i64, sqlx::Error> {
         let row_id = sqlx::query!(
             r#"
-                INSERT INTO issued_credential
-                (epoch_id, deposit_id, bs58_partial_credential, bs58_signature, joined_private_commitments, expiration_date)
+                INSERT INTO issued_ticketbook
+                (epoch_id, deposit_id, partial_credential, signature, joined_private_commitments, expiration_date, ticketbook_type_repr)
                 VALUES
-                (?, ?, ?, ?, ?, ?)
+                (?, ?, ?, ?, ?, ?, ?)
             "#,
-            epoch_id, deposit_id, bs58_partial_credential, bs58_signature, joined_private_commitments, expiration_date
+            epoch_id, deposit_id, partial_credential, signature, joined_private_commitments, expiration_date, ticketbook_type_repr
         ).execute(&self.connection_pool).await?.last_insert_rowid();
 
         Ok(row_id)
@@ -424,14 +442,14 @@ impl EcashStorageManagerExt for StorageManager {
     /// # Arguments
     ///
     /// * `credential_ids`: (database) ids of the issued credentials
-    async fn get_issued_credentials(
+    async fn get_issued_ticketbooks(
         &self,
         credential_ids: Vec<i64>,
-    ) -> Result<Vec<IssuedCredential>, sqlx::Error> {
+    ) -> Result<Vec<IssuedTicketbook>, sqlx::Error> {
         // that sucks : (
         // https://stackoverflow.com/a/70032524
         let params = format!("?{}", ", ?".repeat(credential_ids.len() - 1));
-        let query_str = format!("SELECT * FROM issued_credential WHERE id IN ( {params} )");
+        let query_str = format!("SELECT * FROM issued_ticketbook WHERE id IN ( {params} )");
         let mut query = sqlx::query_as(&query_str);
         for id in credential_ids {
             query = query.bind(id)
@@ -446,16 +464,24 @@ impl EcashStorageManagerExt for StorageManager {
     ///
     /// * `start_after`: the value preceding the first retrieved result
     /// * `limit`: the maximum number of entries to retrieve
-    async fn get_issued_credentials_paged(
+    async fn get_issued_ticketbooks_paged(
         &self,
         start_after: i64,
         limit: u32,
-    ) -> Result<Vec<IssuedCredential>, sqlx::Error> {
+    ) -> Result<Vec<IssuedTicketbook>, sqlx::Error> {
         sqlx::query_as!(
-            IssuedCredential,
+            IssuedTicketbook,
             r#"
-                SELECT id, epoch_id as "epoch_id: u32", deposit_id as "deposit_id: u32", bs58_partial_credential, bs58_signature,joined_private_commitments, expiration_date as "expiration_date: Date"
-                FROM issued_credential
+                SELECT 
+                    id,
+                    epoch_id as "epoch_id: u32",
+                    deposit_id as "deposit_id: DepositId",
+                    partial_credential,
+                    signature,
+                    joined_private_commitments,
+                    expiration_date as "expiration_date: Date",
+                    ticketbook_type_repr as "ticketbook_type_repr: u8"
+                FROM issued_ticketbook
                 WHERE id > ?
                 ORDER BY id
                 LIMIT ?
@@ -463,8 +489,8 @@ impl EcashStorageManagerExt for StorageManager {
             start_after,
             limit
         )
-            .fetch_all(&self.connection_pool)
-            .await
+        .fetch_all(&self.connection_pool)
+        .await
     }
 
     async fn insert_ticket_provider(&self, gateway_address: &str) -> Result<i64, sqlx::Error> {

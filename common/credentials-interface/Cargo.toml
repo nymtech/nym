@@ -14,8 +14,10 @@ license.workspace = true
 bls12_381 = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+strum = { workspace = true, features = ["derive"] }
 time = { workspace = true, features = ["serde"] }
 rand = { workspace = true }
 
 nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
 nym-ecash-time = { path = "../ecash-time" }
+nym-network-defaults = { path = "../network-defaults" }

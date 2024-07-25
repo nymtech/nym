@@ -14,7 +14,7 @@ use cosmwasm_std::{
 };
 use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
-use nym_api_requests::ecash::models::{IssuedCredentialBody, IssuedCredentialResponse};
+use nym_api_requests::ecash::models::{IssuedCredentialResponse, IssuedTicketbookBody};
 use nym_api_requests::ecash::{BlindSignRequestBody, BlindedSignatureResponse};
 use nym_coconut_dkg_common::dealer::{
     DealerDetails, DealerDetailsResponse, DealerType, RegisteredDealerDetails,
@@ -33,6 +33,7 @@ use nym_compact_ecash::BlindedSignature;
 use nym_compact_ecash::{ttp_keygen, VerificationKeyAuth};
 use nym_contracts_common::IdentityKey;
 use nym_credentials::IssuanceTicketBook;
+use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
@@ -1223,7 +1224,7 @@ pub fn voucher_fixture(deposit_id: Option<DepositId>) -> IssuanceTicketBook {
         identity::PrivateKey::from_bytes(&identity_keypair.private_key().to_bytes()).unwrap();
     let identifier = [44u8; 32];
     // (voucher, request)
-    IssuanceTicketBook::new(deposit_id, identifier, id_priv)
+    IssuanceTicketBook::new(deposit_id, identifier, id_priv, TicketType::V1MixnetEntry)
 }
 
 fn dummy_signature() -> identity::Signature {
@@ -1372,7 +1373,7 @@ impl TestFixture {
         serde_json::from_str(&response.into_string().await.unwrap()).unwrap()
     }
 
-    async fn issued_unchecked(&self, id: i64) -> IssuedCredentialBody {
+    async fn issued_unchecked(&self, id: i64) -> IssuedTicketbookBody {
         self.issued_credential(id)
             .await
             .unwrap()
@@ -1409,6 +1410,7 @@ mod credential_tests {
                 dummy_signature(),
                 commitments,
                 expiration_date,
+                voucher.ticketbook_type(),
             )
             .await
             .unwrap();
@@ -1494,6 +1496,7 @@ mod credential_tests {
                 dummy_signature(),
                 commitments.clone(),
                 expiration_date,
+                voucher.ticketbook_type(),
             )
             .await
             .unwrap();
@@ -1527,6 +1530,7 @@ mod credential_tests {
                 dummy_signature(),
                 commitments.clone(),
                 expiration_date,
+                voucher.ticketbook_type(),
             )
             .await;
         assert!(storage_err.is_err());
@@ -1542,6 +1546,7 @@ mod credential_tests {
                 dummy_signature(),
                 commitments.clone(),
                 expiration_date,
+                voucher.ticketbook_type(),
             )
             .await
             .unwrap();
@@ -1572,6 +1577,7 @@ mod credential_tests {
                 identity_keypair.private_key().to_base58_string(),
             )
             .unwrap(),
+            TicketType::V1MixnetEntry,
         );
 
         let deposit = Deposit {

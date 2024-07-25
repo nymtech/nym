@@ -19,6 +19,7 @@ pub struct RetrievedPendingTicketbook {
 pub struct BasicTicketbookInformation {
     pub id: i64,
     pub expiration_date: Date,
+    pub ticketbook_type: String,
     pub epoch_id: u32,
     pub total_tickets: u32,
     pub used_tickets: u32,
@@ -30,6 +31,8 @@ pub struct StoredIssuedTicketbook {
     pub id: i64,
 
     pub serialization_revision: u8,
+
+    pub ticketbook_type: String,
 
     pub ticketbook_data: Vec<u8>,
 

@@ -28,6 +28,7 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_credentials_interface::TicketType;
 use nym_network_defaults::WG_TUN_DEVICE_IP_ADDRESS;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
@@ -550,10 +551,11 @@ where
     }
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
-    /// credentials for this client to consume.
+    /// credentials of particular type for this client to consume.
     pub async fn create_bandwidth_client(
         &self,
         mnemonic: String,
+        ticketbook_type: TicketType,
     ) -> Result<BandwidthAcquireClient<S::CredentialStore>> {
         if !self.config.enabled_credentials_mode {
             return Err(Error::DisabledCredentialsMode);
@@ -574,6 +576,7 @@ where
             mnemonic,
             self.storage.credential_store(),
             client_id,
+            ticketbook_type,
         )
     }
 

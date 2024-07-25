@@ -23,6 +23,7 @@ mod test {
     use crate::ecash::error::EcashError;
     use crate::ecash::tests::voucher_fixture;
     use nym_compact_ecash::{generate_keypair_user, scheme::withdrawal::WithdrawalRequest};
+    use nym_credentials_interface::TicketType;
     use rand::rngs::OsRng;
     use time::macros::date;
 
@@ -95,6 +96,7 @@ mod test {
             "3MpHDLYMCmuMvZ9zkZXPkTK6nKArvQW3dJA1notoPPxnbBW2ommkR2dkpRWoeWSkUjQSLv1nRyiRzMWbobGLw1eh".parse().unwrap(),
             ecash_keypair.public_key(),
             expiration_date,
+            TicketType::V1MixnetEntry,
         );
 
         let good_deposit = Deposit {

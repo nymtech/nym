@@ -46,6 +46,7 @@ nym-pemstore = { path = "../pemstore" }
 nym-topology = { path = "../topology", features = ["serializable"] }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }
+nym-credentials-interface = { path = "../credentials-interface" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"] }
@@ -115,6 +116,7 @@ tempfile = { workspace = true }
 [features]
 default = []
 cli = ["clap", "comfy-table"]
+fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
 fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
 fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
 wasm = ["nym-gateway-client/wasm"]

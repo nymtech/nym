@@ -1,6 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// TEMPORARY WORKAROUND:
+// those features are expected as the below should only get activated whenever
+// the corresponding features in tendermint-rpc are enabled transitively
+#![allow(unexpected_cfgs)]
+
 use async_trait::async_trait;
 use cosmrs::tendermint::{self, abci, block::Height, evidence::Evidence, Genesis, Hash};
 use serde::{de::DeserializeOwned, Serialize};

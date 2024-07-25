@@ -9439,6 +9439,7 @@ dependencies = [
 name = "wasm-utils"
 version = "0.1.0"
 dependencies = [
+ "console_error_panic_hook",
  "futures",
  "getrandom 0.2.15",
  "gloo-net",

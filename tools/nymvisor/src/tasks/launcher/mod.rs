@@ -11,6 +11,7 @@ use futures::future::{FusedFuture, OptionFuture};
 use futures::{FutureExt, StreamExt};
 use nym_async_file_watcher::FileWatcherEventReceiver;
 use nym_task::signal::wait_for_signal;
+use std::path::Path;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::pin;
@@ -109,28 +110,6 @@ impl DaemonLauncher {
         // if we ever wanted to introduce any pre-upgrade scripts like cosmovisor, they'd go here
     }
 
-    /// this function gets called whenever the file watcher detects changes in the upgrade plan file
-    /// it returns an option indicating when the next upgrade should be performed
-    fn check_upgrade_plan_changes(&self) -> Option<Duration> {
-        info!("checking changes in the upgrade plan file...");
-
-        let current_upgrade_plan = match UpgradePlan::try_load(self.config.upgrade_plan_filepath())
-        {
-            Ok(upgrade_plan) => upgrade_plan,
-            Err(err) => {
-                error!("failed to read the current upgrade plan: {err}");
-                return None;
-            }
-        };
-
-        if let Some(next) = current_upgrade_plan.next_upgrade() {
-            let now = OffsetDateTime::now_utc();
-            Some((next.upgrade_time - now).try_into().unwrap_or_default())
-        } else {
-            None
-        }
-    }
-
     // responsible for running until exit or until update is detected
     async fn wait_for_upgrade_or_termination(
         &mut self,
@@ -157,15 +136,17 @@ impl DaemonLauncher {
         // we need to fuse the daemon future so that we could check if it has already terminated
         let mut fused_runner = running_daemon.fuse();
 
-        let mut upgrade_timeout: OptionFuture<_> = self
-            .check_upgrade_plan_changes()
-            .map(sleep)
-            .map(Box::pin)
-            .map(FutureExt::fuse)
-            .into();
-
         let signal_fut = wait_for_signal();
         pin!(signal_fut);
+
+        let upgrade_plan_filepath = self.config.upgrade_plan_filepath();
+        let mut upgrade_plan_watcher_next = self.upgrade_plan_watcher.next();
+        let mut upgrade_timeout: OptionFuture<_> =
+            check_upgrade_plan_changes(&upgrade_plan_filepath)
+                .map(sleep)
+                .map(Box::pin)
+                .map(FutureExt::fuse)
+                .into();
 
         let mut received_interrupt = false;
         loop {
@@ -176,7 +157,7 @@ impl DaemonLauncher {
                     info!("it finished with the following exit status: {exit_status}");
                     return Ok(false)
                 }
-                event = &mut self.upgrade_plan_watcher.next() => {
+                event = &mut upgrade_plan_watcher_next => {
                     let Some(event) = event else {
                         // this is a critical failure since the file watcher task should NEVER terminate by itself
                         error!("CRITICAL FAILURE: the upgrade plan watcher channel got closed");
@@ -184,7 +165,7 @@ impl DaemonLauncher {
                     };
 
                     debug!("the file has changed - {event:?}");
-                    if let Some(next_upgrade) = self.check_upgrade_plan_changes() {
+                    if let Some(next_upgrade) = check_upgrade_plan_changes(&upgrade_plan_filepath) {
                         info!("setting the upgrade timeout to {}", humantime::format_duration(next_upgrade));
                         upgrade_timeout = Some(Box::pin(sleep(next_upgrade)).fuse()).into()
                     }
@@ -231,5 +212,27 @@ impl DaemonLauncher {
 
         BackupBuilder::new(self.config.daemon_upgrade_backup_dir(upgrade_name))?
             .backup_daemon_home(&self.config.daemon.home)
+    }
+}
+
+/// this function gets called whenever the file watcher detects changes in the upgrade plan file
+/// it returns an option indicating when the next upgrade should be performed
+fn check_upgrade_plan_changes(upgrade_plan_filepath: &Path) -> Option<Duration> {
+    info!("checking changes in the upgrade plan file...");
+
+    // let current_upgrade_plan = match UpgradePlan::try_load(self.config.upgrade_plan_filepath())
+    let current_upgrade_plan = match UpgradePlan::try_load(upgrade_plan_filepath) {
+        Ok(upgrade_plan) => upgrade_plan,
+        Err(err) => {
+            error!("failed to read the current upgrade plan: {err}");
+            return None;
+        }
+    };
+
+    if let Some(next) = current_upgrade_plan.next_upgrade() {
+        let now = OffsetDateTime::now_utc();
+        Some((next.upgrade_time - now).try_into().unwrap_or_default())
+    } else {
+        None
     }
 }

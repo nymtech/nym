@@ -21,6 +21,7 @@ const DEFAULT_PEER_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minut
 pub enum PeerControlRequest {
     AddPeer(Peer),
     RemovePeer(Key),
+    QueryPeer(Key),
     QueryBandwidth(Key),
 }
 
@@ -30,6 +31,10 @@ pub enum PeerControlResponse {
     },
     RemovePeer {
         success: bool,
+    },
+    QueryPeer {
+        success: bool,
+        peer: Option<Peer>,
     },
     QueryBandwidth {
         bandwidth_data: Option<RemainingBandwidthData>,
@@ -197,6 +202,25 @@ impl<St: Storage> PeerController<St> {
                                 true
                             };
                             self.response_tx.send(PeerControlResponse::RemovePeer { success }).ok();
+                        }
+                        Some(PeerControlRequest::QueryPeer(peer_pubkey)) => {
+                            let (success, peer) = match self.storage.get_wireguard_peer(&peer_pubkey.to_string()).await {
+                                Err(e) => {
+                                    log::error!("Could not query peer storage {e}");
+                                    (false, None)
+                                },
+                                Ok(None) => (true, None),
+                                Ok(Some(storage_peer)) => {
+                                    match Peer::try_from(storage_peer) {
+                                        Ok(peer) => (true, Some(peer)),
+                                        Err(e) => {
+                                            log::error!("Could not parse storage peer {e}");
+                                            (false, None)
+                                        }
+                                    }
+                                },
+                            };
+                            self.response_tx.send(PeerControlResponse::QueryPeer { success, peer }).ok();
                         }
                         Some(PeerControlRequest::QueryBandwidth(peer_pubkey)) => {
                             let msg = if self.suspended_peers.contains_key(&peer_pubkey) {

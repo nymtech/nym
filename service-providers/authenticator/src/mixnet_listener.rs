@@ -125,11 +125,36 @@ impl MixnetListener {
                 reply_to,
             ));
         }
-        if let Some(gateway_client) = self
-            .wireguard_gateway_data
-            .client_registry()
-            .get(&remote_public)
-        {
+
+        self.wireguard_gateway_data
+            .query_peer(remote_public)
+            .map_err(|err| {
+                AuthenticatorError::InternalError(format!("could not query peer: {:?}", err))
+            })?;
+
+        let PeerControlResponse::QueryPeer { success, peer } = self
+            .response_rx
+            .recv()
+            .await
+            .ok_or(AuthenticatorError::InternalError(
+                "no response for query peer".to_string(),
+            ))?
+        else {
+            return Err(AuthenticatorError::InternalError(
+                "unexpected response type".to_string(),
+            ));
+        };
+        if !success {
+            return Err(AuthenticatorError::InternalError(
+                "querying peer could not be performed".to_string(),
+            ));
+        }
+        if let Some(peer) = peer {
+            let Some(allowed_ip) = peer.allowed_ips.first() else {
+                return Err(AuthenticatorError::InternalError(
+                    "private ip list should not be empty".to_string(),
+                ));
+            };
             return Ok(AuthenticatorResponse::new_registered(
                 RegistredData {
                     pub_key: PeerPublicKey::new(
@@ -139,7 +164,7 @@ impl MixnetListener {
                             .to_bytes()
                             .into(),
                     ),
-                    private_ip: gateway_client.private_ip,
+                    private_ip: allowed_ip.ip,
                     wg_port: self.config.authenticator.announced_port,
                 },
                 reply_to,

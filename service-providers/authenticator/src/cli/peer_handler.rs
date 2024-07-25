@@ -38,6 +38,10 @@ impl DummyHandler {
                                 log::info!("[DUMMY] Removing peer {:?}", key);
                                 self.response_tx.send(PeerControlResponse::RemovePeer { success: true }).ok();
                             }
+                            PeerControlRequest::QueryPeer(key) => {
+                                log::info!("[DUMMY] Querying peer {:?}", key);
+                                self.response_tx.send(PeerControlResponse::QueryPeer { success: false, peer: None }).ok();
+                            }
                             PeerControlRequest::QueryBandwidth(key) => {
                                 log::info!("[DUMMY] Querying bandwidth for peer {:?}", key);
                                 self.response_tx.send(PeerControlResponse::QueryBandwidth { bandwidth_data: None }).ok();

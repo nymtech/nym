@@ -96,6 +96,11 @@ pub enum EcashTicketVerificationRejection {
 
     #[error("failed to verify the provided ticket")]
     InvalidTicket,
+
+    #[error(
+        "the received payment contained more than a single ticket. that's currently not supported"
+    )]
+    MultipleTickets,
 }
 
 //  All strings are base58 encoded representations of structs

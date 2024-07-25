@@ -37,6 +37,12 @@ pub async fn verify_ticket(
 ) -> crate::ecash::error::Result<Json<EcashTicketVerificationResponse>> {
     let credential_data = &verify_ticket_body.credential;
     let gateway_cosmos_addr = &verify_ticket_body.gateway_cosmos_addr;
+
+    // easy check: is there only a single payment attached?
+    if credential_data.payment.spend_value != 1 {
+        return reject_ticket(EcashTicketVerificationRejection::MultipleTickets);
+    }
+
     let sn = &credential_data.encoded_serial_number();
     let spend_date = credential_data.spend_date;
     let epoch_id = credential_data.epoch_id;

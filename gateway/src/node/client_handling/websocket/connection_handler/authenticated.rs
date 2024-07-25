@@ -102,6 +102,11 @@ pub enum RequestHandlingError {
 
     #[error(transparent)]
     EcashFailure(EcashTicketError),
+
+    #[error(
+        "the received payment contained more than a single ticket. that's currently not supported"
+    )]
+    MultipleTickets,
 }
 
 impl RequestHandlingError {
@@ -412,6 +417,10 @@ where
 
         // check if the credential hasn't been spent before
         let serial_number = credential.data.encoded_serial_number();
+
+        if credential.data.payment.spend_value != 1 {
+            return Err(RequestHandlingError::MultipleTickets);
+        }
 
         self.check_credential_spending_date(credential.data.spend_date, spend_date.ecash_date())?;
         self.check_bloomfilter(&serial_number).await?;

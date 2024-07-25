@@ -259,7 +259,7 @@ impl NetworkManager {
 
             fs::write(
                 &mnemonic_path,
-                &Zeroizing::new(signer.data.cosmos_account.mnemonic.to_string()),
+                Zeroizing::new(signer.data.cosmos_account.mnemonic.to_string()),
             )?;
             fs::write(&endpoint_path, url.as_str())?;
 

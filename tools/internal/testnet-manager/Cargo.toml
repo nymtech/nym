@@ -35,7 +35,7 @@ nym-crypto = { path = "../../../common/crypto", features = ["asymmetric", "rand"
 nym-config = { path = "../../../common/config" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client" }
 nym-compact-ecash = { path = "../../../common/nym_offline_compact_ecash" }
-dkg-bypass-contract = { path = "dkg-bypass-contract" }
+dkg-bypass-contract = { path = "dkg-bypass-contract", default-features = false }
 
 # contracts:
 nym-mixnet-contract-common = { path = "../../../common/cosmwasm-smart-contracts/mixnet-contract" }

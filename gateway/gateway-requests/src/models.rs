@@ -64,6 +64,7 @@ mod tests {
     };
     use nym_credentials::ecash::utils::EcashTime;
     use nym_credentials::IssuanceTicketBook;
+    use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::ed25519;
     use rand::rngs::OsRng;
 
@@ -75,7 +76,7 @@ mod tests {
         let mut rng = OsRng;
         let signing_key = ed25519::PrivateKey::new(&mut rng);
 
-        let issuance = IssuanceTicketBook::new(42, [], signing_key);
+        let issuance = IssuanceTicketBook::new(42, [], signing_key, TicketType::V1MixnetEntry);
         let expiration_date = issuance.expiration_date();
         let sig_req = issuance.prepare_for_signing();
         let exp_date_sigs = generate_expiration_date_signatures(
@@ -91,6 +92,7 @@ mod tests {
             sig_req.ecash_pub_key.clone(),
             &sig_req.withdrawal_request,
             expiration_date.ecash_unix_timestamp(),
+            issuance.ticketbook_type().encode(),
         )
         .unwrap();
 

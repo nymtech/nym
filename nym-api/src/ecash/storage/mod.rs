@@ -89,6 +89,7 @@ pub trait EcashStorageExt {
         deposit_id: DepositId,
     ) -> Result<Option<IssuedTicketbook>, NymApiStorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn store_issued_credential(
         &self,
         epoch_id: u32,
@@ -324,6 +325,7 @@ impl EcashStorageExt for NymApiStorage {
             .await?)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn store_issued_credential(
         &self,
         epoch_id: u32,

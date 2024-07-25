@@ -27,6 +27,7 @@ pub trait EcashStorageManagerExt {
     /// # Arguments
     ///
     /// * `epoch_id`: Id of the (coconut) epoch in question.
+    #[allow(dead_code)]
     async fn create_epoch_credentials_entry(&self, epoch_id: EpochId) -> Result<(), sqlx::Error>;
 
     /// Update the EpochCredentials by incrementing the total number of issued credentials,
@@ -62,6 +63,7 @@ pub trait EcashStorageManagerExt {
     ) -> Result<Option<IssuedTicketbook>, sqlx::Error>;
 
     /// Store the provided issued credential information and return its (database) id.
+    #[allow(clippy::too_many_arguments)]
     async fn store_issued_ticketbook(
         &self,
         epoch_id: u32,

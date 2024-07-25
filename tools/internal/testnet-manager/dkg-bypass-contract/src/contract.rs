@@ -4,8 +4,7 @@
 use crate::msg::MigrateMsg;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    entry_point, Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdError,
-    StdResult, Storage,
+    Addr, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, StdError, StdResult, Storage,
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex};
 use nym_coconut_dkg_common::dealer::DealerRegistrationDetails;
@@ -58,7 +57,7 @@ pub(crate) fn next_node_index(store: &mut dyn Storage) -> StdResult<NodeIndex> {
 #[cw_serde]
 pub enum EmptyMessage {}
 
-#[cfg_attr(not(feature = "library"), entry_point)]
+#[cfg_attr(not(feature = "library"), cosmwasm_std::entry_point)]
 pub fn instantiate(
     _: DepsMut<'_>,
     _: Env,
@@ -69,7 +68,7 @@ pub fn instantiate(
 }
 
 /// Handle an incoming message
-#[cfg_attr(not(feature = "library"), entry_point)]
+#[cfg_attr(not(feature = "library"), cosmwasm_std::entry_point)]
 pub fn execute(
     _: DepsMut<'_>,
     _: Env,
@@ -79,13 +78,13 @@ pub fn execute(
     Ok(Response::new())
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
+#[cfg_attr(not(feature = "library"), cosmwasm_std::entry_point)]
 pub fn query(_: Deps<'_>, _: Env, _: EmptyMessage) -> Result<QueryResponse, StdError> {
     Ok(Default::default())
 }
 
 // LIMITATION: we're not storing dealings themselves
-#[cfg_attr(not(feature = "library"), entry_point)]
+#[cfg_attr(not(feature = "library"), cosmwasm_std::entry_point)]
 pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, StdError> {
     // on migration immediately attempt to rewrite the storage
     let threshold = (2 * msg.dealers.len() as u64 + 3 - 1) / 3;

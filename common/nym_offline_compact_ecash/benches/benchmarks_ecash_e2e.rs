@@ -4,7 +4,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use itertools::izip;
 use nym_compact_ecash::identify::{identify, IdentifyResult};
-use nym_compact_ecash::scheme::expiration_date_signatures::date_scalar;
 use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
 use nym_compact_ecash::setup::Parameters;
 use nym_compact_ecash::tests::helpers::{
@@ -15,6 +14,7 @@ use nym_compact_ecash::{
     ttp_keygen, withdrawal_request, PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser,
     VerificationKeyAuth,
 };
+use nym_network_defaults::TicketTypeRepr;
 use rand::seq::SliceRandom;
 
 struct BenchCase {
@@ -30,13 +30,14 @@ fn bench_compact_ecash(c: &mut Criterion) {
     // group.sample_size(300);
     // group.measurement_time(Duration::from_secs(1500));
 
-    let expiration_date = 1703721600; // Dec 28 2023
-    let spend_date = 1701907200; // Dec 07 2023
+    let spend_date = 1701907200; // Dec 07 2023 00:00:00
+    let expiration_date = 1702166400; // Dec 10 2023 00:00:00
+    let encoded_ticket_type = TicketTypeRepr::default() as u8;
 
     let case = BenchCase {
         num_authorities: 100,
         threshold_p: 0.7,
-        ll: 1000,
+        ll: 50,
         spend_vv: 1,
         case_nr_pub_keys: 99,
     };
@@ -83,7 +84,12 @@ fn bench_compact_ecash(c: &mut Criterion) {
     .unwrap();
 
     // ISSUANCE PHASE
-    let (req, req_info) = withdrawal_request(user_keypair.secret_key(), expiration_date).unwrap();
+    let (req, req_info) = withdrawal_request(
+        user_keypair.secret_key(),
+        expiration_date,
+        encoded_ticket_type,
+    )
+    .unwrap();
 
     // CLIENT BENCHMARK: prepare a single withdrawal request
     group.bench_function(
@@ -91,7 +97,16 @@ fn bench_compact_ecash(c: &mut Criterion) {
             "[Client] withdrawal_request_{}_authorities_{}_L_{}_threshold",
             case.num_authorities, case.ll, case.threshold_p,
         ),
-        |b| b.iter(|| withdrawal_request(user_keypair.secret_key(), expiration_date).unwrap()),
+        |b| {
+            b.iter(|| {
+                withdrawal_request(
+                    user_keypair.secret_key(),
+                    expiration_date,
+                    encoded_ticket_type,
+                )
+                .unwrap()
+            })
+        },
     );
 
     // ISSUING AUTHRORITY BENCHMARK: Benchmark the issue function
@@ -110,6 +125,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
                     user_keypair.public_key(),
                     &req,
                     expiration_date,
+                    encoded_ticket_type,
                 )
             })
         },
@@ -122,6 +138,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
             user_keypair.public_key(),
             &req,
             expiration_date,
+            encoded_ticket_type,
         );
         wallet_blinded_signatures.push(blind_signature.unwrap());
     }
@@ -223,7 +240,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         |b| {
             b.iter(|| {
                 payment
-                    .spend_verify(&verification_key, &pay_info, date_scalar(spend_date))
+                    .spend_verify(&verification_key, &pay_info, spend_date)
                     .unwrap()
             })
         },

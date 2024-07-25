@@ -9,8 +9,9 @@ import DialogTitle from '@mui/material/DialogTitle';
 export const VestingWarningModal: FC<{
   kind: 'delegations' | 'bond';
   isVisible: boolean;
-  handleClose: (result: 'yes' | 'no') => void;
-}> = ({ kind, isVisible, handleClose }) => (
+  handleClose: () => void;
+  handleMigrate: () => Promise<void>;
+}> = ({ kind, isVisible, handleClose, handleMigrate }) => (
   <Dialog open={isVisible} onClose={handleClose}>
     <DialogTitle>Migrate your {kind}?</DialogTitle>
     <DialogContent>
@@ -23,8 +24,8 @@ export const VestingWarningModal: FC<{
       </DialogContentText>
     </DialogContent>
     <DialogActions>
-      <Button onClick={() => handleClose('yes')}>Yes</Button>
-      <Button onClick={() => handleClose('no')} autoFocus>
+      <Button onClick={handleMigrate}>Yes</Button>
+      <Button onClick={handleClose} autoFocus>
         No
       </Button>
     </DialogActions>

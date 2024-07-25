@@ -52,3 +52,5 @@ export const unbond = async (type: EnumNodeType) => {
 
 export const updateBond = async (args: TUpdateBondArgs) =>
   invokeWrapper<TransactionExecuteResult>('update_pledge', args);
+
+export const migrateVestedMixnode = async () => invokeWrapper<TransactionExecuteResult>('migrate_vested_mixnode');

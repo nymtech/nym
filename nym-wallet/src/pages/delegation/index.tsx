@@ -352,12 +352,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
               <VestingWarningModal
                 kind="delegations"
                 isVisible={showVestingWarningModal}
-                handleClose={(result) => {
-                  setShowVestingWarningModal(false);
-                  if (result === 'yes') {
-                    doMigrateNow();
-                  }
-                }}
+                handleMigrate={doMigrateNow}
+                handleClose={() => setShowVestingWarningModal(false)}
               />
               {showVestingMigrationProgressModal && <LoadingModal text="Migrating delegations, please wait..." />}
             </>

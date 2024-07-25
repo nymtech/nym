@@ -5,13 +5,14 @@
 
 CREATE TABLE wireguard_peer
 (
-    public_key TEXT    NOT NULL PRIMARY KEY UNIQUE,
-    preshared_key TEXT,
-    protocol_version INTEGER,
-    endpoint TEXT,
-    last_handshake TIMESTAMP,
-    tx_bytes BIGINT NOT NULL,
-    rx_bytes BIGINT NOT NULL,
-    persistent_keepalive_interval INTEGER,
-    allowed_ips BLOB NOT NULL
+    public_key                      TEXT        NOT NULL PRIMARY KEY UNIQUE,
+    preshared_key                   TEXT,
+    protocol_version                INTEGER,
+    endpoint                        TEXT,
+    last_handshake                  TIMESTAMP,
+    tx_bytes                        BIGINT      NOT NULL,
+    rx_bytes                        BIGINT      NOT NULL,
+    persistent_keepalive_interval   INTEGER,
+    allowed_ips                     BLOB        NOT NULL,
+    suspended                       BOOLEAN     NOT NULL
 );

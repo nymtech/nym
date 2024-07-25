@@ -10,6 +10,8 @@ license.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
+bincode = { workspace = true, optional = true }
+defguard_wireguard_rs = { workspace = true, optional = true }
 log = { workspace = true }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
@@ -36,4 +38,4 @@ sqlx = { workspace = true, features = [
 ] }
 
 [features]
-wireguard = []
+wireguard = ["defguard_wireguard_rs", "bincode"]

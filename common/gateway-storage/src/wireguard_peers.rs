@@ -18,15 +18,16 @@ impl WgPeerManager {
         WgPeerManager { connection_pool }
     }
 
-    /// Creates a new wireguard peer entry for its particular public key.
+    /// Creates a new wireguard peer entry for its particular public key or
+    /// overwrittes the peer entry data if it already existed.
     ///
     /// # Arguments
     ///
     /// * `peer`: peer information needed by wireguard interface.
-    pub(crate) async fn insert_new_peer(&self, peer: &WireguardPeer) -> Result<(), sqlx::Error> {
+    pub(crate) async fn insert_peer(&self, peer: &WireguardPeer) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO wireguard_peer(public_key, preshared_key, protocol_version, endpoint, last_handshake, tx_bytes, rx_bytes, persistent_keepalive_interval, allowed_ips) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            peer.public_key, peer.preshared_key, peer.protocol_version, peer.endpoint, peer.last_handshake, peer.tx_bytes, peer.rx_bytes, peer.persistent_keepalive_interval, peer.allowed_ips
+            "INSERT OR REPLACE INTO wireguard_peer(public_key, preshared_key, protocol_version, endpoint, last_handshake, tx_bytes, rx_bytes, persistent_keepalive_interval, allowed_ips, suspended) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            peer.public_key, peer.preshared_key, peer.protocol_version, peer.endpoint, peer.last_handshake, peer.tx_bytes, peer.rx_bytes, peer.persistent_keepalive_interval, peer.allowed_ips, peer.suspended
         )
         .execute(&self.connection_pool)
         .await?;
@@ -53,5 +54,23 @@ impl WgPeerManager {
         )
         .fetch_optional(&self.connection_pool)
         .await
+    }
+
+    /// Retrieve the wireguard peer with the provided public key from the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `public_key`: the unique public key of the wireguard peer.
+    pub(crate) async fn remove_peer(&self, public_key: &str) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                DELETE FROM wireguard_peer
+                WHERE public_key = ?
+            "#,
+            public_key,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
     }
 }

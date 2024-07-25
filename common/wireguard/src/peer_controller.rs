@@ -75,10 +75,17 @@ impl<St: Storage> PeerController<St> {
         }
     }
 
-    fn check_stale_peer(&self, peer: &Peer, current_timestamp: SystemTime) -> Result<bool, Error> {
+    async fn check_stale_peer(
+        &self,
+        peer: &Peer,
+        current_timestamp: SystemTime,
+    ) -> Result<bool, Error> {
         if let Some(timestamp) = peer.last_handshake {
             if let Ok(duration_since_handshake) = current_timestamp.duration_since(timestamp) {
                 if duration_since_handshake > DEFAULT_PEER_TIMEOUT {
+                    self.storage
+                        .remove_wireguard_peer(&peer.public_key.to_string())
+                        .await?;
                     self.wg_api.inner.remove_peer(&peer.public_key)?;
                     return Ok(true);
                 }
@@ -88,7 +95,7 @@ impl<St: Storage> PeerController<St> {
         Ok(false)
     }
 
-    fn check_suspend_peer(&mut self, peer: &Peer) -> Result<(), Error> {
+    async fn check_suspend_peer(&mut self, peer: &Peer) -> Result<(), Error> {
         let prev_peer = self
             .active_peers
             .get(&peer.public_key)
@@ -96,17 +103,18 @@ impl<St: Storage> PeerController<St> {
         let data_usage =
             (peer.rx_bytes + peer.tx_bytes).saturating_sub(prev_peer.rx_bytes + prev_peer.tx_bytes);
         if data_usage > BANDWIDTH_CAP_PER_DAY {
+            self.storage.insert_wireguard_peer(peer, true).await?;
             self.wg_api.inner.remove_peer(&peer.public_key)?;
-            let (moved_key, moved_peer) = self
-                .active_peers
+            self.active_peers
                 .remove_entry(&peer.public_key)
                 .ok_or(Error::PeerMismatch)?;
-            self.suspended_peers.insert(moved_key, moved_peer);
+            self.suspended_peers
+                .insert(peer.public_key.clone(), peer.clone());
         }
         Ok(())
     }
 
-    fn check_peers(&mut self) -> Result<(), Error> {
+    async fn check_peers(&mut self) -> Result<(), Error> {
         // Add 10 seconds to cover edge cases. At worst, we give ten free seconds worth of bandwidth
         // by resetting the bandwidth twice
         let reset = Utc::now().num_seconds_from_midnight() as u64
@@ -125,11 +133,14 @@ impl<St: Storage> PeerController<St> {
             .collect();
         if reset {
             self.active_peers = host.peers;
+            for peer in self.active_peers.values() {
+                self.storage.insert_wireguard_peer(&peer, false).await?;
+            }
         } else {
             let current_timestamp = SystemTime::now();
             for peer in host.peers.values() {
-                if !self.check_stale_peer(peer, current_timestamp)? {
-                    self.check_suspend_peer(peer)?;
+                if !self.check_stale_peer(peer, current_timestamp).await? {
+                    self.check_suspend_peer(peer).await?;
                 }
             }
         }
@@ -141,7 +152,7 @@ impl<St: Storage> PeerController<St> {
         loop {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
-                    if let Err(e) = self.check_peers() {
+                    if let Err(e) = self.check_peers().await {
                         log::error!("Error while periodically checking peers: {:?}", e);
                     }
                 }
@@ -152,6 +163,11 @@ impl<St: Storage> PeerController<St> {
                 msg = self.request_rx.recv() => {
                     match msg {
                         Some(PeerControlRequest::AddPeer(peer)) => {
+                            if let Err(e) = self.storage.insert_wireguard_peer(&peer, false).await {
+                                log::error!("Could not insert peer into storage: {:?}", e);
+                                self.response_tx.send(PeerControlResponse::AddPeer { success: false }).ok();
+                                continue;
+                            }
                             let success = if let Err(e) = self.wg_api.inner.configure_peer(&peer) {
                                 log::error!("Could not configure peer: {:?}", e);
                                 false
@@ -162,6 +178,11 @@ impl<St: Storage> PeerController<St> {
                             self.response_tx.send(PeerControlResponse::AddPeer { success }).ok();
                         }
                         Some(PeerControlRequest::RemovePeer(peer_pubkey)) => {
+                            if let Err(e) = self.storage.remove_wireguard_peer(&peer_pubkey.to_string()).await {
+                                log::error!("Could not remove peer from storage: {:?}", e);
+                                self.response_tx.send(PeerControlResponse::RemovePeer { success: false }).ok();
+                                continue;
+                            }
                             let success = if let Err(e) = self.wg_api.inner.remove_peer(&peer_pubkey) {
                                 log::error!("Could not remove peer: {:?}", e);
                                 false

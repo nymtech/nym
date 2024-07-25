@@ -7,8 +7,9 @@ use error::StorageError;
 use inboxes::InboxManager;
 use models::{
     PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage, VerifiedTicket,
+    WireguardPeer,
 };
-use nym_credentials_interface::ClientTicket;
+use nym_credentials_interface::{ ClientTicket};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
@@ -210,6 +211,36 @@ pub trait Storage: Send + Sync {
     async fn get_votes(&self, ticket_id: i64) -> Result<Vec<i64>, StorageError>;
 
     async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, StorageError>;
+
+    /// Insert a wireguard peer in the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer`: wireguard peer data to be stored
+    /// * `suspended`: if peer exists, but it's currently suspended
+    #[cfg(feature = "wireguard")]
+    async fn insert_wireguard_peer(
+        &self,
+        peer: &defguard_wireguard_rs::host::Peer,
+        suspended: bool,
+    ) -> Result<(), StorageError>;
+
+    /// Tries to retrieve available bandwidth for the particular peer.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer_public_key`: wireguard public key of the peer to be retrieved.
+    async fn get_wireguard_peer(
+        &self,
+        peer_public_key: &str,
+    ) -> Result<Option<WireguardPeer>, StorageError>;
+
+    /// Remove a wireguard peer from the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer_public_key`: wireguard public key of the peer to be removed.
+    async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -582,5 +613,67 @@ impl Storage for PersistentStorage {
 
     async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, StorageError> {
         Ok(self.ticket_manager.get_epoch_signers(epoch_id).await?)
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn insert_wireguard_peer(
+        &self,
+        peer: &defguard_wireguard_rs::host::Peer,
+        suspended: bool,
+    ) -> Result<(), StorageError> {
+        let peer = WireguardPeer {
+            public_key: peer.public_key.to_string(),
+            preshared_key: peer.preshared_key.as_ref().map(|k| k.to_string()),
+            protocol_version: peer.protocol_version.map(|v| v as i64),
+            endpoint: peer.endpoint.map(|e| e.to_string()),
+            last_handshake: peer
+                .last_handshake
+                .map(|t| {
+                    if let Ok(d) = t.duration_since(std::time::UNIX_EPOCH) {
+                        if let Some(nanos) = d.as_nanos().try_into().ok() {
+                            Some(
+                                sqlx::types::chrono::DateTime::from_timestamp_nanos(nanos)
+                                    .naive_utc(),
+                            )
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .flatten(),
+            tx_bytes: peer.tx_bytes as i64,
+            rx_bytes: peer.rx_bytes as i64,
+            persistent_keepalive_interval: peer.persistent_keepalive_interval.map(|v| v as i64),
+            allowed_ips: bincode::Options::serialize(
+                bincode::DefaultOptions::new(),
+                &peer.allowed_ips,
+            )
+            .unwrap(),
+            suspended,
+        };
+        self.wireguard_peer_manager.insert_peer(&peer).await?;
+        Ok(())
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn get_wireguard_peer(
+        &self,
+        peer_public_key: &str,
+    ) -> Result<Option<WireguardPeer>, StorageError> {
+        let peer = self
+            .wireguard_peer_manager
+            .retrieve_peer(peer_public_key)
+            .await?;
+        Ok(peer)
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError> {
+        self.wireguard_peer_manager
+            .remove_peer(peer_public_key)
+            .await?;
+        Ok(())
     }
 }

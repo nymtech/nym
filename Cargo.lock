@@ -5107,6 +5107,8 @@ name = "nym-gateway-storage"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bincode",
+ "defguard_wireguard_rs",
  "log",
  "nym-credentials-interface",
  "nym-gateway-requests",

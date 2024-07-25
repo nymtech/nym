@@ -56,12 +56,11 @@ pub(super) async fn run_outbound(
     let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
     tokio::pin!(shutdown_future);
 
-    let mut mix_receiver_next = mix_receiver.next();
     let mut mix_timeout = Box::pin(sleep(MIX_TTL));
 
     loop {
         select! {
-            connection_message = &mut mix_receiver_next => {
+            connection_message = mix_receiver.next() => {
                 if let Some(connection_message) = connection_message {
                     if deal_with_message(connection_message, &mut writer, &local_destination_address, &remote_source_address, connection_id).await {
                         break;

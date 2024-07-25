@@ -42,24 +42,44 @@ export const mixnodeValidationSchema = Yup.object().shape({
     .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
 });
 
-const operatingCostAndPmValidation = (params?: TauriContractStateParams) => ({
-  profitMargin: Yup.number().required('Profit Percentage is required').min(4).max(80),
-  operatorCost: Yup.object().shape({
-    amount: Yup.string()
-      .required('An operating cost is required')
-      // eslint-disable-next-line prefer-arrow-callback
-      .test(
-        'valid-operating-cost',
-        'A valid amount is required (min 40 - max 2000)',
-        async function isValidAmount(this, value) {
-          if (value && (!Number(value) || isLessThan(+value, 40) || isGreaterThan(+value, 2000))) {
-            return this.createError({ message: 'A valid amount is required (min 40 - max 2000)' });
+const operatingCostAndPmValidation = (params?: TauriContractStateParams) => {
+  const defaultParams = {
+    profit_margin: {
+      minimum: parseFloat(params?.profit_margin.minimum || '0%'),
+      maximum: parseFloat(params?.profit_margin.maximum || '100%'),
+    },
+
+    operating_cost: {
+      minimum: parseFloat(params?.operating_cost.minimum.amount || '0'),
+      maximum: parseFloat(params?.operating_cost.maximum.amount || '1000000000'),
+    },
+  };
+
+  return {
+    profitMargin: Yup.number()
+      .required('Profit Percentage is required')
+      .min(defaultParams.profit_margin.minimum)
+      .max(defaultParams.profit_margin.maximum),
+    operatorCost: Yup.object().shape({
+      amount: Yup.string()
+        .required('An operating cost is required')
+        // eslint-disable-next-line prefer-arrow-callback
+        .test('valid-operating-cost', 'A valid amount is required', async function isValidAmount(this, value) {
+          if (
+            value &&
+            (!Number(value) ||
+              isLessThan(+value, defaultParams.operating_cost.minimum) ||
+              isGreaterThan(+value, Number(defaultParams.operating_cost.maximum)))
+          ) {
+            return this.createError({
+              message: `A valid amount is required (min ${defaultParams?.operating_cost.minimum} - max ${defaultParams?.operating_cost.maximum})`,
+            });
           }
           return true;
-        },
-      ),
-  }),
-});
+        }),
+    }),
+  };
+};
 
 export const amountSchema = (params?: TauriContractStateParams) =>
   Yup.object().shape({

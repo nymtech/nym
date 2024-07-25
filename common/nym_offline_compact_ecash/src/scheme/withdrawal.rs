@@ -3,6 +3,7 @@
 
 use crate::common_types::{BlindedSignature, Signature, SignerIndex};
 use crate::error::{CompactEcashError, Result};
+use crate::helpers::{date_scalar, type_scalar};
 use crate::proofs::proof_withdrawal::{
     WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness,
 };
@@ -10,7 +11,7 @@ use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, Verific
 use crate::scheme::setup::GroupParameters;
 use crate::scheme::PartialWallet;
 use crate::utils::{check_bilinear_pairing, hash_g1};
-use crate::{constants, ecash_group_parameters, Attribute};
+use crate::{constants, ecash_group_parameters, Attribute, EncodedDate, EncodedTicketType};
 use bls12_381::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group, GroupEncoding};
 use serde::{Deserialize, Serialize};
@@ -141,28 +142,25 @@ fn compute_private_attribute_commitments(
 /// openings for private attributes, `v`, and the expiration date.
 pub fn withdrawal_request(
     sk_user: &SecretKeyUser,
-    expiration_date: u64,
-    t_type: u64,
+    expiration_date: EncodedDate,
+    t_type: EncodedTicketType,
 ) -> Result<(WithdrawalRequest, RequestInfo)> {
     let params = ecash_group_parameters();
     // Generate random and unique wallet secret
     let v = params.random_scalar();
     let joined_commitment_opening = params.random_scalar();
+
+    let gamma = params.gammas();
+    let expiration_date = date_scalar(expiration_date);
+    let t_type = type_scalar(t_type);
+
     // Compute joined commitment for all attributes (public and private)
-    //SAFETY: params is static with length 3
-    #[allow(clippy::unwrap_used)]
-    let joined_commitment: G1Projective = params.gen1() * joined_commitment_opening
-        + params.gamma_idx(0).unwrap() * sk_user.sk
-        + params.gamma_idx(1).unwrap() * v;
+    let joined_commitment =
+        params.gen1() * joined_commitment_opening + gamma[0] * sk_user.sk + gamma[1] * v;
 
     // Compute commitment hash h
-    #[allow(clippy::unwrap_used)]
-    let joined_commitment_hash = hash_g1(
-        (joined_commitment
-            + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date)
-            + params.gamma_idx(3).unwrap() * Scalar::from(t_type))
-        .to_bytes(),
-    );
+    let joined_commitment_hash =
+        hash_g1((joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes());
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
     let private_attributes = vec![sk_user.sk, v];
@@ -199,8 +197,8 @@ pub fn withdrawal_request(
             joined_commitment_opening,
             private_attributes_openings: private_attributes_openings.clone(),
             wallet_secret: v,
-            expiration_date: Scalar::from(expiration_date),
-            t_type: Scalar::from(t_type),
+            expiration_date,
+            t_type,
         },
     ))
 }
@@ -222,18 +220,17 @@ pub fn withdrawal_request(
 pub fn request_verify(
     req: &WithdrawalRequest,
     pk_user: PublicKeyUser,
-    expiration_date: u64,
-    t_type: u64,
+    expiration_date: EncodedDate,
+    t_type: EncodedTicketType,
 ) -> Result<()> {
     let params = ecash_group_parameters();
-    // Verify the joined commitment hash
-    //SAFETY: params is static with length 3
-    #[allow(clippy::unwrap_used)]
+
+    let gamma = params.gammas();
+    let expiration_date = date_scalar(expiration_date);
+    let t_type = type_scalar(t_type);
+
     let expected_commitment_hash = hash_g1(
-        (req.joined_commitment
-            + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date)
-            + params.gamma_idx(3).unwrap() * Scalar::from(t_type))
-        .to_bytes(),
+        (req.joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes(),
     );
     if req.joined_commitment_hash != expected_commitment_hash {
         return Err(CompactEcashError::WithdrawalRequestVerification);
@@ -270,13 +267,10 @@ pub fn request_verify(
 /// authentication secret key index is out of bounds.
 fn sign_expiration_date(
     joined_commitment_hash: &G1Projective,
-    expiration_date: u64,
+    expiration_date: EncodedDate,
     sk_auth: &SecretKeyAuth,
 ) -> G1Projective {
-    //SAFETY : this fn assumes a long enough key
-    #[allow(clippy::unwrap_used)]
-    let yi = sk_auth.get_y_by_idx(2).unwrap();
-    joined_commitment_hash * (yi * Scalar::from(expiration_date))
+    joined_commitment_hash * (sk_auth.ys[2] * date_scalar(expiration_date))
 }
 
 /// Signs a transaction type using a joined commitment hash and a secret key.
@@ -296,13 +290,10 @@ fn sign_expiration_date(
 /// The resulting G1Projective point representing the signed ticket type.
 fn sign_t_type(
     joined_commitment_hash: &G1Projective,
-    t_type: u64,
+    t_type: EncodedTicketType,
     sk_auth: &SecretKeyAuth,
 ) -> G1Projective {
-    //SAFETY : this fn assumes a long enough key
-    #[allow(clippy::unwrap_used)]
-    let yi = sk_auth.get_y_by_idx(3).unwrap();
-    joined_commitment_hash * (yi * Scalar::from(t_type))
+    joined_commitment_hash * (sk_auth.ys[3] * type_scalar(t_type))
 }
 
 /// Issues a blinded signature for a withdrawal request, after verifying its integrity.
@@ -327,8 +318,8 @@ pub fn issue(
     sk_auth: &SecretKeyAuth,
     pk_user: PublicKeyUser,
     withdrawal_req: &WithdrawalRequest,
-    expiration_date: u64,
-    t_type: u64,
+    expiration_date: EncodedDate,
+    t_type: EncodedTicketType,
 ) -> Result<BlindedSignature> {
     // Verify the withdrawal request
     request_verify(withdrawal_req, pk_user, expiration_date, t_type)?;

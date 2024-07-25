@@ -6,13 +6,16 @@ use time::{Duration, PrimitiveDateTime, Time};
 pub use time::{Date, OffsetDateTime};
 
 pub trait EcashTime {
-    fn ecash_unix_timestamp(&self) -> u64 {
+    fn ecash_unix_timestamp(&self) -> u32 {
         let ts = self.ecash_datetime().unix_timestamp();
 
         // just panic on pre-1970 timestamps...
         assert!(ts > 0);
 
-        ts as u64
+        // and on anything in 22nd century...
+        assert!(ts <= u32::MAX as i64);
+
+        ts as u32
     }
 
     fn ecash_date(&self) -> Date {

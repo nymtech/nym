@@ -5,7 +5,6 @@
 mod tests {
     use crate::error::Result;
     use crate::scheme::aggregation::{aggregate_verification_keys, aggregate_wallets};
-    use crate::scheme::expiration_date_signatures::date_scalar;
     use crate::scheme::keygen::{
         generate_keypair_user, ttp_keygen, SecretKeyAuth, VerificationKeyAuth,
     };
@@ -125,7 +124,7 @@ mod tests {
         )?;
 
         assert!(payment
-            .spend_verify(&verification_key, &pay_info, date_scalar(spend_date))
+            .spend_verify(&verification_key, &pay_info, spend_date)
             .is_ok());
 
         let payment_bytes = payment.to_bytes();

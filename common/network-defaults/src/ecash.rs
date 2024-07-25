@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /// Specifies the maximum validity of the issued ticketbooks.
-pub const TICKETBOOK_VALIDITY_DAYS: u64 = 7;
+pub const TICKETBOOK_VALIDITY_DAYS: u32 = 7;
 
 /// Specifies the number of tickets in each issued ticketbook.
 pub const TICKETBOOK_SIZE: u64 = 50;

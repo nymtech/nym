@@ -402,8 +402,3 @@ mod tests {
         assert_ne!(hash_to_scalar(msg1), hash_to_scalar(msg2));
     }
 }
-
-pub fn scalar_type(scalar: &Scalar) -> u64 {
-    let b = scalar.to_bytes();
-    u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]])
-}

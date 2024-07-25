@@ -3,17 +3,18 @@
 
 use crate::common_types::{Signature, SignerIndex};
 use crate::error::{CompactEcashError, Result};
+use crate::helpers::{date_scalar, type_scalar};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::coin_indices_signatures::CoinIndexSignature;
-use crate::scheme::expiration_date_signatures::{date_scalar, find_index, ExpirationDateSignature};
+use crate::scheme::expiration_date_signatures::{find_index, ExpirationDateSignature};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::traits::Bytable;
 use crate::utils::{
     batch_verify_signatures, check_bilinear_pairing, hash_to_scalar, try_deserialize_scalar,
 };
-use crate::Base58;
 use crate::{constants, ecash_group_parameters};
+use crate::{Base58, EncodedDate, EncodedTicketType};
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -228,7 +229,7 @@ impl Wallet {
         spend_value: u64,
         valid_dates_signatures: &[ExpirationDateSignature],
         coin_indices_signatures: &[CoinIndexSignature],
-        spend_date_timestamp: u64,
+        spend_date_timestamp: EncodedDate,
     ) -> Result<Payment> {
         self.check_remaining_allowance(params, spend_value)?;
 
@@ -269,8 +270,8 @@ pub struct WalletSignatures {
     #[zeroize(skip)]
     sig: Signature,
     v: Scalar,
-    expiration_date_timestamp: u64,
-    t_type: u64,
+    expiration_date_timestamp: EncodedDate,
+    t_type: EncodedTicketType,
 }
 
 impl WalletSignatures {
@@ -314,8 +315,8 @@ pub fn compute_pay_info_hash(pay_info: &PayInfo, k: u64) -> Scalar {
 }
 
 impl WalletSignatures {
-    // signature size (96) + secret size (32) + expiration size (8) + t_type (8)
-    pub const SERIALISED_SIZE: usize = 144;
+    // signature size (96) + secret size (32) + expiration size (4) + t_type (1)
+    pub const SERIALISED_SIZE: usize = 133;
 
     pub fn signature(&self) -> &Signature {
         &self.sig
@@ -335,8 +336,8 @@ impl WalletSignatures {
         let mut bytes = [0u8; Self::SERIALISED_SIZE];
         bytes[0..96].copy_from_slice(&self.sig.to_bytes());
         bytes[96..128].copy_from_slice(&self.v.to_bytes());
-        bytes[128..136].copy_from_slice(&self.expiration_date_timestamp.to_be_bytes());
-        bytes[136..144].copy_from_slice(&self.t_type.to_be_bytes());
+        bytes[128..132].copy_from_slice(&self.expiration_date_timestamp.to_be_bytes());
+        bytes[132] = self.t_type;
         bytes
     }
 
@@ -356,15 +357,12 @@ impl WalletSignatures {
         let v_bytes: &[u8; 32] = &bytes[96..128].try_into().unwrap();
 
         #[allow(clippy::unwrap_used)]
-        let expiration_date_bytes = bytes[128..136].try_into().unwrap();
-
-        #[allow(clippy::unwrap_used)]
-        let t_type_bytes = bytes[136..].try_into().unwrap();
+        let expiration_date_bytes = bytes[128..132].try_into().unwrap();
 
         let sig = Signature::try_from(sig_bytes.as_slice())?;
         let v = Scalar::from_bytes(v_bytes).unwrap();
-        let expiration_date_timestamp = u64::from_be_bytes(expiration_date_bytes);
-        let t_type = u64::from_be_bytes(t_type_bytes);
+        let expiration_date_timestamp = EncodedDate::from_be_bytes(expiration_date_bytes);
+        let t_type = bytes[132];
 
         Ok(WalletSignatures {
             sig,
@@ -401,7 +399,7 @@ impl WalletSignatures {
         spend_value: u64,
         valid_dates_signatures: &[BE],
         coin_indices_signatures: &[BI],
-        spend_date_timestamp: u64,
+        spend_date_timestamp: EncodedDate,
     ) -> Result<Payment>
     where
         BI: Borrow<CoinIndexSignature>,
@@ -596,7 +594,7 @@ fn pseudorandom_f_g_v(params: &GroupParameters, v: &Scalar, l: u64) -> Result<G1
 /// * `params` - A reference to the group parameters required for the computation.
 /// * `verification_key` - The global verification key of the signing authorities.
 /// * `attributes` - A slice of private attributes associated with the wallet.
-/// * `blinding_factor` - The blinding factor used used to randomise the wallet's signature.
+/// * `blinding_factor` - The blinding factor used to randomise the wallet's signature.
 ///
 /// # Returns
 ///
@@ -689,7 +687,7 @@ pub struct Payment {
     pub aa: Vec<G1Projective>,
     pub spend_value: u64,
     pub cc: G1Projective,
-    pub t_type: u64,
+    pub t_type: EncodedTicketType,
     pub zk_proof: SpendProof,
 }
 
@@ -720,7 +718,7 @@ impl Payment {
             return Err(CompactEcashError::SpendSignaturesValidity);
         }
 
-        let kappa_type = self.kappa + verification_key.beta_g2[3] * Scalar::from(self.t_type);
+        let kappa_type = self.kappa + verification_key.beta_g2[3] * type_scalar(self.t_type);
         if !check_bilinear_pairing(
             &self.sig.h.to_affine(),
             &G2Prepared::from(kappa_type.to_affine()),
@@ -950,7 +948,7 @@ impl Payment {
         &self,
         verification_key: &VerificationKeyAuth,
         pay_info: &PayInfo,
-        spend_date: Scalar,
+        spend_date: EncodedDate,
     ) -> Result<()> {
         // check if all serial numbers are different
         self.no_duplicate_serial_numbers()?;
@@ -959,7 +957,7 @@ impl Payment {
         // Verify whether the payment signature and kappa are correct
         self.check_signature_validity(verification_key)?;
         // Verify whether the expiration date signature and kappa_e are correct
-        self.check_exp_signature_validity(verification_key, spend_date)?;
+        self.check_exp_signature_validity(verification_key, date_scalar(spend_date))?;
         // Verify whether the coin indices signatures and kappa_k are correct
         self.batch_check_coin_index_signatures(verification_key)?;
 

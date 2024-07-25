@@ -1,23 +1,19 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use core::iter::Sum;
-use core::ops::Mul;
-
-use bls12_381::{G2Prepared, G2Projective, Scalar};
-use group::Curve;
-use itertools::Itertools;
-
 use crate::common_types::{PartialSignature, Signature, SignatureShare, SignerIndex};
 use crate::error::{CompactEcashError, Result};
-use crate::scheme::expiration_date_signatures::scalar_date;
+use crate::helpers::{scalar_date, scalar_type};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::withdrawal::RequestInfo;
 use crate::scheme::{PartialWallet, Wallet, WalletSignatures};
-use crate::utils::{
-    check_bilinear_pairing, perform_lagrangian_interpolation_at_origin, scalar_type,
-};
+use crate::utils::{check_bilinear_pairing, perform_lagrangian_interpolation_at_origin};
 use crate::{ecash_group_parameters, Attribute};
+use bls12_381::{G2Prepared, G2Projective, Scalar};
+use core::iter::Sum;
+use core::ops::Mul;
+use group::Curve;
+use itertools::Itertools;
 
 pub(crate) trait Aggregatable: Sized {
     fn aggregate(aggregatable: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self>;

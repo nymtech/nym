@@ -15,12 +15,13 @@ use crate::scheme::Payment;
 use crate::setup::Parameters;
 use crate::{
     aggregate_verification_keys, aggregate_wallets, constants, generate_keypair_user, issue,
-    issue_verify, withdrawal_request, PartialWallet, PayInfo, VerificationKeyAuth,
+    issue_verify, withdrawal_request, EncodedDate, EncodedTicketType, PartialWallet, PayInfo,
+    VerificationKeyAuth,
 };
 use itertools::izip;
 
 pub fn generate_expiration_date_signatures(
-    expiration_date: u64,
+    expiration_date: EncodedDate,
     secret_keys_authorities: &[&SecretKeyAuth],
     verification_keys_auth: &[VerificationKeyAuth],
     verification_key: &VerificationKeyAuth,
@@ -82,8 +83,8 @@ pub fn generate_coin_indices_signatures(
 pub fn payment_from_keys_and_expiration_date(
     ecash_keypairs: &Vec<KeyPairAuth>,
     indices: &[SignerIndex],
-    expiration_date: u64,
-    t_type: u64,
+    expiration_date: EncodedDate,
+    t_type: EncodedTicketType,
 ) -> Result<(Payment, PayInfo)> {
     let total_coins = 32;
     let params = Parameters::new(total_coins);

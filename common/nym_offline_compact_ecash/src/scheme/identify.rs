@@ -54,7 +54,6 @@ pub fn identify(
 
 #[cfg(test)]
 mod tests {
-    use crate::scheme::expiration_date_signatures::date_scalar;
     use crate::scheme::identify::{identify, IdentifyResult};
     use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser};
     use crate::setup::Parameters;
@@ -165,12 +164,12 @@ mod tests {
             .unwrap();
 
         assert!(payment1
-            .spend_verify(&verification_key, &pay_info1, date_scalar(spend_date))
+            .spend_verify(&verification_key, &pay_info1, spend_date)
             .is_ok());
 
         let payment2 = payment1.clone();
         assert!(payment2
-            .spend_verify(&verification_key, &pay_info1, date_scalar(spend_date))
+            .spend_verify(&verification_key, &pay_info1, spend_date)
             .is_ok());
 
         let identify_result = identify(&payment1, &payment2, pay_info1, pay_info1);
@@ -275,7 +274,7 @@ mod tests {
             .unwrap();
 
         assert!(payment1
-            .spend_verify(&verification_key, &pay_info1, date_scalar(spend_date))
+            .spend_verify(&verification_key, &pay_info1, spend_date)
             .is_ok());
 
         let pay_info2 = PayInfo {
@@ -295,7 +294,7 @@ mod tests {
             .unwrap();
 
         assert!(payment2
-            .spend_verify(&verification_key, &pay_info2, date_scalar(spend_date))
+            .spend_verify(&verification_key, &pay_info2, spend_date)
             .is_ok());
 
         let identify_result = identify(&payment1, &payment2, pay_info1, pay_info2);
@@ -411,7 +410,7 @@ mod tests {
             .unwrap();
 
         assert!(payment1
-            .spend_verify(&verification_key, &pay_info1, date_scalar(spend_date))
+            .spend_verify(&verification_key, &pay_info1, spend_date)
             .is_ok());
 
         // let's reverse the spending counter in the wallet to create a double spending payment
@@ -435,7 +434,7 @@ mod tests {
             .unwrap();
 
         assert!(payment2
-            .spend_verify(&verification_key, &pay_info2, date_scalar(spend_date))
+            .spend_verify(&verification_key, &pay_info2, spend_date)
             .is_ok());
 
         let identify_result = identify(&payment1, &payment2, pay_info1, pay_info2);
@@ -555,7 +554,7 @@ mod tests {
             .unwrap();
 
         assert!(payment1
-            .spend_verify(&verification_key, &pay_info1, date_scalar(spend_date))
+            .spend_verify(&verification_key, &pay_info1, spend_date)
             .is_ok());
 
         // let's reverse the spending counter in the wallet to create a double spending payment

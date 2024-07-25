@@ -42,6 +42,8 @@ mod traits;
 pub mod utils;
 
 pub type Attribute = Scalar;
+pub type EncodedTicketType = u8;
+pub type EncodedDate = u32;
 
 pub fn ecash_parameters() -> &'static setup::Parameters {
     static ECASH_PARAMS: OnceLock<setup::Parameters> = OnceLock::new();

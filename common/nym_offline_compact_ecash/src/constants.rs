@@ -9,9 +9,9 @@ pub const PUBLIC_ATTRIBUTES_LEN: usize = 2; //expiration date and ticket type
 pub const PRIVATE_ATTRIBUTES_LEN: usize = 2; //user and wallet secret
 pub const ATTRIBUTES_LEN: usize = PUBLIC_ATTRIBUTES_LEN + PRIVATE_ATTRIBUTES_LEN; // number of attributes encoded in a single zk-nym credential
 
-pub const CRED_VALIDITY_PERIOD_DAYS: u64 = TICKETBOOK_VALIDITY_DAYS;
+pub const CRED_VALIDITY_PERIOD_DAYS: u32 = TICKETBOOK_VALIDITY_DAYS;
 
-pub(crate) const SECONDS_PER_DAY: u64 = 86400;
+pub(crate) const SECONDS_PER_DAY: u32 = 86400;
 
 /// Total number of tickets in each issued ticket book.
 pub const NB_TICKETS: u64 = TICKETBOOK_SIZE;

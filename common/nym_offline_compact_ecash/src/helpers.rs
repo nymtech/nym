@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::utils::try_deserialize_g1_projective;
-use crate::CompactEcashError;
-use bls12_381::G1Projective;
+use crate::{CompactEcashError, EncodedDate, EncodedTicketType};
+use bls12_381::{G1Projective, Scalar};
 use group::Curve;
 use std::any::{type_name, Any};
 
@@ -34,4 +34,28 @@ pub(crate) fn recover_g1_tuple<T: Any>(
     let second = try_deserialize_g1_projective(second_bytes)?;
 
     Ok((first, second))
+}
+
+pub(crate) fn date_scalar(date: EncodedDate) -> Scalar {
+    Scalar::from(date as u64)
+}
+
+// TODO: this will not work for **all** scalars,
+// but timestamps have extremely (relatively speaking) limited range,
+// so this should be fine
+pub(crate) fn scalar_date(scalar: &Scalar) -> EncodedDate {
+    let b = scalar.to_bytes();
+    u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]) as EncodedDate
+}
+
+pub(crate) fn type_scalar(t_type: EncodedTicketType) -> Scalar {
+    Scalar::from(t_type as u64)
+}
+
+// TODO: this will not work for **all** scalars,
+// but ticket types have extremely (relatively speaking) limited range,
+// so this should be fine
+pub(crate) fn scalar_type(scalar: &Scalar) -> EncodedTicketType {
+    let b = scalar.to_bytes();
+    u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]) as EncodedTicketType
 }

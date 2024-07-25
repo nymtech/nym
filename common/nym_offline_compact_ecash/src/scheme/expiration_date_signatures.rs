@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::common_types::{Signature, SignerIndex};
-use crate::constants;
 use crate::error::{CompactEcashError, Result};
+use crate::helpers::date_scalar;
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::utils::generate_lagrangian_coefficients_at_origin;
 use crate::utils::{batch_verify_signatures, hash_g1};
+use crate::{constants, EncodedDate};
 use bls12_381::{G1Projective, Scalar};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -19,8 +20,8 @@ pub type PartialExpirationDateSignature = ExpirationDateSignature;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AnnotatedExpirationDateSignature {
     pub signature: ExpirationDateSignature,
-    pub expiration_timestamp: u64,
-    pub spending_timestamp: u64,
+    pub expiration_timestamp: EncodedDate,
+    pub spending_timestamp: EncodedDate,
 }
 
 impl Borrow<ExpirationDateSignature> for AnnotatedExpirationDateSignature {
@@ -66,17 +67,17 @@ where
 /// The validity period is determined by the constant `CRED_VALIDITY_PERIOD` in the `constants` module.
 pub fn sign_expiration_date(
     sk_auth: &SecretKeyAuth,
-    expiration_unix_timestamp: u64,
+    expiration_unix_timestamp: EncodedDate,
 ) -> Result<Vec<AnnotatedExpirationDateSignature>> {
     if sk_auth.ys.len() < 3 {
         return Err(CompactEcashError::KeyTooShort);
     }
-    let m0: Scalar = Scalar::from(expiration_unix_timestamp);
+    let m0: Scalar = date_scalar(expiration_unix_timestamp);
     let m2: Scalar = constants::TYPE_EXP;
 
     let partial_s_exponent = sk_auth.x + sk_auth.ys[0] * m0 + sk_auth.ys[2] * m2;
 
-    let sign_expiration = |offset: u64| {
+    let sign_expiration = |offset: u32| {
         // we produce tuples of (assuming CRED_VALIDITY_PERIOD_DAYS = 30):
         // (expiration, expiration - 29)
         // (expiration, expiration - 28)
@@ -84,7 +85,7 @@ pub fn sign_expiration_date(
         // (expiration, expiration)
         let spending_unix_timestamp = expiration_unix_timestamp
             - ((constants::CRED_VALIDITY_PERIOD_DAYS - offset - 1) * constants::SECONDS_PER_DAY);
-        let m1: Scalar = Scalar::from(spending_unix_timestamp);
+        let m1: Scalar = date_scalar(spending_unix_timestamp);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
         // Sign the attributes by performing scalar-point multiplications and accumulating the result
@@ -136,22 +137,22 @@ pub fn sign_expiration_date(
 pub fn verify_valid_dates_signatures<B>(
     vk: &VerificationKeyAuth,
     signatures: &[B],
-    expiration_date: u64,
+    expiration_date: EncodedDate,
 ) -> Result<()>
 where
     B: Borrow<ExpirationDateSignature>,
 {
-    let m0: Scalar = Scalar::from(expiration_date);
+    let m0: Scalar = date_scalar(expiration_date);
     let m2: Scalar = constants::TYPE_EXP;
 
     let partially_signed = vk.alpha + vk.beta_g2[0] * m0 + vk.beta_g2[2] * m2;
     let mut pairing_terms = Vec::with_capacity(signatures.len());
 
     for (i, sig) in signatures.iter().enumerate() {
-        let l = i as u64;
+        let l = i as u32;
         let valid_date = expiration_date
             - ((constants::CRED_VALIDITY_PERIOD_DAYS - l - 1) * constants::SECONDS_PER_DAY);
-        let m1: Scalar = Scalar::from(valid_date);
+        let m1: Scalar = date_scalar(valid_date);
 
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
@@ -199,7 +200,7 @@ where
 ///
 fn _aggregate_expiration_signatures<B>(
     vk: &VerificationKeyAuth,
-    expiration_date: u64,
+    expiration_date: EncodedDate,
     signatures_shares: &[ExpirationDateSignatureShare<B>],
     validate_shares: bool,
 ) -> Result<Vec<ExpirationDateSignature>>
@@ -244,12 +245,12 @@ where
     let mut aggregated_date_signatures: Vec<ExpirationDateSignature> =
         Vec::with_capacity(constants::CRED_VALIDITY_PERIOD_DAYS as usize);
 
-    let m0: Scalar = Scalar::from(expiration_date);
+    let m0: Scalar = date_scalar(expiration_date);
 
     for l in 0..constants::CRED_VALIDITY_PERIOD_DAYS {
         let valid_date = expiration_date
             - ((constants::CRED_VALIDITY_PERIOD_DAYS - l - 1) * constants::SECONDS_PER_DAY);
-        let m1: Scalar = Scalar::from(valid_date);
+        let m1: Scalar = date_scalar(valid_date);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
 
@@ -299,7 +300,7 @@ where
 ///
 pub fn aggregate_expiration_signatures<B>(
     vk: &VerificationKeyAuth,
-    expiration_date: u64,
+    expiration_date: EncodedDate,
     signatures_shares: &[ExpirationDateSignatureShare<B>],
 ) -> Result<Vec<ExpirationDateSignature>>
 where
@@ -314,7 +315,7 @@ where
 /// It further annotates the result with timestamp information
 pub fn aggregate_annotated_expiration_signatures(
     vk: &VerificationKeyAuth,
-    expiration_date: u64,
+    expiration_date: EncodedDate,
     signatures_shares: &[ExpirationDateSignatureShare<AnnotatedExpirationDateSignature>],
 ) -> Result<Vec<AnnotatedExpirationDateSignature>> {
     // it's sufficient to just verify the first share as if the rest of them don't match,
@@ -332,7 +333,7 @@ pub fn aggregate_annotated_expiration_signatures(
             return Err(CompactEcashError::ExpirationDateSignatureVerification);
         }
 
-        let l = i as u64;
+        let l = i as u32;
         let expected_spending = sig.expiration_timestamp
             - ((constants::CRED_VALIDITY_PERIOD_DAYS - l - 1) * constants::SECONDS_PER_DAY);
 
@@ -361,7 +362,7 @@ pub fn aggregate_annotated_expiration_signatures(
 /// It is expected the caller has already pre-validated them via manual calls to `verify_valid_dates_signatures`
 pub fn unchecked_aggregate_expiration_signatures(
     vk: &VerificationKeyAuth,
-    expiration_date: u64,
+    expiration_date: EncodedDate,
     signatures_shares: &[ExpirationDateSignatureShare],
 ) -> Result<Vec<ExpirationDateSignature>> {
     _aggregate_expiration_signatures(vk, expiration_date, signatures_shares, false)
@@ -383,13 +384,13 @@ pub fn unchecked_aggregate_expiration_signatures(
 /// If a valid index is found, returns `Ok(index)`. If no valid index is found
 /// (i.e., `spend_date` is earlier than `expiration_date - 30`), returns `Err(InvalidDateError)`.
 ///
-pub fn find_index(spend_date: u64, expiration_date: u64) -> Result<usize> {
+pub fn find_index(spend_date: EncodedDate, expiration_date: EncodedDate) -> Result<usize> {
     let start_date =
         expiration_date - ((constants::CRED_VALIDITY_PERIOD_DAYS - 1) * constants::SECONDS_PER_DAY);
 
     if spend_date >= start_date {
         let index_a = ((spend_date - start_date) / constants::SECONDS_PER_DAY) as usize;
-        if index_a as u64 >= constants::CRED_VALIDITY_PERIOD_DAYS {
+        if index_a as u32 >= constants::CRED_VALIDITY_PERIOD_DAYS {
             Err(CompactEcashError::SpendDateTooLate)
         } else {
             Ok(index_a)
@@ -397,18 +398,6 @@ pub fn find_index(spend_date: u64, expiration_date: u64) -> Result<usize> {
     } else {
         Err(CompactEcashError::SpendDateTooEarly)
     }
-}
-
-pub fn date_scalar(date: u64) -> Scalar {
-    Scalar::from(date)
-}
-
-// TODO: this will not work for **all** scalars,
-// but timestamps have extremely (relatively speaking) limited range,
-// so this should be fine
-pub fn scalar_date(scalar: &Scalar) -> u64 {
-    let b = scalar.to_bytes();
-    u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]])
 }
 
 #[cfg(test)]

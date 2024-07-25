@@ -97,10 +97,6 @@ impl SecretKeyAuth {
         self.ys.len()
     }
 
-    pub(crate) fn get_y_by_idx(&self, i: usize) -> Option<&Scalar> {
-        self.ys.get(i)
-    }
-
     pub fn verification_key(&self) -> VerificationKeyAuth {
         let params = ecash_group_parameters();
         let g1 = params.gen1();

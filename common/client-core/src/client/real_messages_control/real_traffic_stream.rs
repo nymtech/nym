@@ -198,7 +198,9 @@ where
         // queues and client load rather than the required delay. So realistically we can treat
         // whatever is about to happen as negligible additional delay.
         trace!("{} is about to get sent to the mixnet", frag_id);
-        self.sent_notifier.unbounded_send(frag_id).unwrap();
+        if self.sent_notifier.unbounded_send(frag_id).is_err() {
+            debug!("Failed to notify about sent packet");
+        }
     }
 
     fn loop_cover_message_size(&mut self) -> PacketSize {
@@ -270,7 +272,8 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            log::error!("Failed to send: {err}");
+            log::debug!("Failed to send: {err}");
+            return;
         } else {
             let event = if fragment_id.is_some() {
                 PacketStatisticsEvent::RealPacketSent(packet_size)

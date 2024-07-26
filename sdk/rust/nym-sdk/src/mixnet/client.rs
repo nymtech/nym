@@ -625,7 +625,8 @@ where
     ///
     /// - If the client is already registered with a gateway, use that gateway.
     /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to register a new gateway.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
+    ///   register a new gateway.
     ///
     /// # Example
     ///
@@ -705,7 +706,8 @@ where
     ///
     /// - If the client is already registered with a gateway, use that gateway.
     /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to register a new gateway.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
+    ///   register a new gateway.
     ///
     /// # Example
     ///

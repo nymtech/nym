@@ -108,7 +108,8 @@ impl SocketClient {
         let storage = self.initialise_storage().await?;
         let user_agent = nym_bin_common::bin_info!().into();
 
-        let mut base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client);
+        let mut base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client)
+            .with_user_agent(user_agent);
 
         if let Some(custom_mixnet) = &self.custom_mixnet {
             base_client = base_client.with_stored_topology(custom_mixnet)?;

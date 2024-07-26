@@ -20,7 +20,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
     /// - BTE public key (alongside the proof of discrete log)
     /// - ed25519 public key
     /// - announce address to be used by clients for obtaining credentials
-    /// 
+    ///
     /// Upon successful registration, the node will receive a unique "NodeIndex"
     /// which is the x-coordinate of the to be derived keys.
     ///

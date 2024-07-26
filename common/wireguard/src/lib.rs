@@ -6,9 +6,10 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi};
+use defguard_wireguard_rs::WGApi;
+#[cfg(target_os = "linux")]
+use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::encryption::KeyPair;
-use nym_gateway_storage::Storage;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
@@ -81,7 +82,7 @@ pub struct WireguardData {
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]
-pub async fn start_wireguard<St: Storage + 'static>(
+pub async fn start_wireguard<St: nym_gateway_storage::Storage + 'static>(
     storage: St,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,

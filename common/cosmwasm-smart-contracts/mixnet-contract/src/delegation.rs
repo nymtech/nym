@@ -65,7 +65,6 @@ impl Delegation {
         cumulative_reward_ratio: Decimal,
         amount: Coin,
         height: u64,
-        proxy: Option<Addr>,
     ) -> Self {
         assert!(
             amount.amount <= TOKEN_SUPPLY,
@@ -78,7 +77,7 @@ impl Delegation {
             cumulative_reward_ratio,
             amount,
             height,
-            proxy,
+            proxy: None,
         }
     }
 

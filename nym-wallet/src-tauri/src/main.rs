@@ -129,6 +129,8 @@ fn main() {
             vesting::bond::withdraw_vested_coins,
             vesting::delegate::vesting_delegate_to_mixnode,
             vesting::delegate::vesting_undelegate_from_mixnode,
+            vesting::migrate::migrate_vested_mixnode,
+            vesting::migrate::migrate_vested_delegations,
             vesting::queries::get_account_info,
             vesting::queries::get_current_vesting_period,
             vesting::queries::locked_coins,

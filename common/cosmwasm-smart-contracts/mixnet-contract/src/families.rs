@@ -3,7 +3,6 @@
 
 use crate::{IdentityKey, IdentityKeyRef};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
@@ -84,10 +83,10 @@ impl FamilyHead {
 }
 
 impl Family {
-    pub fn new(head: FamilyHead, proxy: Option<Addr>, label: String) -> Self {
+    pub fn new(head: FamilyHead, label: String) -> Self {
         Family {
             head,
-            proxy: proxy.map(|p| p.to_string()),
+            proxy: None,
             label,
         }
     }

@@ -159,11 +159,8 @@ mod tests {
     }
 
     fn push_dummy_epoch_action(test: &mut TestSetup) {
-        let dummy_action = PendingEpochEventKind::Undelegate {
-            owner: Addr::unchecked("foomp"),
-            mix_id: test.rng.next_u32(),
-            proxy: None,
-        };
+        let dummy_action =
+            PendingEpochEventKind::new_undelegate(Addr::unchecked("foomp"), test.rng.next_u32());
         let env = test.env();
         storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
     }
@@ -571,11 +568,8 @@ mod tests {
         );
 
         // it exists
-        let dummy_action = PendingEpochEventKind::Undelegate {
-            owner: Addr::unchecked("foomp"),
-            mix_id: test.rng.next_u32(),
-            proxy: None,
-        };
+        let dummy_action =
+            PendingEpochEventKind::new_undelegate(Addr::unchecked("foomp"), test.rng.next_u32());
         let env = test.env();
         storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action.clone()).unwrap();
         let expected = PendingEpochEventResponse {

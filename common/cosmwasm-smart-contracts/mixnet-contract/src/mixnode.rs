@@ -10,7 +10,10 @@ use crate::helpers::IntoBaseDecimal;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
-use crate::{Delegation, EpochEventId, EpochId, IdentityKey, MixId, Percent, SphinxKey};
+use crate::{
+    Delegation, EpochEventId, EpochId, IdentityKey, MixId, OperatingCostRange, Percent,
+    ProfitMarginRange, SphinxKey,
+};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
@@ -150,6 +153,16 @@ impl MixNodeRewarding {
             last_rewarded_epoch: current_epoch,
             unique_delegations: 0,
         })
+    }
+
+    pub fn normalise_profit_margin(&mut self, allowed_range: ProfitMarginRange) {
+        self.cost_params.profit_margin_percent =
+            allowed_range.normalise(self.cost_params.profit_margin_percent)
+    }
+
+    pub fn normalise_operating_cost(&mut self, allowed_range: OperatingCostRange) {
+        self.cost_params.interval_operating_cost.amount =
+            allowed_range.normalise(self.cost_params.interval_operating_cost.amount)
     }
 
     /// Determines whether this node is still bonded. This is performed via a simple check,
@@ -518,7 +531,6 @@ impl MixNodeBond {
         original_pledge: Coin,
         layer: Layer,
         mix_node: MixNode,
-        proxy: Option<Addr>,
         bonding_height: u64,
     ) -> Self {
         MixNodeBond {
@@ -527,7 +539,7 @@ impl MixNodeBond {
             original_pledge,
             layer,
             mix_node,
-            proxy,
+            proxy: None,
             bonding_height,
             is_unbonding: false,
         }

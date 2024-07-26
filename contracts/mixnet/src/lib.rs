@@ -19,3 +19,4 @@ mod support;
 
 #[cfg(feature = "contract-testing")]
 mod testing;
+mod vesting_migration;

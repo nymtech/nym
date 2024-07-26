@@ -55,19 +55,13 @@ pub struct GatewayBond {
 }
 
 impl GatewayBond {
-    pub fn new(
-        pledge_amount: Coin,
-        owner: Addr,
-        block_height: u64,
-        gateway: Gateway,
-        proxy: Option<Addr>,
-    ) -> Self {
+    pub fn new(pledge_amount: Coin, owner: Addr, block_height: u64, gateway: Gateway) -> Self {
         GatewayBond {
             pledge_amount,
             owner,
             block_height,
             gateway,
-            proxy,
+            proxy: None,
         }
     }
 

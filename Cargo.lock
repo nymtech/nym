@@ -4325,6 +4325,7 @@ dependencies = [
  "bs58 0.5.1",
  "bytes",
  "clap 4.5.7",
+ "defguard_wireguard_rs",
  "fastrand 2.1.0",
  "futures",
  "ipnetwork 0.16.0",

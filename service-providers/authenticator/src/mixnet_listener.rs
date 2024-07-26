@@ -6,7 +6,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::error::AuthenticatorError;
+use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use futures::StreamExt;
 use ipnetwork::IpNetwork;
 use nym_authenticator_requests::v1::{
@@ -14,6 +14,7 @@ use nym_authenticator_requests::v1::{
     request::{AuthenticatorRequest, AuthenticatorRequestData},
     response::AuthenticatorResponse,
 };
+use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
@@ -44,9 +45,7 @@ pub(crate) struct MixnetListener {
     // Registrations awaiting confirmation
     pub(crate) registration_in_progres: Arc<PendingRegistrations>,
 
-    pub(crate) wireguard_gateway_data: WireguardGatewayData,
-
-    pub(crate) response_rx: UnboundedReceiver<PeerControlResponse>,
+    pub(crate) peer_manager: PeerManager,
 
     pub(crate) free_private_network_ips: Arc<PrivateIPs>,
 
@@ -69,13 +68,16 @@ impl MixnetListener {
             mixnet_client,
             task_handle,
             registration_in_progres: Default::default(),
-            wireguard_gateway_data,
-            response_rx,
+            peer_manager: PeerManager::new(wireguard_gateway_data, response_rx),
             free_private_network_ips: Arc::new(
                 private_ip_network.iter().map(|ip| (ip, None)).collect(),
             ),
             timeout_check_interval,
         }
+    }
+
+    fn keypair(&self) -> &Arc<KeyPair> {
+        self.peer_manager.wireguard_gateway_data.keypair()
     }
 
     fn remove_stale_registrations(&self) -> Result<()> {
@@ -126,29 +128,7 @@ impl MixnetListener {
             ));
         }
 
-        self.wireguard_gateway_data
-            .query_peer(remote_public)
-            .map_err(|err| {
-                AuthenticatorError::InternalError(format!("could not query peer: {:?}", err))
-            })?;
-
-        let PeerControlResponse::QueryPeer { success, peer } = self
-            .response_rx
-            .recv()
-            .await
-            .ok_or(AuthenticatorError::InternalError(
-                "no response for query peer".to_string(),
-            ))?
-        else {
-            return Err(AuthenticatorError::InternalError(
-                "unexpected response type".to_string(),
-            ));
-        };
-        if !success {
-            return Err(AuthenticatorError::InternalError(
-                "querying peer could not be performed".to_string(),
-            ));
-        }
+        let peer = self.peer_manager.query_peer(remote_public).await?;
         if let Some(peer) = peer {
             let Some(allowed_ip) = peer.allowed_ips.first() else {
                 return Err(AuthenticatorError::InternalError(
@@ -157,13 +137,7 @@ impl MixnetListener {
             };
             return Ok(AuthenticatorResponse::new_registered(
                 RegistredData {
-                    pub_key: PeerPublicKey::new(
-                        self.wireguard_gateway_data
-                            .keypair()
-                            .public_key()
-                            .to_bytes()
-                            .into(),
-                    ),
+                    pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
                     private_ip: allowed_ip.ip,
                     wg_port: self.config.authenticator.announced_port,
                 },
@@ -180,7 +154,7 @@ impl MixnetListener {
         // mark it as used, even though it's not final
         *private_ip_ref = Some(SystemTime::now());
         let gateway_data = GatewayClient::new(
-            self.wireguard_gateway_data.keypair().private_key(),
+            self.keypair().private_key(),
             remote_public.inner(),
             *private_ip_ref.key(),
             nonce,
@@ -214,35 +188,10 @@ impl MixnetListener {
             .clone();
 
         if gateway_client
-            .verify(
-                self.wireguard_gateway_data.keypair().private_key(),
-                registration_data.nonce,
-            )
+            .verify(self.keypair().private_key(), registration_data.nonce)
             .is_ok()
         {
-            self.wireguard_gateway_data
-                .add_peer(&gateway_client)
-                .map_err(|err| {
-                    AuthenticatorError::InternalError(format!("could not add peer: {:?}", err))
-                })?;
-
-            let PeerControlResponse::AddPeer { success } =
-                self.response_rx
-                    .recv()
-                    .await
-                    .ok_or(AuthenticatorError::InternalError(
-                        "no response for add peer".to_string(),
-                    ))?
-            else {
-                return Err(AuthenticatorError::InternalError(
-                    "unexpected response type".to_string(),
-                ));
-            };
-            if !success {
-                return Err(AuthenticatorError::InternalError(
-                    "adding peer could not be performed".to_string(),
-                ));
-            }
+            self.peer_manager.add_peer(&gateway_client).await?;
             self.registration_in_progres
                 .remove(&gateway_client.pub_key());
 
@@ -266,26 +215,7 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
-        self.wireguard_gateway_data
-            .query_bandwidth(peer_public_key)
-            .map_err(|err| {
-                AuthenticatorError::InternalError(format!(
-                    "could not query peer bandwidth: {:?}",
-                    err
-                ))
-            })?;
-        let PeerControlResponse::QueryBandwidth { bandwidth_data } = self
-            .response_rx
-            .recv()
-            .await
-            .ok_or(AuthenticatorError::InternalError(
-                "no response for query".to_string(),
-            ))?
-        else {
-            return Err(AuthenticatorError::InternalError(
-                "unexpected response type".to_string(),
-            ));
-        };
+        let bandwidth_data = self.peer_manager.query_bandwidth(peer_public_key).await?;
         Ok(AuthenticatorResponse::new_remaining_bandwidth(
             bandwidth_data,
             reply_to,

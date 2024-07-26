@@ -69,38 +69,8 @@ impl WireguardGatewayData {
         &self.keypair
     }
 
-    pub fn add_peer(&self, client: &GatewayClient) -> Result<(), Error> {
-        let mut peer = Peer::new(Key::new(client.pub_key.to_bytes()));
-        peer.allowed_ips
-            .push(IpAddrMask::new(client.private_ip, 32));
-        let msg = PeerControlRequest::AddPeer(peer);
-        self.peer_tx
-            .send(msg)
-            .map_err(|_| Error::PeerInteractionStopped)
-    }
-
-    pub fn remove_peer(&self, client: &GatewayClient) -> Result<(), Error> {
-        let key = Key::new(client.pub_key().to_bytes());
-        let msg = PeerControlRequest::RemovePeer(key);
-        self.peer_tx
-            .send(msg)
-            .map_err(|_| Error::PeerInteractionStopped)
-    }
-
-    pub fn query_peer(&self, public_key: PeerPublicKey) -> Result<(), Error> {
-        let key = Key::new(public_key.to_bytes());
-        let msg = PeerControlRequest::QueryPeer(key);
-        self.peer_tx
-            .send(msg)
-            .map_err(|_| Error::PeerInteractionStopped)
-    }
-
-    pub fn query_bandwidth(&self, peer_public_key: PeerPublicKey) -> Result<(), Error> {
-        let key = Key::new(peer_public_key.to_bytes());
-        let msg = PeerControlRequest::QueryBandwidth(key);
-        self.peer_tx
-            .send(msg)
-            .map_err(|_| Error::PeerInteractionStopped)
+    pub fn peer_tx(&self) -> &UnboundedSender<PeerControlRequest> {
+        &self.peer_tx
     }
 }
 

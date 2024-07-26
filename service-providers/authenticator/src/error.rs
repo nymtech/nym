@@ -67,6 +67,9 @@ pub enum AuthenticatorError {
 
     #[error("internal data corruption: {0}")]
     InternalDataCorruption(String),
+
+    #[error("peers can't be interacted with anymore")]
+    PeerInteractionStopped,
 }
 
 pub type Result<T> = std::result::Result<T, AuthenticatorError>;

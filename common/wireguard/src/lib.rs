@@ -9,7 +9,7 @@
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi};
 use nym_crypto::asymmetric::encryption::KeyPair;
 use nym_gateway_storage::Storage;
-use nym_wireguard_types::{Config, Error, GatewayClient, PeerPublicKey};
+use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};

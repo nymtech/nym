@@ -144,7 +144,7 @@ impl<St: Storage> PeerController<St> {
         if reset {
             self.active_peers = host.peers;
             for peer in self.active_peers.values() {
-                self.storage.insert_wireguard_peer(&peer, false).await?;
+                self.storage.insert_wireguard_peer(peer, false).await?;
             }
         } else {
             let current_timestamp = SystemTime::now();

@@ -95,21 +95,18 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
             preshared_key: value.preshared_key.as_ref().map(|k| k.to_string()),
             protocol_version: value.protocol_version.map(|v| v as i64),
             endpoint: value.endpoint.map(|e| e.to_string()),
-            last_handshake: value
-                .last_handshake
-                .map(|t| {
-                    if let Ok(d) = t.duration_since(std::time::UNIX_EPOCH) {
-                        if let Some(millis) = d.as_millis().try_into().ok() {
-                            sqlx::types::chrono::DateTime::from_timestamp_millis(millis)
-                                .map(|d| d.naive_utc())
-                        } else {
-                            None
-                        }
+            last_handshake: value.last_handshake.and_then(|t| {
+                if let Ok(d) = t.duration_since(std::time::UNIX_EPOCH) {
+                    if let Ok(millis) = d.as_millis().try_into() {
+                        sqlx::types::chrono::DateTime::from_timestamp_millis(millis)
+                            .map(|d| d.naive_utc())
                     } else {
                         None
                     }
-                })
-                .flatten(),
+                } else {
+                    None
+                }
+            }),
             tx_bytes: value.tx_bytes as i64,
             rx_bytes: value.rx_bytes as i64,
             persistent_keepalive_interval: value.persistent_keepalive_interval.map(|v| v as i64),
@@ -151,18 +148,15 @@ impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
                 .map(|e| e.parse())
                 .transpose()
                 .map_err(|e| Self::Error::TypeConversion(format!("endpoint {e}")))?,
-            last_handshake: value
-                .last_handshake
-                .map(|t| {
-                    let unix_time = std::time::UNIX_EPOCH;
-                    if let Some(millis) = t.and_utc().timestamp_millis().try_into().ok() {
-                        let duration = std::time::Duration::from_millis(millis);
-                        unix_time.checked_add(duration)
-                    } else {
-                        None
-                    }
-                })
-                .flatten(),
+            last_handshake: value.last_handshake.and_then(|t| {
+                let unix_time = std::time::UNIX_EPOCH;
+                if let Ok(millis) = t.and_utc().timestamp_millis().try_into() {
+                    let duration = std::time::Duration::from_millis(millis);
+                    unix_time.checked_add(duration)
+                } else {
+                    None
+                }
+            }),
             tx_bytes: value
                 .tx_bytes
                 .try_into()

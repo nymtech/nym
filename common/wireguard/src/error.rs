@@ -10,5 +10,5 @@ pub enum Error {
     Defguard(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 
     #[error("{0}")]
-    GatewayStorageError(#[from] nym_gateway_storage::error::StorageError),
+    GatewayStorage(#[from] nym_gateway_storage::error::StorageError),
 }

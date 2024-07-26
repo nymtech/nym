@@ -6,7 +6,12 @@
 
 Nym Network is composed of two main elements, the Mixnet represented by [Nym Nodes](../nodes/nym-node.md) routing and mixing the data packets, and Nyx blockchain based on [validator set](validator-rewards.md), using smart contracts (based on [cosmwasm]()) to monitor and reward Nym Nodes by querying API endpoints and distributing NYM token to operators from Mixmining pool.
 
-MENTION WHITEPAPER HERE
+<!---
+MENTION WHITEPAPER AND TOKEN PAGE HERE
+
+PAGE: https://nymtech.net/about/token
+WP: https://nymtech.net/nym-cryptoecon-paper.pdf
+--->
 
 ## NYM Token
 
@@ -24,4 +29,4 @@ To learn more about rewards calculation and distributtion, read the next page [*
 
 NYM token is
 
-<!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py s --api mainnet --endpoint circulating-supply --format -->
+<!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py s --api mainnet --endpoint circulating-supply --format --separator _ -->

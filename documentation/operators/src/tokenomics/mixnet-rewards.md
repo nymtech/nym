@@ -3,6 +3,18 @@
 ```admonish info
 **The data on this page were last time updated on <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py time_now-->.**
 ```
+<!--
+ADD:
+
+PAGE: https://nymtech.net/about/token
+WP: https://nymtech.net/nym-cryptoecon-paper.pdf
+
+
+Rewards split:
+16-16-16-16-36
+33-67
+https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407
+-->
 
 
 

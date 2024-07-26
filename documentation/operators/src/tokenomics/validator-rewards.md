@@ -1,5 +1,9 @@
 # Nyx Validator Rewards
 
+```admonish info
+**The data on this page were last time updated on <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py time_now-->.**
+```
+
 ## Summary
 
 * Nyx Validators are rewarded in NYM tokens from the Nym mixmining pool and increasingly from apps that run on the Nym mixnet, the first of which is the NymVPN.
@@ -22,7 +26,7 @@ Validator rewards initially come from the Nym mixmining pool with additional rew
 
 1. **From mixmining pool** - at a rate of 1000 NYM per hour, of which 2/3 are distributed for signing blocks and 1/3 for zk-nyms. These are stable in NYM, and therefore will fluctuate in their fiat value depending on exchange rate.
 
-2. **From vpn user subscriptions** - the rate is tied to the growth of NymVPN subscriptions and will be stable in fiat, fluctuating in NYM depending on exchange rate. 1/3 will be distributed for signing blocks and 2/3 for zk-nyms. 
+2. **From vpn user subscriptions** - the rate is tied to the growth of NymVPN subscriptions and will be stable in fiat, fluctuating in NYM depending on exchange rate. 1/3 will be distributed for signing blocks and 2/3 for zk-nyms.
 
 | Source         | Signing blocks | Running NymAPI | Currency |
 | :--            | --:           | --:    | :---:    |

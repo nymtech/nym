@@ -57,8 +57,12 @@ def convert_u_nym(unym):
     nym = int(nym)
     return nym
 
-def thousand_separator(n):
-    n = f'{n:_}'
+def thousand_separator(n, separator):
+    if separator == " ":
+        n = f'{n:_}'
+        n = remove_underscore(n)
+    else:
+        n = f'{n:{separator}}'
     return n
 
 def remove_underscore(arg):
@@ -67,6 +71,7 @@ def remove_underscore(arg):
     return string
 
 def display_supply_table(response, args):
+    separator = args.separator
     df = pd.DataFrame(response)
     df = df.T
     del df['denom']
@@ -75,9 +80,9 @@ def display_supply_table(response, args):
     df = df.rename(columns={'index1': '**Item**', 'amount': '**Amount in NYM**'})
     df['**Item**'] = df['**Item**'].apply(remove_underscore)
     df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(convert_u_nym)
-    df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(thousand_separator)
+    df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(thousand_separator, args=(separator, ))
     df.insert(1, '**Description**', ['foo', 'bar', 'lol', 'go'], True)
-    table = df.to_markdown(index=False)
+    table = df.to_markdown(index=False,colalign=("left","left","right"))
     print(table)
 
 def read_supply(args):
@@ -156,11 +161,18 @@ def parser_main():
             help="format the output for documentation purpose (.md) - default: False (raw output)",
             )
 
+    parser_supply.add_argument(
+            "-s", "--separator",
+            type=str,
+            default=" ",
+            help="Add custom thousand separator to --format flag (default is none)"
+            )
+
     parser_supply.set_defaults(func=read_supply)
 
     parser_time_now = subparsers.add_parser('time_now',
             help='Prints UTC time now',
-            aliases=['t']
+            aliases=['time', 't']
             )
 
     parser_time_now.set_defaults(func=print_time_now)

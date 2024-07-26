@@ -4,7 +4,6 @@
 use crate::coconut::storage::models::{EpochCredentials, IssuedCredential};
 use crate::support::storage::manager::StorageManager;
 use nym_coconut_dkg_common::types::EpochId;
-use thiserror::Error;
 
 #[async_trait]
 pub trait CoconutStorageManagerExt {
@@ -23,6 +22,7 @@ pub trait CoconutStorageManagerExt {
     /// # Arguments
     ///
     /// * `epoch_id`: Id of the (coconut) epoch in question.
+    #[allow(dead_code)]
     async fn create_epoch_credentials_entry(&self, epoch_id: EpochId) -> Result<(), sqlx::Error>;
 
     /// Update the EpochCredentials by incrementing the total number of issued credentials,
@@ -360,11 +360,4 @@ impl CoconutStorageManagerExt for StorageManager {
             .await?;
         Ok(())
     }
-}
-
-#[derive(Debug, Error)]
-#[error("tried to store an invalid nonce. the received value is {got} while current is {current}. expected {current} + 1")]
-pub struct UnexpectedNonce {
-    current: u32,
-    got: u32,
 }

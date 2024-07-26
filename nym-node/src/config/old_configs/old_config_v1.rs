@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WireguardPathsV1 {
+    #[serde(skip)]
     pub private_diffie_hellman_key_file: PathBuf,
+    #[serde(skip)]
     pub public_diffie_hellman_key_file: PathBuf,
 }
 

@@ -4,6 +4,20 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.9-topdeck] (2024-07-26)
+
+- chore: fix 1.80 lint issues ([#4731])
+- Handle clients with different versions in IPR ([#4723])
+- Add 1GB/day/user bandwidth cap ([#4717])
+- Feature/merge back ([#4710])
+- removed mixnode/gateway config migration code and disabled cli without explicit flag ([#4706])
+
+[#4731]: https://github.com/nymtech/nym/pull/4731
+[#4723]: https://github.com/nymtech/nym/pull/4723
+[#4717]: https://github.com/nymtech/nym/pull/4717
+[#4710]: https://github.com/nymtech/nym/pull/4710
+[#4706]: https://github.com/nymtech/nym/pull/4706
+
 ## [2024.8-wispa] (2024-07-10)
 
 - add event parsing to support cosmos_sdk > 0.50 ([#4697])

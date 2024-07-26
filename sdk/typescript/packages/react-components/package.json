@@ -40,6 +40,7 @@
   },
   "dependencies": {
     "@mui/lab": "5.0.0-alpha.170",
+    "@mui/x-tree-view": "^7.11.1",
     "flat": "^5.0.2",
     "use-clipboard-copy": "^0.2.0"
   },

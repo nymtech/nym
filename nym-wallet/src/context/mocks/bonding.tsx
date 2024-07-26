@@ -207,6 +207,7 @@ export const MockBondingContextProvider = ({
       generateMixnodeMsgPayload,
       generateGatewayMsgPayload,
       isVestingAccount: false,
+      migrateVestedMixnode: async () => undefined,
     }),
     [isLoading, error, bondedMixnode, bondedGateway, trigger, fee],
   );

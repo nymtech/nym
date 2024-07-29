@@ -120,6 +120,9 @@ impl<St: Storage> PeerController<St> {
                 .ok_or(Error::PeerMismatch)?;
             self.suspended_peers
                 .insert(peer.public_key.clone(), peer.clone());
+        } else {
+            // Update peer stored data
+            self.storage.insert_wireguard_peer(peer, false).await?;
         }
         Ok(())
     }

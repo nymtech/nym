@@ -155,7 +155,7 @@ impl<St: Storage> PeerController<St> {
                 .get_all_wireguard_peers()
                 .await?
                 .into_iter()
-                .map(|storage_peer| Peer::try_from(storage_peer))
+                .map(Peer::try_from)
                 .collect::<Result<Vec<_>, _>>()?;
             let current_timestamp = SystemTime::now();
             for peer in peers {

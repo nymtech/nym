@@ -114,7 +114,7 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
                 bincode::DefaultOptions::new(),
                 &value.allowed_ips,
             )
-            .unwrap(),
+            .unwrap_or_default(),
             suspended: false,
         }
     }

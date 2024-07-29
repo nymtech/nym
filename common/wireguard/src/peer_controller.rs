@@ -150,10 +150,17 @@ impl<St: Storage> PeerController<St> {
                 self.storage.insert_wireguard_peer(peer, false).await?;
             }
         } else {
+            let peers = self
+                .storage
+                .get_all_wireguard_peers()
+                .await?
+                .into_iter()
+                .map(|storage_peer| Peer::try_from(storage_peer))
+                .collect::<Result<Vec<_>, _>>()?;
             let current_timestamp = SystemTime::now();
-            for peer in host.peers.values() {
-                if !self.check_stale_peer(peer, current_timestamp).await? {
-                    self.check_suspend_peer(peer).await?;
+            for peer in peers {
+                if !self.check_stale_peer(&peer, current_timestamp).await? {
+                    self.check_suspend_peer(&peer).await?;
                 }
             }
         }

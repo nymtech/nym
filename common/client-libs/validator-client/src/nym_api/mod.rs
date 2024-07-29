@@ -31,7 +31,9 @@ pub mod routes;
 
 use nym_api_requests::coconut::models::FreePassNonceResponse;
 use nym_api_requests::coconut::FreePassRequest;
+use nym_api_requests::models::DescribedMixNode;
 use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
+use nym_contracts_common::IdentityKey;
 pub use nym_http_api_client::Client;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -91,6 +93,14 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_gateways_described(&self) -> Result<Vec<DescribedGateway>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_mixnodes_described(&self) -> Result<Vec<DescribedMixNode>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::MIXNODES, routes::DESCRIBED],
             NO_PARAMS,
         )
         .await
@@ -415,6 +425,22 @@ pub trait NymApiClientExt: ApiClient {
                 &mix_id.to_string(),
                 routes::AVG_UPTIME,
             ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_mixnodes_blacklisted(&self) -> Result<Vec<MixId>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::MIXNODES, routes::BLACKLISTED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_gateways_blacklisted(&self) -> Result<Vec<IdentityKey>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::GATEWAYS, routes::BLACKLISTED],
             NO_PARAMS,
         )
         .await

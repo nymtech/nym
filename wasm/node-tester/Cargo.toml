@@ -6,7 +6,7 @@ edition = "2021"
 keywords = ["nym", "sphinx", "webassembly", "privacy", "tester"]
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
-rust-version = "1.56"
+rust-version = "1.64"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

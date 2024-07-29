@@ -55,6 +55,6 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
-        explorer_api_url: parse_optional_str(EXPLORER_API),
+        explorer_api: parse_optional_str(EXPLORER_API),
     }
 }

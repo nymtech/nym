@@ -431,13 +431,19 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     async fn get_mixnodes_blacklisted(&self) -> Result<Vec<MixId>, NymAPIError> {
-        self.get_json(&[routes::API_VERSION, routes::MIXNODES, routes::BLACKLISTED], NO_PARAMS)
-            .await
+        self.get_json(
+            &[routes::API_VERSION, routes::MIXNODES, routes::BLACKLISTED],
+            NO_PARAMS,
+        )
+        .await
     }
 
     async fn get_gateways_blacklisted(&self) -> Result<Vec<IdentityKey>, NymAPIError> {
-        self.get_json(&[routes::API_VERSION, routes::GATEWAYS, routes::BLACKLISTED], NO_PARAMS)
-            .await
+        self.get_json(
+            &[routes::API_VERSION, routes::GATEWAYS, routes::BLACKLISTED],
+            NO_PARAMS,
+        )
+        .await
     }
 
     async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, NymAPIError> {

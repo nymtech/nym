@@ -4,6 +4,30 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.8-wispa] (2024-07-10)
+
+- add event parsing to support cosmos_sdk > 0.50 ([#4697])
+- Fix NR config compatibility ([#4690])
+- Remove UserAgent constructor since it's weakly typed ([#4689])
+- [bugfix]: Node_api_check CLI looked over roles on blacklisted nodes ([#4687])
+- Add mixnodes to self describing api cache ([#4684])
+- Move and whole bump of crates to workspace and upgrade some ([#4680])
+- Remove code that refers to removed nym-network-statistics ([#4679])
+- Remove nym-network-statistics ([#4678])
+- Create UserAgent that can be passed from the binary to the nym api client ([#4677])
+- Add authenticator ([#4667])
+
+[#4697]: https://github.com/nymtech/nym/pull/4697
+[#4690]: https://github.com/nymtech/nym/pull/4690
+[#4689]: https://github.com/nymtech/nym/pull/4689
+[#4687]: https://github.com/nymtech/nym/pull/4687
+[#4684]: https://github.com/nymtech/nym/pull/4684
+[#4680]: https://github.com/nymtech/nym/pull/4680
+[#4679]: https://github.com/nymtech/nym/pull/4679
+[#4678]: https://github.com/nymtech/nym/pull/4678
+[#4677]: https://github.com/nymtech/nym/pull/4677
+[#4667]: https://github.com/nymtech/nym/pull/4667
+
 ## [2024.7-doubledecker] (2024-07-04)
 
 - Add an early return in `parse_raw_str_logs` for empty raw log strings. ([#4686])
@@ -513,7 +537,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#3187]: https://github.com/nymtech/nym/issues/3187
 [#3203]: https://github.com/nymtech/nym/pull/3203
 [#3199]: https://github.com/nymtech/nym/pull/3199
->>>>>>> master
 
 ## [v1.1.13] (2023-03-15)
 

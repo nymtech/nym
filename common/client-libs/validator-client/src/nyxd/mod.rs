@@ -1,6 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// TEMPORARY WORKAROUND:
+// those features are expected as the below should only get activated whenever
+// the corresponding features in tendermint-rpc are enabled transitively
+#![allow(unexpected_cfgs)]
+
 use crate::nyxd::contract_traits::{NymContractsProvider, TypedNymContracts};
 use crate::nyxd::cosmwasm_client::types::{
     ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,

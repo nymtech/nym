@@ -103,7 +103,6 @@ impl Display for MixnetEventType {
 // attributes that are used in multiple places
 pub const OWNER_KEY: &str = "owner";
 pub const AMOUNT_KEY: &str = "amount";
-pub const PROXY_KEY: &str = "proxy";
 
 // event-specific attributes
 
@@ -163,7 +162,6 @@ pub const NEW_EPOCHS_IN_INTERVAL: &str = "new_epochs_in_interval";
 pub fn new_delegation_event(
     created_at: BlockHeight,
     delegator: &Addr,
-    proxy: &Option<Addr>,
     amount: &Coin,
     mix_id: MixId,
     unit_reward: Decimal,
@@ -171,58 +169,34 @@ pub fn new_delegation_event(
     Event::new(MixnetEventType::Delegation)
         .add_attribute(EVENT_CREATION_HEIGHT_KEY, created_at.to_string())
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
         .add_attribute(UNIT_REWARD_KEY, unit_reward.to_string())
 }
 
-pub fn new_delegation_on_unbonded_node_event(
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    mix_id: MixId,
-) -> Event {
+pub fn new_delegation_on_unbonded_node_event(delegator: &Addr, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::Delegation)
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
 }
 
-pub fn new_pending_delegation_event(
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    amount: &Coin,
-    mix_id: MixId,
-) -> Event {
+pub fn new_pending_delegation_event(delegator: &Addr, amount: &Coin, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::PendingDelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
 }
 
-pub fn new_withdraw_operator_reward_event(
-    owner: &Addr,
-    proxy: &Option<Addr>,
-    amount: Coin,
-    mix_id: MixId,
-) -> Event {
+pub fn new_withdraw_operator_reward_event(owner: &Addr, amount: Coin, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::WithdrawOperatorReward)
         .add_attribute(OWNER_KEY, owner.as_str())
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
 }
 
-pub fn new_withdraw_delegator_reward_event(
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    amount: Coin,
-    mix_id: MixId,
-) -> Event {
+pub fn new_withdraw_delegator_reward_event(delegator: &Addr, amount: Coin, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::WithdrawDelegatorReward)
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
 }
@@ -278,59 +252,43 @@ pub fn new_pending_rewarding_params_update_event(
         )
 }
 
-pub fn new_undelegation_event(
-    created_at: BlockHeight,
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    mix_id: MixId,
-) -> Event {
+pub fn new_undelegation_event(created_at: BlockHeight, delegator: &Addr, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::Undelegation)
         .add_attribute(EVENT_CREATION_HEIGHT_KEY, created_at.to_string())
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
 }
 
-pub fn new_pending_undelegation_event(
-    delegator: &Addr,
-    proxy: &Option<Addr>,
-    mix_id: MixId,
-) -> Event {
+pub fn new_pending_undelegation_event(delegator: &Addr, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::PendingUndelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
 }
 
 pub fn new_gateway_bonding_event(
     owner: &Addr,
-    proxy: &Option<Addr>,
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
 ) -> Event {
     Event::new(MixnetEventType::GatewayBonding)
         .add_attribute(OWNER_KEY, owner)
         .add_attribute(NODE_IDENTITY_KEY, identity)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
 pub fn new_gateway_unbonding_event(
     owner: &Addr,
-    proxy: &Option<Addr>,
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
 ) -> Event {
     Event::new(MixnetEventType::GatewayUnbonding)
         .add_attribute(OWNER_KEY, owner)
         .add_attribute(NODE_IDENTITY_KEY, identity)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
 pub fn new_mixnode_bonding_event(
     owner: &Addr,
-    proxy: &Option<Addr>,
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
     mix_id: MixId,
@@ -341,7 +299,6 @@ pub fn new_mixnode_bonding_event(
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(ASSIGNED_LAYER_KEY, assigned_layer)
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
@@ -380,7 +337,6 @@ pub fn new_mixnode_unbonding_event(created_at: BlockHeight, mix_id: MixId) -> Ev
 
 pub fn new_pending_mixnode_unbonding_event(
     owner: &Addr,
-    proxy: &Option<Addr>,
     identity: IdentityKeyRef<'_>,
     mix_id: MixId,
 ) -> Event {
@@ -388,43 +344,33 @@ pub fn new_pending_mixnode_unbonding_event(
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(NODE_IDENTITY_KEY, identity)
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
 }
 
 pub fn new_mixnode_config_update_event(
     mix_id: MixId,
     owner: &Addr,
-    proxy: &Option<Addr>,
     update: &MixNodeConfigUpdate,
 ) -> Event {
     Event::new(MixnetEventType::MixnodeConfigUpdate)
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_MIXNODE_CONFIG_KEY, update.to_inline_json())
 }
 
-pub fn new_gateway_config_update_event(
-    owner: &Addr,
-    proxy: &Option<Addr>,
-    update: &GatewayConfigUpdate,
-) -> Event {
+pub fn new_gateway_config_update_event(owner: &Addr, update: &GatewayConfigUpdate) -> Event {
     Event::new(MixnetEventType::GatewayConfigUpdate)
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_GATEWAY_CONFIG_KEY, update.to_inline_json())
 }
 
 pub fn new_mixnode_pending_cost_params_update_event(
     mix_id: MixId,
     owner: &Addr,
-    proxy: &Option<Addr>,
     new_costs: &MixNodeCostParams,
 ) -> Event {
     Event::new(MixnetEventType::PendingMixnodeCostParamsUpdate)
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(OWNER_KEY, owner)
-        .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
 }
 

@@ -7,6 +7,7 @@ pub mod bond_mixnode;
 pub mod decrease_pledge;
 pub mod families;
 pub mod keys;
+pub mod migrate_vested_mixnode;
 pub mod mixnode_bonding_sign_payload;
 pub mod pledge_more;
 pub mod rewards;
@@ -52,4 +53,6 @@ pub enum MixnetOperatorsMixnodeCommands {
     DecreasePledge(decrease_pledge::Args),
     /// Decrease pledge with locked tokens
     DecreasePledgeVesting(vesting_decrease_pledge::Args),
+    /// Migrate the mixnode to use liquid tokens
+    MigrateVestedNode(migrate_vested_mixnode::Args),
 }

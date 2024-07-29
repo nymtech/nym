@@ -63,15 +63,15 @@ impl RewardedSetUpdater {
     /// 2. it queries the mixnet contract to check the current `EpochState` in order to figure out whether
     ///     a different nym-api has already started epoch transition (not yet applicable)
     /// 3. it sends a `BeginEpochTransition` message to the mixnet contract causing the following to happen:
-    ///     - if successful, the address of the this validator is going to be saved as being responsible for progressing this epoch.
-    ///     What it means in practice is that once we have multiple instances of nym-api running,
-    ///     only this one will try to perform the rest of the actions. It will also allow it to
-    ///     more easily recover in case of crashes.
+    ///     - if successful, the address of this validator is going to be saved as being responsible for progressing this epoch.
+    ///         What it means in practice is that once we have multiple instances of nym-api running,
+    ///         only this one will try to perform the rest of the actions. It will also allow it to
+    ///         more easily recover in case of crashes.
     ///     - the `EpochState` changes to `Rewarding`, meaning the nym-api will now be allowed to send
-    ///    `RewardMixnode` transactions. However, it's not going to be able anything else like `ReconcileEpochEvents`
-    ///     until that is done.
+    ///         `RewardMixnode` transactions. However, it's not going to be able anything else like `ReconcileEpochEvents`
+    ///         until that is done.
     ///     - ability to send transactions (by other users) that get resolved once given epoch/interval rolls over,
-    ///     such as `BondMixnode` or `DelegateToMixnode` will temporarily be frozen until the entire procedure is finished.
+    ///         such as `BondMixnode` or `DelegateToMixnode` will temporarily be frozen until the entire procedure is finished.
     /// 4. it obtains the current rewarded set and for each node in there (**SORTED BY MIX_ID!!**),
     ///    it sends (in a single batch) `RewardMixnode` message with the measured performance.
     ///    Once the final message gets executed, the mixnet contract automatically transitions

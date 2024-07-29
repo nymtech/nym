@@ -122,6 +122,10 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
+```admonish warning title=""
+[Accepting T&Cs](setup.md#terms--conditions) is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use systemd automation, add the flag to your service file's `ExecStart` line.
+```
+
 3. Save the file
 
 ```admonish note

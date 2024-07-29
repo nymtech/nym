@@ -7,6 +7,7 @@ pub mod rewards;
 
 pub mod delegate_to_mixnode;
 pub mod delegate_to_multiple_mixnodes;
+pub mod migrate_vested_delegation;
 pub mod query_for_delegations;
 pub mod undelegate_from_mixnode;
 pub mod vesting_delegate_to_mixnode;
@@ -35,4 +36,6 @@ pub enum MixnetDelegatorsCommands {
     DelegateVesting(vesting_delegate_to_mixnode::Args),
     /// Undelegate from a mixnode (when originally using locked tokens)
     UndelegateVesting(vesting_undelegate_from_mixnode::Args),
+    /// Migrate the delegation to use liquid tokens
+    MigrateVestedDelegation(migrate_vested_delegation::Args),
 }

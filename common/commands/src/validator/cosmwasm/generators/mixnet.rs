@@ -1,14 +1,25 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use log::{debug, info};
-
 use cosmwasm_std::Decimal;
-use nym_mixnet_contract_common::{InitialRewardingParams, InstantiateMsg, Percent};
-use nym_validator_client::nyxd::AccountId;
+use log::{debug, info};
+use nym_mixnet_contract_common::{
+    InitialRewardingParams, InstantiateMsg, OperatingCostRange, Percent, ProfitMarginRange,
+};
+use nym_network_defaults::mainnet::MIX_DENOM;
+use nym_network_defaults::TOTAL_SUPPLY;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use std::str::FromStr;
 use std::time::Duration;
+
+pub fn default_maximum_operating_cost() -> Coin {
+    Coin::new(TOTAL_SUPPLY, MIX_DENOM.base)
+}
+
+pub fn default_minimum_operating_cost() -> Coin {
+    Coin::new(0, MIX_DENOM.base)
+}
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -50,6 +61,18 @@ pub struct Args {
 
     #[clap(long, default_value_t = 240)]
     pub active_set_size: u32,
+
+    #[clap(long, default_value_t = Percent::zero())]
+    pub minimum_profit_margin_percent: Percent,
+
+    #[clap(long, default_value_t = Percent::hundred())]
+    pub maximum_profit_margin_percent: Percent,
+
+    #[clap(long, default_value_t = default_minimum_operating_cost())]
+    pub minimum_interval_operating_cost: Coin,
+
+    #[clap(long, default_value_t = default_maximum_operating_cost())]
+    pub maximum_interval_operating_cost: Coin,
 }
 
 pub async fn generate(args: Args) {
@@ -97,6 +120,10 @@ pub async fn generate(args: Args) {
             .expect("Rewarding (mix) denom has to be set")
     });
 
+    if args.minimum_interval_operating_cost.denom != args.maximum_interval_operating_cost.denom {
+        panic!("different denoms for operating cost bounds")
+    }
+
     let instantiate_msg = InstantiateMsg {
         rewarding_validator_address: rewarding_validator_address.to_string(),
         vesting_contract_address: vesting_contract_address.to_string(),
@@ -104,6 +131,14 @@ pub async fn generate(args: Args) {
         epochs_in_interval: args.epochs_in_interval,
         epoch_duration: Duration::from_secs(args.epoch_duration),
         initial_rewarding_params,
+        profit_margin: ProfitMarginRange {
+            minimum: args.minimum_profit_margin_percent,
+            maximum: args.maximum_profit_margin_percent,
+        },
+        interval_operating_cost: OperatingCostRange {
+            minimum: args.minimum_interval_operating_cost.amount.into(),
+            maximum: args.maximum_interval_operating_cost.amount.into(),
+        },
     };
 
     debug!("instantiate_msg: {:?}", instantiate_msg);

@@ -167,3 +167,11 @@ pub fn new_track_undelegation_event() -> Event {
 pub fn new_track_reward_event() -> Event {
     Event::new(TRACK_REWARD_EVENT_TYPE)
 }
+
+pub fn new_track_migrate_mixnode_event() -> Event {
+    Event::new("track_migrate_vesting_mixnode")
+}
+
+pub fn new_track_migrate_delegation_event() -> Event {
+    Event::new("track_migrate_vesting_delegation")
+}

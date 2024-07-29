@@ -31,3 +31,6 @@ export const undelegateAllFromMixnode = async (
 
 export const delegateToMixnode = async (mixId: number, amount: DecCoin, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('delegate_to_mixnode', { mixId, amount, fee });
+
+export const migrateVestedDelegations = async () =>
+  invokeWrapper<TransactionExecuteResult>('migrate_vested_delegations');

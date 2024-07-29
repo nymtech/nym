@@ -176,7 +176,7 @@ impl DaemonLauncher {
                     info!("it finished with the following exit status: {exit_status}");
                     return Ok(false)
                 }
-                event = self.upgrade_plan_watcher.next() => {
+                event = &mut self.upgrade_plan_watcher.next() => {
                     let Some(event) = event else {
                         // this is a critical failure since the file watcher task should NEVER terminate by itself
                         error!("CRITICAL FAILURE: the upgrade plan watcher channel got closed");

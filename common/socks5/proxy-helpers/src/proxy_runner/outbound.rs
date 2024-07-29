@@ -60,7 +60,7 @@ pub(super) async fn run_outbound(
 
     loop {
         select! {
-            connection_message = mix_receiver.next() => {
+            connection_message = &mut mix_receiver.next() => {
                 if let Some(connection_message) = connection_message {
                     if deal_with_message(connection_message, &mut writer, &local_destination_address, &remote_source_address, connection_id).await {
                         break;

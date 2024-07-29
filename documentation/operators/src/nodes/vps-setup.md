@@ -59,7 +59,7 @@ To install a full node from scratch, refer to the [validator setup guide](valida
 Before node or validator setup, the VPS needs to be configured and tested, to verify your connectivity and make sure that your provider wasn't dishonest with the offered services.
 
 ```admonish info
-The commands listed in this chapter be executed with a prefix `sudo` or from a root shell.
+The commands listed in this chapter must be executed with a prefix `sudo` or from a root shell.
 ```
 
 ### Install Dependencies

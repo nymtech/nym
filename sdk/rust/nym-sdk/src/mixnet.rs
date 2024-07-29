@@ -72,7 +72,7 @@ pub use nym_network_defaults::NymNetworkDetails;
 pub use nym_socks5_client_core::config::Socks5;
 pub use nym_sphinx::{
     addressing::{
-        clients::{ClientIdentity, Recipient},
+        clients::{ClientIdentity, Recipient, RecipientFormattingError},
         nodes::NodeIdentity,
     },
     anonymous_replies::requests::AnonymousSenderTag,

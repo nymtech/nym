@@ -10,7 +10,6 @@ use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::EcashApiClient;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
-use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::time::{interval, Duration};

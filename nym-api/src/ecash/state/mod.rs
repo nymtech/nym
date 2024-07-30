@@ -47,7 +47,6 @@ use nym_validator_client::EcashApiClient;
 use time::ext::NumericalDuration;
 use time::{Date, Duration, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
-use tokio::time::Instant;
 
 pub(crate) mod auxiliary;
 pub(crate) mod bloom;

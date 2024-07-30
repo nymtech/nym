@@ -82,6 +82,7 @@ impl<'a> From<&'a LoadedNetwork> for nym_config::defaults::NymNetworkDetails {
             }],
             contracts,
             explorer_api: None,
+            nym_vpn_api_url: None,
         }
     }
 }

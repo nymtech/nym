@@ -84,7 +84,6 @@ impl NymNode {
         let payload = construct_mixnode_bonding_sign_payload(
             0,
             Addr::unchecked(self.owner.address.to_string()),
-            None,
             self.pledge(),
             self.mixnode(),
             self.cost_params(),
@@ -96,7 +95,6 @@ impl NymNode {
         let payload = construct_gateway_bonding_sign_payload(
             0,
             Addr::unchecked(self.owner.address.to_string()),
-            None,
             self.pledge(),
             self.gateway(),
         );

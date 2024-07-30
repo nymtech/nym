@@ -38,6 +38,7 @@ impl InitCtx {
             endpoints: vec![],
             contracts: Default::default(),
             explorer_api: None,
+            nym_vpn_api_url: None,
         };
         Ok(Config::try_from_nym_network_details(&network_details)?)
     }
@@ -153,6 +154,8 @@ impl NetworkManager {
                 rewarded_set_size: 240,
                 active_set_size: 240,
             },
+            profit_margin: Default::default(),
+            interval_operating_cost: Default::default(),
         })
     }
 

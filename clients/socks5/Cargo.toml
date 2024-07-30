@@ -22,7 +22,7 @@ url = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "clap"] }
 nym-client-core = { path = "../../common/client-core", features = ["fs-credentials-storage", "fs-surb-storage", "fs-gateways-storage", "cli"] }
 nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage" }

@@ -64,8 +64,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release
-
+          args: --workspace --release ${{ env.CARGO_FEATURES }}
+  
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:

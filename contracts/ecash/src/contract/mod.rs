@@ -96,8 +96,7 @@ impl NymEcashContract<'_> {
             ctx.deps.storage,
             &PoolCounters {
                 total_deposited: coin(0, &deposit_amount.denom),
-                total_redeemed_gateways: coin(0, &deposit_amount.denom),
-                total_redeemed_holding: coin(0, &deposit_amount.denom),
+                total_redeemed: coin(0, &deposit_amount.denom),
             },
         )?;
 
@@ -274,6 +273,11 @@ impl NymEcashContract<'_> {
         n: u16,
         gw: String,
     ) -> Result<Response, EcashContractError> {
+        // preserve the gateway argument so that upon scraping the chain and going through transactions,
+        // one could see which gateway attempted to redeem it.
+        // in the long run it will be needed to determine work factor.
+        let _ = gw;
+
         // only a mutlisig proposal can do that
         self.multisig
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
@@ -287,33 +291,23 @@ impl NymEcashContract<'_> {
 
         // how many tickets from a ticketbook you redeemed
         let book_ratio = Decimal::from_ratio(tickets, ticketbook_size);
-        let return_amount = book_ratio * deposit_amount;
 
-        let gw_share = config.redemption_gateway_share * return_amount;
-        let holding_share = return_amount - gw_share;
+        // return = ticketbook_price * (tickets / ticketbook_size)
+        let return_amount = book_ratio * deposit_amount;
 
         self.pool_counters
             .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
-                counters.total_redeemed_gateways.amount += gw_share;
-                counters.total_redeemed_holding.amount += holding_share;
+                counters.total_redeemed.amount += return_amount;
                 Ok(counters)
             })?;
 
-        Ok(Response::new()
-            .add_message(BankMsg::Send {
-                to_address: gw,
-                amount: vec![Coin {
-                    denom: config.deposit_amount.denom.clone(),
-                    amount: gw_share,
-                }],
-            })
-            .add_message(BankMsg::Send {
-                to_address: config.holding_account.to_string(),
-                amount: vec![Coin {
-                    denom: config.deposit_amount.denom,
-                    amount: holding_share,
-                }],
-            }))
+        Ok(Response::new().add_message(BankMsg::Send {
+            to_address: config.holding_account.to_string(),
+            amount: vec![Coin {
+                denom: config.deposit_amount.denom,
+                amount: return_amount,
+            }],
+        }))
     }
 
     #[msg(exec)]

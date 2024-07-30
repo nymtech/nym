@@ -7,6 +7,5 @@ use cosmwasm_std::Coin;
 #[cw_serde]
 pub struct PoolCounters {
     pub total_deposited: Coin,
-    pub total_redeemed_gateways: Coin,
-    pub total_redeemed_holding: Coin,
+    pub total_redeemed: Coin,
 }

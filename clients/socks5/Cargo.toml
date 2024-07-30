@@ -26,6 +26,7 @@ zeroize = { workspace = true }
 # internal
 nym-bin-common = { path = "../../common/bin-common", features = [
     "output_format",
+    "clap",
 ] }
 nym-client-core = { path = "../../common/client-core", features = [
     "fs-credentials-storage",

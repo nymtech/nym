@@ -45,7 +45,7 @@ use nym_ecash_time::cred_exp_date;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
 use time::ext::NumericalDuration;
-use time::{Date, OffsetDateTime};
+use time::{Date, Duration, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
 use tokio::time::Instant;
 
@@ -841,23 +841,14 @@ impl EcashState {
         res
     }
 
-    pub async fn export_bloomfilter(&self) -> Vec<u8> {
-        let export_start = Instant::now();
-        let bytes = self
-            .local
-            .double_spending_filter
-            .read()
-            .await
-            .export_global_bitmap();
+    pub async fn get_bloomfilter_bytes(&self) -> Vec<u8> {
+        let guard = self.local.exported_double_spending_filter.data.read().await;
 
-        let taken = export_start.elapsed();
-        match taken.as_millis() {
-            // at that point it should somehow be cached; especially **IF** we have more reads than writes
-            ms if ms > 100 => error!("exporting the bloomfilter took {ms}ms to complete"),
-            ms if ms > 50 => warn!("exporting the bloomfilter took {ms}ms to complete"),
-            ms if ms > 10 => info!("exporting the bloomfilter took {ms}ms to complete"),
-            ms if ms > 2 => debug!("exporting the bloomfilter took {ms}ms to complete"),
-            ms => trace!("exporting the bloomfilter took {ms}ms to complete"),
+        let bytes = guard.bytes.clone();
+
+        // see if it's been > 5min since last export (that value is arbitrary)
+        if guard.last_exported_at + Duration::minutes(5) < OffsetDateTime::now_utc() {
+            self.local.maybe_background_update_exported_bloomfilter();
         }
 
         bytes

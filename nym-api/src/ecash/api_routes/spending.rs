@@ -195,7 +195,7 @@ pub async fn batch_redeem_tickets(
 pub async fn double_spending_filter_v1(
     state: &RocketState<EcashState>,
 ) -> crate::ecash::error::Result<Json<SpentCredentialsResponse>> {
-    let spent_credentials_export = state.export_bloomfilter().await;
+    let spent_credentials_export = state.get_bloomfilter_bytes().await;
     Ok(Json(SpentCredentialsResponse::new(
         spent_credentials_export,
     )))

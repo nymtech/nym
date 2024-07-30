@@ -13,7 +13,7 @@ anyhow = { workspace = true }
 bincode = { workspace = true }
 bs58 = { workspace = true }
 bytes = { workspace = true }
-clap = { workspace = true }
+clap = { workspace = true, features = ["cargo", "derive"] }
 fastrand = { workspace = true }
 futures = { workspace = true }
 ipnetwork = { workspace = true }
@@ -28,8 +28,8 @@ tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true }
 
 nym-authenticator-requests = { path = "../../common/authenticator-requests" }
-nym-bin-common = { path = "../../common/bin-common" }
-nym-client-core = { path = "../../common/client-core" }
+nym-bin-common = { path = "../../common/bin-common", features = ["clap", "output_format"] }
+nym-client-core = { path = "../../common/client-core", features = ["cli"] }
 nym-config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
 nym-id = { path = "../../common/nym-id" }

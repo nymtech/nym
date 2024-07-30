@@ -1129,6 +1129,8 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             announce_wss_port: old_cfg.entry_gateway.announce_wss_port,
             debug: EntryGatewayConfigDebug {
                 message_retrieval_limit: old_cfg.entry_gateway.debug.message_retrieval_limit,
+                // \/ ADDED
+                zk_nym_tickets: Default::default(),
             },
         },
         exit_gateway: ExitGatewayConfig {

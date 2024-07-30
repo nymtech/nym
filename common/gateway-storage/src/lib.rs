@@ -1,26 +1,26 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::websocket::connection_handler::ecash::ClientTicket;
-use crate::node::storage::bandwidth::BandwidthManager;
-use crate::node::storage::error::StorageError;
-use crate::node::storage::inboxes::InboxManager;
-use crate::node::storage::models::{
+use async_trait::async_trait;
+use bandwidth::BandwidthManager;
+use error::StorageError;
+use inboxes::InboxManager;
+use models::{
     PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage, VerifiedTicket,
 };
-use crate::node::storage::shared_keys::SharedKeysManager;
-use crate::node::storage::tickets::TicketStorageManager;
-use async_trait::async_trait;
+use nym_credentials_interface::ClientTicket;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
+use shared_keys::SharedKeysManager;
 use sqlx::ConnectOptions;
 use std::path::Path;
+use tickets::TicketStorageManager;
 use time::OffsetDateTime;
 use tracing::{debug, error};
 use wireguard_peers::WgPeerManager;
 
-mod bandwidth;
-pub(crate) mod error;
+pub mod bandwidth;
+pub mod error;
 mod inboxes;
 pub(crate) mod models;
 mod shared_keys;
@@ -220,7 +220,7 @@ pub struct PersistentStorage {
     bandwidth_manager: BandwidthManager,
     ticket_manager: TicketStorageManager,
     #[cfg(feature = "wireguard")]
-    wireguard_peer_manager: WgPeerManager,
+    wireguard_peer_manager: wireguard_peers::WgPeerManager,
 }
 
 impl PersistentStorage {
@@ -265,7 +265,7 @@ impl PersistentStorage {
         // the cloning here are cheap as connection pool is stored behind an Arc
         Ok(PersistentStorage {
             #[cfg(feature = "wireguard")]
-            wireguard_peer_manager: WgPeerManager::new(connection_pool.clone()),
+            wireguard_peer_manager: wireguard_peers::WgPeerManager::new(connection_pool.clone()),
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
             bandwidth_manager: BandwidthManager::new(connection_pool.clone()),

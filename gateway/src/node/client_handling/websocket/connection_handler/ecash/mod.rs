@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::websocket::connection_handler::ecash::state::SharedState;
-use crate::node::storage::Storage;
 use crate::GatewayError;
 use credential_sender::CredentialHandler;
 use double_spending::DoubleSpendingDetector;
 use futures::channel::mpsc::{self, UnboundedSender};
 use nym_credentials::CredentialSpendingData;
-use nym_credentials_interface::{CompactEcashError, NymPayInfo, VerificationKeyAuth};
+use nym_credentials_interface::{ClientTicket, CompactEcashError, NymPayInfo, VerificationKeyAuth};
+use nym_gateway_storage::Storage;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use time::OffsetDateTime;
@@ -17,7 +17,6 @@ use tracing::error;
 
 use crate::node::client_handling::websocket::connection_handler::ecash::credential_sender::CredentialHandlerConfig;
 use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
-pub use credential_sender::ClientTicket;
 
 pub(crate) mod credential_sender;
 pub(crate) mod double_spending;

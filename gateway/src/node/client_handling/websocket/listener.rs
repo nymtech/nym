@@ -4,7 +4,7 @@
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
-use crate::node::storage::Storage;
+use nym_gateway_storage::Storage;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;

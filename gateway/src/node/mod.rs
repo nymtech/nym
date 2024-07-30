@@ -34,10 +34,9 @@ use tracing::*;
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
-pub(crate) mod storage;
 
 use crate::node::client_handling::websocket::connection_handler::ecash::credential_sender::CredentialHandlerConfig;
-pub use storage::{PersistentStorage, Storage};
+pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
 struct StartedNetworkRequester {

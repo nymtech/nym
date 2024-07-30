@@ -1,33 +1,30 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::bandwidth::{Bandwidth, BandwidthError};
-use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
-use crate::node::client_handling::websocket::connection_handler::ecash::ClientTicket;
-use crate::node::client_handling::websocket::connection_handler::ClientBandwidth;
-use crate::node::{
-    client_handling::{
-        websocket::{
-            connection_handler::{ClientDetails, FreshHandler},
-            message_receiver::{
-                IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
-            },
+use crate::node::client_handling::{
+    bandwidth::{Bandwidth, BandwidthError},
+    websocket::{
+        connection_handler::{
+            ecash::error::EcashTicketError, ClientBandwidth, ClientDetails, FreshHandler,
         },
-        FREE_TESTNET_BANDWIDTH_VALUE,
+        message_receiver::{
+            IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
+        },
     },
-    storage::{error::StorageError, Storage},
+    FREE_TESTNET_BANDWIDTH_VALUE,
 };
 use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
 use nym_credentials::ecash::utils::{ecash_today, EcashTime};
-use nym_credentials_interface::CredentialSpendingData;
+use nym_credentials_interface::{ClientTicket, CredentialSpendingData};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
     ClientControlRequest, GatewayRequestsError, SimpleGatewayRequestsError,
 };
+use nym_gateway_storage::{error::StorageError, Storage};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;

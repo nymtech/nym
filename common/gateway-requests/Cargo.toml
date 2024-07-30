@@ -21,12 +21,12 @@ thiserror = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 zeroize = { workspace = true }
 
-nym-crypto = { path = "../../common/crypto" }
-nym-pemstore = { path = "../../common/pemstore" }
-nym-sphinx = { path = "../../common/nymsphinx" }
+nym-crypto = { path = "../crypto" }
+nym-pemstore = { path = "../pemstore" }
+nym-sphinx = { path = "../nymsphinx" }
 
-nym-credentials = { path = "../../common/credentials" }
-nym-credentials-interface = { path = "../../common/credentials-interface" }
+nym-credentials = { path = "../credentials" }
+nym-credentials-interface = { path = "../credentials-interface" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 workspace = true
@@ -41,6 +41,4 @@ workspace = true
 default-features = false
 
 [dev-dependencies]
-nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" } # we need specific imports in tests
-
-
+nym-compact-ecash = { path = "../nym_offline_compact_ecash" } # we need specific imports in tests

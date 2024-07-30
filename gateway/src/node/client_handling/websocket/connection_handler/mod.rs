@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use crate::node::storage::Storage;
-use nym_credentials::ecash::utils::ecash_today;
+use nym_credentials_interface::AvailableBandwidth;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
+use nym_gateway_storage::Storage;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
@@ -148,27 +148,6 @@ impl<'a> From<&'a Config> for BandwidthFlushingBehaviourConfig {
             client_bandwidth_max_delta_flushing_amount: value
                 .debug
                 .client_bandwidth_max_delta_flushing_amount,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct AvailableBandwidth {
-    pub(crate) bytes: i64,
-    pub(crate) expiration: OffsetDateTime,
-}
-
-impl AvailableBandwidth {
-    pub(crate) fn expired(&self) -> bool {
-        self.expiration < ecash_today()
-    }
-}
-
-impl Default for AvailableBandwidth {
-    fn default() -> Self {
-        Self {
-            bytes: 0,
-            expiration: OffsetDateTime::UNIX_EPOCH,
         }
     }
 }

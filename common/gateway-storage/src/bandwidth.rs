@@ -1,11 +1,28 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::storage::models::PersistedBandwidth;
+use crate::models::{PersistedBandwidth};
 use time::OffsetDateTime;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct AvailableBandwidth {
+    pub bytes: i64,
+    pub freepass_expiration: Option<OffsetDateTime>,
+}
+
+impl AvailableBandwidth {
+    pub fn freepass_expired(&self) -> bool {
+        if let Some(expiration) = self.freepass_expiration {
+            if expiration < OffsetDateTime::now_utc() {
+                return true;
+            }
+        }
+        false
+    }
+}
+
 #[derive(Clone)]
-pub(crate) struct BandwidthManager {
+pub struct BandwidthManager {
     connection_pool: sqlx::SqlitePool,
 }
 
@@ -15,7 +32,7 @@ impl BandwidthManager {
     /// # Arguments
     ///
     /// * `connection_pool`: database connection pool to use.
-    pub(crate) fn new(connection_pool: sqlx::SqlitePool) -> Self {
+    pub fn new(connection_pool: sqlx::SqlitePool) -> Self {
         BandwidthManager { connection_pool }
     }
 

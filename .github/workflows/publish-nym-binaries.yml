@@ -46,10 +46,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get -y install ripgrep libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
         continue-on-error: true
 
-      - name: Sets env vars for tokio if set in manual dispatch inputs
+      - name: Set CARGO_FEATURES
         run: |
-          echo 'RUSTFLAGS="--cfg tokio_unstable"' >> $GITHUB_ENV
-        if: github.event_name == 'workflow_dispatch' && inputs.add_tokio_unstable == true
+          echo 'CARGO_FEATURES=--features wireguard' >> $GITHUB_ENV
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

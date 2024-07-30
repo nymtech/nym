@@ -12,6 +12,7 @@ license.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
+bincode = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
@@ -22,6 +23,7 @@ x25519-dalek = { workspace = true }
 ip_network = { workspace = true }
 log.workspace = true
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-gateway-storage = { path = "../gateway-storage", features = ["wireguard"] }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }

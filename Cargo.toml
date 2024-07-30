@@ -52,6 +52,8 @@ members = [
     "common/ecash-time",
     "common/execute",
     "common/exit-policy",
+    "common/gateway-requests",
+    "common/gateway-storage",
     "common/http-api-client",
     "common/http-api-common",
     "common/inclusion-probability",
@@ -96,7 +98,6 @@ members = [
     "explorer-api/explorer-api-requests",
     "explorer-api/explorer-client",
     "gateway",
-    "gateway/gateway-requests",
     "integrations/bity",
     "mixnode",
     "sdk/lib/socks5-listener",
@@ -139,7 +140,7 @@ default-members = [
     "tools/nymvisor",
     "explorer-api",
     "nym-validator-rewarder",
-    "nym-node"
+    "nym-node",
 ]
 
 exclude = [
@@ -346,8 +347,8 @@ bip32 = { version = "0.5.1", default-features = false }
 # plus response message parsing (which is, as of the time of writing this message, waiting to get merged)
 #cosmrs = { path = "../cosmos-rust-fork/cosmos-rust/cosmrs" }
 cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev = "4b1332e6d8258ac845cef71589c8d362a669675a" } # unfortuntely we need a fork by yours truly to get the staking support
-tendermint = "0.37.0"     # same version as used by cosmrs
-tendermint-rpc = "0.37.0" # same version as used by cosmrs
+tendermint = "0.37.0"                                                                                        # same version as used by cosmrs
+tendermint-rpc = "0.37.0"                                                                                    # same version as used by cosmrs
 prost = { version = "0.12", default-features = false }
 
 # wasm-related dependencies

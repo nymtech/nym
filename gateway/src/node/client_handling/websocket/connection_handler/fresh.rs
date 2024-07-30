@@ -6,6 +6,7 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
+use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
@@ -28,19 +29,16 @@ use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::*;
 
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
-use crate::node::client_handling::websocket::connection_handler::AvailableBandwidth;
-use crate::node::{
-    client_handling::{
-        active_clients::ActiveClientsStore,
-        websocket::{
-            connection_handler::{
-                AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
-            },
-            message_receiver::{IsActive, IsActiveRequestSender},
+use crate::node::client_handling::{
+    active_clients::ActiveClientsStore,
+    websocket::{
+        connection_handler::{
+            AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
         },
+        message_receiver::{IsActive, IsActiveRequestSender},
     },
-    storage::{error::StorageError, Storage},
 };
+use nym_gateway_storage::{error::StorageError, Storage};
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -564,7 +562,8 @@ where
             .storage
             .get_available_bandwidth(client_id)
             .await?
-            .into();
+            .map(From::from)
+            .unwrap_or_default();
 
         let bandwidth_remaining = if available_bandwidth.expired() {
             self.expire_bandwidth(client_id).await?;

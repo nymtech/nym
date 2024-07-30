@@ -4325,6 +4325,7 @@ dependencies = [
  "bs58 0.5.1",
  "bytes",
  "clap 4.5.7",
+ "defguard_wireguard_rs",
  "fastrand 2.1.0",
  "futures",
  "ipnetwork 0.16.0",
@@ -5012,6 +5013,7 @@ dependencies = [
  "nym-ecash-contract-common",
  "nym-ecash-double-spending",
  "nym-gateway-requests",
+ "nym-gateway-storage",
  "nym-ip-packet-router",
  "nym-mixnet-client",
  "nym-mixnode-common",
@@ -5099,6 +5101,24 @@ dependencies = [
  "tungstenite 0.20.1",
  "wasmtimer",
  "zeroize",
+]
+
+[[package]]
+name = "nym-gateway-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bincode",
+ "defguard_wireguard_rs",
+ "log",
+ "nym-credentials-interface",
+ "nym-gateway-requests",
+ "nym-sphinx",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -6191,12 +6211,14 @@ name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
+ "bincode",
  "chrono",
  "dashmap",
  "defguard_wireguard_rs",
  "ip_network",
  "log",
  "nym-crypto",
+ "nym-gateway-storage",
  "nym-network-defaults",
  "nym-task",
  "nym-wireguard-types",

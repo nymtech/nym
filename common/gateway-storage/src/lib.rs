@@ -1,29 +1,32 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::websocket::connection_handler::ecash::ClientTicket;
-use crate::node::storage::bandwidth::BandwidthManager;
-use crate::node::storage::error::StorageError;
-use crate::node::storage::inboxes::InboxManager;
-use crate::node::storage::models::{
-    PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage, VerifiedTicket,
-};
-use crate::node::storage::shared_keys::SharedKeysManager;
-use crate::node::storage::tickets::TicketStorageManager;
 use async_trait::async_trait;
+use bandwidth::BandwidthManager;
+use error::StorageError;
+use inboxes::InboxManager;
+use models::{
+    PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage, VerifiedTicket,
+    WireguardPeer,
+};
+use nym_credentials_interface::ClientTicket;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
+use shared_keys::SharedKeysManager;
 use sqlx::ConnectOptions;
 use std::path::Path;
+use tickets::TicketStorageManager;
 use time::OffsetDateTime;
 use tracing::{debug, error};
 
-mod bandwidth;
-pub(crate) mod error;
+pub mod bandwidth;
+pub mod error;
 mod inboxes;
 pub(crate) mod models;
 mod shared_keys;
 mod tickets;
+#[cfg(feature = "wireguard")]
+mod wireguard_peers;
 
 #[async_trait]
 pub trait Storage: Send + Sync {
@@ -207,6 +210,42 @@ pub trait Storage: Send + Sync {
     async fn get_votes(&self, ticket_id: i64) -> Result<Vec<i64>, StorageError>;
 
     async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, StorageError>;
+
+    /// Insert a wireguard peer in the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer`: wireguard peer data to be stored
+    /// * `suspended`: if peer exists, but it's currently suspended
+    #[cfg(feature = "wireguard")]
+    async fn insert_wireguard_peer(
+        &self,
+        peer: &defguard_wireguard_rs::host::Peer,
+        suspended: bool,
+    ) -> Result<(), StorageError>;
+
+    /// Tries to retrieve available bandwidth for the particular peer.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer_public_key`: wireguard public key of the peer to be retrieved.
+    #[cfg(feature = "wireguard")]
+    async fn get_wireguard_peer(
+        &self,
+        peer_public_key: &str,
+    ) -> Result<Option<WireguardPeer>, StorageError>;
+
+    /// Retrieves all wireguard peers.
+    #[cfg(feature = "wireguard")]
+    async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError>;
+
+    /// Remove a wireguard peer from the storage.
+    ///
+    /// # Arguments
+    ///
+    /// * `peer_public_key`: wireguard public key of the peer to be removed.
+    #[cfg(feature = "wireguard")]
+    async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -216,6 +255,8 @@ pub struct PersistentStorage {
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
     ticket_manager: TicketStorageManager,
+    #[cfg(feature = "wireguard")]
+    wireguard_peer_manager: wireguard_peers::WgPeerManager,
 }
 
 impl PersistentStorage {
@@ -259,6 +300,8 @@ impl PersistentStorage {
 
         // the cloning here are cheap as connection pool is stored behind an Arc
         Ok(PersistentStorage {
+            #[cfg(feature = "wireguard")]
+            wireguard_peer_manager: wireguard_peers::WgPeerManager::new(connection_pool.clone()),
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
             bandwidth_manager: BandwidthManager::new(connection_pool.clone()),
@@ -575,5 +618,43 @@ impl Storage for PersistentStorage {
 
     async fn get_signers(&self, epoch_id: i64) -> Result<Vec<i64>, StorageError> {
         Ok(self.ticket_manager.get_epoch_signers(epoch_id).await?)
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn insert_wireguard_peer(
+        &self,
+        peer: &defguard_wireguard_rs::host::Peer,
+        suspended: bool,
+    ) -> Result<(), StorageError> {
+        let mut peer = WireguardPeer::from(peer.clone());
+        peer.suspended = suspended;
+        self.wireguard_peer_manager.insert_peer(&peer).await?;
+        Ok(())
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn get_wireguard_peer(
+        &self,
+        peer_public_key: &str,
+    ) -> Result<Option<WireguardPeer>, StorageError> {
+        let peer = self
+            .wireguard_peer_manager
+            .retrieve_peer(peer_public_key)
+            .await?;
+        Ok(peer)
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError> {
+        let ret = self.wireguard_peer_manager.retrieve_all_peers().await?;
+        Ok(ret)
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError> {
+        self.wireguard_peer_manager
+            .remove_peer(peer_public_key)
+            .await?;
+        Ok(())
     }
 }

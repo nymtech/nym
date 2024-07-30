@@ -48,7 +48,7 @@ sqlx = { workspace = true, features = [
     "sqlite",
     "macros",
     "migrate",
-    "time"
+    "time",
 ] }
 subtle-encoding = { workspace = true, features = ["bech32-preview"] }
 thiserror = { workspace = true }
@@ -79,7 +79,8 @@ nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-crypto = { path = "../common/crypto" }
 nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
 nym-ecash-double-spending = { path = "../common/ecash-double-spending" }
-nym-gateway-requests = { path = "gateway-requests" }
+nym-gateway-storage = { path = "../common/gateway-storage" }
+nym-gateway-requests = { path = "../common/gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }
 nym-network-defaults = { path = "../common/network-defaults" }
@@ -108,7 +109,11 @@ sqlx = { workspace = true, features = [
 ] }
 
 [features]
-wireguard = ["nym-wireguard", "defguard_wireguard_rs"]
+wireguard = [
+    "nym-wireguard",
+    "defguard_wireguard_rs",
+    "nym-gateway-storage/wireguard",
+]
 bin-deps = ["clap", 'nym-bin-common/output_format']
 
 [package.metadata.deb]

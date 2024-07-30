@@ -28,7 +28,7 @@ pub use nym_compact_ecash::{
     withdrawal_request, Base58, BlindedSignature, Bytable, EncodedDate, EncodedTicketType,
     PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
-use nym_ecash_time::EcashTime;
+use nym_ecash_time::{ecash_today, EcashTime};
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
@@ -289,6 +289,42 @@ impl From<TicketTypeRepr> for TicketType {
             TicketTypeRepr::V1MixnetExit => TicketType::V1MixnetExit,
             TicketTypeRepr::V1WireguardEntry => TicketType::V1WireguardEntry,
             TicketTypeRepr::V1WireguardExit => TicketType::V1WireguardExit,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ClientTicket {
+    pub spending_data: CredentialSpendingData,
+    pub ticket_id: i64,
+}
+
+impl ClientTicket {
+    pub fn new(spending_data: CredentialSpendingData, ticket_id: i64) -> Self {
+        ClientTicket {
+            spending_data,
+            ticket_id,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AvailableBandwidth {
+    pub bytes: i64,
+    pub expiration: OffsetDateTime,
+}
+
+impl AvailableBandwidth {
+    pub fn expired(&self) -> bool {
+        self.expiration < ecash_today()
+    }
+}
+
+impl Default for AvailableBandwidth {
+    fn default() -> Self {
+        Self {
+            bytes: 0,
+            expiration: OffsetDateTime::UNIX_EPOCH,
         }
     }
 }

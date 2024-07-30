@@ -4,10 +4,9 @@
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
-use crate::node::storage::error::StorageError;
-use crate::node::storage::Storage;
 use futures::channel::mpsc::SendError;
 use futures::StreamExt;
+use nym_gateway_storage::{error::StorageError, Storage};
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_sphinx::forwarding::packet::MixPacket;

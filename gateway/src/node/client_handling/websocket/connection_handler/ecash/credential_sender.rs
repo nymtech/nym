@@ -5,7 +5,6 @@ use crate::node::client_handling::bandwidth::Bandwidth;
 use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
 use crate::node::client_handling::websocket::connection_handler::ecash::helpers::for_each_api_concurrent;
 use crate::node::client_handling::websocket::connection_handler::ecash::state::SharedState;
-use crate::node::storage::Storage;
 use crate::GatewayError;
 use cosmwasm_std::Fraction;
 use cw_utils::ThresholdResponse;
@@ -13,7 +12,8 @@ use futures::channel::mpsc::UnboundedReceiver;
 use futures::{Stream, StreamExt};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{BatchRedeemTicketsBody, VerifyEcashTicketBody};
-use nym_credentials_interface::CredentialSpendingData;
+use nym_credentials_interface::ClientTicket;
+use nym_gateway_storage::Storage;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
     EcashSigningClient, MultisigQueryClient, MultisigSigningClient, PagedMultisigQueryClient,
@@ -44,21 +44,6 @@ impl ProposalResult {
 
     fn is_rejected(&self) -> bool {
         matches!(self, ProposalResult::Rejected)
-    }
-}
-
-#[derive(Clone)]
-pub struct ClientTicket {
-    pub spending_data: CredentialSpendingData,
-    pub ticket_id: i64,
-}
-
-impl ClientTicket {
-    pub fn new(spending_data: CredentialSpendingData, ticket_id: i64) -> Self {
-        ClientTicket {
-            spending_data,
-            ticket_id,
-        }
     }
 }
 

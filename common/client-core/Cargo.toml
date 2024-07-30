@@ -38,7 +38,7 @@ nym-country-group = { path = "../country-group" }
 nym-crypto = { path = "../crypto" }
 nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
-nym-gateway-requests = { path = "../../gateway/gateway-requests" }
+nym-gateway-requests = { path = "../gateway-requests" }
 nym-metrics = { path = "../nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
@@ -49,7 +49,9 @@ nym-task = { path = "../task" }
 nym-credentials-interface = { path = "../credentials-interface" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
-nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"] }
+nym-client-core-config-types = { path = "./config-types", features = [
+    "disk-persistence",
+] }
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
 nym-ecash-time = { path = "../ecash-time" }

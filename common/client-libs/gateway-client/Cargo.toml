@@ -24,7 +24,7 @@ nym-bandwidth-controller = { path = "../../bandwidth-controller" }
 nym-credentials = { path = "../../credentials" }
 nym-credential-storage = { path = "../../credential-storage" }
 nym-crypto = { path = "../../crypto" }
-nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
+nym-gateway-requests = { path = "../../gateway-requests" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-sphinx = { path = "../../nymsphinx" }
 nym-pemstore = { path = "../../pemstore" }

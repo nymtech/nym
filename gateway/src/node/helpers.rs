@@ -4,8 +4,8 @@
 use crate::config::Config;
 use crate::error::GatewayError;
 
-use crate::node::storage::PersistentStorage;
 use nym_crypto::asymmetric::encryption;
+use nym_gateway_storage::PersistentStorage;
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
 

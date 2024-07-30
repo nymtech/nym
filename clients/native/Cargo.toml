@@ -1,7 +1,10 @@
 [package]
 name = "nym-client"
 version = "1.1.38"
-authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
+authors = [
+    "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+    "Jędrzej Stuczyński <andrew@nymtech.net>",
+]
 description = "Implementation of the Nym Client"
 edition = "2021"
 rust-version = "1.70"
@@ -26,30 +29,46 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 dirs = { workspace = true }
 log = { workspace = true } # self explanatory
 rand = { workspace = true }
-serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
+serde = { workspace = true, features = [
+    "derive",
+] } # for config serialization/deserialization
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tap = { workspace = true }
 time = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] } # async runtime
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "net",
+    "signal",
+] } # async runtime
 tokio-tungstenite = { workspace = true }
 zeroize = { workspace = true }
 
 ## internal
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "clap"] }
-nym-client-core = { path = "../../common/client-core", features = ["fs-credentials-storage", "fs-surb-storage", "fs-gateways-storage", "cli"] }
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "output_format",
+    "clap",
+] }
+nym-client-core = { path = "../../common/client-core", features = [
+    "fs-credentials-storage",
+    "fs-surb-storage",
+    "fs-gateways-storage",
+    "cli",
+] }
 nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
-nym-gateway-requests = { path = "../../gateway/gateway-requests" }
+nym-gateway-requests = { path = "../../common/gateway-requests" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-pemstore = { path = "../../common/pemstore" }
 nym-task = { path = "../../common/task" }
 nym-topology = { path = "../../common/topology" }
-nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["http-client"] }
+nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
+    "http-client",
+] }
 nym-client-websocket-requests = { path = "websocket-requests" }
 nym-id = { path = "../../common/nym-id" }
 

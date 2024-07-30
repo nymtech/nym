@@ -1,0 +1,41 @@
+[package]
+name = "nym-gateway-storage"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+bincode = { workspace = true, optional = true }
+defguard_wireguard_rs = { workspace = true, optional = true }
+log = { workspace = true }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+    "time",
+] }
+time = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+nym-credentials-interface = { path = "../credentials-interface" }
+nym-gateway-requests = { path = "../gateway-requests" }
+nym-sphinx = { path = "../nymsphinx" }
+
+[build-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+
+[features]
+wireguard = ["defguard_wireguard_rs", "bincode"]

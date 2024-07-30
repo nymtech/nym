@@ -6,7 +6,10 @@ use crate::node::client_handling::websocket::connection_handler::ecash::state::S
 use crate::node::Storage;
 use nym_ecash_double_spending::DoubleSpendingFilter;
 use nym_task::TaskClient;
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::EcashApiClient;
+use rand::prelude::SliceRandom;
+use rand::thread_rng;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -42,7 +45,6 @@ where
     }
 
     async fn refresh_bloomfilter(&self) {
-        //here be api query and union of different results
         let mut filter_builder = self.spent_serial_numbers.read().await.rebuild();
 
         let api_clients = match self.latest_api_endpoints().await {
@@ -53,26 +55,33 @@ where
             }
         };
 
-        for ecash_client in api_clients.deref().iter() {
-            match ecash_client.api_client.spent_credentials_filter().await {
+        let mut clients = api_clients
+            .iter()
+            .map(|c| c.api_client.clone())
+            .collect::<Vec<_>>();
+        clients.shuffle(&mut thread_rng());
+
+        for client in clients {
+            match client.nym_api.double_spending_filter_v1().await {
                 Ok(response) => {
-                    let added = filter_builder.add_bytes(&response.bitmap);
-                    if !added {
-                        warn!("Validator {ecash_client} gave us an incompatible bitmap for the double spending detector, we're gonna ignore it");
-                    }
+                    // due to relative big size of the filter, query only one api since all of them should contain
+                    // roughly the same data anyway.
+                    filter_builder.add_bytes(&response.bitmap);
+                    *self.spent_serial_numbers.write().await = filter_builder.build();
+                    return;
                 }
                 Err(err) => {
-                    warn!("Validator {ecash_client} could not be reached. There might be a problem with the coconut endpoint: {err}");
+                    warn!("Validator @ {} could not be reached. There might be a problem with the ecash endpoint: {err}", client.api_url());
                 }
             }
         }
 
-        *self.spent_serial_numbers.write().await = filter_builder.build();
+        warn!("none of the validators could be reached. the bloomfilter will remain unchanged.");
     }
 
     async fn run(&self, mut shutdown: TaskClient) {
         info!("Starting Ecash DoubleSpendingDetector");
-        let mut interval = interval(Duration::from_secs(300));
+        let mut interval = interval(Duration::from_secs(600));
 
         while !shutdown.is_shutdown() {
             tokio::select! {

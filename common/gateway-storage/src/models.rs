@@ -3,7 +3,7 @@
 
 use crate::error::StorageError;
 use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpendingData};
-use sqlx::{types::chrono::NaiveDateTime, FromRow};
+use sqlx::FromRow;
 use time::OffsetDateTime;
 
 pub struct PersistedSharedKeys {

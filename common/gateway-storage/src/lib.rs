@@ -18,7 +18,6 @@ use std::path::Path;
 use tickets::TicketStorageManager;
 use time::OffsetDateTime;
 use tracing::{debug, error};
-use wireguard_peers::WgPeerManager;
 
 pub mod bandwidth;
 pub mod error;

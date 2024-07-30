@@ -3,8 +3,8 @@
 
 use clap::{Args, Subcommand};
 
-pub mod coconut_bandwidth;
 pub mod coconut_dkg;
+pub mod ecash_bandwidth;
 pub mod mixnet;
 pub mod multisig;
 pub mod vesting;
@@ -18,7 +18,7 @@ pub struct GenerateMessage {
 
 #[derive(Debug, Subcommand)]
 pub enum GenerateMessageCommands {
-    CoconutBandwidth(coconut_bandwidth::Args),
+    EcashBandwidth(ecash_bandwidth::Args),
     CoconutDKG(coconut_dkg::Args),
     Mixnet(mixnet::Args),
     Multisig(multisig::Args),

@@ -11,28 +11,38 @@ authors = [
 ]
 description = "Implementation of the Nym Mixnet Gateway"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.76"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "nym-gateway"
+required-features = ["bin-deps"]
+path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 bip39 = { workspace = true }
 bs58 = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive"], optional = true }
 colored = { workspace = true }
+cosmwasm-std = { workspace = true }
+cw-utils = { workspace = true }
 dashmap = { workspace = true }
 dirs = { workspace = true }
 dotenvy = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
-log = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+si-scale = { workspace = true }
 sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
@@ -52,19 +62,23 @@ tokio = { workspace = true, features = [
 tokio-stream = { workspace = true, features = ["fs"] }
 tokio-tungstenite = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
+tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 time = { workspace = true }
 zeroize = { workspace = true }
+bloomfilter = { workspace = true }
 
 # internal
 
 nym-authenticator = { path = "../service-providers/authenticator" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
-nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../common/bin-common" }
 nym-config = { path = "../common/config" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-crypto = { path = "../common/crypto" }
+nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
+nym-ecash-double-spending = { path = "../common/ecash-double-spending" }
 nym-gateway-requests = { path = "gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }
@@ -95,6 +109,7 @@ sqlx = { workspace = true, features = [
 
 [features]
 wireguard = ["nym-wireguard", "defguard_wireguard_rs"]
+bin-deps = ["clap", 'nym-bin-common/output_format']
 
 [package.metadata.deb]
 name = "nym-gateway"

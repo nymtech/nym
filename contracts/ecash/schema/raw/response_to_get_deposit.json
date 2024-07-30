@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DepositResponse",
+  "type": "object",
+  "required": [
+    "id"
+  ],
+  "properties": {
+    "deposit": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Deposit"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Deposit": {
+      "type": "object",
+      "required": [
+        "bs58_encoded_ed25519_pubkey"
+      ],
+      "properties": {
+        "bs58_encoded_ed25519_pubkey": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

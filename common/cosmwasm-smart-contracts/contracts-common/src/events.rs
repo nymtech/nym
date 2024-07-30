@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::Event;
+use std::str::FromStr;
 
 /// Looks up value of particular attribute in the provided event. If it fails to find it,
 /// the function panics.
@@ -26,6 +27,23 @@ pub fn may_find_attribute(event: &Event, key: &str) -> Option<String> {
     for attr in &event.attributes {
         if attr.key == key {
             return Some(attr.value.clone());
+        }
+    }
+    None
+}
+
+pub fn try_find_attribute<T, E>(
+    events: &[Event],
+    event_name: &str,
+    key: &str,
+) -> Option<Result<T, E>>
+where
+    T: FromStr<Err = E>,
+{
+    for event in events {
+        if event.ty == event_name {
+            let value = may_find_attribute(event, key)?;
+            return Some(value.parse());
         }
     }
     None

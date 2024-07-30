@@ -12,16 +12,27 @@ pub const DETAILED: &str = "detailed";
 pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
-pub const COCONUT_ROUTES: &str = "coconut";
-pub const BANDWIDTH: &str = "bandwidth";
+pub const DOUBLE_SPENDING_FILTER_V1: &str = "double-spending-filter-v1";
 
-pub const COCONUT_FREE_PASS: &str = "free-pass";
-pub const COCONUT_FREE_PASS_NONCE: &str = "free-pass-nonce";
-pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
-pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
-pub const COCONUT_EPOCH_CREDENTIALS: &str = "epoch-credentials";
-pub const COCONUT_ISSUED_CREDENTIAL: &str = "issued-credential";
-pub const COCONUT_ISSUED_CREDENTIALS: &str = "issued-credentials";
+pub const ECASH_ROUTES: &str = "ecash";
+
+pub use ecash::*;
+pub mod ecash {
+    pub const ECASH_BLIND_SIGN: &str = "blind-sign";
+    pub const VERIFY_ECASH_TICKET: &str = "verify-ecash-ticket";
+    pub const BATCH_REDEEM_ECASH_TICKETS: &str = "batch-redeem-ecash-tickets";
+    pub const PARTIAL_EXPIRATION_DATE_SIGNATURES: &str = "partial-expiration-date-signatures";
+    pub const GLOBAL_EXPIRATION_DATE_SIGNATURES: &str = "aggregated-expiration-date-signatures";
+    pub const PARTIAL_COIN_INDICES_SIGNATURES: &str = "partial-coin-indices-signatures";
+    pub const GLOBAL_COIN_INDICES_SIGNATURES: &str = "aggregated-coin-indices-signatures";
+    pub const MASTER_VERIFICATION_KEY: &str = "master-verification-key";
+    pub const ECASH_EPOCH_CREDENTIALS: &str = "epoch-credentials";
+    pub const ECASH_ISSUED_CREDENTIAL: &str = "issued-credential";
+    pub const ECASH_ISSUED_CREDENTIALS: &str = "issued-credentials";
+
+    pub const EXPIRATION_DATE_PARAM: &str = "expiration_date";
+    pub const EPOCH_ID_PARAM: &str = "epoch_id";
+}
 
 pub const STATUS_ROUTES: &str = "status";
 pub const MIXNODE: &str = "mixnode";

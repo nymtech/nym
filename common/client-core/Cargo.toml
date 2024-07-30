@@ -14,6 +14,7 @@ base64 = { workspace = true }
 bs58 = { workspace = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, optional = true }
+comfy-table = { version = "7.1.1", optional = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 log = { workspace = true }
@@ -45,11 +46,13 @@ nym-pemstore = { path = "../pemstore" }
 nym-topology = { path = "../topology", features = ["serializable"] }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }
+nym-credentials-interface = { path = "../credentials-interface" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-client-core-config-types = { path = "./config-types", features = ["disk-persistence"] }
 nym-client-core-surb-storage = { path = "./surb-storage" }
 nym-client-core-gateways-storage = { path = "./gateways-storage" }
+nym-ecash-time = { path = "../ecash-time" }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
@@ -112,7 +115,8 @@ tempfile = { workspace = true }
 
 [features]
 default = []
-cli = ["clap"]
+cli = ["clap", "comfy-table"]
+fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
 fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
 fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
 wasm = ["nym-gateway-client/wasm"]

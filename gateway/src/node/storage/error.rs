@@ -10,4 +10,10 @@ pub enum StorageError {
 
     #[error("Failed to perform database migration: {0}")]
     MigrationError(#[from] sqlx::migrate::MigrateError),
+
+    #[error("Somehow stored data is incorrect: {0}")]
+    DataCorruption(String),
+
+    #[error("the stored data associated with ticket {ticket_id} is malformed!")]
+    MalformedStoredTicketData { ticket_id: i64 },
 }

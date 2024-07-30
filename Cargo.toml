@@ -34,6 +34,7 @@ members = [
     "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
+    "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
     "common/cosmwasm-smart-contracts/group-contract",
@@ -47,6 +48,8 @@ members = [
     "common/credentials-interface",
     "common/crypto",
     "common/dkg",
+    "common/ecash-double-spending",
+    "common/ecash-time",
     "common/execute",
     "common/exit-policy",
     "common/http-api-client",
@@ -59,6 +62,7 @@ members = [
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
     "common/nymcoconut",
+    "common/nym_offline_compact_ecash",
     "common/nym-id",
     "common/nym-metrics",
     "common/nymsphinx",
@@ -74,6 +78,7 @@ members = [
     "common/nymsphinx/types",
     "common/nyxd-scraper",
     "common/pemstore",
+    "common/serde-helpers",
     "common/socks5-client-core",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
@@ -120,6 +125,8 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
+    "tools/internal/testnet-manager",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
 ]
 
 default-members = [
@@ -139,6 +146,7 @@ exclude = [
     "explorer",
     "contracts",
     "nym-wallet",
+    "nym-vpn/ui/src-tauri",
     "cpu-cycles",
     "sdk/ffi/cpp",
 ]
@@ -163,8 +171,13 @@ axum-extra = "0.9.3"
 base64 = "0.21.4"
 bincode = "1.3.3"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
+
+# can we unify those?
+bit-vec = "0.7.0"
 bitvec = "1.0.0"
+
 blake3 = "1.3.1"
+bloomfilter = "1.0.14"
 bs58 = "0.5.1"
 bytecodec = "0.4.15"
 bytes = "1.5.0"
@@ -216,11 +229,11 @@ httpcodec = "0.2.3"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
 hyper = "1.3.1"
-indexed_db_futures = "0.3.0"
 inquire = "0.6.2"
 ip_network = "0.4.1"
 ipnetwork = "0.16"
 isocountry = "0.3.2"
+itertools = "0.13.0"
 k256 = "0.13"
 lazy_static = "1.4.0"
 ledger-transport = "0.10.0"
@@ -305,7 +318,8 @@ prometheus = { version = "0.13.0" }
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
-bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false,  branch = "feature/gt-serialization-0.8.0" }
+# plus to make our live easier we need serde support from https://github.com/zkcrypto/bls12_381/pull/125
+bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect" }
 group = { version = "0.13.0", default-features = false }
 ff = { version = "0.13.0", default-features = false }
 
@@ -328,16 +342,22 @@ cw-controllers = { version = "=1.1.0" }
 # cosmrs-related
 bip32 = { version = "0.5.1", default-features = false }
 
-# temporarily using a fork again (yay.) because we need staking and slashing support
-cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" }
-#cosmrs = {  git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" } # unfortuntely we need a fork by yours truly to get the staking support
-tendermint = "0.34"     # same version as used by cosmrs
-tendermint-rpc = "0.34" # same version as used by cosmrs
+# temporarily using a fork again (yay.) because we need staking and slashing support (which are already on main but not released)
+# plus response message parsing (which is, as of the time of writing this message, waiting to get merged)
+#cosmrs = { path = "../cosmos-rust-fork/cosmos-rust/cosmrs" }
+cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev = "4b1332e6d8258ac845cef71589c8d362a669675a" } # unfortuntely we need a fork by yours truly to get the staking support
+tendermint = "0.37.0"     # same version as used by cosmrs
+tendermint-rpc = "0.37.0" # same version as used by cosmrs
 prost = { version = "0.12", default-features = false }
 
 # wasm-related dependencies
 gloo-utils = "0.2.0"
 gloo-net = "0.5.0"
+
+# use a separate branch due to feature unification failures
+# this is blocked until the upstream removes outdates `wasm_bindgen` feature usage
+# indexed_db_futures = "0.4.1"
+indexed_db_futures = { git = "https://github.com/TiemenSch/rust-indexed-db", branch = "update-uuid" }
 js-sys = "0.3.69"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
@@ -345,7 +365,6 @@ wasm-bindgen = "0.2.92"
 wasm-bindgen-futures = "0.4.39"
 wasmtimer = "0.2.0"
 web-sys = "0.3.69"
-itertools = "0.12.0"
 
 
 # Profile settings for individual crates

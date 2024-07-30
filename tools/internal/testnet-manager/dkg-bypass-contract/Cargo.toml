@@ -1,0 +1,25 @@
+[package]
+name = "dkg-bypass-contract"
+version = "0.1.0"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-std = { workspace = true }
+cosmwasm-storage = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-storage-plus = { workspace = true }
+
+nym-coconut-dkg-common = { path = "../../../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-contracts-common = { path = "../../../../common/cosmwasm-smart-contracts/contracts-common" }
+
+[features]
+default = ["library"]
+library = []

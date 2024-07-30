@@ -1,0 +1,53 @@
+[package]
+name = "testnet-manager"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bip39.workspace = true
+bs58.workspace = true
+console = "0.15.8"
+cw-utils.workspace = true
+clap = { workspace = true, features = ["cargo", "derive"] }
+indicatif = "0.17.8"
+rand.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+tempfile = { workspace = true }
+thiserror.workspace = true
+time = { workspace = true, features = ["parsing", "formatting"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process"] }
+toml = "0.8.14"
+tracing.workspace = true
+url.workspace = true
+zeroize = { workspace = true, features = ["zeroize_derive"] }
+
+
+nym-bin-common = { path = "../../../common/bin-common", features = ["output_format", "basic_tracing"] }
+nym-crypto = { path = "../../../common/crypto", features = ["asymmetric", "rand", "serde"] }
+nym-config = { path = "../../../common/config" }
+nym-validator-client = { path = "../../../common/client-libs/validator-client" }
+nym-compact-ecash = { path = "../../../common/nym_offline_compact_ecash" }
+dkg-bypass-contract = { path = "dkg-bypass-contract", default-features = false }
+
+# contracts:
+nym-mixnet-contract-common = { path = "../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
+nym-vesting-contract-common = { path = "../../../common/cosmwasm-smart-contracts/vesting-contract" }
+nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
+nym-ecash-contract-common = { path = "../../../common/cosmwasm-smart-contracts/ecash-contract" }
+nym-coconut-dkg-common = { path = "../../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-multisig-contract-common = { path = "../../../common/cosmwasm-smart-contracts/multisig-contract" }
+nym-pemstore = { path = "../../../common/pemstore" }
+
+
+[build-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }

@@ -17,6 +17,7 @@ use nym_gateway::GatewayError;
 use nym_mixnode::MixnodeError;
 use nym_network_requester::{CustomGatewayDetails, GatewayDetails};
 use nym_node::config;
+use nym_node::config::entry_gateway::ZkNymTicketHandlerDebug;
 use nym_node::config::mixnode::DEFAULT_VERLOC_PORT;
 use nym_node::config::Config;
 use nym_node::config::{default_config_filepath, ConfigBuilder, NodeMode};
@@ -411,6 +412,16 @@ async fn migrate_gateway(mut args: Args) -> Result<(), NymNodeError> {
                 announce_wss_port: cfg.gateway.clients_wss_port,
                 debug: config::entry_gateway::Debug {
                     message_retrieval_limit: cfg.debug.message_retrieval_limit,
+                    zk_nym_tickets: ZkNymTicketHandlerDebug {
+                        revocation_bandwidth_penalty:
+                            cfg.debug.zk_nym_tickets.revocation_bandwidth_penalty,
+                        pending_poller: cfg.debug.zk_nym_tickets.pending_poller,
+                        minimum_api_quorum: cfg.debug.zk_nym_tickets.minimum_api_quorum,
+                        minimum_redemption_tickets:
+                            cfg.debug.zk_nym_tickets.minimum_redemption_tickets,
+                        maximum_time_between_redemption:
+                            cfg.debug.zk_nym_tickets.maximum_time_between_redemption,
+                    },
                 },
             },
         ))

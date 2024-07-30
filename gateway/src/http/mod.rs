@@ -4,7 +4,6 @@
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::helpers::load_public_key;
-use log::{debug, error, warn};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_requester::RequestFilter;
@@ -15,6 +14,7 @@ use nym_node_http_api::NymNodeHttpError;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
 use std::sync::Arc;
+use tracing::{debug, error, warn};
 
 fn load_gateway_details(
     config: &Config,

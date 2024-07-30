@@ -1,26 +1,30 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::{self, Debug, Formatter};
-
-use crate::backends::memory::CoconutCredentialManager;
+use crate::backends::memory::MemoryEcachTicketbookManager;
 use crate::error::StorageError;
-use crate::models::{StorableIssuedCredential, StoredIssuedCredential};
+use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
 use crate::storage::Storage;
 use async_trait::async_trait;
+use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
+use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
+use nym_compact_ecash::VerificationKeyAuth;
+use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+use nym_ecash_time::Date;
+use std::fmt::{self, Debug, Formatter};
 
 pub type EphemeralCredentialStorage = EphemeralStorage;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
 pub struct EphemeralStorage {
-    coconut_credential_manager: CoconutCredentialManager,
+    storage_manager: MemoryEcachTicketbookManager,
 }
 
 impl Default for EphemeralStorage {
     fn default() -> Self {
         EphemeralStorage {
-            coconut_credential_manager: CoconutCredentialManager::new(),
+            storage_manager: MemoryEcachTicketbookManager::new(),
         }
     }
 }
@@ -35,55 +39,135 @@ impl Debug for EphemeralStorage {
 impl Storage for EphemeralStorage {
     type StorageError = StorageError;
 
-    async fn insert_issued_credential<'a>(
+    async fn cleanup_expired(&self) -> Result<(), Self::StorageError> {
+        self.storage_manager.cleanup_expired().await;
+        Ok(())
+    }
+
+    async fn insert_pending_ticketbook(
         &self,
-        bandwidth_credential: StorableIssuedCredential<'a>,
-    ) -> Result<(), StorageError> {
-        self.coconut_credential_manager
-            .insert_issued_credential(
-                bandwidth_credential.credential_type,
-                bandwidth_credential.serialization_revision,
-                bandwidth_credential.credential_data,
-                bandwidth_credential.epoch_id,
-            )
+        ticketbook: &IssuanceTicketBook,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .insert_pending_ticketbook(ticketbook)
             .await;
         Ok(())
     }
 
-    async fn get_next_unspent_credential(
+    async fn insert_issued_ticketbook(
         &self,
-        gateway_id: &str,
-    ) -> Result<Option<StoredIssuedCredential>, Self::StorageError> {
-        // first try to get a free pass if available, otherwise fallback to bandwidth voucher
-        let maybe_freepass = self
-            .coconut_credential_manager
-            .get_next_unspect_freepass(gateway_id)
-            .await;
-        if maybe_freepass.is_some() {
-            return Ok(maybe_freepass);
-        }
+        ticketbook: &IssuedTicketBook,
+    ) -> Result<(), StorageError> {
+        self.storage_manager.insert_new_ticketbook(ticketbook).await;
+        Ok(())
+    }
 
+    async fn get_ticketbooks_info(
+        &self,
+    ) -> Result<Vec<BasicTicketbookInformation>, Self::StorageError> {
+        Ok(self.storage_manager.get_ticketbooks_info().await)
+    }
+
+    async fn get_pending_ticketbooks(
+        &self,
+    ) -> Result<Vec<RetrievedPendingTicketbook>, Self::StorageError> {
+        Ok(self.storage_manager.get_pending_ticketbooks().await)
+    }
+
+    async fn remove_pending_ticketbook(&self, pending_id: i64) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .remove_pending_ticketbook(pending_id)
+            .await;
+        Ok(())
+    }
+
+    /// Tries to retrieve one of the stored ticketbook,
+    /// that has not yet expired and has required number of unspent tickets.
+    /// it immediately updated the on-disk number of used tickets so that another task
+    /// could obtain their own tickets at the same time
+    async fn get_next_unspent_usable_ticketbook(
+        &self,
+        tickets: u32,
+    ) -> Result<Option<RetrievedTicketbook>, Self::StorageError> {
         Ok(self
-            .coconut_credential_manager
-            .get_next_unspect_bandwidth_voucher()
+            .storage_manager
+            .get_next_unspent_ticketbook_and_update(tickets)
             .await)
     }
 
-    async fn consume_coconut_credential(
+    async fn attempt_revert_ticketbook_withdrawal(
         &self,
-        id: i64,
-        gateway_id: &str,
-    ) -> Result<(), StorageError> {
-        self.coconut_credential_manager
-            .consume_coconut_credential(id, gateway_id)
-            .await;
+        ticketbook_id: i64,
+        previous_total_spent: u32,
+        withdrawn: u32,
+    ) -> Result<bool, Self::StorageError> {
+        Ok(self
+            .storage_manager
+            .revert_ticketbook_withdrawal(ticketbook_id, previous_total_spent, withdrawn)
+            .await)
+    }
 
+    async fn get_master_verification_key(
+        &self,
+        epoch_id: u64,
+    ) -> Result<Option<VerificationKeyAuth>, Self::StorageError> {
+        Ok(self
+            .storage_manager
+            .get_master_verification_key(epoch_id)
+            .await)
+    }
+
+    async fn insert_master_verification_key(
+        &self,
+        epoch_id: u64,
+        key: &VerificationKeyAuth,
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .insert_master_verification_key(epoch_id, key)
+            .await;
         Ok(())
     }
 
-    async fn mark_expired(&self, id: i64) -> Result<(), Self::StorageError> {
-        self.coconut_credential_manager.mark_expired(id).await;
+    async fn get_coin_index_signatures(
+        &self,
+        epoch_id: u64,
+    ) -> Result<Option<Vec<AnnotatedCoinIndexSignature>>, Self::StorageError> {
+        Ok(self
+            .storage_manager
+            .get_coin_index_signatures(epoch_id)
+            .await)
+    }
 
+    async fn insert_coin_index_signatures(
+        &self,
+        epoch_id: u64,
+        data: &[AnnotatedCoinIndexSignature],
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .insert_coin_index_signatures(epoch_id, data)
+            .await;
+        Ok(())
+    }
+
+    async fn get_expiration_date_signatures(
+        &self,
+        expiration_date: Date,
+    ) -> Result<Option<Vec<AnnotatedExpirationDateSignature>>, Self::StorageError> {
+        Ok(self
+            .storage_manager
+            .get_expiration_date_signatures(expiration_date)
+            .await)
+    }
+
+    async fn insert_expiration_date_signatures(
+        &self,
+        epoch_id: u64,
+        expiration_date: Date,
+        data: &[AnnotatedExpirationDateSignature],
+    ) -> Result<(), Self::StorageError> {
+        self.storage_manager
+            .insert_expiration_date_signatures(epoch_id, expiration_date, data)
+            .await;
         Ok(())
     }
 }

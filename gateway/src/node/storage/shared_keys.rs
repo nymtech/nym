@@ -18,6 +18,17 @@ impl SharedKeysManager {
         SharedKeysManager { connection_pool }
     }
 
+    pub(crate) async fn client_id(&self, client_address_bs58: &str) -> Result<i64, sqlx::Error> {
+        let client_id = sqlx::query!(
+            "SELECT id FROM shared_keys WHERE client_address_bs58 = ?",
+            client_address_bs58
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .id;
+        Ok(client_id)
+    }
+
     /// Inserts provided derived shared keys into the database.
     /// If keys previously existed for the provided client, they are overwritten with the new data.
     ///
@@ -26,13 +37,15 @@ impl SharedKeysManager {
     /// * `shared_keys`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
     pub(crate) async fn insert_shared_keys(
         &self,
-        shared_keys: PersistedSharedKeys,
-    ) -> Result<(), sqlx::Error> {
+        client_address_bs58: String,
+        derived_aes128_ctr_blake3_hmac_keys_bs58: String,
+    ) -> Result<i64, sqlx::Error> {
         sqlx::query!("INSERT OR REPLACE INTO shared_keys(client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58) VALUES (?, ?)",
-            shared_keys.client_address_bs58,
-            shared_keys.derived_aes128_ctr_blake3_hmac_keys_bs58,
+            client_address_bs58,
+            derived_aes128_ctr_blake3_hmac_keys_bs58,
         ).execute(&self.connection_pool).await?;
-        Ok(())
+
+        self.client_id(&client_address_bs58).await
     }
 
     /// Tries to retrieve shared keys stored for the particular client.

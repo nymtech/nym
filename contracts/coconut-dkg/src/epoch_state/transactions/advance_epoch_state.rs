@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
+use crate::epoch_state::storage::{CURRENT_EPOCH, EPOCH_THRESHOLDS, THRESHOLD};
 use crate::epoch_state::transactions::reset_dkg_state;
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
@@ -61,7 +61,10 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
         let registered_dealers = current_epoch.state_progress.registered_dealers as u64;
         // set the threshold to 2/3 amount of registered dealers
         let threshold = (2 * registered_dealers + 3 - 1) / 3;
+
+        // update current threshold values
         THRESHOLD.save(deps.storage, &threshold)?;
+        EPOCH_THRESHOLDS.save(deps.storage, current_epoch.epoch_id, &threshold)?;
     }
 
     // edge case: we have completed DKG with fewer than threshold number of verified keys.

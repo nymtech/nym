@@ -167,5 +167,4 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(var_names::NYXD_WEBSOCKET, NYXD_WS);
     set_var_conditionally_to_default(var_names::EXPLORER_API, EXPLORER_API);
     set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
-    set_var_conditionally_to_default(var_names::NYM_VPN_API, NYM_VPN_API);
 }

@@ -24,6 +24,7 @@ pub const NYM_API: &str = "NYM_API";
 pub const NYXD_WEBSOCKET: &str = "NYXD_WS";
 pub const EXPLORER_API: &str = "EXPLORER_API";
 pub const EXIT_POLICY_URL: &str = "EXIT_POLICY";
+pub const NYM_VPN_API: &str = "NYM_VPN_API";
 
 pub const DKG_TIME_CONFIGURATION: &str = "DKG_TIME_CONFIGURATION";
 

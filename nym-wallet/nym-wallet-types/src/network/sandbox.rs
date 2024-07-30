@@ -56,5 +56,6 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
         explorer_api: parse_optional_str(EXPLORER_API),
+        nym_vpn_api_url: None,
     }
 }

@@ -170,7 +170,7 @@ announce_wss_port = {{#if entry_gateway.announce_wss_port }} {{ entry_gateway.an
 
 [entry_gateway.storage_paths]
 # Path to sqlite database containing all persistent data: messages for offline clients,
-# derived shared keys and available client bandwidths.
+# derived shared keys, available client bandwidths and wireguard peers.
 clients_storage = '{{ entry_gateway.storage_paths.clients_storage }}'
 
 # Path to file containing cosmos account mnemonic used for zk-nym redemption.
@@ -220,6 +220,10 @@ upstream_exit_policy_url = '{{ exit_gateway.upstream_exit_policy_url }}'
 # currently empty (there are some debug options one might want to configure)
 
 [exit_gateway.storage_paths]
+
+# Path to sqlite database containing all persistent data: messages for offline clients,
+# derived shared keys, available client bandwidths and wireguard peers.
+clients_storage = '{{ exit_gateway.storage_paths.clients_storage }}'
 
 [exit_gateway.storage_paths.network_requester]
 # Path to file containing network requester ed25519 identity private key.

@@ -2,7 +2,9 @@ use std::future::Future;
 
 #[cfg(all(
     not(target_arch = "wasm32"),
+    feature = "cli",
     feature = "fs-surb-storage",
+    feature = "fs-credentials-storage",
     feature = "fs-gateways-storage"
 ))]
 pub mod cli_helpers;

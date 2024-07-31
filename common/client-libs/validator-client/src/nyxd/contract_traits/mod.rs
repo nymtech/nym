@@ -8,34 +8,32 @@ use std::str::FromStr;
 // TODO: all of those could/should be derived via a macro
 
 // query clients
-pub mod coconut_bandwidth_query_client;
 pub mod dkg_query_client;
+pub mod ecash_query_client;
 pub mod group_query_client;
 pub mod mixnet_query_client;
 pub mod multisig_query_client;
 pub mod vesting_query_client;
 
 // signing clients
-pub mod coconut_bandwidth_signing_client;
 pub mod dkg_signing_client;
+pub mod ecash_signing_client;
 pub mod group_signing_client;
 pub mod mixnet_signing_client;
 pub mod multisig_signing_client;
 pub mod vesting_signing_client;
 
 // re-export query traits
-pub use coconut_bandwidth_query_client::{
-    CoconutBandwidthQueryClient, PagedCoconutBandwidthQueryClient,
-};
 pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
+pub use ecash_query_client::{EcashQueryClient, PagedEcashQueryClient};
 pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
 pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
 pub use vesting_query_client::{PagedVestingQueryClient, VestingQueryClient};
 
 // re-export signing traits
-pub use coconut_bandwidth_signing_client::CoconutBandwidthSigningClient;
 pub use dkg_signing_client::DkgSigningClient;
+pub use ecash_signing_client::EcashSigningClient;
 pub use group_signing_client::GroupSigningClient;
 pub use mixnet_signing_client::MixnetSigningClient;
 pub use multisig_signing_client::MultisigSigningClient;
@@ -48,7 +46,7 @@ pub trait NymContractsProvider {
     fn vesting_contract_address(&self) -> Option<&AccountId>;
 
     // coconut-related
-    fn coconut_bandwidth_contract_address(&self) -> Option<&AccountId>;
+    fn ecash_contract_address(&self) -> Option<&AccountId>;
     fn dkg_contract_address(&self) -> Option<&AccountId>;
     fn group_contract_address(&self) -> Option<&AccountId>;
     fn multisig_contract_address(&self) -> Option<&AccountId>;
@@ -59,7 +57,7 @@ pub struct TypedNymContracts {
     pub mixnet_contract_address: Option<AccountId>,
     pub vesting_contract_address: Option<AccountId>,
 
-    pub coconut_bandwidth_contract_address: Option<AccountId>,
+    pub ecash_contract_address: Option<AccountId>,
     pub group_contract_address: Option<AccountId>,
     pub multisig_contract_address: Option<AccountId>,
     pub coconut_dkg_contract_address: Option<AccountId>,
@@ -78,8 +76,8 @@ impl TryFrom<NymContracts> for TypedNymContracts {
                 .vesting_contract_address
                 .map(|addr| addr.parse())
                 .transpose()?,
-            coconut_bandwidth_contract_address: value
-                .coconut_bandwidth_contract_address
+            ecash_contract_address: value
+                .ecash_contract_address
                 .map(|addr| addr.parse())
                 .transpose()?,
             group_contract_address: value

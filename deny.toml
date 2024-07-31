@@ -74,9 +74,9 @@ notice = "warn"
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
 ignore = [
-     "RUSTSEC-2020-0159",
-     "RUSTSEC-2020-0071",
-     "RUSTSEC-2021-0145",
+    "RUSTSEC-2020-0159",
+    "RUSTSEC-2020-0071",
+    "RUSTSEC-2021-0145",
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
 # lower than the range specified will be ignored. Note that ignored advisories
@@ -115,6 +115,7 @@ allow = [
     "Unicode-DFS-2016",
     "OpenSSL",
     "Zlib",
+    "Unicode-3.0",
 ]
 # List of explicitly disallowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
@@ -217,7 +218,7 @@ deny = [
     # Wrapper crates can optionally be specified to allow the crate when it
     # is a direct dependency of the otherwise banned crate
     #{ name = "ansi_term", version = "=0.11.0", wrappers = [] },
-    { name = "openssl"},
+    { name = "openssl" },
 ]
 
 # List of features to allow/deny

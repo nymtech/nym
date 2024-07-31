@@ -6,7 +6,7 @@ use log::warn;
 use nym_gateway_requests::BinaryResponse;
 use tungstenite::{protocol::Message, Error as WsError};
 
-pub use client::{GatewayClient, GatewayConfig};
+pub use client::{config::GatewayClientConfig, GatewayClient, GatewayConfig};
 pub use nym_gateway_requests::registration::handshake::SharedKeys;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
@@ -14,6 +14,7 @@ pub use packet_router::{
 };
 pub use traits::GatewayPacketRouter;
 
+mod bandwidth;
 pub mod client;
 pub mod error;
 pub mod packet_router;
@@ -51,10 +52,7 @@ pub(crate) fn try_decrypt_binary_message(
             BinaryResponse::PushedMixMessage(plaintext) => Some(plaintext),
         },
         Err(err) => {
-            warn!(
-                "message received from the gateway was malformed! - {:?}",
-                err
-            );
+            warn!("message received from the gateway was malformed! - {err}",);
             None
         }
     }

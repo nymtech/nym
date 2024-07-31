@@ -13,6 +13,7 @@ use nym_types::gateway::{
     GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails, GatewayNodeDetailsResponse,
 };
 use std::path::Path;
+use tracing::info;
 
 pub use crate::node::helpers::{load_ip_packet_router_config, load_network_requester_config};
 
@@ -72,7 +73,7 @@ pub fn override_ip_packet_router_config(
 
     // disable poisson rate in the BASE client if the IPR option is enabled
     if cfg.ip_packet_router.disable_poisson_rate {
-        log::info!("Disabling poisson rate for ip packet router");
+        info!("Disabling poisson rate for ip packet router");
         cfg.set_no_poisson_process();
     }
 

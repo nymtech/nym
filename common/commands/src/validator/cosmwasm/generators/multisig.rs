@@ -22,7 +22,7 @@ pub struct Args {
     pub max_voting_period: u64,
 
     #[clap(long)]
-    pub coconut_bandwidth_contract_address: Option<AccountId>,
+    pub ecash_contract_address: Option<AccountId>,
 
     #[clap(long)]
     pub coconut_dkg_contract_address: Option<AccountId>,
@@ -33,14 +33,12 @@ pub async fn generate(args: Args) {
 
     debug!("Received arguments: {:?}", args);
 
-    let coconut_bandwidth_contract_address =
-        args.coconut_bandwidth_contract_address.unwrap_or_else(|| {
-            let address =
-                std::env::var(nym_network_defaults::var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
-                    .expect("Coconut bandwidth contract address has to be set");
-            AccountId::from_str(address.as_str())
-                .expect("Failed converting bandwidth contract address to AccountId")
-        });
+    let ecash_contract_address = args.ecash_contract_address.unwrap_or_else(|| {
+        let address = std::env::var(nym_network_defaults::var_names::ECASH_CONTRACT_ADDRESS)
+            .expect("Coconut bandwidth contract address has to be set");
+        AccountId::from_str(address.as_str())
+            .expect("Failed converting bandwidth contract address to AccountId")
+    });
 
     let coconut_dkg_contract_address = args.coconut_dkg_contract_address.unwrap_or_else(|| {
         let address = std::env::var(nym_network_defaults::var_names::COCONUT_DKG_CONTRACT_ADDRESS)
@@ -58,7 +56,7 @@ pub async fn generate(args: Args) {
         max_voting_period: Duration::Time(args.max_voting_period),
         executor: None,
         proposal_deposit: None,
-        coconut_bandwidth_contract_address: coconut_bandwidth_contract_address.to_string(),
+        coconut_bandwidth_contract_address: ecash_contract_address.to_string(),
         coconut_dkg_contract_address: coconut_dkg_contract_address.to_string(),
     };
 

@@ -10,9 +10,9 @@ pub(crate) async fn execute(
             args,
         ) => nym_cli_commands::validator::cosmwasm::generators::vesting::generate(args).await,
 
-        nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::CoconutBandwidth(
+        nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::EcashBandwidth(
             args,
-        ) => nym_cli_commands::validator::cosmwasm::generators::coconut_bandwidth::generate(args).await,
+        ) => nym_cli_commands::validator::cosmwasm::generators::ecash_bandwidth::generate(args).await,
 
         nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::CoconutDKG(
             args,

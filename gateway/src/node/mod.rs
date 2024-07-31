@@ -12,11 +12,10 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
+use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
-use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -30,13 +29,14 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tracing::*;
 
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
-pub(crate) mod storage;
 
-pub use storage::{InMemStorage, PersistentStorage, Storage};
+use crate::node::client_handling::websocket::connection_handler::ecash::credential_sender::CredentialHandlerConfig;
+pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
 struct StartedNetworkRequester {
@@ -250,7 +250,10 @@ impl<St> Gateway<St> {
         &mut self,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
-    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>>
+    where
+        St: Storage + Clone + 'static,
+    {
         let opts = self
             .authenticator_opts
             .as_ref()
@@ -301,8 +304,13 @@ impl<St> Gateway<St> {
             MessageRouter::new(auth_mix_receiver, packet_router)
                 .start_with_shutdown(router_shutdown);
 
-            let wg_api =
-                nym_wireguard::start_wireguard(shutdown, wireguard_data, peer_response_tx).await?;
+            let wg_api = nym_wireguard::start_wireguard(
+                self.storage.clone(),
+                shutdown,
+                wireguard_data,
+                peer_response_tx,
+            )
+            .await?;
 
             Ok(StartedAuthenticator {
                 wg_api,
@@ -327,9 +335,9 @@ impl<St> Gateway<St> {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-        coconut_verifier: Arc<CoconutVerifier>,
+        ecash_verifier: Arc<EcashManager<St>>,
     ) where
-        St: Storage + Clone + 'static,
+        St: Storage + Send + Sync + Clone + 'static,
     {
         info!("Starting client [web]socket listener...");
 
@@ -339,7 +347,8 @@ impl<St> Gateway<St> {
         );
 
         let shared_state = websocket::CommonHandlerState {
-            coconut_verifier,
+            ecash_verifier,
+            storage: self.storage.clone(),
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
@@ -347,7 +356,6 @@ impl<St> Gateway<St> {
 
         websocket::Listener::new(listening_address, shared_state).start(
             forwarding_channel,
-            self.storage.clone(),
             active_clients_store,
             shutdown,
         );
@@ -576,8 +584,32 @@ impl<St> Gateway<St> {
             }
         }
 
-        let coconut_verifier =
-            CoconutVerifier::new(nyxd_client, self.config.gateway.only_coconut_credentials).await?;
+        let handler_config = CredentialHandlerConfig {
+            revocation_bandwidth_penalty: self
+                .config
+                .debug
+                .zk_nym_tickets
+                .revocation_bandwidth_penalty,
+            pending_poller: self.config.debug.zk_nym_tickets.pending_poller,
+            minimum_api_quorum: self.config.debug.zk_nym_tickets.minimum_api_quorum,
+            minimum_redemption_tickets: self.config.debug.zk_nym_tickets.minimum_redemption_tickets,
+            maximum_time_between_redemption: self
+                .config
+                .debug
+                .zk_nym_tickets
+                .maximum_time_between_redemption,
+        };
+
+        let ecash_manager = {
+            EcashManager::new(
+                handler_config,
+                nyxd_client,
+                self.identity_keypair.public_key().to_bytes(),
+                shutdown.fork("EcashVerifier"),
+                self.storage.clone(),
+            )
+            .await
+        }?;
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 
@@ -592,7 +624,7 @@ impl<St> Gateway<St> {
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shutdown.fork("websocket::Listener"),
-            Arc::new(coconut_verifier),
+            Arc::new(ecash_manager),
         );
 
         let nr_request_filter = if self.config.network_requester.enabled {

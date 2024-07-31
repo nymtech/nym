@@ -13,8 +13,9 @@ use crate::dealings::queries::{
 use crate::dealings::transactions::{try_commit_dealings_chunk, try_submit_dealings_metadata};
 use crate::epoch_state::queries::{
     query_can_advance_state, query_current_epoch, query_current_epoch_threshold,
+    query_epoch_threshold,
 };
-use crate::epoch_state::storage::CURRENT_EPOCH;
+use crate::epoch_state::storage::{CURRENT_EPOCH, EPOCH_THRESHOLDS, THRESHOLD};
 use crate::epoch_state::transactions::{
     try_advance_epoch_state, try_initiate_dkg, try_trigger_reset, try_trigger_resharing,
 };
@@ -134,6 +135,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
+        QueryMsg::GetEpochThreshold { epoch_id } => {
+            to_binary(&query_epoch_threshold(deps.storage, epoch_id)?)?
+        }
         QueryMsg::GetRegisteredDealer {
             dealer_address,
             epoch_id,
@@ -216,6 +220,13 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
 pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    // MAINNET MIGRATION ASSERTION
+    let epoch = CURRENT_EPOCH.load(deps.storage)?;
+    assert_eq!(0, epoch.epoch_id);
+
+    let threshold = THRESHOLD.load(deps.storage)?;
+    EPOCH_THRESHOLDS.save(deps.storage, 0, &threshold)?;
 
     Ok(Response::new())
 }

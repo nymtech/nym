@@ -6,12 +6,12 @@
 
 use clap::{crate_name, crate_version, Parser};
 use colored::Colorize;
-use log::error;
 use nym_bin_common::bin_info;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_network_defaults::setup_env;
 use std::io::IsTerminal;
 use std::sync::OnceLock;
+use tracing::error;
 
 mod commands;
 

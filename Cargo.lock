@@ -4294,10 +4294,10 @@ dependencies = [
  "nym-ecash-time",
  "nym-mixnet-contract-common",
  "nym-node-requests",
+ "nym-serde-helpers",
  "rocket",
  "schemars",
  "serde",
- "serde-helpers",
  "serde_json",
  "sha2 0.10.8",
  "tendermint 0.37.0",
@@ -5707,6 +5707,15 @@ dependencies = [
  "toml 0.5.11",
  "url",
  "zeroize",
+]
+
+[[package]]
+name = "nym-serde-helpers"
+version = "0.1.0"
+dependencies = [
+ "base64 0.21.7",
+ "bs58 0.5.1",
+ "serde",
 ]
 
 [[package]]
@@ -7952,15 +7961,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7253ab4de971e72fb7be983802300c30b5a7f0c2e56fab8abfc6a214307c0094"
 dependencies = [
  "serde_derive",
-]
-
-[[package]]
-name = "serde-helpers"
-version = "0.1.0"
-dependencies = [
- "base64 0.21.7",
- "bs58 0.5.1",
- "serde",
 ]
 
 [[package]]

@@ -283,7 +283,7 @@ pub struct CredentialsRequestBody {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
 pub struct SerialNumberWrapper(
-    #[serde(with = "serde_helpers::bs58")]
+    #[serde(with = "nym_serde_helpers::bs58")]
     #[schemars(with = "String")]
     Vec<u8>,
 );
@@ -309,7 +309,7 @@ impl From<Vec<u8>> for SerialNumberWrapper {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
 pub struct BatchRedeemTicketsBody {
-    #[serde(with = "serde_helpers::bs58")]
+    #[serde(with = "nym_serde_helpers::bs58")]
     #[schemars(with = "String")]
     pub digest: Vec<u8>,
     pub included_serial_numbers: Vec<SerialNumberWrapper>,
@@ -358,7 +358,7 @@ pub struct EcashBatchTicketRedemptionResponse {
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SpentCredentialsResponse {
-    #[serde(with = "serde_helpers::base64")]
+    #[serde(with = "nym_serde_helpers::base64")]
     #[schemars(with = "String")]
     pub bitmap: Vec<u8>,
 }

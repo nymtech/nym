@@ -12,7 +12,7 @@ license.workspace = true
 
 [dependencies]
 
-serde = { workspace = true, default-features = false }
+serde = { workspace = true }
 bs58 = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 

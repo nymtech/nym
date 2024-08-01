@@ -25,8 +25,8 @@ use crate::support::{nyxd, storage};
 use crate::v2::AxumAppState;
 use crate::{circulating_supply_api, nym_contract_cache};
 use anyhow::{bail, Context, Result};
-use axum::response::Html;
 use axum::Router;
+use nym_api_requests::models;
 use nym_crypto::asymmetric::identity;
 use nym_http_api_common::logging::logger;
 use nym_validator_client::nyxd::Coin;
@@ -35,6 +35,8 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
 use tower_http::cors::CorsLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 pub(crate) mod helpers;
 pub(crate) mod openapi;
@@ -160,6 +162,19 @@ fn setup_cors() -> CorsLayer {
         .allow_credentials(false)
 }
 
+#[derive(OpenApi)]
+#[openapi(
+    info(title = "Nym API"),
+    tags(),
+    components(schemas(models::CirculatingSupplyResponse)),
+    paths(
+        crate::circulating_supply_api::handlers::get_full_circulating_supply,
+        crate::circulating_supply_api::handlers::get_circulating_supply,
+        crate::circulating_supply_api::handlers::get_total_supply,
+    )
+)]
+struct ApiDoc;
+
 pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
     // TODO dz serve swagger UI
 
@@ -173,11 +188,9 @@ pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router
         //         .on_request(DefaultOnRequest::new())
         //         .on_response(DefaultOnResponse::new().latency_unit(tower_http::LatencyUnit::Micros)),
         // )
-        .route(
-            "/",
-            axum::routing::get(|| async { axum::response::Redirect::permanent("/swagger") }),
-        )
-        .route("/swagger", axum::routing::get(hello))
+        // .route("/", axum::routing::get(|| async {axum::response::Redirect::permanent("/swagger")}))
+        // .route("/swagger", axum::routing::get(hello))
+        .merge(SwaggerUi::new("/swagger").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .merge(circulating_supply_routes())
         .merge(nym_contract_cache_routes())
         .merge(node_status_routes(network_monitor))
@@ -192,8 +205,4 @@ pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router
     let router = router.layer(axum::middleware::from_fn(logger));
 
     Ok(router)
-}
-
-async fn hello() -> Html<&'static str> {
-    Html("<h1>Welcome to server V2</h1> as provided by Axum")
 }

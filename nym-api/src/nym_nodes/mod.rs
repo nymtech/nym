@@ -21,6 +21,9 @@ pub(crate) fn nym_node_routes() -> axum::Router<AxumAppState> {
     )
 }
 
+// TODO dz for path/query params, see
+// https://docs.rs/utoipa-gen/4.3.0/utoipa_gen/derive.IntoParams.html
+
 pub(crate) fn nym_node_routes_unstable() -> axum::Router<AxumAppState> {
     Router::new().nest(
         "/v1/unstable/nym-nodes",

@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::unix_epoch;
@@ -22,6 +22,8 @@ use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
 use time::OffsetDateTime;
+use utoipa::openapi::{schema::SchemaType, Object, ObjectBuilder};
+use utoipa::{ToResponse, ToSchema};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct RequestError {
@@ -368,11 +370,33 @@ pub struct GatewayUptimeHistoryResponse {
     pub history: Vec<HistoricalUptimeResponse>,
 }
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+/// Because `Coin` is a foreign type, we can't derive `ToSchema` for it. Instead,
+/// use `schema_with` annotation on the fields where it's used:
+///  
+/// https://docs.rs/utoipa-gen/4.3.0/utoipa_gen/derive.ToSchema.html
+fn coin_type() -> Object {
+    ObjectBuilder::new()
+        .schema_type(utoipa::openapi::SchemaType::Object)
+        .property(
+            "denom",
+            ObjectBuilder::new().schema_type(SchemaType::String),
+        )
+        .property(
+            "amount",
+            ObjectBuilder::new().schema_type(SchemaType::Integer),
+        )
+        .build()
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema, ToResponse)]
 pub struct CirculatingSupplyResponse {
+    #[schema(schema_with = coin_type)]
     pub total_supply: Coin,
+    #[schema(schema_with = coin_type)]
     pub mixmining_reserve: Coin,
+    #[schema(schema_with = coin_type)]
     pub vesting_tokens: Coin,
+    #[schema(schema_with = coin_type)]
     pub circulating_supply: Coin,
 }
 

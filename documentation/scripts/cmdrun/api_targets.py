@@ -36,6 +36,8 @@ def print_time_now(args):
     #now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     #now = time.ctime()
     day = strftime("%d", gmtime())
+    if day[0] == "0":
+        day = day[1]
     if day == "1" or day == "21" or day == "31":
         suffix = "st"
     elif day == "2" or day == "22":
@@ -44,7 +46,7 @@ def print_time_now(args):
         suffix = "rd"
     else:
         suffix = "th"
-    now = strftime(f"%A, %B %d{suffix} %Y, %X UTC", gmtime())
+    now = strftime(f"%A, %B {day}{suffix} %Y, %X UTC", gmtime())
     print(now)
 
 ############################################

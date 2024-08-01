@@ -81,9 +81,18 @@ def display_supply_table(response, args):
     df['**Item**'] = df['**Item**'].apply(remove_underscore)
     df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(convert_u_nym)
     df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(thousand_separator, args=(separator, ))
-    df.insert(1, '**Description**', ['foo', 'bar', 'lol', 'go'], True)
+    desc_column = _get_desc_column()
+    df.insert(1, '**Description**', desc_column, True)
     table = df.to_markdown(index=False,colalign=("left","left","right"))
     print(table)
+
+def _get_desc_column():
+    supply = "Maximum amount of NYM token in existence"
+    reserve = "Tokens releasing for operators rewards"
+    vesting = "Tokens locked outside of cicrulation for future claim"
+    circulating = "Amount of unlocked tokens"
+    desc_column = [supply, reserve, vesting, circulating]
+    return desc_column
 
 def read_supply(args):
     response = subparser_read(args)

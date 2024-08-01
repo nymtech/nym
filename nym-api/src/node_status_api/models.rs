@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::ecash::error::{EcashError, RedemptionError};
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
 use nym_api_requests::models::{
@@ -458,6 +459,24 @@ impl From<NymApiStorageError> for AxumErrorResponse {
         Self {
             message: RequestError::empty(),
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl From<EcashError> for AxumErrorResponse {
+    fn from(value: EcashError) -> Self {
+        Self {
+            message: RequestError::new(value.to_string()),
+            status: axum::http::StatusCode::BAD_REQUEST,
+        }
+    }
+}
+
+impl From<RedemptionError> for AxumErrorResponse {
+    fn from(value: RedemptionError) -> Self {
+        Self {
+            message: RequestError::new(value.to_string()),
+            status: axum::http::StatusCode::BAD_REQUEST,
         }
     }
 }

@@ -3,10 +3,14 @@
 
 use super::support::nyxd;
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
+use crate::ecash::api_routes::handlers::ecash_routes;
+use crate::ecash::client::Client;
+use crate::ecash::comm::QueryCommunicationChannel;
 use crate::ecash::dkg::controller::keys::{
     can_validate_coconut_keys, load_bte_keypair, load_ecash_keypair_if_exists,
 };
 use crate::ecash::dkg::controller::DkgController;
+use crate::ecash::state::EcashState;
 use crate::epoch_operations::{self, RewardedSetUpdater};
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::{self, DescribedNodes};
@@ -14,19 +18,21 @@ use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
-use crate::status::ApiStatusState;
+use crate::status::{ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::http::setup_routes;
 use crate::support::storage;
 use crate::{circulating_supply_api, ecash, network_monitor, nym_contract_cache};
-use anyhow::anyhow;
+use anyhow::{anyhow, bail, Context};
 use axum::Router;
 use core::net::SocketAddr;
 use nym_config::defaults::NymNetworkDetails;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
+use nym_validator_client::nyxd::Coin;
 use std::net::Ipv4Addr;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_util::sync::{CancellationToken, WaitForCancellationFutureOwned};
 
@@ -76,8 +82,8 @@ pub(crate) struct ShutdownHandles {
 }
 
 impl ShutdownHandles {
-    /// Cancellation token is given to Axum server constructor. When it receives
-    /// a shutdown signal, it will shut down Axum server gracefully.
+    /// Cancellation token is given to Axum server constructor. When the token
+    /// receives a shutdown signal, Axum server will shut down gracefully.
     pub(crate) fn new(task_manager: TaskManager) -> (Self, WaitForCancellationFutureOwned) {
         //
         let token = CancellationToken::new();
@@ -98,7 +104,7 @@ impl ShutdownHandles {
         &mut self.task_manager
     }
 
-    /// After background tasks have finished, signal server to shut down.
+    /// After background tasks have finished, tell server to shut down.
     pub(crate) fn shutdown_axum(self) {
         self.axum_handle.0.cancel()
     }
@@ -154,15 +160,15 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
     let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
-    let coconut_keypair_wrapper = ecash::keys::KeyPair::new();
+    let coconut_keypair = ecash::keys::KeyPair::new();
 
     // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
     if let Some(loaded_keys) = load_ecash_keypair_if_exists(&config.coconut_signer)? {
         let issued_for = loaded_keys.issued_for_epoch;
-        coconut_keypair_wrapper.set(loaded_keys).await;
+        coconut_keypair.set(loaded_keys).await;
 
         if can_validate_coconut_keys(&nyxd_client, issued_for).await? {
-            coconut_keypair_wrapper.validate()
+            coconut_keypair.validate()
         }
     }
 
@@ -176,9 +182,6 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
     let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
     let circulating_supply_cache = CirculatingSupplyCache::new(mix_denom.to_owned());
     let described_nodes_state = SharedCache::<DescribedNodes>::new();
-    // TODO dz: below mentioned issue is closed, is there a nicer approach?
-    // This is not a very nice approach. A lazy value would be more suitable, but that's still
-    // a nightly feature: https://github.com/rust-lang/rust/issues/74465
     let storage =
         storage::NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?;
     let node_info_cache = unstable::NodeInfoCache::default();
@@ -187,8 +190,46 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
 
     // if coconut signer is enabled, add /coconut to server
     let router = if config.coconut_signer.enabled {
-        // TODO dz it's ecash now, refactor this
-        todo!()
+        // make sure we have some tokens to cover multisig fees
+        let balance = nyxd_client.balance(&mix_denom).await?;
+        if balance.amount < ecash::MINIMUM_BALANCE {
+            let address = nyxd_client.address().await;
+            let min = Coin::new(ecash::MINIMUM_BALANCE, mix_denom);
+            bail!("the account ({address}) doesn't have enough funds to cover verification fees. it has {balance} while it needs at least {min}")
+        }
+
+        let cosmos_address = nyxd_client.address().await.to_string();
+        let announce_address = config
+            .coconut_signer
+            .announce_address
+            .clone()
+            .map(|u| u.to_string())
+            .unwrap_or_default();
+        status_state.add_zk_nym_signer(SignerState {
+            cosmos_address,
+            identity: identity_keypair.public_key().to_base58_string(),
+            announce_address,
+            coconut_keypair: coconut_keypair.clone(),
+        });
+
+        let ecash_contract = nyxd_client
+            .get_ecash_contract_address()
+            .await
+            .context("e-cash contract address is required to setup the zk-nym signer")?;
+
+        let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
+
+        let ecash_state = EcashState::new(
+            ecash_contract,
+            nyxd_client.clone(),
+            identity_keypair,
+            coconut_keypair.clone(),
+            comm_channel,
+            storage.clone(),
+        )
+        .await?;
+
+        router.merge(ecash_routes(Arc::new(ecash_state)))
     } else {
         router
     };
@@ -251,7 +292,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
         DkgController::start(
             &config.coconut_signer,
             nyxd_client.clone(),
-            coconut_keypair_wrapper,
+            coconut_keypair,
             dkg_bte_keypair,
             identity_public_key,
             rand::rngs::OsRng,
@@ -262,9 +303,6 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring is enabled
     if config.network_monitor.enabled {
-        // if network monitor is enabled, the storage MUST BE available
-        let storage = storage;
-
         network_monitor::start::<SphinxMessageReceiver>(
             &config.network_monitor,
             &nym_contract_cache_state,

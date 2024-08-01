@@ -15,7 +15,9 @@ use crate::node_status_api::routes_deprecated::unstable;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
-use crate::nym_nodes::{nym_node_routes, nym_node_routes_deprecated, nym_node_routes_next, nym_node_routes_unstable};
+use crate::nym_nodes::{
+    nym_node_routes, nym_node_routes_deprecated, nym_node_routes_next, nym_node_routes_unstable,
+};
 use crate::status::{self, api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;

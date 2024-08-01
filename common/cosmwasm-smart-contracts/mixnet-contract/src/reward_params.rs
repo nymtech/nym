@@ -303,14 +303,21 @@ impl RewardedSetParams {
 #[derive(Copy)]
 pub struct NodeRewardingParameters {
     /// Performance of the particular node in the current epoch.
-    pub performance: Percent,
+    pub performance: Performance,
 
     /// Amount of work performed by this node in the current epoch
     /// also known as 'omega' in the paper
-    pub work_factor: Decimal,
+    pub work_factor: WorkFactor,
 }
 
 impl NodeRewardingParameters {
+    pub fn new(performance: Performance, work_factor: WorkFactor) -> Self {
+        NodeRewardingParameters {
+            performance,
+            work_factor,
+        }
+    }
+
     pub fn is_zero(&self) -> bool {
         self.performance.is_zero() || self.work_factor.is_zero()
     }

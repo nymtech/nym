@@ -9,14 +9,11 @@ use crate::constants::{
     UNBONDED_NYMNODE_PK_NAMESPACE,
 };
 use crate::nodes::storage::helpers::RoleStorageBucket;
-use cosmwasm_std::{Addr, Storage};
-use cw_storage_plus::{
-    Index, IndexList, IndexedMap, Item, Map, MultiIndex, PrimaryKey, UniqueIndex,
-};
+use cosmwasm_std::Addr;
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex, UniqueIndex};
 use mixnet_contract_common::nym_node::{NymNodeBond, RewardedSetMetadata, Role, UnbondedNymNode};
 use mixnet_contract_common::{NodeId, PendingNodeChanges};
 use nym_contracts_common::IdentityKey;
-use serde::{Deserialize, Serialize};
 
 mod helpers;
 

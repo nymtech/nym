@@ -11,7 +11,7 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{
-    CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId, NodeId,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId,
     NumberOfPendingEventsResponse, PendingEpochEventResponse, PendingEpochEventsResponse,
     PendingIntervalEventResponse, PendingIntervalEventsResponse,
 };

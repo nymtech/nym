@@ -346,13 +346,15 @@ pub fn new_migrated_gateway_event(
         .add_attribute(OWNER_KEY, owner)
 }
 
-pub fn new_migrated_mixnode_event(owner: &Addr, node_id: NodeId) -> Event {
-    todo!()
-    // Event::new(MixnetEventType::MixnodeMigration)
-    //     .add_attribute(NODE_ID_KEY, node_id.to_string())
-    //     .add_attribute(NODE_IDENTITY_KEY, identity)
-    //     .add_attribute(OWNER_KEY, owner)
-    //     .add_attribute(AMOUNT_KEY, amount.to_string())
+pub fn new_migrated_mixnode_event(
+    owner: &Addr,
+    identity: IdentityKeyRef<'_>,
+    node_id: NodeId,
+) -> Event {
+    Event::new(MixnetEventType::MixnodeMigration)
+        .add_attribute(NODE_ID_KEY, node_id.to_string())
+        .add_attribute(NODE_IDENTITY_KEY, identity)
+        .add_attribute(OWNER_KEY, owner)
 }
 
 pub fn new_pending_pledge_increase_event(node_id: NodeId, amount: &Coin) -> Event {

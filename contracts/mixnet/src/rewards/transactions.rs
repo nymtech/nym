@@ -7,16 +7,14 @@ use crate::delegations::storage as delegations_storage;
 use crate::interval::storage as interval_storage;
 use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnodes::helpers::{get_mixnode_details_by_owner, must_get_mixnode_details_by_owner};
-use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
-use crate::rewards::helpers::{ensure_assignment, update_and_save_last_rewarded};
+use crate::rewards::helpers::update_and_save_last_rewarded;
 use crate::rewards::storage::RewardingStorage;
 use crate::support::helpers::{
-    ensure_any_node_bonded, ensure_bonded, ensure_can_advance_epoch,
-    ensure_epoch_in_progress_state, ensure_is_owner, AttachSendTokens,
+    ensure_any_node_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state,
+    ensure_is_owner, AttachSendTokens,
 };
-use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_mix_rewarding_event,
@@ -25,10 +23,9 @@ use mixnet_contract_common::events::{
     new_withdraw_delegator_reward_event, new_withdraw_operator_reward_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
-use mixnet_contract_common::nym_node::Role;
 use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::reward_params::{
-    ActiveSetUpdate, IntervalRewardingParamsUpdate, NodeRewardingParameters, Performance,
+    ActiveSetUpdate, IntervalRewardingParamsUpdate, NodeRewardingParameters,
 };
 use mixnet_contract_common::{Delegation, EpochState, MixNodeDetails, NodeId, NymNodeDetails};
 
@@ -334,6 +331,7 @@ pub mod tests {
         };
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::nym_node::Role;
+        use mixnet_contract_common::reward_params::Performance;
         use mixnet_contract_common::EpochStatus;
 
         // a simple wrapper to streamline checking for rewarding results

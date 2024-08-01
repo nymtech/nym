@@ -399,8 +399,27 @@ pub struct UnbondedNymNode {
     pub unbonding_height: u64,
 }
 
+#[cw_serde]
 pub struct PagedNymNodesResponse {
-    //
+    /// The nym node bond information present in the contract.
+    pub nodes: Vec<NymNodeBond>,
+
+    /// Maximum number of entries that could be included in a response. `per_page <= nodes.len()`
+    // this field is rather redundant and should be deprecated.
+    pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
+    pub start_next_after: Option<NodeId>,
+}
+
+impl PagedNymNodesResponse {
+    pub fn new(nodes: Vec<NymNodeBond>, per_page: usize, start_next_after: Option<NodeId>) -> Self {
+        PagedNymNodesResponse {
+            nodes,
+            per_page,
+            start_next_after,
+        }
+    }
 }
 
 #[cw_serde]

@@ -7,7 +7,6 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Uint128};
 use std::fmt::{Display, Formatter};
-use std::ops::Index;
 
 // type aliases for better reasoning about available data
 pub type SphinxKey = String;

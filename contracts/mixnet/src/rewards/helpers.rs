@@ -8,10 +8,9 @@ use crate::nodes::storage::read_assigned_roles;
 use cosmwasm_std::{Coin, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::helpers::{IntoBaseDecimal, NodeBond, NodeDetails};
-use mixnet_contract_common::mixnode::{MixNodeDetails, NodeRewarding};
+use mixnet_contract_common::mixnode::NodeRewarding;
 use mixnet_contract_common::nym_node::Role;
 use mixnet_contract_common::{Delegation, EpochState, EpochStatus, NodeId};
-use time::format_description::well_known::iso8601::Config;
 
 pub(crate) fn update_and_save_last_rewarded(
     storage: &mut dyn Storage,

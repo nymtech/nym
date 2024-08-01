@@ -3,8 +3,7 @@
 
 use crate::nym_node::Role;
 use crate::{
-    EpochEventId, EpochState, IdentityKey, IntervalEventId, NodeId, OperatingCostRange,
-    ProfitMarginRange,
+    EpochEventId, EpochState, IntervalEventId, NodeId, OperatingCostRange, ProfitMarginRange,
 };
 use contracts_common::signing::verifier::ApiVerifierError;
 use contracts_common::Percent;

@@ -5,12 +5,11 @@ use super::helpers::must_get_gateway_bond_by_owner;
 use super::storage;
 use crate::constants::default_node_costs;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::nodes::helpers::{save_new_nymnode, save_new_nymnode_with_id};
+use crate::nodes::helpers::save_new_nymnode_with_id;
 use crate::nodes::transactions::add_nym_node_inner;
-use crate::signing::storage as signing_storage;
 use crate::support::helpers::ensure_epoch_in_progress_state;
-use crate::support::helpers::{ensure_no_existing_bond, validate_pledge, AttachSendTokens};
-use cosmwasm_std::{wasm_execute, Addr, BankMsg, DepsMut, Env, MessageInfo, Response};
+use crate::support::helpers::AttachSendTokens;
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_gateway_config_update_event, new_gateway_unbonding_event, new_migrated_gateway_event,
@@ -108,6 +107,8 @@ pub fn try_migrate_to_nymnode(
         cost_params.unwrap_or_else(|| default_node_costs(&gateway_bond.pledge_amount.denom));
 
     let gateway_identity = gateway_bond.gateway.identity_key.clone();
+
+    // this should have been added during migration
     let node_id = storage::PREASSIGNED_LEGACY_IDS
         .may_load(deps.storage, gateway_identity.clone())?
         .ok_or_else(|| MixnetContractError::InconsistentState {
@@ -141,16 +142,14 @@ pub mod tests {
     use crate::contract::execute;
     use crate::gateways::queries;
     use crate::interval::pending_events;
-    use crate::mixnet_contract_settings::storage::{minimum_gateway_pledge, minimum_node_pledge};
+    use crate::mixnet_contract_settings::storage::minimum_node_pledge;
     use crate::nodes::helpers::get_node_details_by_identity;
-    use crate::nodes::transactions::try_remove_nym_node;
     use crate::signing::storage as signing_storage;
     use crate::support::tests;
-    use crate::support::tests::fixtures;
     use crate::support::tests::fixtures::{good_gateway_pledge, good_mixnode_pledge};
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::testing::mock_info;
-    use cosmwasm_std::{Addr, Uint128};
+    use cosmwasm_std::{Addr, BankMsg, Uint128};
     use mixnet_contract_common::ExecuteMsg;
 
     #[test]
@@ -200,7 +199,7 @@ pub mod tests {
 
         let mix_id = test.add_legacy_mixnode(sender2, None);
 
-        let info = mock_info(sender2, &fixtures::good_gateway_pledge());
+        let info = mock_info(sender2, &good_gateway_pledge());
         let (gateway, sig) = test.gateway_with_signature(sender2, None);
 
         let result = try_add_gateway(

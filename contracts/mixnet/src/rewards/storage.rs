@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
-    CUMULATIVE_EPOCH_WORK_KEY, MIXNODES_REWARDING_PK_NAMESPACE, NYMNODE_REWARDING_PK_NAMESPACE,
-    PENDING_REWARD_POOL_KEY, REWARDING_PARAMS_KEY,
+    CUMULATIVE_EPOCH_WORK_KEY, MIXNODES_REWARDING_PK_NAMESPACE, PENDING_REWARD_POOL_KEY,
+    REWARDING_PARAMS_KEY,
 };
 use crate::rewards::models::RewardPoolChange;
 use cosmwasm_std::{Decimal, StdResult, Storage};

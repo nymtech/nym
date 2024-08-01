@@ -6,7 +6,7 @@ use crate::constants::{
     INTERVAL_EVENT_ID_COUNTER_KEY, LAST_EPOCH_EVENT_ID_KEY, LAST_INTERVAL_EVENT_ID_KEY,
     PENDING_EPOCH_EVENTS_NAMESPACE, PENDING_INTERVAL_EVENTS_NAMESPACE,
 };
-use cosmwasm_std::{Addr, Env, Order, StdResult, Storage};
+use cosmwasm_std::{Addr, Env, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::pending_events::{
     PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,

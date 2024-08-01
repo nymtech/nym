@@ -7,13 +7,11 @@ use crate::interval::pending_events::ContractExecutableEvent;
 use crate::interval::storage::push_new_interval_event;
 use crate::nodes::storage as nymnodes_storage;
 use crate::nodes::storage::{read_rewarded_set_metadata, reset_inactive_metadata};
-use crate::rewards;
-use crate::rewards::storage as rewards_storage;
 use crate::rewards::storage::RewardingStorage;
 use crate::support::helpers::{
     ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_is_owner,
 };
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response, Storage};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_advance_epoch_event, new_assigned_role_event, new_epoch_transition_start_event,
@@ -22,7 +20,7 @@ use mixnet_contract_common::events::{
 };
 use mixnet_contract_common::nym_node::Role;
 use mixnet_contract_common::pending_events::PendingIntervalEventKind;
-use mixnet_contract_common::{EpochState, EpochStatus, NodeId, RoleAssignment};
+use mixnet_contract_common::{EpochState, EpochStatus, RoleAssignment};
 
 // those two should be called in separate tx (from advancing epoch),
 // since there might be a lot of events to execute.
@@ -372,10 +370,12 @@ pub(crate) fn try_update_interval_config(
 mod tests {
     use super::*;
     use crate::mixnodes::storage as mixnodes_storage;
+    use crate::rewards::storage as rewards_storage;
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::Addr;
     use mixnet_contract_common::pending_events::PendingEpochEventKind;
+    use mixnet_contract_common::NodeId;
 
     fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
         // if you attempt to undelegate non-existent delegation,

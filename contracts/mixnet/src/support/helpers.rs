@@ -10,9 +10,7 @@ use crate::nodes::storage as nymnodes_storage;
 use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-use mixnet_contract_common::{
-    EpochState, EpochStatus, IdentityKeyRef, MixNodeBond, NodeId, NymNodeBond,
-};
+use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixNodeBond, NodeId};
 use nym_contracts_common::IdentityKey;
 use nym_contracts_common::Percent;
 

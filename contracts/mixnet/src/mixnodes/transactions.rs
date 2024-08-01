@@ -10,13 +10,11 @@ use crate::interval::storage::push_new_interval_event;
 use crate::mixnodes::helpers::{get_mixnode_details_by_owner, must_get_mixnode_bond_by_owner};
 use crate::nodes::storage as nymnodes_storage;
 use crate::nodes::transactions::add_nym_node_inner;
-use crate::signing::storage as signing_storage;
 use crate::support::helpers::{
     ensure_bonded, ensure_epoch_in_progress_state, ensure_no_pending_params_changes,
-    ensure_no_pending_pledge_changes, ensure_operating_cost_within_range,
-    ensure_profit_margin_within_range, validate_pledge,
+    ensure_no_pending_pledge_changes, validate_pledge,
 };
-use cosmwasm_std::{coin, Coin, DepsMut, Env, MessageInfo, Response, Storage};
+use cosmwasm_std::{coin, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_migrated_mixnode_event, new_mixnode_config_update_event,
@@ -222,6 +220,8 @@ pub fn try_migrate_to_nymnode(
     ensure_no_pending_params_changes(&pending_changes)?;
     ensure_bonded(&mixnode_bond)?;
 
+    let mixnode_identity = mixnode_bond.mix_node.identity_key.clone();
+
     // remove mixnode bond data
     storage::mixnode_bonds().replace(deps.storage, node_id, None, Some(&mixnode_bond))?;
 
@@ -248,7 +248,11 @@ pub fn try_migrate_to_nymnode(
         &PendingNodeChanges::new_empty(),
     )?;
 
-    Ok(Response::new().add_event(new_migrated_mixnode_event(&info.sender, node_id)))
+    Ok(Response::new().add_event(new_migrated_mixnode_event(
+        &info.sender,
+        &mixnode_identity,
+        node_id,
+    )))
 }
 #[cfg(test)]
 pub mod tests {
@@ -260,6 +264,7 @@ pub mod tests {
     use crate::mixnet_contract_settings::storage::minimum_mixnode_pledge;
     use crate::mixnodes::helpers::get_mixnode_details_by_id;
     use crate::nodes::helpers::{get_node_details_by_identity, must_get_node_bond_by_owner};
+    use crate::signing::storage as signing_storage;
     use crate::support::tests::fixtures::{good_mixnode_pledge, TEST_COIN_DENOM};
     use crate::support::tests::test_helpers::TestSetup;
     use crate::support::tests::{fixtures, test_helpers};

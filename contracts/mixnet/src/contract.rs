@@ -6,7 +6,6 @@ use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
 use crate::queued_migrations::migrate_to_nym_nodes_usage;
-use crate::rewards::storage as rewards_storage;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
@@ -389,7 +388,9 @@ pub fn query(
         ),
 
         // nym-node-related:
-        QueryMsg::GetNymNodeBondsPaged {} => todo!(),
+        QueryMsg::GetNymNodeBondsPaged { start_after, limit } => to_binary(
+            &crate::nodes::queries::query_nymnodes_paged(deps, start_after, limit)?,
+        ),
         QueryMsg::GetNymNodesDetailedPaged {} => todo!(),
         QueryMsg::GetUnbondedNymNode {} => todo!(),
         QueryMsg::GetUnbondedNymNodesPaged {} => todo!(),
@@ -551,6 +552,7 @@ pub fn migrate(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rewards::storage as rewards_storage;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{Decimal, Uint128};
     use mixnet_contract_common::reward_params::{

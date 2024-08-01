@@ -6,6 +6,7 @@ use crate::error::MixnetContractError;
 use crate::gateway::{Gateway, GatewayConfigUpdate};
 use crate::helpers::IntoBaseDecimal;
 use crate::mixnode::{MixNode, MixNodeConfigUpdate, NodeCostParams};
+use crate::nym_node::Role;
 use crate::pending_events::{EpochEventId, IntervalEventId};
 use crate::reward_params::{
     ActiveSetUpdate, IntervalRewardParams, IntervalRewardingParamsUpdate, NodeRewardingParameters,
@@ -19,7 +20,6 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
 use std::time::Duration;
 
-use crate::nym_node::Role;
 #[cfg(feature = "schema")]
 use crate::{
     delegation::{
@@ -36,6 +36,7 @@ use crate::{
         MixnodeRewardingDetailsResponse, PagedMixnodeBondsResponse, PagedMixnodesDetailsResponse,
         PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
     },
+    nym_node::PagedNymNodesResponse,
     pending_events::{
         NumberOfPendingEventsResponse, PendingEpochEventResponse, PendingEpochEventsResponse,
         PendingIntervalEventResponse, PendingIntervalEventsResponse,
@@ -553,8 +554,13 @@ pub enum QueryMsg {
     },
 
     // nym-node-related:
+    #[cfg_attr(feature = "schema", returns(PagedNymNodesResponse))]
     GetNymNodeBondsPaged {
-        //
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<NodeId>,
     },
     GetNymNodesDetailedPaged {
         //

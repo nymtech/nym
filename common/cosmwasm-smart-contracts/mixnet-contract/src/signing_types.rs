@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nym_node::NymNode;
-use crate::{Gateway, IdentityKey, MixNode, NodeCostParams};
+use crate::{Gateway, MixNode, NodeCostParams};
 use contracts_common::signing::{
     ContractMessageContent, MessageType, Nonce, SignableMessage, SigningPurpose,
 };

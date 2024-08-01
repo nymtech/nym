@@ -261,7 +261,7 @@ pub mod tests {
         try_decrease_pledge, try_increase_pledge, try_update_cost_params,
     };
     use crate::contract::execute;
-    use crate::mixnet_contract_settings::storage::minimum_mixnode_pledge;
+    use crate::mixnet_contract_settings::storage::minimum_node_pledge;
     use crate::mixnodes::helpers::get_mixnode_details_by_id;
     use crate::nodes::helpers::{get_node_details_by_identity, must_get_node_bond_by_owner};
     use crate::signing::storage as signing_storage;
@@ -280,7 +280,7 @@ pub mod tests {
         let env = test.env();
 
         let sender = "alice";
-        let minimum_pledge = minimum_mixnode_pledge(test.deps().storage).unwrap();
+        let minimum_pledge = minimum_node_pledge(test.deps().storage).unwrap();
         let mut insufficient_pledge = minimum_pledge.clone();
         insufficient_pledge.amount -= Uint128::new(1000);
 
@@ -1111,7 +1111,7 @@ pub mod tests {
             let env = test.env();
             let owner = "mix-owner";
 
-            let minimum_pledge = minimum_mixnode_pledge(test.deps().storage).unwrap();
+            let minimum_pledge = minimum_node_pledge(test.deps().storage).unwrap();
             let pledge_amount = minimum_pledge.amount + Uint128::new(100);
             let pledged = test.coin(pledge_amount.u128());
             test.add_legacy_mixnode(owner, Some(pledge_amount));

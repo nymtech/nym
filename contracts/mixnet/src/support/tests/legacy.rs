@@ -3,15 +3,36 @@
 
 use crate::gateways::storage as gateways_storage;
 use crate::interval::storage as interval_storage;
+use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::nodes::storage::next_nymnode_id_counter;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Addr, Coin, Env, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    Gateway, GatewayBond, MixNode, MixNodeBond, NodeCostParams, NodeId, NodeRewarding,
+    Gateway, GatewayBond, MixNode, MixNodeBond, MixNodeDetails, NodeCostParams, NodeId,
+    NodeRewarding,
 };
-use nym_contracts_common::IdentityKey;
+use nym_contracts_common::{IdentityKey, IdentityKeyRef};
+
+pub(crate) fn get_mixnode_bond_by_identity(
+    store: &dyn Storage,
+    identity: IdentityKeyRef,
+) -> Result<Option<MixNodeBond>, MixnetContractError> {
+    Ok(mixnodes_storage::mixnode_bonds()
+        .idx
+        .identity_key
+        .item(store, identity.to_string())?
+        .map(|record| record.1))
+}
+
+pub(crate) fn must_get_mixnode_details_by_owner(
+    storage: &dyn Storage,
+    owner: Addr,
+) -> Result<MixNodeDetails, MixnetContractError> {
+    Ok(get_mixnode_details_by_owner(storage, owner.clone())?
+        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?)
+}
 
 pub(crate) fn save_new_mixnode(
     storage: &mut dyn Storage,

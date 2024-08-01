@@ -93,7 +93,7 @@ pub(crate) fn try_reward_node(
     // validate the provided node status.
     // note the hard error here since the rewarding validator should have known not to reward this node
     // ensure_assignment(deps.storage, node_id, node_role)?;
-    let unused_variable = "check if the above check is actually redundant";
+    let unused_variable = "double check if the above check is actually redundant";
 
     // no need to calculate anything as rewards are going to be 0 for everything
     // however, we still need to update last_rewarded_epoch field

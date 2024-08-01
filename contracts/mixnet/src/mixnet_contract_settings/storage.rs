@@ -22,16 +22,6 @@ pub(crate) fn minimum_node_pledge(storage: &dyn Storage) -> Result<Coin, MixnetC
         .map(|state| state.params.minimum_pledge)?)
 }
 
-#[deprecated]
-pub(crate) fn minimum_mixnode_pledge(storage: &dyn Storage) -> Result<Coin, MixnetContractError> {
-    minimum_node_pledge(storage)
-}
-
-#[deprecated]
-pub(crate) fn minimum_gateway_pledge(storage: &dyn Storage) -> Result<Coin, MixnetContractError> {
-    minimum_node_pledge(storage)
-}
-
 pub(crate) fn profit_margin_range(
     storage: &dyn Storage,
 ) -> Result<ProfitMarginRange, MixnetContractError> {

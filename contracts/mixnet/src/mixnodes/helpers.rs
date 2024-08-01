@@ -7,7 +7,6 @@ use cosmwasm_std::{Addr, Decimal, Env, StdResult, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::{MixNodeDetails, UnbondedMixnode};
 use mixnet_contract_common::{IdentityKey, MixNodeBond, NodeId};
-use nym_contracts_common::IdentityKeyRef;
 
 pub(crate) fn must_get_mixnode_bond_by_owner(
     store: &dyn Storage,
@@ -21,17 +20,6 @@ pub(crate) fn must_get_mixnode_bond_by_owner(
             owner: owner.clone(),
         })?
         .1)
-}
-
-pub(crate) fn get_mixnode_bond_by_identity(
-    store: &dyn Storage,
-    identity: IdentityKeyRef,
-) -> Result<Option<MixNodeBond>, MixnetContractError> {
-    Ok(storage::mixnode_bonds()
-        .idx
-        .identity_key
-        .item(store, identity.to_string())?
-        .map(|record| record.1))
 }
 
 pub(crate) fn attach_mix_details(
@@ -81,14 +69,6 @@ pub(crate) fn get_mixnode_details_by_owner(
     } else {
         Ok(None)
     }
-}
-
-pub(crate) fn must_get_mixnode_details_by_owner(
-    storage: &dyn Storage,
-    owner: Addr,
-) -> Result<MixNodeDetails, MixnetContractError> {
-    Ok(get_mixnode_details_by_owner(storage, owner.clone())?
-        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?)
 }
 
 pub(crate) fn get_mixnode_details_by_identity(

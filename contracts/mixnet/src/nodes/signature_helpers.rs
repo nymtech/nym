@@ -4,38 +4,14 @@
 use crate::signing::storage as signing_storage;
 use crate::support::helpers::decode_ed25519_identity_key;
 use cosmwasm_std::{Addr, Coin, Deps};
+use mixnet_contract_common::construct_generic_node_bonding_payload;
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{
-    construct_generic_node_bonding_payload, construct_nym_node_bonding_sign_payload,
-    NodeCostParams, NymNode,
-};
 use nym_contracts_common::signing::Verifier;
 use nym_contracts_common::signing::{MessageSignature, SigningPurpose};
 use nym_contracts_common::IdentityKeyRef;
 use serde::Serialize;
 
-pub(crate) fn verify_nym_node_bonding_signature(
-    deps: Deps<'_>,
-    sender: Addr,
-    pledge: Coin,
-    nym_node: NymNode,
-    cost_params: NodeCostParams,
-    signature: MessageSignature,
-) -> Result<(), MixnetContractError> {
-    // recover the public key
-    let public_key = decode_ed25519_identity_key(&nym_node.identity_key)?;
-
-    // reconstruct the payload
-    let nonce = signing_storage::get_signing_nonce(deps.storage, sender.clone())?;
-    let msg = construct_nym_node_bonding_sign_payload(nonce, sender, pledge, nym_node, cost_params);
-
-    if deps.api.verify_message(msg, signature, &public_key)? {
-        Ok(())
-    } else {
-        Err(MixnetContractError::InvalidEd25519Signature)
-    }
-}
-
+/// Verifies the bonding signature on either a legacy mixnode, legacy gateway or a nym-node.
 pub(crate) fn verify_bonding_signature<T>(
     deps: Deps<'_>,
     sender: Addr,
@@ -47,6 +23,7 @@ pub(crate) fn verify_bonding_signature<T>(
 where
     T: SigningPurpose + Serialize,
 {
+    // recover the public key
     let public_key = decode_ed25519_identity_key(identity_key)?;
 
     // reconstruct the payload

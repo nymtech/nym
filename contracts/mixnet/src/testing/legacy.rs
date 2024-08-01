@@ -6,7 +6,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn foo() {
-        //
+    fn legacy_mixnode_bonding() {
+        todo!()
     }
 }

@@ -402,8 +402,12 @@ pub fn query(
         QueryMsg::GetNodeRewardingDetails {} => todo!(),
         QueryMsg::GetNodeStakeSaturation {} => todo!(),
 
-        QueryMsg::GetRoleAssignment { role } => todo!(),
-        QueryMsg::GetRewardedSetMetadata { .. } => todo!(),
+        QueryMsg::GetRoleAssignment { role } => {
+            to_binary(&crate::nodes::queries::query_epoch_assignment(deps, role)?)
+        }
+        QueryMsg::GetRewardedSetMetadata {} => {
+            to_binary(&crate::nodes::queries::query_rewarded_set_metadata(deps)?)
+        }
 
         // delegation-related:
         QueryMsg::GetMixnodeDelegations {

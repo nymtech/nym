@@ -53,7 +53,8 @@ tokio.workspace = true
 tokio-stream.workspace = true
 tokio-util.workspace = true
 uuid = { version = "1", features = ["v4", "serde"] }
-bincode.workspace = true
+bincode = "1.0"
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }

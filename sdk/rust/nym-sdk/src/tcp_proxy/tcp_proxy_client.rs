@@ -1,17 +1,18 @@
+use crate::mixnet::{IncludedSurbs, MixnetClient, MixnetMessageSender};
 use std::{str::FromStr, sync::Arc};
-
-use super::utils::{MessageBuffer, Payload, ProxiedMessage};
-use crate::nym_sdk::mixnet::{IncludedSurbs, MixnetClient, MixnetMessageSender};
+#[path = "utils.rs"]
+mod utils;
 use anyhow::Result;
 use dashmap::DashSet;
 use log::{info, warn};
-use nym_sphinx_addressing::Recipient;
+use nym_sphinx::addressing::Recipient;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::oneshot,
 };
 use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
+use utils::{MessageBuffer, Payload, ProxiedMessage};
 
 pub struct NymProxyClient {
     server_address: String,

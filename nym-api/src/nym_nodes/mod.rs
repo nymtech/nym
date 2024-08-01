@@ -15,8 +15,6 @@ pub(crate) fn nym_node_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenAp
         settings:
         routes::get_gateways_described,
         routes::get_mixnodes_described,
-        routes::all_described_nodes,
-        routes::node_description
     ]
 }
 
@@ -32,5 +30,9 @@ pub(crate) fn nym_node_routes_next(settings: &OpenApiSettings) -> (Vec<Route>, O
         unstable_routes::mixnodes_basic,
         unstable_routes::mixnodes_expanded,
         unstable_routes::mixnodes_detailed,
+        routes::all_described_nodes,
+        routes::node_description,
+        routes::node_annotation_by_identity,
+        routes::node_annotation
     ]
 }

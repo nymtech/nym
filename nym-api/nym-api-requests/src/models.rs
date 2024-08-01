@@ -116,6 +116,12 @@ pub struct NodeAnnotation {
     pub last_24h_performance: Performance,
 }
 
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct AnnotationResponse {
+    pub node_id: Option<NodeId>,
+    pub annotation: Option<NodeAnnotation>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MixNodeBondAnnotated {
     pub mixnode_details: LegacyMixNodeDetailsWithLayer,

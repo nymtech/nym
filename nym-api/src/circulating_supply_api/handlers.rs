@@ -27,6 +27,14 @@ pub(crate) fn circulating_supply_routes() -> Router<AxumAppState> {
 }
 
 // TODO dz consider "substates" axum pattern
+#[utoipa::path(
+    tag = "circulating-supply",
+    get,
+    path = static_routes::v1::circulating_supply(),
+    responses(
+        (status = 200, response = CirculatingSupplyResponse)
+    )
+)]
 async fn get_full_circulating_supply(
     extract::State(state): extract::State<AxumAppState>,
 ) -> AxumResult<axum::Json<CirculatingSupplyResponse>> {
@@ -40,6 +48,14 @@ async fn get_full_circulating_supply(
     }
 }
 
+#[utoipa::path(
+    tag = "circulating-supply",
+    get,
+    path = static_routes::v1::circulating_supply::total_supply_value(),
+    responses(
+        (status = 200)
+    )
+)]
 async fn get_total_supply(
     extract::State(state): extract::State<AxumAppState>,
 ) -> AxumResult<axum::Json<f64>> {
@@ -55,6 +71,14 @@ async fn get_total_supply(
     Ok(unym_coin_to_float_unym(full_circulating_supply.total_supply.into()).into())
 }
 
+#[utoipa::path(
+    tag = "circulating-supply",
+    get,
+    path = static_routes::v1::circulating_supply::circulating_supply_value(),
+    responses(
+        (status = 200)
+    )
+)]
 async fn get_circulating_supply(
     extract::State(state): extract::State<AxumAppState>,
 ) -> AxumResult<axum::Json<f64>> {

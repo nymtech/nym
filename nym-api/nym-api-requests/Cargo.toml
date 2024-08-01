@@ -18,6 +18,7 @@ tendermint = { workspace = true }
 time = { workspace = true, features = ["serde", "parsing", "formatting"] }
 thiserror.workspace = true
 rocket = { workspace = true, optional = true }
+utoipa.workspace = true
 
 sha2 = "0.10.8"
 

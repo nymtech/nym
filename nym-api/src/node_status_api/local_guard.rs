@@ -7,12 +7,15 @@ use rocket::Request;
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct NonLocalRequestError;
 
 /// Request guard that only allows requests coming from a local address
+#[allow(dead_code)]
 pub(crate) struct LocalRequest;
 
+#[allow(dead_code)]
 fn is_local_address(ip: Option<IpAddr>) -> bool {
     if let Some(address) = ip {
         match address {

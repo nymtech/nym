@@ -14,6 +14,10 @@ use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use utils::{MessageBuffer, Payload, ProxiedMessage};
 
+const DEFAULT_CLOSE_TIMEOUT: u64 = 60;
+const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
+const DEFAULT_LISTEN_PORT: &str = "8080";
+
 pub struct NymProxyClient {
     server_address: String,
     listen_address: String,
@@ -22,21 +26,6 @@ pub struct NymProxyClient {
 }
 
 impl NymProxyClient {
-    /*
-    // TODO add defaults as consts?
-    /// Send timeout in seconds
-    #[clap(long, default_value_t = 10)]
-    close_timeout: u64,
-    /// Mixnet server address
-    #[clap(short, long)]
-    server_address: String,
-    /// Listen address
-    #[clap(long, default_value = "127.0.0.1")]
-    listen_address: String,
-    /// Listen port
-    #[clap(long, default_value = "8080")]
-    listen_port: String,
-    */
     pub async fn new(
         server_address: &str,
         listen_address: &str,
@@ -48,6 +37,16 @@ impl NymProxyClient {
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
+        })
+    }
+
+    // server_address is the Nym address of the NymProxyServer to communicate with.
+    pub async fn new_with_defaults(server_address: &str) -> Result<Self> {
+        Ok(NymProxyClient {
+            server_address: server_address.to_string(),
+            listen_address: DEFAULT_LISTEN_HOST.to_string(),
+            listen_port: DEFAULT_LISTEN_PORT.to_string(),
+            close_timeout: DEFAULT_CLOSE_TIMEOUT,
         })
     }
 

@@ -22,13 +22,12 @@ By applying to the Program, you accept its rules. The rules below govern the Nym
         b) Maximum operator cost (OC) – 800 NYM;
         c) Maximum saturation – 50%;
         d) Minimum average routing score – 90%.
-        e) Operator must accept Terms & Conditions – see Rule 11 below;
-        f) Hardware port must be open via the following flags set to true (default):
+        e) Hardware port must be open via the following flags set to true (default):
             1. --expose-system-info 
             2. --expose-system-hardware 
             3. --expose-crypto-hardware 
-        g) Node must be run on default [ports](https://nymtech.net/operators/nodes/maintenance.html#ports)
-		h) Accepting the operator terms and conditions is mandatory to enter the Delegations Program (and for your node to be selected to the active set). Starting from version 1.1.3, you must add the following [flag](https://nymtech.net/operators/nodes/setup.html#terms--conditions) to the service file accepting terms & conditions of running a Nym node. You can read more about it [here](https://nymtech.net/operators/toc.html).
+        f) Node must be run on default [ports](https://nymtech.net/operators/nodes/maintenance.html#ports)
+	g) Accepting the operator terms and conditions is mandatory to enter the Delegations Program (and for your node to be selected to the active set). Starting from version 1.1.3, you must add the following [flag](https://nymtech.net/operators/nodes/setup.html#terms--conditions) to the service file accepting terms & conditions of running a Nym node. You can read more about it [here](https://nymtech.net/operators/toc.html).
 
 ## Exclusive use of server
 

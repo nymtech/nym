@@ -6,12 +6,12 @@
 
 use clap::{crate_name, crate_version, Parser};
 use colored::Colorize;
-use log::error;
 use nym_bin_common::bin_info;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_network_defaults::setup_env;
 use std::io::IsTerminal;
 use std::sync::OnceLock;
+use tracing::error;
 
 mod commands;
 
@@ -26,6 +26,10 @@ struct Cli {
     /// Path pointing to an env file that configures the gateway.
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
+
+    /// Force run the binary bypassing the deprecation in favour of nym-node
+    #[clap(long, hide = true)]
+    pub(crate) force_run: bool,
 
     /// Flag used for disabling the printed banner in tty.
     #[clap(long)]

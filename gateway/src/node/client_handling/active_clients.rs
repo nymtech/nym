@@ -4,9 +4,9 @@
 use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender};
 use crate::node::client_handling::embedded_clients::LocalEmbeddedClientHandle;
 use dashmap::DashMap;
-use log::warn;
 use nym_sphinx::DestinationAddressBytes;
 use std::sync::Arc;
+use tracing::warn;
 
 enum ActiveClient {
     /// Handle to a remote client connected via a network socket.
@@ -161,6 +161,7 @@ impl ActiveClientsStore {
     }
 
     /// Get number of active clients in store
+    #[allow(unused)]
     pub(crate) fn size(&self) -> usize {
         self.inner.len()
     }

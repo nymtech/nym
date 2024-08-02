@@ -11,6 +11,6 @@
   "dependencies": {
     "@nymproject/nym-client-wasm": "file:../../../dist/node/wasm/client",
     "indexeddbshim": "^13.0.0-pre.1",
-    "ws": "^8.13.0"
+    "ws": "^8.17.1"
   }
 }

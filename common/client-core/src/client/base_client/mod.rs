@@ -40,6 +40,7 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
@@ -53,7 +54,7 @@ use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, 
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
 use rand::rngs::OsRng;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
@@ -184,6 +185,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
+    user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
 }
@@ -207,6 +209,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
+            user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
         }
     }
@@ -247,6 +250,12 @@ where
     #[must_use]
     pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
         self.shutdown = Some(shutdown);
+        self
+    }
+
+    #[must_use]
+    pub fn with_user_agent(mut self, user_agent: UserAgent) -> Self {
+        self.user_agent = Some(user_agent);
         self
     }
 
@@ -395,6 +404,11 @@ where
                 gateway_listener,
             );
             GatewayClient::new(
+                GatewayClientConfig::new_default()
+                    .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
+                    .with_response_timeout(
+                        config.debug.gateway_connection.gateway_response_timeout,
+                    ),
                 cfg,
                 managed_keys.identity_keypair(),
                 Some(details.derived_aes128_ctr_blake3_hmac_keys),
@@ -402,8 +416,6 @@ where
                 bandwidth_controller,
                 shutdown,
             )
-            .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
-            .with_response_timeout(config.debug.gateway_connection.gateway_response_timeout)
         };
 
         gateway_client
@@ -467,6 +479,7 @@ where
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
         config_topology: config::Topology,
         nym_api_urls: Vec<Url>,
+        user_agent: Option<UserAgent>,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
@@ -477,6 +490,7 @@ where
                 },
                 nym_api_urls,
                 env!("CARGO_PKG_VERSION").to_string(),
+                user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
                 Box::new(GeoAwareTopologyProvider::new(
@@ -689,6 +703,7 @@ where
             self.custom_topology_provider.take(),
             self.config.debug.topology,
             self.config.get_nym_api_endpoints(),
+            self.user_agent.clone(),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway

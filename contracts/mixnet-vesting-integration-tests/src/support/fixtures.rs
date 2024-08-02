@@ -24,5 +24,7 @@ pub fn default_mixnet_init_msg() -> nym_mixnet_contract_common::InstantiateMsg {
             rewarded_set_size: 240,
             active_set_size: 100,
         },
+        profit_margin: Default::default(),
+        interval_operating_cost: Default::default(),
     }
 }

@@ -1,6 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// TEMPORARY WORKAROUND:
+// those features are expected as the below should only get activated whenever
+// the corresponding features in tendermint-rpc are enabled transitively
+#![allow(unexpected_cfgs)]
+
 use crate::nyxd::contract_traits::{NymContractsProvider, TypedNymContracts};
 use crate::nyxd::cosmwasm_client::types::{
     ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
@@ -240,8 +245,8 @@ impl<C, S> NyxdClient<C, S> {
         self.config.contracts.vesting_contract_address = Some(address);
     }
 
-    pub fn set_coconut_bandwidth_contract_address(&mut self, address: AccountId) {
-        self.config.contracts.coconut_bandwidth_contract_address = Some(address);
+    pub fn set_ecash_contract_address(&mut self, address: AccountId) {
+        self.config.contracts.ecash_contract_address = Some(address);
     }
 
     pub fn set_multisig_contract_address(&mut self, address: AccountId) {
@@ -262,11 +267,8 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
         self.config.contracts.vesting_contract_address.as_ref()
     }
 
-    fn coconut_bandwidth_contract_address(&self) -> Option<&AccountId> {
-        self.config
-            .contracts
-            .coconut_bandwidth_contract_address
-            .as_ref()
+    fn ecash_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.ecash_contract_address.as_ref()
     }
 
     fn dkg_contract_address(&self) -> Option<&AccountId> {
@@ -377,6 +379,14 @@ where
                 panic!("key derivation failure")
             }
         }
+    }
+
+    pub fn mix_coin(&self, amount: u128) -> Coin {
+        Coin::new(amount, &self.config.chain_details.mix_denom.base)
+    }
+
+    pub fn mix_coins(&self, amount: u128) -> Vec<Coin> {
+        vec![self.mix_coin(amount)]
     }
 
     pub fn cw_address(&self) -> Addr {

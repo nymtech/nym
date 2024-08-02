@@ -11,7 +11,7 @@ Since these docs autogenerate command output and import docs from binaries in `t
 Changes merged to `master` will be autodeployed to the production site.
 
 ### Contributing a new translation
-To contribute tranlsations in a new language, please get in touch via [Matrix](https://matrix.to/#/#general:nymtech.chat) or [Discord](discord.gg/nym).
+To contribute tranlsations in a new language, please get in touch via [Matrix](https://matrix.to/#/#general:nymtech.chat) or [Discord](https://nymtech.net/go/discord).
 
 ### Variables
 There are some variables that are shared across the entire docs site, such as the current latest software version.

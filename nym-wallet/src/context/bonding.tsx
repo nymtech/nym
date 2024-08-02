@@ -53,6 +53,7 @@ import {
   generateGatewayMsgPayload as generateGatewayMsgPayloadReq,
   updateBond as updateBondReq,
   vestingUpdateBond as vestingUpdateBondReq,
+  migrateVestedMixnode as tauriMigrateVestedMixnode,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
@@ -128,6 +129,7 @@ export type TBondingContext = {
   generateMixnodeMsgPayload: (data: TBondMixnodeSignatureArgs) => Promise<string | undefined>;
   generateGatewayMsgPayload: (data: TBondGatewaySignatureArgs) => Promise<string | undefined>;
   isVestingAccount: boolean;
+  migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
 };
 
 export const BondingContext = createContext<TBondingContext>({
@@ -155,6 +157,9 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   generateGatewayMsgPayload: async () => {
+    throw new Error('Not implemented');
+  },
+  migrateVestedMixnode: async () => {
     throw new Error('Not implemented');
   },
   isVestingAccount: false,
@@ -599,6 +604,13 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return message;
   };
 
+  const migrateVestedMixnode = async () => {
+    setIsLoading(true);
+    const tx = await tauriMigrateVestedMixnode();
+    setIsLoading(false);
+    return tx;
+  };
+
   const memoizedValue = useMemo(
     () => ({
       isLoading: isLoading || isOwnershipLoading,
@@ -613,6 +625,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       updateBondAmount,
       generateMixnodeMsgPayload,
       generateGatewayMsgPayload,
+      migrateVestedMixnode,
       isVestingAccount,
     }),
     [isLoading, isOwnershipLoading, error, bondedNode, isVestingAccount],

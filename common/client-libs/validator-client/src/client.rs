@@ -8,10 +8,14 @@ use crate::{
     nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
     ReqwestRpcClient, ValidatorClientError,
 };
-use nym_api_requests::coconut::models::FreePassNonceResponse;
-use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, FreePassRequest, VerifyCredentialBody,
-    VerifyCredentialResponse,
+use nym_api_requests::ecash::models::{
+    AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
+    BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
+    SpentCredentialsResponse, VerifyEcashTicketBody,
+};
+use nym_api_requests::ecash::{
+    BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
+    PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -19,7 +23,10 @@ use nym_api_requests::models::{
     RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::nym_nodes::SkimmedNode;
+use nym_coconut_dkg_common::types::EpochId;
+use nym_http_api_client::UserAgent;
 use nym_network_defaults::NymNetworkDetails;
+use time::Date;
 use url::Url;
 
 pub use crate::nym_api::NymApiClientExt;
@@ -28,7 +35,7 @@ pub use nym_mixnet_contract_common::{
 };
 
 // re-export the type to not break existing imports
-pub use crate::coconut::CoconutApiClient;
+pub use crate::coconut::EcashApiClient;
 
 #[cfg(feature = "http-client")]
 use crate::rpc::http_client;
@@ -258,6 +265,16 @@ impl NymApiClient {
         NymApiClient { nym_api }
     }
 
+    pub fn new_with_user_agent(api_url: Url, user_agent: UserAgent) -> Self {
+        let nym_api = nym_api::Client::builder::<_, ValidatorClientError>(api_url)
+            .expect("invalid api url")
+            .with_user_agent(user_agent)
+            .build::<ValidatorClientError>()
+            .expect("failed to build nym api client");
+
+        NymApiClient { nym_api }
+    }
+
     pub fn api_url(&self) -> &Url {
         self.nym_api.current_url()
     }
@@ -364,24 +381,73 @@ impl NymApiClient {
         Ok(self.nym_api.blind_sign(request_body).await?)
     }
 
-    pub async fn verify_bandwidth_credential(
+    pub async fn verify_ecash_ticket(
         &self,
-        request_body: &VerifyCredentialBody,
-    ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
+        request_body: &VerifyEcashTicketBody,
+    ) -> Result<EcashTicketVerificationResponse, ValidatorClientError> {
+        Ok(self.nym_api.verify_ecash_ticket(request_body).await?)
+    }
+
+    pub async fn batch_redeem_ecash_tickets(
+        &self,
+        request_body: &BatchRedeemTicketsBody,
+    ) -> Result<EcashBatchTicketRedemptionResponse, ValidatorClientError> {
         Ok(self
             .nym_api
-            .verify_bandwidth_credential(request_body)
+            .batch_redeem_ecash_tickets(request_body)
             .await?)
     }
 
-    pub async fn free_pass_nonce(&self) -> Result<FreePassNonceResponse, ValidatorClientError> {
-        Ok(self.nym_api.free_pass_nonce().await?)
+    pub async fn spent_credentials_filter(
+        &self,
+    ) -> Result<SpentCredentialsResponse, ValidatorClientError> {
+        Ok(self.nym_api.double_spending_filter_v1().await?)
     }
 
-    pub async fn issue_free_pass_credential(
+    pub async fn partial_expiration_date_signatures(
         &self,
-        request: &FreePassRequest,
-    ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.nym_api.free_pass(request).await?)
+        expiration_date: Option<Date>,
+    ) -> Result<PartialExpirationDateSignatureResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .partial_expiration_date_signatures(expiration_date)
+            .await?)
+    }
+
+    pub async fn partial_coin_indices_signatures(
+        &self,
+        epoch_id: Option<EpochId>,
+    ) -> Result<PartialCoinIndicesSignatureResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .partial_coin_indices_signatures(epoch_id)
+            .await?)
+    }
+
+    pub async fn global_expiration_date_signatures(
+        &self,
+        expiration_date: Option<Date>,
+    ) -> Result<AggregatedExpirationDateSignatureResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .global_expiration_date_signatures(expiration_date)
+            .await?)
+    }
+
+    pub async fn global_coin_indices_signatures(
+        &self,
+        epoch_id: Option<EpochId>,
+    ) -> Result<AggregatedCoinIndicesSignatureResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .global_coin_indices_signatures(epoch_id)
+            .await?)
+    }
+
+    pub async fn master_verification_key(
+        &self,
+        epoch_id: Option<EpochId>,
+    ) -> Result<VerificationKeyResponse, ValidatorClientError> {
+        Ok(self.nym_api.master_verification_key(epoch_id).await?)
     }
 }

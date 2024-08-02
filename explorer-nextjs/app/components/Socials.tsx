@@ -7,10 +7,10 @@ import { TwitterIcon } from '../icons/socials/TwitterIcon'
 import { DiscordIcon } from '../icons/socials/DiscordIcon'
 
 // socials
-export const TELEGRAM_LINK = 'https://t.me/nymchan'
-export const TWITTER_LINK = 'https://twitter.com/nymproject'
-export const GITHUB_LINK = 'https://github.com/nymtech'
-export const DISCORD_LINK = 'https://discord.gg/nym'
+export const TELEGRAM_LINK = 'https://nymtech.net/go/telegram';
+export const TWITTER_LINK = 'https://nymtech.net/go/x';
+export const GITHUB_LINK = 'https://nymtech.net/go/github';
+export const DISCORD_LINK = 'https://nymtech.net/go/discord';
 
 export const Socials: FCWithChildren<{ isFooter?: boolean }> = ({
   isFooter = false,

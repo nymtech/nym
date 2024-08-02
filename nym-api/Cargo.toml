@@ -4,7 +4,7 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version = "1.1.38"
+version = "1.1.41"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -19,12 +19,14 @@ rust-version = "1.76.0"
 async-trait = { workspace = true }
 bs58 = { workspace = true }
 bip39 = { workspace = true }
+bincode.workspace = true
+bloomfilter = "1.0.13"
 cfg-if = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 console-subscriber = { workspace = true, optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
-dirs = "4.0"
+dirs = { workspace = true }
 futures = { workspace = true }
-itertools = "0.12.0"
+itertools = { workspace = true }
 humantime-serde = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
 log = { workspace = true }
@@ -52,6 +54,7 @@ sqlx = { workspace = true, features = [
     "sqlite",
     "macros",
     "migrate",
+    "time",
 ] }
 
 okapi = { workspace = true, features = ["impl_json_schema"] }
@@ -70,12 +73,16 @@ zeroize = { workspace = true }
 ## internal
 #ephemera = { path = "../ephemera" }
 nym-bandwidth-controller = { path = "../common/bandwidth-controller" }
-nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
+nym-ecash-double-spending = { path = "../common/ecash-double-spending" }
+nym-ecash-time = { path = "../common/ecash-time", features = ["expiration"] }
 nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
+nym-credentials-interface = { path = "../common/credentials-interface" }
 #nym-ephemera-common = { path = "../common/cosmwasm-smart-contracts/ephemera" }
 nym-config = { path = "../common/config" }
 cosmwasm-std = { workspace = true }
-nym-credential-storage = { path = "../common/credential-storage" }
+nym-credential-storage = { path = "../common/credential-storage", features = ["persistent-storage"] }
 nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
 cw2 = { workspace = true }
@@ -93,7 +100,7 @@ nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
-nym-api-requests = { path = "nym-api-requests", features = ["request-parsing"] }
+nym-api-requests = { path = "nym-api-requests", features = ["rocket-traits"] }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
@@ -116,6 +123,6 @@ sqlx = { workspace = true, features = [
 tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
-rand_chacha = "0.3"
+rand_chacha = { workspace = true }
 sha2 = "0.9"
 

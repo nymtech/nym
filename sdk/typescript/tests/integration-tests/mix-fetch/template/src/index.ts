@@ -29,9 +29,9 @@ async function main() {
   const args = { mode: 'unsafe-ignore-cors' };
 
   const resp = await mixFetch(url, args, {
-    preferredGateway: '2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh',
+    preferredGateway: '6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B', // with WSS
     preferredNetworkRequester:
-      'GiRjFWrMxt58pEMuusm4yT3RxoMD1MMPrR9M2N4VWRJP.3CNZBPq4vg7v7qozjGjdPMXcvDmkbWPCgbGCjQVw9n6Z@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW',
+      '8rRGWy54oC8drFL9DepMegBt2DLrsqQwCoHMXt9nsnTo.2XjCPVbb4FpQ9hNRcXwb9mTzEAVVk1zf1tcch3wdtNEA@6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B',
   });
   console.log({ resp });
   const text = await resp.text();

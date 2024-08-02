@@ -7,6 +7,7 @@ use nym_sphinx_routing::SphinxRouteMaker;
 use nym_sphinx_types::Node;
 use rand::{CryptoRng, Rng};
 
+#[allow(dead_code)]
 pub struct NymTopologyRouteProvider<R> {
     rng: R,
     inner: NymTopology,

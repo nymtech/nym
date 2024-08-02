@@ -47,4 +47,10 @@ pub enum ContractError {
 
     #[error("{0}")]
     Deposit(#[from] DepositError),
+
+    #[error("the provided redemption digest does not have valid base58 encoding or is not 32 bytes long")]
+    MalformedRedemptionDigest,
+
+    #[error("the provided redemption proposal data is malformed and can't be decoded")]
+    MalformedRedemptionProposalData,
 }

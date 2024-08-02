@@ -41,7 +41,7 @@ pub mod set;
 /// (or implicitly the only one), it has no lower bound on the number of `Fragment`s.
 /// (Apart from the restriction of containing at least a single one). If the set is located
 /// somewhere in the middle, *it must be* full. Finally, regardless of its position, it must also be
-/// true that it contains no more than `u8::max_value()`, i.e. 255 `Fragment`s.
+/// true that it contains no more than `u8::MAX`, i.e. 255 `Fragment`s.
 /// Again, the reasoning for this is further explained in `set.rs` file. However, you might
 /// also want to look at `fragment.rs` to understand the full context behind that design choice.
 ///
@@ -151,7 +151,7 @@ mod tests {
             - MAX_NODE_ADDRESS_UNPADDED_LEN;
 
         let plaintext_lens = vec![17, used_plaintext_len, 20, 42, 10000];
-        const SET_LEN: usize = u8::max_value() as usize;
+        const SET_LEN: usize = u8::MAX as usize;
 
         for plaintext_len in plaintext_lens {
             let unlinked_len = unlinked_fragment_payload_max_len(plaintext_len);

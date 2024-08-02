@@ -8,11 +8,6 @@ on:
         required: true
         default: false
         type: boolean
-      enable_wireguard:
-        description: "Add --features wireguard"
-        required: true
-        default: false
-        type: boolean
       enable_deb:
         description: "True to enable cargo-deb installation and .deb package building"
         required: false
@@ -42,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-20.04]
+        platform: [ ubuntu-20.04 ]
 
     runs-on: ${{ matrix.platform }}
     env:
@@ -70,9 +65,6 @@ jobs:
       - name: Set CARGO_FEATURES
         run: |
           echo 'CARGO_FEATURES=--features wireguard' >> $GITHUB_ENV
-        if: >
-          github.event_name == 'schedule' ||
-          (github.event_name == 'workflow_dispatch' && inputs.enable_wireguard == true)
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -104,12 +96,9 @@ jobs:
           name: nym-binaries-artifacts
           path: |
             target/release/nym-client
-            target/release/nym-gateway
-            target/release/nym-mixnode
             target/release/nym-socks5-client
             target/release/nym-api
             target/release/nym-network-requester
-            target/release/nym-network-statistics
             target/release/nym-cli
             target/release/nymvisor
             target/release/nym-node
@@ -124,12 +113,9 @@ jobs:
           OUTPUT_DIR: ci-builds/${{ github.ref_name }}
         run: |
           cp target/release/nym-client $OUTPUT_DIR
-          cp target/release/nym-gateway $OUTPUT_DIR
-          cp target/release/nym-mixnode $OUTPUT_DIR
           cp target/release/nym-socks5-client $OUTPUT_DIR
           cp target/release/nym-api $OUTPUT_DIR
           cp target/release/nym-network-requester $OUTPUT_DIR
-          cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nymvisor $OUTPUT_DIR
           cp target/release/nym-node $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR

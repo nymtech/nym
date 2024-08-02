@@ -103,7 +103,7 @@ impl<'a> HttpApiBuilder<'a> {
         .with_mixnode(load_mixnode_details(self.mixnode_config)?)
         .with_landing_page_assets(self.mixnode_config.http.landing_page_assets_path.as_ref());
 
-        let router = nym_node_http_api::NymNodeRouter::new(config, None, None);
+        let router = nym_node_http_api::NymNodeRouter::new(config, None);
 
         tokio::spawn(async move {
             let server = match router.build_server(&bind_address).await {

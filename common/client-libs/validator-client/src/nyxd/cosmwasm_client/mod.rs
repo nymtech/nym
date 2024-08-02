@@ -1,6 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// TEMPORARY WORKAROUND:
+// those features are expected as the below should only get activated whenever
+// the corresponding features in tendermint-rpc are enabled transitively
+#![allow(unexpected_cfgs)]
+
 use crate::nyxd::cosmwasm_client::client_traits::SigningCosmWasmClient;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config, GasPrice, Hash, Height};
@@ -17,6 +22,8 @@ use std::fmt::Debug;
 use tendermint_rpc::endpoint::*;
 use tendermint_rpc::query::Query;
 use tendermint_rpc::{Error as TendermintRpcError, Order, Paging, SimpleRequest};
+
+pub use helpers::{ToContractResponseData, ToSingletonContractData};
 
 #[cfg(feature = "http-client")]
 use crate::http_client;

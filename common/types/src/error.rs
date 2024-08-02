@@ -1,3 +1,4 @@
+use nym_mixnet_contract_common::ContractsCommonError;
 use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::{nyxd::error::NyxdError, ValidatorClientError};
@@ -8,6 +9,9 @@ use thiserror::Error;
 // TODO: ask @MS why this even exists
 #[derive(Error, Debug)]
 pub enum TypesError {
+    #[error(transparent)]
+    ContractsCommon(#[from] ContractsCommonError),
+
     #[error("{source}")]
     NyxdError {
         #[from]

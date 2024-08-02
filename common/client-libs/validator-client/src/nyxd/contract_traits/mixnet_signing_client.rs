@@ -683,6 +683,24 @@ pub trait MixnetSigningClient {
         .await
     }
 
+    async fn migrate_vested_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::MigrateVestedMixNode {}, vec![])
+            .await
+    }
+
+    async fn migrate_vested_delegation(
+        &self,
+        mix_id: MixId,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::MigrateVestedDelegation { mix_id },
+            vec![],
+        )
+        .await
+    }
+
     #[cfg(feature = "contract-testing")]
     async fn testing_resolve_all_pending_events(
         &self,
@@ -928,6 +946,12 @@ mod tests {
             MixnetExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, owner } => client
                 .withdraw_delegator_reward_on_behalf(owner.parse().unwrap(), mix_id, None)
                 .ignore(),
+            MixnetExecuteMsg::MigrateVestedMixNode { .. } => {
+                client.migrate_vested_mixnode(None).ignore()
+            }
+            MixnetExecuteMsg::MigrateVestedDelegation { mix_id } => {
+                client.migrate_vested_delegation(mix_id, None).ignore()
+            }
 
             #[cfg(feature = "contract-testing")]
             MixnetExecuteMsg::TestingResolveAllPendingEvents { .. } => {

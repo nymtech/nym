@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::coconut;
+use crate::ecash;
 use nym_bin_common::bin_info;
 use nym_bin_common::build_information::BinaryBuildInformation;
 use okapi::openapi3::OpenApi;
@@ -26,7 +26,7 @@ pub(crate) struct SignerState {
 
     pub announce_address: String,
 
-    pub(crate) coconut_keypair: coconut::keys::KeyPair,
+    pub(crate) coconut_keypair: ecash::keys::KeyPair,
 }
 
 impl ApiStatusState {

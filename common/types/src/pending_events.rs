@@ -84,6 +84,7 @@ impl PendingEpochEventData {
                 mix_id,
                 amount,
                 proxy,
+                ..
             } => Ok(PendingEpochEventData::Delegate {
                 owner: owner.into_string(),
                 mix_id,
@@ -94,6 +95,7 @@ impl PendingEpochEventData {
                 owner,
                 mix_id,
                 proxy,
+                ..
             } => Ok(PendingEpochEventData::Undelegate {
                 owner: owner.into_string(),
                 mix_id,

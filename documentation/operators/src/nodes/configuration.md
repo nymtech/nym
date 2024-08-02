@@ -4,6 +4,28 @@
 
 Nym Node can be configured directly by editing the config file (`config.toml`) located at `~/.nym/nym-nodes/<ID>/config/config.toml` (by default `~/.nym/nym-nodes/default-nym-node/config/config.toml`) or through commands on the binary.
 
+### Node Description
+
+Operators can add a description themselves to share more information about their `nym-node` publicly.
+
+To add or change `nym-node` description is done by editing `description.toml` file located in `~/.nym/nym-nodes/<NODE_ID>/data/description.toml`. After saving, don't forget to reload and restart your node [service](#systemd) or simply restart your `nym-node` if you run it without a service (not recommended).
+
+**Query description**
+
+Nodes description can be queried from API endpoint `/api/v1/description` or via Swagger API UI page `/api/v1/swagger/#/Node/description`.
+
+```bash
+curl -X 'GET' \
+  'http://<NODE_IP_ADDRESS>:8080/api/v1/description' \
+  -H 'accept: application/json'
+
+# or for https reversed proxy or WSS setup
+
+curl -X 'GET' \
+  'https://<HOSTNAME>/api/v1/description' \
+  -H 'accept: application/json'
+```
+
 ### Commands & Examples
 
 Disable sharing of system hardware info with the network:
@@ -100,6 +122,10 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
+```admonish warning title=""
+[Accepting T&Cs](setup.md#terms--conditions) is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use systemd automation, add the flag to your service file's `ExecStart` line.
+```
+
 3. Save the file
 
 ```admonish note
@@ -167,7 +193,7 @@ IPv6 routing is not only a case for gateways. Imagine a rare occassion when you 
 ```ascii
 [client] -> [entry-gateway] -> [mixnode layer 1] -> [your mixnode] -> [IPv6 mixnode layer3] -> [exit-gateway]
 ```
-In this (unusual) case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down. For that reason it's befetial to have IPv6 enabled when running a `mixnode` functionality.
+In this (unusual) case your `mixnode` will not be able to route the packets. The node will drop the packets and its performance would go down. For that reason it's beneficial to have IPv6 enabled when running a `mixnode` functionality.
 
 ### Quick IPv6 Check
 

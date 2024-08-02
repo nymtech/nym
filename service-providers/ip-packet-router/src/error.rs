@@ -96,6 +96,9 @@ pub enum IpPacketRouterError {
     FailedToVerifyRequest {
         source: nym_ip_packet_requests::v7::signature::SignatureError,
     },
+
+    #[error("client is connected with an invalid version: {version}")]
+    InvalidConnectedClientVersion { version: u8 },
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

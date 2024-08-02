@@ -15,8 +15,9 @@ pub use crate::error::ValidatorClientError;
 pub use crate::rpc::reqwest::ReqwestRpcClient;
 pub use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 pub use client::NymApiClient;
-pub use client::{Client, CoconutApiClient, Config};
+pub use client::{Client, Config, EcashApiClient};
 pub use nym_api_requests::*;
+pub use nym_http_api_client::UserAgent;
 
 #[cfg(feature = "http-client")]
 pub use cosmrs::rpc::HttpClient as HttpRpcClient;

@@ -58,6 +58,10 @@ To install a full node from scratch, refer to the [validator setup guide](valida
 
 Before node or validator setup, the VPS needs to be configured and tested, to verify your connectivity and make sure that your provider wasn't dishonest with the offered services.
 
+```admonish info
+The commands listed in this chapter must be executed with a prefix `sudo` or from a root shell.
+```
+
 ### Install Dependencies
 
 SSH to your server as `root` or become one running `sudo -i` or `su`. If you prefer to administrate your VPS from a user environment, supply the commands with prefix `sudo`.
@@ -96,13 +100,13 @@ ufw status
 2. Open all needed ports to have your firewall working correctly:
 ```sh
 # for nym-node
-ufw allow 1789,1790,8000,9000,9001,22/tcp
+ufw allow 1789,1790,8080,9000,9001,22/tcp
 
 # in case of planning to setup a WSS (for Gateway functionality)
 ufw allow 9001/tcp
 
 # in case of reverse proxy for the swagger page (for Gateway optionality)
-ufw allow 8080,80,443
+ufw allow 80,443/tcp
 
 # for validator
 ufw allow 1317,26656,26660,22,80,443/tcp
@@ -223,7 +227,7 @@ All node-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID
 | ------------ | ------------------------- |
 | `1789`       | Listen for Mixnet traffic |
 | `1790`       | Listen for VerLoc traffic |
-| `8000`       | Metrics http API endpoint |
+| `8080`       | Metrics http API endpoint |
 
 #### Gateway functionality ports
 

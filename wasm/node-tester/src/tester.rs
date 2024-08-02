@@ -33,8 +33,9 @@ use wasm_client_core::helpers::{
 use wasm_client_core::storage::ClientStorage;
 use wasm_client_core::topology::SerializableNymTopology;
 use wasm_client_core::{
-    nym_task, BandwidthController, ClientKeys, GatewayClient, GatewayConfig, IdentityKey,
-    InitialisationResult, NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient, Recipient,
+    nym_task, BandwidthController, ClientKeys, GatewayClient, GatewayClientConfig, GatewayConfig,
+    IdentityKey, InitialisationResult, NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient,
+    Recipient,
 };
 use wasm_utils::check_promise_result;
 use wasm_utils::error::PromisableResult;
@@ -201,6 +202,7 @@ impl NymNodeTesterBuilder {
                     gateway_info.gateway_listener.to_string(),
                 );
                 GatewayClient::new(
+                    GatewayClientConfig::new_default().with_disabled_credentials_mode(true),
                     cfg,
                     managed_keys.identity_keypair(),
                     Some(gateway_info.derived_aes128_ctr_blake3_hmac_keys),
@@ -208,8 +210,7 @@ impl NymNodeTesterBuilder {
                     self.bandwidth_controller.take(),
                     gateway_task,
                 )
-            }
-            .with_disabled_credentials_mode(true);
+            };
 
         gateway_client.authenticate_and_start().await?;
 

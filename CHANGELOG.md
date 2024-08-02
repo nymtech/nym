@@ -4,6 +4,102 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.8-wispa] (2024-07-10)
+
+- add event parsing to support cosmos_sdk > 0.50 ([#4697])
+- Fix NR config compatibility ([#4690])
+- Remove UserAgent constructor since it's weakly typed ([#4689])
+- [bugfix]: Node_api_check CLI looked over roles on blacklisted nodes ([#4687])
+- Add mixnodes to self describing api cache ([#4684])
+- Move and whole bump of crates to workspace and upgrade some ([#4680])
+- Remove code that refers to removed nym-network-statistics ([#4679])
+- Remove nym-network-statistics ([#4678])
+- Create UserAgent that can be passed from the binary to the nym api client ([#4677])
+- Add authenticator ([#4667])
+
+[#4697]: https://github.com/nymtech/nym/pull/4697
+[#4690]: https://github.com/nymtech/nym/pull/4690
+[#4689]: https://github.com/nymtech/nym/pull/4689
+[#4687]: https://github.com/nymtech/nym/pull/4687
+[#4684]: https://github.com/nymtech/nym/pull/4684
+[#4680]: https://github.com/nymtech/nym/pull/4680
+[#4679]: https://github.com/nymtech/nym/pull/4679
+[#4678]: https://github.com/nymtech/nym/pull/4678
+[#4677]: https://github.com/nymtech/nym/pull/4677
+[#4667]: https://github.com/nymtech/nym/pull/4667
+
+## [2024.7-doubledecker] (2024-07-04)
+
+- Add an early return in `parse_raw_str_logs` for empty raw log strings. ([#4686])
+- Bump braces from 3.0.2 to 3.0.3 in /wasm/mix-fetch/internal-dev ([#4672])
+- add expiry returned on import ([#4670])
+- [bugfix] missing rustls feature ([#4666])
+- Bump ws from 8.13.0 to 8.17.1 in /wasm/client/internal-dev-node ([#4665])
+- Bump braces from 3.0.2 to 3.0.3 in /clients/native/examples/js-examples/websocket ([#4663])
+- Bump ws from 8.14.2 to 8.17.1 in /sdk/typescript/packages/nodejs-client ([#4662])
+- Update setup.md ([#4661])
+- New clippy lints ([#4660])
+- Bump braces from 3.0.2 to 3.0.3 in /nym-api/tests ([#4659])
+- Bump braces from 3.0.2 to 3.0.3 in /docker/typescript_client/upload_contract ([#4658])
+- Update vps-setup.md ([#4656])
+- Update configuration.md ([#4655])
+- Remove old PR template ([#4639])
+
+[#4686]: https://github.com/nymtech/nym/pull/4686
+[#4672]: https://github.com/nymtech/nym/pull/4672
+[#4670]: https://github.com/nymtech/nym/pull/4670
+[#4666]: https://github.com/nymtech/nym/pull/4666
+[#4665]: https://github.com/nymtech/nym/pull/4665
+[#4663]: https://github.com/nymtech/nym/pull/4663
+[#4662]: https://github.com/nymtech/nym/pull/4662
+[#4661]: https://github.com/nymtech/nym/pull/4661
+[#4660]: https://github.com/nymtech/nym/pull/4660
+[#4659]: https://github.com/nymtech/nym/pull/4659
+[#4658]: https://github.com/nymtech/nym/pull/4658
+[#4656]: https://github.com/nymtech/nym/pull/4656
+[#4655]: https://github.com/nymtech/nym/pull/4655
+[#4639]: https://github.com/nymtech/nym/pull/4639
+
+## [2024.6-chomp] (2024-06-25)
+
+- Remove additional code as part of Ephemera Purge and SP and contracts ([#4650])
+- bugfix: make sure nym-api can handle non-cw2 (or without detailed build info) compliant contracts ([#4648])
+- introduced a flag to accept toc and exposed it via self-described API ([#4647])
+- bugfix: make sure to return an error on invalid public ip ([#4646])
+- Add ci check for PR having an assigned milestone ([#4644])
+- Removed ephemera code ([#4642])
+- Remove stale peers ([#4640])
+- Add generic wg private network routing ([#4636])
+- Feature/new node endpoints ([#4635])
+- standarised ContractBuildInformation and added it to all contracts ([#4631])
+- validate nym-node public ips on startup ([#4630])
+- Bump defguard wg ([#4625])
+- Fix cargo warnings ([#4624])
+- Update kernel peers on peer modification ([#4622])
+- Handle v6 and v7 requests in the IPR, but reply with v6 ([#4620])
+- fix typo ([#4619])
+- Update crypto and rand crates ([#4607])
+- Purge name service and service provider directory contracts ([#4603])
+
+[#4650]: https://github.com/nymtech/nym/pull/4650
+[#4648]: https://github.com/nymtech/nym/pull/4648
+[#4647]: https://github.com/nymtech/nym/pull/4647
+[#4646]: https://github.com/nymtech/nym/pull/4646
+[#4644]: https://github.com/nymtech/nym/pull/4644
+[#4642]: https://github.com/nymtech/nym/pull/4642
+[#4640]: https://github.com/nymtech/nym/pull/4640
+[#4636]: https://github.com/nymtech/nym/pull/4636
+[#4635]: https://github.com/nymtech/nym/pull/4635
+[#4631]: https://github.com/nymtech/nym/pull/4631
+[#4630]: https://github.com/nymtech/nym/pull/4630
+[#4625]: https://github.com/nymtech/nym/pull/4625
+[#4624]: https://github.com/nymtech/nym/pull/4624
+[#4622]: https://github.com/nymtech/nym/pull/4622
+[#4620]: https://github.com/nymtech/nym/pull/4620
+[#4619]: https://github.com/nymtech/nym/pull/4619
+[#4607]: https://github.com/nymtech/nym/pull/4607
+[#4603]: https://github.com/nymtech/nym/pull/4603
+
 ## [2024.5-ragusa] (2024-05-22)
 
 - Feature/nym node api location ([#4605])
@@ -441,7 +537,6 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#3187]: https://github.com/nymtech/nym/issues/3187
 [#3203]: https://github.com/nymtech/nym/pull/3203
 [#3199]: https://github.com/nymtech/nym/pull/3199
->>>>>>> master
 
 ## [v1.1.13] (2023-03-15)
 

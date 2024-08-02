@@ -43,6 +43,14 @@ pub const DEFAULT_IPR_ACK_KEY_FILENAME: &str = "aes128ctr_ipr_ack";
 pub const DEFAULT_IPR_REPLY_SURB_DB_FILENAME: &str = "ipr_persistent_reply_store.sqlite";
 pub const DEFAULT_IPR_GATEWAYS_DB_FILENAME: &str = "ipr_gateways_info_store.sqlite";
 
+pub const DEFAULT_ED25519_AUTH_PRIVATE_IDENTITY_KEY_FILENAME: &str = "ed25519_auth_identity";
+pub const DEFAULT_ED25519_AUTH_PUBLIC_IDENTITY_KEY_FILENAME: &str = "ed25519_auth_identity.pub";
+pub const DEFAULT_X25519_AUTH_PRIVATE_DH_KEY_FILENAME: &str = "x25519_auth_dh";
+pub const DEFAULT_X25519_AUTH_PUBLIC_DH_KEY_FILENAME: &str = "x25519_auth_dh.pub";
+pub const DEFAULT_AUTH_ACK_KEY_FILENAME: &str = "aes128ctr_auth_ack";
+pub const DEFAULT_AUTH_REPLY_SURB_DB_FILENAME: &str = "auth_persistent_reply_store.sqlite";
+pub const DEFAULT_AUTH_GATEWAYS_DB_FILENAME: &str = "auth_gateways_info_store.sqlite";
+
 // Wireguard
 pub const DEFAULT_X25519_WG_DH_KEY_FILENAME: &str = "x25519_wg_dh";
 pub const DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME: &str = "x25519_wg_dh.pub";
@@ -136,11 +144,13 @@ pub struct MixnodePaths {}
 #[serde(deny_unknown_fields)]
 pub struct EntryGatewayPaths {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
-    /// derived shared keys and available client bandwidths.
+    /// derived shared keys, available client bandwidths and wireguard peers.
     pub clients_storage: PathBuf,
 
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
+
+    pub authenticator: AuthenticatorPaths,
 }
 
 impl EntryGatewayPaths {
@@ -148,6 +158,7 @@ impl EntryGatewayPaths {
         EntryGatewayPaths {
             clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
+            authenticator: AuthenticatorPaths::new(data_dir),
         }
     }
 
@@ -192,9 +203,15 @@ impl EntryGatewayPaths {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExitGatewayPaths {
+    /// Path to sqlite database containing all persistent data: messages for offline clients,
+    /// derived shared keys, available client bandwidths and wireguard peers.
+    pub clients_storage: PathBuf,
+
     pub network_requester: NetworkRequesterPaths,
 
     pub ip_packet_router: IpPacketRouterPaths,
+
+    pub authenticator: AuthenticatorPaths,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -357,12 +374,94 @@ impl IpPacketRouterPaths {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AuthenticatorPaths {
+    /// Path to file containing authenticator ed25519 identity private key.
+    pub private_ed25519_identity_key_file: PathBuf,
+
+    /// Path to file containing authenticator ed25519 identity public key.
+    pub public_ed25519_identity_key_file: PathBuf,
+
+    /// Path to file containing authenticator x25519 diffie hellman private key.
+    pub private_x25519_diffie_hellman_key_file: PathBuf,
+
+    /// Path to file containing authenticator x25519 diffie hellman public key.
+    pub public_x25519_diffie_hellman_key_file: PathBuf,
+
+    /// Path to file containing key used for encrypting and decrypting the content of an
+    /// acknowledgement so that nobody besides the client knows which packet it refers to.
+    pub ack_key_file: PathBuf,
+
+    /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+    pub reply_surb_database: PathBuf,
+
+    /// Normally this is a path to the file containing information about gateways used by this client,
+    /// i.e. details such as their public keys, owner addresses or the network information.
+    /// but in this case it just has the basic information of "we're using custom gateway".
+    /// Due to how clients are started up, this file has to exist.
+    pub gateway_registrations: PathBuf,
+    // it's possible we might have to add credential storage here for return tickets
+}
+
+impl AuthenticatorPaths {
+    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
+        let data_dir = data_dir.as_ref();
+        AuthenticatorPaths {
+            private_ed25519_identity_key_file: data_dir
+                .join(DEFAULT_ED25519_AUTH_PRIVATE_IDENTITY_KEY_FILENAME),
+            public_ed25519_identity_key_file: data_dir
+                .join(DEFAULT_ED25519_AUTH_PUBLIC_IDENTITY_KEY_FILENAME),
+            private_x25519_diffie_hellman_key_file: data_dir
+                .join(DEFAULT_X25519_AUTH_PRIVATE_DH_KEY_FILENAME),
+            public_x25519_diffie_hellman_key_file: data_dir
+                .join(DEFAULT_X25519_AUTH_PUBLIC_DH_KEY_FILENAME),
+            ack_key_file: data_dir.join(DEFAULT_AUTH_ACK_KEY_FILENAME),
+            reply_surb_database: data_dir.join(DEFAULT_AUTH_REPLY_SURB_DB_FILENAME),
+            gateway_registrations: data_dir.join(DEFAULT_AUTH_GATEWAYS_DB_FILENAME),
+        }
+    }
+
+    pub fn to_common_client_paths(&self) -> CommonClientPaths {
+        CommonClientPaths {
+            keys: ClientKeysPaths {
+                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
+                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
+                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
+                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
+                ack_key_file: self.ack_key_file.clone(),
+            },
+            gateway_registrations: self.gateway_registrations.clone(),
+
+            // not needed for embedded providers
+            credentials_database: Default::default(),
+            reply_surb_database: self.reply_surb_database.clone(),
+        }
+    }
+
+    pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_ed25519_identity_key_file,
+            &self.public_ed25519_identity_key_file,
+        )
+    }
+
+    pub fn x25519_diffie_hellman_storage_paths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            &self.private_x25519_diffie_hellman_key_file,
+            &self.public_x25519_diffie_hellman_key_file,
+        )
+    }
+}
+
 impl ExitGatewayPaths {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         let data_dir = data_dir.as_ref();
         ExitGatewayPaths {
+            clients_storage: data_dir.join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             network_requester: NetworkRequesterPaths::new(data_dir),
             ip_packet_router: IpPacketRouterPaths::new(data_dir),
+            authenticator: AuthenticatorPaths::new(data_dir),
         }
     }
 }

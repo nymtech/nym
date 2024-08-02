@@ -9,10 +9,7 @@ pub mod registration;
 pub use config::Config;
 pub use error::Error;
 pub use public_key::PeerPublicKey;
-pub use registration::{
-    ClientMac, ClientMessage, ClientRegistrationResponse, GatewayClient, GatewayClientRegistry,
-    InitMessage, Nonce,
-};
+pub use registration::{ClientMac, ClientMessage, GatewayClient, InitMessage, Nonce};
 
 #[cfg(feature = "verify")]
 pub use registration::HmacSha256;

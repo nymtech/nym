@@ -1,5 +1,5 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
-import { Box, Button, Paper, Stack, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { Theme, useTheme } from '@mui/material/styles';
 import { DecCoin, decimalToFloatApproximation, DelegationWithEverything, FeeDetails } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
@@ -8,11 +8,11 @@ import { DelegationList } from 'src/components/Delegation/DelegationList';
 import { TPoolOption } from 'src/components';
 import { Console } from 'src/utils/console';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
-import { getSpendableCoins, userBalance } from 'src/requests';
+import { getSpendableCoins, migrateVestedDelegations, userBalance } from 'src/requests';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { getIntervalAsDate, toPercentIntegerString } from 'src/utils';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
-import { DelegationContextProvider, TDelegations, useDelegationContext } from '../../context/delegations';
+import { DelegationContextProvider, isDelegation, TDelegations, useDelegationContext } from '../../context/delegations';
 import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
 import { DelegateModal } from '../../components/Delegation/DelegateModal';
 import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
@@ -20,6 +20,7 @@ import { DelegationListItemActions } from '../../components/Delegation/Delegatio
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+import { VestingWarningModal } from '../../components/VestingWarningModal';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook
@@ -38,6 +39,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
   const [saturationError, setSaturationError] = useState<{ action: 'compound' | 'delegate'; saturation: string }>();
   const [nextEpoch, setNextEpoch] = useState<string | Error>();
+  const [showVestingWarningModal, setShowVestingWarningModal] = useState<boolean>(false);
+  const [showVestingMigrationProgressModal, setShowVestingMigrationProgressModal] = useState<boolean>(false);
 
   const theme = useTheme();
   const {
@@ -56,6 +59,11 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     undelegateVesting,
     refresh: refreshDelegations,
   } = useDelegationContext();
+
+  const delegationsUseVestingTokens: boolean = React.useMemo(
+    () => Boolean(delegations?.filter((d) => isDelegation(d) && d.uses_vesting_contract_tokens).length),
+    [delegations],
+  );
 
   const { refresh: refreshRewards, claimRewards } = useRewardsContext();
 
@@ -105,6 +113,13 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     return () => clearInterval(timer);
   }, []);
 
+  const doMigrateNow = async () => {
+    setShowVestingMigrationProgressModal(true);
+    await migrateVestedDelegations();
+    await refresh();
+    setShowVestingMigrationProgressModal(false);
+  };
+
   useEffect(() => {
     refreshWithIntervalUpdate();
   }, [clientDetails, confirmationModalProps]);
@@ -116,6 +131,11 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
       decimalToFloatApproximation(item.stake_saturation) > 1
     ) {
       setSaturationError({ action, saturation: item.stake_saturation });
+      return;
+    }
+
+    if (item.uses_vesting_contract_tokens) {
+      setShowVestingWarningModal(true);
       return;
     }
 
@@ -305,12 +325,46 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const delegationsComponent = (delegationItems: TDelegations | undefined) => {
     if (delegationItems && Boolean(delegationItems?.length)) {
       return (
-        <DelegationList
-          explorerUrl={urls(network).networkExplorer}
-          isLoading={isLoading && !isActionModalOpen}
-          items={delegationItems}
-          onItemActionClick={handleDelegationItemActionClick}
-        />
+        <>
+          {delegationsUseVestingTokens && (
+            <>
+              <Alert severity="warning">
+                <AlertTitle sx={{ fontWeight: 600 }}>
+                  Some of your delegations are using tokens from the vesting contract!
+                </AlertTitle>
+                <Typography>
+                  In order to claim your rewards, you will need to migrate them out of the vesting contract.{' '}
+                </Typography>
+                <Typography mt={1}>
+                  <strong>Never fear</strong>, if you do not migrate them,{' '}
+                  <strong>you will continue to get rewards</strong>. However, please migrate your delegations as soon as
+                  possible.
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  sx={{ mt: 1 }}
+                  onClick={() => setShowVestingWarningModal(true)}
+                >
+                  Migrate now
+                </Button>
+              </Alert>
+              <VestingWarningModal
+                kind="delegations"
+                isVisible={showVestingWarningModal}
+                handleMigrate={doMigrateNow}
+                handleClose={() => setShowVestingWarningModal(false)}
+              />
+              {showVestingMigrationProgressModal && <LoadingModal text="Migrating delegations, please wait..." />}
+            </>
+          )}
+          <DelegationList
+            explorerUrl={urls(network).networkExplorer}
+            isLoading={isLoading && !isActionModalOpen}
+            items={delegationItems}
+            onItemActionClick={handleDelegationItemActionClick}
+          />
+        </>
       );
     }
 

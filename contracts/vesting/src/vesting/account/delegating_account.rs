@@ -125,4 +125,25 @@ impl DelegatingAccount for Account {
         self.save_balance(new_balance, storage)?;
         Ok(())
     }
+
+    fn track_migrated_delegation(
+        &self,
+        mix_id: MixId,
+        storage: &mut dyn Storage,
+    ) -> Result<(), VestingContractError> {
+        let delegation = self.total_delegations_for_mix(mix_id, storage)?;
+        if delegation.is_zero() {
+            return Err(VestingContractError::NoSuchDelegation(
+                self.owner_address.clone(),
+                mix_id,
+            ));
+        }
+
+        // treat the tokens that were used for delegation as 'withdrawn'
+        let current_withdrawn = self.load_withdrawn(storage)?;
+        self.save_withdrawn(current_withdrawn + delegation, storage)?;
+
+        // remove the delegation data since it no longer belongs to the vesting contract
+        self.remove_delegations_for_mix(mix_id, storage)
+    }
 }

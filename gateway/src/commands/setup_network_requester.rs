@@ -3,12 +3,12 @@
 
 use crate::commands::helpers::{initialise_local_network_requester, try_load_current_config};
 use clap::Args;
-use log::warn;
 use nym_bin_common::output_format::OutputFormat;
 use nym_gateway::helpers::{load_public_key, OverrideNetworkRequesterConfig};
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::time::Duration;
+use tracing::warn;
 
 #[derive(Args, Clone)]
 pub struct CmdArgs {
@@ -31,15 +31,6 @@ pub struct CmdArgs {
     /// Specifies whether this network requester should run in 'open-proxy' mode
     #[clap(long)]
     open_proxy: Option<bool>,
-
-    /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[clap(long)]
-    enable_statistics: Option<bool>,
-
-    /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
-    /// aggregator client
-    #[clap(long)]
-    statistics_recipient: Option<String>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
@@ -71,8 +62,6 @@ impl<'a> From<&'a CmdArgs> for OverrideNetworkRequesterConfig {
             no_cover: value.no_cover,
             medium_toggle: value.medium_toggle,
             open_proxy: value.open_proxy,
-            enable_statistics: value.enable_statistics,
-            statistics_recipient: value.statistics_recipient.clone(),
         }
     }
 }

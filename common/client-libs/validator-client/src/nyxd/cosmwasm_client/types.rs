@@ -30,6 +30,7 @@ use prost::Message;
 use serde::Serialize;
 
 pub use cosmrs::abci::GasInfo;
+pub use cosmrs::abci::MsgResponse;
 
 pub type ContractCodeId = u64;
 
@@ -232,13 +233,15 @@ pub struct UploadResult {
 
     pub logs: Vec<Log>,
 
+    pub events: Vec<abci::Event>,
+
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,
 
     pub gas_info: GasInfo,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct InstantiateOptions {
     /// The funds that are transferred from the sender to the newly created contract.
     /// The funds are transferred as part of the message execution after the contract address is
@@ -260,6 +263,11 @@ impl InstantiateOptions {
             admin,
         }
     }
+
+    pub fn with_admin(mut self, admin: AccountId) -> Self {
+        self.admin = Some(admin);
+        self
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -268,6 +276,8 @@ pub struct InstantiateResult {
     pub contract_address: AccountId,
 
     pub logs: Vec<Log>,
+
+    pub events: Vec<abci::Event>,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,
@@ -279,6 +289,8 @@ pub struct InstantiateResult {
 pub struct ChangeAdminResult {
     pub logs: Vec<Log>,
 
+    pub events: Vec<abci::Event>,
+
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,
 
@@ -288,6 +300,8 @@ pub struct ChangeAdminResult {
 #[derive(Debug, Serialize)]
 pub struct MigrateResult {
     pub logs: Vec<Log>,
+
+    pub events: Vec<abci::Event>,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,
@@ -299,7 +313,9 @@ pub struct MigrateResult {
 pub struct ExecuteResult {
     pub logs: Vec<Log>,
 
-    pub data: Vec<u8>,
+    pub msg_responses: Vec<MsgResponse>,
+
+    pub events: Vec<abci::Event>,
 
     /// Transaction hash (might be used as transaction ID)
     pub transaction_hash: Hash,

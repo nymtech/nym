@@ -1,14 +1,12 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::support::helpers::{
-    ensure_epoch_in_progress_state, ensure_sent_by_vesting_contract, validate_delegation_stake,
-};
-use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Response};
+use crate::support::helpers::{ensure_epoch_in_progress_state, validate_delegation_stake};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_pending_delegation_event, new_pending_undelegation_event,
@@ -22,37 +20,13 @@ pub(crate) fn try_delegate_to_mixnode(
     info: MessageInfo,
     mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
-    _try_delegate_to_mixnode(deps, env, mix_id, info.sender, info.funds, None)
-}
-
-pub(crate) fn try_delegate_to_mixnode_on_behalf(
-    deps: DepsMut<'_>,
-    env: Env,
-    info: MessageInfo,
-    mix_id: MixId,
-    delegate: String,
-) -> Result<Response, MixnetContractError> {
-    ensure_sent_by_vesting_contract(&info, deps.storage)?;
-
-    let delegate = deps.api.addr_validate(&delegate)?;
-    _try_delegate_to_mixnode(deps, env, mix_id, delegate, info.funds, Some(info.sender))
-}
-
-pub(crate) fn _try_delegate_to_mixnode(
-    deps: DepsMut<'_>,
-    env: Env,
-    mix_id: MixId,
-    delegate: Addr,
-    amount: Vec<Coin>,
-    proxy: Option<Addr>,
-) -> Result<Response, MixnetContractError> {
     // delegation is only allowed if the epoch is currently not in the process of being advanced
     ensure_epoch_in_progress_state(deps.storage)?;
 
     // check if the delegation contains any funds of the appropriate denomination
     let contract_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
     let delegation = validate_delegation_stake(
-        amount,
+        info.funds,
         contract_state.params.minimum_mixnode_delegation,
         contract_state.rewarding_denom,
     )?;
@@ -67,14 +41,9 @@ pub(crate) fn _try_delegate_to_mixnode(
     }
 
     // push the event onto the queue and wait for it to be picked up at the end of the epoch
-    let cosmos_event = new_pending_delegation_event(&delegate, &proxy, &delegation, mix_id);
+    let cosmos_event = new_pending_delegation_event(&info.sender, &delegation, mix_id);
 
-    let epoch_event = PendingEpochEventKind::Delegate {
-        owner: delegate,
-        mix_id,
-        amount: delegation,
-        proxy,
-    };
+    let epoch_event = PendingEpochEventKind::new_delegate(info.sender, mix_id, delegation);
     interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
     Ok(Response::new().add_event(cosmos_event))
@@ -86,34 +55,11 @@ pub(crate) fn try_remove_delegation_from_mixnode(
     info: MessageInfo,
     mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_delegation_from_mixnode(deps, env, mix_id, info.sender, None)
-}
-
-pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
-    deps: DepsMut<'_>,
-    env: Env,
-    info: MessageInfo,
-    mix_id: MixId,
-    delegate: String,
-) -> Result<Response, MixnetContractError> {
-    ensure_sent_by_vesting_contract(&info, deps.storage)?;
-
-    let delegate = deps.api.addr_validate(&delegate)?;
-    _try_remove_delegation_from_mixnode(deps, env, mix_id, delegate, Some(info.sender))
-}
-
-pub(crate) fn _try_remove_delegation_from_mixnode(
-    deps: DepsMut<'_>,
-    env: Env,
-    mix_id: MixId,
-    delegate: Addr,
-    proxy: Option<Addr>,
-) -> Result<Response, MixnetContractError> {
     // undelegation is only allowed if the epoch is currently not in the process of being advanced
     ensure_epoch_in_progress_state(deps.storage)?;
 
     // see if the delegation even exists
-    let storage_key = Delegation::generate_storage_key(mix_id, &delegate, proxy.as_ref());
+    let storage_key = Delegation::generate_storage_key(mix_id, &info.sender, None);
 
     if storage::delegations()
         .may_load(deps.storage, storage_key)?
@@ -121,19 +67,15 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     {
         return Err(MixnetContractError::NoMixnodeDelegationFound {
             mix_id,
-            address: delegate.into_string(),
-            proxy: proxy.map(Addr::into_string),
+            address: info.sender.into_string(),
+            proxy: None,
         });
     }
 
     // push the event onto the queue and wait for it to be picked up at the end of the epoch
-    let cosmos_event = new_pending_undelegation_event(&delegate, &proxy, mix_id);
+    let cosmos_event = new_pending_undelegation_event(&info.sender, mix_id);
 
-    let epoch_event = PendingEpochEventKind::Undelegate {
-        owner: delegate,
-        mix_id,
-        proxy,
-    };
+    let epoch_event = PendingEpochEventKind::new_undelegate(info.sender, mix_id);
     interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
     Ok(Response::new().add_event(cosmos_event))
@@ -151,7 +93,7 @@ mod tests {
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, Decimal};
+        use cosmwasm_std::{coin, Addr, Decimal};
         use mixnet_contract_common::{EpochState, EpochStatus};
 
         #[test]
@@ -368,65 +310,17 @@ mod tests {
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
 
             let amount1 = coin(100_000_000, TEST_COIN_DENOM);
-            let amount2 = coin(50_000_000, TEST_COIN_DENOM);
 
             let sender1 = mock_info(owner, &[amount1.clone()]);
-            let sender2 = mock_info(test.vesting_contract().as_str(), &[amount2.clone()]);
 
             try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender1, mix_id).unwrap();
-            try_delegate_to_mixnode_on_behalf(test.deps_mut(), env, sender2, mix_id, owner.into())
-                .unwrap();
 
             let events = test.pending_epoch_events();
 
             assert_eq!(
                 events[0].kind,
-                PendingEpochEventKind::Delegate {
-                    owner: Addr::unchecked(owner),
-                    mix_id,
-                    amount: amount1,
-                    proxy: None
-                }
+                PendingEpochEventKind::new_delegate(Addr::unchecked(owner), mix_id, amount1,)
             );
-
-            assert_eq!(
-                events[1].kind,
-                PendingEpochEventKind::Delegate {
-                    owner: Addr::unchecked(owner),
-                    mix_id,
-                    amount: amount2,
-                    proxy: Some(test.vesting_contract())
-                }
-            );
-        }
-
-        #[test]
-        fn fails_for_illegal_proxy() {
-            let mut test = TestSetup::new();
-            let env = test.env();
-
-            let illegal_proxy = Addr::unchecked("not-vesting-contract");
-            let vesting_contract = test.vesting_contract();
-
-            let owner = "delegator";
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
-
-            let res = try_delegate_to_mixnode_on_behalf(
-                test.deps_mut(),
-                env,
-                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
-                mix_id,
-                owner.into(),
-            )
-            .unwrap_err();
-
-            assert_eq!(
-                res,
-                MixnetContractError::SenderIsNotVestingContract {
-                    received: illegal_proxy,
-                    vesting_contract
-                }
-            )
         }
     }
 
@@ -572,41 +466,6 @@ mod tests {
                 mix_id_unbonded_leftover,
             );
             assert!(res.is_ok());
-        }
-
-        #[test]
-        fn fails_for_illegal_proxy() {
-            let mut test = TestSetup::new();
-            let env = test.env();
-
-            let illegal_proxy = Addr::unchecked("not-vesting-contract");
-            let vesting_contract = test.vesting_contract();
-
-            let owner = "delegator";
-            let mix_id = test.add_dummy_mixnode("mix-owner", None);
-            test.add_immediate_delegation_with_illegal_proxy(
-                owner,
-                10000u32,
-                mix_id,
-                illegal_proxy.clone(),
-            );
-
-            let res = try_remove_delegation_from_mixnode_on_behalf(
-                test.deps_mut(),
-                env,
-                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
-                mix_id,
-                owner.into(),
-            )
-            .unwrap_err();
-
-            assert_eq!(
-                res,
-                MixnetContractError::SenderIsNotVestingContract {
-                    received: illegal_proxy,
-                    vesting_contract
-                }
-            )
         }
     }
 }

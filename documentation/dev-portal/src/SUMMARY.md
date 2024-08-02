@@ -1,94 +1,59 @@
 #
-# Summary
-
 - [Introduction](introduction.md)
+- [Clients Overview - Start Here!](clients-overview.md)
 
-# Infrastructure
+# SDKs 
+- [Rust SDK](sdk/rust/rust.md)
+	- [Message Types](sdk/rust/message-types.md)
+	- [Message Helpers](sdk/rust/message-helpers.md)
+	- [Troubleshooting](sdk/rust/troubleshooting.md)
+	- [Examples](sdk/rust/examples.md)
+		- [Simple Send](sdk/rust/examples/simple.md)
+		- [Create and Store Keys](sdk/rust/examples/keys.md)
+		- [Manual Storage](sdk/rust/examples/storage.md)
+		- [Anonymous Replies](sdk/rust/examples/surbs.md)
+		- [Use Custom Network Topology](sdk/rust/examples/custom-network.md)
+		- [Socks Proxy](sdk/rust/examples/socks.md)
+		- [Split Send and Receive](sdk/rust/examples/split-send.md)
+		- [Testnet Bandwidth Cred](sdk/rust/examples/credential.md)
+		- [Example Cargo file](sdk/rust/examples/cargo.md)
+- [Typescript SDK](sdk/typescript.md)
 
-- [What is Nym?](infrastructure/nym.md)
-- [Nym vs Other Systems](infrastructure/nym-vs-others.md)
-- [Node Types](infrastructure/node-types.md)
+# Binaries
+- [Pre-built Binaries](binaries/pre-built-binaries.md)
+- [Building from Source](binaries/building-nym.md)
 
-# Quickstart
+# Standalone Clients
+- [Websocket Client](clients/websocket-client.md)
+	- [Setup & Run](clients/websocket/setup.md)
+	- [Configuration](clients/websocket/config.md)
+	- [Using Your Client](clients/websocket/usage.md)
+	- [Examples](clients/websocket/examples.md)
+- [Socks5 Client](clients/socks5-client.md)
+  - [Setup & Run](clients/socks5/setup.md) 
+  - [Using Your Client](clients/socks5/usage.md)
+- [Webassembly Client](clients/webassembly-client.md)
 
-- [Overview](quickstart/overview.md)
-- [Chat demo (webapp)](quickstart/chat-demo.md)
-- [Coconut Credential Playground (webapp)](quickstart/cred-playground.md)
-- [SOCKS Proxy (CLI)](quickstart/socks-proxy.md)
-
-# User Manuals
-
-- [NymVPN alpha](nymvpn/intro.md)
-    - [CLI](nymvpn/cli.md)
-
-<!-- OUTDATED STUFF:
-- [NymConnect X Monero](tutorials/monero.md)
-- [NymConnect X Matrix](tutorials/matrix.md)
-- [NymConnect X Telegram](tutorials/telegram.md)
-- [NymConnect X Electrum](tutorials/electrum.md)
-- [NymConnect X Firo wallet](tutorials/firo.md)
--->
+# Tutorials
+- [Stub: Updates Coming Soon!](./tutorials/coming-soon.md)
 
 # Code Examples
-
 - [Custom Service Providers](examples/custom-services.md)
 - [Apps Using Network Requesters](examples/using-nrs.md)
 - [Browser only](examples/browser-only.md)
 - [Monorepo examples](examples/monorepo-examples.md)
 
 # Integrations
-
 - [Integration Options](integrations/integration-options.md)
 [//]: # (- [Mixnet Integration]&#40;integrations/mixnet-integration.md&#41;)
 - [Payment Integration](integrations/payment-integration.md)
 
-# Tutorials
-
-- [Rust SDK](tutorials/rust-sdk.md)
-	- [Blockchain Service pt1](tutorials/cosmos-service/intro.md)
-		- [Tutorial Overview](tutorials/cosmos-service/overview.md)
-		- [Preparing Your Environment](tutorials/cosmos-service/preparing-env.md)
-		- [Preparing Your Lib](tutorials/cosmos-service/lib.md)
-		- [Preparing Your Client](tutorials/cosmos-service/client.md)
-		- [Preparing Your Client pt2](tutorials/cosmos-service/client-src.md)
-		- [Preparing Your Service](tutorials/cosmos-service/service.md)
-		- [Preparing Your Service pt2](tutorials/cosmos-service/service-src.md)
-		- [Querying the Chain](tutorials/cosmos-service/querying.md)
-
-- [Typescript](tutorials/typescript.md)
-    - [Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md)
-      	- [Tutorial Overview](tutorials/simple-service-provider/overview.md)
-      	- [Preparing Your User Client Environment](tutorials/simple-service-provider/preparating-env.md)
-      	- [Building Your User Client](tutorials/simple-service-provider/user-client.md)
-      	- [Preparing Your Service Provider Environment](tutorials/simple-service-provider/preparating-env2.md)
-      	- [Building Your Service Provider](tutorials/simple-service-provider/service-provider.md)
-      	- [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
-
-[//]: # (TODO make generic )
-[//]: # (# Shipyard Builders Hackathon 2023 )
-[//]: # (- [General Info & Resources]&#40;shipyard/general.md&#41;)
-[//]: # (- [Hackathon Challenges]&#40;shipyard/challenges-overview.md&#41;)
-[//]: # (- [A Note on Infrastructure]&#40;shipyard/infra.md&#41;)
-[//]: # (- [Submission Guidelines]&#40;shipyard/guidelines.md&#41;)
-
-<!-- Commenting out as a lot of the stuff is deprecated, can be purged as a part of the large overhaul
-# Events
-
-- [Web3Privacy Now](./events/web3-privacy.md)
-- [HCPP23-serinko](./events/hcpp23-serinko.md)
-- [HCPP23-max](./events/hcpp23-max.md)
--->
-
 # FAQ
-- [General](faq/general-faq.md)
 - [Integrations](faq/integrations-faq.md)
-- [Rewards & Token](faq/rewards-faq.md)
 
-# Community Resources
-
-- [Nym DevRel AMAs](community-resources/ama.md)
-- [Community Applications and Guides](community-resources/community-applications-and-guides.md)
-- [Change Service Grantee Information](info-request.md)
+# User Manuals
+- [NymVPN alpha](nymvpn/intro.md)
+    - [CLI](nymvpn/cli.md)
 
 ---
 # Misc.

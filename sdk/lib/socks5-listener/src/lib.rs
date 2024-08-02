@@ -269,12 +269,13 @@ where
     let nym_apis = config.core.base.client.nym_api_urls.clone();
 
     let storage = MobileClientStorage::new(&config);
-    let socks5_client =
-        Socks5NymClient::new(config.core, storage, None).with_gateway_setup(GatewaySetup::New {
+    let user_agent = nym_bin_common::bin_info!().into();
+    let socks5_client = Socks5NymClient::new(config.core, storage, user_agent, None)
+        .with_gateway_setup(GatewaySetup::New {
             specification: GatewaySelectionSpecification::UniformRemote {
                 must_use_tls: false,
             },
-            available_gateways: current_gateways(&mut rng, &nym_apis).await?,
+            available_gateways: current_gateways(&mut rng, &nym_apis, None).await?,
             wg_tun_address: None,
         });
 

@@ -167,13 +167,40 @@ announce_ws_port = {{#if entry_gateway.announce_ws_port }} {{ entry_gateway.anno
 # (default: 0 - disabled)
 announce_wss_port = {{#if entry_gateway.announce_wss_port }} {{ entry_gateway.announce_wss_port }} {{else}} 0 {{/if}}
 
+
 [entry_gateway.storage_paths]
 # Path to sqlite database containing all persistent data: messages for offline clients,
-# derived shared keys and available client bandwidths.
+# derived shared keys, available client bandwidths and wireguard peers.
 clients_storage = '{{ entry_gateway.storage_paths.clients_storage }}'
 
 # Path to file containing cosmos account mnemonic used for zk-nym redemption.
 cosmos_mnemonic = '{{ entry_gateway.storage_paths.cosmos_mnemonic }}'
+
+[entry_gateway.storage_paths.authenticator]
+# Path to file containing authenticator ed25519 identity private key.
+private_ed25519_identity_key_file = '{{ entry_gateway.storage_paths.authenticator.private_ed25519_identity_key_file }}'
+
+# Path to file containing authenticator ed25519 identity public key.
+public_ed25519_identity_key_file = '{{ entry_gateway.storage_paths.authenticator.public_ed25519_identity_key_file }}'
+
+# Path to file containing authenticator x25519 diffie hellman private key.
+private_x25519_diffie_hellman_key_file = '{{ entry_gateway.storage_paths.authenticator.private_x25519_diffie_hellman_key_file }}'
+
+# Path to file containing authenticator x25519 diffie hellman public key.
+public_x25519_diffie_hellman_key_file = '{{ entry_gateway.storage_paths.authenticator.public_x25519_diffie_hellman_key_file }}'
+
+# Path to file containing key used for encrypting and decrypting the content of an
+# acknowledgement so that nobody besides the client knows which packet it refers to.
+ack_key_file = '{{ entry_gateway.storage_paths.authenticator.ack_key_file }}'
+
+# Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+reply_surb_database = '{{ entry_gateway.storage_paths.authenticator.reply_surb_database }}'
+
+# Normally this is a path to the file containing information about gateways used by this client,
+# i.e. details such as their public keys, owner addresses or the network information.
+# but in this case it just has the basic information of "we're using custom gateway".
+# Due to how clients are started up, this file has to exist.
+gateway_registrations = '{{ entry_gateway.storage_paths.authenticator.gateway_registrations }}'
 
 ##### exit-gateway mode nym-node config options #####
 
@@ -193,6 +220,10 @@ upstream_exit_policy_url = '{{ exit_gateway.upstream_exit_policy_url }}'
 # currently empty (there are some debug options one might want to configure)
 
 [exit_gateway.storage_paths]
+
+# Path to sqlite database containing all persistent data: messages for offline clients,
+# derived shared keys, available client bandwidths and wireguard peers.
+clients_storage = '{{ exit_gateway.storage_paths.clients_storage }}'
 
 [exit_gateway.storage_paths.network_requester]
 # Path to file containing network requester ed25519 identity private key.
@@ -245,6 +276,36 @@ reply_surb_database = '{{ exit_gateway.storage_paths.ip_packet_router.reply_surb
 # but in this case it just has the basic information of "we're using custom gateway".
 # Due to how clients are started up, this file has to exist.
 gateway_registrations = '{{ exit_gateway.storage_paths.ip_packet_router.gateway_registrations }}'
+
+[exit_gateway.storage_paths.authenticator]
+# Path to file containing authenticator ed25519 identity private key.
+private_ed25519_identity_key_file = '{{ exit_gateway.storage_paths.authenticator.private_ed25519_identity_key_file }}'
+
+# Path to file containing authenticator ed25519 identity public key.
+public_ed25519_identity_key_file = '{{ exit_gateway.storage_paths.authenticator.public_ed25519_identity_key_file }}'
+
+# Path to file containing authenticator x25519 diffie hellman private key.
+private_x25519_diffie_hellman_key_file = '{{ exit_gateway.storage_paths.authenticator.private_x25519_diffie_hellman_key_file }}'
+
+# Path to file containing authenticator x25519 diffie hellman public key.
+public_x25519_diffie_hellman_key_file = '{{ exit_gateway.storage_paths.authenticator.public_x25519_diffie_hellman_key_file }}'
+
+# Path to file containing key used for encrypting and decrypting the content of an
+# acknowledgement so that nobody besides the client knows which packet it refers to.
+ack_key_file = '{{ exit_gateway.storage_paths.authenticator.ack_key_file }}'
+
+# Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+reply_surb_database = '{{ exit_gateway.storage_paths.authenticator.reply_surb_database }}'
+
+# Normally this is a path to the file containing information about gateways used by this client,
+# i.e. details such as their public keys, owner addresses or the network information.
+# but in this case it just has the basic information of "we're using custom gateway".
+# Due to how clients are started up, this file has to exist.
+gateway_registrations = '{{ exit_gateway.storage_paths.authenticator.gateway_registrations }}'
+
+
+[authenticator]
+# currently empty (there are some debug options one might want to configure)
 
 ##### logging configuration options #####
 

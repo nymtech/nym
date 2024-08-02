@@ -4,7 +4,7 @@
 [package]
 name = "nym-network-requester"
 license = "GPL-3.0"
-version = "1.1.36"
+version = "1.1.39"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.70"
@@ -21,7 +21,7 @@ addr = { workspace = true }
 async-trait = { workspace = true }
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"]}
-dirs = "4.0"
+dirs = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 ipnetwork = "0.20.0"
@@ -44,7 +44,7 @@ zeroize = { workspace = true }
 
 # internal
 nym-async-file-watcher = { path = "../../common/async-file-watcher" }
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "clap"] }
 nym-client-core = { path = "../../common/client-core", features = ["cli", "fs-gateways-storage", "fs-surb-storage"] }
 nym-client-websocket-requests = { path = "../../clients/native/websocket-requests" }
 nym-config = { path = "../../common/config" }
@@ -58,7 +58,6 @@ nym-service-providers-common = { path = "../common" }
 nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-sphinx = { path = "../../common/nymsphinx" }
-nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }
 nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }

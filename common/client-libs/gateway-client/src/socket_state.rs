@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::bandwidth::ClientBandwidth;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 use crate::traits::GatewayPacketRouter;
@@ -10,16 +11,13 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_gateway_requests::registration::handshake::SharedKeys;
-use nym_gateway_requests::ServerResponse;
+use nym_gateway_requests::{ServerResponse, SimpleGatewayRequestsError};
 use nym_task::TaskClient;
-use si_scale::helpers::bibytes2;
 use std::os::raw::c_int as RawFd;
-use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
-use time::OffsetDateTime;
-use tungstenite::Message;
+use tungstenite::{protocol::Message, Error as WsError};
 
+use si_scale::helpers::bibytes2;
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 #[cfg(not(target_arch = "wasm32"))]
@@ -42,6 +40,7 @@ type WsConn = JSWebsocket;
 // by some other task, however, we can notify it to get the stream back.
 
 type SplitStreamReceiver = oneshot::Receiver<Result<SplitStream<WsConn>, GatewayClientError>>;
+type SplitStreamSender = oneshot::Sender<Result<SplitStream<WsConn>, GatewayClientError>>;
 
 pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
     #[cfg(unix)]
@@ -53,92 +52,204 @@ pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
     None
 }
 
-// disgusting? absolutely, but does the trick for now
-static LAST_LOGGED_BANDWIDTH_TS: AtomicI64 = AtomicI64::new(0);
-
-fn maybe_log_bandwidth(remaining: i64) {
-    // SAFETY: this value is always populated with valid timestamps
-    let last =
-        OffsetDateTime::from_unix_timestamp(LAST_LOGGED_BANDWIDTH_TS.load(Ordering::Relaxed))
-            .unwrap();
-    let now = OffsetDateTime::now_utc();
-    if last + Duration::from_secs(10) < now {
-        log::info!("remaining bandwidth: {}", bibytes2(remaining as f64));
-        LAST_LOGGED_BANDWIDTH_TS.store(now.unix_timestamp(), Ordering::Relaxed)
-    }
-}
-
 #[derive(Debug)]
-pub(crate) struct PartiallyDelegated {
+pub(crate) struct PartiallyDelegatedHandle {
     sink_half: SplitSink<WsConn, Message>,
+    // this could have been simplified by a notify as opposed to oneshot, but let's not change what ain't broke
     delegated_stream: (SplitStreamReceiver, oneshot::Sender<()>),
     ws_fd: Option<RawFd>,
 }
 
-impl PartiallyDelegated {
-    fn recover_received_plaintexts(
-        ws_msgs: Vec<Message>,
-        shared_key: &SharedKeys,
-    ) -> Result<Vec<Vec<u8>>, GatewayClientError> {
-        let mut plaintexts = Vec::with_capacity(ws_msgs.len());
-        for ws_msg in ws_msgs {
-            match ws_msg {
-                Message::Binary(bin_msg) => {
-                    // this function decrypts the request and checks the MAC
-                    if let Some(plaintext) = try_decrypt_binary_message(bin_msg, shared_key) {
-                        plaintexts.push(plaintext)
+struct PartiallyDelegatedRouter {
+    packet_router: PacketRouter,
+    shared_key: Arc<SharedKeys>,
+    client_bandwidth: ClientBandwidth,
+
+    stream_return: SplitStreamSender,
+    stream_return_requester: oneshot::Receiver<()>,
+}
+
+impl PartiallyDelegatedRouter {
+    fn new(
+        packet_router: PacketRouter,
+        shared_key: Arc<SharedKeys>,
+        client_bandwidth: ClientBandwidth,
+        stream_return: SplitStreamSender,
+        stream_return_requester: oneshot::Receiver<()>,
+    ) -> PartiallyDelegatedRouter {
+        PartiallyDelegatedRouter {
+            packet_router,
+            shared_key,
+            client_bandwidth,
+            stream_return,
+            stream_return_requester,
+        }
+    }
+
+    async fn run(mut self, mut split_stream: SplitStream<WsConn>, mut task_client: TaskClient) {
+        let mut chunked_stream = (&mut split_stream).ready_chunks(8);
+        let ret: Result<_, GatewayClientError> = loop {
+            tokio::select! {
+                biased;
+                // received system-wide shutdown
+                _ = task_client.recv() => {
+                    log::trace!("GatewayClient listener: Received shutdown");
+                    log::debug!("GatewayClient listener: Exiting");
+                    return;
+                }
+                // received request to stop the task and return the stream
+                _ = &mut self.stream_return_requester => {
+                    log::debug!("received request to return the split ws stream");
+                    break Ok(())
+                }
+                socket_msgs = chunked_stream.next() => {
+                    if let Err(err) = self.handle_socket_messages(socket_msgs) {
+                        break Err(err)
                     }
                 }
-                // I think that in the future we should perhaps have some sequence number system, i.e.
-                // so each request/response pair can be easily identified, so that if messages are
-                // not ordered (for some peculiar reason) we wouldn't lose anything.
-                // This would also require NOT discarding any text responses here.
+            }
+        };
 
-                // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
-                Message::Text(text) => {
-                    trace!(
+        let return_res = match ret {
+            Err(err) => self.stream_return.send(Err(err)),
+            Ok(_) => {
+                self.packet_router.mark_as_success();
+                task_client.mark_as_success();
+                self.stream_return.send(Ok(split_stream))
+            }
+        };
+
+        if return_res.is_err() {
+            warn!("failed to return the split stream back on the oneshot channel")
+        }
+    }
+
+    fn handle_socket_messages(
+        &self,
+        msgs: Option<Vec<Result<Message, WsError>>>,
+    ) -> Result<(), GatewayClientError> {
+        let ws_msgs = cleanup_socket_messages(msgs)?;
+        let plaintexts = self.recover_received_plaintexts(ws_msgs)?;
+        if !plaintexts.is_empty() {
+            self.packet_router.route_received(plaintexts)?
+        }
+
+        Ok(())
+    }
+
+    fn handle_binary_message(&self, binary_msg: Vec<u8>) -> Result<Vec<u8>, GatewayClientError> {
+        // this function decrypts the request and checks the MAC
+        match try_decrypt_binary_message(binary_msg, &self.shared_key) {
+            Some(plaintext) => Ok(plaintext),
+            None => {
+                error!("failed to decrypt and verify received message!");
+                Err(GatewayClientError::MalformedResponse)
+            }
+        }
+    }
+
+    // only returns an error on **critical** failures
+    fn handle_text_message(&self, text: String) -> Result<(), GatewayClientError> {
+        // if we fail to deserialise the response, return a hard error. we can't handle garbage
+        match ServerResponse::try_from(text).map_err(|_| GatewayClientError::MalformedResponse)? {
+            ServerResponse::Send {
+                remaining_bandwidth,
+            } => {
+                self.client_bandwidth
+                    .update_and_maybe_log(remaining_bandwidth);
+                Ok(())
+            }
+            ServerResponse::Error { message } => {
+                error!("[1] gateway failure: {message}");
+                Err(GatewayClientError::GatewayError(message))
+            }
+            ServerResponse::TypedError { error } => {
+                match error {
+                    SimpleGatewayRequestsError::OutOfBandwidth {
+                        required,
+                        available,
+                    } => {
+                        let available_bi2 = bibytes2(available as f64);
+                        let required_bi2 = bibytes2(required as f64);
+                        warn!("run out of bandwidth when attempting to send the message! we got {available_bi2} available, but needed at least {required_bi2} to send the previous message");
+                        self.client_bandwidth.update_and_log(available);
+                        // UNIMPLEMENTED: we should stop sending messages until we recover bandwidth
+                        Ok(())
+                    }
+                    _ => {
+                        error!("[2] gateway failure: {error}");
+                        Err(GatewayClientError::TypedGatewayError(error))
+                    }
+                }
+            }
+            other => {
+                let name = other.name();
+                warn!("received illegal message of type '{name}' in an authenticated client");
+                Ok(())
+            }
+        }
+    }
+
+    fn recover_received_plaintext(
+        &self,
+        message: Message,
+    ) -> Result<Option<Vec<u8>>, GatewayClientError> {
+        match message {
+            Message::Binary(bin_msg) => {
+                let plaintext = self.handle_binary_message(bin_msg)?;
+                Ok(Some(plaintext))
+            }
+            // I think that in the future we should perhaps have some sequence number system, i.e.
+            // so each request/response pair can be easily identified, so that if messages are
+            // not ordered (for some peculiar reason) we wouldn't lose anything.
+            // This would also require NOT discarding any text responses here.
+
+            // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
+            Message::Text(text) => {
+                trace!(
                     "received a text message - probably a response to some previous query! - {text}",
                 );
-                    match ServerResponse::try_from(text)
-                        .map_err(|_| GatewayClientError::MalformedResponse)?
-                    {
-                        ServerResponse::Send {
-                            remaining_bandwidth,
-                        } => maybe_log_bandwidth(remaining_bandwidth),
-                        ServerResponse::Error { message } => {
-                            error!("gateway failure: {message}");
-                            return Err(GatewayClientError::GatewayError(message));
-                        }
-                        other => {
-                            warn!(
-                                "received illegal message of type {} in an authenticated client",
-                                other.name()
-                            )
-                        }
-                    }
+                self.handle_text_message(text)?;
+                Ok(None)
+            }
+            _ => {
+                debug!("received websocket message that's neither 'Binary' nor 'Text'. it's going to get ignored");
+                Ok(None)
+            }
+        }
+    }
 
-                    continue;
-                }
-                _ => continue,
+    fn recover_received_plaintexts(
+        &self,
+        messages: Vec<Message>,
+    ) -> Result<Vec<Vec<u8>>, GatewayClientError> {
+        let mut plaintexts = Vec::new();
+        for ws_msg in messages {
+            if let Some(plaintext) = self.recover_received_plaintext(ws_msg)? {
+                plaintexts.push(plaintext)
             }
         }
         Ok(plaintexts)
     }
 
-    fn route_socket_messages(
-        ws_msgs: Vec<Message>,
-        packet_router: &PacketRouter,
-        shared_key: &SharedKeys,
-    ) -> Result<(), GatewayClientError> {
-        let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key)?;
-        packet_router.route_received(plaintexts)
-    }
+    fn spawn(self, split_stream: SplitStream<WsConn>, task_client: TaskClient) {
+        let fut = async move { self.run(split_stream, task_client).await };
 
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(fut);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::spawn(fut);
+    }
+}
+
+impl PartiallyDelegatedHandle {
     pub(crate) fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
-        mut packet_router: PacketRouter,
+        packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-        mut shutdown: TaskClient,
+        client_bandwidth: ClientBandwidth,
+        shutdown: TaskClient,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -146,58 +257,18 @@ impl PartiallyDelegated {
         let (stream_sender, stream_receiver) = oneshot::channel();
 
         let ws_fd = ws_fd(&conn);
+        let (sink, stream) = conn.split();
 
-        let (sink, mut stream) = conn.split();
+        PartiallyDelegatedRouter::new(
+            packet_router,
+            shared_key,
+            client_bandwidth,
+            stream_sender,
+            notify_receiver,
+        )
+        .spawn(stream, shutdown);
 
-        let mixnet_receiver_future = async move {
-            let mut notify_receiver = notify_receiver;
-            let mut chunk_stream = (&mut stream).ready_chunks(8);
-
-            let ret_err = loop {
-                tokio::select! {
-                    _ = shutdown.recv() => {
-                        log::trace!("GatewayClient listener: Received shutdown");
-                        log::debug!("GatewayClient listener: Exiting");
-                        return;
-                    }
-                    _ = &mut notify_receiver => {
-                        break Ok(());
-                    }
-                    msgs = chunk_stream.next() => {
-                        let ws_msgs = match cleanup_socket_messages(msgs) {
-                            Err(err) => break Err(err),
-                            Ok(msgs) => msgs
-                        };
-
-                        if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref()) {
-                            log::error!("Route socket messages failed: {err}");
-                            break Err(err)
-                        }
-                    }
-                };
-            };
-
-            if match ret_err {
-                Err(err) => stream_sender.send(Err(err)),
-                Ok(_) => {
-                    packet_router.mark_as_success();
-                    shutdown.mark_as_success();
-                    stream_sender.send(Ok(stream))
-                }
-            }
-            .is_err()
-            {
-                warn!("failed to send back `mixnet_receiver_future` result on the oneshot channel")
-            }
-        };
-
-        #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(mixnet_receiver_future);
-
-        #[cfg(not(target_arch = "wasm32"))]
-        tokio::spawn(mixnet_receiver_future);
-
-        PartiallyDelegated {
+        PartiallyDelegatedHandle {
             ws_fd,
             sink_half: sink,
             delegated_stream: (stream_receiver, notify_sender),
@@ -266,7 +337,7 @@ impl PartiallyDelegated {
 #[derive(Debug)]
 pub(crate) enum SocketState {
     Available(Box<WsConn>),
-    PartiallyDelegated(PartiallyDelegated),
+    PartiallyDelegated(PartiallyDelegatedHandle),
     NotConnected,
     Invalid,
 }

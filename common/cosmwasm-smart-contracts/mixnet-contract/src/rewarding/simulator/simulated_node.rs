@@ -47,7 +47,6 @@ impl SimulatedNode {
             self.rewarding_details.total_unit_reward,
             delegation,
             42,
-            None,
         );
 
         self.delegations.insert(delegator, delegation);

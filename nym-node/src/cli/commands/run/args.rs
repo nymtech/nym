@@ -22,12 +22,12 @@ pub(crate) struct Args {
     /// as defined at <https://nymtech.net/terms-and-conditions/operators/v1.0.0>
     #[clap(
         long,
-        env = NYMNODE_ACCEPT_TOC,
-        alias = "accept-toc",
+        env = NYMNODE_ACCEPT_OPERATOR_TERMS,
         alias = "accept-t&c",
-        alias = "accept-operator-terms-and-conditions"
+        alias = "accept-operator-terms",
+        alias = "accept-operator-t&c",
     )]
-    pub(crate) accept_operator_terms: bool,
+    pub(crate) accept_operator_terms_and_conditions: bool,
 
     /// Forbid a new node from being initialised if configuration file for the provided specification doesn't already exist
     #[clap(

@@ -1,18 +1,23 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 // #![warn(clippy::pedantic)]
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use dashmap::DashMap;
-use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask, WGApi};
+use defguard_wireguard_rs::WGApi;
+#[cfg(target_os = "linux")]
+use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::encryption::KeyPair;
-use nym_wireguard_types::{Config, Error, GatewayClient, GatewayClientRegistry};
-use peer_controller::PeerControlMessage;
+use nym_wireguard_types::Config;
+use peer_controller::PeerControlRequest;
 use std::sync::Arc;
-use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 const WG_TUN_NAME: &str = "nymwg";
 
+pub(crate) mod error;
 pub mod peer_controller;
 
 pub struct WgApiWrapper {
@@ -38,21 +43,19 @@ impl Drop for WgApiWrapper {
 pub struct WireguardGatewayData {
     config: Config,
     keypair: Arc<KeyPair>,
-    client_registry: Arc<GatewayClientRegistry>,
-    peer_tx: mpsc::UnboundedSender<PeerControlMessage>,
+    peer_tx: UnboundedSender<PeerControlRequest>,
 }
 
 impl WireguardGatewayData {
     pub fn new(
         config: Config,
         keypair: Arc<KeyPair>,
-    ) -> (Self, mpsc::UnboundedReceiver<PeerControlMessage>) {
+    ) -> (Self, UnboundedReceiver<PeerControlRequest>) {
         let (peer_tx, peer_rx) = mpsc::unbounded_channel();
         (
             WireguardGatewayData {
                 config,
                 keypair,
-                client_registry: Arc::new(DashMap::default()),
                 peer_tx,
             },
             peer_rx,
@@ -67,35 +70,23 @@ impl WireguardGatewayData {
         &self.keypair
     }
 
-    pub fn client_registry(&self) -> &Arc<GatewayClientRegistry> {
-        &self.client_registry
-    }
-
-    pub fn add_peer(&self, client: &GatewayClient) -> Result<(), Error> {
-        let mut peer = Peer::new(Key::new(client.pub_key.to_bytes()));
-        peer.allowed_ips
-            .push(IpAddrMask::new(client.private_ip, 32));
-        let msg = PeerControlMessage::AddPeer(peer);
-        self.peer_tx.send(msg).map_err(|_| Error::PeerModifyStopped)
-    }
-
-    pub fn remove_peer(&self, client: &GatewayClient) -> Result<(), Error> {
-        let key = Key::new(client.pub_key().to_bytes());
-        let msg = PeerControlMessage::RemovePeer(key);
-        self.peer_tx.send(msg).map_err(|_| Error::PeerModifyStopped)
+    pub fn peer_tx(&self) -> &UnboundedSender<PeerControlRequest> {
+        &self.peer_tx
     }
 }
 
 pub struct WireguardData {
     pub inner: WireguardGatewayData,
-    pub peer_rx: UnboundedReceiver<PeerControlMessage>,
+    pub peer_rx: UnboundedReceiver<PeerControlRequest>,
 }
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]
-pub async fn start_wireguard(
+pub async fn start_wireguard<St: nym_gateway_storage::Storage + 'static>(
+    storage: St,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
+    control_tx: UnboundedSender<peer_controller::PeerControlResponse>,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
@@ -103,11 +94,15 @@ pub async fn start_wireguard(
     use peer_controller::PeerController;
 
     let mut peers = vec![];
-    for peer_client in wireguard_data.inner.client_registry().iter() {
-        let mut peer = Peer::new(Key::new(peer_client.pub_key.to_bytes()));
-        let peer_ip_mask = IpAddrMask::new(peer_client.private_ip, 32);
-        peer.set_allowed_ips(vec![peer_ip_mask]);
-        peers.push(peer);
+    let mut suspended_peers = vec![];
+    for storage_peer in storage.get_all_wireguard_peers().await? {
+        let suspended = storage_peer.suspended;
+        let peer = Peer::try_from(storage_peer)?;
+        if suspended {
+            suspended_peers.push(peer);
+        } else {
+            peers.push(peer);
+        }
     }
 
     let ifname = String::from(WG_TUN_NAME);
@@ -135,13 +130,15 @@ pub async fn start_wireguard(
     wg_api.configure_peer_routing(&[catch_all_peer])?;
 
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
-    let mut controller = PeerController::new(wg_api.clone(), wireguard_data.peer_rx);
+    let mut controller = PeerController::new(
+        storage,
+        wg_api.clone(),
+        interface_config.peers,
+        suspended_peers,
+        wireguard_data.peer_rx,
+        control_tx,
+    );
     tokio::spawn(async move { controller.run(task_client).await });
 
     Ok(wg_api)
-}
-
-#[cfg(not(target_os = "linux"))]
-pub async fn start_wireguard() {
-    todo!("WireGuard is currently only supported on Linux");
 }

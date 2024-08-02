@@ -2,6 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use nym_wireguard_types::{
-    ClientMac, ClientMessage, ClientRegistrationResponse, GatewayClient, InitMessage, Nonce,
-    PeerPublicKey,
+    ClientMac, ClientMessage, GatewayClient, InitMessage, Nonce, PeerPublicKey,
 };

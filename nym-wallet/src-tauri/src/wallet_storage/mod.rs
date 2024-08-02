@@ -7,8 +7,8 @@
 ///
 /// Wallet
 /// - Login
-/// -- Account
-/// --- Mnemonic
+///   -- Account
+///     --- Mnemonic
 pub(crate) use crate::wallet_storage::account_data::StoredLogin;
 pub(crate) use crate::wallet_storage::password::{AccountId, LoginId, UserPassword};
 

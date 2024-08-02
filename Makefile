@@ -92,7 +92,6 @@ endef
 $(eval $(call add_cargo_workspace,main,.))
 $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown,RUSTFLAGS='-C link-arg=-s'))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet))
-$(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 
 # -----------------------------------------------------------------------------
 # SDK
@@ -134,7 +133,7 @@ clippy: sdk-wasm-lint
 # Build contracts ready for deploy
 # -----------------------------------------------------------------------------
 
-CONTRACTS=vesting_contract mixnet_contract
+CONTRACTS=vesting_contract mixnet_contract nym_ecash
 CONTRACTS_WASM=$(addsuffix .wasm, $(CONTRACTS))
 CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
 

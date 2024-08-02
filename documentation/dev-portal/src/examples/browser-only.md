@@ -1,6 +1,9 @@
 # Browser only
 With the Typescript SDK you can run a Nym client in a webworker - meaning you can connect to the mixnet through the browser without having to worry about any other code than your web framework. 
 
+- Oreowallet have integrated `mixFetch` into their browser-extension wallet to run transactions through the mixnet. 
+  - [Codebase](https://github.com/oreoslabs/oreowallet-extension/tree/mixFetch) 
+
 - [NoTrustVerify](https://notrustverify.ch/) have set up an example application using [`mixFetch`](https://sdk.nymtech.net/examples/mix-fetch) to fetch crypto prices from CoinGecko over the mixnet. 
   - [Website](https://notrustverify.github.io/mixfetch-examples/) 
   - [Codebase](https://github.com/notrustverify/mixfetch-examples)  

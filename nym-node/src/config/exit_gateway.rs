@@ -5,15 +5,19 @@ use crate::config::helpers::ephemeral_gateway_config;
 use crate::config::persistence::ExitGatewayPaths;
 use crate::config::Config;
 use crate::error::ExitGatewayError;
-use clap::crate_version;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::defaults::mainnet;
-use nym_gateway::node::{LocalIpPacketRouterOpts, LocalNetworkRequesterOpts};
+use nym_gateway::node::{
+    LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use url::Url;
 
-use super::LocalWireguardOpts;
+use super::{
+    helpers::{base_client_config, EphemeralConfig},
+    LocalWireguardOpts,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -30,6 +34,28 @@ pub struct ExitGatewayConfig {
     pub network_requester: NetworkRequester,
 
     pub ip_packet_router: IpPacketRouter,
+
+    #[serde(default)]
+    pub debug: Debug,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Debug {
+    /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
+    pub message_retrieval_limit: i64,
+}
+
+impl Debug {
+    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+}
+
+impl Default for Debug {
+    fn default() -> Self {
+        Debug {
+            message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+        }
+    }
 }
 
 impl ExitGatewayConfig {
@@ -45,6 +71,7 @@ impl ExitGatewayConfig {
                 .expect("invalid default exit policy URL"),
             network_requester: Default::default(),
             ip_packet_router: Default::default(),
+            debug: Default::default(),
         }
     }
 }
@@ -134,24 +161,6 @@ impl Default for IpPacketRouterDebug {
     }
 }
 
-pub struct EphemeralConfig {
-    pub gateway: nym_gateway::config::Config,
-    pub nr_opts: LocalNetworkRequesterOpts,
-    pub ipr_opts: LocalIpPacketRouterOpts,
-    pub wg_opts: LocalWireguardOpts,
-}
-
-fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
-    nym_client_core_config_types::Client {
-        version: format!("{}-nym-node", crate_version!()),
-        id: config.id.clone(),
-        // irrelevant field - no need for credentials in embedded mode
-        disabled_credentials_mode: true,
-        nyxd_urls: config.mixnet.nyxd_urls.clone(),
-        nym_api_urls: config.mixnet.nym_api_urls.clone(),
-    }
-}
-
 // that function is rather disgusting, but I hope it's not going to live for too long
 pub fn ephemeral_exit_gateway_config(
     config: Config,
@@ -165,8 +174,6 @@ pub fn ephemeral_exit_gateway_config(
             },
             network_requester: nym_network_requester::config::NetworkRequester {
                 open_proxy: config.exit_gateway.open_proxy,
-                enabled_statistics: false,
-                statistics_recipient: None,
                 disable_poisson_rate: config
                     .exit_gateway
                     .network_requester
@@ -236,6 +243,25 @@ pub fn ephemeral_exit_gateway_config(
         ipr_opts.config.base.set_no_poisson_process()
     }
 
+    let auth_opts = LocalAuthenticatorOpts {
+        config: nym_authenticator::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config.authenticator.debug.client_debug,
+            },
+            authenticator: config.wireguard.clone().into(),
+            storage_paths: nym_authenticator::config::AuthenticatorPaths {
+                common_paths: config
+                    .exit_gateway
+                    .storage_paths
+                    .authenticator
+                    .to_common_client_paths(),
+            },
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
     let pub_id_path = config
         .storage_paths
         .keys
@@ -266,8 +292,9 @@ pub fn ephemeral_exit_gateway_config(
     gateway.storage_paths.keys.public_identity_key_file = pub_id_path;
 
     Ok(EphemeralConfig {
-        nr_opts,
-        ipr_opts,
+        nr_opts: Some(nr_opts),
+        ipr_opts: Some(ipr_opts),
+        auth_opts,
         wg_opts,
         gateway,
     })

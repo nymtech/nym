@@ -2,10 +2,10 @@ import React from 'react';
 import Stack from '@mui/material/Stack';
 
 const links = [
-  ['Twitter', 'https://twitter.com/nymproject'],
-  ['Telegram', 'https://t.me/nymchan'],
-  ['Discord', 'https://discord.com/invite/nym'],
-  ['GitHub', 'https://github.com/nymtech/nym'],
+  ['Twitter', 'https://nymtech.net/go/twitter'],
+  ['Telegram', 'https://nymtech.net/go/telegram'],
+  ['Discord', 'https://nymtech.net/go/discord'],
+  ['GitHub', 'https://nymtech.net/go/github/nym'],
   ['Nym Wallet', 'https://nymtech.net/download/wallet'],
   ['Nym Explorer', 'https://explorer.nymtech.net/'],
   ['Nym Blog', 'https://nymtech.medium.com/'],

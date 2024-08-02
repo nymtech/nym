@@ -3,8 +3,13 @@
 
 use crate::config::Config;
 use clap::crate_version;
+use nym_gateway::node::{
+    LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
+};
 use std::net::IpAddr;
 use thiserror::Error;
+
+use super::LocalWireguardOpts;
 
 #[derive(Debug, Error)]
 #[error("currently it's not supported to have different ip addresses for clients and mixnet ({clients_bind_ip} and {mix_bind_ip} were used)")]
@@ -48,8 +53,6 @@ pub fn ephemeral_gateway_config(
         mix_port: config.mixnet.bind_address.port(),
         clients_port: config.entry_gateway.bind_address.port(),
         clients_wss_port: config.entry_gateway.announce_wss_port,
-        enabled_statistics: false,
-        statistics_service_url: "https://nymtech.net/foobar".parse().unwrap(),
         nym_api_urls: config.mixnet.nym_api_urls,
         nyxd_urls: config.mixnet.nyxd_urls,
 
@@ -78,7 +81,45 @@ pub fn ephemeral_gateway_config(
             maximum_connection_buffer_size: config.mixnet.debug.maximum_connection_buffer_size,
             message_retrieval_limit: config.entry_gateway.debug.message_retrieval_limit,
             use_legacy_framed_packet_version: false,
+            zk_nym_tickets: nym_gateway::config::ZkNymTicketHandlerDebug {
+                revocation_bandwidth_penalty: config
+                    .entry_gateway
+                    .debug
+                    .zk_nym_tickets
+                    .revocation_bandwidth_penalty,
+                pending_poller: config.entry_gateway.debug.zk_nym_tickets.pending_poller,
+                minimum_api_quorum: config.entry_gateway.debug.zk_nym_tickets.minimum_api_quorum,
+                minimum_redemption_tickets: config
+                    .entry_gateway
+                    .debug
+                    .zk_nym_tickets
+                    .minimum_redemption_tickets,
+                maximum_time_between_redemption: config
+                    .entry_gateway
+                    .debug
+                    .zk_nym_tickets
+                    .maximum_time_between_redemption,
+            },
             ..Default::default()
         },
     ))
+}
+
+pub fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
+    nym_client_core_config_types::Client {
+        version: format!("{}-nym-node", crate_version!()),
+        id: config.id.clone(),
+        // irrelevant field - no need for credentials in embedded mode
+        disabled_credentials_mode: true,
+        nyxd_urls: config.mixnet.nyxd_urls.clone(),
+        nym_api_urls: config.mixnet.nym_api_urls.clone(),
+    }
+}
+
+pub struct EphemeralConfig {
+    pub gateway: nym_gateway::config::Config,
+    pub nr_opts: Option<LocalNetworkRequesterOpts>,
+    pub ipr_opts: Option<LocalIpPacketRouterOpts>,
+    pub auth_opts: LocalAuthenticatorOpts,
+    pub wg_opts: LocalWireguardOpts,
 }

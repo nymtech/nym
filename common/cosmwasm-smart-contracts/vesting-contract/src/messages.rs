@@ -136,6 +136,14 @@ pub enum ExecuteMsg {
         address: String,
         cap: PledgeCap,
     },
+    TrackMigratedMixnode {
+        owner: String,
+    },
+    // no need to track migrated gateways as there are no vesting gateways on mainnet
+    TrackMigratedDelegation {
+        owner: String,
+        mix_id: MixId,
+    },
 }
 
 impl ExecuteMsg {
@@ -171,6 +179,10 @@ impl ExecuteMsg {
             ExecuteMsg::TransferOwnership { .. } => "VestingExecuteMsg::TransferOwnership",
             ExecuteMsg::UpdateStakingAddress { .. } => "VestingExecuteMsg::UpdateStakingAddress",
             ExecuteMsg::UpdateLockedPledgeCap { .. } => "VestingExecuteMsg::UpdateLockedPledgeCap",
+            ExecuteMsg::TrackMigratedMixnode { .. } => "VestingExecuteMsg::TrackMigratedMixnode",
+            ExecuteMsg::TrackMigratedDelegation { .. } => {
+                "VestingExecuteMsg::TrackMigratedDelegation"
+            }
         }
     }
 }

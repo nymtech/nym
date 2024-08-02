@@ -6,7 +6,8 @@ use crate::rewarder::credential_issuance::types::CredentialIssuer;
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::storage::manager::StorageManager;
 use crate::rewarder::{EpochRewards, RewardingResult};
-use nym_validator_client::nym_api::IssuedCredentialBody;
+use nym_validator_client::nym_api::IssuedTicketbookBody;
+use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
 use nym_validator_client::nyxd::Coin;
 use sqlx::ConnectOptions;
 use std::fmt::Debug;
@@ -83,24 +84,24 @@ impl RewarderStorage {
     pub(crate) async fn get_deposit_credential_id(
         &self,
         operator_identity_bs58: String,
-        deposit_tx: String,
+        deposit_id: DepositId,
     ) -> Result<Option<i64>, NymRewarderError> {
         Ok(self
             .manager
-            .get_deposit_credential_id(operator_identity_bs58, deposit_tx)
+            .get_deposit_credential_id(operator_identity_bs58, deposit_id)
             .await?)
     }
 
     pub(crate) async fn insert_validated_deposit(
         &self,
         operator_identity_bs58: String,
-        credential_info: &IssuedCredentialBody,
+        credential_info: &IssuedTicketbookBody,
     ) -> Result<(), NymRewarderError> {
         self.manager
             .insert_validated_deposit(
                 operator_identity_bs58,
                 credential_info.credential.id,
-                credential_info.credential.tx_hash.to_string(),
+                credential_info.credential.deposit_id,
                 credential_info.credential.signable_plaintext(),
                 credential_info.signature.to_base58_string(),
             )
@@ -112,14 +113,14 @@ impl RewarderStorage {
         &self,
         operator_identity_bs58: String,
         original_credential_id: i64,
-        credential_info: &IssuedCredentialBody,
+        credential_info: &IssuedTicketbookBody,
     ) -> Result<(), NymRewarderError> {
         self.manager
             .insert_double_signing_evidence(
                 operator_identity_bs58,
                 credential_info.credential.id,
                 original_credential_id,
-                credential_info.credential.tx_hash.to_string(),
+                credential_info.credential.deposit_id,
                 credential_info.credential.signable_plaintext(),
                 credential_info.signature.to_base58_string(),
             )
@@ -130,7 +131,7 @@ impl RewarderStorage {
     pub(crate) async fn insert_issuance_foul_play_evidence(
         &self,
         issuer: &CredentialIssuer,
-        credential_info: &IssuedCredentialBody,
+        credential_info: &IssuedTicketbookBody,
         error_message: String,
     ) -> Result<(), NymRewarderError> {
         self.manager

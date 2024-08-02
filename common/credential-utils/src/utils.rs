@@ -1,72 +1,83 @@
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::errors::{Error, Result};
-use crate::recovery_storage::RecoveryStorage;
 use log::*;
-use nym_bandwidth_controller::acquire::state::State;
+use nym_bandwidth_controller::acquire::{
+    get_ticket_book, query_and_persist_required_global_signatures,
+};
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_credentials::coconut::bandwidth::CredentialType;
+use nym_credential_storage::storage::Storage;
+use nym_credentials_interface::TicketType;
+use nym_ecash_time::ecash_default_expiration_date;
+use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::{
-    dkg_query_client::EpochState, CoconutBandwidthSigningClient, DkgQueryClient,
+    dkg_query_client::EpochState, DkgQueryClient, EcashQueryClient, EcashSigningClient,
 };
-use nym_validator_client::nyxd::Coin;
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
+use time::OffsetDateTime;
 
-pub async fn issue_credential<C>(
+pub async fn issue_credential<C, S>(
     client: &C,
-    amount: Coin,
-    persistent_storage: &PersistentStorage,
-    recovery_storage_path: PathBuf,
+    storage: &S,
+    client_id: &[u8],
+    typ: TicketType,
 ) -> Result<()>
 where
-    C: DkgQueryClient + CoconutBandwidthSigningClient + Send + Sync,
+    C: DkgQueryClient + EcashSigningClient + EcashQueryClient + Send + Sync,
+    S: Storage,
+    <S as Storage>::StorageError: Send + Sync + 'static,
 {
-    let recovery_storage = setup_recovery_storage(recovery_storage_path).await;
-
-    block_until_coconut_is_available(client).await?;
+    block_until_ecash_is_available(client).await?;
     info!("Starting to deposit funds, don't kill the process");
 
-    if let Ok(recovered_amount) =
-        recover_credentials(client, &recovery_storage, persistent_storage).await
-    {
-        if recovered_amount != 0 {
-            info!(
-                "Recovered credentials in the amount of {}",
-                recovered_amount
-            );
+    if let Ok(recovered_ticketbooks) = recover_deposits(client, storage).await {
+        if recovered_ticketbooks != 0 {
+            info!("managed to recover {recovered_ticketbooks} ticket books. no need to make fresh deposit");
             return Ok(());
         }
     };
 
-    let state = nym_bandwidth_controller::acquire::deposit(client, amount.clone()).await?;
+    let epoch_id = client.get_current_epoch().await?.epoch_id;
+    let apis = all_ecash_api_clients(client, epoch_id).await?;
+    let ticketbook_expiration = ecash_default_expiration_date();
 
-    if nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, client, persistent_storage)
+    // make sure we have all required coin indices and expiration date signatures before attempting the deposit
+    query_and_persist_required_global_signatures(
+        storage,
+        epoch_id,
+        ticketbook_expiration,
+        apis.clone(),
+    )
+    .await?;
+
+    let issuance_data = nym_bandwidth_controller::acquire::make_deposit(
+        client,
+        client_id,
+        Some(ticketbook_expiration),
+        typ,
+    )
+    .await?;
+    info!("Deposit done");
+
+    if get_ticket_book(&issuance_data, client, storage, Some(apis))
         .await
         .is_err()
     {
-        warn!("Failed to obtain credential. Dumping recovery data.",);
-        match recovery_storage.insert_voucher(&state.voucher) {
-            Ok(file_path) => {
-                warn!("Dumped recovery data to {}. Try using recovery mode to convert it to a credential", file_path.to_str().unwrap());
-            }
-            Err(e) => {
-                error!("Could not dump recovery data to file system due to {:?}, the deposit will be lost!", e)
-            }
-        }
+        error!("failed to obtain credential. saving recovery data...");
 
-        return Err(Error::Credential(
-            nym_credentials::error::Error::BandwidthCredentialError,
-        ));
+        storage.insert_pending_ticketbook(&issuance_data).await.inspect_err(|err| {
+            let deposit = issuance_data.deposit_id();
+            error!("could not save the recovery data for deposit {deposit}: {err}. the data will unfortunately get lost")
+        }).map_err(Error::storage_error)?
     }
 
-    info!("Succeeded adding a credential with amount {amount}");
+    info!("Succeeded adding a ticketbook of type '{typ}'");
 
     Ok(())
-}
-
-pub async fn setup_recovery_storage(recovery_dir: PathBuf) -> RecoveryStorage {
-    RecoveryStorage::new(recovery_dir).expect("")
 }
 
 pub async fn setup_persistent_storage(client_home_directory: PathBuf) -> PersistentStorage {
@@ -77,16 +88,13 @@ pub async fn setup_persistent_storage(client_home_directory: PathBuf) -> Persist
     nym_credential_storage::initialise_persistent_storage(db_path).await
 }
 
-pub async fn block_until_coconut_is_available<C>(client: &C) -> Result<()>
+pub async fn block_until_ecash_is_available<C>(client: &C) -> Result<()>
 where
     C: DkgQueryClient + Send + Sync,
 {
     loop {
         let epoch = client.get_current_epoch().await?;
-        let current_timestamp_secs = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("the system clock is set to 01/01/1970 (or earlier)")
-            .as_secs();
+        let current_timestamp_secs = OffsetDateTime::now_utc().unix_timestamp() as u64;
 
         if epoch.state.is_final() {
             break;
@@ -101,7 +109,7 @@ where
         } else {
             // this should never be the case since the only case where final timestamp is unknown is when it's waiting for initialisation,
             // but let's guard ourselves against future changes
-            info!("it is unknown when coconut will be come available. Going to check again later");
+            info!("it is unknown when ecash will be come available. Going to check again later");
             tokio::time::sleep(Duration::from_secs(60 * 5)).await;
         }
     }
@@ -109,42 +117,47 @@ where
     Ok(())
 }
 
-pub async fn recover_credentials<C>(
-    client: &C,
-    recovery_storage: &RecoveryStorage,
-    shared_storage: &PersistentStorage,
-) -> Result<u128>
+pub async fn recover_deposits<C, S>(client: &C, storage: &S) -> Result<usize>
 where
     C: DkgQueryClient + Send + Sync,
+    S: Storage,
+    <S as Storage>::StorageError: Send + Sync + 'static,
 {
-    let mut recovered_amount: u128 = 0;
-    for voucher in recovery_storage.unconsumed_vouchers()? {
-        let voucher_value = match voucher.typ() {
-            CredentialType::Voucher => voucher.get_bandwidth_attribute(),
-            CredentialType::FreePass => {
-                error!("unimplemented recovery of free pass credentials");
-                continue;
-            }
-        };
-        recovered_amount += voucher_value.parse::<u128>()?;
+    info!("checking for any incomplete previous issuance attempts...");
 
-        let voucher_name = RecoveryStorage::voucher_filename(&voucher);
-        let state = State::new(voucher);
+    let incomplete = storage
+        .get_pending_ticketbooks()
+        .await
+        .map_err(Error::storage_error)?;
+    info!(
+        "we recovered {} incomplete ticketbook issuances",
+        incomplete.len()
+    );
 
-        if let Err(e) =
-            nym_bandwidth_controller::acquire::get_bandwidth_voucher(&state, client, shared_storage)
-                .await
-        {
-            error!("Could not recover deposit {voucher_name} due to {e}, try again later",)
-        } else {
-            info!(
-                "Converted deposit {voucher_name} to a credential, removing recovery data for it",
-            );
-            if let Err(err) = recovery_storage.remove_voucher(voucher_name) {
-                warn!("Could not remove recovery data: {err}");
+    let mut recovered_books = 0;
+    for issuance in incomplete {
+        let deposit = issuance.pending_ticketbook.deposit_id();
+        if issuance.pending_ticketbook.expired() {
+            warn!("ticketbook data associated with deposit {deposit} has expired. if you haven't contacted more than 1/3 of signers. it could still be recoverable (but out of scope of this library)");
+            continue;
+        }
+
+        if issuance.pending_ticketbook.check_expiration_date() {
+            warn!("deposit {deposit} was made with a different expiration date, it's validity will be shorter than the max one");
+        }
+
+        match get_ticket_book(&issuance.pending_ticketbook, client, storage, None).await {
+            Err(err) => error!("could not recover deposit {deposit} due to: {err}"),
+            Ok(_) => {
+                info!("managed to recover deposit {deposit}! the ticketbook has been added to the storage");
+                storage
+                    .remove_pending_ticketbook(issuance.pending_id)
+                    .await
+                    .map_err(Error::storage_error)?;
+                recovered_books += 1;
             }
         }
     }
 
-    Ok(recovered_amount)
+    Ok(recovered_books)
 }

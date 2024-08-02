@@ -61,6 +61,7 @@ impl MixnetMessage {
         }
     }
 
+    #[allow(unused)]
     pub(crate) fn new_network_data_request<A: Into<MixnetAddress>>(
         address: A,
         request_version: RequestVersion<Socks5Request>,
@@ -145,6 +146,7 @@ impl MixnetMessage {
         Self::new_network_data_response(address, request_version, connection_id, response_content)
     }
 
+    #[allow(unused)]
     pub(crate) fn data_size(&self) -> usize {
         self.data.len()
     }

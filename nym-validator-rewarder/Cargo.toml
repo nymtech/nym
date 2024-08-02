@@ -26,14 +26,15 @@ url.workspace = true
 zeroize.workspace = true
 
 serde_with = { workspace = true }
-sha2 = "0.10.8"
+sha2 = { workspace = true }
 humantime = { workspace = true }
 humantime-serde.workspace = true
 
 # internal
 nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
 nym-config = { path = "../common/config" }
-nym-coconut = { path = "../common/nymcoconut" }
+nym-ecash-time = { path = "../common/ecash-time" }
+nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric"] }
 nym-credentials = { path = "../common/credentials" }
 nym-network-defaults = { path = "../common/network-defaults" }
@@ -46,3 +47,8 @@ nyxd-scraper = { path = "../common/nyxd-scraper" }
 [build-dependencies]
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[dev-dependencies]
+rand_chacha = { workspace = true }
+nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-crypto = { path = "../common/crypto", features = ["rand"] }

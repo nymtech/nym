@@ -16,6 +16,7 @@ use log::info;
 use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::identity;
 use nym_topology::NymTopology;
+use nym_validator_client::UserAgent;
 use std::path::PathBuf;
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
@@ -60,7 +61,10 @@ pub struct CommonClientAddGatewayArgs {
     pub custom_mixnet: Option<PathBuf>,
 }
 
-pub async fn add_gateway<C, A>(args: A) -> Result<GatewayInfo, C::Error>
+pub async fn add_gateway<C, A>(
+    args: A,
+    user_agent: Option<UserAgent>,
+) -> Result<GatewayInfo, C::Error>
 where
     A: AsRef<CommonClientAddGatewayArgs>,
     C: CliClient,
@@ -111,7 +115,8 @@ where
         hardcoded_topology.get_gateways()
     } else {
         let mut rng = rand::thread_rng();
-        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls).await?
+        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls, user_agent)
+            .await?
     };
 
     // since we're registering with a brand new gateway,

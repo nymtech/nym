@@ -14,6 +14,10 @@ use url::Url;
 
 pub use reqwest::IntoUrl;
 
+pub use user_agent::UserAgent;
+
+mod user_agent;
+
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub type PathSegments<'a> = &'a [&'a str];

@@ -3,22 +3,19 @@
 
 use crate::nyxd::error::NyxdError;
 use itertools::Itertools;
+use nym_ecash_contract_common::events::PROPOSAL_ID_ATTRIBUTE_NAME;
 use serde::{Deserialize, Serialize};
 
-pub use nym_coconut_bandwidth_contract_common::event_attributes::*;
 pub use nym_coconut_dkg_common::event_attributes::*;
+pub use nym_ecash_contract_common::event_attributes::*;
 
 // it seems that currently validators just emit stringified events (which are also returned as part of deliverTx response)
-// as theirs logs
+// as their logs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Log {
     #[serde(default)]
     // weird thing is that the first msg_index seems to always be undefined on the raw logs
     pub msg_index: usize,
-    // unless I'm missing something obvious, the "log" type in cosmjs is always an empty string
-    // and launchpad cosmos validator was setting it to what essentially is just the raw version of what
-    // we received (and we don't care about launchpad, we, as the time of writing this, work on the stargate)
-    // log: String,
     pub events: Vec<cosmwasm_std::Event>,
 }
 
@@ -37,8 +34,32 @@ pub fn find_attribute<'a>(
         .find(|attr| attr.key == attribute_key)
 }
 
-// those two functions were separated so that the internal logic could actually be tested
+/// Search for the proposal id in the given log. It'll be in the LAST wasm event, with attribute key "proposal_id"
+pub fn find_proposal_id(logs: &[Log]) -> Result<u64, NyxdError> {
+    let maybe_attributes = logs
+        .iter()
+        .rev()
+        .flat_map(|log| log.events.iter())
+        .find(|event| event.ty == "wasm")
+        .ok_or(NyxdError::ComswasmEventNotFound)?
+        .attributes
+        .iter()
+        .find(|attr| attr.key == PROPOSAL_ID_ATTRIBUTE_NAME);
+    let attribute = maybe_attributes.ok_or(NyxdError::ComswasmAttributeNotFound)?;
+
+    attribute
+        .value
+        .parse::<u64>()
+        .map_err(|_| NyxdError::DeserializationError("proposal_id".into()))
+}
+
+// these two functions were separated so that the internal logic could actually be tested
 fn parse_raw_str_logs(raw: &str) -> Result<Vec<Log>, NyxdError> {
+    // From Cosmos SDK > 0.50 onwards, log field is not populated
+    if raw.is_empty() {
+        return Ok(Vec::new());
+    }
+
     let logs: Vec<Log> = serde_json::from_str(raw).map_err(|_| NyxdError::MalformedLogString)?;
     if logs.len() != logs.iter().unique_by(|log| log.msg_index).count() {
         // this check is only here because I don't yet fully understand raw log string generation and
@@ -48,7 +69,7 @@ fn parse_raw_str_logs(raw: &str) -> Result<Vec<Log>, NyxdError> {
     Ok(logs)
 }
 
-pub fn parse_raw_logs(raw: String) -> Result<Vec<Log>, NyxdError> {
+pub fn parse_raw_logs<S: AsRef<str>>(raw: S) -> Result<Vec<Log>, NyxdError> {
     parse_raw_str_logs(raw.as_ref())
 }
 

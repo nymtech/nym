@@ -12,17 +12,14 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
+use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use crate::node::statistics::collector::GatewayStatisticsCollector;
 use futures::channel::{mpsc, oneshot};
-use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
-use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
@@ -32,14 +29,14 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tracing::*;
 
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
-pub(crate) mod statistics;
-pub(crate) mod storage;
 
-pub use storage::{InMemStorage, PersistentStorage, Storage};
+use crate::node::client_handling::websocket::connection_handler::ecash::credential_sender::CredentialHandlerConfig;
+pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
 struct StartedNetworkRequester {
@@ -47,6 +44,16 @@ struct StartedNetworkRequester {
     used_request_filter: RequestFilter,
 
     /// Handle to interact with the local network requester
+    handle: LocalEmbeddedClientHandle,
+}
+
+// TODO: should this struct live here?
+#[allow(unused)]
+struct StartedAuthenticator {
+    #[cfg(feature = "wireguard")]
+    wg_api: Arc<nym_wireguard::WgApiWrapper>,
+
+    /// Handle to interact with the local authenticator
     handle: LocalEmbeddedClientHandle,
 }
 
@@ -92,7 +99,7 @@ pub async fn create_gateway(
 
     let ip_opts = ip_packet_router_config.map(|config| LocalIpPacketRouterOpts {
         config,
-        custom_mixnet_path: custom_mixnet,
+        custom_mixnet_path: custom_mixnet.clone(),
     });
 
     Gateway::new(config, nr_opts, ip_opts, storage)
@@ -112,12 +119,23 @@ pub struct LocalIpPacketRouterOpts {
     pub custom_mixnet_path: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct LocalAuthenticatorOpts {
+    pub config: nym_authenticator::Config,
+
+    pub custom_mixnet_path: Option<PathBuf>,
+}
+
 pub struct Gateway<St = PersistentStorage> {
     config: Config,
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
     ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
+
+    // Use None when wireguard feature is not enabled too
+    #[allow(dead_code)]
+    authenticator_opts: Option<LocalAuthenticatorOpts>,
 
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
@@ -149,6 +167,7 @@ impl<St> Gateway<St> {
             config,
             network_requester_opts,
             ip_packet_router_opts,
+            authenticator_opts: None,
             #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
@@ -160,6 +179,7 @@ impl<St> Gateway<St> {
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
         ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
+        authenticator_opts: Option<LocalAuthenticatorOpts>,
         identity_keypair: Arc<identity::KeyPair>,
         sphinx_keypair: Arc<encryption::KeyPair>,
         storage: St,
@@ -168,6 +188,7 @@ impl<St> Gateway<St> {
             config,
             network_requester_opts,
             ip_packet_router_opts,
+            authenticator_opts,
             identity_keypair,
             sphinx_keypair,
             storage,
@@ -225,20 +246,88 @@ impl<St> Gateway<St> {
     }
 
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
-    async fn start_wireguard(
+    async fn start_authenticator(
         &mut self,
+        forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
-    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>>
+    where
+        St: Storage + Clone + 'static,
+    {
+        let opts = self
+            .authenticator_opts
+            .as_ref()
+            .ok_or(GatewayError::UnspecifiedAuthenticatorConfig)?;
+        let (router_tx, mut router_rx) = oneshot::channel();
+        let (auth_mix_sender, auth_mix_receiver) = mpsc::unbounded();
+        let (peer_response_tx, peer_response_rx) = tokio::sync::mpsc::unbounded_channel();
+        let router_shutdown = shutdown.fork("message_router");
+        let transceiver = LocalGateway::new(
+            *self.identity_keypair.public_key(),
+            forwarding_channel,
+            router_tx,
+        );
+
         if let Some(wireguard_data) = self.wireguard_data.take() {
-            nym_wireguard::start_wireguard(shutdown, wireguard_data).await
+            let (on_start_tx, on_start_rx) = oneshot::channel();
+            let mut authenticator_server = nym_authenticator::Authenticator::new(
+                opts.config.clone(),
+                wireguard_data.inner.clone(),
+                peer_response_rx,
+            )
+            .with_custom_gateway_transceiver(Box::new(transceiver))
+            .with_shutdown(shutdown.fork("authenticator"))
+            .with_wait_for_gateway(true)
+            .with_minimum_gateway_performance(0)
+            .with_on_start(on_start_tx);
+
+            if let Some(custom_mixnet) = &opts.custom_mixnet_path {
+                authenticator_server = authenticator_server.with_stored_topology(custom_mixnet)?
+            }
+
+            tokio::spawn(async move {
+                if let Err(e) = authenticator_server.run_service_provider().await {
+                    log::error!("Run authenticator server - {e}");
+                }
+            });
+
+            let start_data = on_start_rx
+                .await
+                .map_err(|_| GatewayError::AuthenticatorStartupFailure)?;
+
+            // this should be instantaneous since the data is sent on this channel before the on start is called;
+            // the failure should be impossible
+            let Ok(Some(packet_router)) = router_rx.try_recv() else {
+                return Err(Box::new(GatewayError::AuthenticatorStartupFailure));
+            };
+
+            MessageRouter::new(auth_mix_receiver, packet_router)
+                .start_with_shutdown(router_shutdown);
+
+            let wg_api = nym_wireguard::start_wireguard(
+                self.storage.clone(),
+                shutdown,
+                wireguard_data,
+                peer_response_tx,
+            )
+            .await?;
+
+            Ok(StartedAuthenticator {
+                wg_api,
+                handle: LocalEmbeddedClientHandle::new(start_data.address, auth_mix_sender),
+            })
         } else {
             Err(Box::new(GatewayError::WireguardNotSet))
         }
     }
 
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
-    async fn start_wireguard(&self, _shutdown: TaskClient) {
-        nym_wireguard::start_wireguard().await
+    async fn start_authenticator(
+        &self,
+        _forwarding_channel: MixForwardingSender,
+        _shutdown: TaskClient,
+    ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
+        todo!("Authenticator is currently only supported on Linux");
     }
 
     fn start_client_websocket_listener(
@@ -246,9 +335,9 @@ impl<St> Gateway<St> {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-        coconut_verifier: Arc<CoconutVerifier>,
+        ecash_verifier: Arc<EcashManager<St>>,
     ) where
-        St: Storage + Clone + 'static,
+        St: Storage + Send + Sync + Clone + 'static,
     {
         info!("Starting client [web]socket listener...");
 
@@ -258,7 +347,8 @@ impl<St> Gateway<St> {
         );
 
         let shared_state = websocket::CommonHandlerState {
-            coconut_verifier,
+            ecash_verifier,
+            storage: self.storage.clone(),
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
@@ -266,7 +356,6 @@ impl<St> Gateway<St> {
 
         websocket::Listener::new(listening_address, shared_state).start(
             forwarding_channel,
-            self.storage.clone(),
             active_clients_store,
             shutdown,
         );
@@ -318,6 +407,7 @@ impl<St> Gateway<St> {
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_wait_for_gateway(true)
+            .with_minimum_gateway_performance(0)
             .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
@@ -382,6 +472,7 @@ impl<St> Gateway<St> {
                 .with_shutdown(shutdown)
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
+                .with_minimum_gateway_performance(0)
                 .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
@@ -493,8 +584,32 @@ impl<St> Gateway<St> {
             }
         }
 
-        let coconut_verifier =
-            CoconutVerifier::new(nyxd_client, self.config.gateway.only_coconut_credentials).await?;
+        let handler_config = CredentialHandlerConfig {
+            revocation_bandwidth_penalty: self
+                .config
+                .debug
+                .zk_nym_tickets
+                .revocation_bandwidth_penalty,
+            pending_poller: self.config.debug.zk_nym_tickets.pending_poller,
+            minimum_api_quorum: self.config.debug.zk_nym_tickets.minimum_api_quorum,
+            minimum_redemption_tickets: self.config.debug.zk_nym_tickets.minimum_redemption_tickets,
+            maximum_time_between_redemption: self
+                .config
+                .debug
+                .zk_nym_tickets
+                .maximum_time_between_redemption,
+        };
+
+        let ecash_manager = {
+            EcashManager::new(
+                handler_config,
+                nyxd_client,
+                self.identity_keypair.public_key().to_bytes(),
+                shutdown.fork("EcashVerifier"),
+                self.storage.clone(),
+            )
+            .await
+        }?;
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 
@@ -505,24 +620,11 @@ impl<St> Gateway<St> {
             shutdown.fork("mixnet_handling::Listener"),
         );
 
-        if self.config.gateway.enabled_statistics {
-            let statistics_service_url = self.config.get_statistics_service_url();
-            let stats_collector = GatewayStatisticsCollector::new(
-                self.identity_keypair.public_key().to_base58_string(),
-                active_clients_store.clone(),
-                statistics_service_url,
-            );
-            let mut stats_sender = StatisticsSender::new(stats_collector);
-            tokio::spawn(async move {
-                stats_sender.run().await;
-            });
-        }
-
         self.start_client_websocket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shutdown.fork("websocket::Listener"),
-            Arc::new(coconut_verifier),
+            Arc::new(ecash_manager),
         );
 
         let nr_request_filter = if self.config.network_requester.enabled {
@@ -543,13 +645,23 @@ impl<St> Gateway<St> {
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_packet_router(
-                    mix_forwarding_channel,
+                    mix_forwarding_channel.clone(),
                     shutdown.fork("ip_service_provider"),
                 )
                 .await?;
             active_clients_store.insert_embedded(embedded_ip_sp);
         } else {
             info!("embedded ip packet router is disabled");
+        };
+
+        #[cfg(feature = "wireguard")]
+        let _wg_api = {
+            let embedded_auth = self
+                .start_authenticator(mix_forwarding_channel, shutdown.fork("authenticator"))
+                .await
+                .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
+            active_clients_store.insert_embedded(embedded_auth.handle);
+            Some(embedded_auth.wg_api)
         };
 
         if self.run_http_server {
@@ -563,17 +675,6 @@ impl<St> Gateway<St> {
             .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))
             .start(shutdown.fork("http-api"))?;
         }
-
-        // Once this is a bit more mature, make this a commandline flag instead of a compile time
-        // flag
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        let _wg_api = self
-            .start_wireguard(shutdown.fork("wireguard"))
-            .await
-            .map_err(|source| GatewayError::StdError { source })?;
-
-        #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
-        self.start_wireguard(shutdown.fork("wireguard")).await;
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

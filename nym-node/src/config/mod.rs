@@ -4,6 +4,7 @@
 use crate::config::persistence::NymNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymNodeError;
+use authenticator::Authenticator;
 use celes::Country;
 use clap::ValueEnum;
 use nym_bin_common::logging::LoggingSettings;
@@ -25,10 +26,12 @@ use std::time::Duration;
 use tracing::{debug, error};
 use url::Url;
 
+pub mod authenticator;
 pub mod entry_gateway;
 pub mod exit_gateway;
 pub mod helpers;
 pub mod mixnode;
+mod old_configs;
 pub mod persistence;
 mod template;
 pub mod upgrade_helpers;
@@ -111,6 +114,8 @@ pub struct ConfigBuilder {
 
     pub exit_gateway: Option<ExitGatewayConfig>,
 
+    pub authenticator: Option<Authenticator>,
+
     pub logging: Option<LoggingSettings>,
 }
 
@@ -129,6 +134,7 @@ impl ConfigBuilder {
             mixnode: None,
             entry_gateway: None,
             exit_gateway: None,
+            authenticator: None,
             logging: None,
         }
     }
@@ -205,6 +211,7 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| ExitGatewayConfig::new_default(&self.data_dir)),
             logging: self.logging.unwrap_or_default(),
             save_path: Some(self.config_path),
+            authenticator: self.authenticator.unwrap_or_default(),
         }
     }
 }
@@ -240,6 +247,8 @@ pub struct Config {
     pub entry_gateway: EntryGatewayConfig,
 
     pub exit_gateway: ExitGatewayConfig,
+
+    pub authenticator: Authenticator,
 
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -535,6 +544,17 @@ impl Wireguard {
 impl From<Wireguard> for nym_wireguard_types::Config {
     fn from(value: Wireguard) -> Self {
         nym_wireguard_types::Config {
+            bind_address: value.bind_address,
+            private_ip: value.private_ip,
+            announced_port: value.announced_port,
+            private_network_prefix: value.private_network_prefix,
+        }
+    }
+}
+
+impl From<Wireguard> for nym_authenticator::config::Authenticator {
+    fn from(value: Wireguard) -> Self {
+        nym_authenticator::config::Authenticator {
             bind_address: value.bind_address,
             private_ip: value.private_ip,
             announced_port: value.announced_port,

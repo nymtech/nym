@@ -1,6 +1,6 @@
 [package]
 name = "nym-socks5-client"
-version = "1.1.35"
+version = "1.1.38"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"
@@ -11,7 +11,9 @@ license.workspace = true
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 log = { workspace = true }
-serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
+serde = { workspace = true, features = [
+    "derive",
+] } # for config serialization/deserialization
 serde_json = { workspace = true }
 tap = { workspace = true }
 thiserror = { workspace = true }
@@ -22,20 +24,31 @@ url = { workspace = true }
 zeroize = { workspace = true }
 
 # internal
-nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
-nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage", "fs-gateways-storage", "cli"] }
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "output_format",
+    "clap",
+] }
+nym-client-core = { path = "../../common/client-core", features = [
+    "fs-credentials-storage",
+    "fs-surb-storage",
+    "fs-gateways-storage",
+    "cli",
+] }
 nym-config = { path = "../../common/config" }
+nym-credential-storage = { path = "../../common/credential-storage" }
 nym-credentials = { path = "../../common/credentials" }
 nym-crypto = { path = "../../common/crypto" }
-nym-gateway-requests = { path = "../../gateway/gateway-requests" }
-nym-credential-storage = { path = "../../common/credential-storage" }
+nym-gateway-requests = { path = "../../common/gateway-requests" }
+nym-id = { path = "../../common/nym-id" }
 nym-network-defaults = { path = "../../common/network-defaults" }
-nym-sphinx = { path = "../../common/nymsphinx" }
 nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-pemstore = { path = "../../common/pemstore" }
-nym-topology = { path = "../../common/topology" }
 nym-socks5-client-core = { path = "../../common/socks5-client-core" }
-nym-id = { path = "../../common/nym-id" }
+nym-sphinx = { path = "../../common/nymsphinx" }
+nym-topology = { path = "../../common/topology" }
+nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
+    "http-client",
+] }
 
 [features]
 default = []

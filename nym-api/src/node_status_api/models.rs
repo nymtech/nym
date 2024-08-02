@@ -418,3 +418,11 @@ pub enum NymApiStorageError {
     #[error("failed to perform startup SQL migration - {0}")]
     StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
 }
+
+impl NymApiStorageError {
+    pub fn database_inconsistency<S: Into<String>>(reason: S) -> NymApiStorageError {
+        NymApiStorageError::DatabaseInconsistency {
+            reason: reason.into(),
+        }
+    }
+}

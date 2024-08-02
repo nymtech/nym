@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.1.2"
+version = "1.1.5"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -21,23 +21,23 @@ celes = { workspace = true } # country codes
 colored = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 humantime-serde = { workspace = true }
-ipnetwork = "0.16.0"
+ipnetwork = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["macros", "sync"] }
-toml = "0.8.12"
+toml = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 # temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
-semver = "1.0.22"
+semver = { workspace = true }
 
 # system info:
 cupid = { workspace = true }
-sysinfo = "0.30.7"
+sysinfo = { workspace = true }
 
 nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing", "output_format"] }
 nym-client-core-config-types = { path = "../common/client-core/config-types" }
@@ -55,6 +55,7 @@ nym-wireguard-types = { path = "../common/wireguard-types", default-features = f
 # nodes:
 nym-mixnode = { path = "../mixnode" }
 nym-gateway = { path = "../gateway" }
+nym-authenticator = { path = "../service-providers/authenticator" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 

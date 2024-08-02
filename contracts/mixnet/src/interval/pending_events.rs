@@ -839,12 +839,12 @@ mod tests {
             // perform some rewarding here to advance the unit delegation beyond the initial value
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -853,12 +853,12 @@ mod tests {
             test.add_immediate_delegation(owner, delegation_og, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -922,12 +922,12 @@ mod tests {
             // perform some rewarding here to advance the unit delegation beyond the initial value
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -1016,12 +1016,12 @@ mod tests {
             // perform some rewarding here to advance the unit delegation beyond the initial value
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -1029,12 +1029,12 @@ mod tests {
             test.add_immediate_delegation(owner, delegation, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -1166,12 +1166,12 @@ mod tests {
 
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -1301,11 +1301,11 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_repledge,
                 test_helpers::performance(100.0),
             );
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_full_pledge,
                 test_helpers::performance(100.0),
             );
@@ -1329,7 +1329,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge]);
 
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_repledge,
                 test_helpers::performance(100.0),
             );
@@ -1373,11 +1373,11 @@ mod tests {
             // go through few epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.reward_with_distribution_with_state_bypass(
+                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
-                let dist2 = test.reward_with_distribution_with_state_bypass(
+                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_full_pledge,
                     test_helpers::performance(100.0),
                 );
@@ -1408,7 +1408,7 @@ mod tests {
             // go few epochs of rewarding before adding more pledge
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist = test.reward_with_distribution_with_state_bypass(
+                let dist = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
@@ -1456,11 +1456,11 @@ mod tests {
             // go through few more epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.reward_with_distribution_with_state_bypass(
+                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
-                let dist2 = test.reward_with_distribution_with_state_bypass(
+                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_full_pledge,
                     test_helpers::performance(100.0),
                 );
@@ -1595,11 +1595,11 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
-            let dist1 = test.reward_with_distribution_with_state_bypass(
+            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_repledge,
                 test_helpers::performance(100.0),
             );
-            let dist2 = test.reward_with_distribution_with_state_bypass(
+            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_full_pledge,
                 test_helpers::performance(100.0),
             );
@@ -1623,7 +1623,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge]);
 
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id_repledge,
                 test_helpers::performance(100.0),
             );
@@ -1667,11 +1667,11 @@ mod tests {
             // go through few epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.reward_with_distribution_with_state_bypass(
+                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
-                let dist2 = test.reward_with_distribution_with_state_bypass(
+                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_full_pledge,
                     test_helpers::performance(100.0),
                 );
@@ -1702,7 +1702,7 @@ mod tests {
             // go few epochs of rewarding before decreasing pledge
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist = test.reward_with_distribution_with_state_bypass(
+                let dist = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
@@ -1750,11 +1750,11 @@ mod tests {
             // go through few more epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.reward_with_distribution_with_state_bypass(
+                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_repledge,
                     test_helpers::performance(100.0),
                 );
-                let dist2 = test.reward_with_distribution_with_state_bypass(
+                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id_full_pledge,
                     test_helpers::performance(100.0),
                 );

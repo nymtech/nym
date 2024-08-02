@@ -333,7 +333,7 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -353,7 +353,7 @@ mod tests {
             // reward it few more times for good measure
             for _ in 0..10 {
                 test.skip_to_next_epoch_end();
-                let dist = test.reward_with_distribution_with_state_bypass(
+                let dist = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id,
                     test_helpers::performance(100.0),
                 );
@@ -383,7 +383,7 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -414,7 +414,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
 
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -495,7 +495,7 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -514,7 +514,7 @@ mod tests {
             // reward it few more times for good measure
             for _ in 0..10 {
                 test.skip_to_next_epoch_end();
-                let dist = test.reward_with_distribution_with_state_bypass(
+                let dist = test.legacy_reward_with_distribution_with_state_bypass(
                     mix_id,
                     test_helpers::performance(100.0),
                 );
@@ -546,7 +546,7 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -580,7 +580,7 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -620,52 +620,55 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
 
             test.add_immediate_delegation(del3, 500_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(85.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(mix_id, test_helpers::performance(5.0));
+            test.legacy_reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(5.0),
+            );
 
             test.add_immediate_delegation(del4, 5_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
 
             test.add_immediate_delegation(del2, 250_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(98.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
 
             test.remove_immediate_delegation(del3, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(98.0),
             );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -731,6 +734,7 @@ mod tests {
                 test.deps(),
                 42,
                 test_helpers::performance(100.0),
+                None,
             )
             .unwrap();
             assert_eq!(res, EstimatedCurrentEpochRewardResponse::empty_response())
@@ -745,7 +749,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -758,6 +762,7 @@ mod tests {
                 test.deps(),
                 mix_id,
                 test_helpers::performance(100.0),
+                None,
             )
             .unwrap();
 
@@ -774,7 +779,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -788,6 +793,7 @@ mod tests {
                 test.deps(),
                 mix_id,
                 test_helpers::performance(100.0),
+                None,
             )
             .unwrap();
             assert_eq!(res, EstimatedCurrentEpochRewardResponse::empty_response())
@@ -801,7 +807,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -811,6 +817,7 @@ mod tests {
                 test.deps(),
                 mix_id,
                 test_helpers::performance(100.0),
+                None,
             )
             .unwrap();
 
@@ -826,7 +833,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -835,6 +842,7 @@ mod tests {
                 test.deps(),
                 mix_id,
                 test_helpers::performance(0.0),
+                None,
             )
             .unwrap();
 
@@ -850,7 +858,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -860,11 +868,12 @@ mod tests {
                 test.deps(),
                 mix_id,
                 test_helpers::performance(95.0),
+                None,
             )
             .unwrap();
 
             test.skip_to_next_epoch_end();
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(95.0),
             );
@@ -919,7 +928,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -929,6 +938,7 @@ mod tests {
                 "foomper".into(),
                 mix_id,
                 test_helpers::performance(100.0),
+                None,
             )
             .unwrap();
 
@@ -946,7 +956,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -960,6 +970,7 @@ mod tests {
                 owner.into(),
                 mix_id,
                 test_helpers::performance(100.0),
+                None,
             )
             .unwrap();
 
@@ -978,7 +989,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -993,6 +1004,7 @@ mod tests {
                 owner.into(),
                 mix_id,
                 test_helpers::performance(100.0),
+                None,
             )
             .unwrap();
 
@@ -1011,7 +1023,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -1022,6 +1034,7 @@ mod tests {
                 owner.into(),
                 mix_id,
                 test_helpers::performance(100.0),
+                None,
             )
             .unwrap();
 
@@ -1040,7 +1053,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(100.0),
             );
@@ -1050,6 +1063,7 @@ mod tests {
                 owner.into(),
                 mix_id,
                 test_helpers::performance(0.0),
+                None,
             )
             .unwrap();
 
@@ -1075,11 +1089,12 @@ mod tests {
                 owner.into(),
                 mix_id,
                 test_helpers::performance(95.0),
+                None,
             )
             .unwrap();
 
             test.skip_to_next_epoch_end();
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(95.0),
             );
@@ -1118,14 +1133,14 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(95.0),
             );
 
             test.add_immediate_delegation(del3, initial_stake3, mix_id);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution_with_state_bypass(
+            test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(85.0),
             );
@@ -1140,6 +1155,7 @@ mod tests {
                         owner.to_string(),
                         mix_id,
                         test_helpers::performance(95.0),
+                        None,
                     )
                     .unwrap()
                 })
@@ -1164,7 +1180,7 @@ mod tests {
             let cur3 = initial_stake3_dec + est3;
 
             test.skip_to_next_epoch_end();
-            let dist = test.reward_with_distribution_with_state_bypass(
+            let dist = test.legacy_reward_with_distribution_with_state_bypass(
                 mix_id,
                 test_helpers::performance(95.0),
             );

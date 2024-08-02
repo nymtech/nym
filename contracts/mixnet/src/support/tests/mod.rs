@@ -21,13 +21,10 @@ pub mod test_helpers {
     use crate::mixnet_contract_settings::storage::{
         self as mixnet_params_storage, minimum_node_pledge,
     };
-    use crate::mixnet_contract_settings::storage::{
-        minimum_gateway_pledge, minimum_mixnode_pledge, rewarding_denom,
-        rewarding_validator_address,
-    };
+    use crate::mixnet_contract_settings::storage::{rewarding_denom, rewarding_validator_address};
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::mixnode_bonds;
-    use crate::mixnodes::transactions::{try_add_mixnode, try_remove_mixnode};
+    use crate::mixnodes::transactions::try_remove_mixnode;
     use crate::nodes::helpers::{get_node_details_by_identity, must_get_node_bond_by_owner};
     use crate::nodes::storage as nymnodes_storage;
     use crate::nodes::storage::rewarded_set::{ACTIVE_ROLES_BUCKET, ROLES};
@@ -65,7 +62,7 @@ pub mod test_helpers {
     use mixnet_contract_common::nym_node::Role;
     use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
     use mixnet_contract_common::reward_params::{
-        NodeRewardingParameters, Performance, RewardedSetParams, RewardingParams,
+        NodeRewardingParameters, Performance, RewardedSetParams, RewardingParams, WorkFactor,
     };
     use mixnet_contract_common::rewarding::simulator::simulated_node::SimulatedNode;
     use mixnet_contract_common::rewarding::simulator::Simulator;
@@ -280,14 +277,6 @@ pub mod test_helpers {
 
         pub fn current_interval(&self) -> Interval {
             interval_storage::current_interval(self.deps().storage).unwrap()
-        }
-
-        pub fn rewarded_set(&self) -> Vec<(NodeId, RewardedSetNodeStatus)> {
-            todo!()
-            // interval_storage::REWARDED_SET
-            //     .range(self.deps().storage, None, None, Order::Ascending)
-            //     .map(|res| res.unwrap())
-            //     .collect::<Vec<_>>()
         }
 
         pub fn set_pending_pledge_change(
@@ -868,16 +857,30 @@ pub mod test_helpers {
 
         pub fn reward_with_distribution_with_state_bypass(
             &mut self,
-            mix_id: NodeId,
+            node_id: NodeId,
             performance: Performance,
+            work_factor: WorkFactor,
         ) -> RewardDistribution {
             let initial_status =
                 interval_storage::current_epoch_status(self.deps().storage).unwrap();
             self.start_epoch_transition();
-            let res = self.legacy_reward_with_distribution(mix_id, performance);
+            let res = self.reward_with_distribution(
+                node_id,
+                NodeRewardingParameters::new(performance, work_factor),
+            );
             interval_storage::save_current_epoch_status(self.deps_mut().storage, &initial_status)
                 .unwrap();
             res
+        }
+
+        #[deprecated]
+        pub fn legacy_reward_with_distribution_with_state_bypass(
+            &mut self,
+            node_id: NodeId,
+            performance: Performance,
+        ) -> RewardDistribution {
+            let work_factor = self.get_legacy_rewarding_node_work_factor(node_id);
+            self.reward_with_distribution_with_state_bypass(node_id, performance, work_factor)
         }
 
         #[track_caller]
@@ -942,8 +945,7 @@ pub mod test_helpers {
             work_factor
         }
 
-        #[deprecated]
-        pub fn legacy_reward_with_distribution(
+        pub fn legacy_reward_with_distribution_and_legacy_work_factor(
             &mut self,
             node_id: NodeId,
             performance: Performance,

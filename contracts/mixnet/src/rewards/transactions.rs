@@ -759,7 +759,6 @@ pub mod tests {
             test.start_epoch_transition();
             let performance = test_helpers::performance(100.);
             let env = test.env();
-            let sender = test.rewarding_validator();
 
             // first rewarding
             test.assert_rewarding(node_id, performance);
@@ -807,7 +806,6 @@ pub mod tests {
             test.skip_to_next_epoch_end();
             test.start_epoch_transition();
 
-            let env = test.env();
             let res = test.assert_rewarding(node_id, performance);
 
             // rewards got distributed (in this test we don't care what they were exactly, but they must be non-zero)
@@ -885,6 +883,7 @@ pub mod tests {
             let operator3 = Uint128::new(12_345_000_000);
 
             let mut test = TestSetup::new();
+            let global_rewarding_params = test.rewarding_params();
             let node_id1 = test.add_rewarded_legacy_mixnode("mix-owner1", Some(operator1));
             let node_id2 = test.add_rewarded_legacy_mixnode("mix-owner2", Some(operator2));
             let node_id3 = test.add_rewarded_legacy_mixnode("mix-owner3", Some(operator3));
@@ -908,11 +907,14 @@ pub mod tests {
                 test.start_epoch_transition();
                 for &node_id in &[node_id1, node_id2, node_id3] {
                     let mut sim = test.instantiate_simulator(node_id);
-                    let dist = test.legacy_reward_with_distribution(node_id, performance);
-                    let node_params = LegacyNodeRewardParams {
+                    let dist = test.legacy_reward_with_distribution_and_legacy_work_factor(
+                        node_id,
                         performance,
-                        in_active_set: true,
-                    };
+                    );
+                    let node_params = NodeRewardingParameters::new(
+                        performance,
+                        global_rewarding_params.active_node_work(),
+                    );
                     let sim_res = sim.simulate_epoch_single_node(node_params).unwrap();
                     assert_eq!(sim_res, dist);
                 }
@@ -938,11 +940,14 @@ pub mod tests {
                 test.start_epoch_transition();
                 for &node_id in &[node_id1, node_id2, node_id3] {
                     let mut sim = test.instantiate_simulator(node_id);
-                    let dist = test.legacy_reward_with_distribution(node_id, performance);
-                    let node_params = LegacyNodeRewardParams {
+                    let dist = test.legacy_reward_with_distribution_and_legacy_work_factor(
+                        node_id,
                         performance,
-                        in_active_set: true,
-                    };
+                    );
+                    let node_params = NodeRewardingParameters::new(
+                        performance,
+                        global_rewarding_params.active_node_work(),
+                    );
                     let sim_res = sim.simulate_epoch_single_node(node_params).unwrap();
                     assert_eq!(sim_res, dist);
                 }
@@ -958,6 +963,7 @@ pub mod tests {
             let operator2 = Uint128::new(12_345_000_000);
 
             let mut test = TestSetup::new();
+            let global_rewarding_params = test.rewarding_params();
             let sender = test.rewarding_validator();
 
             let node_id1 = test.add_rewarded_legacy_mixnode("mix-owner1", Some(operator1));
@@ -983,10 +989,10 @@ pub mod tests {
                 let mut sim1 = test.instantiate_simulator(node_id1);
                 let mut sim2 = test.instantiate_simulator(node_id2);
 
-                let node_params = LegacyNodeRewardParams {
+                let node_params = NodeRewardingParameters::new(
                     performance,
-                    in_active_set: true,
-                };
+                    global_rewarding_params.active_node_work(),
+                );
 
                 let dist1 = sim1.simulate_epoch_single_node(node_params).unwrap();
                 let dist2 = sim2.simulate_epoch_single_node(node_params).unwrap();
@@ -1084,10 +1090,10 @@ pub mod tests {
                 let mut sim1 = test.instantiate_simulator(node_id1);
                 let mut sim2 = test.instantiate_simulator(node_id2);
 
-                let node_params = LegacyNodeRewardParams {
+                let node_params = NodeRewardingParameters::new(
                     performance,
-                    in_active_set: true,
-                };
+                    global_rewarding_params.active_node_work(),
+                );
 
                 let dist1 = sim1.simulate_epoch_single_node(node_params).unwrap();
                 let dist2 = sim2.simulate_epoch_single_node(node_params).unwrap();
@@ -1227,8 +1233,14 @@ pub mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![node_id1, node_id2]);
             test.start_epoch_transition();
-            test.legacy_reward_with_distribution(node_id1, test_helpers::performance(100.0));
-            test.legacy_reward_with_distribution(node_id2, test_helpers::performance(100.0));
+            test.legacy_reward_with_distribution_and_legacy_work_factor(
+                node_id1,
+                test_helpers::performance(100.0),
+            );
+            test.legacy_reward_with_distribution_and_legacy_work_factor(
+                node_id2,
+                test_helpers::performance(100.0),
+            );
 
             let res = try_withdraw_delegator_reward(test.deps_mut(), sender1.clone(), node_id1);
             assert_eq!(
@@ -1275,8 +1287,14 @@ pub mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![node_id1, low_stake_id]);
             test.start_epoch_transition();
-            test.legacy_reward_with_distribution(node_id1, test_helpers::performance(100.0));
-            test.legacy_reward_with_distribution(low_stake_id, test_helpers::performance(100.0));
+            test.legacy_reward_with_distribution_and_legacy_work_factor(
+                node_id1,
+                test_helpers::performance(100.0),
+            );
+            test.legacy_reward_with_distribution_and_legacy_work_factor(
+                low_stake_id,
+                test_helpers::performance(100.0),
+            );
 
             let res1 =
                 try_withdraw_delegator_reward(test.deps_mut(), sender.clone(), node_id1).unwrap();
@@ -1318,8 +1336,14 @@ pub mod tests {
             for _ in 0..10 {
                 test.start_epoch_transition();
 
-                test.legacy_reward_with_distribution(node_id_unbonding, performance);
-                test.legacy_reward_with_distribution(node_id_unbonded_leftover, performance);
+                test.legacy_reward_with_distribution_and_legacy_work_factor(
+                    node_id_unbonding,
+                    performance,
+                );
+                test.legacy_reward_with_distribution_and_legacy_work_factor(
+                    node_id_unbonded_leftover,
+                    performance,
+                );
 
                 test.skip_to_next_epoch_end();
                 // bypass proper epoch progression and force change the state
@@ -1398,12 +1422,18 @@ pub mod tests {
             let mut accumulated_quad = Decimal::zero();
             for _ in 0..10 {
                 test.start_epoch_transition();
-                let dist = test.legacy_reward_with_distribution(node_id_single, performance);
+                let dist = test.legacy_reward_with_distribution_and_legacy_work_factor(
+                    node_id_single,
+                    performance,
+                );
                 // sanity check to make sure test is actually doing what it's supposed to be doing
                 assert!(!dist.delegates.is_zero());
 
                 accumulated_single += dist.delegates;
-                let dist = test.legacy_reward_with_distribution(node_id_quad, performance);
+                let dist = test.legacy_reward_with_distribution_and_legacy_work_factor(
+                    node_id_quad,
+                    performance,
+                );
                 accumulated_quad += dist.delegates;
 
                 test.skip_to_next_epoch_end();
@@ -1468,7 +1498,10 @@ pub mod tests {
             for _ in 0..10 {
                 test.start_epoch_transition();
 
-                let dist = test.legacy_reward_with_distribution(node_id_quad, performance);
+                let dist = test.legacy_reward_with_distribution_and_legacy_work_factor(
+                    node_id_quad,
+                    performance,
+                );
                 accumulated_quad += dist.delegates;
                 test.skip_to_next_epoch_end();
                 // bypass proper epoch progression and force change the state
@@ -1553,7 +1586,10 @@ pub mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![node_id]);
             test.start_epoch_transition();
-            test.legacy_reward_with_distribution(node_id, test_helpers::performance(100.0));
+            test.legacy_reward_with_distribution_and_legacy_work_factor(
+                node_id,
+                test_helpers::performance(100.0),
+            );
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender.clone());
             assert_eq!(
@@ -1581,7 +1617,10 @@ pub mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![node_id1]);
             test.start_epoch_transition();
-            test.legacy_reward_with_distribution(node_id1, test_helpers::performance(100.0));
+            test.legacy_reward_with_distribution_and_legacy_work_factor(
+                node_id1,
+                test_helpers::performance(100.0),
+            );
 
             let res1 = try_withdraw_operator_reward(test.deps_mut(), sender1).unwrap();
             assert!(matches!(
@@ -1617,8 +1656,14 @@ pub mod tests {
             // go through few rewarding cycles before unbonding nodes (partially or fully)
             for _ in 0..10 {
                 test.start_epoch_transition();
-                test.legacy_reward_with_distribution(node_id_unbonding, performance);
-                test.legacy_reward_with_distribution(node_id_unbonded_leftover, performance);
+                test.legacy_reward_with_distribution_and_legacy_work_factor(
+                    node_id_unbonding,
+                    performance,
+                );
+                test.legacy_reward_with_distribution_and_legacy_work_factor(
+                    node_id_unbonded_leftover,
+                    performance,
+                );
 
                 test.skip_to_next_epoch_end();
                 // bypass proper epoch progression and force change the state

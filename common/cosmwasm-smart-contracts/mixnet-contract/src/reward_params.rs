@@ -92,11 +92,11 @@ pub struct RewardingParams {
 }
 
 impl RewardingParams {
-    pub fn active_node_work(&self) -> Decimal {
+    pub fn active_node_work(&self) -> WorkFactor {
         self.interval.active_set_work_factor * self.standby_node_work()
     }
 
-    pub fn standby_node_work(&self) -> Decimal {
+    pub fn standby_node_work(&self) -> WorkFactor {
         let f = self.interval.active_set_work_factor;
         let k = self.dec_rewarded_set_size();
         let one = Decimal::one();

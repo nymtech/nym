@@ -24,7 +24,7 @@ sha2 = "0.10.8"
 # for serde on secp256k1 signatures
 ecdsa = { workspace = true, features = ["serde"] }
 
-serde-helpers = { path = "../../common/serde-helpers", features = ["bs58", "base64"] }
+nym-serde-helpers = { path = "../../common/serde-helpers", features = ["bs58", "base64"] }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"] }
 

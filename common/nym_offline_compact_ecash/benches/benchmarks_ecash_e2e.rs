@@ -93,7 +93,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     // CLIENT BENCHMARK: prepare a single withdrawal request
     group.bench_function(
-        &format!(
+        format!(
             "[Client] withdrawal_request_{}_authorities_{}_L_{}_threshold",
             case.num_authorities, case.ll, case.threshold_p,
         ),
@@ -114,7 +114,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
     let keypair = authorities_keypairs.choose(&mut rng).unwrap();
     group.bench_function(
-        &format!(
+        format!(
             "[Issuing Authority] issue_partial_wallet_with_L_{}",
             case.ll,
         ),
@@ -147,7 +147,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let w = wallet_blinded_signatures.first().unwrap();
     let vk = verification_keys_auth.first().unwrap();
     group.bench_function(
-        &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.ll,),
+        format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.ll,),
         |b| b.iter(|| issue_verify(vk, user_keypair.secret_key(), w, &req_info, 1).unwrap()),
     );
 
@@ -163,7 +163,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     // CLIENT BENCHMARK: aggregating all partial wallets
     group.bench_function(
-        &format!(
+        format!(
             "[Client] aggregate_wallets_with_L_{}_threshold_{}",
             case.ll, case.threshold_p,
         ),
@@ -196,7 +196,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     };
     // CLIENT BENCHMARK: spend a single coin from the wallet
     group.bench_function(
-        &format!(
+        format!(
             "[Client] spend_a_single_coin_L_{}_threshold_{}",
             case.ll, case.threshold_p,
         ),
@@ -233,7 +233,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     // MERCHANT BENCHMARK: verify whether the submitted payment is legit
     group.bench_function(
-        &format!(
+        format!(
             "[Merchant] spend_verify_of_a_single_payment_L_{}_threshold_{}",
             case.ll, case.threshold_p,
         ),
@@ -280,7 +280,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     // MERCHANT BENCHMARK: identify double spending
     group.bench_function(
-        &format!(
+        format!(
             "[Merchant] identify_L_{}_threshold_{}_spend_vv_{}_pks_{}",
             case.ll,
             case.threshold_p,

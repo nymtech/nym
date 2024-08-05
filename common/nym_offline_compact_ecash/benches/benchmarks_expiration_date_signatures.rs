@@ -21,7 +21,7 @@ fn bench_partial_sign_expiration_date(c: &mut Criterion) {
 
     // ISSUING AUTHORITY BENCHMARK: issue a set of (partial) signatures for a given expiration date
     group.bench_function(
-        &format!(
+        format!(
             "[IssuingAuthority] sign_expiration_date_{}_validity_period",
             constants::CRED_VALIDITY_PERIOD_DAYS,
         ),
@@ -31,7 +31,7 @@ fn bench_partial_sign_expiration_date(c: &mut Criterion) {
     // CLIENT: verify the correctness of the set of (partial) signatures for a given expiration date
     assert!(verify_valid_dates_signatures(&vk_i_auth, &partial_exp_sig, expiration_date).is_ok());
     group.bench_function(
-        &format!(
+        format!(
             "[Client] verify_valid_dates_signatures_{}_validity_period",
             constants::CRED_VALIDITY_PERIOD_DAYS,
         ),
@@ -78,7 +78,7 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion) {
 
     // CLIENT: verify all the partial signature vectors and aggregate into a single vector of signed valid dates
     group.bench_function(
-        &format!(
+        format!(
             "[Client] aggregate_expiration_signatures_from_{}_issuing_authorities_{}_validity_period",
             constants::CRED_VALIDITY_PERIOD_DAYS, authorities_keypairs.len(),
         ),

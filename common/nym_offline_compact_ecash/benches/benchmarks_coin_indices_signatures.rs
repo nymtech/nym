@@ -35,7 +35,7 @@ fn bench_coin_signing(c: &mut Criterion) {
 
     // ISSUING AUTHORITY BENCHMARK: issue a set of (partial) signatures for coin indices
     group.bench_function(
-        &format!(
+        format!(
             "[IssuingAuthority] sign_coin_indices_L_{}",
             params.get_total_coins()
         ),
@@ -47,7 +47,7 @@ fn bench_coin_signing(c: &mut Criterion) {
         verify_coin_indices_signatures(&verification_key, &vk_i_auth, &partial_signatures).is_ok()
     );
     group.bench_function(
-        &format!(
+        format!(
             "[Client] verify_coin_indices_signatures_L_{}",
             params.get_total_coins()
         ),
@@ -99,7 +99,7 @@ fn bench_aggregate_coin_indices_signatures(c: &mut Criterion) {
 
     // CLIENT: verify all the partial signature vectors and aggregate into a single vector of signed coin indices
     group.bench_function(
-        &format!(
+        format!(
             "[Client] aggregate_coin_indices_signatures_from_{}_issuing_authorities_L_{}",
             authorities_keypairs.len(),
             params.get_total_coins(),

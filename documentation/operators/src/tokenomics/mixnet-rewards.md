@@ -21,6 +21,7 @@
 * The rewards arew distributed between the layers according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
 	- 5-hop: 16%-16%-16%-16%
 	- 2-hop: 33%-67%
+* Nodes are selected to the active set based on their performance and stake saturation (slef bond + delegation)
 
 ~~~admonish tip title="Nym network active set distribution"
 ```ascii

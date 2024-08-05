@@ -8,11 +8,6 @@ on:
         required: true
         default: false
         type: boolean
-      enable_wireguard:
-        description: "Add --features wireguard"
-        required: true
-        default: false
-        type: boolean
       enable_deb:
         description: "True to enable cargo-deb installation and .deb package building"
         required: false
@@ -42,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-20.04]
+        platform: [ ubuntu-20.04 ]
 
     runs-on: ${{ matrix.platform }}
     env:
@@ -70,9 +65,6 @@ jobs:
       - name: Set CARGO_FEATURES
         run: |
           echo 'CARGO_FEATURES=--features wireguard' >> $GITHUB_ENV
-        if: >
-          github.event_name == 'schedule' ||
-          (github.event_name == 'workflow_dispatch' && inputs.enable_wireguard == true)
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

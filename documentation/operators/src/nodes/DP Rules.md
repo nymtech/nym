@@ -1,7 +1,7 @@
 ## Nym Delegation Program Rules
 ## July 2024
 ## Introduction
-Welcome to the Nym Delegations Program! As part of this initiative, a portion of the Nym Treasury is delegated (staked) on community-operated Nym nodes. The aims of the Nym Delegation Program are: 
+Welcome to the Nym Delegations Program! As part of this initiative, a portion of the Nym Treasury is delegated (staked) on new, promising Nym nodes to help bootstrap their operations, get them into the 'active set' and start earning rewards. The aims of the Nym Delegation Program are: 
 -  To support outstanding Nym node operators by enabling their nodes to become profitable faster; 
 -  To improve the quality of service, decentralization, and geographical spread of the Nym network; 
 -  To generate income for the Squad Wealth Fund, the Nym community’s main treasury which provides funding for community initiatives and contributions.
@@ -12,7 +12,7 @@ By applying to the Program, you accept its rules. The rules below govern the Nym
 
 1. All communications and important announcements take place on Nym’s Matrix server. Operators are expected to register an account with Matrix and follow Nym’s relevant channels on Matrix: [announcements channel](https://matrix.to/#/%23node-ops-announcements:nymtech.chat) [node operators chat](https://matrix.to/#/%23operators:nymtech.chat)
 2. These rules are subject to change.  Changes will always be announced on the Matrix channels listed above. Please make sure you follow Matrix channels above regularly for the latest updates. Not following the latest update may result in losing your delegation.
-3.  Your node will stay in the Program until it reaches 100% of saturation. At this point, you complete the Program and the delegation will be withdrawn from your node. You may re-apply with a different node. 
+3.  Your node will stay in the Program until it manages to attract additional delegations and reach 100% of saturation. At this point, you complete the Program and the treasury delegation will be withdrawn from your node, leaving you with 75% saturation and a high chance of active set. You may re-apply with a different node. 
 
 ## Server Requirements
 4. Every server must meet the following minimum requirements:<br>
@@ -64,7 +64,7 @@ By applying to the Program, you accept its rules. The rules below govern the Nym
 ## Reasons for delegation withdrawal
 
 15. The delegation may immediately be withdrawn if the following will occur:<br>
-        a) The server will be offline for longer than XX hours consequently, or offline for shorter periods repeatedly;Server’s networking is underperforming;<br>
+        a) The server will be offline for longer than 48 hours consequently, or offline for shorter periods repeatedly;Server’s networking is underperforming;<br>
         b) Server’s networking is underperforming;<br>
         c) Node no longer meets the minimum specification outlined above;<br>
         d) Node’s operating parameters are changed and  fall outside of the requirements outlined above;<br>

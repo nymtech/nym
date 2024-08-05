@@ -4,7 +4,7 @@
 **The data on this page were last time updated on <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py time_now-->.**
 ```
 
-Nym Network is composed of two main elements, the Mixnet represented by [Nym Nodes](../nodes/nym-node.md) routing and mixing the data packets, and Nyx blockchain based on [validator set](validator-rewards.md), using smart contracts (based on [cosmwasm]()) to monitor and reward Nym Nodes by querying API endpoints and distributing NYM token to operators from Mixmining pool.
+Nym Network is composed of two main elements, the Mixnet represented by [Nym Nodes](../nodes/nym-node.md) routing and mixing the data packets, and Nyx blockchain based on [validator set](validator-rewards.md), using smart contracts (based on [cosmwasm]()) to monitor and reward Nym Nodes by querying API endpoints and distributing NYM token to operators from Mixmining pool. All Nym nodes and validators are run by decentralised community of operators.
 
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
 * For a more comprehensive overview, live data and supply graphs, cisit [nymtech.net/about/token](https://nymtech.net/about/token)

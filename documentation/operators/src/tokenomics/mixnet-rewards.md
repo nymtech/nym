@@ -1,22 +1,58 @@
 # Nym Operators Rewards
 
-```admonish info
+```admonish info title="\*Info"
 **The data on this page were last time updated on <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py time_now-->.**
 ```
-<!--
-ADD:
 
-PAGE: https://nymtech.net/about/token
-WP: https://nymtech.net/nym-cryptoecon-paper.pdf
+* Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
+* For a more comprehensive overview, live data and supply graphs, cisit [nymtech.net/about/token](https://nymtech.net/about/token)
+
+## Overview
+
+* The operators of `nym-node` get rewarded from Mixmining pool, which emits around 6000 NYM per hour.
+* An active set of `nym-nodes` selected for Nym network routing and mixing is 240 nodes in total and it's selected for each new epoch (60 min)
+* `nym-nodes` can run in mode `entry-gateway`, `exit-gateway` and `mixnode`, active set selection is composed of
+  	- `mixnode`: 120
+	- `entry-gateway`:
+	- `exit-gateway`:
+* Nym network can be used in two ways, both using the same active set:
+	- Mixnet: 5 layers routing and mixing - full privacy
+	- Wireguard: 2 layers routing (skipping mixnodes) - fast mode
+* The rewards arew distributed between the layers according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+	- 5-hop: 16%-16%-16%-16%
+	- 2-hop: 33%-67%
+
+~~~admonish tip title="Nym network active set distribution"
+```ascii
+
+ Network
+ layer:           1.           2.           3.           4.           5.
 
 
-Rewards split:
-16-16-16-16-36
-33-67
-https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407
--->
+                            ┌► mixnode ─┐   mixnode      mixnode
+                            │           │
+ Node             entry     │           │                             exit
+ type:            gateway ──┘  mixnode  │   mixnode  ┌─► mixnode ───► gateway
+                                        │            │
+                                        │            │
+                               mixnode  └─► mixnode ─┘   mixnode
 
 
+ Active set
+ selection:       60           40           40           40           60
+
+
+ Rewards
+ distribution     16%          16%          16%          16%          36%
+ 5-hop mode:
+
+
+ Rewards
+ distribution     33%          skip         skip         skip         67%
+ 2-hop mode:
+
+```
+~~~
 
 ## Supply
 

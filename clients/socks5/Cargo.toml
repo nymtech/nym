@@ -1,6 +1,6 @@
 [package]
 name = "nym-socks5-client"
-version = "1.1.38"
+version = "1.1.39"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"

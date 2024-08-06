@@ -12,6 +12,7 @@ license.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
+chrono = { workspace = true }
 dashmap = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
 # The latest version on crates.io at the time of writing this (6.0.0) has a
@@ -24,5 +25,6 @@ nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-stream = { workspace = true }

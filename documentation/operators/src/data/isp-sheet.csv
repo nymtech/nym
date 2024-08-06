@@ -8,3 +8,19 @@
 [HostSailor](https://hostsailor.com),"USA","Yes, based on ticket","Yes","The IPv6 setup needs custom research and is not documented","05/2024"
 [Misaka](https://www.misaka.io/),"South Africa","Yes, native support","No","Very Expensive","05/2024"
 [IsHosting](https://ishosting.com/en),"Brazil, Netherlands","Yes, based on ticket","Yes","Expensive","05/2024"
+[AlexHost](https://alexhost.com),"Moldova, Bulgaria, Sweden, Netherlands","Yes, on by default","Yes","They allow TOR Bridges, Relays. Exit nodes are only allowed on dedicated servers (prices start from 26 EUR)","07/2024"
+[iHostArt](https://ihostart.com),"Romania","Yes, on by default","Yes","Super permissive provider. They do allow Tor Exit/Relay/Bridge. Pro-free speech etc. Recently, IPv6 geolocation was set to North Korea, so be aware.","07/2024"
+[Incognet](https://incognet.io),"Netherlands and USA","Yes, on by default","Yes","They allow Tor exit nodes but you must adhere to their rules https://incognet.io/tor-exits","07/2024"
+[vSys Host](https://vsys.host),"Ukraine, Netherlands, USA","Yes, on by default","Yes","Pretty permissive provider registered in Ukraine. Should allow Relay/Exit nodes but nothing in T&C, so better double check.","07/2024"
+[LiteServer](https://liteserver.nl),"Netherlands","Yes, on by default","Yes","Very reliable Dutch provider. They do allow Relay nodes but for Exit nodes you need to contact them. Always check T&C https://liteserver.nl/legal","07/2024"
+[TerraHost](https://terrahost.no),"Norway","Yes, on by default","Yes","Very reliable Norwegian provider. Only allow exit nodes on Dedicated servers subject to certain caveats (you must open a ticket). Always check T&C https://terrahost.no/avtalebetingelser","07/2024"
+[Mevspace](https://mevspace.com),"Poland","Yes, on by default","Yes","Flexible Polish providers with 3 DCs in Poland. They do allow Tor Exit nodes but you may need a dedicated server for this. Make sure you open a ticket to check. As of today's date, they have 48h for 1 EUR tariff","07/2024"
+[Hostiko](https://hostiko.com.ua),"Ukraine, Germany","Yes, on by default","Yes","Ukrainian provider. They allow Exit nodes on Germany boxes but limit the bandwidth, you also have to restrict certain ports like 25 and 587. Make sure you open a ticket.","07/2024"
+[Hostslick](https://hostslick.com),"Netherlands, Germany","Yes, on by default","Yes","Good amount of bandwidth for the price. Make sure you open the ticket if you want to run Exit node","07/2024"
+[RDP](https://rdp.sh),"Netherlands, USA, Poland","Yes, on by default","Yes","German provider. Exit nodes are allowed, policy is here https://rdp.sh/docs/faq/tor ports 25,465,587 must be closed. Make sure you open a ticket before running an exit node.","07/2024"
+
+
+
+
+
+

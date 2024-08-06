@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::Cli;
+use anyhow::bail;
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
@@ -23,7 +24,6 @@ mod init;
 mod node_details;
 mod run;
 mod sign;
-mod upgrade_helpers;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -66,6 +66,12 @@ struct OverrideConfig {
 
 pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
     let bin_name = "nym-mixnode";
+
+    if !args.force_run {
+        let msg = "standalone mixnodes have been deprecated - please migrate to a `nym-node` via `nym-node migrate mixnode` command";
+        error!("{msg}");
+        bail!("{msg}")
+    }
 
     warn!("standalone mixnodes have been deprecated - please consider migrating it to a `nym-node` via `nym-node migrate mixnode` command");
     if std::io::stdout().is_terminal() {
@@ -125,8 +131,6 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
 }
 
 fn try_load_current_config(id: &str) -> Result<Config, MixnodeError> {
-    upgrade_helpers::try_upgrade_config(id)?;
-
     Config::read_from_default_path(id).map_err(|err| {
         error!(
             "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})",

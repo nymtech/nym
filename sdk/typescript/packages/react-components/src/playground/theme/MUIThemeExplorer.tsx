@@ -1,10 +1,7 @@
 /* eslint-disable react/no-array-index-key */
-import type { Theme } from '@mui/material/styles';
 import * as React from 'react';
-import TreeView from '@mui/lab/TreeView';
-import TreeItem from '@mui/lab/TreeItem';
-import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import ArrowRightIcon from '@mui/icons-material/ArrowRight';
+import type { Theme } from '@mui/material/styles';
+import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 import { Box } from '@mui/material';
 
 const MUIThemeExplorerItem: FCWithChildren<{
@@ -21,7 +18,7 @@ const MUIThemeExplorerItem: FCWithChildren<{
   if (typeof item === 'string') {
     return (
       <TreeItem
-        nodeId={`${path}`}
+        itemId={`${path}`}
         label={
           <Box sx={{ display: 'flex', alignItems: 'center', p: 0.5, pr: 0 }}>
             <Box
@@ -48,7 +45,7 @@ const MUIThemeExplorerItem: FCWithChildren<{
 
   if (Array.isArray(item)) {
     return (
-      <TreeItem nodeId={`${path}-array`} label={`${parentKey}[]`}>
+      <TreeItem itemId={`${path}-array`} label={`${parentKey}[]`}>
         {item.map((i, idx) => (
           <MUIThemeExplorerItem
             key={`${parentKey}-${idx}`}
@@ -65,7 +62,7 @@ const MUIThemeExplorerItem: FCWithChildren<{
 
   if (typeof item === 'object' && Object.keys(item).length) {
     return (
-      <TreeItem nodeId={`${path}`} label={`${parentKey}`}>
+      <TreeItem itemId={`${path}`} label={`${parentKey}`}>
         {Object.keys(item).map((key) => (
           <MUIThemeExplorerItem
             key={`${parentKey}-${key}`}
@@ -85,14 +82,11 @@ const MUIThemeExplorerItem: FCWithChildren<{
 export const MUIThemeExplorer: FCWithChildren<{
   theme: Theme;
 }> = ({ theme }) => (
-  <TreeView
-    defaultExpanded={['theme.palette', 'theme.palette.nym', 'theme.palette.nym.highlight']}
-    defaultCollapseIcon={<ArrowDropDownIcon />}
-    defaultExpandIcon={<ArrowRightIcon />}
-    defaultEndIcon={<div style={{ width: 24 }} />}
+  <SimpleTreeView
+    defaultExpandedItems={['theme.palette', 'theme.palette.nym', 'theme.palette.nym.highlight']}
     sx={{ height: 500, flexGrow: 1, width: '100%', overflowY: 'auto' }}
   >
     <MUIThemeExplorerItem theme={theme} item={theme.palette} parentKey="palette" path="theme.palette" />
-    <TreeItem nodeId="test">Test</TreeItem>
-  </TreeView>
+    <TreeItem itemId="test">Test</TreeItem>
+  </SimpleTreeView>
 );

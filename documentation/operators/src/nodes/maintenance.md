@@ -114,6 +114,8 @@ tmux attach-session
 
 #### systemd
 
+> Configuration of `systemd` service files for `nym-node` is under [Nym Node - Configuration](configuration.md#systemd) page.
+
 ##### For Nymvisor
 > Since you're running your node via a Nymvisor instance, as well as creating a Nymvisor `.service` file, you will also want to **stop any previous node automation process you already have running**.
 
@@ -200,8 +202,57 @@ systemctl status <NODE>.service
 systemctl daemon-reload
 ```
 
-This lets your operating system know it's ok to reload the service configuration. Then restart your `<NODE>`.
+This lets your operating system know it's OK to reload the service configuration. Then restart your `<NODE>`.
 
+
+## Backup a node
+
+Anything can happen to the server on which your node is running. To back up your `nym-node` keys and configuration protects the operators against the negative impact of unexpected events. To restart your node on another server, two essential pieces are needed:
+
+1. Node keys to initialise the same node on a new VPS
+2. Access to the bonding Nym account (wallet seeds) to edit the IP on smart contract
+
+Assuming that everyone access their wallets from local machine and does *not* store their seeds on VPS, point \#2 should be a given. To backup your `nym-node` keys and configuration in the easiest way possible, copy the entire config directory `.nym` from your VPS to your local desktop, using a special copy command `scp`:
+
+1. Create a directory where you want to store your backup
+```sh
+mkdir -pv <PATH_TO_TARGET_DIRECTORY>
+```
+
+2. Copy configuration folder `.nym` from your VPS to your newly created backup directory:
+
+```sh
+scp -r <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes/<YOUR_NODE_ID> <PATH_TO_TARGET_DIRECTORY>
+```
+
+3. The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the backup directory.
+
+## Restoring a node
+
+In case your VPS shut down and you have a [backup](#backup-a-node) of your node keys and access to your bonding wallet, you can easily restore your node on another server without losing your delegation.
+
+1. On VPS: Do all [preliminary steps](preliminary-steps.md) needed to run a `nym-node`.
+
+2. On VPS: Create a `.nym/nym-nodes` configuration folder:
+```sh
+mkdir -pv ~/.nym/nym-nodes
+```
+
+3. From machine where your node is backed up (usually local desktop): Copy the folder with your node keys and configuration to the newly created folder on your VPS using `scp` command. Make sure to grab the entire `nym-node` configuration folder, which is called after your local `nym-node` ID, the `-r` flag will take care of all sub-directories and their content:
+```sh
+scp -r <LOCAL_NODE_CONFIGURATION_FOLDER> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:~/.nym/nym-nodes/
+```
+
+4. The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the target directory `.nym/nym-nodes` on your VPS.
+
+
+5. Configure your node on the new VPS:
+
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
+* Try to run the node and see if everything works.
+* Setup the [systemd](#systemd) automation (don't forget to add the [terms and conditions flag](setup.md#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
+
+6. And finally change the node smart contract info via the wallet interface. Open Nym Wallet, go to *Bonding*, open *Gateway Settings* or *Mixnode Settings* and change *Host* value to the new `nym-node` IP address. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks, returning zero performance.
 
 ## Moving a node
 
@@ -224,11 +275,22 @@ mkdir ~/.nym/nym-nodes
 scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/nym-nodes/
 ```
 
-**On new/target machine**
+**On new/target VPS**
 
-* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP.
-* Setup the [systemd](#systemd) automation, reload the daemon and run the service, or just simply run the node if you don't use automation
-* Change the node smart contract info via the wallet interface. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks.
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = ['<YOUR_PUBLIC_IP>',]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
+* Try to run the node and see if everything works.
+* Setup the [systemd](#systemd) automation. If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic by opening your **local terminal** (as that one's ssh key is authorized in both of the VPS) and running:
+```sh
+scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/etc/systemd/system/nym-node.service <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:/etc/systemd/system/nym-node.service
+```
+
+Note: [Accepting T&Cs](setup.md#terms--conditions) is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use [systemd](configuration.md#systemd) automation, add the flag to your service file's `ExecStart` line.
+
+**In your desktop wallet**
+
+* Change the node smart contract info via the wallet interface. Open Nym Wallet, go to *Bonding*, open *Gateway Settings* or *Mixnode Settings* and change *Host* value to the new `nym-node` IP address. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks, returning zero performance.
+
+Make sure to stop the old node.
 
 ## Rename node local ID
 
@@ -282,12 +344,12 @@ less ~/.nym/nym-nodes/default-nym-node/config/config.toml
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 
-### Nym Node: Minode mode port reference
+### Nym Node: Mixnode mode port reference
 | Default port | Use                       |
 | ------------ | ------------------------- |
 | `1789`       | Listen for Mixnet traffic |
 | `1790`       | Listen for VerLoc traffic |
-| `8000`       | Metrics http API endpoint |
+| `8080`       | Metrics http API endpoint |
 
 
 ### Nym Node: Gateway modes port reference

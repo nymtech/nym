@@ -33,12 +33,12 @@ pub fn pseudorandom_account(rng: &mut ChaCha20Rng) -> AccountId {
     AccountId::new("n", &dummy_account_key_hash).unwrap()
 }
 
-pub fn dealer_fixture(mut rng: &mut ChaCha20Rng, id: NodeIndex) -> DealerDetails {
+pub fn dealer_fixture(rng: &mut ChaCha20Rng, id: NodeIndex) -> DealerDetails {
     // we might possibly need that private key later on
-    let keypair = DkgKeyPair::new(dkg::params(), &mut rng);
+    let keypair = DkgKeyPair::new(dkg::params(), rng.clone());
 
     let addr = pseudorandom_account(rng);
-    let identity_keypair = identity::KeyPair::new(&mut rng);
+    let identity_keypair = identity::KeyPair::new(rng);
     let bte_public_key_with_proof = bs58::encode(&keypair.public_key().to_bytes()).into_string();
 
     let port = 8080 + id;

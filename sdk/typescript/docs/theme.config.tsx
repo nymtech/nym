@@ -8,7 +8,7 @@ const config: DocsThemeConfig = {
     link: 'https://github.com/nymtech/nym',
   },
   chat: {
-    link: 'https://discord.gg/FaTJb8q8',
+    link: 'https://nymtech.net/go/discord',
   },
   docsRepositoryBase: 'https://github.com/nymtech/nym/tree/develop/sdk/typescript/docs',
   footer: {

@@ -43,6 +43,7 @@ Nym asks its decentralised community of operators to join a series of performanc
 
 Visit [Fast and Furious web page]({{performance_testing_webpage}}) and [Nym Harbour Master](https://harbourmaster.nymtech.net/) Gateways monitoring page to read more about the performance testing and the results of it.
 
+<!--- THIS NEEDS A REDO:
 ## Performance Testing Work Flow
 
 * Nym runs a paralel network environment [validator.performance.nymte.ch]({{performance_validator}}) with a chain ID `perf`
@@ -53,9 +54,6 @@ Visit [Fast and Furious web page]({{performance_testing_webpage}}) and [Nym Harb
 * Nym tracks packet flow using Prometheus and Grafana
 * Nym creates a large number of clients to the [performance validator network]({{performance_validator}}), intensifying the packet traffic
 * Observe and record the metrics - this will probably put more strain on mainnet as well as many nodes spec is minimal
-
-## More Information
-
-* What happens after the test or what operators get for participating is shared up to date on the [performance testing web page]({{performance_testing_webpage}})
+--->
 
 

@@ -3,7 +3,7 @@
 
 use std::error::Error;
 use thiserror::Error;
-use time::OffsetDateTime;
+use time::Date;
 
 #[derive(Debug, Error)]
 pub enum NymIdError {
@@ -11,7 +11,7 @@ pub enum NymIdError {
     CredentialDeserializationFailure { source: nym_credentials::Error },
 
     #[error("attempted to import an expired credential (it expired on {expiration})")]
-    ExpiredCredentialImport { expiration: OffsetDateTime },
+    ExpiredCredentialImport { expiration: Date },
 
     #[error("failed to store credential in the provided store: {source}")]
     StorageError {

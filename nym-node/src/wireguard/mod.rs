@@ -5,4 +5,3 @@
 // but let's start putting everything in here
 
 pub mod error;
-pub mod types;

@@ -1,4 +1,4 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::delegation::{self, OwnerProxySubKey};
@@ -12,6 +12,7 @@ use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
 use crate::types::{ContractStateParams, LayerAssignment, MixId};
+use crate::{OperatingCostRange, ProfitMarginRange};
 use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal};
@@ -57,6 +58,12 @@ pub struct InstantiateMsg {
     pub epochs_in_interval: u32,
     pub epoch_duration: Duration,
     pub initial_rewarding_params: InitialRewardingParams,
+
+    #[serde(default)]
+    pub profit_margin: ProfitMarginRange,
+
+    #[serde(default)]
+    pub interval_operating_cost: OperatingCostRange,
 }
 
 #[cw_serde]
@@ -269,6 +276,12 @@ pub enum ExecuteMsg {
         owner: String,
     },
 
+    // vesting migration:
+    MigrateVestedMixNode {},
+    MigrateVestedDelegation {
+        mix_id: MixId,
+    },
+
     // testing-only
     #[cfg(feature = "contract-testing")]
     TestingResolveAllPendingEvents {
@@ -381,6 +394,9 @@ impl ExecuteMsg {
             ExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, .. } => {
                 format!("withdrawing delegator reward from mixnode {mix_id} on behalf")
             }
+            ExecuteMsg::MigrateVestedMixNode { .. } => "migrate vested mixnode".into(),
+            ExecuteMsg::MigrateVestedDelegation { .. } => "migrate vested delegation".to_string(),
+
             #[cfg(feature = "contract-testing")]
             ExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 "resolving all pending events".into()

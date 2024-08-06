@@ -110,6 +110,8 @@ pub struct ExitGatewayData {
 
     auth_ed25519: ed25519::PublicKey,
     auth_x25519: x25519::PublicKey,
+
+    client_storage: nym_gateway::node::PersistentStorage,
 }
 
 impl ExitGatewayData {
@@ -217,7 +219,7 @@ impl ExitGatewayData {
         Ok(())
     }
 
-    fn new(config: &ExitGatewayConfig) -> Result<ExitGatewayData, ExitGatewayError> {
+    async fn new(config: &ExitGatewayConfig) -> Result<ExitGatewayData, ExitGatewayError> {
         let nr_paths = &config.storage_paths.network_requester;
         let nr_ed25519 = load_key(
             &nr_paths.public_ed25519_identity_key_file,
@@ -251,6 +253,13 @@ impl ExitGatewayData {
             "authenticator x25519",
         )?;
 
+        let client_storage = nym_gateway::node::PersistentStorage::init(
+            &config.storage_paths.clients_storage,
+            config.debug.message_retrieval_limit,
+        )
+        .await
+        .map_err(nym_gateway::GatewayError::from)?;
+
         Ok(ExitGatewayData {
             nr_ed25519,
             nr_x25519,
@@ -258,6 +267,7 @@ impl ExitGatewayData {
             ipr_x25519,
             auth_ed25519,
             auth_x25519,
+            client_storage,
         })
     }
 }
@@ -459,7 +469,7 @@ impl NymNode {
             verloc_stats: Default::default(),
             mixnode: MixnodeData::new(&config.mixnode)?,
             entry_gateway: EntryGatewayData::new(&config.entry_gateway).await?,
-            exit_gateway: ExitGatewayData::new(&config.exit_gateway)?,
+            exit_gateway: ExitGatewayData::new(&config.exit_gateway).await?,
             wireguard: wireguard_data,
             config,
             accepted_operator_terms_and_conditions: false,
@@ -594,7 +604,7 @@ impl NymNode {
             Some(config.auth_opts),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
-            self.entry_gateway.client_storage.clone(),
+            self.exit_gateway.client_storage.clone(),
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);

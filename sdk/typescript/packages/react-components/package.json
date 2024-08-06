@@ -26,9 +26,9 @@
     "@cosmjs/math": "^0.27.1",
     "@mui/icons-material": ">= 5",
     "@mui/lab": "^5.0.0-alpha.72",
-    "@mui/material": ">= 5",
-    "@mui/styles": ">= 5",
-    "@mui/system": ">= 5",
+    "@mui/material": "5",
+    "@mui/styles": "5",
+    "@mui/system": "5",
     "@nymproject/mui-theme": "1",
     "@nymproject/nym-validator-client": "^0.18.0",
     "@nymproject/types": "1",
@@ -39,7 +39,8 @@
     "zxcvbn": "^4.4.2"
   },
   "dependencies": {
-    "@mui/x-tree-view": "^7.10.0",
+    "@mui/lab": "5.0.0-alpha.170",
+    "@mui/x-tree-view": "^7.11.1",
     "flat": "^5.0.2",
     "use-clipboard-copy": "^0.2.0"
   },

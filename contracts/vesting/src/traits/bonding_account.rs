@@ -61,6 +61,10 @@ pub trait MixnodeBondingAccount {
         new_costs: MixNodeCostParams,
         storage: &mut dyn Storage,
     ) -> Result<Response, VestingContractError>;
+    fn try_track_migrated_mixnode(
+        &self,
+        storage: &mut dyn Storage,
+    ) -> Result<(), VestingContractError>;
 }
 
 pub trait GatewayBondingAccount {

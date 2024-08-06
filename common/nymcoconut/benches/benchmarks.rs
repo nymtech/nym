@@ -34,6 +34,40 @@ fn multi_miller_pairing_affine(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g
 }
 
 #[allow(unused)]
+fn bench_pairings(c: &mut Criterion) {
+    let mut rng = rand::thread_rng();
+
+    let g1 = G1Affine::generator();
+    let g2 = G2Affine::generator();
+    let r = Scalar::random(&mut rng);
+    let s = Scalar::random(&mut rng);
+
+    let g11 = (g1 * r).to_affine();
+    let g21 = (g2 * s).to_affine();
+    let g21_prep = G2Prepared::from(g21);
+
+    let g12 = (g1 * s).to_affine();
+    let g22 = (g2 * r).to_affine();
+    let g22_prep = G2Prepared::from(g22);
+
+    c.bench_function("double pairing", |b| {
+        b.iter(|| double_pairing(&g11, &g21, &g12, &g22))
+    });
+
+    c.bench_function("multi miller in affine", |b| {
+        b.iter(|| multi_miller_pairing_affine(&g11, &g21, &g12, &g22))
+    });
+
+    c.bench_function("multi miller with prepared g2", |b| {
+        b.iter(|| multi_miller_pairing_with_prepared(&g11, &g21_prep, &g12, &g22_prep))
+    });
+
+    c.bench_function("multi miller with semi-prepared g2", |b| {
+        b.iter(|| multi_miller_pairing_with_semi_prepared(&g11, &g21, &g12, &g22_prep))
+    });
+}
+
+#[allow(unused)]
 fn multi_miller_pairing_with_prepared(
     g11: &G1Affine,
     g21: &G2Prepared,
@@ -125,43 +159,9 @@ impl BenchCase {
     }
 }
 
-#[allow(unused)]
-fn bench_pairings(c: &mut Criterion) {
-    let mut rng = rand::thread_rng();
-
-    let g1 = G1Affine::generator();
-    let g2 = G2Affine::generator();
-    let r = Scalar::random(&mut rng);
-    let s = Scalar::random(&mut rng);
-
-    let g11 = (g1 * r).to_affine();
-    let g21 = (g2 * s).to_affine();
-    let g21_prep = G2Prepared::from(g21);
-
-    let g12 = (g1 * s).to_affine();
-    let g22 = (g2 * r).to_affine();
-    let g22_prep = G2Prepared::from(g22);
-
-    c.bench_function("double pairing", |b| {
-        b.iter(|| double_pairing(&g11, &g21, &g12, &g22))
-    });
-
-    c.bench_function("multi miller in affine", |b| {
-        b.iter(|| multi_miller_pairing_affine(&g11, &g21, &g12, &g22))
-    });
-
-    c.bench_function("multi miller with prepared g2", |b| {
-        b.iter(|| multi_miller_pairing_with_prepared(&g11, &g21_prep, &g12, &g22_prep))
-    });
-
-    c.bench_function("multi miller with semi-prepared g2", |b| {
-        b.iter(|| multi_miller_pairing_with_semi_prepared(&g11, &g21, &g12, &g22_prep))
-    });
-}
-
 fn bench_coconut(c: &mut Criterion) {
     let mut group = c.benchmark_group("benchmark-coconut");
-    group.measurement_time(Duration::from_secs(100));
+    group.measurement_time(Duration::from_secs(1000));
     let case = BenchCase {
         num_authorities: 100,
         threshold_p: 0.7,
@@ -184,7 +184,7 @@ fn bench_coconut(c: &mut Criterion) {
     // Let's benchmark the operations the client has to perform
     // to ask for a credential
     group.bench_function(
-        &format!(
+        format!(
             "[Client] prepare_blind_sign_{}_authorities_{}_attributes_{}_threshold",
             case.num_authorities,
             case.num_attrs(),
@@ -205,7 +205,7 @@ fn bench_coconut(c: &mut Criterion) {
     let keypair = coconut_keypairs.choose(&mut rng).unwrap();
 
     group.bench_function(
-        &format!(
+        format!(
             "[Validator] compute_single_blind_sign_for_credential_with_{}_attributes",
             case.num_attrs(),
         ),
@@ -247,7 +247,7 @@ fn bench_coconut(c: &mut Criterion) {
     let partial_verification_key = verification_keys.get(rand_idx).unwrap();
 
     group.bench_function(
-        &format!(
+        format!(
             "verify_partial_blind_signature_{}_private_attributes_{}_public_attributes",
             case.num_private_attrs, case.num_public_attrs
         ),
@@ -284,7 +284,7 @@ fn bench_coconut(c: &mut Criterion) {
 
     // CLIENT BENCHMARK: aggregate all partial credentials
     group.bench_function(
-        &format!(
+        format!(
             "[Client] unblind_and_aggregate_partial_credentials_{}_authorities_{}_attributes_{}_threshold",
             case.num_authorities,
             case.num_attrs(),
@@ -317,7 +317,7 @@ fn bench_coconut(c: &mut Criterion) {
 
     // CLIENT BENCHMARK
     group.bench_function(
-        &format!(
+        format!(
             "[Client] randomize_and_prove_credential_{}_authorities_{}_attributes_{}_threshold",
             case.num_authorities,
             case.num_attrs(),
@@ -343,7 +343,7 @@ fn bench_coconut(c: &mut Criterion) {
 
     // VERIFICATION BENCHMARK
     group.bench_function(
-        &format!(
+        format!(
             "[Verifier] verify_credentials_{}_authorities_{}_attributes_{}_threshold",
             case.num_authorities,
             case.num_attrs(),

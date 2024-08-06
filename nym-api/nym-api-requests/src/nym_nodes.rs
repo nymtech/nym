@@ -17,7 +17,7 @@ pub struct CachedNodesResponse<T> {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
-#[cfg_attr(feature = "request-parsing", derive(rocket::form::FromFormField))]
+#[cfg_attr(feature = "rocket-traits", derive(rocket::form::FromFormField))]
 pub enum NodeRoleQueryParam {
     ActiveMixnode,
 

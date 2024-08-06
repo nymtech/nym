@@ -51,6 +51,8 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   const { fee, getFee, resetFeeState } = useGetFee();
 
+  const { mixnetContractParams } = useContext(AppContext);
+
   const defaultValues = {
     operatorCost: bondedNode.operatorCost,
     profitMargin: bondedNode.profitMargin,
@@ -63,7 +65,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     setValue,
     formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm({
-    resolver: yupResolver(bondedNodeParametersValidationSchema),
+    resolver: yupResolver(bondedNodeParametersValidationSchema(mixnetContractParams)),
     mode: 'onChange',
     defaultValues,
   });

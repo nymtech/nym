@@ -48,7 +48,10 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::operators::mixnode::MixnetOperatorsMixnodeCommands::DecreasePledgeVesting(args) => {
             nym_cli_commands::validator::mixnet::operators::mixnode::vesting_decrease_pledge::vesting_decrease_pledge(args, create_signing_client(global_args, network_details)?).await
         }
-        _ => unreachable!(),
+        nym_cli_commands::validator::mixnet::operators::mixnode::MixnetOperatorsMixnodeCommands::MigrateVestedNode(args) => {
+            nym_cli_commands::validator::mixnet::operators::mixnode::migrate_vested_mixnode::migrate_vested_mixnode(args, create_signing_client(global_args, network_details)?).await
+        }
+        _ => unreachable!()
     }
     Ok(())
 }

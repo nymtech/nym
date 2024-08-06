@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
+use crate::epoch_state::storage::{CURRENT_EPOCH, EPOCH_THRESHOLDS, THRESHOLD};
 use crate::epoch_state::utils::check_state_completion;
 use crate::error::ContractError;
 use cosmwasm_std::{Env, Storage};
-use nym_coconut_dkg_common::types::{Epoch, EpochState, StateAdvanceResponse};
+use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState, StateAdvanceResponse};
 
 pub(crate) fn query_can_advance_state(
     storage: &dyn Storage,
@@ -43,6 +43,13 @@ pub(crate) fn query_current_epoch_threshold(
     storage: &dyn Storage,
 ) -> Result<Option<u64>, ContractError> {
     Ok(THRESHOLD.may_load(storage)?)
+}
+
+pub(crate) fn query_epoch_threshold(
+    storage: &dyn Storage,
+    epoch_id: EpochId,
+) -> Result<Option<u64>, ContractError> {
+    Ok(EPOCH_THRESHOLDS.may_load(storage, epoch_id)?)
 }
 
 #[cfg(test)]

@@ -1,87 +1,126 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-use nym_credential_storage::models::StorableIssuedCredential;
+use crate::utils::{get_coin_index_signatures, get_expiration_date_signatures};
+use log::info;
 use nym_credential_storage::storage::Storage;
-use nym_credentials::coconut::bandwidth::{CredentialType, IssuanceBandwidthCredential};
-use nym_credentials::coconut::utils::obtain_aggregate_signature;
-use nym_crypto::asymmetric::{encryption, identity};
-use nym_validator_client::coconut::all_coconut_api_clients;
-use nym_validator_client::nyxd::contract_traits::CoconutBandwidthSigningClient;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use nym_validator_client::nyxd::Coin;
+use nym_credentials::ecash::bandwidth::IssuanceTicketBook;
+use nym_credentials::ecash::utils::obtain_aggregate_wallet;
+use nym_credentials::IssuedTicketBook;
+use nym_credentials_interface::TicketType;
+use nym_crypto::asymmetric::identity;
+use nym_ecash_time::{ecash_default_expiration_date, Date};
+use nym_validator_client::coconut::all_ecash_api_clients;
+use nym_validator_client::nym_api::EpochId;
+use nym_validator_client::nyxd::contract_traits::EcashSigningClient;
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, EcashQueryClient};
+use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
+use nym_validator_client::EcashApiClient;
 use rand::rngs::OsRng;
-use state::State;
-use zeroize::Zeroizing;
 
-pub mod state;
-
-pub async fn deposit<C>(client: &C, amount: Coin) -> Result<State, BandwidthControllerError>
+pub async fn make_deposit<C>(
+    client: &C,
+    client_id: &[u8],
+    expiration: Option<Date>,
+    ticketbook_type: TicketType,
+) -> Result<IssuanceTicketBook, BandwidthControllerError>
 where
-    C: CoconutBandwidthSigningClient + Sync,
+    C: EcashSigningClient + EcashQueryClient + Sync,
 {
     let mut rng = OsRng;
     let signing_key = identity::PrivateKey::new(&mut rng);
-    let encryption_key = encryption::PrivateKey::new(&mut rng);
+    let expiration = expiration.unwrap_or_else(ecash_default_expiration_date);
 
-    let tx_hash = client
-        .deposit(
-            amount.clone(),
-            CredentialType::Voucher.to_string(),
+    let deposit_amount = client.get_required_deposit_amount().await?;
+    info!("we'll need to deposit {deposit_amount} to obtain the ticketbook");
+    let result = client
+        .make_ticketbook_deposit(
             signing_key.public_key().to_base58_string(),
-            encryption_key.public_key().to_base58_string(),
+            deposit_amount.into(),
             None,
         )
-        .await?
-        .transaction_hash;
+        .await?;
 
-    let voucher =
-        IssuanceBandwidthCredential::new_voucher(amount, tx_hash, signing_key, encryption_key);
+    let deposit_id = result.parse_singleton_u32_contract_data()?;
 
-    let state = State { voucher };
+    info!("our ticketbook deposit has been stored under id {deposit_id}");
 
-    Ok(state)
+    Ok(IssuanceTicketBook::new_with_expiration(
+        deposit_id,
+        client_id,
+        signing_key,
+        ticketbook_type,
+        expiration,
+    ))
 }
 
-pub async fn get_bandwidth_voucher<C, St>(
-    state: &State,
+pub async fn query_and_persist_required_global_signatures<S>(
+    storage: &S,
+    epoch_id: EpochId,
+    expiration_date: Date,
+    apis: Vec<EcashApiClient>,
+) -> Result<(), BandwidthControllerError>
+where
+    S: Storage,
+    <S as Storage>::StorageError: Send + Sync + 'static,
+{
+    log::info!("Getting expiration date signatures");
+    // this will also persist the signatures in the storage if they were not there already
+    get_expiration_date_signatures(storage, epoch_id, expiration_date, apis.clone()).await?;
+
+    log::info!("Getting coin indices signatures");
+    // this will also persist the signatures in the storage if they were not there already
+    get_coin_index_signatures(storage, epoch_id, apis).await?;
+    Ok(())
+}
+
+pub async fn get_ticket_book<C, St>(
+    issuance_data: &IssuanceTicketBook,
     client: &C,
     storage: &St,
-) -> Result<(), BandwidthControllerError>
+    apis: Option<Vec<EcashApiClient>>,
+) -> Result<IssuedTicketBook, BandwidthControllerError>
 where
     C: DkgQueryClient + Send + Sync,
     St: Storage,
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
-    // temporary
-    assert!(state.voucher.typ().is_voucher());
-
     let epoch_id = client.get_current_epoch().await?.epoch_id;
     let threshold = client
         .get_current_epoch_threshold()
         .await?
         .ok_or(BandwidthControllerError::NoThreshold)?;
 
-    let coconut_api_clients = all_coconut_api_clients(client, epoch_id).await?;
-
-    let signature =
-        obtain_aggregate_signature(&state.voucher, &coconut_api_clients, threshold).await?;
-    let issued = state.voucher.to_issued_credential(signature, epoch_id);
-
-    // make sure the data gets zeroized after persisting it
-    let credential_data = Zeroizing::new(issued.pack_v1());
-    let storable = StorableIssuedCredential {
-        serialization_revision: issued.current_serialization_revision(),
-        credential_data: credential_data.as_ref(),
-        credential_type: issued.typ().to_string(),
-        epoch_id: epoch_id
-            .try_into()
-            .expect("our epoch is has run over u32::MAX!"),
+    let apis = match apis {
+        Some(apis) => apis,
+        None => all_ecash_api_clients(client, epoch_id).await?,
     };
 
+    log::info!("Querying wallet signatures");
+    let wallet = obtain_aggregate_wallet(issuance_data, &apis, threshold).await?;
+    info!("managed to obtain sufficient number of partial signatures!");
+
+    log::info!("Getting expiration date signatures");
+    // this will also persist the signatures in the storage if they were not there already
+    get_expiration_date_signatures(
+        storage,
+        epoch_id,
+        issuance_data.expiration_date(),
+        apis.clone(),
+    )
+    .await?;
+
+    log::info!("Getting coin indices signatures");
+    // this will also persist the signatures in the storage if they were not there already
+    get_coin_index_signatures(storage, epoch_id, apis).await?;
+
+    let issued = issuance_data.to_issued_ticketbook(wallet, epoch_id);
+
+    info!("persisting the ticketbook into the storage...");
     storage
-        .insert_issued_credential(storable)
+        .insert_issued_ticketbook(&issued)
         .await
-        .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))
+        .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
+    Ok(issued)
 }

@@ -63,6 +63,14 @@ pub enum ClientCoreError {
         source: Box<dyn Error + Send + Sync>,
     },
 
+    #[error("experienced a failure with our credentials storage: {source}")]
+    CredentialStoreError {
+        source: Box<dyn Error + Send + Sync>,
+    },
+
+    #[error("the provided ticket type is invalid")]
+    UnknownTicketType,
+
     #[error("the gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
 

@@ -437,6 +437,7 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
+    use nym_vesting_contract_common::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -560,6 +561,9 @@ mod tests {
             VestingExecuteMsg::UpdateLockedPledgeCap { address, cap } => client
                 .update_locked_pledge_cap(address.parse().unwrap(), cap, None)
                 .ignore(),
+            // those will never be manually called by clients
+            ExecuteMsg::TrackMigratedMixnode { .. } => "explicitly_ignored".ignore(),
+            ExecuteMsg::TrackMigratedDelegation { .. } => "explicitly_ignored".ignore(),
         };
     }
 }

@@ -12,7 +12,6 @@ use nym_contracts_common::signing::Verifier;
 pub(crate) fn verify_mixnode_bonding_signature(
     deps: Deps<'_>,
     sender: Addr,
-    proxy: Option<Addr>,
     pledge: Coin,
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
@@ -23,8 +22,7 @@ pub(crate) fn verify_mixnode_bonding_signature(
 
     // reconstruct the payload
     let nonce = signing_storage::get_signing_nonce(deps.storage, sender.clone())?;
-    let msg =
-        construct_mixnode_bonding_sign_payload(nonce, sender, proxy, pledge, mixnode, cost_params);
+    let msg = construct_mixnode_bonding_sign_payload(nonce, sender, pledge, mixnode, cost_params);
 
     if deps.api.verify_message(msg, signature, &public_key)? {
         Ok(())

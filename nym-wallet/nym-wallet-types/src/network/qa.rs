@@ -48,13 +48,12 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
         contracts: NymContracts {
             mixnet_contract_address: parse_optional_str(MIXNET_CONTRACT_ADDRESS),
             vesting_contract_address: parse_optional_str(VESTING_CONTRACT_ADDRESS),
-            coconut_bandwidth_contract_address: parse_optional_str(
-                COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
-            ),
+            ecash_contract_address: parse_optional_str(COCONUT_BANDWIDTH_CONTRACT_ADDRESS),
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
         },
         explorer_api: parse_optional_str(EXPLORER_API),
+        nym_vpn_api_url: None,
     }
 }

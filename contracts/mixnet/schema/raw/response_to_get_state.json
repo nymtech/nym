@@ -77,6 +77,18 @@
         "minimum_mixnode_pledge"
       ],
       "properties": {
+        "interval_operating_cost": {
+          "description": "Defines the allowed interval operating cost range of operators. default: 0 - 1'000'000'000'000'000 (1 Billion native tokens - the total supply)",
+          "default": {
+            "maximum": "1000000000000000",
+            "minimum": "0"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/RangedValue_for_Uint128"
+            }
+          ]
+        },
         "minimum_gateway_pledge": {
           "description": "Minimum amount a gateway must pledge to get into the system.",
           "allOf": [
@@ -103,6 +115,62 @@
               "$ref": "#/definitions/Coin"
             }
           ]
+        },
+        "profit_margin": {
+          "description": "Defines the allowed profit margin range of operators. default: 0% - 100%",
+          "default": {
+            "maximum": "1",
+            "minimum": "0"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/RangedValue_for_Percent"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "Percent": {
+      "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        }
+      ]
+    },
+    "RangedValue_for_Percent": {
+      "type": "object",
+      "required": [
+        "maximum",
+        "minimum"
+      ],
+      "properties": {
+        "maximum": {
+          "$ref": "#/definitions/Percent"
+        },
+        "minimum": {
+          "$ref": "#/definitions/Percent"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RangedValue_for_Uint128": {
+      "type": "object",
+      "required": [
+        "maximum",
+        "minimum"
+      ],
+      "properties": {
+        "maximum": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "minimum": {
+          "$ref": "#/definitions/Uint128"
         }
       },
       "additionalProperties": false

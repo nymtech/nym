@@ -8,4 +8,7 @@ pub enum Error {
 
     #[error("{0}")]
     Defguard(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
+
+    #[error("{0}")]
+    GatewayStorage(#[from] nym_gateway_storage::error::StorageError),
 }

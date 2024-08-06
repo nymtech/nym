@@ -60,7 +60,7 @@ There are 2 pieces of software that work together to send SOCKS traffic through 
 The `nym-socks5-client` allows you to do the following from your local machine:
 * Take a TCP data stream from a application that can send traffic via SOCKS5.
 * Chop up the TCP stream into multiple Sphinx packets, assigning sequence numbers to them, while leaving the TCP connection open for more data
-* Send the Sphinx packets through the mixnet to a [network requester](https://nymtech.net/operators/nodes/network-requester.md). Packets are shuffled and mixed as they transit the mixnet.
+* Send the Sphinx packets through the Nym Network. Packets are shuffled and mixed as they transit the mixnet.
 
 The `nym-network-requester` then reassembles the original TCP stream using the packets' sequence numbers, and make the intended request. It will then chop up the response into Sphinx packets and send them back through the mixnet to your  `nym-socks5-client`. The application will then receive its data, without even noticing that it wasn't talking to a "normal" SOCKS5 proxy!
 

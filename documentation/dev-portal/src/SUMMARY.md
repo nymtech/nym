@@ -57,7 +57,7 @@
 ---
 
 # Archive
-- [ ] [NymConnect Setup](archive/nym-connect.md)
+- [NymConnect Setup](archive/nym-connect.md)
 
 ---
 

@@ -104,8 +104,6 @@ The `--use-reply-surbs` field denotes whether you wish to send [SURBs](https://n
 
 The `--provider` field needs to be filled with the Nym address of a Network Requester that can make network requests on your behalf. If you don't want to [run your own](https://nymtech.net/operators/nodes/network-requester.md) you can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/service-providers) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [this list](https://harbourmaster.nymtech.net/).
 
-Since the nodes on this list are the infrastructure for [Nymconnect](https://nymtech.net/developers/quickstart/nymconnect-gui.html) they will support all apps on the [default whitelist](https://nymtech.net/operators/nodes/network-requester.md#network-requester-whitelist): Keybase, Telegram, Electrum, Blockstream Green, and Helios.
-
 #### Choosing a Gateway
 By default - as in the example above - your client will choose a random gateway to connect to.
 

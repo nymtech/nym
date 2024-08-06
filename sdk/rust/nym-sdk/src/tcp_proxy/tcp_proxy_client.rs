@@ -1,5 +1,5 @@
 use crate::mixnet::{IncludedSurbs, MixnetClient, MixnetMessageSender};
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;
@@ -19,7 +19,7 @@ const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
 const DEFAULT_LISTEN_PORT: &str = "8080";
 
 pub struct NymProxyClient {
-    server_address: String,
+    server_address: Recipient,
     listen_address: String,
     listen_port: String,
     close_timeout: u64,
@@ -27,13 +27,13 @@ pub struct NymProxyClient {
 
 impl NymProxyClient {
     pub async fn new(
-        server_address: &str,
+        server_address: Recipient,
         listen_address: &str,
         listen_port: &str,
         close_timeout: u64,
     ) -> Result<Self> {
         Ok(NymProxyClient {
-            server_address: server_address.to_string(),
+            server_address,
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
@@ -41,9 +41,9 @@ impl NymProxyClient {
     }
 
     // server_address is the Nym address of the NymProxyServer to communicate with.
-    pub async fn new_with_defaults(server_address: &str) -> Result<Self> {
+    pub async fn new_with_defaults(server_address: Recipient) -> Result<Self> {
         Ok(NymProxyClient {
-            server_address: server_address.to_string(),
+            server_address,
             listen_address: DEFAULT_LISTEN_HOST.to_string(),
             listen_port: DEFAULT_LISTEN_PORT.to_string(),
             close_timeout: DEFAULT_CLOSE_TIMEOUT,
@@ -66,7 +66,7 @@ impl NymProxyClient {
         }
     }
 
-    // The main body of our logic, triggered on each accepted incoming tcp connection. To deal with gRPC's assumptions about
+    // The main body of our logic, triggered on each accepted incoming tcp connection. To deal with assumptions about
     // streaming we have to implement an abstract session for each set of outgoing messages atop each connection, with message
     // IDs to deal with the fact that the mixnet does not enforce message ordering.
     //
@@ -80,7 +80,7 @@ impl NymProxyClient {
     // - 'Incoming' thread => orders incoming messages from the Mixnet via placing them in a MessageBuffer and using tick(), as well as manage session closing.
     async fn handle_incoming(
         stream: TcpStream,
-        server_address: String,
+        server_address: Recipient,
         close_timeout: u64,
     ) -> Result<()> {
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
@@ -107,7 +107,7 @@ impl NymProxyClient {
 
         // Split our tcpstream into OwnedRead and OwnedWrite halves for concurrent read/writing
         let (read, mut write) = stream.into_split();
-        // Since we're just trying to pipe whatever bytes our gRPC client/server are normally sending to each other,
+        // Since we're just trying to pipe whatever bytes our client/server are normally sending to each other,
         // the bytescodec is fine to use here; we're trying to avoid modifying this stream e.g. in the process of Sphinx packet
         // creation and adding padding to the payload whilst also sidestepping the need to manually manage an intermediate buffer of the
         // incoming bytes from the tcp stream and writing them to our server with our Nym client.
@@ -116,7 +116,7 @@ impl NymProxyClient {
         // Much like the tcpstream, split our Nym client into a sender and receiver for concurrent read/write
         let sender = client.split_sender();
         // The server / service provider address our client is sending messages to will remain static
-        let server_addr = Recipient::from_str(&server_address)?;
+        let server_addr = server_address.clone();
         // Store outgoing messages in instance of Dashset abstraction
         let messages_account = Arc::new(DashSet::new());
         // Wrap in an Arc for memsafe concurrent access

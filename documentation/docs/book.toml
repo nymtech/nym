@@ -107,7 +107,6 @@ warning-policy = "warn"
 [output.html.redirect]
 "/sdk/rust/examples/socks.html" = "https://nymtech.net/developers/sdk/rust/examples/socks.html"
 "/clients/overview.html" = "https://nymtech.net/developers/clients-overview.html"
-"/sdk" = "https://nymtech.net/developers/sdk/rust/rust.html"
 "/sdk/rust/rust.html" = "https://nymtech.net/developers/sdk/rust/rust.html"
 "/clients/socks5-client.html" = "https://nymtech.net/developers/clients/socks5-client.html"
 "/clients/webassembly-client.html" = "https://nymtech.net/developers/clients/webassembly-client.html"

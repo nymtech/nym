@@ -103,3 +103,12 @@ copy-js = true          # include Javascript code for search
 
 [output.linkcheck]
 warning-policy = "warn"
+
+[output.html.redirect]
+"/sdk/rust/examples/socks.html" = "https://nymtech.net/developers/sdk/rust/examples/socks.html"
+"/clients/overview.html" = "https://nymtech.net/developers/clients-overview.html"
+"/sdk/rust/rust.html" = "https://nymtech.net/developers/sdk/rust/rust.html"
+"/clients/socks5-client.html" = "https://nymtech.net/developers/clients/socks5-client.html"
+"/clients/webassembly-client.html" = "https://nymtech.net/developers/clients/webassembly-client.html"
+"/sdk/typescript.html" = "https://sdk/nymtech.net"
+"/clients/websocket-client.html" = "https://nymtech.net/developers/clients/websocket-client.html"

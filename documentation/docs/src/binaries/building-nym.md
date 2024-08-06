@@ -56,9 +56,9 @@ Quite a bit of stuff gets built. The key working parts are:
 
 * [Nym Node](https://nymtech.net/operators/nodes/nym-node.html): `nym-node`
 * [Validator](https://nymtech.net/operators/nodes/validator-setup.html)
-* [websocket client](https://nymtech.net/docs/clients/websocket-client.html): `nym-client`
-* [socks5 client](https://nymtech.net/docs/clients/socks5-client.html): `nym-socks5-client`
-* [webassembly client](https://nymtech.net/docs/clients/webassembly-client.html): `webassembly-client`
+* [websocket client](https://nymtech.net/developers/clients/websocket-client.html): `nym-client`
+* [socks5 client](https://nymtech.net/developers/clients/socks5-client.html): `nym-socks5-client`
+* [webassembly client](https://nymtech.net/developers/clients/webassembly-client.html): `webassembly-client`
 * [nym-cli tool](https://nymtech.net/docs/tools/nym-cli.html): `nym-cli`
 * [nym-api](https://nymtech.net/operators/nodes/nym-api.html): `nym-api`
 * [nymvisor](https://nymtech.net/operators/nodes/nymvisor-upgrade.html): `nymvisor`

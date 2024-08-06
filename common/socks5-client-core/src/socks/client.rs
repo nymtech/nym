@@ -218,7 +218,7 @@ impl SocksClient {
         packet_type: Option<PacketType>,
     ) -> Self {
         // If this task fails and exits, we don't want to send shutdown signal
-        shutdown_listener.mark_as_success();
+        shutdown_listener.disarm();
 
         let connection_id = Self::generate_random();
 
@@ -294,7 +294,7 @@ impl SocksClient {
             .shutdown()
             .await
             .map_err(|source| SocksProxyError::SocketShutdownFailure { source })?;
-        self.shutdown_listener.mark_as_success();
+        self.shutdown_listener.disarm();
         Ok(())
     }
 

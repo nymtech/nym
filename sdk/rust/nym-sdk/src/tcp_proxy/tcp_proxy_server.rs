@@ -83,18 +83,18 @@ impl NymProxyServer {
         self.rx.clone()
     }
 
-    // The main body of our logic, triggered on each received new sessionID. To deal with gRPC's assumptions about
+    // The main body of our logic, triggered on each received new sessionID. To deal with assumptions about
     // streaming we have to implement an abstract session for each set of outgoing messages atop each connection, with message
     // IDs to deal with the fact that the mixnet does not enforce message ordering.
     //
     // There is an initial thread which does a bunch of setup logic:
-    //      - Create a TcpStream connecting to our gRCP server.
+    //      - Create a TcpStream connecting to our upstream server process.
     //      - Split incoming TcpStream into OwnedReadHalf and OwnedWriteHalf for concurrent read/write.
     //      - Create an Arc to store our session SURB - used for anonymous replies.
     //
     // Then we spawn 2 tasks:
-    // - 'Incoming' thread => deals with parsing and storing the SURB (used in Mixnet replies), deserialising and passing the incoming data from the Mixnet to the upstream gRPC server.
-    // - 'Outgoing' thread => frames bytes coming from TcpStream (the gRPC server) and deals with ordering + sending reply anonymously => Mixnet.
+    // - 'Incoming' thread => deals with parsing and storing the SURB (used in Mixnet replies), deserialising and passing the incoming data from the Mixnet to the upstream server.
+    // - 'Outgoing' thread => frames bytes coming from TcpStream (the server) and deals with ordering + sending reply anonymously => Mixnet.
     async fn session_handler(
         upstream_address: String,
         session_id: Uuid,
@@ -111,7 +111,7 @@ impl NymProxyServer {
 
         tokio::spawn(async move {
             let mut message_id = 0;
-            // Since we're just trying to pipe whatever bytes our gRPC client/server are normally sending to each other,
+            // Since we're just trying to pipe whatever bytes our client/server are normally sending to each other,
             // the bytescodec is fine to use here; we're trying to avoid modifying this stream e.g. in the process of Sphinx packet
             // creation and adding padding to the payload whilst also sidestepping the need to manually manage an intermediate buffer of the
             // incoming bytes from the tcp stream and writing them to our server with our Nym client.
@@ -216,4 +216,3 @@ impl NymProxyServer {
         Ok(())
     }
 }
-

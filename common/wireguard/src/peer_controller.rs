@@ -16,7 +16,7 @@ use crate::WgApiWrapper;
 // To avoid any problems, keep this stale check time bigger (>2x) then the bandwidth cap
 // reset time (currently that one is 24h, at UTC midnight)
 const DEFAULT_PEER_TIMEOUT: Duration = Duration::from_secs(60 * 60 * 24 * 3); // 3 days
-const DEFAULT_PEER_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
+const DEFAULT_PEER_TIMEOUT_CHECK: Duration = Duration::from_secs(5); // 5 seconds
 
 pub enum PeerControlRequest {
     AddPeer(Peer),
@@ -50,6 +50,7 @@ pub struct PeerController<St: Storage> {
     active_peers: HashMap<Key, Peer>,
     suspended_peers: HashMap<Key, Peer>,
     last_seen_bandwidth: HashMap<Key, u64>,
+    timeout_count: u8,
 }
 
 impl<St: Storage> PeerController<St> {
@@ -82,6 +83,7 @@ impl<St: Storage> PeerController<St> {
             active_peers,
             suspended_peers,
             last_seen_bandwidth: HashMap::new(),
+            timeout_count: 0,
         }
     }
 
@@ -144,6 +146,15 @@ impl<St: Storage> PeerController<St> {
             .iter()
             .map(|(key, peer)| (key.clone(), peer.rx_bytes + peer.tx_bytes))
             .collect();
+
+        // Do in-memory updates of bandwidth every DEFAULT_PEER_TIMEOUT_CHECK
+        // and storage updates every 5 * DEFAULT_PEER_TIMEOUT_CHECK, because in-memory
+        // is more important for client query preciseness
+        self.timeout_count = self.timeout_count % 5 + 1;
+        if !reset && self.timeout_count < 5 {
+            return Ok(());
+        }
+
         if reset {
             self.active_peers = host.peers;
             for peer in self.active_peers.values() {

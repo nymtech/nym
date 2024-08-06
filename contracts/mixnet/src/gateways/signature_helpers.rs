@@ -12,7 +12,6 @@ use nym_contracts_common::signing::Verifier;
 pub(crate) fn verify_gateway_bonding_signature(
     deps: Deps<'_>,
     sender: Addr,
-    proxy: Option<Addr>,
     pledge: Coin,
     gateway: Gateway,
     signature: MessageSignature,
@@ -22,7 +21,7 @@ pub(crate) fn verify_gateway_bonding_signature(
 
     // reconstruct the payload
     let nonce = signing_storage::get_signing_nonce(deps.storage, sender.clone())?;
-    let msg = construct_gateway_bonding_sign_payload(nonce, sender, proxy, pledge, gateway);
+    let msg = construct_gateway_bonding_sign_payload(nonce, sender, pledge, gateway);
 
     if deps.api.verify_message(msg, signature, &public_key)? {
         Ok(())

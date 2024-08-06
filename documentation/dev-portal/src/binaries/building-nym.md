@@ -52,10 +52,10 @@ git checkout master # master branch has the latest release version: `develop` wi
 cargo build --release # build your binaries with **mainnet** configuration
 ```
 
-Quite a bit of stuff gets built. The key working parts for devs are the Client binaries and the CLI tool: 
+Quite a bit of stuff gets built. The key working parts for devs are the Client binaries and the CLI tool:
 
 * [websocket client](../clients/websocket-client.md): `nym-client`
 * [socks5 client](../clients/socks5-client.md): `nym-socks5-client`
-* [nym-cli tool](https://nymtech.net/docs/tools/nym-cli.md): `nym-cli`
+* [nym-cli tool](https://nymtech.net/docs/tools/nym-cli.html): `nym-cli`
 
 > You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.

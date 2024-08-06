@@ -6,7 +6,7 @@ use crate::rewarder::epoch::Epoch;
 use crate::rewarder::helpers::api_client;
 use crate::rewarder::nyxd_client::NyxdClient;
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use nym_coconut::VerificationKey;
+use nym_compact_ecash::VerificationKeyAuth;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::{AccountId, Coin};
@@ -341,7 +341,7 @@ pub struct CredentialIssuer {
     pub public_key: ed25519::PublicKey,
     pub operator_account: AccountId,
     pub api_runner: String,
-    pub verification_key: VerificationKey,
+    pub verification_key: VerificationKeyAuth,
 }
 
 // safety: we're converting between different wrappers for bech32 addresses

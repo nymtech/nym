@@ -7,7 +7,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bip32 = { workspace = true }
+bip32 = { workspace = true, features = ["secp256k1", "std"] }
 k256 = { workspace = true }
 ledger-transport = { workspace = true }
 ledger-transport-hid = { workspace = true }

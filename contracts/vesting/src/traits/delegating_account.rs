@@ -44,4 +44,9 @@ pub trait DelegatingAccount {
         amount: Coin,
         storage: &mut dyn Storage,
     ) -> Result<(), VestingContractError>;
+    fn track_migrated_delegation(
+        &self,
+        mix_id: MixId,
+        storage: &mut dyn Storage,
+    ) -> Result<(), VestingContractError>;
 }

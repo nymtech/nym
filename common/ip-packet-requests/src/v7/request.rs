@@ -198,6 +198,17 @@ impl IpPacketRequestData {
             | IpPacketRequestData::Health(_) => None,
         }
     }
+
+    pub fn signable_request(&self) -> Option<Result<Vec<u8>, SignatureError>> {
+        match self {
+            IpPacketRequestData::StaticConnect(request) => Some(request.request()),
+            IpPacketRequestData::DynamicConnect(request) => Some(request.request()),
+            IpPacketRequestData::Disconnect(request) => Some(request.request()),
+            IpPacketRequestData::Data(_) => None,
+            IpPacketRequestData::Ping(_) => None,
+            IpPacketRequestData::Health(_) => None,
+        }
+    }
 }
 
 // A static connect request is when the client provides the internal IP address it will use on the

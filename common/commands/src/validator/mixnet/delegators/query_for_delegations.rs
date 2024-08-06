@@ -96,6 +96,7 @@ async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &Signin
                 mix_id,
                 amount,
                 proxy,
+                ..
             } => {
                 if owner.as_str() == client.nyxd.address().as_ref() {
                     table.add_row(vec![
@@ -111,6 +112,7 @@ async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &Signin
                 owner,
                 mix_id,
                 proxy,
+                ..
             } => {
                 if owner.as_str() == client.nyxd.address().as_ref() {
                     table.add_row(vec![

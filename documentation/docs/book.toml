@@ -18,8 +18,8 @@ pagetoc = true
 sidebar-width = "280px"
 content-max-width = "80%"
 root-font-size = "70%"
-# if you need to change anything in the index.hbs file you need to turn this to `false`, rebuild the book, 
-# probably remove the additional `comment` that gets appended to the header, and then change this back to `true`. 
+# if you need to change anything in the index.hbs file you need to turn this to `false`, rebuild the book,
+# probably remove the additional `comment` that gets appended to the header, and then change this back to `true`.
 # this is because of a bug in the `mdbook-theme` plugin
 turn-off = true
 

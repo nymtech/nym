@@ -4,11 +4,12 @@
 
 Nym is the first system we're aware of which provides integrated protection on both the network and transaction level at once. This seamless approach gives the best possible privacy protections, ensuring that nothing falls through the cracks between systems.
 
-The diagram and brief explainer texts below give a high level overview of the difference between Nym and other comparable systems. 
+The diagram and brief explainer texts below give a high level overview of the difference between Nym and other comparable systems.
 
-> If you want to dig more deeply into the way traffic is packetised and moved through the mixnet, check out the [Mixnet Traffic Flow](https://nymtech.net/docs/architecture/traffic-flow.html) page of the docs. 
-
-<img src="../images/nym-vs-animation.gif"/>
+> If you want to dig more deeply into the way traffic is packetised and moved through the mixnet, check out the [Mixnet Traffic Flow](https://nymtech.net/docs/architecture/traffic-flow.html) page of the docs.
+<!-- IMG DOES NOT EXIST
+![](../images/nym-vs-animation.gif)
+-->
 
 ### Nym vs VPNs
 

@@ -57,15 +57,21 @@ mod tests {
             )
             .unwrap();
 
-        assert!(new_buffer[mix_params.payload_range()] != buffer[mix_params.payload_range()]);
-        assert!(new_buffer[mix_params.routing_data_range()] != routing[..]);
+        assert_ne!(
+            new_buffer[mix_params.payload_range()],
+            buffer[mix_params.payload_range()]
+        );
+        assert_ne!(new_buffer[mix_params.routing_data_range()], routing[..]);
 
         let _ = mix_params
             .decode_mix_layer(&mut new_buffer[..], &mix_secret)
             .unwrap();
 
-        assert!(new_buffer[mix_params.payload_range()] == buffer[mix_params.payload_range()]);
-        assert!(new_buffer[mix_params.routing_data_range()] == routing[..]);
+        assert_eq!(
+            new_buffer[mix_params.payload_range()],
+            buffer[mix_params.payload_range()]
+        );
+        assert_eq!(new_buffer[mix_params.routing_data_range()], routing[..]);
     }
 
     #[test]
@@ -75,14 +81,14 @@ mod tests {
 
         let mut message_clone = message.clone();
         lion_transform(&mut message_clone[..], &key, [1, 2, 3]).unwrap();
-        assert!(message_clone[..] != message[..]);
+        assert_ne!(message_clone[..], message[..]);
 
         let mut message_clone_2 = message.clone();
         lion_transform_encrypt(&mut message_clone_2, &key).unwrap();
         assert_eq!(message_clone_2, message_clone);
 
         lion_transform(&mut message_clone[..], &key[..], [3, 2, 1]).unwrap();
-        assert!(message_clone[..] == message[..]);
+        assert_eq!(message_clone[..], message[..]);
     }
 
     #[test]

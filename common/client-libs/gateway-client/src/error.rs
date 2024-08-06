@@ -1,20 +1,25 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(target_arch = "wasm32")]
-use gloo_utils::errors::JsError;
 use nym_gateway_requests::registration::handshake::error::HandshakeError;
+use nym_gateway_requests::SimpleGatewayRequestsError;
 use std::io;
 use thiserror::Error;
 use tungstenite::Error as WsError;
+
+#[cfg(target_arch = "wasm32")]
+use gloo_utils::errors::JsError;
 
 #[derive(Debug, Error)]
 pub enum GatewayClientError {
     #[error("Connection to the gateway is not established")]
     ConnectionNotEstablished,
 
-    #[error("Gateway returned an error response: {0}")]
+    #[error("gateway returned an error response: {0}")]
     GatewayError(String),
+
+    #[error("gateway returned an error response: {0}")]
+    TypedGatewayError(SimpleGatewayRequestsError),
 
     #[error("There was a network error: {0}")]
     NetworkError(#[from] WsError),
@@ -61,6 +66,12 @@ pub enum GatewayClientError {
 
     #[error("There are no more bandwidth credentials acquired. Please buy some more if you want to use the mixnet")]
     NoMoreBandwidthCredentials,
+
+    #[error("the current available bandwidth ({available_bi2}) is below the minimum cutoff threshold off {cutoff_bi2}")]
+    BandwidthBelowCutoffValue {
+        available_bi2: String,
+        cutoff_bi2: String,
+    },
 
     #[error("Received an unexpected response")]
     UnexpectedResponse,
@@ -110,6 +121,13 @@ impl GatewayClientError {
                 ),
                 _ => false,
             },
+            _ => false,
+        }
+    }
+
+    pub fn is_ticket_replay(&self) -> bool {
+        match self {
+            GatewayClientError::TypedGatewayError(err) => err.is_ticket_replay(),
             _ => false,
         }
     }

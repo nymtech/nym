@@ -3,9 +3,11 @@
 
 use crate::error::MixnetContractError;
 use crate::Layer;
+use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
+use cosmwasm_std::{Addr, Uint128};
+use std::fmt::{Display, Formatter};
 use std::ops::Index;
 
 // type aliases for better reasoning about available data
@@ -14,6 +16,65 @@ pub type SphinxKeyRef<'a> = &'a str;
 
 pub type MixId = u32;
 pub type BlockHeight = u64;
+
+#[cw_serde]
+pub struct RangedValue<T> {
+    pub minimum: T,
+    pub maximum: T,
+}
+
+impl<T> Copy for RangedValue<T> where T: Copy {}
+
+pub type ProfitMarginRange = RangedValue<Percent>;
+pub type OperatingCostRange = RangedValue<Uint128>;
+
+impl<T> Display for RangedValue<T>
+where
+    T: Display,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - {}", self.minimum, self.maximum)
+    }
+}
+
+impl Default for ProfitMarginRange {
+    fn default() -> Self {
+        ProfitMarginRange {
+            minimum: Percent::zero(),
+            maximum: Percent::hundred(),
+        }
+    }
+}
+
+impl Default for OperatingCostRange {
+    fn default() -> Self {
+        OperatingCostRange {
+            minimum: Uint128::zero(),
+
+            // 1 billion (native tokens, i.e. 1 billion * 1'000'000 base tokens) - the total supply
+            maximum: Uint128::new(1_000_000_000_000_000),
+        }
+    }
+}
+
+impl<T> RangedValue<T>
+where
+    T: Copy + PartialOrd + PartialEq,
+{
+    pub fn normalise(&self, value: T) -> T {
+        if value < self.minimum {
+            self.minimum
+        } else if value > self.maximum {
+            self.maximum
+        } else {
+            value
+        }
+    }
+
+    pub fn within_range(&self, value: T) -> bool {
+        value >= self.minimum && value <= self.maximum
+    }
+}
 
 /// Specifies layer assignment for the given mixnode.
 #[cw_serde]
@@ -154,4 +215,14 @@ pub struct ContractStateParams {
 
     /// Minimum amount a gateway must pledge to get into the system.
     pub minimum_gateway_pledge: Coin,
+
+    /// Defines the allowed profit margin range of operators.
+    /// default: 0% - 100%
+    #[serde(default)]
+    pub profit_margin: ProfitMarginRange,
+
+    /// Defines the allowed interval operating cost range of operators.
+    /// default: 0 - 1'000'000'000'000'000 (1 Billion native tokens - the total supply)
+    #[serde(default)]
+    pub interval_operating_cost: OperatingCostRange,
 }

@@ -22,7 +22,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 url = { workspace = true }
 
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
-nym-client-core = { path = "../client-core", features = ["fs-surb-storage", "fs-gateways-storage"] }
+nym-client-core = { path = "../client-core", features = ["fs-credentials-storage", "fs-surb-storage", "fs-gateways-storage"] }
 nym-config = { path = "../config" }
 nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common" }
 nym-credential-storage = { path = "../credential-storage" }

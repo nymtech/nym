@@ -272,6 +272,7 @@ impl WalletStateInner {
     /// 1. from the configuration file
     /// 2. provided remotely
     /// 3. hardcoded fallback
+    ///
     /// The format is the config backend format, which is flat due to serialization preference.
     pub fn get_config_validator_entries(
         &self,

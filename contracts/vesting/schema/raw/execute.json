@@ -669,6 +669,54 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "track_migrated_mixnode"
+      ],
+      "properties": {
+        "track_migrated_mixnode": {
+          "type": "object",
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "owner": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "track_migrated_delegation"
+      ],
+      "properties": {
+        "track_migrated_delegation": {
+          "type": "object",
+          "required": [
+            "mix_id",
+            "owner"
+          ],
+          "properties": {
+            "mix_id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "owner": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {

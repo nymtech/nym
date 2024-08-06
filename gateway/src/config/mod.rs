@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::template::CONFIG_TEMPLATE;
-use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_config::helpers::inaddr_any;
@@ -17,6 +16,7 @@ use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tracing::{debug, warn};
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -67,7 +67,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     // additional metadata holding on-disk location of this config file
@@ -220,7 +220,6 @@ impl Config {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
     }
-
     pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
         self.gateway.nym_api_urls = nym_api_urls;
         self
@@ -415,7 +414,7 @@ impl Default for IpPacketRouter {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Debug {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
@@ -459,6 +458,9 @@ pub struct Debug {
     // existing nodes whilst everyone else is upgrading and getting the code for handling the new field.
     // It shall be disabled in the subsequent releases.
     pub use_legacy_framed_packet_version: bool,
+
+    #[serde(default)]
+    pub zk_nym_tickets: ZkNymTicketHandlerDebug,
 }
 
 impl Default for Debug {
@@ -475,6 +477,51 @@ impl Default for Debug {
             client_bandwidth_max_delta_flushing_amount:
                 DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
             use_legacy_framed_packet_version: false,
+            zk_nym_tickets: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZkNymTicketHandlerDebug {
+    /// Specifies the multiplier for revoking a malformed/double-spent ticket
+    /// (if it has to go all the way to the nym-api for verification)
+    /// e.g. if one ticket grants 100Mb and `revocation_bandwidth_penalty` is set to 1.5,
+    /// the client will lose 150Mb
+    pub revocation_bandwidth_penalty: f32,
+
+    /// Specifies the interval for attempting to resolve any failed, pending operations,
+    /// such as ticket verification or redemption.
+    #[serde(with = "humantime_serde")]
+    pub pending_poller: Duration,
+
+    pub minimum_api_quorum: f32,
+
+    /// Specifies the minimum number of tickets this gateway will attempt to redeem.
+    pub minimum_redemption_tickets: usize,
+
+    /// Specifies the maximum time between two subsequent tickets redemptions.
+    /// That's required as nym-apis will purge all ticket information for tickets older than 30 days.
+    #[serde(with = "humantime_serde")]
+    pub maximum_time_between_redemption: Duration,
+}
+
+impl ZkNymTicketHandlerDebug {
+    pub const DEFAULT_REVOCATION_BANDWIDTH_PENALTY: f32 = 10.0;
+    pub const DEFAULT_PENDING_POLLER: Duration = Duration::from_secs(300);
+    pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
+    pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
+    pub const DEFAULT_MAXIMUM_TIME_BETWEEN_REDEMPTION: Duration = Duration::from_secs(86400 * 25);
+}
+
+impl Default for ZkNymTicketHandlerDebug {
+    fn default() -> Self {
+        ZkNymTicketHandlerDebug {
+            revocation_bandwidth_penalty: Self::DEFAULT_REVOCATION_BANDWIDTH_PENALTY,
+            pending_poller: Self::DEFAULT_PENDING_POLLER,
+            minimum_api_quorum: Self::DEFAULT_MINIMUM_API_QUORUM,
+            minimum_redemption_tickets: Self::DEFAULT_MINIMUM_REDEMPTION_TICKETS,
+            maximum_time_between_redemption: Self::DEFAULT_MAXIMUM_TIME_BETWEEN_REDEMPTION,
         }
     }
 }

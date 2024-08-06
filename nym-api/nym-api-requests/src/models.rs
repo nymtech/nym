@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::unix_epoch;
 use crate::nym_nodes::NodeRole;
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal};
@@ -16,7 +17,7 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
@@ -41,7 +42,7 @@ impl RequestError {
 
 impl Display for RequestError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        self.message.fmt(f)
+        Display::fmt(&self.message, f)
     }
 }
 
@@ -417,10 +418,6 @@ impl From<nym_node_requests::api::v1::gateway::models::WebSockets> for WebSocket
     }
 }
 
-const fn unix_epoch() -> OffsetDateTime {
-    OffsetDateTime::UNIX_EPOCH
-}
-
 pub fn de_rfc3339_or_default<'de, D>(deserializer: D) -> Result<OffsetDateTime, D::Error>
 where
     D: Deserializer<'de>,
@@ -428,115 +425,25 @@ where
     Ok(time::serde::rfc3339::deserialize(deserializer).unwrap_or_else(|_| unix_epoch()))
 }
 
-pub(crate) mod overengineered_offset_date_time_serde {
-    use crate::models::unix_epoch;
-    use serde::de::Visitor;
-    use serde::ser::Error;
-    use serde::{Deserializer, Serialize, Serializer};
-    use std::fmt::Formatter;
-    use time::format_description::well_known::Rfc3339;
-    use time::format_description::{modifier, BorrowedFormatItem, Component};
-    use time::OffsetDateTime;
-
-    struct OffsetDateTimeVisitor;
-
-    // copied from time library because they keep it private -.-
-    const DEFAULT_OFFSET_DATE_TIME_FORMAT: &[BorrowedFormatItem<'_>] = &[
-        BorrowedFormatItem::Compound(DATE_FORMAT),
-        BorrowedFormatItem::Literal(b" "),
-        BorrowedFormatItem::Compound(TIME_FORMAT),
-        BorrowedFormatItem::Literal(b" "),
-        BorrowedFormatItem::Compound(UTC_OFFSET_FORMAT),
-    ];
-
-    const DATE_FORMAT: &[BorrowedFormatItem<'_>] = &[
-        BorrowedFormatItem::Component(Component::Year(modifier::Year::default())),
-        BorrowedFormatItem::Literal(b"-"),
-        BorrowedFormatItem::Component(Component::Month(modifier::Month::default())),
-        BorrowedFormatItem::Literal(b"-"),
-        BorrowedFormatItem::Component(Component::Day(modifier::Day::default())),
-    ];
-
-    const TIME_FORMAT: &[BorrowedFormatItem<'_>] = &[
-        BorrowedFormatItem::Component(Component::Hour(modifier::Hour::default())),
-        BorrowedFormatItem::Literal(b":"),
-        BorrowedFormatItem::Component(Component::Minute(modifier::Minute::default())),
-        BorrowedFormatItem::Literal(b":"),
-        BorrowedFormatItem::Component(Component::Second(modifier::Second::default())),
-        BorrowedFormatItem::Literal(b"."),
-        BorrowedFormatItem::Component(Component::Subsecond(modifier::Subsecond::default())),
-    ];
-
-    const UTC_OFFSET_FORMAT: &[BorrowedFormatItem<'_>] = &[
-        BorrowedFormatItem::Component(Component::OffsetHour({
-            let mut m = modifier::OffsetHour::default();
-            m.sign_is_mandatory = true;
-            m
-        })),
-        BorrowedFormatItem::Optional(&BorrowedFormatItem::Compound(&[
-            BorrowedFormatItem::Literal(b":"),
-            BorrowedFormatItem::Component(Component::OffsetMinute(
-                modifier::OffsetMinute::default(),
-            )),
-            BorrowedFormatItem::Optional(&BorrowedFormatItem::Compound(&[
-                BorrowedFormatItem::Literal(b":"),
-                BorrowedFormatItem::Component(Component::OffsetSecond(
-                    modifier::OffsetSecond::default(),
-                )),
-            ])),
-        ])),
-    ];
-
-    impl<'de> Visitor<'de> for OffsetDateTimeVisitor {
-        type Value = OffsetDateTime;
-
-        fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
-            formatter.write_str("an rfc3339 or human-readable `OffsetDateTime`")
-        }
-
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            // first try rfc3339, if that fails use default human-readable impl from time,
-            // finally fallback to default unix epoch
-            Ok(OffsetDateTime::parse(v, &Rfc3339).unwrap_or_else(|_| {
-                OffsetDateTime::parse(v, &DEFAULT_OFFSET_DATE_TIME_FORMAT)
-                    .unwrap_or_else(|_| unix_epoch())
-            }))
-        }
-    }
-
-    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<OffsetDateTime, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_str(OffsetDateTimeVisitor)
-    }
-
-    pub(crate) fn serialize<S>(datetime: &OffsetDateTime, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // serialize it with human-readable format for compatibility with eclipse and nutella clients
-        // in the future change it back to rfc3339
-        datetime
-            .format(&DEFAULT_OFFSET_DATE_TIME_FORMAT)
-            .map_err(S::Error::custom)?
-            .serialize(serializer)
-    }
-}
-
 // for all intents and purposes it's just OffsetDateTime, but we need JsonSchema...
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct OffsetDateTimeJsonSchemaWrapper(
-    #[serde(default = "unix_epoch", with = "overengineered_offset_date_time_serde")]
-    pub  OffsetDateTime,
+    #[serde(
+        default = "unix_epoch",
+        with = "crate::helpers::overengineered_offset_date_time_serde"
+    )]
+    pub OffsetDateTime,
 );
 
 impl Default for OffsetDateTimeJsonSchemaWrapper {
     fn default() -> Self {
         OffsetDateTimeJsonSchemaWrapper(unix_epoch())
+    }
+}
+
+impl Display for OffsetDateTimeJsonSchemaWrapper {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.0, f)
     }
 }
 

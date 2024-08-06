@@ -13,14 +13,14 @@ pub fn populate_vesting_periods(
 #[cfg(test)]
 mod tests {
     use crate::contract::*;
-    use crate::storage::*;
+
     use crate::support::tests::helpers::vesting_account_percent_fixture;
     use crate::support::tests::helpers::{
         init_contract, vesting_account_mid_fixture, vesting_account_new_fixture, TEST_COIN_DENOM,
     };
     use crate::traits::DelegatingAccount;
+    use crate::traits::GatewayBondingAccount;
     use crate::traits::VestingAccount;
-    use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
     use crate::vesting::account::StorableVestingAccountExt;
     use crate::vesting::populate_vesting_periods;
     use contracts_common::signing::MessageSignature;
@@ -36,162 +36,56 @@ mod tests {
     fn test_account_creation() {
         let mut deps = init_contract();
         let env = mock_env();
-        let info = mock_info("not_admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
+
         let msg = ExecuteMsg::CreateAccount {
             owner_address: "owner".to_string(),
             staking_address: Some("staking".to_string()),
             vesting_spec: None,
             cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
-        // Try creating an account when not admin
-        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
-        assert!(response.is_err());
 
         let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
-        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
-        let created_account = load_account(Addr::unchecked("owner"), &deps.storage)
-            .unwrap()
-            .unwrap();
-
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         assert_eq!(
-            created_account.load_balance(&deps.storage).unwrap(),
-            // One was liquidated
-            Uint128::new(1_000_000_000_000)
+            response,
+            Err(VestingContractError::Other {
+                message: "the contract has been disabled".to_string()
+            })
         );
-
-        // nothing is saved for "staking" account!
-        let created_account_test_by_staking =
-            load_account(Addr::unchecked("staking"), &deps.storage).unwrap();
-        assert!(created_account_test_by_staking.is_none());
-
-        // but we can stake on its behalf!
-        let stake_msg = ExecuteMsg::DelegateToMixnode {
-            on_behalf_of: Some("owner".to_string()),
-            mix_id: 42,
-            amount: coin(500, TEST_COIN_DENOM),
-        };
-
-        let response = execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info("staking", &[]),
-            stake_msg,
-        );
-        assert!(response.is_ok());
-
-        assert_eq!(
-            created_account.load_balance(&deps.storage).unwrap(),
-            // One was liquidated
-            Uint128::new(999_999_999_500)
-        );
-
-        // Try create the same account again
-        let response = execute(deps.as_mut(), env.clone(), info, msg);
-        assert!(response.is_err());
-
-        let account_again = vesting_account_new_fixture(&mut deps.storage, &env);
-        assert_eq!(created_account.storage_key(), 1);
-        assert_ne!(created_account.storage_key(), account_again.storage_key());
     }
 
     #[test]
     fn test_ownership_transfer() {
         let mut deps = init_contract();
-        let mut env = mock_env();
+        let env = mock_env();
         let info = mock_info("owner", &[]);
-        let account = vesting_account_new_fixture(&mut deps.storage, &env);
-        let staker = account.staking_address().unwrap();
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
-        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
-        let new_owner_account = load_account(Addr::unchecked("new_owner"), &deps.storage)
-            .unwrap()
-            .unwrap();
+        let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
         assert_eq!(
-            new_owner_account.load_balance(&deps.storage),
-            account.load_balance(&deps.storage)
+            response,
+            Err(VestingContractError::Other {
+                message: "the contract has been disabled".to_string()
+            })
         );
-
-        // Check old account is gone
-        let old_owner_account = load_account(Addr::unchecked("owner"), &deps.storage).unwrap();
-        assert!(old_owner_account.is_none());
-
-        // Not the owner
-        let response = execute(deps.as_mut(), env.clone(), info, msg);
-        assert!(response.is_err());
-
-        // can't stake on behalf of the original owner anymore, but we can do it for the new one!
-        let stake_msg = ExecuteMsg::DelegateToMixnode {
-            on_behalf_of: Some("owner".to_string()),
-            mix_id: 42,
-            amount: coin(500, TEST_COIN_DENOM),
-        };
-        let response = execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(staker.as_ref(), &[]),
-            stake_msg,
-        );
-        assert!(response.is_err());
-
-        let new_stake_msg = ExecuteMsg::DelegateToMixnode {
-            on_behalf_of: Some("new_owner".to_string()),
-            mix_id: 42,
-            amount: coin(500, TEST_COIN_DENOM),
-        };
-        let response = execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(staker.as_ref(), &[]),
-            new_stake_msg,
-        );
-        assert!(response.is_ok());
-
-        let info = mock_info("new_owner", &[]);
-        let msg = ExecuteMsg::UpdateStakingAddress {
-            to_address: Some("new_staking".to_string()),
-        };
-        let _response = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-        let msg = ExecuteMsg::WithdrawVestedCoins {
-            amount: Coin {
-                amount: Uint128::new(1),
-                denom: TEST_COIN_DENOM.to_string(),
-            },
-        };
-        let info = mock_info("new_owner", &[]);
-        env.block.time = Timestamp::from_nanos(env.block.time.nanos() + 100_000_000_000_000_000);
-        let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
-        assert!(response.is_ok());
-
-        let info = mock_info("owner", &[]);
-        let response = execute(deps.as_mut(), env.clone(), info, msg);
-        assert!(response.is_err());
     }
 
     #[test]
     fn test_staking_account() {
         let mut deps = init_contract();
-        let mut env = mock_env();
+        let env = mock_env();
         let info = mock_info("staking", &[]);
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg);
-        // Only owner can transfer
-        assert!(response.is_err());
-
-        let msg = ExecuteMsg::WithdrawVestedCoins {
-            amount: Coin {
-                amount: Uint128::new(1),
-                denom: "nym".to_string(),
-            },
-        };
-        env.block.time = Timestamp::from_nanos(env.block.time.nanos() + 100_000_000_000_000_000);
-        let response = execute(deps.as_mut(), env, info, msg);
-        // Only owner can withdraw
-        assert!(response.is_err());
+        assert_eq!(
+            response,
+            Err(VestingContractError::Other {
+                message: "the contract has been disabled".to_string()
+            })
+        );
     }
 
     #[test]
@@ -213,31 +107,12 @@ mod tests {
             mock_info(original_staker.as_ref(), &[]),
             stake_msg.clone(),
         );
-        assert!(response.is_ok());
-
-        let info = mock_info("owner", &[]);
-        let msg = ExecuteMsg::UpdateStakingAddress {
-            to_address: Some("new_staking".to_string()),
-        };
-        let _response = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-        // the old staking account can't do any staking anymore!
-        let response = execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(original_staker.as_ref(), &[]),
-            stake_msg.clone(),
+        assert_eq!(
+            response,
+            Err(VestingContractError::Other {
+                message: "the contract has been disabled".to_string()
+            })
         );
-        assert!(response.is_err());
-
-        // but the new one can
-        let response = execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info("new_staking", &[]),
-            stake_msg,
-        );
-        assert!(response.is_ok());
     }
 
     #[test]
@@ -245,66 +120,27 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let amount1 = coin(1000000000, "unym");
-        let amount2 = coin(100, "unym");
+        let amount = coin(1000000000, "unym");
 
         // create the accounts
-        let msg1 = ExecuteMsg::CreateAccount {
+        let msg = ExecuteMsg::CreateAccount {
             owner_address: "vesting1".to_string(),
             staking_address: None,
             vesting_spec: None,
             cap: None,
         };
-        let res1 = execute(
+        let response = execute(
             deps.as_mut(),
             env.clone(),
-            mock_info("admin", &[amount1.clone()]),
-            msg1,
-        );
-        assert!(res1.is_ok());
-
-        let msg2 = ExecuteMsg::CreateAccount {
-            owner_address: "vesting2".to_string(),
-            staking_address: None,
-            vesting_spec: None,
-            cap: None,
-        };
-        let res2 = execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info("admin", &[amount2.clone()]),
-            msg2,
-        );
-        assert!(res2.is_ok());
-
-        let vesting1 = try_get_vesting_coins("vesting1", None, env.clone(), deps.as_ref()).unwrap();
-        assert_eq!(vesting1, amount1);
-
-        let vesting2 = try_get_vesting_coins("vesting2", None, env.clone(), deps.as_ref()).unwrap();
-        assert_eq!(vesting2, amount2);
-
-        let staking_address_change = ExecuteMsg::UpdateStakingAddress {
-            to_address: Some("vesting1".to_string()),
-        };
-        let res = execute(
-            deps.as_mut(),
-            env.clone(),
-            mock_info("vesting2", &[]),
-            staking_address_change,
+            mock_info("admin", &[amount.clone()]),
+            msg,
         );
         assert_eq!(
-            Err(VestingContractError::StakingAccountExists(
-                "vesting1".to_string()
-            )),
-            res
+            response,
+            Err(VestingContractError::Other {
+                message: "the contract has been disabled".to_string()
+            })
         );
-
-        // ensure nothing has changed!
-        let vesting1 = try_get_vesting_coins("vesting1", None, env.clone(), deps.as_ref()).unwrap();
-        assert_eq!(vesting1, amount1);
-
-        let vesting2 = try_get_vesting_coins("vesting2", None, env, deps.as_ref()).unwrap();
-        assert_eq!(vesting2, amount2);
     }
 
     #[test]
@@ -566,63 +402,13 @@ mod tests {
         };
         let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
 
-        let _response = execute(deps.as_mut(), env.clone(), info, msg);
-        let account = load_account(Addr::unchecked("owner"), &deps.storage)
-            .unwrap()
-            .unwrap();
-
-        // Try delegating too much
-        let err = account.try_delegate_to_mixnode(
-            1,
-            Coin {
-                amount: Uint128::new(1_000_000_000_001),
-                denom: TEST_COIN_DENOM.to_string(),
-            },
-            &env,
-            &mut deps.storage,
+        let response = execute(deps.as_mut(), env.clone(), info, msg);
+        assert_eq!(
+            response,
+            Err(VestingContractError::Other {
+                message: "the contract has been disabled".to_string()
+            })
         );
-        assert!(err.is_err());
-
-        let ok = account.try_delegate_to_mixnode(
-            1,
-            Coin {
-                amount: Uint128::new(90_000_000_000),
-                denom: TEST_COIN_DENOM.to_string(),
-            },
-            &env,
-            &mut deps.storage,
-        );
-        assert!(ok.is_ok());
-
-        // Fails due to delegation locked delegation cap
-        let ok = account.try_delegate_to_mixnode(
-            1,
-            Coin {
-                amount: Uint128::new(20_000_000_000),
-                denom: TEST_COIN_DENOM.to_string(),
-            },
-            &env,
-            &mut deps.storage,
-        );
-        assert!(ok.is_err());
-
-        let balance = account.load_balance(&deps.storage).unwrap();
-        assert_eq!(balance, Uint128::new(910000000000));
-
-        // Try delegating too much againcalca
-        let err = account.try_delegate_to_mixnode(
-            1,
-            Coin {
-                amount: Uint128::new(500_000_000_001),
-                denom: TEST_COIN_DENOM.to_string(),
-            },
-            &env,
-            &mut deps.storage,
-        );
-        assert!(err.is_err());
-
-        let total_delegations = account.total_delegations_for_mix(1, &deps.storage).unwrap();
-        assert_eq!(Uint128::new(90_000_000_000), total_delegations);
     }
 
     #[test]
@@ -649,52 +435,24 @@ mod tests {
                 amount: Uint128::new(40),
             },
         };
-        // Try delegating too much
-        let err = account.try_bond_mixnode(
-            mix_node.clone(),
-            cost_params.clone(),
-            MessageSignature::from(vec![1, 2, 3]),
-            Coin {
-                amount: Uint128::new(1_000_000_000_001),
-                denom: TEST_COIN_DENOM.to_string(),
-            },
-            &env,
-            &mut deps.storage,
-        );
-        assert!(err.is_err());
 
-        let ok = account.try_bond_mixnode(
-            mix_node.clone(),
-            cost_params.clone(),
-            MessageSignature::from(vec![1, 2, 3]),
-            Coin {
+        let msg = ExecuteMsg::BondMixnode {
+            mix_node,
+            cost_params,
+            owner_signature: vec![1, 2, 3, 4].into(),
+            amount: Coin {
                 amount: Uint128::new(90_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
             },
-            &env,
-            &mut deps.storage,
+        };
+        let info = mock_info(account.owner_address.as_str(), &[]);
+        let response = execute(deps.as_mut(), env.clone(), info, msg);
+        assert_eq!(
+            response,
+            Err(VestingContractError::Other {
+                message: "the contract has been disabled".to_string()
+            })
         );
-        assert!(ok.is_ok());
-
-        let balance = account.load_balance(&deps.storage).unwrap();
-        assert_eq!(balance, Uint128::new(910_000_000_000));
-
-        // Try delegating too much again
-        let err = account.try_bond_mixnode(
-            mix_node,
-            cost_params,
-            MessageSignature::from(vec![1, 2, 3]),
-            Coin {
-                amount: Uint128::new(10_000_000_001),
-                denom: TEST_COIN_DENOM.to_string(),
-            },
-            &env,
-            &mut deps.storage,
-        );
-        assert!(err.is_err());
-
-        let pledge = account.load_mixnode_pledge(&deps.storage).unwrap().unwrap();
-        assert_eq!(Uint128::new(90_000_000_000), pledge.amount().amount);
     }
 
     #[test]

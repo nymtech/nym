@@ -1,6 +1,6 @@
 [package]
 name = "explorer-api"
-version = "1.1.36"
+version = "1.1.38"
 edition = "2021"
 license.workspace = true
 

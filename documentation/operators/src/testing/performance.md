@@ -4,7 +4,7 @@ Nym Mixnet has been running on mainnet for quite some time. There is still work 
 
 As developers we need to be constantly improving the software. Operators have as much important role, keep their nodes up to date, monitor their performance and share their feedback with the rest of the community and core developers.
 
-Therefore [monitoring](#monitoring) and [testing](#testing) are essential pieces of our common work. We call out all Nym operators to join the efforts! 
+Therefore [monitoring](#monitoring) and [testing](#testing) are essential pieces of our common work. We call out all Nym operators to join the efforts!
 
 ## Monitoring
 
@@ -24,10 +24,10 @@ A list of different scripts, templates and guides for easier navigation:
 For the purpose of the performance testing Nym core developers plan to run instances of Prometheus and Grafana connected to Node explorer in the house. The network overall key insights we seek from these tests are primarily internal. We're focused on pinpointing bottlenecks, capacity loads, and monitoring cpu usage on the nodes' machines.
 
 
-## Testing 
+## Testing
 
 ```admonish info
-For the moment we paused Fast and Furious `perf` environment. Nym Mainnet environment will be used for future tests, please wait for further instructions. 
+For the moment we paused Fast and Furious `perf` environment. Nym Mainnet environment will be used for future tests, please wait for further instructions.
 ```
 
 Nym asks its decentralised community of operators to join a series of performance testing events in order to **increase the overall quality of the Mixnet**. The main takeaways of such event are:
@@ -46,7 +46,7 @@ Visit [Fast and Furious web page]({{performance_testing_webpage}}) and [Nym Harb
 <!--- THIS NEEDS A REDO:
 ## Performance Testing Work Flow
 
-* Nym runs a paralel network environment [validator.performance.nymte.ch]({{performance_validator}}) with a chain ID `perf`
+* Nym runs a paralel network environment with a chain ID `perf`
 * Operators of Nym Nodes join by following easy steps on [performance testing web page]({{performance_testing_webpage}}), including simplified node authentication signature (while keep running their nodes on the mainnet)
 * Once signed in, operators will be asked to swap their binary for the modified version with metrics endpoint to be able to connect their own [monitoring system](#monitoring)
 * Core node data will be fed to a unique mixnet contract for the `perf` side chain
@@ -55,5 +55,4 @@ Visit [Fast and Furious web page]({{performance_testing_webpage}}) and [Nym Harb
 * Nym creates a large number of clients to the [performance validator network]({{performance_validator}}), intensifying the packet traffic
 * Observe and record the metrics - this will probably put more strain on mainnet as well as many nodes spec is minimal
 --->
-
 

@@ -6,6 +6,7 @@ async fn main() {
     nym_bin_common::logging::setup_logging();
 
     // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
+    // let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
 
     // Be able to get our client address

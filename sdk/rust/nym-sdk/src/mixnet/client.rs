@@ -28,6 +28,7 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_credentials_interface::TicketType;
 use nym_network_defaults::WG_TUN_DEVICE_IP_ADDRESS;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
@@ -550,18 +551,32 @@ where
     }
 
     /// Creates an associated [`BandwidthAcquireClient`] that can be used to acquire bandwidth
-    /// credentials for this client to consume.
-    pub fn create_bandwidth_client(
+    /// credentials of particular type for this client to consume.
+    pub async fn create_bandwidth_client(
         &self,
         mnemonic: String,
+        ticketbook_type: TicketType,
     ) -> Result<BandwidthAcquireClient<S::CredentialStore>> {
         if !self.config.enabled_credentials_mode {
             return Err(Error::DisabledCredentialsMode);
         }
+        let client_id = self
+            .storage
+            .key_store()
+            .load_keys()
+            .await
+            .map_err(|e| Error::KeyStorageError {
+                source: Box::new(e),
+            })?
+            .identity_keypair()
+            .private_key()
+            .to_base58_string();
         BandwidthAcquireClient::new(
             self.config.network_details.clone(),
             mnemonic,
             self.storage.credential_store(),
+            client_id,
+            ticketbook_type,
         )
     }
 
@@ -610,8 +625,7 @@ where
     ///
     /// - If the client is already registered with a gateway, use that gateway.
     /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
-    /// register a new gateway.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to register a new gateway.
     ///
     /// # Example
     ///
@@ -691,8 +705,7 @@ where
     ///
     /// - If the client is already registered with a gateway, use that gateway.
     /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
-    /// register a new gateway.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to register a new gateway.
     ///
     /// # Example
     ///

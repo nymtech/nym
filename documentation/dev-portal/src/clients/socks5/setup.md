@@ -1,8 +1,13 @@
-# Setup 
+# Setup
 
 > `nym-socks5-client` now also supports SOCKS4 and SOCKS4A protocols as well as SOCKS5.
 
 The Nym socks5 client allows you to proxy traffic from a desktop application through the mixnet, meaning you can send and receive information from remote application servers without leaking metadata which can be used to deanonymise you, even if you're using an encrypted application such as Signal.
+
+```admonish info
+Since the beginning of 2024 NymConnect is no longer maintained. Nym is developing a new client called [NymVPN](https://nymvpn.com), an application routing all users traffic thorugh the mixnet.
+If users want to route their traffic through socks5 we advice to use this client. If you want to run deprecated NymConnect, visit [NymConnect archive page](../../archive/nym-connect.md) with setup and application examples.
+```
 
 ## Setup and Run
 
@@ -38,5 +43,3 @@ Now your client is initialised, start it with the following:
 ```
 ./nym-socks5-client run --id <ID>
 ```
-
-

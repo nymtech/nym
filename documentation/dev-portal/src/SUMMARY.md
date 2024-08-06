@@ -2,7 +2,7 @@
 - [Introduction](introduction.md)
 - [Clients Overview - Start Here!](clients-overview.md)
 
-# SDKs 
+# SDKs
 - [Rust SDK](sdk/rust/rust.md)
 	- [Message Types](sdk/rust/message-types.md)
 	- [Message Helpers](sdk/rust/message-helpers.md)
@@ -30,7 +30,7 @@
 	- [Using Your Client](clients/websocket/usage.md)
 	- [Examples](clients/websocket/examples.md)
 - [Socks5 Client](clients/socks5-client.md)
-  - [Setup & Run](clients/socks5/setup.md) 
+  - [Setup & Run](clients/socks5/setup.md)
   - [Using Your Client](clients/socks5/usage.md)
 - [Webassembly Client](clients/webassembly-client.md)
 
@@ -54,8 +54,13 @@
 # User Manuals
 - [NymVPN alpha](nymvpn/intro.md)
     - [CLI](nymvpn/cli.md)
+---
+
+# Archive
+- [NymConnect Setup](archive/nym-connect.md)
 
 ---
+
 # Misc.
 - [Code of Conduct](coc.md)
 - [Licensing](licensing.md)

@@ -171,7 +171,7 @@ If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjust
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```
 
-2. Check available Gateways at [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways)
+2. Check available Gateways at [Sandbox API](https://sandbox-nym-api1.nymtech.net/api/v1/gateways) or [Sandbox Swagger page](https://sandbox-nym-api1.nymtech.net/api/swagger/index.html)
 
 3. Run with a flag `-c`
 ```sh

@@ -23,7 +23,7 @@ Make sure you do the preparation listed in the [preliminary steps page](initial-
 
 
 ## Gateway setup
-Now that you have built the codebase, set up your wallet, and have a VPS with the `nym-gateway` binary, you can set up your gateway with the instructions below.  
+Now that you have built the codebase, set up your wallet, and have a VPS with the `nym-gateway` binary, you can set up your gateway with the instructions below.
 
 To begin, move to `/target/release` directory from which you run the node commands:
 
@@ -47,10 +47,10 @@ You can also check the various arguments required for individual commands with:
 
 ## Initialising your Gateway
 
-As Nym developers build towards [Exit Gateway](../../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with inbuilt Network Requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
+As Nym developers build towards [Exit Gateway](../../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with inbuilt Network Requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries.
 
 ```admonish warning
-Before you start an Exit Gateway, read our [Operators Legal Forum](../legal/exit-gateway.md) page and [*Project Smoosh FAQ*](../faq/smoosh-faq.md).
+Before you start an Exit Gateway, read our [Operators Legal Forum](../../legal/exit-gateway.md) page and [*Project Smoosh FAQ*](../faq/smoosh-faq.md).
 ```
 
 ```admonish info
@@ -68,9 +68,9 @@ An operator can initialise the Exit Gateway functionality by adding Network Requ
 ```
 
 
-You can see that the printed information besides *identity* and *sphinx keys* also includes a long string called *address*. This is the address to be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own Exit Gateway.  
+You can see that the printed information besides *identity* and *sphinx keys* also includes a long string called *address*. This is the address to be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own Exit Gateway.
 
-Additionally 
+Additionally
 
 #### Add Network Requester to an existing Gateway
 
@@ -83,10 +83,10 @@ See the options:
 ```
 
 
-To setup Exit Gateway functionality with our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) add a flag `--with-exit-policy true`. 
+To setup Exit Gateway functionality with our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) add a flag `--with-exit-policy true`.
 
 ```
-./nym-gateway setup-network-requester --enabled true --with-exit-policy true --id <ID> 
+./nym-gateway setup-network-requester --enabled true --with-exit-policy true --id <ID>
 ```
 
 Say we have a Gateway with `<ID>` as `new-gateway`, originally initialised and ran without the Exit Gateway functionality. To change the setup, run:
@@ -156,7 +156,7 @@ The `run` command starts the Gateway:
 ## Bonding your Gateway
 
 ```admonish info
-Before you bond your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup WSS and automate your Gateway to simplify the operation overhead. We highly recommend to run any of these steps before bonding to prevent disruption of your Gateway's routing score later on.
+Before you bond your Gateway, please make sure the [firewall configuration](../../nodes/maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup WSS and automate your Gateway to simplify the operation overhead. We highly recommend to run any of these steps before bonding to prevent disruption of your Gateway's routing score later on.
 ```
 
 ### Via the Desktop wallet (recommended)
@@ -167,7 +167,7 @@ You can bond your Gateway via the Desktop wallet. **Make sure your Gateway is ru
 
 2. Enter the `Amount`, `Operating cost` and press `Next`.
 
-3. You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature `<PAYLOAD_GENERATED_BY_THE_WALLET>` and paste it as a value of `--contract-msg` in the following command: 
+3. You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature `<PAYLOAD_GENERATED_BY_THE_WALLET>` and paste it as a value of `--contract-msg` in the following command:
 
 ```
 ./nym-gateway sign --id <YOUR_ID> --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>
@@ -186,7 +186,7 @@ It will look something like this (as `<YOUR_ID>` we used `supergateway`):
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             (nym-gateway - version v1.1.<XX>)  
+             (nym-gateway - version v1.1.<XX>)
 
 
 >>> attempting to sign 2Mf8xYytgEeyJke9LA7TjhHoGQWNBEfgHZtTyy2krFJfGHSiqy7FLgTnauSkQepCZTqKN5Yfi34JQCuog9k6FGA2EjsdpNGAWHZiuUGDipyJ6UksNKRxnFKhYW7ri4MRduyZwbR98y5fQMLAwHne1Tjm9cXYCn8McfigNt77WAYwBk5bRRKmC34BJMmWcAxphcLES2v9RdSR68tkHSpy2C8STfdmAQs3tZg8bJS5Qa8pQdqx14TnfQAPLk3QYCynfUJvgcQTrg29aqCasceGRpKdQ3Tbn81MLXAGAs7JLBbiMEAhCezAr2kEN8kET1q54zXtKz6znTPgeTZoSbP8rzf4k2JKHZYWrHYF9JriXepuZTnyxAKAxvGFPBk8Z6KAQi33NRQkwd7MPyttatHna6kG9x7knffV6ebGzgRBf7NV27LurH8x4L1uUXwm1v1UYCA1WSBQ9Pp2JW69k5v5v7G9gBy8RUcZnMbeL26Qqb8WkuGcmuHhaFfoqSfV7PRHPpPT4M8uRqUyR4bjUtSJJM1yh6QSeZk9BEazzoJqPeYeGoiFDZ3LMj2jesbJweQR4caaYuRczK92UGSSqu9zBKmE45a
@@ -206,7 +206,7 @@ It will look something like this (as `<YOUR_ID>` we used `supergateway`):
 
 * And paste it into the wallet nodal, press `Next` and confirm the transaction.
 
-![Paste Signature](../../images/wallet-screenshots/wallet-gateway-sign.png)  
+![Paste Signature](../../images/wallet-screenshots/wallet-gateway-sign.png)
 *This image is just an example, copy-paste your own base58-encoded signature.*
 
 * Your Gateway is now bonded.
@@ -220,4 +220,3 @@ If you want to bond your Gateway via the CLI, then check out the [relevant secti
 ## Maintenance
 
 For Gateway upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation, WSS setup and more, see the [maintenance page](../../nodes/maintenance.md)
-

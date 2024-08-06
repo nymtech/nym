@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
-import { Box } from '@mui/material';
+import { Alert, AlertTitle, Box, Button, Typography } from '@mui/material';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
 import { BondedMixnode } from 'src/components/Bonding/BondedMixnode';
@@ -17,15 +17,16 @@ import { AppContext, urls } from 'src/context/main';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs, TUpdateBondArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
+import { VestingWarningModal } from 'src/components/VestingWarningModal';
 import { BondingContextProvider, useBondingContext } from '../../context';
 
-const Bonding = () => {
+export const Bonding = () => {
   const [showModal, setShowModal] = useState<
     'bond-mixnode' | 'bond-gateway' | 'update-bond' | 'update-bond-oversaturated' | 'unbond' | 'redeem'
   >();
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
   const [uncappedSaturation, setUncappedSaturation] = useState<number | undefined>();
-
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
   const {
     network,
     clientDetails,
@@ -34,14 +35,35 @@ const Bonding = () => {
 
   const navigate = useNavigate();
 
-  const { bondedNode, bondMixnode, bondGateway, redeemRewards, isLoading, updateBondAmount, error, refresh } =
-    useBondingContext();
+  const {
+    bondedNode,
+    bondMixnode,
+    bondGateway,
+    redeemRewards,
+    isLoading,
+    updateBondAmount,
+    error,
+    refresh,
+    migrateVestedMixnode,
+  } = useBondingContext();
 
   useEffect(() => {
     if (bondedNode && isMixnode(bondedNode) && bondedNode.uncappedStakeSaturation) {
       setUncappedSaturation(bondedNode.uncappedStakeSaturation);
     }
   }, [bondedNode]);
+
+  const handleMigrateVestedMixnode = async () => {
+    setShowMigrationModal(false);
+    const tx = await migrateVestedMixnode();
+    if (tx) {
+      setConfirmationDetails({
+        status: 'success',
+        title: 'Migration successful',
+        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+      });
+    }
+  };
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
@@ -138,6 +160,33 @@ const Bonding = () => {
 
   return (
     <Box sx={{ mt: 4 }}>
+      {bondedNode?.proxy && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <AlertTitle sx={{ fontWeight: 600 }}>Your bonded node is using tokens from the vesting contract!</AlertTitle>
+          <Typography>
+            In order to claim your rewards, you will need to migrate it out of the vesting contract.{' '}
+          </Typography>
+          <Typography mt={1}>
+            <strong>Never fear</strong>, if you do not migrate them, <strong>you will continue to get rewards</strong>.
+            However, please migrate your bonded node as soon as possible.
+          </Typography>
+          <Button variant="contained" size="small" sx={{ mt: 1 }} onClick={() => setShowMigrationModal(true)}>
+            Migrate now
+          </Button>
+        </Alert>
+      )}
+
+      <VestingWarningModal
+        kind="bond"
+        isVisible={showMigrationModal}
+        handleClose={() => {
+          setShowMigrationModal(false);
+        }}
+        handleMigrate={async () => {
+          await handleMigrateVestedMixnode();
+        }}
+      />
+
       {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
 
       {bondedNode && isMixnode(bondedNode) && (

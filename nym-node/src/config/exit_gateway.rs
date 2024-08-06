@@ -34,6 +34,28 @@ pub struct ExitGatewayConfig {
     pub network_requester: NetworkRequester,
 
     pub ip_packet_router: IpPacketRouter,
+
+    #[serde(default)]
+    pub debug: Debug,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Debug {
+    /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
+    pub message_retrieval_limit: i64,
+}
+
+impl Debug {
+    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+}
+
+impl Default for Debug {
+    fn default() -> Self {
+        Debug {
+            message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+        }
+    }
 }
 
 impl ExitGatewayConfig {
@@ -49,6 +71,7 @@ impl ExitGatewayConfig {
                 .expect("invalid default exit policy URL"),
             network_requester: Default::default(),
             ip_packet_router: Default::default(),
+            debug: Default::default(),
         }
     }
 }

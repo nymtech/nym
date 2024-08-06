@@ -5,18 +5,14 @@ use chrono::{Timelike, Utc};
 use defguard_wireguard_rs::{host::Peer, key::Key, WireguardInterfaceApi};
 use nym_gateway_storage::Storage;
 use nym_wireguard_types::registration::{RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY};
+use nym_wireguard_types::{DEFAULT_PEER_TIMEOUT, DEFAULT_PEER_TIMEOUT_CHECK};
 use std::time::SystemTime;
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::mpsc;
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 use crate::error::Error;
 use crate::WgApiWrapper;
-
-// To avoid any problems, keep this stale check time bigger (>2x) then the bandwidth cap
-// reset time (currently that one is 24h, at UTC midnight)
-const DEFAULT_PEER_TIMEOUT: Duration = Duration::from_secs(60 * 60 * 24 * 3); // 3 days
-const DEFAULT_PEER_TIMEOUT_CHECK: Duration = Duration::from_secs(5); // 5 seconds
 
 pub enum PeerControlRequest {
     AddPeer(Peer),

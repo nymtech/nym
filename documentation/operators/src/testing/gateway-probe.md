@@ -2,8 +2,8 @@
 
 Nym Node operators running Gateway functionality are already familiar with the monitoring tool [Harbourmaster.nymtech.net](https://harbourmaster.nymtech.net). Under the hood of Nym Harbourmaster runs iterations of `nym-gateway-probe` doing various checks and displaying the results on the interface. Operators don't have to rely on the probe ran by Nym and wait for the data to refresh. With `nym-gateway-probe` everyone can check any Gateway's networking status from their own computer at any time. In one command the client queries data from:
 
-- [`nym-api`](https://validator.nymtech.net/api/)
-- [`explorer-api`](https://explorer.nymtech.net/api/)
+- [`nym-api`](https://validator.nymtech.net/api/v1/gateways)
+- [`explorer-api`](https://explorer.nymtech.net/api/v1/gateways)
 - [`harbour-master`](https://harbourmaster.nymtech.net/)
 
 

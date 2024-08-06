@@ -1,6 +1,6 @@
 # Prometheus & Grafana
 
-The combination of Prometheus and Grafana is a common stack used by Nym team for internal monitoring as well as by core community operators like [ExploreNym](https://github.com/ExploreNYM/vps-monitor) or [No Trust Verify](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1).
+The combination of Prometheus and Grafana is a common stack used by Nym team for internal monitoring as well as by core community operators like [ExploreNym](https://github.com/ExploreNYM/self-hosted-monitor) or [No Trust Verify](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1).
 
 
 
@@ -33,4 +33,4 @@ There are various ways how to setup this stack. You can chose based on your pref
 * [Prometheus documentation](https://prometheus.io/docs/introduction/overview/)
 * Installation [guide to install Prometheus](https://www.cherryservers.com/blog/install-prometheus-ubuntu) on Ubuntu by cherryservers
 * [Grafana installation guide](https://grafana.com/docs/grafana/latest/setup-grafana/installation/debian/)
-* Nym's script [`prom_targets.py`](https://github.com/nymtech/nym/blob/promethus-is-our-friend/scripts/prom_targets.py) - a python program to request data from API and can be plugged to this stack
+* Nym's script [`prom_targets.py`](https://github.com/nymtech/nym/blob/develop/scripts/prom_targets.py) - a python program to request data from API and can be plugged to this stack

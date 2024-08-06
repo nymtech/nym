@@ -64,7 +64,7 @@ Be extra careful editing this file since you may lock yourself out of the server
 
 Once finished, save the file and reboot the server. Now, running `ip a` command should return correct IPv4 and IPv6 addresses.
 
-Finally re-run `network_tunnel_manager.sh` script, following the steps in node [IPv6 configuration chapter](https://github.com/nymtech/nym/nodes/configuration.md#ipv6-configuration).
+Finally re-run `network_tunnel_manager.sh` script, following the steps in node [IPv6 configuration chapter](../nodes/configuration.md#ipv6-configuration).
 
 ## Other VPS troubleshooting
 

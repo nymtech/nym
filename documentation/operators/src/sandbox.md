@@ -40,7 +40,7 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 ![](images/sandbox.png)
 
 ~~~admonish tip
-1. If you [built Nym from source](building-nym.md), you already have `sandbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you are likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`
+1. If you [built Nym from source](../binaries/building-nym.md), you already have `sandbox.env` as a part of the monorepo (`nym/envs/sandbox.env`). Giving that you are likely to run `nym-node` from `nym/target/release`, the flag will look like this `--config-env-file ../../envs/sandbox.env`
 
 2. You can export the path to `sandbox.env` to your enviromental variables:
 ```sh

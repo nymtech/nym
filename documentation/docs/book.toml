@@ -18,8 +18,8 @@ pagetoc = true
 sidebar-width = "280px"
 content-max-width = "80%"
 root-font-size = "70%"
-# if you need to change anything in the index.hbs file you need to turn this to `false`, rebuild the book, 
-# probably remove the additional `comment` that gets appended to the header, and then change this back to `true`. 
+# if you need to change anything in the index.hbs file you need to turn this to `false`, rebuild the book,
+# probably remove the additional `comment` that gets appended to the header, and then change this back to `true`.
 # this is because of a bug in the `mdbook-theme` plugin
 turn-off = true
 
@@ -103,3 +103,11 @@ copy-js = true          # include Javascript code for search
 
 [output.linkcheck]
 warning-policy = "warn"
+
+[output.html.redirect]
+"/sdk/rust/examples/socks.html" = "https://nymtech.net/developers/sdk/rust/examples/socks.html"
+"/clients/overview.html" = "https://nymtech.net/developers/clients-overview.html"
+"/sdk/rust/rust.html" = "https://nymtech.net/developers/sdk/rust/rust.html"
+"/clients/socks5-client.html" = "https://nymtech.net/developers/clients/socks5-client.html"
+"/clients/webassembly-client.html" = "https://nymtech.net/developers/clients/webassembly-client.html"
+"/sdk/typescript.html" = "https://sdk/nymtech.net"

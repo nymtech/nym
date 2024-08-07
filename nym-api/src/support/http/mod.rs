@@ -21,7 +21,6 @@ use crate::nym_nodes::{
 use crate::status::{self, api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
-use crate::support::http::helpers::logger;
 use crate::support::{nyxd, storage};
 use crate::v2::AxumAppState;
 use crate::{circulating_supply_api, nym_contract_cache};
@@ -29,6 +28,7 @@ use anyhow::{bail, Context, Result};
 use axum::response::Html;
 use axum::Router;
 use nym_crypto::asymmetric::identity;
+use nym_http_api_common::logging::logger;
 use nym_validator_client::nyxd::Coin;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
@@ -152,15 +152,12 @@ fn setup_rocket_cors() -> Result<Cors> {
     Ok(cors)
 }
 
-#[allow(dead_code)]
-// TODO dz Cannot combine `Access-Control-Allow-Credentials: true` with `Access-Control-Allow-Headers: *`
-// https://stackoverflow.com/questions/19743396/cors-cannot-use-wildcard-in-access-control-allow-origin-when-credentials-flag-i
 fn setup_cors() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
-        .allow_methods([http::Method::GET, http::Method::POST])
+        .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
         .allow_headers(tower_http::cors::Any)
-        .allow_credentials(true)
+        .allow_credentials(false)
 }
 
 pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
@@ -176,7 +173,10 @@ pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router
         //         .on_request(DefaultOnRequest::new())
         //         .on_response(DefaultOnResponse::new().latency_unit(tower_http::LatencyUnit::Micros)),
         // )
-        .route("/", axum::routing::get(|| async {axum::response::Redirect::permanent("/swagger")}))
+        .route(
+            "/",
+            axum::routing::get(|| async { axum::response::Redirect::permanent("/swagger") }),
+        )
         .route("/swagger", axum::routing::get(hello))
         .merge(circulating_supply_routes())
         .merge(nym_contract_cache_routes())
@@ -186,8 +186,7 @@ pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router
         .merge(nym_node_routes())
         .merge(nym_node_routes_unstable())
         // CORS layer needs to be "outside" of routes
-        // .layer(setup_cors())
-        ;
+        .layer(setup_cors());
 
     // needs to be after routes we want to log
     let router = router.layer(axum::middleware::from_fn(logger));

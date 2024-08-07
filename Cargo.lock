@@ -4215,7 +4215,6 @@ dependencies = [
  "bs58 0.5.1",
  "cfg-if",
  "clap 4.5.7",
- "colored",
  "console-subscriber",
  "cosmwasm-std",
  "cw-utils",
@@ -4225,7 +4224,6 @@ dependencies = [
  "dirs 4.0.0",
  "futures",
  "getset",
- "http 1.1.0",
  "humantime-serde",
  "itertools 0.13.0",
  "k256",
@@ -4247,6 +4245,7 @@ dependencies = [
  "nym-ecash-double-spending",
  "nym-ecash-time",
  "nym-gateway-client",
+ "nym-http-api-common",
  "nym-inclusion-probability",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
@@ -5163,10 +5162,12 @@ version = "0.1.0"
 dependencies = [
  "axum 0.7.5",
  "bytes",
+ "colored",
  "mime",
  "serde",
  "serde_json",
  "serde_yaml",
+ "tracing",
  "utoipa",
 ]
 

@@ -66,8 +66,6 @@ zeroize = { workspace = true }
 # TODO dz merge aphabetically
 axum = { workspace = true, features = ["tokio"] }
 axum-extra = { workspace = true, features = ["typed-header"] }
-colored = { workspace = true }
-http.workspace = true
 tower-http = { workspace = true, features = ["cors", "trace"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
@@ -117,6 +115,7 @@ nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
+nym-http-api-common = { path = "../common/http-api-common" }
 
 [features]
 no-reward = []

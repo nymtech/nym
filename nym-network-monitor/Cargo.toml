@@ -23,7 +23,7 @@ serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 petgraph = "0.6.5"
 log = { workspace = true }
-clap = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
 utoipa = { workspace = true, features = ["axum_extras"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 

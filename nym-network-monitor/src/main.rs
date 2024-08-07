@@ -90,16 +90,20 @@ struct Args {
     client_lifetime: u64,
 
     /// Port to listen on
-    #[arg(short, long, default_value_t = 8080)]
+    #[arg(long, default_value_t = 8080)]
     port: u16,
 
     /// Host to listen on
-    #[arg(short, long, default_value = "127.0.0.1")]
+    #[arg(long, default_value = "127.0.0.1")]
     host: String,
 
     /// Path to the topology file
-    #[arg(short, long)]
+    #[arg(short, long, default_value = None)]
     topology: Option<String>,
+
+    /// Path to the environment file
+    #[arg(short, long, default_value = None)]
+    env: Option<String>,
 }
 
 #[tokio::main]
@@ -108,8 +112,7 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    // Not sure if this needs to be here
-    setup_env(Some("../envs/mainnet.env"));
+    setup_env(args.env);
 
     let cancel_token = CancellationToken::new();
     let server_cancel_token = cancel_token.clone();

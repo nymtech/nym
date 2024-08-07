@@ -112,3 +112,6 @@ warning-policy = "warn"
 "/clients/webassembly-client.html" = "https://nymtech.net/developers/clients/webassembly-client.html"
 "/sdk/typescript.html" = "https://sdk.nymtech.net"
 "/clients/websocket-client.html" = "https://nymtech.net/developers/clients/websocket-client.html"
+"/use-apps/blockstream-green" = "https://nymtech.net/developers/clients/socks5/usage.html"
+"/use-apps/telegram" = "https://nymtech.net/developers/archive/nym-connect.html#telegram-via-nymconnect"
+

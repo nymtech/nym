@@ -2,6 +2,171 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+## `v2024.9-topdeck`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.9-topdeck/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.6`
+
+~~~admonish example collapsible=true title='CHANGELOG.md'
+- chore: fix 1.80 lint issues ([#4731])
+- Handle clients with different versions in IPR ([#4723])
+- Add 1GB/day/user bandwidth cap ([#4717])
+- Feature/merge back ([#4710])
+- removed mixnode/gateway config migration code and disabled cli without explicit flag ([#4706])
+
+[#4731]: https://github.com/nymtech/nym/pull/4731
+[#4723]: https://github.com/nymtech/nym/pull/4723
+[#4717]: https://github.com/nymtech/nym/pull/4717
+[#4710]: https://github.com/nymtech/nym/pull/4710
+[#4706]: https://github.com/nymtech/nym/pull/4706
+~~~
+
+### Features
+
+* [Removed `nym-mixnode` and `nym-gateway` config migration code and disabled CLI without explicit flag](https://github.com/nymtech/nym/pull/4706): Gateway and Mixnode commands now won't do anything without explicit `--force-run` to bypass the deprecation, instead it will tell an operator to run a `nym-node`.  The next step, in say a month or so, is to completely remove all `cli` related things.
+~~~admonish example collapsible=true title='Testing steps performed'
+- Verify that the `nym-gateway` binary and `nym-mixnode` binary commands return the `_error message_` stating to *update to `nym-node`*
+- Check that when adding the `--force-run` flag, it still allows the command to be run (aside from `init` which has been removed) and the message stating to update to `nym-node` is a `_warning_` now
+- Check `nym-node` is not affected
+- Review the changes in the PR
+~~~
+
+* [Add 1GB/day/user bandwidth cap](https://github.com/nymtech/nym/pull/4717)
+
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 1: Bandwidth Decreasing Continuously'
+1. Start the client and noted the initial bandwidth (e.g., 1GB).
+2. Us the client and track bandwidth usage over time (e.g., decrease by 100MB every hour).
+3. Restart the client after some usage.
+4. Verify the bandwidth continued from the last recorded value, not reset.
+
+**Notes:**
+ The bandwidth continued decreasing without resetting upon restart. Logs and reports correctly reflected the decreasing bandwidth.
+~~~
+
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 2: Bandwidth Reset Next Day'
+1. Use the client normally until the end of the day.
+2. Suspend some clients and kept others active.
+3. Check bandwidth at midnight.
+4. Verify that bandwidth reset to 1GB for both suspended and active clients.
+
+**Notes:**
+Bandwidth reset to 1GB for all clients at midnight. Logs and reports correctly showed the reset.
+~~~
+   
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 3: Bandwidth Reset at a Different Time (e.g., Midday)'
+1. Configure the system to reset bandwidth at midday.
+2. Use the client and monitored bandwidth until midday.
+3. Keep the client connected during the reset time.
+4. Verify that bandwidth reset to 1GB live at midday.
+ 
+**Notes:**
+Bandwidth reset to 1GB at midday while the client was connected. Logs and reports correctly reflected the reset.
+~~~
+
+* [Handle clients with different versions in IPR](https://github.com/nymtech/nym/pull/4723): Allow the IPR to handle clients connecting both using `v6` and `v7`, independently. The motivation is that we want to be able to roll out an API version change gradually for NymVPN clients without breaking backwards compatibility. The main feature on the new `v7` format that is not yet used, is that it adds signatures for connect/disconnect.
+~~~admonish example collapsible=true title='Testing steps performed'
+Run the same command (using same gateways deployed from this PR) on different versions of the `nym-vpn-cli`. 
+
+Example: 
+```sh
+sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
+ 
+sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
+```
+~~~
+
+### Bugfix
+
+* [Feature/merge back](https://github.com/nymtech/nym/pull/4710): Merge back from the release branch the changes that fix the `nym-node` upgrades. 
+
+* [Fix version `1.x.x` not having template correspondent initially](https://github.com/nymtech/nym/pull/4733): This should fix the problem of config deserialisation when operators upgrade nodes and skip over multiple versions. 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Tested updating an old nym-node version and ensuring it did not throw any errors.
+~~~
+
+* [chore: fix 1.80 lint issues](https://github.com/nymtech/nym/pull/4731): 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Building all binaries is ok
+- Running `cargo fmt` returns no issues 
+~~~
+
+### Operators Guide updates
+
+* [Update Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt): Based on the survey, AMA and following discussions we added several ports to Nym exit policy. The ports voted upon in the [forum governance](https://forum.nymtech.net/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464) have not been added yet due to the concerns raised. These ports were unrestricted: 
+
+~~~admonish example collapsible=true title='Newly opened ports in Nym exit policy'
+```
+22 # SSH
+123 # NTP
+445 # SMB file share Windows
+465 # URD for SSM
+587 # SMTP
+853 # DNS over TLS
+1433 # databases
+1521 # databases
+2049 # NFS
+3074 # Xbox Live
+3306 # databases
+5000-5005 # RTP / VoIP
+5432 # databases
+6543 # databases
+8080 # HTTP Proxies
+8767 # TeamSpeak
+8883 # Secure MQ Telemetry Transport - MQTT over SSL
+9053 # Tari
+9339 # gaming
+9443 # alternative HTTPS
+9735 # Lightning
+25565 # Minecraft
+27000-27050 # Steam and game servers
+60000-61000 # MOSH
+```
+~~~
+
+* [Create a NymConnect archive page](https://nymtech.net/developers/archive/nym-connect.html), PR [\#4750](https://github.com/nymtech/nym/commit/5096c1e60e203dcf8be934823946e24fda16a9a3): Archive deprecated NymConnect for backward compatibility, show PEApps examples for both NC and maintained `nym-socks5-client`.
+
+* Fix broken URLs and correct redirection. PRs: [\#4745](https://github.com/nymtech/nym/commit/7e36595d8fa7706876880b42df1c998a4b8c1478), [\#4752](https://github.com/nymtech/nym/commit/1db61f800c6884e284c5ab21e7abce3bc6d91d99) [\#4755](https://github.com/nymtech/nym/commit/aaf3dca5b999ad7f19d2ff170078b43c9c4476c2), [\#4737](https://github.com/nymtech/nym/commit/6f669866e92e637772726ad05caa5c5501a830f3) 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Use [deadlinkchecker.com](https://www.deadlinkchecker.com/website-dead-link-checker.asp) to go over `nymtech.net` and correct all docs URLs
+- Go over search engines and old medium articles and check that all dead URLs re-directing correctly
+~~~
+
+* [Clarify syntax on `nym-nodes` ports on VPS setup page](https://nymtech.net/operators/nodes/vps-setup.html#configure-your-firewall), PR [\#4734](https://github.com/nymtech/nym/commit/5e6417f83788f30b2a84e4dd73d6dd9619a2bb16): Make crystal clear that the addresses and ports in operators `config.toml` must be opened using [`ufw`](https://nymtech.net/operators/nodes/vps-setup.html#configure-your-firewall) and set up as in the example below:
+~~~admonish example collapsible=true title='snap of binding addresses and ports in `config.toml`'
+```toml
+[host]
+public_ips = [
+'<YOUR_PUBLIC_IPv4>'
+]
+
+[mixnet]
+bind_address = '0.0.0.0:1789'
+
+[http]
+bind_address = '0.0.0.0:8080'
+
+[mixnode]
+[mixnode.verloc]
+bind_address = '0.0.0.0:1790'
+
+[entry_gateway]
+bind_address = '0.0.0.0:9000'
+```
+~~~
+
+### Tooling
+
+* [Nym Harbourmaster](https://https://harbourmaster.nymtech.net/) has now several new functionalities:
+    - Tab for Mixnodes
+    - Tab with Charts
+    - New columns with: *Moniker (node description)*, *DP delegatee*, *Accepted T&Cs* - also part of a new category 🐼😀
+
+* Nym has a new [Token page](https://nymtech.net/about/token)
+
+---
+
+
 ## `v2024.8-wispa`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.8-wispa)

@@ -135,12 +135,11 @@ async fn main() -> Result<()> {
         server.run(clients).await
     });
 
+    info!("Waiting for message (ctrl-c to exit)");
+
     ctrl_c().await?;
-    println!("Received Ctrl-C");
+    info!("Received Ctrl-C");
 
     cancel_token.cancel();
-
-    println!("Waiting for message (ctrl-c to exit)");
-
     Ok(())
 }

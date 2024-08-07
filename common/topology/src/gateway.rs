@@ -11,7 +11,6 @@ use nym_sphinx_types::Node as SphinxNode;
 use nym_api_requests::nym_nodes::SkimmedNode;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use serde::Deserialize;
 use std::fmt;
 use std::fmt::Formatter;
 use std::io;
@@ -49,7 +48,7 @@ pub enum GatewayConversionError {
     NotGateway,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone)]
 pub struct Node {
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential

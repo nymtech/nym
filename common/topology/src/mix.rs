@@ -11,7 +11,6 @@ use nym_sphinx_types::Node as SphinxNode;
 use nym_api_requests::nym_nodes::{NodeRole, SkimmedNode};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use serde::Deserialize;
 use std::fmt::Formatter;
 use std::io;
 use std::net::SocketAddr;
@@ -42,7 +41,7 @@ pub enum MixnodeConversionError {
     NotMixnode,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone)]
 pub struct Node {
     pub mix_id: MixId,
     pub host: NetworkAddress,

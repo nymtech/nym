@@ -6,6 +6,7 @@ use crate::handlers::{
 };
 use axum::routing::{get, post};
 use axum::Router;
+use log::info;
 use nym_sphinx::chunking::fragment::FragmentHeader;
 use nym_sphinx::chunking::{ReceivedFragment, SentFragment};
 use std::future::IntoFuture;
@@ -83,18 +84,18 @@ impl HttpServer {
         let shutdown_future = self.cancel.cancelled();
         let server_future = axum::serve(listener, app).into_future();
 
-        println!("##########################################################################################");
-        println!("######################### HTTP server running, with {} clients ############################################", n_clients);
-        println!("##########################################################################################");
+        info!("##########################################################################################");
+        info!("######################### HTTP server running, with {} clients ############################################", n_clients);
+        info!("##########################################################################################");
 
         tokio::select! {
             _ = shutdown_future => {
-                println!("received shutdown");
+                info!("received shutdown");
             }
             res = server_future => {
-                println!("the http server has terminated");
+                info!("the http server has terminated");
                 if let Err(err) = res {
-                    println!("with the following error: {err}");
+                    info!("with the following error: {err}");
                     return Err(err.into())
                 }
             }

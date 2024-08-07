@@ -47,7 +47,7 @@ pub use crate::serde::{
 #[cfg(feature = "provider-trait")]
 pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
 
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Default, Clone)]
 pub enum NodeVersion {
     Explicit(semver::Version),
 
@@ -78,7 +78,7 @@ impl<'a> From<&'a str> for NodeVersion {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum NetworkAddress {
     IpAddr(IpAddr),
     Hostname(String),
@@ -126,15 +126,22 @@ pub struct NymTopology {
 
 impl NymTopology {
     pub async fn new_from_env() -> Result<Self, NymTopologyError> {
-        let api_url = NYM_API;
-        let mixnodes: Vec<mix::Node> = reqwest::get(&format!("{}/v1/mixnodes", api_url))
+        let mixnodes = reqwest::get(&format!("{}/v1/mixnodes", NYM_API))
             .await?
-            .json()
-            .await?;
-        let gateways: Vec<gateway::Node> = reqwest::get(&format!("{}/v1/gateways", api_url))
+            .json::<Vec<MixNodeDetails>>()
             .await?
-            .json()
-            .await?;
+            .into_iter()
+            .map(|details| details.bond_information)
+            .map(mix::Node::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let gateways = reqwest::get(&format!("{}/v1/gateways", NYM_API))
+            .await?
+            .json::<Vec<GatewayBond>>()
+            .await?
+            .into_iter()
+            .map(gateway::Node::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
         let topology = NymTopology::new_unordered(mixnodes, gateways);
         Ok(topology)
     }

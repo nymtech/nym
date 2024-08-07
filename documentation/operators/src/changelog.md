@@ -155,6 +155,17 @@ bind_address = '0.0.0.0:9000'
 ```
 ~~~
 
+### Tooling
+
+* [Nym Harbourmaster](https://https://harbourmaster.nymtech.net/) has now several new functionalities:
+    - Tab for Mixnodes
+    - Tab with Charts
+    - New columns with: *Moniker (node description)*, *DP delegatee*, *Accepted T&Cs* - also part of a new category 🐼😀
+
+* Nym has a new [Token page](https://nymtech.net/about/token)
+
+---
+
 
 ## `v2024.8-wispa`
 

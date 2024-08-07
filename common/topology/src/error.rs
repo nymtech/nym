@@ -51,4 +51,7 @@ pub enum NymTopologyError {
 
     #[error("{0}")]
     PacketError(#[from] NymPacketError),
+
+    #[error("{0}")]
+    ReqwestError(#[from] reqwest::Error),
 }

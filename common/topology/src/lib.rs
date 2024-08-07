@@ -8,6 +8,7 @@ use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
 use log::{debug, warn};
 use mix::Node;
+use nym_config::defaults::mainnet::NYM_API;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -46,7 +47,7 @@ pub use crate::serde::{
 #[cfg(feature = "provider-trait")]
 pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Deserialize)]
 pub enum NodeVersion {
     Explicit(semver::Version),
 
@@ -77,7 +78,7 @@ impl<'a> From<&'a str> for NodeVersion {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub enum NetworkAddress {
     IpAddr(IpAddr),
     Hostname(String),
@@ -124,6 +125,20 @@ pub struct NymTopology {
 }
 
 impl NymTopology {
+    pub async fn new_from_env() -> Result<Self, NymTopologyError> {
+        let api_url = NYM_API;
+        let mixnodes: Vec<mix::Node> = reqwest::get(&format!("{}/v1/mixnodes", api_url))
+            .await?
+            .json()
+            .await?;
+        let gateways: Vec<gateway::Node> = reqwest::get(&format!("{}/v1/gateways", api_url))
+            .await?
+            .json()
+            .await?;
+        let topology = NymTopology::new_unordered(mixnodes, gateways);
+        Ok(topology)
+    }
+
     pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
         NymTopology { mixes, gateways }
     }

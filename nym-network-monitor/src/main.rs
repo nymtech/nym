@@ -98,8 +98,8 @@ struct Args {
     host: String,
 
     /// Path to the topology file
-    #[arg(short, long, default_value = "topology.json")]
-    topology: String,
+    #[arg(short, long)]
+    topology: Option<String>,
 }
 
 #[tokio::main]
@@ -108,12 +108,18 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
+    // Not sure if this needs to be here
     setup_env(Some("../envs/mainnet.env"));
 
     let cancel_token = CancellationToken::new();
     let server_cancel_token = cancel_token.clone();
     let clients = Arc::new(RwLock::new(VecDeque::with_capacity(args.n_clients)));
-    let topology = NymTopology::new_from_file(args.topology)?;
+
+    let topology = if let Some(topology_file) = args.topology {
+        NymTopology::new_from_file(topology_file)?
+    } else {
+        NymTopology::new_from_env().await?
+    };
 
     let spawn_clients = Arc::clone(&clients);
     tokio::spawn(make_clients(

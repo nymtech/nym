@@ -6089,6 +6089,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "rand 0.8.5",
+ "reqwest 0.12.4",
  "semver 0.11.0",
  "serde",
  "serde_json",
@@ -7981,6 +7982,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f301af10236f6df4160f7c3f04eec6dbc70ace82d23326abad5edee88801c6b6"
 dependencies = [
  "semver-parser 0.10.2",
+ "serde",
 ]
 
 [[package]]

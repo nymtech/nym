@@ -33,8 +33,8 @@ This page displays a full list of all the changes during our release cycle from 
 ~~~
 
 * [Add 1GB/day/user bandwidth cap](https://github.com/nymtech/nym/pull/4717)
-    - Scenario 1: Bandwidth Decreasing Continuously
-~~~admonish example collapsible=true title='Testing steps performed'
+
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 1: Bandwidth Decreasing Continuously'
 1. Start the client and noted the initial bandwidth (e.g., 1GB).
 2. Us the client and track bandwidth usage over time (e.g., decrease by 100MB every hour).
 3. Restart the client after some usage.
@@ -44,8 +44,7 @@ This page displays a full list of all the changes during our release cycle from 
  The bandwidth continued decreasing without resetting upon restart. Logs and reports correctly reflected the decreasing bandwidth.
 ~~~
 
-    - Scenario 2: Bandwidth Reset Next Day
-~~~admonish example collapsible=true title='Testing steps performed'
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 2: Bandwidth Reset Next Day'
 1. Use the client normally until the end of the day.
 2. Suspend some clients and kept others active.
 3. Check bandwidth at midnight.
@@ -54,9 +53,8 @@ This page displays a full list of all the changes during our release cycle from 
 **Notes:**
 Bandwidth reset to 1GB for all clients at midnight. Logs and reports correctly showed the reset.
 ~~~
-
-    - Scenario 3: Bandwidth Reset at a Different Time (e.g., Midday)
-~~~admonish example collapsible=true title='Testing steps performed'
+   
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 3: Bandwidth Reset at a Different Time (e.g., Midday)'
 1. Configure the system to reset bandwidth at midday.
 2. Use the client and monitored bandwidth until midday.
 3. Keep the client connected during the reset time.
@@ -128,10 +126,10 @@ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-
 
 * [Create a NymConnect archive page](https://nymtech.net/developers/archive/nym-connect.html), PR [\#4750](https://github.com/nymtech/nym/commit/5096c1e60e203dcf8be934823946e24fda16a9a3): Archive deprecated NymConnect for backward compatibility, show PEApps examples for both NC and maintained `nym-socks5-client`.
 
-* [Fix broken URLs and correct redirection. PRs: [\4745](https://github.com/nymtech/nym/commit/7e36595d8fa7706876880b42df1c998a4b8c1478), [\#4752](https://github.com/nymtech/nym/commit/1db61f800c6884e284c5ab21e7abce3bc6d91d99) [\#4755](https://github.com/nymtech/nym/commit/aaf3dca5b999ad7f19d2ff170078b43c9c4476c2), [\#4737](https://github.com/nymtech/nym/commit/6f669866e92e637772726ad05caa5c5501a830f3) 
+* Fix broken URLs and correct redirection. PRs: [\#4745](https://github.com/nymtech/nym/commit/7e36595d8fa7706876880b42df1c998a4b8c1478), [\#4752](https://github.com/nymtech/nym/commit/1db61f800c6884e284c5ab21e7abce3bc6d91d99) [\#4755](https://github.com/nymtech/nym/commit/aaf3dca5b999ad7f19d2ff170078b43c9c4476c2), [\#4737](https://github.com/nymtech/nym/commit/6f669866e92e637772726ad05caa5c5501a830f3) 
 ~~~admonish example collapsible=true title='Testing steps performed'
-- Use [deadlinkchecker.com/](https://www.deadlinkchecker.com/website-dead-link-checker.asp) to go over `nymtech.net` and correct all docs URLs
-- Go over search engines and old medium articles and see all dead URLs re-directing correctly
+- Use [deadlinkchecker.com](https://www.deadlinkchecker.com/website-dead-link-checker.asp) to go over `nymtech.net` and correct all docs URLs
+- Go over search engines and old medium articles and check that all dead URLs re-directing correctly
 ~~~
 
 * [Clarify syntax on `nym-nodes` ports on VPS setup page](https://nymtech.net/operators/nodes/vps-setup.html#configure-your-firewall), PR [\#4734](https://github.com/nymtech/nym/commit/5e6417f83788f30b2a84e4dd73d6dd9619a2bb16): Make crystal clear that the addresses and ports in operators `config.toml` must be opened using [`ufw`](https://nymtech.net/operators/nodes/vps-setup.html#configure-your-firewall) and set up as in the example below:
@@ -155,19 +153,6 @@ bind_address = '0.0.0.0:1790'
 [entry_gateway]
 bind_address = '0.0.0.0:9000'
 ```
-~~~
-
-
-~~~admonish example collapsible=true title='Testing steps performed'
-
-~~~
-
-~~~admonish example collapsible=true title='Testing steps performed'
-
-~~~
-
-~~~admonish example collapsible=true title='Testing steps performed'
-
 ~~~
 
 

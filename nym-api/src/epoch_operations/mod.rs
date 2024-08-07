@@ -56,6 +56,7 @@ impl RewardedSetUpdater {
         }
     }
 
+    #[allow(clippy::doc_lazy_continuation)]
     // This is where the epoch gets advanced, and all epoch related transactions originate
     /// Upon each epoch having finished the following actions are executed by this nym-api:
     /// 1. it computes the rewards for each node using the ephemera channel for the epoch that

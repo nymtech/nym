@@ -820,8 +820,8 @@ where
     }
 
     #[cfg(any(
-        feature = "tendermint-rpc/http-client",
-        feature = "tendermint-rpc/websocket-client"
+        feature = "tendermint-rpc-http-client",
+        feature = "tendermint-rpc-websocket-client"
     ))]
     async fn wait_until_healthy<T>(&self, timeout: T) -> Result<(), Error>
     where

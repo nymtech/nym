@@ -19,6 +19,7 @@ futures = { workspace = true }
 humantime-serde = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
+rand_chacha = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

@@ -51,4 +51,13 @@ pub enum NymTopologyError {
 
     #[error("{0}")]
     PacketError(#[from] NymPacketError),
+
+    #[error("{0}")]
+    ReqwestError(#[from] reqwest::Error),
+
+    #[error("{0}")]
+    MixnodeConversionError(#[from] crate::mix::MixnodeConversionError),
+
+    #[error("{0}")]
+    GatewayConversionError(#[from] crate::gateway::GatewayConversionError),
 }

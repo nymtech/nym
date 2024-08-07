@@ -1,0 +1,35 @@
+[package]
+name = "nym-network-monitor"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros", "time"] }
+axum = { workspace = true, features = ["json"] }
+futures = { workspace = true }
+tokio-util = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+dashmap = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+petgraph = "0.6.5"
+log = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+utoipa = { workspace = true, features = ["axum_extras"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+
+# internal
+nym-sdk = { path = "../sdk/rust/nym-sdk" }
+nym-bin-common = { path = "../common/bin-common" }
+nym-network-defaults = { path = "../common/network-defaults" }
+nym-topology = { path = "../common/topology" }
+nym-sphinx = { path = "../common/nymsphinx" }

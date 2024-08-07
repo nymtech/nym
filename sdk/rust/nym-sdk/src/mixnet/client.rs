@@ -625,7 +625,8 @@ where
     ///
     /// - If the client is already registered with a gateway, use that gateway.
     /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to register a new gateway.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
+    ///   register a new gateway.
     ///
     /// # Example
     ///
@@ -705,7 +706,8 @@ where
     ///
     /// - If the client is already registered with a gateway, use that gateway.
     /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to register a new gateway.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
+    ///   register a new gateway.
     ///
     /// # Example
     ///
@@ -727,7 +729,8 @@ where
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
-        let client_state = started_client.client_state;
+        let client_state: nym_client_core::client::base_client::ClientState =
+            started_client.client_state;
 
         let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;

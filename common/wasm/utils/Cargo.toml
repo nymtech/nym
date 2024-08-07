@@ -30,13 +30,9 @@ workspace = true
 optional = true
 
 [features]
-default = ["sleep", "console_error_panic_hook"]
+default = ["sleep"]
 sleep = ["web-sys", "web-sys/Window"]
-websocket = [
-    "getrandom",
-    "tungstenite",
-    "gloo-net"
-]
+websocket = ["getrandom", "tungstenite", "gloo-net"]
 crypto = [
     "web-sys",
     "web-sys/Crypto",

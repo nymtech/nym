@@ -294,4 +294,8 @@ impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
     fn average_ack_delay(&self) -> Duration {
         self.average_ack_delay
     }
+
+    fn nonce(&self) -> i32 {
+        1
+    }
 }

@@ -32,6 +32,7 @@ k256 = { workspace = true, features = ["ecdsa-core"] } # needed for the Verifier
 log = { workspace = true }
 pin-project = { workspace = true }
 rand = { workspace = true }
+rand_chacha = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 rocket = { workspace = true, features = ["json"] }
 rocket_cors = { workspace = true }

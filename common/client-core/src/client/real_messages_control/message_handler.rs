@@ -453,6 +453,7 @@ where
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut real_messages = Vec::with_capacity(fragments.len());
+        debug!("Splitting message into {} fragments", fragments.len());
         for fragment in fragments {
             // we need to clone it because we need to keep it in memory in case we had to retransmit
             // it. And then we'd need to recreate entire ACK again.

@@ -6,6 +6,8 @@ use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use nym_mixnet_contract_common::MixId;
 use nym_node_tester_utils::node::{NodeType, TestableNode};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
@@ -20,7 +22,7 @@ const UNRELIABLE_THRESHOLD: u8 = 1; // 1 - 60
 // from the average result, remove this data and recalculate scores.
 // const ALLOWED_RELIABILITY_DEVIATION: f32 = 5.0;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct MixnodeResult {
     pub(crate) mix_id: MixId,
     pub(crate) identity: String,
@@ -39,7 +41,7 @@ impl MixnodeResult {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub(crate) struct GatewayResult {
     pub(crate) identity: String,
     pub(crate) owner: String,

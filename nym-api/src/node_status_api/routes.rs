@@ -13,9 +13,12 @@ use nym_mixnet_contract_common::MixId;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
+use schemars::JsonSchema;
+use serde::Deserialize;
 
 use super::helpers::_get_gateways_detailed;
 use super::NodeStatusCache;
+use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
     _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
@@ -28,6 +31,47 @@ use crate::node_status_api::helpers::{
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
 use crate::NymContractCache;
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub(crate) enum MonitorResults {
+    Mixnode(Vec<MixnodeResult>),
+    Gateway(Vec<GatewayResult>),
+}
+
+#[openapi(tag = "status")]
+#[post("/submit", data = "<results>")]
+pub(crate) async fn submit_monitoring_results(
+    results: Json<MonitorResults>,
+    storage: &State<NymApiStorage>,
+) -> Result<(), ErrorResponse> {
+    match results.0 {
+        MonitorResults::Mixnode(results) => {
+            match storage.manager.submit_mixnode_statuses_v2(results).await {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    error!("failed to submit mixnode monitoring results: {}", err);
+                    Err(ErrorResponse::new(
+                        "failed to submit mixnode monitoring results".to_string(),
+                        rocket::http::Status::InternalServerError,
+                    ))
+                }
+            }
+        }
+        MonitorResults::Gateway(results) => {
+            match storage.manager.submit_gateway_statuses_v2(results).await {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    error!("failed to submit gateway monitoring results: {}", err);
+                    Err(ErrorResponse::new(
+                        "failed to submit gateway monitoring results".to_string(),
+                        rocket::http::Status::InternalServerError,
+                    ))
+                }
+            }
+        }
+    }
+}
 
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/report")]

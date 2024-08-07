@@ -8,6 +8,7 @@ use crate::support::storage::models::{
     TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
 };
 use nym_mixnet_contract_common::{EpochId, IdentityKey, MixId};
+use time::OffsetDateTime;
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {
@@ -502,6 +503,46 @@ impl StorageManager {
         tx.commit().await
     }
 
+    pub(crate) async fn submit_mixnode_statuses_v2(
+        &self,
+        mixnode_results: Vec<MixnodeResult>,
+    ) -> Result<(), sqlx::Error> {
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        // insert it all in a transaction to make sure all nodes are updated at the same time
+        // (plus it's a nice guard against new nodes)
+        let mut tx = self.connection_pool.begin().await?;
+        for mixnode_result in mixnode_results {
+            let mixnode_id = sqlx::query!(
+                r#"
+                    INSERT OR IGNORE INTO mixnode_details_v2(mix_id, identity_key, owner) VALUES (?, ?, ?);
+                    SELECT id FROM mixnode_details WHERE mix_id = ?;
+                "#,
+                mixnode_result.mix_id,
+                mixnode_result.identity,
+                mixnode_result.owner,
+                mixnode_result.mix_id,
+            )
+            .fetch_one(&mut tx)
+            .await?
+            .id;
+
+            // insert the actual status
+            sqlx::query!(
+                r#"
+                    INSERT INTO mixnode_status_v2 (mixnode_details_id, reliability, timestamp) VALUES (?, ?, ?);
+                "#,
+                mixnode_id,
+                mixnode_result.reliability,
+                timestamp
+            )
+            .execute(&mut tx)
+            .await?;
+        }
+
+        // finally commit the transaction
+        tx.commit().await
+    }
+
     /// Tries to submit gateway [`NodeResult`] from the network monitor to the database.
     ///
     /// # Arguments
@@ -538,6 +579,49 @@ impl StorageManager {
             sqlx::query!(
                     r#"
                         INSERT INTO gateway_status (gateway_details_id, reliability, timestamp) VALUES (?, ?, ?);
+                    "#,
+                    gateway_id,
+                    gateway_result.reliability,
+                    timestamp
+                )
+                .execute(&mut tx)
+                .await?;
+        }
+
+        // finally commit the transaction
+        tx.commit().await
+    }
+
+    pub(crate) async fn submit_gateway_statuses_v2(
+        &self,
+        gateway_results: Vec<GatewayResult>,
+    ) -> Result<(), sqlx::Error> {
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        // insert it all in a transaction to make sure all nodes are updated at the same time
+        // (plus it's a nice guard against new nodes)
+        let mut tx = self.connection_pool.begin().await?;
+
+        for gateway_result in gateway_results {
+            // if gateway info doesn't exist, insert it and get its id
+
+            // same ID "problem" as described for mixnode insertion
+            let gateway_id = sqlx::query!(
+                r#"
+                    INSERT OR IGNORE INTO gateway_details_v2(identity, owner) VALUES (?, ?);
+                    SELECT id FROM gateway_details WHERE identity = ?;
+                "#,
+                gateway_result.identity,
+                gateway_result.owner,
+                gateway_result.identity,
+            )
+            .fetch_one(&mut tx)
+            .await?
+            .id;
+
+            // insert the actual status
+            sqlx::query!(
+                    r#"
+                        INSERT INTO gateway_status_v2 (gateway_details_id, reliability, timestamp) VALUES (?, ?, ?);
                     "#,
                     gateway_id,
                     gateway_result.reliability,

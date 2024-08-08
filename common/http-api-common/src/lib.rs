@@ -8,6 +8,8 @@ use bytes::{BufMut, BytesMut};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
+pub mod logging;
+
 #[derive(Debug, Clone, ToSchema)]
 pub enum FormattedResponse<T> {
     Json(Json<T>),

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_status_api::models::ErrorResponse;
+use crate::node_status_api::models::RocketErrorResponse;
 use crate::status::ApiStatusState;
 use nym_api_requests::models::{ApiHealthResponse, SignerInformationResponse};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -31,9 +31,9 @@ pub(crate) async fn build_information(
 #[get("/signer-information")]
 pub(crate) async fn signer_information(
     state: &State<ApiStatusState>,
-) -> Result<Json<SignerInformationResponse>, ErrorResponse> {
+) -> Result<Json<SignerInformationResponse>, RocketErrorResponse> {
     let signer_state = state.signer_information.as_ref().ok_or_else(|| {
-        ErrorResponse::new(
+        RocketErrorResponse::new(
             "this api does not expose zk-nym signing functionalities",
             Status::InternalServerError,
         )

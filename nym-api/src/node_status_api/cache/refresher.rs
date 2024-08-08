@@ -29,7 +29,7 @@ pub struct NodeStatusCacheRefresher {
     // Sources for when refreshing data
     contract_cache: NymContractCache,
     contract_cache_listener: watch::Receiver<CacheNotification>,
-    storage: Option<NymApiStorage>,
+    storage: NymApiStorage,
 }
 
 impl NodeStatusCacheRefresher {
@@ -38,7 +38,7 @@ impl NodeStatusCacheRefresher {
         fallback_caching_interval: Duration,
         contract_cache: NymContractCache,
         contract_cache_listener: watch::Receiver<CacheNotification>,
-        storage: Option<NymApiStorage>,
+        storage: NymApiStorage,
     ) -> Self {
         Self {
             cache,

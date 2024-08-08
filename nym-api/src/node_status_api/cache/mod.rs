@@ -41,12 +41,13 @@ pub struct NodeStatusCache {
 
 impl NodeStatusCache {
     /// Creates a new cache with no data.
-    fn new() -> NodeStatusCache {
+    pub(crate) fn new() -> NodeStatusCache {
         NodeStatusCache {
             inner: Arc::new(RwLock::new(NodeStatusCacheData::new())),
         }
     }
 
+    #[deprecated(note = "TODO dz: obsolete because it's used for Rocket")]
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Node Status Cache", |rocket| async {
             rocket.manage(Self::new())

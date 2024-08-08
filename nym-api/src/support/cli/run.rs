@@ -3,7 +3,7 @@
 
 use crate::start_nym_api_tasks;
 use crate::support::config::helpers::try_load_current_config;
-use anyhow::bail;
+use crate::v2::start_nym_api_tasks_v2;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -43,7 +43,7 @@ pub(crate) struct Args {
     pub(crate) enable_zk_nym: Option<bool>,
 
     /// Announced address that is going to be put in the DKG contract where zk-nym clients will connect
-    /// to obtain their credentials    
+    /// to obtain their credentials
     /// default: None - config value will be used instead
     #[clap(long)]
     pub(crate) announce_address: Option<url::Url>,
@@ -62,19 +62,24 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     config.validate()?;
 
+    let mut axum_shutdown = start_nym_api_tasks_v2(&config).await?;
     let mut shutdown_handlers = start_nym_api_tasks(config).await?;
 
-    let res = shutdown_handlers
-        .task_manager_handle
-        .catch_interrupt()
-        .await;
-    log::info!("Stopping nym API");
-    shutdown_handlers.rocket_handle.notify();
+    // TODO dz handle both res
+    let (_res1, _res2) = tokio::join!(
+        shutdown_handlers.task_manager_handle.catch_interrupt(),
+        axum_shutdown.task_manager_mut().catch_interrupt()
+    );
 
-    if let Err(err) = res {
-        // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-        bail!("{err}")
-    }
+    log::info!("Stopping nym API");
+
+    shutdown_handlers.rocket_handle.notify();
+    axum_shutdown.shutdown_axum();
+
+    // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+    // if let Err(err) = result {
+    //     bail!("{err}")
+    // }
 
     Ok(())
 }

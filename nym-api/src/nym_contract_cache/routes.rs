@@ -3,7 +3,9 @@
 
 use crate::{
     node_status_api::{
-        helpers::{_get_active_set_detailed, _get_mixnodes_detailed, _get_rewarded_set_detailed},
+        helpers_deprecated::{
+            _get_active_set_detailed, _get_mixnodes_detailed, _get_rewarded_set_detailed,
+        },
         NodeStatusCache,
     },
     nym_contract_cache::cache::NymContractCache,

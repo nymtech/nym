@@ -1,6 +1,9 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// TODO dz remove
+#![allow(deprecated)]
+
 #[macro_use]
 extern crate rocket;
 
@@ -40,6 +43,7 @@ pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;
 mod status;
 pub(crate) mod support;
+mod v2;
 
 struct ShutdownHandles {
     task_manager_handle: TaskManager,
@@ -54,6 +58,7 @@ async fn main() -> Result<(), anyhow::Error> {
     }}
 
     setup_logging();
+    // TODO dz replace with tracing logger once rocket is eliminated from code
 
     info!("Starting nym api...");
 
@@ -107,7 +112,11 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let nym_contract_cache_state = rocket.state::<NymContractCache>().unwrap();
     let node_status_cache_state = rocket.state::<NodeStatusCache>().unwrap();
     let circulating_supply_cache_state = rocket.state::<CirculatingSupplyCache>().unwrap();
-    let maybe_storage = rocket.state::<NymApiStorage>();
+    let storage = if let Some(storage) = rocket.state::<NymApiStorage>() {
+        storage.to_owned()
+    } else {
+        storage::NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?
+    };
     let described_nodes_state = rocket.state::<SharedCache<DescribedNodes>>().unwrap();
 
     // start note describe cache refresher
@@ -134,7 +143,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
         &config.node_status_api,
         nym_contract_cache_state,
         node_status_cache_state,
-        maybe_storage,
+        storage.to_owned(),
         nym_contract_cache_listener,
         &shutdown,
     );
@@ -163,19 +172,16 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring if it's enabled
     if config.network_monitor.enabled {
-        // if network monitor is enabled, the storage MUST BE available
-        let storage = maybe_storage.unwrap();
-
         network_monitor::start::<SphinxMessageReceiver>(
             &config.network_monitor,
             nym_contract_cache_state,
-            storage,
+            &storage,
             nyxd_client.clone(),
             &shutdown,
         )
         .await;
 
-        HistoricalUptimeUpdater::start(storage, &shutdown);
+        HistoricalUptimeUpdater::start(storage.to_owned(), &shutdown);
 
         // start 'rewarding' if its enabled
         if config.rewarding.enabled {
@@ -183,7 +189,6 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
             RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
         }
     }
-
     // Launch the rocket, serve http endpoints and finish the startup
     tokio::spawn(rocket.launch());
 

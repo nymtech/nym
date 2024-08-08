@@ -6,6 +6,7 @@ use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::v1::metrics::models::VerlocStats;
 
+// TODO dz follow this example in nym-api
 /// If applicable, returns verloc statistics information of this node.
 #[utoipa::path(
     get,

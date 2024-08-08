@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
-use crate::node_status_api::models::ErrorResponse;
+use crate::node_status_api::models::RocketErrorResponse;
 use nym_api_requests::models::CirculatingSupplyResponse;
 use nym_validator_client::nyxd::Coin;
 use rocket::http::Status;
@@ -26,10 +26,10 @@ fn unym_coin_to_float_unym(coin: Coin) -> f64 {
 #[get("/circulating-supply")]
 pub(crate) async fn get_full_circulating_supply(
     cache: &State<CirculatingSupplyCache>,
-) -> Result<Json<CirculatingSupplyResponse>, ErrorResponse> {
+) -> Result<Json<CirculatingSupplyResponse>, RocketErrorResponse> {
     match cache.get_circulating_supply().await {
         Some(value) => Ok(Json(value)),
-        None => Err(ErrorResponse::new(
+        None => Err(RocketErrorResponse::new(
             "unavailable",
             Status::InternalServerError,
         )),
@@ -40,11 +40,11 @@ pub(crate) async fn get_full_circulating_supply(
 #[get("/circulating-supply/total-supply-value")]
 pub(crate) async fn get_total_supply(
     cache: &State<CirculatingSupplyCache>,
-) -> Result<Json<f64>, ErrorResponse> {
+) -> Result<Json<f64>, RocketErrorResponse> {
     let full_circulating_supply = match cache.get_circulating_supply().await {
         Some(res) => res,
         None => {
-            return Err(ErrorResponse::new(
+            return Err(RocketErrorResponse::new(
                 "unavailable",
                 Status::InternalServerError,
             ))
@@ -60,11 +60,11 @@ pub(crate) async fn get_total_supply(
 #[get("/circulating-supply/circulating-supply-value")]
 pub(crate) async fn get_circulating_supply(
     cache: &State<CirculatingSupplyCache>,
-) -> Result<Json<f64>, ErrorResponse> {
+) -> Result<Json<f64>, RocketErrorResponse> {
     let full_circulating_supply = match cache.get_circulating_supply().await {
         Some(res) => res,
         None => {
-            return Err(ErrorResponse::new(
+            return Err(RocketErrorResponse::new(
                 "unavailable",
                 Status::InternalServerError,
             ))

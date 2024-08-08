@@ -52,12 +52,11 @@ pub(super) fn split_into_active_and_rewarded_set(
 }
 
 pub(super) async fn get_mixnode_performance_from_storage(
-    storage: &Option<NymApiStorage>,
+    storage: &NymApiStorage,
     mix_id: MixId,
     epoch: Interval,
 ) -> Option<Performance> {
     storage
-        .as_ref()?
         .get_average_mixnode_uptime_in_the_last_24hrs(
             mix_id,
             epoch.current_epoch_end_unix_timestamp(),
@@ -68,12 +67,11 @@ pub(super) async fn get_mixnode_performance_from_storage(
 }
 
 pub(super) async fn get_gateway_performance_from_storage(
-    storage: &Option<NymApiStorage>,
+    storage: &NymApiStorage,
     gateway_id: &str,
     epoch: Interval,
 ) -> Option<Performance> {
     storage
-        .as_ref()?
         .get_average_gateway_uptime_in_the_last_24hrs(
             gateway_id,
             epoch.current_epoch_end_unix_timestamp(),
@@ -84,7 +82,7 @@ pub(super) async fn get_gateway_performance_from_storage(
 }
 
 pub(super) async fn annotate_nodes_with_details(
-    storage: &Option<NymApiStorage>,
+    storage: &NymApiStorage,
     mixnodes: Vec<MixNodeDetails>,
     interval_reward_params: RewardingParams,
     current_interval: Interval,
@@ -123,16 +121,12 @@ pub(super) async fn annotate_nodes_with_details(
             current_interval,
         );
 
-        let node_performance = if let Some(storage) = storage {
-            storage
-                .construct_mixnode_report(mixnode.mix_id())
-                .await
-                .map(NodePerformance::from)
-                .ok()
-        } else {
-            None
-        }
-        .unwrap_or_default();
+        let node_performance = storage
+            .construct_mixnode_report(mixnode.mix_id())
+            .await
+            .map(NodePerformance::from)
+            .ok()
+            .unwrap_or_default();
 
         // safety: this conversion is infallible
         let ip_addresses =
@@ -177,7 +171,7 @@ pub(super) async fn annotate_nodes_with_details(
 }
 
 pub(crate) async fn annotate_gateways_with_details(
-    storage: &Option<NymApiStorage>,
+    storage: &NymApiStorage,
     gateway_bonds: Vec<GatewayBond>,
     current_interval: Interval,
     blacklist: &HashSet<IdentityKey>,
@@ -192,16 +186,12 @@ pub(crate) async fn annotate_gateways_with_details(
         .await
         .unwrap_or_default();
 
-        let node_performance = if let Some(storage) = storage {
-            storage
-                .construct_gateway_report(gateway_bond.identity())
-                .await
-                .map(NodePerformance::from)
-                .ok()
-        } else {
-            None
-        }
-        .unwrap_or_default();
+        let node_performance = storage
+            .construct_gateway_report(gateway_bond.identity())
+            .await
+            .map(NodePerformance::from)
+            .ok()
+            .unwrap_or_default();
 
         // safety: this conversion is infallible
         let ip_addresses = match NetworkAddress::from_str(&gateway_bond.gateway.host).unwrap() {

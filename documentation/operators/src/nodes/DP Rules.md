@@ -64,7 +64,7 @@ By applying to the Program, you accept its rules. The rules below govern the Nym
 ## Reasons for delegation withdrawal
 
 15. The delegation may immediately be withdrawn if the following will occur:<br>
-        a) The server will be offline for longer than 48 hours consequently, or offline for shorter periods repeatedly;Server’s networking is underperforming;<br>
+        a) The server will be offline for longer than 48 hours consequently, or offline for shorter periods repeatedly;<br>
         b) Server’s networking is underperforming;<br>
         c) Node no longer meets the minimum specification outlined above;<br>
         d) Node’s operating parameters are changed and  fall outside of the requirements outlined above;<br>

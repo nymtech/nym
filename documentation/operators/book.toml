@@ -18,8 +18,8 @@ pagetoc = true
 sidebar-width = "280px"
 content-max-width = "80%"
 root-font-size = "70%"
-# if you need to change anything in the index.hbs file you need to turn this to `false`, rebuild the book, 
-# probably remove the additional `comment` that gets appended to the header, and then change this back to `true`. 
+# if you need to change anything in the index.hbs file you need to turn this to `false`, rebuild the book,
+# probably remove the additional `comment` that gets appended to the header, and then change this back to `true`.
 # this is because of a bug in the `mdbook-theme` plugin
 turn-off = true
 
@@ -50,6 +50,25 @@ renderer = ["html"]
 
 # [preprocessor.api-call]
 # command = "$(tokens=$(curl -L https://api.nymtech.net/cosmos/staking/v1beta1/pool | jq 'values[\"pool\"][\"bonded_tokens\"]') && echo ${tokens:0:2},${tokens:2:2})"
+
+[preprocessor.katex]
+after = ["links"]
+# KaTeX options.
+output = "html"
+leqno = false
+fleqn = false
+throw-on-error = true
+error-color = "#cc0000"
+min-rule-thickness = -1.0
+max-size = "Infinity"
+max-expand = 1000
+trust = false
+# Extra options.
+no-css = false
+include-src = false
+block-delimiter = { left = "$$", right = "$$" }
+inline-delimiter = { left = "$", right = "$" }
+pre-render = true
 
 #########
 # BUILD #

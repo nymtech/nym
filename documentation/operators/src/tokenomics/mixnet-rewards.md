@@ -7,21 +7,44 @@
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
 * For a more comprehensive overview, live data and supply graphs, cisit [nymtech.net/about/token](https://nymtech.net/about/token)
 
+**Formulas and Examples Annotation**
+
+To make it easier for the reader, we will use a highlighting line on the left side, with a specific color:
+
+```admonish tip title=""
+Green for formulas.
+```
+
+```admonish example collapsible=true
+Purple collapsible for examples.
+```
+
 ## Overview
 
+This is a quick summarry, to understand the full picture, please see detailed [*Rewards Calculation*](#rewards-calculation) chapter below.
+
 * The operators of `nym-node` get rewarded from Mixmining pool, which emits around 6000 NYM per hour.
-* An active set of `nym-nodes` selected for Nym network routing and mixing is 240 nodes in total and it's selected for each new epoch (60 min)
-* `nym-nodes` can run in mode `entry-gateway`, `exit-gateway` and `mixnode`, active set selection is composed of
-  	- `mixnode`: 120
-	- `entry-gateway`:
-	- `exit-gateway`:
-* Nym network can be used in two ways, both using the same active set:
+* An active set of `nym-nodes` selected for Nym network routing and mixing is 240 nodes in total and it's selected for each new epoch (60 min).
+* The active set is composed of 120 Mixnodes and 120 Gateways.
+* `nym-nodes` can run in mode `entry-gateway`, `exit-gateway` and `mixnode`, the active set selection of each mode is
+
+| Nym node mode   | Total in active set | Rationale                                                 |
+| :---            | ---:                | :---                                                      |
+| `mixnode`       | 120                 | Always 3 layers of 40 mixnodes                            |
+| `entry-gateway` | 120                 | Any Gateway can act as an entry                           |
+| `exit-gateway`  | max 120             | Any Gateway running `exit-gateway` mode from the same 120 |
+
+* NymVPN can route through Nym Network two ways, both using the same active set:
 	- Mixnet: 5 layers routing and mixing - full privacy
-	- Wireguard: 2 layers routing (skipping mixnodes) - fast mode
-* The rewards arew distributed between the layers according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
-	- 5-hop: 16%-16%-16%-16%
+	- Wireguard: 2 layers routing, skipping 3 mixing layers - fast mode
+* The reward distribution is per layer according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+	- 5-hop: 16%-16%-16%-16%-36%
 	- 2-hop: 33%-67%
+* Each node is rewarded according to the layer in which it's position in the given epoch, divided uniformly between all nodes in that layer.
 * Nodes are selected to the active set based on their performance and stake saturation (slef bond + delegation)
+* In future a ticket system will be implemented where nodes will be rewarded according to the work they perform, the uniform naive distribution is an intermediate step. See [*Roadmap*](#roadmap) chapter for more details.
+
+## Rewards Calculation
 
 ~~~admonish tip title="Nym network active set distribution"
 ```ascii
@@ -39,8 +62,8 @@
                                mixnode  └─► mixnode ─┘   mixnode
 
 
- Active set
- selection:       60           40           40           40           60
+
+ Active set:      120           40           40           40      max 120
 
 
  Rewards
@@ -55,20 +78,65 @@
 ```
 ~~~
 
-## Supply
+### Active Set Selection
+
+*Performance matters!*
+
+For a node to be rewarded, the node must be part of an active set in the first place. The active set is selected in the beginning of each epoch (every 60min) where total of 240 nodes - represented by 120 mixnodes and 120 gateways, are randomly allocated across the layers. Mixnodes only work within the given layer, while any Exit Gateway can be chosen by a client as an Entry Gateway, not vice versa.
+
+The algorithm chosing nodes into the active set takes into acount node's performance and stake saturation, both values being between 0 and 1.
+
+```admonish tip title=""
+$$
+active\ set\ selection\ probability = node\ performance^{20} * stake\ saturation
+$$
+```
+
+For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation:
+
+```admonish example collapsible=true
+$$
+\begin{align}
+\notag node_1 &= 1^{20} * 1 = 1 \\
+\notag node_2 &= 1^{20} * 0.5 = 0.5 \\
+\notag node_3 &= 0.99^{20} * 1 = 0.818 \\
+\notag node_4 &= 0.95^{20} * 1 = 0.358 \\
+\notag node_5 &= 0.9^{20} * 1 = 0.122 \\
+\end{align}
+$$
+```
+
+As you can see the performance (also known as *Routing score*) is much more important during the active set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
+
+
+### Layer Distribution
+
+Once the active set of 120 Mixnodes and 120 Gateways is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of 6000 NYM is distributedbetween the layers from Mixmining pool, following the ratio according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+
+```admonish tip title=""
+5-hop mixnet mode $= 16\% - 16\% - 16\% - 16\% - 36\%$ <br>
+2-hop wireguard mode $= 33\% - 67\%$
+```
+
+### Node Rewards within Same Layer
+
+## Roadmap
+
+<!-- PUT FINAL TOKENOMIC SCHEME AND ALL STEPS TOWARDS IT IN HERE -->
+
+## Stats
+
+NYM token is capped at 1b. Below is a table with actual\* token supply distribution.
 
 <!--cmdrun cd ../../../scripts/cdmrun && ./api_targets.py s --api mainnet --endpoint circulating-supply --format -->
 
 
+<!-- ADD MIXNET STATS GRAPHS -->
 
 
+<!-- DROPPING THIS FROM THE MAINTENANCE PAGE - NEEDS REWORK -->
 
-
-
-
-<!-- DROPPING THIS FROM THE MAINTENANCE -->
-
-### Mix Node Reward Estimation API endpoint
+## Mix Node Reward Estimation API endpoint
 
 The Reward Estimation API endpoint allows Mix Node operators to estimate the rewards they could earn for running a Nym Mix Node with a specific `MIX_ID`.
 
@@ -104,9 +172,3 @@ Query Response:
 - `estimated_node_profit` - An estimate of the profit that a particular Mix node operator can expect to earn. This value is calculated by subtracting the Mix Node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
 
 - `estimated_operator_cost` - An estimate of the total cost that a particular Mix Node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a Mix Node, such as server hosting fees, and other expenses associated with operating the Mix Node.
-
-### Validator: Installing and configuring nginx for HTTPS
-#### Setup
-[Nginx](https://www.nginx.com/resources/glossary/nginx) is an open source software used for operating high-performance web servers. It allows us to set up reverse proxying on our validator server to improve performance and security.
-
-Install `nginx` and allow the 'Nginx Full' rule in your firewall:

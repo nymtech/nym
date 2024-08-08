@@ -38,6 +38,12 @@ impl RequestError {
     pub fn message(&self) -> &str {
         &self.message
     }
+
+    pub fn empty() -> Self {
+        Self {
+            message: String::new(),
+        }
+    }
 }
 
 impl Display for RequestError {

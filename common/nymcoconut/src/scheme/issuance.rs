@@ -252,11 +252,24 @@ pub fn prepare_blind_sign(
         });
     }
 
-    let (commitment_opening, commitment) =
-        compute_attributes_commitment(params, private_attributes, public_attributes, hs);
+    let mut commitment_hash;
+    let mut commitment;
+    let mut commitment_opening;
 
-    // Compute the challenge as the commitment hash
-    let commitment_hash = compute_hash(commitment, public_attributes);
+    loop {
+        // Compute the attributes commitment
+        let (c_opening, c) = compute_attributes_commitment(params, private_attributes, public_attributes, hs);
+        commitment_opening = c_opening;
+        commitment = c;
+
+        // Compute the commitment hash
+        commitment_hash = compute_hash(commitment, public_attributes);
+
+        // Check if the commitment hash is not the identity point
+        if !bool::from(commitment_hash.is_identity()) {
+            break;
+        }
+    }
 
     let (pedersen_commitments_openings, pedersen_commitments) =
         compute_pedersen_commitments_for_private_attributes(
@@ -500,6 +513,28 @@ mod tests {
     }
 
     #[test]
+    fn test_prepare_blind_sign_non_identity_commitment_hash() {
+        let params = Parameters::new(1).unwrap();
+        random_scalars_refs!(private_attributes, params, 1);
+        random_scalars_refs!(public_attributes, params, 0);
+
+        // Call the function to prepare the blind sign
+        let result = prepare_blind_sign(&params, &private_attributes, &public_attributes);
+
+        // Ensure the result is Ok
+        assert!(result.is_ok(), "prepare_blind_sign should succeed");
+
+        let (_, blind_sign_request) = result.unwrap();
+
+        // Ensure the commitment_hash is not the identity point
+        assert!(
+            !bool::from(blind_sign_request.commitment_hash.is_identity()),
+            "commitment_hash should not be the identity point"
+        );
+    }
+
+
+    #[test]
     fn successful_verify_partial_blind_signature() {
         let params = Parameters::new(4).unwrap();
         random_scalars_refs!(private_attributes, params, 2);
@@ -574,4 +609,6 @@ mod tests {
             validator2_keypair.verification_key()
         ),);
     }
+
+
 }

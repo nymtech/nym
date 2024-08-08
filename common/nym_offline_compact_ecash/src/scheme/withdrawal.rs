@@ -255,6 +255,10 @@ pub fn request_verify(
     let expiration_date = date_scalar(expiration_date);
     let t_type = type_scalar(t_type);
 
+    if bool::from(req.joined_commitment_hash.is_identity()) {
+        return Err(CompactEcashError::WithdrawalRequestVerification);
+    }
+
     let expected_commitment_hash = hash_g1(
         (req.joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes(),
     );
@@ -549,7 +553,6 @@ pub fn verify_partial_blind_signature(
 #[cfg(test)]
 mod tests {
     use crate::ecash_group_parameters;
-    use bls12_381::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scalar};
     use crate::scheme::keygen::SecretKeyUser;
     use super::generate_non_identity_h;
 

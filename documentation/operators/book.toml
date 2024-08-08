@@ -52,6 +52,8 @@ renderer = ["html"]
 # command = "$(tokens=$(curl -L https://api.nymtech.net/cosmos/staking/v1beta1/pool | jq 'values[\"pool\"][\"bonded_tokens\"]') && echo ${tokens:0:2},${tokens:2:2})"
 
 [preprocessor.katex]
+# a latex preprocesor, taken from https://github.com/lzanini/mdbook-katex
+# docs with supported syntax https://katex.org/docs/supported.html
 after = ["links"]
 # KaTeX options.
 output = "html"

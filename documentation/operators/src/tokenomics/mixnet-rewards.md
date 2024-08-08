@@ -114,8 +114,8 @@ As you can see the performance (also known as *Routing score*) is much more impo
 Once the active set of 120 Mixnodes and 120 Gateways is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of 6000 NYM is distributedbetween the layers from Mixmining pool, following the ratio according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
 
 ```admonish tip title=""
-5-hop mixnet mode $= 16\% - 16\% - 16\% - 16\% - 36\%$ <br>
-2-hop wireguard mode $= 33\% - 67\%$
+5-hop mixnet mode: $16\% - 16\% - 16\% - 16\% - 36\%$ <br>
+2-hop wireguard mode: $33\% - 67\%$
 ```
 
 ### Node Rewards within Same Layer

@@ -21,7 +21,7 @@ Purple collapsible for examples.
 
 ## Overview
 
-This is a quick summarry, to understand the full picture, please see detailed [*Rewards Calculation*](#rewards-calculation) chapter below.
+This is a quick summarry, to understand the full picture, please see detailed [*Rewards Logic & Calculation*](#rewards-logic--calculation) chapter below.
 
 * The operators of `nym-node` get rewarded from Mixmining pool, which emits around 6000 NYM per hour.
 * An active set of `nym-nodes` selected for Nym network routing and mixing is 240 nodes in total and it's selected for each new epoch (60 min).
@@ -39,12 +39,15 @@ This is a quick summarry, to understand the full picture, please see detailed [*
 	- Wireguard: 2 layers routing, skipping 3 mixing layers - fast mode
 * The reward distribution is per layer according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
 	- 5-hop: 16%-16%-16%-16%-36%
-	- 2-hop: 33%-67%
-* Each node is rewarded according to the layer in which it's position in the given epoch, divided uniformly between all nodes in that layer.
+	- 2-hop: (In future) 33%-67%
+	- Currently Gateways earn rewards only from 5-hop mode. The operators can sign up to a grant program as a substituion for 2-hop routing.
+* Each node is rewarded according to the layer in which it's positioned in the given epoch, divided uniformly between all nodes in that layer.
 * Nodes are selected to the active set based on their performance and stake saturation (slef bond + delegation)
-* In future a ticket system will be implemented where nodes will be rewarded according to the work they perform, the uniform naive distribution is an intermediate step. See [*Roadmap*](#roadmap) chapter for more details.
+* In future a ticket system will be implemented where nodes will be rewarded according to the work they perform, with a revenue for both 2-hop and 5-hop work. The uniform naive distribution is an intermediate step. See [*Roadmap*](#roadmap) chapter for more details.
 
-## Rewards Calculation
+## Rewards Logic & Calculation
+
+**Note that in the current intermediate model we use one active set for both 2-hop and 5-hop routing Gateways. In reality it means that all nodes are rewarded only within 5-hop reward scheme only. In the meantime, given that the 120 Gateways within the active set route traffic for 2-hop wireguard mode as well, without any extra rewards, the operators can get substituion in the form of grants.**
 
 ~~~admonish tip title="Nym network active set distribution"
 ```ascii
@@ -70,6 +73,8 @@ This is a quick summarry, to understand the full picture, please see detailed [*
  distribution     16%          16%          16%          16%          36%
  5-hop mode:
 
+
+ Future implementation:
 
  Rewards
  distribution     33%          skip         skip         skip         67%
@@ -114,11 +119,30 @@ As you can see the performance (also known as *Routing score*) is much more impo
 Once the active set of 120 Mixnodes and 120 Gateways is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of 6000 NYM is distributedbetween the layers from Mixmining pool, following the ratio according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
 
 ```admonish tip title=""
-5-hop mixnet mode: $16\% - 16\% - 16\% - 16\% - 36\%$ <br>
-2-hop wireguard mode: $33\% - 67\%$
+5-hop mixnet mode: <br>
+$16\%; 16\%; 16\%; 16\%; 36\%$ <br>
+<!-- COMMENTING OUT FOR NOW AS WE DON'T HAVE IT IMPLEMENTED
+2-hop wireguard mode: $33\%; 67\%$
+-->
+```
+
+In real numbers: If hourly revenue to all 240 nodes is 6000 NYM, the layer compartmentalisation is 960 NYM for Entry Gateway layer and each Mixnode layer and 2160 NYM for Exit Gateway layer. The calculation is in the example below:
+
+```admonish example collapsible=true
+5-hop mixnet mode: <br>
+$0.16 * 6000; 0.16 * 6000; 0.16 * 6000; 0.16 * 6000; 0.36 * 6000 = 960; 960; 960; 960; 2160$ <br>
+<!-- COMMENTING OUT AS WE DO NOT HAVE A CLEAR NUMBERS HERE
+<br>
+2-hop wireguard mode:<br>
+$33\% - 67\%$
+-->
 ```
 
 ### Node Rewards within Same Layer
+
+
+### Operation Cost, Profit Margin & Delegation
+
 
 ## Roadmap
 

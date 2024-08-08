@@ -40,6 +40,9 @@ pub enum CompactEcashError {
     #[error("issuance verification failed")]
     IssuanceVerification,
 
+    #[error("verification of partial blind signature failed")]
+    PartialBlindSignatureVerification,
+
     #[error("trying to spend more than what's available. Spending : {spending}, available : {remaining}")]
     SpendExceedsAllowance { spending: u64, remaining: u64 },
 

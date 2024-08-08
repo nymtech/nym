@@ -493,7 +493,12 @@ pub fn verify_partial_blind_signature(
     if num_private_attributes + public_attributes.len() > partial_verification_key.beta_g2.len() {
         return false;
     }
-
+    // Note: This check is useful if someone uses the code of those functions
+    // to verify Pointcheval-Sanders signatures in a context different for their use
+    // in zk-nyms
+    if bool::from(blind_sig.h.is_identity()){
+        return false;
+    }
     // TODO: we're losing some memory here due to extra allocation,
     // but worst-case scenario (given SANE amount of attributes), it's just few kb at most
     let c_neg = blind_sig.c.to_affine().neg();
@@ -553,8 +558,10 @@ pub fn verify_partial_blind_signature(
 #[cfg(test)]
 mod tests {
     use crate::ecash_group_parameters;
-    use crate::scheme::keygen::SecretKeyUser;
-    use super::generate_non_identity_h;
+    use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
+    use super::{generate_non_identity_h, verify_partial_blind_signature};
+    use crate::common_types::{BlindedSignature};
+    use bls12_381::{G1Projective};
 
     #[test]
     fn test_generate_non_identity_h() {
@@ -571,5 +578,34 @@ mod tests {
 
         // Ensure that the joined_commitment_hash is not the identity element
         assert!(!bool::from(joined_commitment_hash.is_identity()), "Joined commitment hash should not be the identity element");
+    }
+
+    #[test]
+    fn test_verify_partial_blind_signature_blind_sig_identity() {
+        let params = ecash_group_parameters();
+        let private_attribute_commitments = vec![params.gen1() * params.random_scalar()];
+        let public_attributes = vec![];
+        // Create a blinded signature with h being the identity element
+        let blind_sig = BlindedSignature {
+            h: G1Projective::identity(),
+            c: params.gen1() * params.random_scalar(),
+        };
+        // Create a mock partial verification key
+        let partial_verification_key = VerificationKeyAuth {
+            alpha: params.gen2() * params.random_scalar(),
+            beta_g1: vec![params.gen1() * params.random_scalar()],
+            beta_g2: vec![params.gen2() * params.random_scalar()],
+        };
+
+        // Test with identity h, expecting false
+        assert!(
+            !verify_partial_blind_signature(
+                &private_attribute_commitments,
+                &public_attributes,
+                &blind_sig,
+                &partial_verification_key
+            ),
+            "Expected verification to return false for identity h in blind signature"
+        );
     }
 }

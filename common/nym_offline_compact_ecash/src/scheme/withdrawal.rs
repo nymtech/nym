@@ -115,7 +115,39 @@ fn compute_private_attribute_commitments(
 
     (openings, commitments)
 }
+/// Generates a non-identity hash of joined commitment.
+///
+/// This function attempts to create a valid joined commitment and hash by
+/// repeatedly generating a random `joined_commitment_opening` and computing
+/// the corresponding `joined_commitment` and `joined_commitment_hash`.
+/// It continues this process until the `joined_commitment_hash` is not the
+/// identity element.
+fn generate_non_identity_h(
+    params: &GroupParameters,
+    sk_user: &SecretKeyUser,
+    v: Scalar,
+    expiration_date: Scalar,
+    t_type: Scalar,
+) -> (G1Projective, G1Projective, Scalar) {
+    let gamma = params.gammas();
 
+    loop {
+        let joined_commitment_opening = params.random_scalar();
+
+        // Compute joined commitment for all attributes (public and private)
+        let joined_commitment =
+            params.gen1() * joined_commitment_opening + gamma[0] * sk_user.sk + gamma[1] * v;
+
+        // Compute commitment hash h
+        let joined_commitment_hash =
+            hash_g1((joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes());
+
+        // Check if the joined_commitment_hash is not the identity element
+        if !bool::from(joined_commitment_hash.is_identity()) {
+            return (joined_commitment, joined_commitment_hash, joined_commitment_opening);
+        }
+    }
+}
 /// Generates a withdrawal request for the given user to request a zk-nym credential wallet.
 ///
 /// # Arguments
@@ -148,19 +180,13 @@ pub fn withdrawal_request(
     let params = ecash_group_parameters();
     // Generate random and unique wallet secret
     let v = params.random_scalar();
-    let joined_commitment_opening = params.random_scalar();
-
-    let gamma = params.gammas();
     let expiration_date = date_scalar(expiration_date);
     let t_type = type_scalar(t_type);
 
-    // Compute joined commitment for all attributes (public and private)
-    let joined_commitment =
-        params.gen1() * joined_commitment_opening + gamma[0] * sk_user.sk + gamma[1] * v;
+    // Generate a non-identity commitment hash
+    let (joined_commitment, joined_commitment_hash, joined_commitment_opening) =
+        generate_non_identity_h(&params, sk_user, v, expiration_date, t_type);
 
-    // Compute commitment hash h
-    let joined_commitment_hash =
-        hash_g1((joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes());
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
     let private_attributes = vec![sk_user.sk, v];
@@ -518,4 +544,29 @@ pub fn verify_partial_blind_signature(
         .final_exponentiation()
         .is_identity()
         .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::ecash_group_parameters;
+    use bls12_381::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scalar};
+    use crate::scheme::keygen::SecretKeyUser;
+    use super::generate_non_identity_h;
+
+    #[test]
+    fn test_generate_non_identity_h() {
+        let params = ecash_group_parameters();
+        // Create dummy values for testing
+        let sk_user = SecretKeyUser { sk: params.random_scalar() };
+        let v = params.random_scalar();
+        let expiration_date = params.random_scalar();
+        let t_type = params.random_scalar();
+
+        // Generate the commitment and hash
+        let (_, joined_commitment_hash, _) =
+            generate_non_identity_h(&params, &sk_user, v, expiration_date, t_type);
+
+        // Ensure that the joined_commitment_hash is not the identity element
+        assert!(!bool::from(joined_commitment_hash.is_identity()), "Joined commitment hash should not be the identity element");
+    }
 }

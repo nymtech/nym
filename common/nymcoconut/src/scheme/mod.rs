@@ -103,6 +103,11 @@ impl Signature {
         commitment_hash: &G1Projective,
     ) -> Result<()> {
         // Verify the commitment hash
+        if bool::from(self.0.is_identity()){
+            return Err(CoconutError::Verification(
+                "Commitment hash should not be an identity point".to_string(),
+            ));
+        }
         if !(commitment_hash == &self.0) {
             return Err(CoconutError::Verification(
                 "Verification of commitment hash from signature failed".to_string(),

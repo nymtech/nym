@@ -115,7 +115,7 @@ pub fn aggregate_signatures_and_verify(
         .map(|(&attr, beta_i)| beta_i * attr)
         .sum::<G2Projective>();
 
-    if bool::from(signature.0.is_identity()){
+    if bool::from(signature.0.is_identity()) {
         return Err(CoconutError::Aggregation(
             "Verification of the aggregated signature failed - h is an identity point".to_string(),
         ));

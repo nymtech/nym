@@ -258,7 +258,8 @@ pub fn prepare_blind_sign(
 
     loop {
         // Compute the attributes commitment
-        let (c_opening, c) = compute_attributes_commitment(params, private_attributes, public_attributes, hs);
+        let (c_opening, c) =
+            compute_attributes_commitment(params, private_attributes, public_attributes, hs);
         commitment_opening = c_opening;
         commitment = c;
 
@@ -317,7 +318,7 @@ pub fn blind_sign(
 
     // Verify the commitment hash
     let h = compute_hash(blind_sign_request.commitment, public_attributes);
-    if bool::from(blind_sign_request.commitment_hash.is_identity()){
+    if bool::from(blind_sign_request.commitment_hash.is_identity()) {
         return Err(CoconutError::Issuance(
             "Commitment hash should not be an identity point".to_string(),
         ));
@@ -390,7 +391,7 @@ pub fn verify_partial_blind_signature(
     if num_private_attributes + public_attributes.len() > partial_verification_key.beta_g2.len() {
         return false;
     }
-    if bool::from(blind_sig.0.is_identity()){
+    if bool::from(blind_sig.0.is_identity()) {
         return false;
     }
 
@@ -541,7 +542,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_blind_sign_with_identity_commitment_hash() {
         let params = Parameters::new(1).unwrap();
@@ -549,19 +549,25 @@ mod tests {
         random_scalars_refs!(public_attributes, params, 0);
 
         // Call the function to prepare the blind sign
-        let (_commitments_openings, blind_sign_request) = prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
+        let (_commitments_openings, blind_sign_request) =
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
         let blind_sign_request = BlindSignRequest {
             commitment_hash: G1Projective::identity(),
             ..blind_sign_request // This copies the other fields from the existing instance
         };
 
-        let signing_secret_key = SecretKey{
+        let signing_secret_key = SecretKey {
             x: params.random_scalar(),
             ys: vec![params.random_scalar()],
         };
 
         // Call blind_sign and ensure it returns an error due to identity commitment hash
-        let result = blind_sign(&params, &signing_secret_key, &blind_sign_request, &public_attributes);
+        let result = blind_sign(
+            &params,
+            &signing_secret_key,
+            &blind_sign_request,
+            &public_attributes,
+        );
 
         // The result should be an error
         assert!(
@@ -645,6 +651,4 @@ mod tests {
             validator2_keypair.verification_key()
         ),);
     }
-
-
 }

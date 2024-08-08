@@ -64,6 +64,7 @@ impl NymApiStorage {
         Ok(storage)
     }
 
+    #[deprecated(note = "TODO dz: obsolete because it's used for Rocket")]
     pub(crate) fn stage(storage: NymApiStorage) -> AdHoc {
         AdHoc::try_on_ignite("SQLx Database", |rocket| async {
             Ok(rocket.manage(storage))

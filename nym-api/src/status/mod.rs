@@ -10,6 +10,7 @@ use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
 use tokio::time::Instant;
 
+pub(crate) mod handlers;
 pub(crate) mod routes;
 
 pub(crate) struct ApiStatusState {

@@ -50,6 +50,7 @@ tokio = { workspace = true, features = [
     "time",
 ] }
 tokio-stream = { workspace = true }
+tokio-util = { workspace = true }
 url = { workspace = true }
 
 ts-rs = { workspace = true, optional = true }
@@ -69,6 +70,15 @@ okapi = { workspace = true, features = ["impl_json_schema"] }
 rocket_okapi = { workspace = true, features = ["swagger"] }
 schemars = { workspace = true, features = ["preserve_order"] }
 zeroize = { workspace = true }
+
+# TODO dz merge aphabetically
+axum = { workspace = true, features = ["tokio"] }
+axum-extra = { workspace = true, features = ["typed-header"] }
+tower-http = { workspace = true, features = ["cors", "trace"] }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing.workspace = true
 
 ## ephemera-specific
 #actix-web = "4"
@@ -116,6 +126,7 @@ nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-types = { path = "../common/types" }
+nym-http-api-common = { path = "../common/http-api-common" }
 
 [features]
 no-reward = []

@@ -416,6 +416,9 @@ pub fn issue_verify(
     if req_info.joined_commitment_hash != blind_signature.h {
         return Err(CompactEcashError::IssuanceVerification);
     }
+    if bool::from(blind_signature.h.is_identity()){
+        return Err(CompactEcashError::IssuanceVerification);
+    }
 
     // Unblind the blinded signature on the partial signature
     let blinding_removers = vk_auth

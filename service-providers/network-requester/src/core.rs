@@ -495,7 +495,7 @@ impl NRServiceProvider {
                     .send(error_msg)
                     .await
                     .expect("InputMessageReceiver has stopped receiving!");
-                shutdown.mark_as_success();
+                shutdown.disarm();
                 return;
             }
 

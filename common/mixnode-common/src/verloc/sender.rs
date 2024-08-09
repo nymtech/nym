@@ -84,7 +84,7 @@ impl PacketSender {
         tested_node: TestedNode,
     ) -> Result<VerlocMeasurement, RttError> {
         let mut shutdown_listener = self.shutdown_listener.fork(tested_node.address.to_string());
-        shutdown_listener.mark_as_success();
+        shutdown_listener.disarm();
 
         let mut conn = match tokio::time::timeout(
             self.connection_timeout,

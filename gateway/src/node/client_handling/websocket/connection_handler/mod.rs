@@ -95,7 +95,7 @@ pub(crate) async fn handle_connection<R, S, St>(
     St: Storage + Clone + 'static,
 {
     // If the connection handler abruptly stops, we shouldn't signal global shutdown
-    shutdown.mark_as_success();
+    shutdown.disarm();
 
     match shutdown
         .run_future(handle.perform_websocket_handshake())

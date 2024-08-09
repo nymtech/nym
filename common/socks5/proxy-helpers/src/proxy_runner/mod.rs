@@ -148,7 +148,7 @@ where
     }
 
     pub fn into_inner(mut self) -> (TcpStream, ConnectionReceiver) {
-        self.shutdown_listener.mark_as_success();
+        self.shutdown_listener.disarm();
         (
             self.socket.take().unwrap(),
             self.mix_receiver.take().unwrap(),

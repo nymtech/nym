@@ -245,7 +245,7 @@ impl VerlocMeasurer {
         }
 
         let mut shutdown_listener = self.shutdown_listener.clone().named("VerlocMeasurement");
-        shutdown_listener.mark_as_success();
+        shutdown_listener.disarm();
 
         for chunk in nodes_to_test.chunks(self.config.tested_nodes_batch_size) {
             let mut chunk_results = Vec::with_capacity(chunk.len());

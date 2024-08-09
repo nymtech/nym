@@ -113,8 +113,8 @@ impl PartiallyDelegatedRouter {
         let return_res = match ret {
             Err(err) => self.stream_return.send(Err(err)),
             Ok(_) => {
-                self.packet_router.mark_as_success();
-                task_client.mark_as_success();
+                self.packet_router.disarm();
+                task_client.disarm();
                 self.stream_return.send(Ok(split_stream))
             }
         };

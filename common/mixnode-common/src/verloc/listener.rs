@@ -57,7 +57,7 @@ impl PacketListener {
             // cloning the arc as each accepted socket is handled in separate task
             let connection_handler = Arc::clone(&self.connection_handler);
             let mut handler_shutdown_listener = self.shutdown.clone();
-            handler_shutdown_listener.mark_as_success();
+            handler_shutdown_listener.disarm();
 
             tokio::select! {
                 socket = listener.accept() => {

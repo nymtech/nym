@@ -470,12 +470,8 @@ impl TaskClient {
     // This listener should to *not* notify the ShutdownNotifier to shutdown when dropped. For
     // example when we clone the listener for a task handling connections, we often want to drop
     // without signal failure.
-    pub fn mark_as_success(&mut self) {
-        self.mode.set_should_not_signal_on_drop();
-    }
-
     pub fn disarm(&mut self) {
-        self.mark_as_success();
+        self.mode.set_should_not_signal_on_drop();
     }
 
     pub fn send_we_stopped(&mut self, err: SentError) {

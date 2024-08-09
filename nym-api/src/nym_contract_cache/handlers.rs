@@ -63,13 +63,21 @@ pub(crate) fn nym_contract_cache_routes() -> Router<AxumAppState> {
         )
 }
 
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::mixnodes(),
+    responses(
+        (status = 200, body = Vec<MixNodeDetails>)
+    )
+)]
 async fn get_mixnodes(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Vec<MixNodeDetails>> {
     state.nym_contract_cache().mixnodes_filtered().await.into()
 }
 
-// TODO dz:see deprecated warnings below
+// TODO dz:is this warning still relevant?
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
 // replace this with
@@ -78,6 +86,14 @@ async fn get_mixnodes(
 //      Redirect::to(uri!("/v1/status/mixnodes/detailed"))
 //  }
 // ```
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::mixnodes::detailed(),
+    responses(
+        (status = 200, body = Vec<MixNodeBondAnnotated>)
+    )
+)]
 async fn get_mixnodes_detailed(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Vec<MixNodeBondAnnotated>> {
@@ -86,12 +102,28 @@ async fn get_mixnodes_detailed(
         .into()
 }
 
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::gateways(),
+    responses(
+        (status = 200, body = Vec<GatewayBond>)
+    )
+)]
 async fn get_gateways(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Vec<GatewayBond>> {
     state.nym_contract_cache().gateways_filtered().await.into()
 }
 
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::mixnodes::rewarded(),
+    responses(
+        (status = 200, body = Vec<MixNodeDetails>)
+    )
+)]
 async fn get_rewarded_set(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Vec<MixNodeDetails>> {
@@ -110,6 +142,14 @@ async fn get_rewarded_set(
 //      Redirect::to(uri!("/v1/status/mixnodes/rewarded/detailed"))
 //  }
 // ```
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::mixnodes::rewarded_detailed(),
+    responses(
+        (status = 200, body = Vec<MixNodeBondAnnotated>)
+    )
+)]
 async fn get_rewarded_set_detailed(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Vec<MixNodeBondAnnotated>> {
@@ -118,6 +158,14 @@ async fn get_rewarded_set_detailed(
         .into()
 }
 
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::mixnodes::active(),
+    responses(
+        (status = 200, body = Vec<MixNodeDetails>)
+    )
+)]
 async fn get_active_set(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Vec<MixNodeDetails>> {
@@ -136,6 +184,15 @@ async fn get_active_set(
 //      Redirect::to(uri!("/status/mixnodes/active/detailed"))
 //  }
 // ```
+
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::mixnodes::active_detailed(),
+    responses(
+        (status = 200, body = Vec<MixNodeBondAnnotated>)
+    )
+)]
 async fn get_active_set_detailed(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Vec<MixNodeBondAnnotated>> {
@@ -144,6 +201,14 @@ async fn get_active_set_detailed(
         .into()
 }
 
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::mixnodes::blacklisted(),
+    responses(
+        (status = 200, body = Option<HashSet<MixId>>)
+    )
+)]
 async fn get_blacklisted_mixnodes(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Option<HashSet<MixId>>> {
@@ -160,6 +225,14 @@ async fn get_blacklisted_mixnodes(
     .into()
 }
 
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::gateways::blacklisted(),
+    responses(
+        (status = 200, body = Option<HashSet<String>>)
+    )
+)]
 async fn get_blacklisted_gateways(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Option<HashSet<String>>> {
@@ -176,6 +249,14 @@ async fn get_blacklisted_gateways(
     .into()
 }
 
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::epoch::reward_params(),
+    responses(
+        (status = 200, body = Option<RewardingParams>)
+    )
+)]
 async fn get_interval_reward_params(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Option<RewardingParams>> {
@@ -187,6 +268,14 @@ async fn get_interval_reward_params(
         .into()
 }
 
+#[utoipa::path(
+    tag = "contract-cache",
+    get,
+    path = static_routes::v1::epoch::current(),
+    responses(
+        (status = 200, body = Option<Interval>)
+    )
+)]
 async fn get_current_epoch(
     extract::State(state): extract::State<AxumAppState>,
 ) -> axum::Json<Option<Interval>> {

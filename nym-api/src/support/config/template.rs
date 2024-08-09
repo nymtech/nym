@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// TODO dz any changes to this ?
+// TODO dz add bind address for axum server
 
 pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.

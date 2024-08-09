@@ -37,6 +37,7 @@ use rocket_okapi::swagger_ui::make_swagger_ui;
 use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
+use utoipauto::utoipauto;
 
 pub(crate) mod helpers;
 pub(crate) mod openapi;
@@ -162,16 +163,34 @@ fn setup_cors() -> CorsLayer {
         .allow_credentials(false)
 }
 
+// TODO dz try including ``./src/models.rs from nym_api_requests` for automatic
+// model discovery based on ToSchema / IntoParams implementation
+
+#[utoipauto(paths = "./nym-api/src")]
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Nym API"),
     tags(),
-    components(schemas(models::CirculatingSupplyResponse)),
-    paths(
-        crate::circulating_supply_api::handlers::get_full_circulating_supply,
-        crate::circulating_supply_api::handlers::get_circulating_supply,
-        crate::circulating_supply_api::handlers::get_total_supply,
-    )
+    components(schemas(
+        models::CirculatingSupplyResponse,
+        models::CoinSchema,
+        nym_mixnet_contract_common::Interval,
+        nym_api_requests::models::GatewayStatusReportResponse,
+        nym_api_requests::models::GatewayUptimeHistoryResponse,
+        nym_api_requests::models::HistoricalUptimeResponse,
+        nym_api_requests::models::GatewayCoreStatusResponse,
+        nym_api_requests::models::GatewayUptimeResponse,
+        nym_api_requests::models::RewardEstimationResponse,
+        nym_api_requests::models::UptimeResponse,
+        nym_api_requests::models::ComputeRewardEstParam,
+        nym_api_requests::models::MixNodeBondAnnotated,
+        nym_api_requests::models::GatewayBondAnnotated,
+        nym_api_requests::models::MixnodeTestResultResponse,
+        nym_api_requests::models::StakeSaturationResponse,
+        nym_api_requests::models::InclusionProbabilityResponse,
+        nym_api_requests::models::AllInclusionProbabilitiesResponse,
+        nym_api_requests::models::SelectionChance,
+    ))
 )]
 struct ApiDoc;
 

@@ -32,7 +32,7 @@ pub(crate) fn circulating_supply_routes() -> Router<AxumAppState> {
     get,
     path = static_routes::v1::circulating_supply(),
     responses(
-        (status = 200, response = CirculatingSupplyResponse)
+        (status = 200, body = CirculatingSupplyResponse)
     )
 )]
 async fn get_full_circulating_supply(
@@ -53,7 +53,7 @@ async fn get_full_circulating_supply(
     get,
     path = static_routes::v1::circulating_supply::total_supply_value(),
     responses(
-        (status = 200)
+        (status = 200, body = [f64])
     )
 )]
 async fn get_total_supply(
@@ -76,7 +76,7 @@ async fn get_total_supply(
     get,
     path = static_routes::v1::circulating_supply::circulating_supply_value(),
     responses(
-        (status = 200)
+        (status = 200, body = [f64])
     )
 )]
 async fn get_circulating_supply(

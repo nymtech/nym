@@ -3,7 +3,7 @@
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::status::ApiStatusState;
-use crate::{support::http::static_routes, v2::AxumAppState};
+use crate::v2::AxumAppState;
 use axum::Json;
 use axum::Router;
 use nym_api_requests::models::{ApiHealthResponse, SignerInformationResponse};
@@ -16,21 +16,21 @@ pub(crate) fn api_status_routes() -> Router<AxumAppState> {
 
     Router::new()
         .route(
-            &static_routes::v1::api_status::health(),
+            "/health",
             axum::routing::get({
                 let state = Arc::clone(&api_status_state);
                 || health(state)
             }),
         )
         .route(
-            &static_routes::v1::api_status::build_information(),
+            "/build-information",
             axum::routing::get({
                 let state = Arc::clone(&api_status_state);
                 || build_information(state)
             }),
         )
         .route(
-            &static_routes::v1::api_status::signer_information(),
+            "/signer-information",
             axum::routing::get({
                 let state = Arc::clone(&api_status_state);
                 || signer_information(state)

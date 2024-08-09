@@ -15,9 +15,9 @@ use crate::node_status_api::routes_deprecated::unstable;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
-use crate::nym_nodes::{
-    nym_node_routes, nym_node_routes_deprecated, nym_node_routes_next, nym_node_routes_unstable,
-};
+use crate::nym_nodes::handlers::nym_node_routes;
+use crate::nym_nodes::handlers_unstable::nym_node_routes_unstable;
+use crate::nym_nodes::{nym_node_routes_deprecated, nym_node_routes_next};
 use crate::status::{self, api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
@@ -41,7 +41,6 @@ use utoipauto::utoipauto;
 
 pub(crate) mod helpers;
 pub(crate) mod openapi;
-pub(crate) mod static_routes;
 
 pub(crate) async fn setup_rocket(
     config: &Config,
@@ -210,14 +209,17 @@ pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router
         // .route("/", axum::routing::get(|| async {axum::response::Redirect::permanent("/swagger")}))
         // .route("/swagger", axum::routing::get(hello))
         .merge(SwaggerUi::new("/swagger").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .merge(circulating_supply_routes())
-        .merge(nym_contract_cache_routes())
-        .merge(node_status_routes(network_monitor))
-        .merge(nym_network_routes())
-        .merge(status::handlers::api_status_routes())
-        .merge(nym_node_routes())
-        .merge(nym_node_routes_unstable())
-        // CORS layer needs to be "outside" of routes
+        .nest(
+            "/v1",
+            Router::new()
+                .nest("/circulating-supply", circulating_supply_routes())
+                .merge(nym_contract_cache_routes())
+                .nest("/status", node_status_routes(network_monitor))
+                .nest("/network", nym_network_routes())
+                .nest("/api-status", status::handlers::api_status_routes())
+                .merge(nym_node_routes())
+                .nest("/unstable/nym-nodes", nym_node_routes_unstable()), // CORS layer needs to be "outside" of routes
+        )
         .layer(setup_cors());
 
     // needs to be after routes we want to log

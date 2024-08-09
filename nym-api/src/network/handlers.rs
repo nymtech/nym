@@ -2,23 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::network::models::{ContractInformation, NetworkDetails};
-use crate::{support::http::static_routes, v2::AxumAppState};
+use crate::v2::AxumAppState;
 use axum::{extract, Router};
 use nym_contracts_common::ContractBuildInformation;
 use std::collections::HashMap;
 
 pub(crate) fn nym_network_routes() -> Router<AxumAppState> {
     Router::new()
+        .route("/details", axum::routing::get(network_details))
+        .route("/nym-contracts", axum::routing::get(nym_contracts))
         .route(
-            &static_routes::v1::network::details(),
-            axum::routing::get(network_details),
-        )
-        .route(
-            &static_routes::v1::network::nym_contracts(),
-            axum::routing::get(nym_contracts),
-        )
-        .route(
-            &static_routes::v1::network::nym_contracts_detailed(),
+            "/nym-contracts-detailed",
             axum::routing::get(nym_contracts_detailed),
         )
 }

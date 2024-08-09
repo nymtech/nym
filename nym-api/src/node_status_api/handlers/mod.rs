@@ -13,13 +13,11 @@ pub(crate) fn node_status_routes(network_monitor: bool) -> Router<AxumAppState> 
     // of the network monitor and the associated storage
     let without_network_monitor = without_monitor::mandatory_routes();
 
-    let router = if network_monitor {
+    if network_monitor {
         let with_network_monitor = network_monitor::network_monitor_routes();
 
         with_network_monitor.merge(without_network_monitor)
     } else {
         without_network_monitor
-    };
-
-    Router::new().nest("/v1/status", router)
+    }
 }

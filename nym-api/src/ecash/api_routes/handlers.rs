@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 pub(crate) fn ecash_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState> {
     Router::new().nest(
-        "/v1",
+        "/v1/ecash",
         Router::new()
             .merge(aggregation_routes(Arc::clone(&ecash_state)))
             .merge(issued_routes(Arc::clone(&ecash_state)))

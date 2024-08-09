@@ -24,7 +24,7 @@ use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::v2::AxumAppState;
 use axum::extract::Query;
 use axum::extract::State;
-use axum::Json;
+use axum::{Json, Router};
 use nym_api_requests::nym_nodes::{
     CachedNodesResponse, FullFatNode, NodeRoleQueryParam, SemiSkimmedNode, SkimmedNode,
 };
@@ -32,6 +32,30 @@ use nym_bin_common::version_checker;
 use serde::Deserialize;
 use std::cmp::min;
 use std::ops::Deref;
+
+// TODO dz for path/query params, see
+// https://docs.rs/utoipa-gen/4.3.0/utoipa_gen/derive.IntoParams.html
+
+pub(crate) fn nym_node_routes_unstable() -> axum::Router<AxumAppState> {
+    Router::new()
+        .route("/skimmed", axum::routing::get(nodes_basic))
+        .route("/semi-skimmed", axum::routing::get(nodes_expanded))
+        .route("/full-fat", axum::routing::get(nodes_detailed))
+        .nest(
+            "/gateways",
+            Router::new()
+                .route("/skimmed", axum::routing::get(gateways_basic))
+                .route("/semi-skimmed", axum::routing::get(gateways_expanded))
+                .route("/full-fat", axum::routing::get(gateways_detailed)),
+        )
+        .nest(
+            "/mixnodes",
+            Router::new()
+                .route("/skimmed", axum::routing::get(mixnodes_basic))
+                .route("/semi-skimmed", axum::routing::get(mixnodes_expanded))
+                .route("/full-fat", axum::routing::get(mixnodes_detailed)),
+        )
+}
 
 #[derive(Debug, Deserialize)]
 pub(super) struct NodesParams {
@@ -52,7 +76,7 @@ impl SemverCompatibilityQueryParam {
     }
 }
 
-pub(super) async fn nodes_basic(
+async fn nodes_basic(
     state: State<AxumAppState>,
     Query(NodesParams {
         role,
@@ -112,7 +136,7 @@ pub(super) async fn nodes_expanded(
     Err(AxumErrorResponse::not_implemented())
 }
 
-pub(super) async fn nodes_detailed(
+async fn nodes_detailed(
     state: State<AxumAppState>,
     Query(NodesParams {
         role,
@@ -142,7 +166,7 @@ pub(super) async fn nodes_detailed(
     Err(AxumErrorResponse::not_implemented())
 }
 
-pub(super) async fn gateways_basic(
+async fn gateways_basic(
     state: State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
         semver_compatibility,
@@ -201,7 +225,7 @@ pub(super) async fn gateways_basic(
     }))
 }
 
-pub(super) async fn gateways_expanded(
+async fn gateways_expanded(
     State(_state): State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
         semver_compatibility: _semver_compatibility,
@@ -210,7 +234,7 @@ pub(super) async fn gateways_expanded(
     Err(AxumErrorResponse::not_implemented())
 }
 
-pub(super) async fn gateways_detailed(
+async fn gateways_detailed(
     State(_state): State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
         semver_compatibility: _semver_compatibility,
@@ -219,7 +243,7 @@ pub(super) async fn gateways_detailed(
     Err(AxumErrorResponse::not_implemented())
 }
 
-pub(super) async fn mixnodes_basic(
+async fn mixnodes_basic(
     state: State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
         semver_compatibility,
@@ -255,7 +279,7 @@ pub(super) async fn mixnodes_basic(
     }))
 }
 
-pub(super) async fn mixnodes_expanded(
+async fn mixnodes_expanded(
     State(_state): State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
         semver_compatibility: _semver_compatibility,
@@ -264,7 +288,7 @@ pub(super) async fn mixnodes_expanded(
     Err(AxumErrorResponse::not_implemented())
 }
 
-pub(super) async fn mixnodes_detailed(
+async fn mixnodes_detailed(
     State(_state): State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
         semver_compatibility: _semver_compatibility,

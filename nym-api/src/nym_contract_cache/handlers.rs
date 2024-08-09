@@ -5,7 +5,6 @@ use crate::{
     node_status_api::helpers_deprecated::{
         _get_active_set_detailed, _get_mixnodes_detailed, _get_rewarded_set_detailed,
     },
-    support::http::static_routes,
     v2::AxumAppState,
 };
 use axum::{extract, Router};
@@ -17,56 +16,41 @@ use std::collections::HashSet;
 
 pub(crate) fn nym_contract_cache_routes() -> Router<AxumAppState> {
     Router::new()
+        .route("/mixnodes", axum::routing::get(get_mixnodes))
         .route(
-            &static_routes::v1::mixnodes(),
-            axum::routing::get(get_mixnodes),
-        )
-        .route(
-            &static_routes::v1::mixnodes::detailed(),
+            "/mixnodes/detailed",
             axum::routing::get(get_mixnodes_detailed),
         )
+        .route("/gateways", axum::routing::get(get_gateways))
+        .route("/mixnodes/rewarded", axum::routing::get(get_rewarded_set))
         .route(
-            &static_routes::v1::gateways(),
-            axum::routing::get(get_gateways),
-        )
-        .route(
-            &static_routes::v1::mixnodes::rewarded(),
-            axum::routing::get(get_rewarded_set),
-        )
-        .route(
-            &static_routes::v1::mixnodes::rewarded_detailed(),
+            "/mixnodes/rewarded/detailed",
             axum::routing::get(get_rewarded_set_detailed),
         )
+        .route("/mixnodes/active", axum::routing::get(get_active_set))
         .route(
-            &static_routes::v1::mixnodes::active(),
-            axum::routing::get(get_active_set),
-        )
-        .route(
-            &static_routes::v1::mixnodes::active_detailed(),
+            "/mixnodes/active/detailed",
             axum::routing::get(get_active_set_detailed),
         )
         .route(
-            &static_routes::v1::mixnodes::blacklisted(),
+            "/mixnodes/blacklisted",
             axum::routing::get(get_blacklisted_mixnodes),
         )
         .route(
-            &static_routes::v1::gateways::blacklisted(),
+            "/gateways/blacklisted",
             axum::routing::get(get_blacklisted_gateways),
         )
         .route(
-            &static_routes::v1::epoch::reward_params(),
+            "/epoch/reward_params",
             axum::routing::get(get_interval_reward_params),
         )
-        .route(
-            &static_routes::v1::epoch::current(),
-            axum::routing::get(get_current_epoch),
-        )
+        .route("/epoch/current", axum::routing::get(get_current_epoch))
 }
 
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::mixnodes(),
+    path = "/v1/mixnodes",
     responses(
         (status = 200, body = Vec<MixNodeDetails>)
     )
@@ -89,7 +73,7 @@ async fn get_mixnodes(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::mixnodes::detailed(),
+    path = "/v1/mixnodes/detailed",
     responses(
         (status = 200, body = Vec<MixNodeBondAnnotated>)
     )
@@ -105,7 +89,7 @@ async fn get_mixnodes_detailed(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::gateways(),
+    path = "/v1/gateways",
     responses(
         (status = 200, body = Vec<GatewayBond>)
     )
@@ -119,7 +103,7 @@ async fn get_gateways(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::mixnodes::rewarded(),
+    path = "/v1/mixnodes/rewarded",
     responses(
         (status = 200, body = Vec<MixNodeDetails>)
     )
@@ -145,7 +129,7 @@ async fn get_rewarded_set(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::mixnodes::rewarded_detailed(),
+    path = "/v1/mixnodes/rewarded/detailed",
     responses(
         (status = 200, body = Vec<MixNodeBondAnnotated>)
     )
@@ -161,7 +145,7 @@ async fn get_rewarded_set_detailed(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::mixnodes::active(),
+    path = "/v1/mixnodes/active",
     responses(
         (status = 200, body = Vec<MixNodeDetails>)
     )
@@ -188,7 +172,7 @@ async fn get_active_set(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::mixnodes::active_detailed(),
+    path = "/v1/mixnodes/active/detailed",
     responses(
         (status = 200, body = Vec<MixNodeBondAnnotated>)
     )
@@ -204,7 +188,7 @@ async fn get_active_set_detailed(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::mixnodes::blacklisted(),
+    path = "/v1/mixnodes/blacklisted",
     responses(
         (status = 200, body = Option<HashSet<MixId>>)
     )
@@ -228,7 +212,7 @@ async fn get_blacklisted_mixnodes(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::gateways::blacklisted(),
+    path = "/v1/gateways/blacklisted",
     responses(
         (status = 200, body = Option<HashSet<String>>)
     )
@@ -252,7 +236,7 @@ async fn get_blacklisted_gateways(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::epoch::reward_params(),
+    path = "/v1/epoch/reward_params",
     responses(
         (status = 200, body = Option<RewardingParams>)
     )
@@ -271,7 +255,7 @@ async fn get_interval_reward_params(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = static_routes::v1::epoch::current(),
+    path = "/v1/epoch/current",
     responses(
         (status = 200, body = Option<Interval>)
     )

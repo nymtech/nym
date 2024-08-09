@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
+use utoipa::ToSchema;
 
 pub type EpochId = u32;
 pub type IntervalId = u32;
@@ -208,9 +209,11 @@ impl Display for EpochState {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/Interval.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize, ToSchema)]
+#[aliases(IntervalId = u32)]
 pub struct Interval {
     /// Monotonously increasing id of this interval.
+    #[schema(value_type = u32)]
     id: IntervalId,
 
     /// Number of epochs in this interval.
@@ -226,6 +229,7 @@ pub struct Interval {
     current_epoch_start: OffsetDateTime,
 
     /// Monotonously increasing id of the current epoch in this interval.
+    #[schema(value_type = u32)]
     current_epoch_id: EpochId,
 
     /// The duration of all epochs in this interval.
@@ -233,6 +237,7 @@ pub struct Interval {
     epoch_length: Duration,
 
     /// The total amount of elapsed epochs since the first epoch of the first interval.
+    #[schema(value_type = u32)]
     total_elapsed_epochs: EpochId,
 }
 

@@ -68,8 +68,8 @@ axum = { workspace = true, features = ["tokio"] }
 axum-extra = { workspace = true, features = ["typed-header"] }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
-utoipa-rapidoc = { workspace = true, features = ["axum"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+utoipauto = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing.workspace = true
 

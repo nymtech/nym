@@ -4324,8 +4324,8 @@ dependencies = [
  "ts-rs",
  "url",
  "utoipa",
- "utoipa-rapidoc",
  "utoipa-swagger-ui",
+ "utoipauto",
  "zeroize",
 ]
 
@@ -5360,6 +5360,7 @@ dependencies = [
  "thiserror",
  "time",
  "ts-rs",
+ "utoipa",
 ]
 
 [[package]]
@@ -9898,18 +9899,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "utoipa-rapidoc"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a32488b691c135d58eb78efcf8258ebb3db1ec7447964c6a83bd5e1ab7a39d9"
-dependencies = [
- "axum 0.7.5",
- "serde",
- "serde_json",
- "utoipa",
-]
-
-[[package]]
 name = "utoipa-swagger-ui"
 version = "7.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9925,6 +9914,38 @@ dependencies = [
  "url",
  "utoipa",
  "zip",
+]
+
+[[package]]
+name = "utoipauto"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4713aabc5ed18aabcd594345b48983b112c0b5dab3d24754352e7f5cf924da03"
+dependencies = [
+ "utoipauto-macro",
+]
+
+[[package]]
+name = "utoipauto-core"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17e82ab96c5a55263b5bed151b8426410d93aa909a453acdbd4b6792b5af7d64"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.66",
+]
+
+[[package]]
+name = "utoipauto-macro"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86b8338dc3c9526011ffaa2aa6bd60ddfda9d49d2123108690755c6e34844212"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.66",
+ "utoipauto-core",
 ]
 
 [[package]]

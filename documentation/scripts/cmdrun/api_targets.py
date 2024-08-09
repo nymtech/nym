@@ -32,6 +32,7 @@ def subparser_read(args):
     response = r.json()
     return response
 
+
 def print_time_now(args):
     #now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     #now = time.ctime()
@@ -54,7 +55,7 @@ def print_time_now(args):
 ############################################
 
 def convert_u_nym(unym):
-    unym = int(unym)
+    unym = float(unym)
     nym = unym / 1000000
     nym = int(nym)
     return nym
@@ -99,16 +100,42 @@ def _get_desc_column():
 def read_supply(args):
     response = subparser_read(args)
     if args.endpoint == "circulating-supply":
-        if args.format:
+        if args.value:
+            value = get_nested_value(response, args)
+            value = convert_u_nym(value)
+            print(value)
+        elif args.format == "markdown":
             display_supply_table(response, args)
         else:
             print(response)
-    elif args.endpoint == "foo":
-        # placeholder for other endpoint args
-        pass
+    elif args.endpoint == "epoch/reward_params":
+        value = get_reward_params(response, args)
+        print(value)
     else:
         # placeholder for other endpoint args
         pass
+
+def get_reward_params(response, args):
+    #print(f"args.value = {args.value}, type = {type(args.value)}, lenm={len(args.value)}")
+    #print(f"RESPONSE = {response}")
+    value = get_nested_value(response, args)     #THIS WILL COME OUT AS A VARIABVLE response["interval"]["staking_supply_scale_factor"])
+    #value = response + keys
+    if args.format == "percent":
+        value = _return_percent_annotation(value)
+    else:
+        value = convert_u_nym(value)
+    return value
+
+def get_nested_value(response, args):
+    value = response
+    for key in args.value:
+        value = value[key]
+    return value
+
+def _return_percent_annotation(value):
+    value = float(value) * 100
+    value = f"{value}%"
+    return value
 
 ###########################################
 ############ GH RELATED FNs ###############
@@ -150,9 +177,9 @@ def parser_main():
             epilog=''
             )
     subparsers = parser.add_subparsers(help="")
-    parser_supply = subparsers.add_parser('supply',
-            help='reads API on supply',
-            aliases=['s',]
+    parser_supply = subparsers.add_parser('validator',
+            help='Reads validaor API enpoints',
+            aliases=['v']
             )
 
     parser_supply.add_argument(
@@ -167,9 +194,16 @@ def parser_main():
             help="choose from: https://validator.nymtech.net/api/swagger/index.html"
             )
     parser_supply.add_argument(
+            "-v","--value",
+            type=str,
+            help="dictionary keys to get needed value separated by a space",
+            nargs = '+'
+            )
+
+    parser_supply.add_argument(
             "-f","--format",
-            action="store_true",
-            help="format the output for documentation purpose (.md) - default: False (raw output)",
+            type=str,
+            help="'markdown' formats the output for documentation purpose; 'percent' returns a number with % annotation",
             )
 
     parser_supply.add_argument(
@@ -180,6 +214,20 @@ def parser_main():
             )
 
     parser_supply.set_defaults(func=read_supply)
+
+
+
+
+    parser_calculate = subparsers.add_parser('calculate',
+            help='Print calculated values',
+            aliases=['c']
+            )
+
+    parser_calculate.add_argument(
+            "-f ","--foo",
+            type=str,
+            help="foo"
+            )
 
     parser_time_now = subparsers.add_parser('time_now',
             help='Prints UTC time now',

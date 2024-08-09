@@ -474,13 +474,6 @@ where
             Poll::Ready(Some((real_messages, conn_id))) => {
                 log::trace!("handling real_messages: size: {}", real_messages.len());
 
-                // This is the last step in the pipeline where we know the type of the message, so
-                // lets count the number of retransmissions here.
-                if conn_id == TransmissionLane::Retransmission {
-                    self.stats_tx
-                        .report(PacketStatisticsEvent::RetransmissionQueued);
-                }
-
                 // First store what we got for the given connection id
                 self.transmission_buffer.store(&conn_id, real_messages);
                 let real_next = self.pop_next_message().expect("we just added one");

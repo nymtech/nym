@@ -28,7 +28,9 @@ dirs = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }
 humantime-serde = { workspace = true }
-k256 = { workspace = true, features = ["ecdsa-core"] } # needed for the Verifier trait; pull whatever version is used by other dependencies
+k256 = { workspace = true, features = [
+    "ecdsa-core",
+] } # needed for the Verifier trait; pull whatever version is used by other dependencies
 log = { workspace = true }
 pin-project = { workspace = true }
 rand = { workspace = true }
@@ -41,7 +43,12 @@ serde_json = { workspace = true }
 tap = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["serde-human-readable", "parsing"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal", "time"] }
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "macros",
+    "signal",
+    "time",
+] }
 tokio-stream = { workspace = true }
 url = { workspace = true }
 
@@ -83,7 +90,9 @@ nym-credentials-interface = { path = "../common/credentials-interface" }
 #nym-ephemera-common = { path = "../common/cosmwasm-smart-contracts/ephemera" }
 nym-config = { path = "../common/config" }
 cosmwasm-std = { workspace = true }
-nym-credential-storage = { path = "../common/credential-storage", features = ["persistent-storage"] }
+nym-credential-storage = { path = "../common/credential-storage", features = [
+    "persistent-storage",
+] }
 nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
 cw2 = { workspace = true }
@@ -106,6 +115,7 @@ nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
+nym-types = { path = "../common/types" }
 
 [features]
 no-reward = []
@@ -126,4 +136,3 @@ cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
 sha2 = "0.9"
-

@@ -10,15 +10,13 @@ use nym_api_requests::models::{
     UptimeResponse,
 };
 use nym_mixnet_contract_common::MixId;
+use nym_types::monitoring::{MonitorMessage, MonitorResults};
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
-use schemars::JsonSchema;
-use serde::Deserialize;
 
 use super::helpers::_get_gateways_detailed;
 use super::NodeStatusCache;
-use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
     _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
@@ -32,20 +30,34 @@ use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
 use crate::NymContractCache;
 
-#[derive(Deserialize, JsonSchema)]
-#[serde(untagged)]
-pub(crate) enum MonitorResults {
-    Mixnode(Vec<MixnodeResult>),
-    Gateway(Vec<GatewayResult>),
-}
-
 #[openapi(tag = "status")]
-#[post("/submit", data = "<results>")]
+#[post("/submit", data = "<message>")]
 pub(crate) async fn submit_monitoring_results(
-    results: Json<MonitorResults>,
+    message: Json<MonitorMessage>,
     storage: &State<NymApiStorage>,
 ) -> Result<(), ErrorResponse> {
-    match results.0 {
+    if !message.from_allowed() {
+        return Err(ErrorResponse::new(
+            "Monitor not registered to submit results".to_string(),
+            rocket::http::Status::Forbidden,
+        ));
+    }
+
+    if !message.timely() {
+        return Err(ErrorResponse::new(
+            "Message is too old".to_string(),
+            rocket::http::Status::BadRequest,
+        ));
+    }
+
+    if !message.verify() {
+        return Err(ErrorResponse::new(
+            "Invalid signature".to_string(),
+            rocket::http::Status::BadRequest,
+        ));
+    }
+
+    match message.results() {
         MonitorResults::Mixnode(results) => {
             match storage.manager.submit_mixnode_statuses_v2(results).await {
                 Ok(_) => Ok(()),

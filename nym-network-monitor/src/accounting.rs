@@ -5,12 +5,13 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use log::{debug, info};
 use nym_sphinx::chunking::{SentFragment, FRAGMENTS_RECEIVED, FRAGMENTS_SENT};
 use nym_topology::{gateway, mix, NymTopology};
+use nym_types::monitoring::{GatewayResult, MixnodeResult, MonitorMessage, MonitorResults};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::{NYM_API_URL, TOPOLOGY};
+use crate::{NYM_API_URL, PRIVATE_KEY, TOPOLOGY};
 
 struct HydratedRoute {
     mix_nodes: Vec<mix::Node>,
@@ -287,11 +288,11 @@ impl NodeStats {
         self.reliability
     }
 
-    pub fn into_mixnode_results(self) -> MixnodeResults {
-        MixnodeResults {
+    pub fn into_mixnode_results(self) -> MixnodeResult {
+        MixnodeResult {
             mix_id: self.mix_id,
             identity: self.identity,
-            owner: self.owner,
+            owner: self.owner.unwrap_or_default(),
             reliability: (self.reliability * 100.) as u8,
         }
     }
@@ -315,7 +316,7 @@ pub async fn monitor_gateway_results() -> anyhow::Result<Vec<GatewayResult>> {
         .collect())
 }
 
-pub async fn monitor_mixnode_results() -> anyhow::Result<Vec<MixnodeResults>> {
+pub async fn monitor_mixnode_results() -> anyhow::Result<Vec<MixnodeResult>> {
     let stats = all_node_stats().await?;
     Ok(stats
         .into_iter()
@@ -330,13 +331,19 @@ pub async fn submit_metrics() -> anyhow::Result<()> {
     info!("Submitting metrics to {}", *NYM_API_URL);
     let client = reqwest::Client::new();
 
-    info!("Submitting {} mixnode measurements", node_stats.len());
-
     let submit_url = format!("{}/v1/status/submit", &*NYM_API_URL);
+
+    info!("Submitting {} mixnode measurements", node_stats.len());
 
     node_stats
         .chunks(10)
-        .map(|chunk| client.post(&submit_url).json(chunk).send())
+        .map(|chunk| {
+            let monitor_message = MonitorMessage::new(
+                MonitorResults::Mixnode(chunk.to_vec()),
+                PRIVATE_KEY.get().expect("We've set this!"),
+            );
+            client.post(&submit_url).json(&monitor_message).send()
+        })
         .collect::<FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
         .await
@@ -347,7 +354,13 @@ pub async fn submit_metrics() -> anyhow::Result<()> {
 
     gateway_stats
         .chunks(10)
-        .map(|chunk| client.post(&submit_url).json(chunk).send())
+        .map(|chunk| {
+            let monitor_message = MonitorMessage::new(
+                MonitorResults::Gateway(chunk.to_vec()),
+                PRIVATE_KEY.get().expect("We've set this!"),
+            );
+            client.post(&submit_url).json(&monitor_message).send()
+        })
         .collect::<FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
         .await
@@ -357,27 +370,10 @@ pub async fn submit_metrics() -> anyhow::Result<()> {
     Ok(())
 }
 
-// Mirroring the current NM struct
-#[derive(Serialize)]
-pub(crate) struct MixnodeResults {
-    mix_id: u32,
-    identity: String,
-    owner: Option<String>,
-    reliability: u8,
-}
-
 fn into_gateway_result((key, stats): (&String, &GatewayStats)) -> GatewayResult {
     GatewayResult {
         identity: key.clone(),
-        owner: stats.owner(),
+        owner: stats.owner().unwrap_or_default(),
         reliability: (stats.reliability() * 100.) as u8,
     }
-}
-
-// Mirroring the current NM struct
-#[derive(Serialize)]
-pub(crate) struct GatewayResult {
-    identity: String,
-    owner: Option<String>,
-    reliability: u8,
 }

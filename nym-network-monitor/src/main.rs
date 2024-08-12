@@ -3,10 +3,13 @@ use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
 use log::{info, warn};
+use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use std::fs::File;
+use std::io::Write;
 use std::sync::LazyLock;
 use std::{
     collections::VecDeque,
@@ -23,8 +26,8 @@ static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
 });
 
 static MIXNET_TIMEOUT: OnceCell<u64> = OnceCell::const_new();
-
 static TOPOLOGY: OnceCell<NymTopology> = OnceCell::const_new();
+static PRIVATE_KEY: OnceCell<PrivateKey> = OnceCell::const_new();
 
 mod accounting;
 mod handlers;
@@ -119,6 +122,27 @@ struct Args {
 
     #[arg(short, long, default_value_t = 10)]
     mixnet_timeout: u64,
+
+    #[arg(long, default_value_t = false)]
+    generate_key_pair: bool,
+
+    #[arg(long)]
+    private_key: String,
+}
+
+fn generate_key_pair() -> Result<()> {
+    let mut rng = rand::thread_rng();
+    let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
+
+    let mut public_key_file = File::create("network-monitor-public")?;
+    public_key_file.write_all(keypair.public_key().to_base58_string().as_bytes())?;
+
+    let mut private_key_file = File::create("network-monitor-private")?;
+    private_key_file.write_all(keypair.private_key().to_base58_string().as_bytes())?;
+
+    info!("Generated keypair, public key to 'network-monitor-public', and private key to 'network-monitor-private', public key should be whitelisted with the nym-api");
+
+    Ok(())
 }
 
 #[tokio::main]
@@ -132,6 +156,14 @@ async fn main() -> Result<()> {
     let cancel_token = CancellationToken::new();
     let server_cancel_token = cancel_token.clone();
     let clients = Arc::new(RwLock::new(VecDeque::with_capacity(args.n_clients)));
+
+    if args.generate_key_pair {
+        generate_key_pair()?;
+        std::process::exit(0);
+    }
+
+    let pk = PrivateKey::from_base58_string(&args.private_key)?;
+    PRIVATE_KEY.set(pk).ok();
 
     TOPOLOGY
         .set(if let Some(topology_file) = args.topology {

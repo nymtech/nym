@@ -1,6 +1,5 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
-use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
 use crate::support::storage::models::{
@@ -8,6 +7,7 @@ use crate::support::storage::models::{
     TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
 };
 use nym_mixnet_contract_common::{EpochId, IdentityKey, MixId};
+use nym_types::monitoring::{GatewayResult, MixnodeResult};
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -505,7 +505,7 @@ impl StorageManager {
 
     pub(crate) async fn submit_mixnode_statuses_v2(
         &self,
-        mixnode_results: Vec<MixnodeResult>,
+        mixnode_results: &[MixnodeResult],
     ) -> Result<(), sqlx::Error> {
         info!("Inserting {} mixnode statuses", mixnode_results.len());
 
@@ -596,7 +596,7 @@ impl StorageManager {
 
     pub(crate) async fn submit_gateway_statuses_v2(
         &self,
-        gateway_results: Vec<GatewayResult>,
+        gateway_results: &[GatewayResult],
     ) -> Result<(), sqlx::Error> {
         info!("Inserting {} gateway statuses", gateway_results.len());
 

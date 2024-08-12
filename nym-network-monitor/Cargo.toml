@@ -30,7 +30,9 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 # internal
 nym-bin-common = { path = "../common/bin-common" }
+nym-crypto = { path = "../common/crypto" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-topology = { path = "../common/topology" }
+nym-types = { path = "../common/types" }

@@ -6,7 +6,7 @@ use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::client::Client;
 use crate::ecash::state::EcashState;
 use crate::ecash::{self, comm::QueryCommunicationChannel};
-use crate::network::handlers::nym_network_routes;
+use crate::network::handlers::{nym_network_routes, ContractVersionSchemaResponse};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
@@ -189,13 +189,20 @@ fn setup_cors() -> CorsLayer {
         nym_api_requests::models::InclusionProbabilityResponse,
         nym_api_requests::models::AllInclusionProbabilitiesResponse,
         nym_api_requests::models::SelectionChance,
+        NetworkDetails,
+        nym_config::defaults::NymNetworkDetails,
+        nym_config::defaults::ChainDetails,
+        nym_config::defaults::DenomDetailsOwned,
+        nym_config::defaults::ValidatorDetails,
+        nym_config::defaults::NymContracts,
+        ContractVersionSchemaResponse,
+        crate::network::models::ContractInformation<ContractVersionSchemaResponse>,
     ))
 )]
 struct ApiDoc;
 
 pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
     // TODO dz serve swagger UI
-
     let router = Router::new()
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO dz use tracing instead of env_logger

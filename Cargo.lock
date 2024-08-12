@@ -5462,6 +5462,7 @@ dependencies = [
  "schemars",
  "serde",
  "url",
+ "utoipa",
 ]
 
 [[package]]

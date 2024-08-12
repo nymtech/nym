@@ -583,7 +583,7 @@ mod tests {
 
         // Generate the commitment and hash
         let (_, joined_commitment_hash, _) =
-            generate_non_identity_h(&params, &sk_user, v, expiration_date, t_type);
+            generate_non_identity_h(params, &sk_user, v, expiration_date, t_type);
 
         // Ensure that the joined_commitment_hash is not the identity element
         assert!(

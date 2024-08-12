@@ -33,9 +33,13 @@ Usage: nym-network-monitor [OPTIONS]
 Options:
   -C, --clients <N_CLIENTS>                Number of clients to spawn [default: 10]
   -T, --client-lifetime <CLIENT_LIFETIME>  Lifetime of each client in seconds [default: 60]
-  -p, --port <PORT>                        Port to listen on [default: 8080]
-  -h, --host <HOST>                        Host to listen on [default: 127.0.0.1]
-  -t, --topology <TOPOLOGY>                Path to the topology file [default: topology.json]
+      --port <PORT>                        Port to listen on [default: 8080]
+      --host <HOST>                        Host to listen on [default: 127.0.0.1]
+  -t, --topology <TOPOLOGY>                Path to the topology file
+  -e, --env <ENV>                          Path to the environment file
+  -m, --mixnet-timeout <MIXNET_TIMEOUT>    [default: 10]
+      --generate-key-pair
+      --private-key <PRIVATE_KEY>
   -h, --help                               Print help
   -V, --version                            Print version
 ```

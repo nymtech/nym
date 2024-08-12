@@ -14,7 +14,7 @@ import time
 ############## GENERAL FNs #################
 ############################################
 
-def get_url(args):
+def get_url(args, **kwargs):
     config_file = "./api_targets_config.json"
     with open(config_file, "r") as f:
         config = json.load(f)
@@ -98,11 +98,13 @@ def _get_desc_column():
     return desc_column
 
 def read_supply(args):
+    separator = args.separator
     response = subparser_read(args)
     if args.endpoint == "circulating-supply":
         if args.value:
             value = get_nested_value(response, args)
             value = convert_u_nym(value)
+            value = thousand_separator(value, separator)
             print(value)
         elif args.format == "markdown":
             display_supply_table(response, args)
@@ -110,6 +112,7 @@ def read_supply(args):
             print(response)
     elif args.endpoint == "epoch/reward_params":
         value = get_reward_params(response, args)
+        value = thousand_separator(value, separator)
         print(value)
     else:
         # placeholder for other endpoint args
@@ -136,6 +139,39 @@ def _return_percent_annotation(value):
     value = float(value) * 100
     value = f"{value}%"
     return value
+
+###########################################
+############# CALCULATE FNs ###############
+###########################################
+
+def calculate(args):
+    separator = args.separator
+    reward_params = get_api("https://validator.nymtech.net/api/v1/epoch/reward_params")
+    circulating_supply = get_api("https://validator.nymtech.net/api/v1/circulating-supply")
+    if args.staking_target:
+        display_staking_target(args, reward_params, circulating_supply)
+
+def get_api(url):
+    r = requests.get(url)
+    response = r.json()
+    return response
+
+
+def display_staking_target(args, reward_params, circulating_supply):
+    keys = ["interval", "staking_supply_scale_factor"]
+    staking_supply_scale_factor = get_dict_value(reward_params, keys)
+    keys = ["circulating_supply", "amount"]
+    circulating_supply = get_dict_value(circulating_supply, keys)
+    staking_target = float(staking_supply_scale_factor) * float(circulating_supply)
+    staking_target = convert_u_nym(staking_target)
+    print(staking_target)
+
+def get_dict_value(json, keys):
+    value = json
+    for key in keys:
+        value = value[key]
+    return value
+
 
 ###########################################
 ############ GH RELATED FNs ###############
@@ -219,15 +255,28 @@ def parser_main():
 
 
     parser_calculate = subparsers.add_parser('calculate',
-            help='Print calculated values',
+            help='Calculate and print the values of optional args',
             aliases=['c']
             )
 
     parser_calculate.add_argument(
-            "-f ","--foo",
-            type=str,
-            help="foo"
+            "--staking_target",
+            action="store_true",
+            help="A multiplier of staking supply scale factor and circulating supply"
             )
+
+    parser_calculate.add_argument(
+            "-s", "--separator",
+            type=str,
+            default=" ",
+            help="Add custom thousand separator to --format flag (default is none)"
+            )
+#    parser_calculate.add_argument(
+#            "--api",
+#            default="mainnet",
+#            )
+
+    parser_calculate.set_defaults(func=calculate)
 
     parser_time_now = subparsers.add_parser('time_now',
             help='Prints UTC time now',

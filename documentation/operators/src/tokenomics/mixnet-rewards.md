@@ -9,14 +9,14 @@
 
 **Formulas and Examples Annotation**
 
-To make it easier for the reader, we will use a highlighting line on the left side, with a specific color:
+To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
 
 ```admonish tip title=""
-Green for formulas.
+$Green\ for\ formulas.$
 ```
 
 ```admonish example collapsible=true
-Purple collapsible for examples.
+$Purple\ collapsible\ for\ examples.$
 ```
 
 ## Overview
@@ -170,11 +170,16 @@ The endpoint is a particularly common for Mix Node operators as it can provide a
 
 Using this API endpoint returns information about the Reward Estimation:
 
+
+We have available API endpoints which can be accessed via [Swagger UI page](https://validator.nymtech.net/api/swagger/index.html). Or by querying the endpoints directly:
+
 ```sh
-/status/mixnode/<MIX_ID>/reward-estimation
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/status/mixnode/<MIX_ID>/reward-estimation' \
+  -H 'accept: application/json'sh
 ```
 
-Query Response:
+Query response will look like this:
 
 ```sh
     "estimation": {
@@ -186,6 +191,10 @@ Query Response:
 ```
 
 > The unit of value is measured in `uNYM`.
+
+```admonish tip title=""
+$1 NYM = 1000000 uNYM$
+```
 
 - `estimated_total_node_reward` - An estimate of the total amount of rewards that a particular Mix Node can expect to receive during the current epoch. This value is calculated by the Nym Validator based on a number of factors, including the current state of the network, the number of Mix Nodes currently active in the network, and the amount of network traffic being processed by the Mix Node.
 

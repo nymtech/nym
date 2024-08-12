@@ -11,14 +11,14 @@ Nym Network is composed of two main elements, the Mixnet represented by [Nym Nod
 
 **Formulas and Examples Annotation**
 
-To make it easier for the reader, we will use a highlighting line on the left side, with a specific color:
+To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
 
 ```admonish tip title=""
-Green for formulas.
+$Green\ for\ formulas.$
 ```
 
 ```admonish example collapsible=true
-Purple collapsible for examples.
+$Purple\ collapsible\ for\ examples.$
 ```
 
 ## NYM Tokenomics
@@ -50,13 +50,28 @@ Thanks to Nyx blockchain API monitoring, the flow is dynamic and constantly opti
 
 Before we can arrive to a full comprehension of [node operators rewards](mixnet-rewards.md) and [delegators APR height](https://nymtech.net/about/token) we need to understand some basic logic and stats of Nym token economics. All the data can be [queryied from valdator API](#query-tokenomics-api).
 
-* **Supply:** NYM token is capped at 1b. Visit [Nym token page](https://nymtech.net/about/token) to see live data and graphs. Current\* circulating supply is <-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount ---> NYM.
+**Supply**
 
-* **Staking target:** A number of aimed NYM tokens to be staked in the network. This number can be changed to optimize the following metrics below, currently\* it's set to be <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval staking_supply_scale_factor --format percent -->.
+NYM token is capped at 1b. Visit [Nym token page](https://nymtech.net/about/token) to see live data and graphs. Current\* circulating supply is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --> NYM.
 
-* **Stake saturation:** Node reputation in a form of self bond or stakers delegation. Stake saturation is calculated as:
+**Staking target**
+
+A number of aimed NYM tokens to be staked in the network. The staking target a is multiplier of staking supply scale factor and circulating supply.
+
 ```admonish tip title=""
-$stake\ saturation = staking\ target\ /\ total\ \#\ of\ nodes$
+$staking\ target = staking\ supply\ scale\ factor * circulating\ supply$
+```
+
+Staking supply scale factor is currently\* it's set to be <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval staking_supply_scale_factor --format percent -->.
+
+The value of this variable can be changed to optimize the metrics of the network. With a current circulating supply of <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --> NYM and staking supply scale factor <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval staking_supply_scale_factor --format percent -->, the staking target is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py c --staking_target --> NYM.
+
+
+**Stake saturation**
+
+Node reputation in a form of self bond or stakers delegation. Stake saturation is calculated as:
+```admonish tip title=""
+$stake\ saturation = circulating\ supply * staking\ target\ /\ total\ \#\ of\ nodes$
 ```
 <!-- CODE AUTO COMPLETION:
 - # of nodes in the network
@@ -64,8 +79,19 @@ $stake\ saturation = staking\ target\ /\ total\ \#\ of\ nodes$
 - staking target / # of nodes in the network
 -->
 
-With current\* circulating supply of <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --> NYM, stake saturation of <!-- cmdrun cd ../../../scripts/cmdrun &&    --> and <!-- cmdrun cd ../../../scripts/cmdrun &&     --> nodes bonded in Nym Network, the stake saturation level is <!-- cmdrun cd ../../../scripts/cmdrun &&     --> NYM per node.
+With current\* circulating supply of <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --> NYM, staking target of <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py c --staking_target --> NYM divided the sum of [nodes bonded to the network](https://harbourmaster.nymtech.net), the stake saturation level is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval stake_saturation_point --> NYM per node.
 
+**Active set**
+
+Nym Network needs an optimised number of nodes to route and mix the packets. This healthy balance lies in between being too congested - which would detriment speed and user experience - on one side, and having too little traffic per node - which would could weaken anonymity - on the other. Currewntly the active set is 240 nodes, 120 with Gateway functionality (entry and exit layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beggining of each epoch (60min). The best performing and reputated (stake saturation) nodes are chosen. Performace is much more ample as you can see in the formula below:
+
+```admonish tip title=""
+$$
+active\ set\ selection\ probability = node\ performance^{20} * stake\ saturation
+$$
+```
+
+To read more about rewards calculation, please see next page [*Nym Operators Rewards*](mixnet-rewards.md).
 
 ### Summary in Numbers
 
@@ -76,10 +102,31 @@ Below is a table with Nyx chain data\* and token supply distribution.
 To get live data, visit [Nym token page](https://nymtech.net/about/token
 ) or see how to [query API endpoints](#query-tokenomics-api).
 
-## Query Tokenomics API
+## Query Validator API
 
-<!-- MAKE A QUICK GUIDE TO QUESRY THE STATS -->
+We have available API endpoints which can be accessed via [Swagger UI page](https://validator.nymtech.net/api/swagger/index.html). Or by querying the endpoints directly:
 
-https://validator.nymtech.net/api/v1/circulating-supply
+```sh
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply' \
+  -H 'accept: application/json'sh
 
-https://validator.nymtech.net/api/v1/epoch/reward_params
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply/total-supply-value' \
+-H 'accept: application/json'sh
+
+
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/circulating-supply-value' \
+-H 'accept: application/json'sh
+
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/epoch/reward_params' \
+-H 'accept: application/json'sh
+```
+
+> The unit of value is measured in `uNYM`.
+
+```admonish tip title=""
+$1 \ NYM = 1 \_ 000 \_ 000 \ uNYM$
+```

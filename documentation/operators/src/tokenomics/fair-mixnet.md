@@ -7,7 +7,7 @@
 Nym Network is composed of two main elements, the Mixnet represented by [Nym Nodes](../nodes/nym-node.md) routing and mixing the data packets, and Nyx blockchain based on [validator set](validator-rewards.md), using smart contracts (based on [cosmwasm]()) to monitor and reward Nym Nodes by querying API endpoints and distributing NYM token to operators from Mixmining pool. All Nym nodes and validators are run by decentralised community of operators.
 
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
-* For a more comprehensive overview, live data and supply graphs, cisit [nymtech.net/about/token](https://nymtech.net/about/token)
+* For a more comprehensive overview, live data and supply graphs, visit [*nymtech.net/about/token*](https://nymtech.net/about/token)
 
 **Formulas and Examples Annotation**
 
@@ -27,11 +27,11 @@ Besides the Mixnet itself, Nym Network is based on its own blockchain Nyx (IBC o
 
 * **Incentives:** Distribute rewards to decentralised nodes based on mixing and routing (work). This dynamic ensures that the network is as robust as possible - the nodes are chosen every hour according to their performance.
 
-* **Network take over defense:** Another decisive factore for a node to be chosen to the network active set is reputation. Reputation is a size of stake (delegation) where delegators earn proportional percentage of nodes rewards.
+* **Network take over defense:** Another decisive factor for a node to be chosen to the network active set is reputation. Reputation is a size of stake (delegation) where delegators earn proportional percentage of nodes rewards.
 
 * **Centralisation defense:** Any node can only have a certain stake (called stake saturation) to earn maximum rewards, increasing stake level per node leads to decreasing rewards for the operator and all delegators. This feature makes it more difficult for whales to over-stake their nodes or to attract more delegators (stakers) as they would become dis-advantaged.
 
-To learn more about rewards calculation and distributtion, read the next page [*Nym Operators Rewards*](mixnet-rewards.md).
+To learn more about rewards calculation and distribution, read the next page [*Nym Operators Rewards*](mixnet-rewards.md).
 
 
 ### Utility
@@ -42,17 +42,17 @@ Nyx blockchain's validators run API to monitor the network and node performance.
 
 On one hand node operators get [rewarded](mixnet-rewards.md) for the work they do, but their revenue is not forgranted. Only best performing nodes with a solid reputation can take part in the network. This creates an incentive for people to operate Nym nodes as quality and reliable service. The reputation system also works as a network defense against a large adversary take over or sybil attacks.
 
-On the other, node reputation is calculated by delegation. Delegation is a stake done by NYM token holders on top of nodes they want to support to join the network as it compensate the stakers with APR. Therefore there is an incetive for NYM holders to stake their token on top of nodes which they believe will perform well. To prevent a whale take-over and centralisation, the revenue grows alongside nodes stake size only until a certain point, after which the rewards per staker start to decrease. We call this mark *node stake saturation*.
+On the other, node reputation is calculated by delegation. Delegation is a stake done by NYM token holders on top of nodes they want to support to join the network as it compensate the stakers with APR. Therefore there is an incetive for NYM holders to stake their token on top of nodes which they believe will perform well. To prevent a whale takeover and centralisation, the revenue grows alongside nodes stake size only until a certain point, after which the rewards per staker start to decrease. We call this mark *node stake saturation*.
 
 Thanks to Nyx blockchain API monitoring, the flow is dynamic and constantly optimized based on live metrics. Below is a detailed explanation and reckoning of Nym tokenomics logic.
 
 ### Tokenomics
 
-Before we can arrive to a full comprehension of [node operators rewards](mixnet-rewards.md) and [delegators APR height](https://nymtech.net/about/token) we need to understand some basic logic and stats of Nym token economics. All the data can be [queryied from valdator API](#query-tokenomics-api).
+Before we can arrive to a full comprehension of [node operators rewards](mixnet-rewards.md) and [delegators APR height](https://nymtech.net/about/token) we need to understand some basic logic and stats of Nym token economics. All the data can be [queried from valdator API](#query-tokenomics-api).
 
 **Supply**
 
-NYM token is capped at 1b. Visit [Nym token page](https://nymtech.net/about/token) to see live data and graphs. Current\* circulating supply is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --> NYM.
+NYM token is capped at 1b. Visit [Nym token page](https://nymtech.net/about/token) to see live data and graphs. Current\* circulating supply is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --separator _ --> NYM.
 
 **Staking target**
 
@@ -64,8 +64,7 @@ $staking\ target = staking\ supply\ scale\ factor * circulating\ supply$
 
 Staking supply scale factor is currently\* it's set to be <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval staking_supply_scale_factor --format percent -->.
 
-The value of this variable can be changed to optimize the metrics of the network. With a current circulating supply of <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --> NYM and staking supply scale factor <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval staking_supply_scale_factor --format percent -->, the staking target is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py c --staking_target --> NYM.
-
+The value of this variable can be changed to optimize the metrics of the network. With a current circulating supply of <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --separator _ --> NYM and staking supply scale factor <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval staking_supply_scale_factor --format percent -->, the staking target is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py c --staking_target --separator _ --> NYM.
 
 **Stake saturation**
 
@@ -79,11 +78,11 @@ $stake\ saturation = circulating\ supply * staking\ target\ /\ total\ \#\ of\ no
 - staking target / # of nodes in the network
 -->
 
-With current\* circulating supply of <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --> NYM, staking target of <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py c --staking_target --> NYM divided the sum of [nodes bonded to the network](https://harbourmaster.nymtech.net), the stake saturation level is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval stake_saturation_point --> NYM per node.
+With current\* circulating supply of <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint circulating-supply --value circulating_supply amount --separator _ --> NYM, staking target of <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py c --staking_target --separator _--> NYM, divided by the sum of [nodes bonded to the network](https://harbourmaster.nymtech.net), the stake saturation level is <!-- cmdrun cd ../../../scripts/cmdrun && ./api_targets.py v --api mainnet --endpoint epoch/reward_params --value interval stake_saturation_point --separator _ --> NYM per node.
 
 **Active set**
 
-Nym Network needs an optimised number of nodes to route and mix the packets. This healthy balance lies in between being too congested - which would detriment speed and user experience - on one side, and having too little traffic per node - which would could weaken anonymity - on the other. Currewntly the active set is 240 nodes, 120 with Gateway functionality (entry and exit layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beggining of each epoch (60min). The best performing and reputated (stake saturation) nodes are chosen. Performace is much more ample as you can see in the formula below:
+Nym Network needs an optimised number of nodes to route and mix the packets. This healthy balance lies in between being too congested - which would detriment speed and user experience - on one side, and having too little traffic per node - which would could weaken anonymity - on the other. Currently the active set is 240 nodes, 120 with Gateway functionality (entry and exit layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beginning of each epoch (60min). The best performing and reputated (stake saturation) nodes are chosen. Performance is much more ample as you can see in the formula below:
 
 ```admonish tip title=""
 $$

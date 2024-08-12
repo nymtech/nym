@@ -83,11 +83,19 @@ def display_supply_table(response, args):
     df = df.rename(columns={'index1': '**Item**', 'amount': '**Amount in NYM**'})
     df['**Item**'] = df['**Item**'].apply(remove_underscore)
     df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(convert_u_nym)
-    df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(thousand_separator, args=(separator, ))
     desc_column = _get_desc_column()
     df.insert(1, '**Description**', desc_column, True)
+    stake_saturation = _get_stake_saturation()
+    df.loc[len(df.index)] = ['Stake Saturation', 'Optimal size of node self-bond + delegation', stake_saturation]
+    df['**Amount in NYM**'] = df['**Amount in NYM**'].apply(thousand_separator, args=(separator, ))
     table = df.to_markdown(index=False,colalign=("left","left","right"))
     print(table)
+
+def _get_stake_saturation():
+    reward_params = get_api("https://validator.nymtech.net/api/v1/epoch/reward_params")
+    stake_saturation = get_dict_value(reward_params,["interval","stake_saturation_point"])
+    stake_saturation = convert_u_nym(stake_saturation)
+    return stake_saturation
 
 def _get_desc_column():
     supply = "Maximum amount of NYM token in existence"
@@ -109,24 +117,19 @@ def read_supply(args):
         elif args.format == "markdown":
             display_supply_table(response, args)
         else:
-            print(response)
+            value = response
+            print(value)
     elif args.endpoint == "epoch/reward_params":
-        value = get_reward_params(response, args)
-        value = thousand_separator(value, separator)
+        value = get_reward_params(response, args, separator)
         print(value)
-    else:
-        # placeholder for other endpoint args
-        pass
 
-def get_reward_params(response, args):
-    #print(f"args.value = {args.value}, type = {type(args.value)}, lenm={len(args.value)}")
-    #print(f"RESPONSE = {response}")
-    value = get_nested_value(response, args)     #THIS WILL COME OUT AS A VARIABVLE response["interval"]["staking_supply_scale_factor"])
-    #value = response + keys
+def get_reward_params(response, args, separator):
+    value = get_nested_value(response, args)
     if args.format == "percent":
         value = _return_percent_annotation(value)
     else:
         value = convert_u_nym(value)
+        value = thousand_separator(value, separator)
     return value
 
 def get_nested_value(response, args):
@@ -149,7 +152,7 @@ def calculate(args):
     reward_params = get_api("https://validator.nymtech.net/api/v1/epoch/reward_params")
     circulating_supply = get_api("https://validator.nymtech.net/api/v1/circulating-supply")
     if args.staking_target:
-        display_staking_target(args, reward_params, circulating_supply)
+        display_staking_target(args, reward_params, circulating_supply, separator)
 
 def get_api(url):
     r = requests.get(url)
@@ -157,13 +160,15 @@ def get_api(url):
     return response
 
 
-def display_staking_target(args, reward_params, circulating_supply):
+def display_staking_target(args, reward_params, circulating_supply, separator):
     keys = ["interval", "staking_supply_scale_factor"]
     staking_supply_scale_factor = get_dict_value(reward_params, keys)
     keys = ["circulating_supply", "amount"]
     circulating_supply = get_dict_value(circulating_supply, keys)
     staking_target = float(staking_supply_scale_factor) * float(circulating_supply)
     staking_target = convert_u_nym(staking_target)
+    if args.separator:
+        staking_target = thousand_separator(staking_target, separator)
     print(staking_target)
 
 def get_dict_value(json, keys):

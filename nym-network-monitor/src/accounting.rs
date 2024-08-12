@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
-use log::debug;
+use futures::{stream::FuturesUnordered, StreamExt};
+use log::{debug, info};
 use nym_sphinx::chunking::{SentFragment, FRAGMENTS_RECEIVED, FRAGMENTS_SENT};
 use nym_topology::{gateway, mix, NymTopology};
 use rand::SeedableRng;
@@ -9,10 +10,44 @@ use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::{NYM_API_URL, TOPOLOGY};
+
 struct HydratedRoute {
     mix_nodes: Vec<mix::Node>,
-    #[allow(dead_code)]
     gateway_node: gateway::Node,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default, ToSchema)]
+struct GatewayStats(u32, u32, Option<String>);
+
+impl GatewayStats {
+    fn new(sent: u32, recv: u32, owner: Option<String>) -> Self {
+        GatewayStats(sent, recv, owner)
+    }
+
+    fn success(&self) -> u32 {
+        self.0
+    }
+
+    fn failed(&self) -> u32 {
+        self.1
+    }
+
+    fn reliability(&self) -> f64 {
+        self.success() as f64 / (self.success() + self.failed()) as f64
+    }
+
+    fn incr_success(&mut self) {
+        self.0 += 1;
+    }
+
+    fn incr_failure(&mut self) {
+        self.1 += 1;
+    }
+
+    fn owner(&self) -> Option<String> {
+        self.2.clone()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, ToSchema)]
@@ -21,10 +56,15 @@ pub struct NetworkAccount {
     incomplete_fragment_sets: HashSet<i32>,
     missing_fragments: HashMap<i32, Vec<u8>>,
     complete_routes: Vec<Vec<u32>>,
+    gateway_stats: HashMap<String, GatewayStats>,
     incomplete_routes: Vec<Vec<u32>>,
     #[serde(skip)]
     topology: NymTopology,
     tested_nodes: HashSet<u32>,
+    #[serde(skip)]
+    mix_details: HashMap<u32, mix::Node>,
+    #[serde(skip)]
+    gateway_details: HashMap<String, gateway::Node>,
 }
 
 impl NetworkAccount {
@@ -35,7 +75,17 @@ impl NetworkAccount {
     pub fn node_stats(&self, id: u32) -> NodeStats {
         let complete_routes = self.complete_for_id(id);
         let incomplete_routes = self.incomplete_for_id(id);
-        NodeStats::new(id, complete_routes, incomplete_routes)
+        let node = self
+            .mix_details
+            .get(&id)
+            .expect("Has to be in here, since we've put it in!");
+        NodeStats::new(
+            id,
+            complete_routes,
+            incomplete_routes,
+            node.identity_key.to_base58_string(),
+            node.owner.clone(),
+        )
     }
 
     fn complete_for_id(&self, id: u32) -> usize {
@@ -68,7 +118,7 @@ impl NetworkAccount {
     }
 
     fn new() -> Self {
-        let topology = NymTopology::new_from_file("topology.json").unwrap();
+        let topology = TOPOLOGY.get().expect("Topology not set yet!").clone();
         let mut account = NetworkAccount {
             topology,
             ..Default::default()
@@ -128,10 +178,22 @@ impl NetworkAccount {
                     .map(|n| n.mix_id)
                     .collect::<Vec<u32>>();
                 self.tested_nodes.extend(&mix_ids);
+                self.mix_details
+                    .extend(route.mix_nodes.iter().map(|n| (n.mix_id, n.clone())));
+                let gateway_stats_entry = self
+                    .gateway_stats
+                    .entry(route.gateway_node.identity_key.to_base58_string())
+                    .or_insert(GatewayStats::new(0, 0, route.gateway_node.owner.clone()));
+                self.gateway_details.insert(
+                    route.gateway_node.identity_key.to_base58_string(),
+                    route.gateway_node,
+                );
                 if self.complete_fragment_sets.contains(fragment_set_id) {
                     self.complete_routes.push(mix_ids);
+                    gateway_stats_entry.incr_success();
                 } else {
                     self.incomplete_routes.push(mix_ids);
+                    gateway_stats_entry.incr_failure();
                 }
             }
         }
@@ -199,19 +261,123 @@ pub struct NodeStats {
     complete_routes: usize,
     incomplete_routes: usize,
     reliability: f64,
+    identity: String,
+    owner: Option<String>,
 }
 
 impl NodeStats {
-    pub fn new(mix_id: u32, complete_routes: usize, incomplete_routes: usize) -> Self {
+    pub fn new(
+        mix_id: u32,
+        complete_routes: usize,
+        incomplete_routes: usize,
+        identity: String,
+        owner: Option<String>,
+    ) -> Self {
         NodeStats {
             mix_id,
             complete_routes,
             incomplete_routes,
             reliability: complete_routes as f64 / (complete_routes + incomplete_routes) as f64,
+            identity,
+            owner,
         }
     }
 
     pub fn reliability(&self) -> f64 {
         self.reliability
     }
+
+    pub fn into_mixnode_results(self) -> MixnodeResults {
+        MixnodeResults {
+            mix_id: self.mix_id,
+            identity: self.identity,
+            owner: self.owner,
+            reliability: (self.reliability * 100.) as u8,
+        }
+    }
+}
+
+pub async fn all_node_stats() -> anyhow::Result<Vec<NodeStats>> {
+    let account = NetworkAccount::finalize()?;
+    Ok(account
+        .tested_nodes()
+        .iter()
+        .map(|id| account.node_stats(*id))
+        .collect::<Vec<NodeStats>>())
+}
+
+pub async fn monitor_gateway_results() -> anyhow::Result<Vec<GatewayResult>> {
+    let account = NetworkAccount::finalize()?;
+    Ok(account
+        .gateway_stats
+        .iter()
+        .map(into_gateway_result)
+        .collect())
+}
+
+pub async fn monitor_mixnode_results() -> anyhow::Result<Vec<MixnodeResults>> {
+    let stats = all_node_stats().await?;
+    Ok(stats
+        .into_iter()
+        .map(NodeStats::into_mixnode_results)
+        .collect())
+}
+
+pub async fn submit_metrics() -> anyhow::Result<()> {
+    let node_stats = monitor_mixnode_results().await?;
+    let gateway_stats = monitor_gateway_results().await?;
+
+    info!("Submitting metrics to {}", *NYM_API_URL);
+    let client = reqwest::Client::new();
+
+    info!("Submitting {} mixnode measurements", node_stats.len());
+
+    let submit_url = format!("{}/v1/status/submit", &*NYM_API_URL);
+
+    node_stats
+        .chunks(10)
+        .map(|chunk| client.post(&submit_url).json(chunk).send())
+        .collect::<FuturesUnordered<_>>()
+        .collect::<Vec<Result<_, _>>>()
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+
+    info!("Submitting {} gatewway measurements", gateway_stats.len());
+
+    gateway_stats
+        .chunks(10)
+        .map(|chunk| client.post(&submit_url).json(chunk).send())
+        .collect::<FuturesUnordered<_>>()
+        .collect::<Vec<Result<_, _>>>()
+        .await
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(())
+}
+
+// Mirroring the current NM struct
+#[derive(Serialize)]
+pub(crate) struct MixnodeResults {
+    mix_id: u32,
+    identity: String,
+    owner: Option<String>,
+    reliability: u8,
+}
+
+fn into_gateway_result((key, stats): (&String, &GatewayStats)) -> GatewayResult {
+    GatewayResult {
+        identity: key.clone(),
+        owner: stats.owner(),
+        reliability: (stats.reliability() * 100.) as u8,
+    }
+}
+
+// Mirroring the current NM struct
+#[derive(Serialize)]
+pub(crate) struct GatewayResult {
+    identity: String,
+    owner: Option<String>,
+    reliability: u8,
 }

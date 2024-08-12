@@ -6,9 +6,9 @@
 
 use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use mix::Node;
-use nym_config::defaults::mainnet::NYM_API;
+use nym_config::defaults::var_names::NYM_API;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -126,21 +126,27 @@ pub struct NymTopology {
 
 impl NymTopology {
     pub async fn new_from_env() -> Result<Self, NymTopologyError> {
-        let mixnodes = reqwest::get(&format!("{}/v1/mixnodes", NYM_API))
+        let api_url = std::env::var(NYM_API)?;
+
+        info!("Generating topology from {}", api_url);
+
+        let mixnodes = reqwest::get(&format!("{}/v1/mixnodes", api_url))
             .await?
             .json::<Vec<MixNodeDetails>>()
             .await?
             .into_iter()
             .map(|details| details.bond_information)
             .map(mix::Node::try_from)
+            .filter(Result::is_ok)
             .collect::<Result<Vec<_>, _>>()?;
 
-        let gateways = reqwest::get(&format!("{}/v1/gateways", NYM_API))
+        let gateways = reqwest::get(&format!("{}/v1/gateways", api_url))
             .await?
             .json::<Vec<GatewayBond>>()
             .await?
             .into_iter()
             .map(gateway::Node::try_from)
+            .filter(Result::is_ok)
             .collect::<Result<Vec<_>, _>>()?;
         let topology = NymTopology::new_unordered(mixnodes, gateways);
         Ok(topology)

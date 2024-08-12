@@ -5436,6 +5436,7 @@ dependencies = [
  "petgraph",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
+ "reqwest 0.12.4",
  "serde",
  "serde_json",
  "tokio",

@@ -1,18 +1,30 @@
 use crate::http::HttpServer;
+use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
 use log::{info, warn};
 use nym_network_defaults::setup_env;
+use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
+use std::sync::LazyLock;
 use std::{
     collections::VecDeque,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     str::FromStr,
     sync::Arc,
 };
+use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
 use tokio_util::sync::CancellationToken;
+
+static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
+    std::env::var(NYM_API).unwrap_or_else(|_| panic!("{} env var not set", NYM_API))
+});
+
+static MIXNET_TIMEOUT: OnceCell<u64> = OnceCell::const_new();
+
+static TOPOLOGY: OnceCell<NymTopology> = OnceCell::const_new();
 
 mod accounting;
 mod handlers;
@@ -104,6 +116,9 @@ struct Args {
     /// Path to the environment file
     #[arg(short, long, default_value = None)]
     env: Option<String>,
+
+    #[arg(short, long, default_value_t = 10)]
+    mixnet_timeout: u64,
 }
 
 #[tokio::main]
@@ -112,24 +127,28 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    setup_env(args.env);
+    setup_env(args.env); // Defaults to mainnet if empty
 
     let cancel_token = CancellationToken::new();
     let server_cancel_token = cancel_token.clone();
     let clients = Arc::new(RwLock::new(VecDeque::with_capacity(args.n_clients)));
 
-    let topology = if let Some(topology_file) = args.topology {
-        NymTopology::new_from_file(topology_file)?
-    } else {
-        NymTopology::new_from_env().await?
-    };
+    TOPOLOGY
+        .set(if let Some(topology_file) = args.topology {
+            NymTopology::new_from_file(topology_file)?
+        } else {
+            NymTopology::new_from_env().await?
+        })
+        .ok();
+
+    MIXNET_TIMEOUT.set(args.mixnet_timeout).ok();
 
     let spawn_clients = Arc::clone(&clients);
     tokio::spawn(make_clients(
         spawn_clients,
         args.n_clients,
         args.client_lifetime,
-        topology,
+        TOPOLOGY.get().expect("Topology not set yet!").clone(),
     ));
 
     let _server_handle = tokio::spawn(async move {
@@ -141,7 +160,9 @@ async fn main() -> Result<()> {
     info!("Waiting for message (ctrl-c to exit)");
 
     ctrl_c().await?;
-    info!("Received Ctrl-C");
+    info!("Received kill signal, shutting down, submitting final batch of metrics");
+
+    submit_metrics().await?;
 
     cancel_token.cancel();
     Ok(())

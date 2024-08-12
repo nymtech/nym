@@ -507,6 +507,8 @@ impl StorageManager {
         &self,
         mixnode_results: Vec<MixnodeResult>,
     ) -> Result<(), sqlx::Error> {
+        info!("Inserting {} mixnode statuses", mixnode_results.len());
+
         let timestamp = OffsetDateTime::now_utc().unix_timestamp();
         // insert it all in a transaction to make sure all nodes are updated at the same time
         // (plus it's a nice guard against new nodes)
@@ -515,7 +517,7 @@ impl StorageManager {
             let mixnode_id = sqlx::query!(
                 r#"
                     INSERT OR IGNORE INTO mixnode_details_v2(mix_id, identity_key, owner) VALUES (?, ?, ?);
-                    SELECT id FROM mixnode_details WHERE mix_id = ?;
+                    SELECT id FROM mixnode_details_v2 WHERE mix_id = ?;
                 "#,
                 mixnode_result.mix_id,
                 mixnode_result.identity,
@@ -596,6 +598,8 @@ impl StorageManager {
         &self,
         gateway_results: Vec<GatewayResult>,
     ) -> Result<(), sqlx::Error> {
+        info!("Inserting {} gateway statuses", gateway_results.len());
+
         let timestamp = OffsetDateTime::now_utc().unix_timestamp();
         // insert it all in a transaction to make sure all nodes are updated at the same time
         // (plus it's a nice guard against new nodes)
@@ -608,7 +612,7 @@ impl StorageManager {
             let gateway_id = sqlx::query!(
                 r#"
                     INSERT OR IGNORE INTO gateway_details_v2(identity, owner) VALUES (?, ?);
-                    SELECT id FROM gateway_details WHERE identity = ?;
+                    SELECT id FROM gateway_details_v2 WHERE identity = ?;
                 "#,
                 gateway_result.identity,
                 gateway_result.owner,

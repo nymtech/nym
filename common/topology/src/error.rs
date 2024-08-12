@@ -60,4 +60,7 @@ pub enum NymTopologyError {
 
     #[error("{0}")]
     GatewayConversionError(#[from] crate::gateway::GatewayConversionError),
+
+    #[error("{0}")]
+    VarError(#[from] std::env::VarError),
 }

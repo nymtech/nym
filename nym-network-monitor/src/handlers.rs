@@ -19,8 +19,9 @@ use tokio::time::timeout;
 use utoipa::ToSchema;
 
 use crate::{
-    accounting::{NetworkAccount, NetworkAccountStats, NodeStats},
+    accounting::{all_node_stats, NetworkAccount, NetworkAccountStats, NodeStats},
     http::AppState,
+    MIXNET_TIMEOUT,
 };
 
 #[derive(ToSchema, Serialize)]
@@ -61,12 +62,9 @@ pub async fn node_stats_handler(Path(mix_id): Path<u32>) -> Result<Json<NodeStat
     )
 )]
 pub async fn all_nodes_stats_handler() -> Result<Json<Vec<NodeStats>>, StatusCode> {
-    let account = NetworkAccount::finalize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let mut stats = account
-        .tested_nodes()
-        .iter()
-        .map(|id| account.node_stats(*id))
-        .collect::<Vec<NodeStats>>();
+    let mut stats = all_node_stats()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     stats.sort_by(|a, b| a.reliability().partial_cmp(&b.reliability()).unwrap());
     Ok(Json(stats))
 }
@@ -207,7 +205,12 @@ async fn send_receive_mixnet(state: AppState) -> Result<String, StatusCode> {
     let sender = Arc::clone(&client);
 
     let recv_handle = tokio::spawn(async move {
-        match timeout(Duration::from_secs(10), recv.write().await.next()).await {
+        match timeout(
+            Duration::from_secs(*MIXNET_TIMEOUT.get().expect("Set at the begining")),
+            recv.write().await.next(),
+        )
+        .await
+        {
             Ok(Some(received)) => {
                 debug!("Received: {}", String::from_utf8_lossy(&received.message));
             }

@@ -22,6 +22,14 @@ pub(crate) fn nym_node_routes() -> axum::Router<AxumAppState> {
         )
 }
 
+#[utoipa::path(
+    tag = "Nym Nodes",
+    get,
+    path = "/v1/gateways/described",
+    responses(
+        (status = 200, body = Vec<DescribedGateway>)
+    )
+)]
 async fn get_gateways_described(State(state): State<AxumAppState>) -> Json<Vec<DescribedGateway>> {
     let gateways = state.nym_contract_cache().gateways_filtered().await;
     if gateways.is_empty() {
@@ -47,6 +55,14 @@ async fn get_gateways_described(State(state): State<AxumAppState>) -> Json<Vec<D
     )
 }
 
+#[utoipa::path(
+    tag = "Nym Nodes",
+    get,
+    path = "/v1/mixnodes/described",
+    responses(
+        (status = 200, body = Vec<DescribedMixNode>)
+    )
+)]
 async fn get_mixnodes_described(State(state): State<AxumAppState>) -> Json<Vec<DescribedMixNode>> {
     let mixnodes = state
         .nym_contract_cache()

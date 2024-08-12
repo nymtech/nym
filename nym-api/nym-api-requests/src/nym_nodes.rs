@@ -8,6 +8,7 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::MixId;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
+use utoipa::ToSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CachedNodesResponse<T> {
@@ -28,7 +29,7 @@ pub enum NodeRoleQueryParam {
     ExitGateway,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub enum NodeRole {
     // a properly active mixnode
     Mixnode {

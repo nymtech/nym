@@ -32,7 +32,7 @@ nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"] 
 nym-ecash-time = { path = "../../common/ecash-time" }
 nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
-nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false }
+nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false, features = ["openapi"] }
 
 
 [dev-dependencies]

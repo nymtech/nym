@@ -202,12 +202,24 @@ fn setup_cors() -> CorsLayer {
         nym_api_requests::models::ApiStatus,
         nym_bin_common::build_information::BinaryBuildInformationOwned,
         nym_api_requests::models::SignerInformationResponse,
+        nym_api_requests::models::DescribedGateway,
+        nym_mixnet_contract_common::Gateway,
+        nym_mixnet_contract_common::GatewayBond,
+        nym_api_requests::models::NymNodeDescription,
+        nym_api_requests::models::HostInformation,
+        nym_api_requests::models::HostKeys,
+        nym_node_requests::api::v1::node::models::AuxiliaryDetails,
+        nym_api_requests::models::NetworkRequesterDetails,
+        nym_api_requests::models::IpPacketRouterDetails,
+        nym_api_requests::models::AuthenticatorDetails,
+        nym_api_requests::models::WebSockets,
+        nym_api_requests::nym_nodes::NodeRole,
+        nym_api_requests::models::DescribedMixNode,
     ))
 )]
 struct ApiDoc;
 
 pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
-    // TODO dz serve swagger UI
     let router = Router::new()
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO dz use tracing instead of env_logger

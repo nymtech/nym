@@ -426,7 +426,7 @@ pub struct CirculatingSupplyResponse {
     pub circulating_supply: Coin,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct HostInformation {
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
@@ -443,7 +443,7 @@ impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInf
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct HostKeys {
     pub ed25519: String,
     pub x25519: String,
@@ -458,7 +458,7 @@ impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct WebSockets {
     pub ws_port: u16,
 
@@ -482,7 +482,7 @@ where
 }
 
 // for all intents and purposes it's just OffsetDateTime, but we need JsonSchema...
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct OffsetDateTimeJsonSchemaWrapper(
     #[serde(
         default = "unix_epoch",
@@ -550,7 +550,7 @@ impl JsonSchema for OffsetDateTimeJsonSchemaWrapper {
 }
 
 // this struct is getting quite bloated...
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NymNodeDescription {
     #[serde(default)]
     pub last_polled: OffsetDateTimeJsonSchemaWrapper,
@@ -584,7 +584,7 @@ fn default_node_role() -> NodeRole {
     NodeRole::Inactive
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct DescribedGateway {
     pub bond: GatewayBond,
     pub self_described: Option<NymNodeDescription>,
@@ -599,7 +599,7 @@ impl From<GatewayBond> for DescribedGateway {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct DescribedMixNode {
     pub bond: MixNodeBond,
     pub self_described: Option<NymNodeDescription>,
@@ -614,7 +614,7 @@ impl From<MixNodeBond> for DescribedMixNode {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NetworkRequesterDetails {
     /// address of the embedded network requester
     pub address: String,
@@ -623,13 +623,13 @@ pub struct NetworkRequesterDetails {
     pub uses_exit_policy: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct IpPacketRouterDetails {
     /// address of the embedded ip packet router
     pub address: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct AuthenticatorDetails {
     /// address of the embedded authenticator
     pub address: String,

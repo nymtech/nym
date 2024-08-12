@@ -188,6 +188,7 @@ fn setup_cors() -> CorsLayer {
         nym_api_requests::models::StakeSaturationResponse,
         nym_api_requests::models::InclusionProbabilityResponse,
         nym_api_requests::models::AllInclusionProbabilitiesResponse,
+        nym_api_requests::models::InclusionProbability,
         nym_api_requests::models::SelectionChance,
         NetworkDetails,
         nym_config::defaults::NymNetworkDetails,
@@ -197,6 +198,10 @@ fn setup_cors() -> CorsLayer {
         nym_config::defaults::NymContracts,
         ContractVersionSchemaResponse,
         crate::network::models::ContractInformation<ContractVersionSchemaResponse>,
+        nym_api_requests::models::ApiHealthResponse,
+        nym_api_requests::models::ApiStatus,
+        nym_bin_common::build_information::BinaryBuildInformationOwned,
+        nym_api_requests::models::SignerInformationResponse,
     ))
 )]
 struct ApiDoc;

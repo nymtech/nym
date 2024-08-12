@@ -352,8 +352,9 @@ pub struct AllInclusionProbabilitiesResponse {
     pub as_at: i64,
 }
 
-#[derive(Clone, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Serialize, schemars::JsonSchema, ToSchema)]
 pub struct InclusionProbability {
+    #[schema(value_type = u32)]
     pub mix_id: MixId,
     pub in_active: f64,
     pub in_reserve: f64,
@@ -634,13 +635,13 @@ pub struct AuthenticatorDetails {
     pub address: String,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct ApiHealthResponse {
     pub status: ApiStatus,
     pub uptime: u64,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiStatus {
     Up,
@@ -661,7 +662,7 @@ impl ApiStatus {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct SignerInformationResponse {
     pub cosmos_address: String,
 

@@ -113,7 +113,7 @@ nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests", features = ["rocket-traits"] }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format", "openapi"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-http-api-common = { path = "../common/http-api-common" }

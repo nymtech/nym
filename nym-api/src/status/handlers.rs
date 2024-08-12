@@ -38,16 +38,40 @@ pub(crate) fn api_status_routes() -> Router<AxumAppState> {
         )
 }
 
+#[utoipa::path(
+    tag = "API Status",
+    get,
+    path = "/v1/api-status/health",
+    responses(
+        (status = 200, body = ApiHealthResponse)
+    )
+)]
 async fn health(state: Arc<ApiStatusState>) -> Json<ApiHealthResponse> {
     let uptime = state.startup_time.elapsed();
     let health = ApiHealthResponse::new_healthy(uptime);
     Json(health)
 }
 
+#[utoipa::path(
+    tag = "API Status",
+    get,
+    path = "/v1/api-status/build-information",
+    responses(
+        (status = 200, body = BinaryBuildInformationOwned)
+    )
+)]
 async fn build_information(state: Arc<ApiStatusState>) -> Json<BinaryBuildInformationOwned> {
     Json(state.build_information.to_owned())
 }
 
+#[utoipa::path(
+    tag = "API Status",
+    get,
+    path = "/v1/api-status/signer-information",
+    responses(
+        (status = 200, body = SignerInformationResponse)
+    )
+)]
 async fn signer_information(
     state: Arc<ApiStatusState>,
 ) -> AxumResult<Json<SignerInformationResponse>> {

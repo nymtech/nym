@@ -139,12 +139,17 @@ fn generate_non_identity_h(
             params.gen1() * joined_commitment_opening + gamma[0] * sk_user.sk + gamma[1] * v;
 
         // Compute commitment hash h
-        let joined_commitment_hash =
-            hash_g1((joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes());
+        let joined_commitment_hash = hash_g1(
+            (joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes(),
+        );
 
         // Check if the joined_commitment_hash is not the identity element
         if !bool::from(joined_commitment_hash.is_identity()) {
-            return (joined_commitment, joined_commitment_hash, joined_commitment_opening);
+            return (
+                joined_commitment,
+                joined_commitment_hash,
+                joined_commitment_opening,
+            );
         }
     }
 }
@@ -186,7 +191,6 @@ pub fn withdrawal_request(
     // Generate a non-identity commitment hash
     let (joined_commitment, joined_commitment_hash, joined_commitment_opening) =
         generate_non_identity_h(&params, sk_user, v, expiration_date, t_type);
-
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
     let private_attributes = vec![sk_user.sk, v];
@@ -416,7 +420,7 @@ pub fn issue_verify(
     if req_info.joined_commitment_hash != blind_signature.h {
         return Err(CompactEcashError::IssuanceVerification);
     }
-    if bool::from(blind_signature.h.is_identity()){
+    if bool::from(blind_signature.h.is_identity()) {
         return Err(CompactEcashError::IssuanceVerification);
     }
 
@@ -499,7 +503,7 @@ pub fn verify_partial_blind_signature(
     // Note: This check is useful if someone uses the code of those functions
     // to verify Pointcheval-Sanders signatures in a context different for their use
     // in zk-nyms
-    if bool::from(blind_sig.h.is_identity()){
+    if bool::from(blind_sig.h.is_identity()) {
         return false;
     }
     // TODO: we're losing some memory here due to extra allocation,
@@ -560,17 +564,19 @@ pub fn verify_partial_blind_signature(
 
 #[cfg(test)]
 mod tests {
+    use super::{generate_non_identity_h, verify_partial_blind_signature};
+    use crate::common_types::BlindedSignature;
     use crate::ecash_group_parameters;
     use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
-    use super::{generate_non_identity_h, verify_partial_blind_signature};
-    use crate::common_types::{BlindedSignature};
-    use bls12_381::{G1Projective};
+    use bls12_381::G1Projective;
 
     #[test]
     fn test_generate_non_identity_h() {
         let params = ecash_group_parameters();
         // Create dummy values for testing
-        let sk_user = SecretKeyUser { sk: params.random_scalar() };
+        let sk_user = SecretKeyUser {
+            sk: params.random_scalar(),
+        };
         let v = params.random_scalar();
         let expiration_date = params.random_scalar();
         let t_type = params.random_scalar();
@@ -580,7 +586,10 @@ mod tests {
             generate_non_identity_h(&params, &sk_user, v, expiration_date, t_type);
 
         // Ensure that the joined_commitment_hash is not the identity element
-        assert!(!bool::from(joined_commitment_hash.is_identity()), "Joined commitment hash should not be the identity element");
+        assert!(
+            !bool::from(joined_commitment_hash.is_identity()),
+            "Joined commitment hash should not be the identity element"
+        );
     }
 
     #[test]

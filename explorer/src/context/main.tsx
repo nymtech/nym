@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { PaletteMode } from '@mui/material';
+import semverClean from 'semver/functions/clean';
 import {
   ApiState,
   BlockResponse,
@@ -123,6 +124,10 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
     setGateways((d) => ({ ...d, isLoading: true }));
     try {
       const data = await Api.fetchGateways();
+      data.forEach((g) => {
+        // eslint-disable-next-line no-param-reassign
+        g.gateway.version = semverClean(g.gateway.version) || '0.0.0';
+      });
       setGateways({ data, isLoading: false });
     } catch (error) {
       setGateways({

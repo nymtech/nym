@@ -5,3 +5,6 @@ build:
 # make my life easier so I wouldn't need to deal with any bundlers. sorry @MS : )
 build-debug-dev:
 	wasm-pack build --scope nymproject --target no-modules
+
+clippy:
+	cargo clippy --target wasm32-unknown-unknown -- -Dwarnings

@@ -9,6 +9,8 @@ mod error;
 mod helpers;
 #[cfg(target_arch = "wasm32")]
 mod opts;
+#[cfg(target_arch = "wasm32")]
+mod bandwidth;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;

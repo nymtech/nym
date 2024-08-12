@@ -9,7 +9,7 @@ license.workspace = true
 [dependencies]
 log = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
 time.workspace = true
 
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }

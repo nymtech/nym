@@ -35,5 +35,6 @@ pub(crate) fn minimal_coconut_sandbox() -> NymNetworkDetails {
             ..Default::default()
         },
         explorer_api: None,
+        nym_vpn_api_url: None,
     }
 }

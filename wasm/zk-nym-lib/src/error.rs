@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_bandwidth_controller::error::BandwidthControllerError;
-use nym_network_defaults::UrlParseError;
 use nym_validator_client::nyxd::error::NyxdError;
 use thiserror::Error;
 use wasm_utils::wasm_error;
@@ -55,6 +54,9 @@ pub enum WasmCredentialClientError {
         #[from]
         source: bip39::Error,
     },
+
+    #[error("The ticket book cannot be retrieved from the credential store")]
+    TicketbookCredentialStoreIsNone,
 }
 
 wasm_error!(WasmCredentialClientError);

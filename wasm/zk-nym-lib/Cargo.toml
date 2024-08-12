@@ -28,10 +28,11 @@ wasm-utils = { path = "../../common/wasm/utils" }
 
 nym-bin-common = { path = "../../common/bin-common" }
 nym-credentials = { path = "../../common/credentials" }
+nym-credential-utils = { path = "../../common/credential-utils" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
-nym-credentials-interface = { path = "../../common/credentials-interface" }
+nym-credentials-interface = { path = "../../common/credentials-interface", features = ["wasm-serde-types"]}
 nym-network-defaults = { path = "../../common/network-defaults" }
 
 [dev-dependencies]

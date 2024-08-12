@@ -3,6 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use nym_metrics::{inc, inc_by};
 use si_scale::helpers::bibytes2;
 
@@ -72,6 +73,11 @@ struct PacketStatistics {
 }
 
 impl PacketStatistics {
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    fn handle_event(&mut self, event: crate::client::packet_statistics_control::PacketStatisticsEvent) {
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     fn handle_event(&mut self, event: PacketStatisticsEvent) {
         match event {
             PacketStatisticsEvent::RealPacketSent(packet_size) => {

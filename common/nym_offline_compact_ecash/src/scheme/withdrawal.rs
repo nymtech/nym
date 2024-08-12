@@ -190,7 +190,7 @@ pub fn withdrawal_request(
 
     // Generate a non-identity commitment hash
     let (joined_commitment, joined_commitment_hash, joined_commitment_opening) =
-        generate_non_identity_h(&params, sk_user, v, expiration_date, t_type);
+        generate_non_identity_h(params, sk_user, v, expiration_date, t_type);
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
     let private_attributes = vec![sk_user.sk, v];

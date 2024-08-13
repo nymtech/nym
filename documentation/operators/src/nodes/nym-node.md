@@ -6,7 +6,7 @@ If you are a `nym-mixnode` or `nym-gateway` operator and you are not familiar wi
 
 NYM NODE is a tool for running a node within the Nym network. Nym Nodes containing functionality such as `mixnode`, `entry-gateway` and `exit-gateway` are fundamental components of Nym Mixnet architecture. Nym Nodes are ran by decentralised node operators.
 
-To setup any type of Nym Node, start with either building [Nym's platform](../binaries/building-nym.md) from source or download [pre-compiled binaries](../binaries/pre-built-binaries.md) on the [configured server (VPS)](vps-setup.md) where you want to run the node. Nym Node will need to be bond to [Nym's wallet](wallet-preparation.md). 
+To setup any type of Nym Node, start with either building [Nym's platform](../binaries/building-nym.md) from source or download [pre-compiled binaries](../binaries/pre-built-binaries.md) on the [configured server (VPS)](vps-setup.md) where you want to run the node. Your Nym Node will need to be bonded before it can be run. We recommend most users use the [Nym desktop wallet](wallet-preparation.md) for this.
 
 **Follow [preliminary steps](preliminary-steps.md) page before you configure and run a `nym-node`!**
 

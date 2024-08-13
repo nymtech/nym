@@ -6,21 +6,25 @@ If you are a `nym-mixnode` or `nym-gateway` operator and you are not familiar wi
 
 NYM NODE is a tool for running a node within the Nym network. Nym Nodes containing functionality such as `mixnode`, `entry-gateway` and `exit-gateway` are fundamental components of Nym Mixnet architecture. Nym Nodes are ran by decentralised node operators.
 
-To setup any type of Nym Node, start with either building [Nym's platform](../binaries/building-nym.md) from source or download [pre-compiled binaries](../binaries/pre-built-binaries.md) on the [configured server (VPS)](vps-setup.md) where you want to run the node. Nym Node will need to be bond to [Nym's wallet](wallet-preparation.md). Follow [preliminary steps](preliminary-steps.md) page before you initialise and run a node.
+To setup any type of Nym Node, start with either building [Nym's platform](../binaries/building-nym.md) from source or download [pre-compiled binaries](../binaries/pre-built-binaries.md) on the [configured server (VPS)](vps-setup.md) where you want to run the node. Your Nym Node will need to be bonded before it can be run. We recommend most users use the [Nym desktop wallet](wallet-preparation.md) for this.
 
-```admonish info
-**Migrating an existing node to a new `nym-node` is simple. The steps are documented on the [next page](setup.md#migrate)**
-```
+**Follow [preliminary steps](preliminary-steps.md) page before you configure and run a `nym-node`!**
 
 ## Steps for Nym Node Operators
 
-Once VPS and Nym wallet are configured, binaries ready, the operators of `nym-node` need to:
+Once [VPS and Nym wallet are configured](preliminary-steps.md), binaries ready, the operators of `nym-node` need to:
 
-1. **[Setup & Run](setup.md) the node**
+1. **[Setup](setup.md) the node**
 
-2. **[Configure](configuration.md) the node** (and optionally WSS, reversed proxy, automation)
+2. **[Configure](configuration.md) the node and optionally automation, Wireguard, WSS, reversed proxy ...**
 
-3. **[Bond](bonding.md) the node to the Nym API, using Nym wallet**
+3. **[Run](setup.md#initialise--run) the node or [the service](configuration.md#following-steps-for-nym-nodes-running-as-systemd-service)**
+
+4. **[Bond](bonding.md) the node to the Nym API, using Nym wallet**
+
+Make sure to follow the steps thoroughly, in case you find any point difficult don't hesitate to ask in our [Operators channel](https://matrix.to/#/#operators:nymtech.chat).
+
+<!-- COMMENTING OUT
 
 ## Quick `nym-node --mode exit-gateway` Setup
 
@@ -98,3 +102,5 @@ ip addr show nymtun0
 ```sh
 sudo ./network_tunnel_manager.sh joke_through_the_mixnet
 ```
+
+-->

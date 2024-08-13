@@ -97,18 +97,26 @@ ufw enable
 ufw status
 ```
 
-2. Open all needed ports to have your firewall working correctly:
+2. Open all needed ports to have your firewall for `nym-node` working correctly:
 ```sh
-# for nym-node
-ufw allow 1789,1790,8080,9000,9001,22/tcp
+ufw allow 22/tcp    # SSH - you're in control of these ports
+ufw allow 80/tcp    # HTTP
+ufw allow 443/tcp   # HTTPS
+ufw allow 1789/tcp  # Nym specific
+ufw allow 1790/tcp  # Nym specific
+ufw allow 8080/tcp  # Nym specific - nym-node-api
+ufw allow 9000/tcp  # Nym Specific - clients port
+ufw allow 9001/tcp  # Nym specific - wss port 
+ufw allow 51822/udp # WireGuard
+```
 
-# in case of planning to setup a WSS (for Gateway functionality)
-ufw allow 9001/tcp
+- In case of reverse proxy setup add:
+```sh
+ufw allow 443/tcp
+```
 
-# in case of reverse proxy for the swagger page (for Gateway optionality)
-ufw allow 80,443/tcp
-
-# for validator
+- For validator setup open these ports:
+```sh
 ufw allow 1317,26656,26660,22,80,443/tcp
 ```
 
@@ -237,6 +245,7 @@ All node-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID
 | `9000`          | Listen for Client traffic     |
 | `9001`          | WSS                           |
 | `8080, 80, 443` | Reversed Proxy & Swagger page |
+|`51822/udp` | WireGuard |
 
 #### Embedded Network Requester functionality ports
 

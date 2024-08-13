@@ -82,10 +82,8 @@ To list all available flags for each command, run `./nym-node <COMMAND> --help` 
 ```
 ~~~
 
-```admonish bug
-The Wireguard flags currently have limited functionality. This feature is under development and testing.
-
-**Keep Wireguard disabled for the time being!**
+```admonish warning
+The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](configuration.md#wireguard-setup).
 ```
 
 #### Flags Summary
@@ -170,11 +168,11 @@ To prevent over-flooding of our documentation we cannot provide with every singl
 ./nym-node  run  --mode exit-gateway
 
 # with other options
-./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled false
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled true
 
 # <YOUR_DOMAIN> is in format without 'https://' prefix
 # <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
-# keep wireguard disabled
+# wireguard can be enabled from version 1.1.6 onwards
 ```
 
 **Initialise only** without running the node with `--init-only` command :
@@ -184,11 +182,11 @@ To prevent over-flooding of our documentation we cannot provide with every singl
 ./nym-node run --init-only --mode exit-gateway
 
 # with a custom `--id` and other options
-./nym-node run --id <ID> --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled false
+./nym-node run --id <ID> --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled true
 
 # <YOUR_DOMAIN> is in format without 'https://' prefix
 # <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
-# keep wireguard disabled
+# wireguard can be enabled from version 1.1.6 onwards
 ```
 
 Run the node with custom `--id` without initialising, using `--deny-init` command
@@ -203,7 +201,16 @@ Run the node with custom `--id` without initialising, using `--deny-init` comman
 ./nym-node run --mode entry-gateway
 ```
 
-Initialise only with a custom `--id` and `--init-only` command:
+Initialise & run with all options
+```sh
+./nym-node run --id <ID> --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --accept-operator-terms-and-conditions --wireguard-enabled true
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# wireguard can be enabled from version 1.1.6 onwards
+```
+
+Initialise only, with an `--init-only` command (a custom `--id` used):
 ```sh
 ./nym-node run --id <ID> --init-only --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --accept-operator-terms-and-conditions
 ```

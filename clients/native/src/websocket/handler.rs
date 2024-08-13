@@ -422,7 +422,7 @@ impl Handler {
     ) {
         // We don't want a crash in the connection handler to trigger a shutdown of the whole
         // process.
-        task_client.mark_as_success();
+        task_client.disarm();
 
         let ws_stream = match accept_async(socket).await {
             Ok(ws_stream) => ws_stream,

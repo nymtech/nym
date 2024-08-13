@@ -81,7 +81,7 @@ impl ConnectionHandler {
         mut shutdown: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
-        shutdown.mark_as_success();
+        shutdown.disarm();
         let mut framed_conn = Framed::new(conn, NymCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {

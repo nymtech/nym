@@ -9,7 +9,6 @@ use axum::Router;
 use log::info;
 use nym_sphinx::chunking::fragment::FragmentHeader;
 use nym_sphinx::chunking::{ReceivedFragment, SentFragment};
-use std::future::IntoFuture;
 use std::net::SocketAddr;
 use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
@@ -81,25 +80,15 @@ impl HttpServer {
             .route("/v1/received", get(recv_handler));
         let listener = tokio::net::TcpListener::bind(self.listener).await?;
 
-        let shutdown_future = self.cancel.cancelled();
-        let server_future = axum::serve(listener, app).into_future();
+        let server_future = axum::serve(listener, app).with_graceful_shutdown(async move {
+            self.cancel.cancelled().await;
+        });
 
         info!("##########################################################################################");
         info!("######################### HTTP server running, with {} clients ############################################", n_clients);
         info!("##########################################################################################");
 
-        tokio::select! {
-            _ = shutdown_future => {
-                info!("received shutdown");
-            }
-            res = server_future => {
-                info!("the http server has terminated");
-                if let Err(err) = res {
-                    info!("with the following error: {err}");
-                    return Err(err.into())
-                }
-            }
-        }
+        server_future.await?;
 
         Ok(())
     }

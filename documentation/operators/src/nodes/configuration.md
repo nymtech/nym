@@ -204,7 +204,7 @@ However, most of the time the packets sent through the Mixnet are IPv4 based. Th
 If you preparing to run a `nym-node` with all modes enabled in the future, this setup is required.
 ```
 
-```admonish caution title=""
+```admonish tip title="Delegation Program"
 For everyone participating in Delegation Program or Service Grant program, this setup is a requirement!
 ```
 

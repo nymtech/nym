@@ -364,6 +364,8 @@ ip addr show nymtun0
 ./network_tunnel_manager.sh joke_through_wg_tunnel
 ```
 
+- **Note:** WireGuard will return only IPv4 joke, not IPv6. WG IPv6 is under development. Running IPR joke through the mixnet with `./network_tunnel_manager.sh joke_through_the_mixnet` should work with both IPv4 and IPv6!
+
 11. Now you can run your node with the `--wireguard-enabled true` flag or add it to your [systemd service config](#systemd). Restart your `nym-node` or [systemd](#following-steps-for-nym-nodes-running-as-systemd-service) service (recommended):
 ```sh
 systemctl daemon-reload && systemctl restart nym-node.service	

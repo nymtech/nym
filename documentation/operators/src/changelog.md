@@ -106,7 +106,7 @@ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-
 - **Download Nym Node:**
     - You can download the `nym-node` binary directly using the following command:
 ```bash
-curl -s https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck/nym-node -o nym-node && chmod u+x nym-node
+curl -L https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck/nym-node -o nym-node && chmod u+x nym-node
 ```
 
 **Step 1: Update UFW Firewall Rules**
@@ -200,6 +200,8 @@ Finally, run the following command to initiate our favorite routing test - run t
 ```bash
 ./network_tunnel_manager.sh joke_through_wg_tunnel
 ```
+
+- **Note:** Wireguard will return only IPv4 joke, not IPv6. WG IPv6 is under development. Running IPR joke through the mixnet with `./network_tunnel_manager.sh joke_through_the_mixnet` should work with both IPv4 and IPv6!
 ~~~
 
 * [Change `--wireguard-enabled` flag to `true`](nodes/setup.md#-initialise--run): With a proper [routing configuration](nodes/configuration.md#routing-configuration) `nym-nodes` running as Gateways can now enable WG. See the example below:

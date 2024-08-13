@@ -93,6 +93,137 @@ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-
 
 ### Operators Guide updates
 
+* [WireGuard tunnel configuration guide](nodes/configuration.md#routing-configuration) for `nym-node` (currently Gateways functionalities). For simplicity we made a detailed step by step guide to upgrade an existing `nym-node` to the latest version and configure your VPS routing for WireGuard. Open by clicking on the example block below.
+
+~~~admonish example collapsible=true title='Upgrading  `nym-node` with WG'
+**Prerequisites**
+
+- **Nym Node Version:** You must be running the `2024.9-topdeck` release branch, which operates as `nym-node` version `1.1.6`. You can find the release here: [Nym 2024.9-topdeck Release](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck).
+
+- **Important:** Before proceeding, make sure to [back up](nodes/maintenance.md#backup-a-node) your current `nym-node` configuration to avoid any potential data loss or issues.
+
+
+- **Download Nym Node:**
+    - You can download the `nym-node` binary directly using the following command:
+```bash
+curl -s https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck/nym-node -o nym-node && chmod u+x nym-node
+```
+
+**Step 1: Update UFW Firewall Rules**
+
+- **Warning:** Enabling the firewall with UFW without allowing SSH port 22 first will lead to losing access over SSH. Make sure port 22 is allowed before proceeding with any UFW configurations.
+
+Run the following as root or with `sudo` prefix:
+
+1. Check the current status of UFW (Uncomplicated Firewall):
+```bash
+ufw status
+```
+
+2. Ensure that the following ports are allowed on your machine before adding the WireGuard port:
+
+```bash
+ufw allow 22/tcp    # SSH - you're in control of these ports
+ufw allow 80/tcp    # HTTP
+ufw allow 443/tcp   # HTTPS
+ufw allow 1789/tcp  # Nym specific
+ufw allow 1790/tcp  # Nym specific
+ufw allow 8080/tcp  # Nym specific - nym-node-api
+ufw allow 9000/tcp  # Nym Specific - clients port
+ufw allow 9001/tcp  # Nym specific - wss port 
+ufw allow 51822/udp # WireGuard
+```
+
+3. Confirm that the UFW rules have been updated:
+```bash
+ufw status
+```
+
+**Step 2: Download and Prepare the Network Tunnel Manager Script**
+
+1. Download the [`network_tunnel_manager.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) script:
+```bash
+curl -L -o network_tunnel_manager.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/3c0a38c1416f8fdf22906c013299dd08d1497183/network_tunnel_manager.sh
+```
+
+2. Make the script executable:
+```bash
+chmod u+x network_tunnel_manager.sh
+```
+
+3. Apply the WireGuard IPTables rules:
+```bash
+./network_tunnel_manager.sh apply_iptables_rules_wg
+```
+
+**Step 3: Update the Nym Node Service File**
+
+1. Modify your [`nym-node` service file](nodes/configuration.md#systemd) to enable WireGuard. Open the file (usually located at `/etc/systemd/system/nym-node.service`) and update the `[Service]` section as follows:
+
+```ini
+[Service]
+User=<YOUR_USER_NAME>
+Type=simple
+#Environment=RUST_LOG=debug
+# CAHNGE PATH IF YOU DON'T RUN IT FROM ROOT HOME DIRECTORY
+ExecStart=/root/nym-node run --mode exit-gateway --id <YOUR_NODE_LOCAL_ID> --accept-operator-terms-and-conditions --wireguard-enabled true
+Restart=on-failure
+RestartSec=30
+StartLimitInterval=350
+StartLimitBurst=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
+# ADD OR TWEAK ANY CUSTOM SETTINGS
+```
+
+2. Reload the systemd daemon to apply the changes:
+```bash
+systemctl daemon-reload
+```
+
+3. Restart the `nym-node service`:
+```bash
+systemctl restart nym-node.service
+```
+
+4. Optionally, you can check if the node is running correctly by monitoring the service logs:
+```bash
+journalctl -u nym-node.service -f -n 100
+```
+
+**Step 4: Run the Network Tunnel Manager Script**
+
+Finally, run the following command to initiate our favorite routing test - run the joke through the WireGuard tunnel:
+```bash
+./network_tunnel_manager.sh joke_through_wg_tunnel
+```
+~~~
+
+* [Change `--wireguard-enabled` flag to `true`](nodes/setup.md#-initialise--run): With a proper [routing configuration](nodes/configuration.md#routing-configuration) `nym-nodes` running as Gateways can now enable WG. See the example below:
+
+~~~admonish example collapsible=true title='Syntax to run `nym-node` with WG enabled'
+For Exit Gateway:
+```sh
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled true
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# wireguard can be enabled from version 1.1.6 onwards
+```
+
+For Entry Gateway:
+```sh
+./nym-node run --id <ID> --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --accept-operator-terms-and-conditions --wireguard-enabled true
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# wireguard can be enabled from version 1.1.6 onwards
+```
+~~~
+
 * [Update Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt): Based on the survey, AMA and following discussions we added several ports to Nym exit policy. The ports voted upon in the [forum governance](https://forum.nymtech.net/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464) have not been added yet due to the concerns raised. These ports were unrestricted: 
 
 ~~~admonish example collapsible=true title='Newly opened ports in Nym exit policy'

@@ -54,8 +54,6 @@ pub(super) fn mandatory_routes() -> Router<AxumAppState> {
         )
 }
 
-
-
 #[utoipa::path(
     tag = "status",
     get,

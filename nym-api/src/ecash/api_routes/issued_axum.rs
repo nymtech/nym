@@ -13,8 +13,9 @@ use nym_api_requests::ecash::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
 };
 use nym_api_requests::ecash::CredentialsRequestBody;
-use nym_coconut_dkg_common::types::EpochId;
+use serde::Deserialize;
 use std::sync::Arc;
+use utoipa::IntoParams;
 
 pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState> {
     Router::new()
@@ -41,10 +42,25 @@ pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState
         )
 }
 
-// #[openapi(tag = "Ecash")]
-// #[get("/epoch-credentials/<epoch>")]
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+struct EpochParam {
+    epoch: u64,
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        EpochParam
+    ),
+    path = "/v1/ecash/epoch-credentials/{epoch}",
+    responses(
+        (status = 200, body = EpochCredentialsResponse)
+    )
+)]
 async fn epoch_credentials(
-    Path(epoch): Path<EpochId>,
+    Path(EpochParam { epoch }): Path<EpochParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<EpochCredentialsResponse>> {
     let issued = state.aux.storage.get_epoch_credentials(epoch).await?;
@@ -62,10 +78,25 @@ async fn epoch_credentials(
     Ok(Json(response))
 }
 
-// #[openapi(tag = "Ecash")]
-// #[get("/issued-credential/<id>")]
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+struct IdParam {
+    id: i64,
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        IdParam
+    ),
+    path = "/v1/ecash/issued-credential/{id}",
+    responses(
+        (status = 200, body = IssuedCredentialResponse)
+    )
+)]
 async fn issued_credential(
-    Path(id): Path<i64>,
+    Path(IdParam { id }): Path<IdParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<IssuedCredentialResponse>> {
     let issued = state.aux.storage.get_issued_credential(id).await?;
@@ -79,8 +110,15 @@ async fn issued_credential(
     Ok(Json(IssuedCredentialResponse { credential }))
 }
 
-// #[openapi(tag = "Ecash")]
-// #[post("/issued-credentials", data = "<params>")]
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = CredentialsRequestBody,
+    path = "/v1/ecash/issued-credentials",
+    responses(
+        (status = 200, body = IssuedCredentialsResponse)
+    )
+)]
 async fn issued_credentials(
     Json(params): Json<CredentialsRequestBody>,
     state: Arc<EcashState>,

@@ -215,11 +215,26 @@ fn setup_cors() -> CorsLayer {
         nym_api_requests::models::WebSockets,
         nym_api_requests::nym_nodes::NodeRole,
         nym_api_requests::models::DescribedMixNode,
+        nym_api_requests::ecash::VerificationKeyResponse,
+        nym_api_requests::ecash::models::AggregatedExpirationDateSignatureResponse,
+        nym_api_requests::ecash::models::AggregatedCoinIndicesSignatureResponse,
+        nym_api_requests::ecash::models::EpochCredentialsResponse,
+        nym_api_requests::ecash::models::IssuedCredentialResponse,
+        nym_api_requests::ecash::models::IssuedTicketbookBody,
+        nym_api_requests::ecash::models::BlindedSignatureResponse,
+        nym_api_requests::ecash::models::PartialExpirationDateSignatureResponse,
+        nym_api_requests::ecash::models::PartialCoinIndicesSignatureResponse,
+        nym_api_requests::ecash::models::EcashTicketVerificationResponse,
+        nym_api_requests::ecash::models::EcashTicketVerificationRejection,
+        nym_api_requests::ecash::models::EcashBatchTicketRedemptionResponse,
+        nym_api_requests::ecash::models::SpentCredentialsResponse,
+        nym_api_requests::ecash::models::IssuedCredentialsResponse,
     ))
 )]
 struct ApiDoc;
 
 pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
+    // use nym_api_requests::ecash::models::;
     let router = Router::new()
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO dz use tracing instead of env_logger

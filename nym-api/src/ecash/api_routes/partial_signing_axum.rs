@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::ecash::api_routes::helpers::EpochIdParam;
 use crate::ecash::error::EcashError;
 use crate::ecash::helpers::blind_sign;
 use crate::ecash::state::EcashState;
@@ -14,9 +15,11 @@ use nym_api_requests::ecash::{
 };
 use nym_ecash_time::{cred_exp_date, EcashTime};
 use nym_validator_client::nym_api::rfc_3339_date;
+use serde::Deserialize;
 use std::ops::Deref;
 use std::sync::Arc;
 use time::Date;
+use utoipa::IntoParams;
 
 pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState> {
     Router::new()
@@ -43,8 +46,15 @@ pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<Axu
         )
 }
 
-// #[openapi(tag = "Ecash")]
-// #[post("/blind-sign", data = "<blind_sign_request_body>")]
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = BlindSignRequestBody,
+    path = "/v1/ecash/blind-sign",
+    responses(
+        (status = 200, body = BlindedSignatureResponse)
+    )
+)]
 async fn post_blind_sign(
     Json(blind_sign_request_body): Json<BlindSignRequestBody>,
     state: Arc<EcashState>,
@@ -101,10 +111,24 @@ async fn post_blind_sign(
     Ok(Json(BlindedSignatureResponse { blinded_signature }))
 }
 
-// #[openapi(tag = "Ecash")]
-// #[get("/partial-expiration-date-signatures?<expiration_date>")]
+#[derive(Deserialize, IntoParams)]
+struct ExpirationDateParam {
+    expiration_date: Option<String>,
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        ExpirationDateParam
+    ),
+    path = "/v1/ecash/partial-expiration-date-signatures/{expiration_date}",
+    responses(
+        (status = 200, body = PartialExpirationDateSignatureResponse)
+    )
+)]
 async fn partial_expiration_date_signatures(
-    Path(expiration_date): Path<Option<String>>,
+    Path(ExpirationDateParam { expiration_date }): Path<ExpirationDateParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<PartialExpirationDateSignatureResponse>> {
     let expiration_date = match expiration_date {
@@ -127,10 +151,19 @@ async fn partial_expiration_date_signatures(
     }))
 }
 
-// #[openapi(tag = "Ecash")]
-// #[get("/partial-coin-indices-signatures?<epoch_id>")]
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        EpochIdParam
+    ),
+    path = "/v1/ecash/partial-coin-indices-signatures/{epoch_id}",
+    responses(
+        (status = 200, body = PartialExpirationDateSignatureResponse)
+    )
+)]
 async fn partial_coin_indices_signatures(
-    Path(epoch_id): Path<Option<u64>>,
+    Path(EpochIdParam { epoch_id }): Path<EpochIdParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<PartialCoinIndicesSignatureResponse>> {
     // see if we're not in the middle of new dkg

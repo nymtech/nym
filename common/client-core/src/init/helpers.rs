@@ -47,13 +47,13 @@ const CONN_TIMEOUT: Duration = Duration::from_millis(1500);
 const PING_TIMEOUT: Duration = Duration::from_millis(1000);
 
 // The abstraction that some of these helpers use
-pub trait GatewayWithAddress {
+pub trait ConnectableGateway {
     fn identity(&self) -> &identity::PublicKey;
     fn clients_address(&self) -> String;
     fn is_wss(&self) -> bool;
 }
 
-impl GatewayWithAddress for gateway::Node {
+impl ConnectableGateway for gateway::Node {
     fn identity(&self) -> &identity::PublicKey {
         self.identity()
     }
@@ -67,12 +67,12 @@ impl GatewayWithAddress for gateway::Node {
     }
 }
 
-struct GatewayWithLatency<'a, G: GatewayWithAddress> {
+struct GatewayWithLatency<'a, G: ConnectableGateway> {
     gateway: &'a G,
     latency: Duration,
 }
 
-impl<'a, G: GatewayWithAddress> GatewayWithLatency<'a, G> {
+impl<'a, G: ConnectableGateway> GatewayWithLatency<'a, G> {
     fn new(gateway: &'a G, latency: Duration) -> Self {
         GatewayWithLatency { gateway, latency }
     }
@@ -153,7 +153,7 @@ async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
 
 async fn measure_latency<G>(gateway: &G) -> Result<GatewayWithLatency<G>, ClientCoreError>
 where
-    G: GatewayWithAddress,
+    G: ConnectableGateway,
 {
     let addr = gateway.clients_address();
     trace!(
@@ -211,7 +211,7 @@ where
     Ok(GatewayWithLatency::new(gateway, avg))
 }
 
-pub async fn choose_gateway_by_latency<'a, R: Rng, G: GatewayWithAddress + Clone>(
+pub async fn choose_gateway_by_latency<'a, R: Rng, G: ConnectableGateway + Clone>(
     rng: &mut R,
     gateways: &[G],
     must_use_tls: bool,
@@ -254,7 +254,7 @@ pub async fn choose_gateway_by_latency<'a, R: Rng, G: GatewayWithAddress + Clone
     Ok(chosen.gateway.clone())
 }
 
-fn filter_by_tls<G: GatewayWithAddress>(
+fn filter_by_tls<G: ConnectableGateway>(
     gateways: &[G],
     must_use_tls: bool,
 ) -> Result<Vec<&G>, ClientCoreError> {

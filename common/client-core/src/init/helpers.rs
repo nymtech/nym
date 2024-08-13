@@ -46,13 +46,34 @@ const MEASUREMENTS: usize = 3;
 const CONN_TIMEOUT: Duration = Duration::from_millis(1500);
 const PING_TIMEOUT: Duration = Duration::from_millis(1000);
 
-struct GatewayWithLatency<'a> {
-    gateway: &'a gateway::Node,
+// The abstraction that some of these helpers use
+pub trait GatewayWithAddress {
+    fn identity(&self) -> &identity::PublicKey;
+    fn clients_address(&self) -> String;
+    fn is_wss(&self) -> bool;
+}
+
+impl GatewayWithAddress for gateway::Node {
+    fn identity(&self) -> &identity::PublicKey {
+        self.identity()
+    }
+
+    fn clients_address(&self) -> String {
+        self.clients_address()
+    }
+
+    fn is_wss(&self) -> bool {
+        self.clients_wss_port.is_some()
+    }
+}
+
+struct GatewayWithLatency<'a, G: GatewayWithAddress> {
+    gateway: &'a G,
     latency: Duration,
 }
 
-impl<'a> GatewayWithLatency<'a> {
-    fn new(gateway: &'a gateway::Node, latency: Duration) -> Self {
+impl<'a, G: GatewayWithAddress> GatewayWithLatency<'a, G> {
+    fn new(gateway: &'a G, latency: Duration) -> Self {
         GatewayWithLatency { gateway, latency }
     }
 }
@@ -130,11 +151,14 @@ async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     JSWebsocket::new(endpoint).map_err(|_| ClientCoreError::GatewayJsConnectionFailure)
 }
 
-async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, ClientCoreError> {
+async fn measure_latency<G>(gateway: &G) -> Result<GatewayWithLatency<G>, ClientCoreError>
+where
+    G: GatewayWithAddress,
+{
     let addr = gateway.clients_address();
     trace!(
         "establishing connection to {} ({addr})...",
-        gateway.identity_key,
+        gateway.identity(),
     );
     let mut stream = connect(&addr).await?;
 
@@ -177,7 +201,7 @@ async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, 
     let count = results.len() as u64;
     if count == 0 {
         return Err(ClientCoreError::NoGatewayMeasurements {
-            identity: gateway.identity_key.to_base58_string(),
+            identity: gateway.identity().to_base58_string(),
         });
     }
 
@@ -187,11 +211,11 @@ async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, 
     Ok(GatewayWithLatency::new(gateway, avg))
 }
 
-pub async fn choose_gateway_by_latency<R: Rng>(
+pub async fn choose_gateway_by_latency<'a, R: Rng, G: GatewayWithAddress + Clone>(
     rng: &mut R,
-    gateways: &[gateway::Node],
+    gateways: &[G],
     must_use_tls: bool,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<G, ClientCoreError> {
     let gateways = filter_by_tls(gateways, must_use_tls)?;
 
     info!(
@@ -223,21 +247,19 @@ pub async fn choose_gateway_by_latency<R: Rng>(
 
     info!(
         "chose gateway {} with average latency of {:?}",
-        chosen.gateway.identity_key, chosen.latency
+        chosen.gateway.identity(),
+        chosen.latency
     );
 
     Ok(chosen.gateway.clone())
 }
 
-fn filter_by_tls(
-    gateways: &[gateway::Node],
+fn filter_by_tls<G: GatewayWithAddress>(
+    gateways: &[G],
     must_use_tls: bool,
-) -> Result<Vec<&gateway::Node>, ClientCoreError> {
+) -> Result<Vec<&G>, ClientCoreError> {
     if must_use_tls {
-        let filtered = gateways
-            .iter()
-            .filter(|g| g.clients_wss_port.is_some())
-            .collect::<Vec<_>>();
+        let filtered = gateways.iter().filter(|g| g.is_wss()).collect::<Vec<_>>();
 
         if filtered.is_empty() {
             return Err(ClientCoreError::NoWssGateways);

@@ -3,6 +3,9 @@
 
 use crate::v2::AxumAppState;
 use axum::Router;
+use nym_mixnet_contract_common::MixId;
+use serde::Deserialize;
+use utoipa::IntoParams;
 
 pub(crate) mod network_monitor;
 pub(crate) mod unstable;
@@ -20,4 +23,10 @@ pub(crate) fn node_status_routes(network_monitor: bool) -> Router<AxumAppState> 
     } else {
         without_network_monitor
     }
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+struct MixIdParam {
+    mix_id: MixId,
 }

@@ -1,6 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
     _gateway_uptime_history, _get_gateway_avg_uptime, _get_gateways_detailed,
@@ -19,68 +20,68 @@ use nym_api_requests::models::{
     MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
     MixnodeUptimeHistoryResponse, RewardEstimationResponse, UptimeResponse,
 };
-use nym_mixnet_contract_common::MixId;
 use serde::Deserialize;
 use utoipa::IntoParams;
 
 use super::unstable;
 
 pub(super) fn network_monitor_routes() -> Router<AxumAppState> {
-    Router::new().nest(
-        "/gateway/:identity",
-        Router::new()
-            .route("/report", axum::routing::get(gateway_report))
-            .route("/history", axum::routing::get(gateway_uptime_history))
-            .route(
-                "/core-status-count",
-                axum::routing::get(gateway_core_status_count),
-            )
-            .route("/avg_uptime", axum::routing::get(get_gateway_avg_uptime))
-            .nest(
-                "/mixnode/:mix_id",
-                Router::new()
-                    .route("/report", axum::routing::get(mixnode_report))
-                    .route("/history", axum::routing::get(mixnode_uptime_history))
-                    .route(
-                        "/core-status-count",
-                        axum::routing::get(mixnode_core_status_count),
-                    )
-                    .route(
-                        "/reward-estimation",
-                        axum::routing::get(get_mixnode_reward_estimation),
-                    )
-                    .route(
-                        "/compute-reward-estimation",
-                        axum::routing::post(compute_mixnode_reward_estimation),
-                    )
-                    .route("/avg_uptime", axum::routing::get(get_mixnode_avg_uptime)),
-            )
-            .nest(
-                "/mixnodes",
-                Router::new()
-                    .route(
-                        "/detailed-unfiltered",
-                        axum::routing::get(get_mixnodes_detailed_unfiltered),
-                    )
-                    .route(
-                        "/unstable/:mix_id/test-results",
-                        axum::routing::get(unstable::mixnode_test_results),
-                    ),
-            )
-            .nest(
-                "/gateways",
-                Router::new()
-                    .route("/detailed", axum::routing::get(get_gateways_detailed))
-                    .route(
-                        "/detailed-unfiltered",
-                        axum::routing::get(get_gateways_detailed_unfiltered),
-                    )
-                    .route(
-                        "/unstable/:gateway_identity/test-results",
-                        axum::routing::get(unstable::gateway_test_results),
-                    ),
-            ),
-    )
+    Router::new()
+        .nest(
+            "/gateway/:identity",
+            Router::new()
+                .route("/report", axum::routing::get(gateway_report))
+                .route("/history", axum::routing::get(gateway_uptime_history))
+                .route(
+                    "/core-status-count",
+                    axum::routing::get(gateway_core_status_count),
+                )
+                .route("/avg_uptime", axum::routing::get(get_gateway_avg_uptime)),
+        )
+        .nest(
+            "/mixnode/:mix_id",
+            Router::new()
+                .route("/report", axum::routing::get(mixnode_report))
+                .route("/history", axum::routing::get(mixnode_uptime_history))
+                .route(
+                    "/core-status-count",
+                    axum::routing::get(mixnode_core_status_count),
+                )
+                .route(
+                    "/reward-estimation",
+                    axum::routing::get(get_mixnode_reward_estimation),
+                )
+                .route(
+                    "/compute-reward-estimation",
+                    axum::routing::post(compute_mixnode_reward_estimation),
+                )
+                .route("/avg_uptime", axum::routing::get(get_mixnode_avg_uptime)),
+        )
+        .nest(
+            "/mixnodes",
+            Router::new()
+                .route(
+                    "/detailed-unfiltered",
+                    axum::routing::get(get_mixnodes_detailed_unfiltered),
+                )
+                .route(
+                    "/unstable/:mix_id/test-results",
+                    axum::routing::get(unstable::mixnode_test_results),
+                ),
+        )
+        .nest(
+            "/gateways",
+            Router::new()
+                .route("/detailed", axum::routing::get(get_gateways_detailed))
+                .route(
+                    "/detailed-unfiltered",
+                    axum::routing::get(get_gateways_detailed_unfiltered),
+                )
+                .route(
+                    "/unstable/:gateway_identity/test-results",
+                    axum::routing::get(unstable::gateway_test_results),
+                ),
+        )
 }
 
 #[utoipa::path(
@@ -164,13 +165,16 @@ async fn get_gateway_avg_uptime(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
+    params(
+        MixIdParam
+    ),
     path = "/v1/status/mixnode/{mix_id}/report",
     responses(
         (status = 200, body = MixnodeStatusReportResponse)
     )
 )]
 async fn mixnode_report(
-    Path(mix_id): Path<MixId>,
+    Path(MixIdParam { mix_id }): Path<MixIdParam>,
     State(state): State<AxumAppState>,
 ) -> AxumResult<Json<MixnodeStatusReportResponse>> {
     Ok(Json(
@@ -181,13 +185,16 @@ async fn mixnode_report(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    path = "/v1/status/mixnode/{mid_id}/history",
+    params(
+        MixIdParam
+    ),
+    path = "/v1/status/mixnode/{mix_id}/history",
     responses(
         (status = 200, body = MixnodeUptimeHistoryResponse)
     )
 )]
 async fn mixnode_uptime_history(
-    Path(mix_id): Path<MixId>,
+    Path(MixIdParam { mix_id }): Path<MixIdParam>,
     State(state): State<AxumAppState>,
 ) -> AxumResult<Json<MixnodeUptimeHistoryResponse>> {
     Ok(Json(
@@ -199,15 +206,15 @@ async fn mixnode_uptime_history(
     tag = "network-monitor-status",
     get,
     params(
-        SinceQueryParams
+        MixIdParam, SinceQueryParams
     ),
-    path = "/v1/status/mixnode/{mix_id}/core-status-count?since={since}",
+    path = "/v1/status/mixnode/{mix_id}/core-status-count",
     responses(
         (status = 200, body = MixnodeCoreStatusResponse)
     )
 )]
 async fn mixnode_core_status_count(
-    Path(mix_id): Path<MixId>,
+    Path(MixIdParam { mix_id }): Path<MixIdParam>,
     Query(SinceQueryParams { since }): Query<SinceQueryParams>,
     State(state): State<AxumAppState>,
 ) -> AxumResult<Json<MixnodeCoreStatusResponse>> {
@@ -219,13 +226,16 @@ async fn mixnode_core_status_count(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
+    params(
+        MixIdParam
+    ),
     path = "/v1/status/mixnode/{mix_id}/reward-estimation",
     responses(
         (status = 200, body = RewardEstimationResponse)
     )
 )]
 async fn get_mixnode_reward_estimation(
-    Path(mix_id): Path<MixId>,
+    Path(MixIdParam { mix_id }): Path<MixIdParam>,
     State(state): State<AxumAppState>,
 ) -> AxumResult<Json<RewardEstimationResponse>> {
     Ok(Json(
@@ -242,7 +252,7 @@ async fn get_mixnode_reward_estimation(
     tag = "network-monitor-status",
     post,
     params(
-        ComputeRewardEstParam
+        ComputeRewardEstParam, MixIdParam
     ),
     path = "/v1/status/mixnode/{mix_id}/compute-reward-estimation",
     request_body = ComputeRewardEstParam,
@@ -251,7 +261,7 @@ async fn get_mixnode_reward_estimation(
     )
 )]
 async fn compute_mixnode_reward_estimation(
-    Path(mix_id): Path<MixId>,
+    Path(MixIdParam { mix_id }): Path<MixIdParam>,
     State(state): State<AxumAppState>,
     Json(user_reward_param): Json<ComputeRewardEstParam>,
 ) -> AxumResult<Json<RewardEstimationResponse>> {
@@ -269,13 +279,16 @@ async fn compute_mixnode_reward_estimation(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
+    params(
+        MixIdParam
+    ),
     path = "/v1/status/mixnode/{mix_id}/avg_uptime",
     responses(
         (status = 200, body = UptimeResponse)
     )
 )]
 async fn get_mixnode_avg_uptime(
-    Path(mix_id): Path<MixId>,
+    Path(MixIdParam { mix_id }): Path<MixIdParam>,
     State(state): State<AxumAppState>,
 ) -> AxumResult<Json<UptimeResponse>> {
     Ok(Json(

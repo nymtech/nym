@@ -1,6 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::helpers::{
     _get_active_set_detailed, _get_mixnode_inclusion_probabilities,
     _get_mixnode_inclusion_probability, _get_mixnode_stake_saturation, _get_mixnode_status,
@@ -16,8 +17,6 @@ use nym_api_requests::models::{
     MixnodeStatusResponse, StakeSaturationResponse,
 };
 use nym_mixnet_contract_common::MixId;
-use serde::Deserialize;
-use utoipa::IntoParams;
 
 pub(super) fn mandatory_routes() -> Router<AxumAppState> {
     Router::new()
@@ -55,10 +54,7 @@ pub(super) fn mandatory_routes() -> Router<AxumAppState> {
         )
 }
 
-#[derive(Deserialize, IntoParams)]
-struct MixIdParam {
-    mix_id: MixId,
-}
+
 
 #[utoipa::path(
     tag = "status",

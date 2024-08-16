@@ -6,7 +6,7 @@ use nym_credential_storage::storage::Storage;
 use nym_credential_utils::utils::issue_credential;
 use nym_credentials_interface::TicketType;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::{nyxd, DirectSigningReqwestRpcValidatorClient};
+use nym_validator_client::{nyxd, DirectSigningReqwestRpcNyxdClient};
 use zeroize::Zeroizing;
 
 /// Represents a client that can be used to acquire bandwidth. You typically create one when you
@@ -15,7 +15,7 @@ use zeroize::Zeroizing;
 /// [`crate::mixnet::DisconnectedMixnetClient::create_bandwidth_client`] on the associated mixnet
 /// client.
 pub struct BandwidthAcquireClient<'a, St: Storage> {
-    client: DirectSigningReqwestRpcValidatorClient,
+    client: DirectSigningReqwestRpcNyxdClient,
     storage: &'a St,
     client_id: Zeroizing<String>,
     ticketbook_type: TicketType,
@@ -36,11 +36,11 @@ where
         let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();
         let config = nyxd::Config::try_from_nym_network_details(&network_details)?;
 
-        let client = DirectSigningReqwestRpcValidatorClient::connect_with_mnemonic(
+        let client = DirectSigningReqwestRpcNyxdClient::connect_reqwest_with_mnemonic(
             config,
-            nyxd_url,
+            nyxd_url.parse().expect("TODO: MAKE SURE YOU HANDLE IT"),
             mnemonic.parse()?,
-        )?;
+        );
         Ok(Self {
             client,
             storage,
@@ -50,13 +50,16 @@ where
     }
 
     pub async fn acquire(&self) -> Result<(), WasmCredentialClientError> {
-        issue_credential(
+        if let Err(err) = issue_credential(
             &self.client,
             self.storage,
             self.client_id.as_bytes(),
             self.ticketbook_type,
         )
-            .await?;
+        .await
+        {
+            panic!("unhandled error: {err}")
+        }
         Ok(())
     }
 }

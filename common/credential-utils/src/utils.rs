@@ -8,6 +8,7 @@ use nym_bandwidth_controller::acquire::{
 };
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_credential_storage::storage::Storage;
 use nym_credentials_interface::TicketType;
@@ -80,6 +81,7 @@ where
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn setup_persistent_storage(client_home_directory: PathBuf) -> PersistentStorage {
     let data_dir = client_home_directory.join(DEFAULT_DATA_DIR);
     let paths = CommonClientPaths::new_base(data_dir);

@@ -32,11 +32,11 @@ pub enum WasmCredentialClientError {
     #[error("no nyxd endpoints have been provided - we can't interact with the chain")]
     NoNyxdEndpoints,
 
-    #[error("the provided nyxd endpoint is malformed: {source}")]
-    MalformedNyxdEndpoint {
-        #[from]
-        source: UrlParseError,
-    },
+    // #[error("the provided nyxd endpoint is malformed: {source}")]
+    // MalformedNyxdEndpoint {
+    //     #[from]
+    //     source: UrlParseError,
+    // },
 
     // #[error("The provided deposit value was malformed: {source}")]
     // MalformedCoin { source: serde_wasm_bindgen::Error },

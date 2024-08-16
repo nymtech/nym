@@ -25,9 +25,9 @@ pub(crate) fn minimal_coconut_sandbox() -> NymNetworkDetails {
             None,
         )],
         contracts: NymContracts {
-            coconut_bandwidth_contract_address: Some(
-                "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l".into(),
-            ),
+            // coconut_bandwidth_contract_address: Some(
+            //     "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l".into(),
+            // ),
             coconut_dkg_contract_address: Some(
                 "n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a".into(),
             ),

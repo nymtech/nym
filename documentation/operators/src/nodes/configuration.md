@@ -356,7 +356,7 @@ ip addr show nymtun0
 
 9. Validate your IPv6 and IPv4 networking by running a joke test via Mixnet:
 ```sh
-./network_tunnel_manager.shjoke_through_the_mixnet
+./network_tunnel_manager.sh joke_through_the_mixnet
 ```
 
 10. Validate your tunneling by running a joke test via WG:

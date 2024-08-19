@@ -4,6 +4,38 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.10-caramello] (2024-08-19)
+
+- bugfix: make sure DKG parses data out of events if logs are empty ([#4764])
+- Fix clippy on rustc beta toolchain ([#4746])
+- Fix clippy for beta toolchain ([#4742])
+- Disable testnet-manager on non-unix ([#4741])
+- Don't set NYM_VPN_API to default ([#4740])
+- Update publish-nym-binaries.yml ([#4739])
+- Update ci-build-upload-binaries.yml ([#4738])
+- Add NYM_VPN_API to network config ([#4736])
+- Re-export RecipientFormattingError in nym sdk ([#4735])
+- Persist wireguard peers ([#4732])
+- Fix tokio error in 1.39 ([#4730])
+- Feature/vesting purge plus ranged cost params ([#4716])
+- Fix (some) feature unification build failures ([#4681])
+- Feature Compact Ecash : The One PR ([#4623])
+
+[#4764]: https://github.com/nymtech/nym/pull/4764
+[#4746]: https://github.com/nymtech/nym/pull/4746
+[#4742]: https://github.com/nymtech/nym/pull/4742
+[#4741]: https://github.com/nymtech/nym/pull/4741
+[#4740]: https://github.com/nymtech/nym/pull/4740
+[#4739]: https://github.com/nymtech/nym/pull/4739
+[#4738]: https://github.com/nymtech/nym/pull/4738
+[#4736]: https://github.com/nymtech/nym/pull/4736
+[#4735]: https://github.com/nymtech/nym/pull/4735
+[#4732]: https://github.com/nymtech/nym/pull/4732
+[#4730]: https://github.com/nymtech/nym/pull/4730
+[#4716]: https://github.com/nymtech/nym/pull/4716
+[#4681]: https://github.com/nymtech/nym/pull/4681
+[#4623]: https://github.com/nymtech/nym/pull/4623
+
 ## [2024.9-topdeck] (2024-07-26)
 
 - chore: fix 1.80 lint issues ([#4731])

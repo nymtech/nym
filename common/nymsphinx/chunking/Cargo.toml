@@ -13,7 +13,6 @@ repository = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
-lazy_static = { workspace = true }
 dashmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 utoipa = { workspace = true }

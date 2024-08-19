@@ -12,6 +12,13 @@ static NETWORK_MONITORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
 });
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+pub struct NodeResult {
+    pub node_id: MixId,
+    pub identity: String,
+    pub reliability: u8,
+}
+
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
 pub struct MixnodeResult {
     pub mix_id: MixId,
     pub identity: String,
@@ -35,6 +42,7 @@ pub struct GatewayResult {
     pub identity: String,
     pub owner: String,
     pub reliability: u8,
+    pub mix_id: MixId,
 }
 
 impl GatewayResult {
@@ -43,6 +51,7 @@ impl GatewayResult {
             identity,
             owner,
             reliability,
+            mix_id: 0,
         }
     }
 }
@@ -56,17 +65,17 @@ pub enum MonitorResults {
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct MonitorMessage {
-    results: MonitorResults,
+    results: Vec<NodeResult>,
     signature: String,
     signer: String,
     timestamp: i64,
 }
 
 impl MonitorMessage {
-    fn message_to_sign(results: &MonitorResults, timestamp: i64) -> Vec<u8> {
+    fn message_to_sign(results: &[NodeResult], timestamp: i64) -> Vec<u8> {
         let mut msg = match serde_json::to_vec(results) {
             Ok(msg) => msg,
-            Err(_) => return Vec::new(),
+            Err(_) => Vec::new(),
         };
         msg.extend_from_slice(&timestamp.to_le_bytes());
         msg
@@ -81,7 +90,7 @@ impl MonitorMessage {
         now - self.timestamp < 5
     }
 
-    pub fn new(results: MonitorResults, private_key: &PrivateKey) -> Self {
+    pub fn new(results: Vec<NodeResult>, private_key: &PrivateKey) -> Self {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("Time went backwards")
@@ -103,7 +112,7 @@ impl MonitorMessage {
         NETWORK_MONITORS.contains(&self.signer)
     }
 
-    pub fn results(&self) -> &MonitorResults {
+    pub fn results(&self) -> &[NodeResult] {
         &self.results
     }
 

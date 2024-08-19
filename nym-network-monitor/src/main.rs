@@ -11,6 +11,7 @@ use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::fs::File;
 use std::io::Write;
 use std::sync::LazyLock;
+use std::time::Duration;
 use std::{
     collections::VecDeque,
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -191,14 +192,23 @@ async fn main() -> Result<()> {
 
     info!("Waiting for message (ctrl-c to exit)");
 
-    ctrl_c().await?;
-    info!("Received kill signal, shutting down, submitting final batch of metrics");
+    loop {
+        match tokio::time::timeout(Duration::from_secs(600), ctrl_c()).await {
+            Ok(_) => {
+                info!("Received kill signal, shutting down, submitting final batch of metrics");
+                submit_metrics().await?;
+                break;
+            }
+            Err(_) => {
+                info!("Submitting metrics, cleaning metric buffers");
+                submit_metrics().await?;
+            }
+        };
+    }
 
-    submit_metrics().await?;
-ƒ
     cancel_token.cancel();
 
-    server_handle.await?;
+    server_handle.await??;
 
     Ok(())
 }

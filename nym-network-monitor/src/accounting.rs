@@ -5,7 +5,7 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use log::{debug, info};
 use nym_sphinx::chunking::{SentFragment, FRAGMENTS_RECEIVED, FRAGMENTS_SENT};
 use nym_topology::{gateway, mix, NymTopology};
-use nym_types::monitoring::{GatewayResult, MixnodeResult, MonitorMessage, MonitorResults};
+use nym_types::monitoring::{MonitorMessage, NodeResult};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
@@ -44,10 +44,6 @@ impl GatewayStats {
 
     fn incr_failure(&mut self) {
         self.1 += 1;
-    }
-
-    fn owner(&self) -> Option<String> {
-        self.2.clone()
     }
 }
 
@@ -116,6 +112,11 @@ impl NetworkAccount {
         account.find_missing_fragments();
         account.hydrate_all_fragments()?;
         Ok(account)
+    }
+
+    pub fn empty_buffers() {
+        FRAGMENTS_SENT.clear();
+        FRAGMENTS_RECEIVED.clear();
     }
 
     fn new() -> Self {
@@ -288,11 +289,10 @@ impl NodeStats {
         self.reliability
     }
 
-    pub fn into_mixnode_results(self) -> MixnodeResult {
-        MixnodeResult {
-            mix_id: self.mix_id,
+    pub fn into_node_results(self) -> NodeResult {
+        NodeResult {
+            node_id: self.mix_id,
             identity: self.identity,
-            owner: self.owner.unwrap_or_default(),
             reliability: (self.reliability * 100.) as u8,
         }
     }
@@ -307,7 +307,7 @@ pub async fn all_node_stats() -> anyhow::Result<Vec<NodeStats>> {
         .collect::<Vec<NodeStats>>())
 }
 
-pub async fn monitor_gateway_results() -> anyhow::Result<Vec<GatewayResult>> {
+pub async fn monitor_gateway_results() -> anyhow::Result<Vec<NodeResult>> {
     let account = NetworkAccount::finalize()?;
     Ok(account
         .gateway_stats
@@ -316,11 +316,11 @@ pub async fn monitor_gateway_results() -> anyhow::Result<Vec<GatewayResult>> {
         .collect())
 }
 
-pub async fn monitor_mixnode_results() -> anyhow::Result<Vec<MixnodeResult>> {
+pub async fn monitor_mixnode_results() -> anyhow::Result<Vec<NodeResult>> {
     let stats = all_node_stats().await?;
     Ok(stats
         .into_iter()
-        .map(NodeStats::into_mixnode_results)
+        .map(NodeStats::into_node_results)
         .collect())
 }
 
@@ -331,18 +331,17 @@ pub async fn submit_metrics() -> anyhow::Result<()> {
     info!("Submitting metrics to {}", *NYM_API_URL);
     let client = reqwest::Client::new();
 
-    let submit_url = format!("{}/v1/status/submit", &*NYM_API_URL);
+    let node_submit_url = format!("{}/v1/status/submit_node", &*NYM_API_URL);
+    let gateway_submit_url = format!("{}/v1/status/submit_gateway", &*NYM_API_URL);
 
     info!("Submitting {} mixnode measurements", node_stats.len());
 
     node_stats
         .chunks(10)
         .map(|chunk| {
-            let monitor_message = MonitorMessage::new(
-                MonitorResults::Mixnode(chunk.to_vec()),
-                PRIVATE_KEY.get().expect("We've set this!"),
-            );
-            client.post(&submit_url).json(&monitor_message).send()
+            let monitor_message =
+                MonitorMessage::new(chunk.to_vec(), PRIVATE_KEY.get().expect("We've set this!"));
+            client.post(&node_submit_url).json(&monitor_message).send()
         })
         .collect::<FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
@@ -350,16 +349,17 @@ pub async fn submit_metrics() -> anyhow::Result<()> {
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
 
-    info!("Submitting {} gatewway measurements", gateway_stats.len());
+    info!("Submitting {} gateway measurements", gateway_stats.len());
 
     gateway_stats
         .chunks(10)
         .map(|chunk| {
-            let monitor_message = MonitorMessage::new(
-                MonitorResults::Gateway(chunk.to_vec()),
-                PRIVATE_KEY.get().expect("We've set this!"),
-            );
-            client.post(&submit_url).json(&monitor_message).send()
+            let monitor_message =
+                MonitorMessage::new(chunk.to_vec(), PRIVATE_KEY.get().expect("We've set this!"));
+            client
+                .post(&gateway_submit_url)
+                .json(&monitor_message)
+                .send()
         })
         .collect::<FuturesUnordered<_>>()
         .collect::<Vec<Result<_, _>>>()
@@ -367,13 +367,15 @@ pub async fn submit_metrics() -> anyhow::Result<()> {
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
 
+    NetworkAccount::empty_buffers();
+
     Ok(())
 }
 
-fn into_gateway_result((key, stats): (&String, &GatewayStats)) -> GatewayResult {
-    GatewayResult {
+fn into_gateway_result((key, stats): (&String, &GatewayStats)) -> NodeResult {
+    NodeResult {
         identity: key.clone(),
-        owner: stats.owner().unwrap_or_default(),
         reliability: (stats.reliability() * 100.) as u8,
+        node_id: 0,
     }
 }

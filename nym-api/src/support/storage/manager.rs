@@ -7,7 +7,7 @@ use crate::support::storage::models::{
     TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
 };
 use nym_mixnet_contract_common::{EpochId, IdentityKey, MixId};
-use nym_types::monitoring::{GatewayResult, MixnodeResult};
+use nym_types::monitoring::{GatewayResult, MixnodeResult, NodeResult};
 use time::OffsetDateTime;
 
 #[derive(Clone)]
@@ -505,7 +505,7 @@ impl StorageManager {
 
     pub(crate) async fn submit_mixnode_statuses_v2(
         &self,
-        mixnode_results: &[MixnodeResult],
+        mixnode_results: &[NodeResult],
     ) -> Result<(), sqlx::Error> {
         info!("Inserting {} mixnode statuses", mixnode_results.len());
 
@@ -516,13 +516,12 @@ impl StorageManager {
         for mixnode_result in mixnode_results {
             let mixnode_id = sqlx::query!(
                 r#"
-                    INSERT OR IGNORE INTO mixnode_details_v2(mix_id, identity_key, owner) VALUES (?, ?, ?);
-                    SELECT id FROM mixnode_details_v2 WHERE mix_id = ?;
+                    INSERT OR IGNORE INTO mixnode_details_v2(node_id, identity_key) VALUES (?, ?);
+                    SELECT id FROM mixnode_details_v2 WHERE node_id = ?;
                 "#,
-                mixnode_result.mix_id,
+                mixnode_result.node_id,
                 mixnode_result.identity,
-                mixnode_result.owner,
-                mixnode_result.mix_id,
+                mixnode_result.node_id,
             )
             .fetch_one(&mut tx)
             .await?
@@ -596,7 +595,7 @@ impl StorageManager {
 
     pub(crate) async fn submit_gateway_statuses_v2(
         &self,
-        gateway_results: &[GatewayResult],
+        gateway_results: &[NodeResult],
     ) -> Result<(), sqlx::Error> {
         info!("Inserting {} gateway statuses", gateway_results.len());
 
@@ -611,11 +610,10 @@ impl StorageManager {
             // same ID "problem" as described for mixnode insertion
             let gateway_id = sqlx::query!(
                 r#"
-                    INSERT OR IGNORE INTO gateway_details_v2(identity, owner) VALUES (?, ?);
+                    INSERT OR IGNORE INTO gateway_details_v2(identity) VALUES (?);
                     SELECT id FROM gateway_details_v2 WHERE identity = ?;
                 "#,
                 gateway_result.identity,
-                gateway_result.owner,
                 gateway_result.identity,
             )
             .fetch_one(&mut tx)

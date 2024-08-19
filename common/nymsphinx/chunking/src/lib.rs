@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::LazyLock;
+
 use crate::fragment::{linked_fragment_payload_max_len, unlinked_fragment_payload_max_len};
 use dashmap::DashMap;
 use fragment::{Fragment, FragmentHeader};
@@ -110,10 +112,10 @@ impl ReceivedFragment {
     }
 }
 
-lazy_static::lazy_static! {
-    pub static ref FRAGMENTS_RECEIVED: DashMap<i32, Vec<ReceivedFragment>> = DashMap::new();
-    pub static ref FRAGMENTS_SENT: DashMap<i32, Vec<SentFragment>> = DashMap::new();
-}
+pub static FRAGMENTS_RECEIVED: LazyLock<DashMap<i32, Vec<ReceivedFragment>>> =
+    LazyLock::new(DashMap::new);
+
+pub static FRAGMENTS_SENT: LazyLock<DashMap<i32, Vec<SentFragment>>> = LazyLock::new(DashMap::new);
 
 #[macro_export]
 macro_rules! now {

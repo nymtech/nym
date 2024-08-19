@@ -80,9 +80,9 @@ impl HttpServer {
             .route("/v1/received", get(recv_handler));
         let listener = tokio::net::TcpListener::bind(self.listener).await?;
 
-        let server_future = axum::serve(listener, app).with_graceful_shutdown(async move {
-            self.cancel.cancelled().await;
-        });
+        let server_future = axum::serve(listener, app).with_graceful_shutdown(async {
+            self.cancel.canceled_owned();
+        }
 
         info!("##########################################################################################");
         info!("######################### HTTP server running, with {} clients ############################################", n_clients);

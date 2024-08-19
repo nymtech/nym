@@ -183,7 +183,7 @@ async fn main() -> Result<()> {
         TOPOLOGY.get().expect("Topology not set yet!").clone(),
     ));
 
-    let _server_handle = tokio::spawn(async move {
+    let server_handle = tokio::spawn(async move {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::from_str(&args.host)?), args.port);
         let server = HttpServer::new(socket, server_cancel_token);
         server.run(clients).await
@@ -195,7 +195,10 @@ async fn main() -> Result<()> {
     info!("Received kill signal, shutting down, submitting final batch of metrics");
 
     submit_metrics().await?;
-
+ƒ
     cancel_token.cancel();
+
+    server_handle.await?;
+
     Ok(())
 }

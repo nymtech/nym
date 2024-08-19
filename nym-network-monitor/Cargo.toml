@@ -36,3 +36,4 @@ nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-topology = { path = "../common/topology" }
 nym-types = { path = "../common/types" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }

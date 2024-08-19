@@ -49,5 +49,7 @@ pub const COMPUTE_REWARD_ESTIMATION: &str = "compute-reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";
+pub const SUBMIT_GATEWAY: &str = "submit-gateway-monitoring-results";
+pub const SUBMIT_NODE: &str = "submit-node-monitoring-results";
 
 pub const SERVICE_PROVIDERS: &str = "services";

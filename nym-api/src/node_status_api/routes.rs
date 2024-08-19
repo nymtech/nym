@@ -31,7 +31,7 @@ use crate::storage::NymApiStorage;
 use crate::NymContractCache;
 
 #[openapi(tag = "status")]
-#[post("/submit_gateway", data = "<message>")]
+#[post("/submit-gateway-monitoring-results", data = "<message>")]
 pub(crate) async fn submit_gateway_monitoring_results(
     message: Json<MonitorMessage>,
     storage: &State<NymApiStorage>,
@@ -74,7 +74,7 @@ pub(crate) async fn submit_gateway_monitoring_results(
 }
 
 #[openapi(tag = "status")]
-#[post("/submit_node", data = "<message>")]
+#[post("/submit-node-monitoring-results", data = "<message>")]
 pub(crate) async fn submit_node_monitoring_results(
     message: Json<MonitorMessage>,
     storage: &State<NymApiStorage>,

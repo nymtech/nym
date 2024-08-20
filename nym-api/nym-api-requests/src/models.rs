@@ -142,7 +142,6 @@ pub struct MixNodeDetailsSchema {
     pub pending_changes: String,
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MixNodeBondAnnotated {
     pub mixnode_details: MixNodeDetails,

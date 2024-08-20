@@ -22,11 +22,10 @@ pub(crate) fn circulating_supply_routes() -> Router<AxumAppState> {
         )
 }
 
-// TODO dz consider "substates" axum pattern
 #[utoipa::path(
     tag = "circulating-supply",
     get,
-    path = "v1/circulating-supply",
+    path = "/v1/circulating-supply",
     responses(
         (status = 200, body = CirculatingSupplyResponse)
     )
@@ -47,7 +46,7 @@ async fn get_full_circulating_supply(
 #[utoipa::path(
     tag = "circulating-supply",
     get,
-    path = "v1/circulating-supply/total-supply-value",
+    path = "/v1/circulating-supply/total-supply-value",
     responses(
         (status = 200, body = [f64])
     )
@@ -70,7 +69,7 @@ async fn get_total_supply(
 #[utoipa::path(
     tag = "circulating-supply",
     get,
-    path = "v1/circulating-supply/circulating-supply-value",
+    path = "/v1/circulating-supply/circulating-supply-value",
     responses(
         (status = 200, body = [f64])
     )

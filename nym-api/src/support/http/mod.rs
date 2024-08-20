@@ -162,8 +162,10 @@ fn setup_cors() -> CorsLayer {
         .allow_credentials(false)
 }
 
-// TODO dz try including ``./src/models.rs from nym_api_requests` for automatic
-// model discovery based on ToSchema / IntoParams implementation
+// TODO once https://github.com/ProbablyClem/utoipauto/pull/38 is released:
+// include ",./nym-api/nym-api-requests/src from nym-api-requests" (and other packages mentioned below)
+// for automatic model discovery based on ToSchema / IntoParams implementation.
+// Then you can remove `components(schemas)` manual imports below
 
 #[utoipauto(paths = "./nym-api/src")]
 #[derive(OpenApi)]
@@ -229,12 +231,15 @@ fn setup_cors() -> CorsLayer {
         nym_api_requests::ecash::models::EcashBatchTicketRedemptionResponse,
         nym_api_requests::ecash::models::SpentCredentialsResponse,
         nym_api_requests::ecash::models::IssuedCredentialsResponse,
+        nym_api_requests::nym_nodes::SkimmedNode,
+        nym_api_requests::nym_nodes::BasicEntryInformation,
+        nym_api_requests::nym_nodes::SemiSkimmedNode,
+        nym_api_requests::nym_nodes::NodeRoleQueryParam,
     ))
 )]
 struct ApiDoc;
 
 pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
-    // use nym_api_requests::ecash::models::;
     let router = Router::new()
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO dz use tracing instead of env_logger

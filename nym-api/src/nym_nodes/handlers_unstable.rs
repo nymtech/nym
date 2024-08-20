@@ -33,9 +33,6 @@ use serde::Deserialize;
 use std::cmp::min;
 use std::ops::Deref;
 
-// TODO dz for path/query params, see
-// https://docs.rs/utoipa-gen/4.3.0/utoipa_gen/derive.IntoParams.html
-
 pub(crate) fn nym_node_routes_unstable() -> axum::Router<AxumAppState> {
     Router::new()
         .route("/skimmed", axum::routing::get(nodes_basic))
@@ -57,14 +54,15 @@ pub(crate) fn nym_node_routes_unstable() -> axum::Router<AxumAppState> {
         )
 }
 
-#[derive(Debug, Deserialize)]
-pub(super) struct NodesParams {
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+struct NodesParams {
+    #[param(inline)]
     role: Option<NodeRoleQueryParam>,
     semver_compatibility: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub(super) struct SemverCompatibilityQueryParam {
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
+struct SemverCompatibilityQueryParam {
     semver_compatibility: Option<String>,
 }
 
@@ -76,6 +74,15 @@ impl SemverCompatibilityQueryParam {
     }
 }
 
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(NodesParams),
+    path = "/v1/unstable/nym-nodes/skimmed",
+    responses(
+        (status = 200, body = CachedNodesResponse<SkimmedNode>)
+    )
+)]
 async fn nodes_basic(
     state: State<AxumAppState>,
     Query(NodesParams {
@@ -106,7 +113,16 @@ async fn nodes_basic(
     Err(AxumErrorResponse::not_implemented())
 }
 
-pub(super) async fn nodes_expanded(
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(NodesParams),
+    path = "/v1/unstable/nym-nodes/semi-skimmed",
+    responses(
+        (status = 200, body = CachedNodesResponse<SemiSkimmedNode>)
+    )
+)]
+async fn nodes_expanded(
     state: State<AxumAppState>,
     Query(NodesParams {
         role,
@@ -136,6 +152,15 @@ pub(super) async fn nodes_expanded(
     Err(AxumErrorResponse::not_implemented())
 }
 
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(NodesParams),
+    path = "/v1/unstable/nym-nodes/full-fat",
+    responses(
+        (status = 200, body = CachedNodesResponse<FullFatNode>)
+    )
+)]
 async fn nodes_detailed(
     state: State<AxumAppState>,
     Query(NodesParams {
@@ -166,6 +191,15 @@ async fn nodes_detailed(
     Err(AxumErrorResponse::not_implemented())
 }
 
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(SemverCompatibilityQueryParam),
+    path = "/v1/unstable/nym-nodes/gateways/skimmed",
+    responses(
+        (status = 200, body = CachedNodesResponse<SkimmedNode>)
+    )
+)]
 async fn gateways_basic(
     state: State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
@@ -225,6 +259,15 @@ async fn gateways_basic(
     }))
 }
 
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(SemverCompatibilityQueryParam),
+    path = "/v1/unstable/nym-nodes/gateways/semi-skimmed",
+    responses(
+        (status = 200, body = CachedNodesResponse<SemiSkimmedNode>)
+    )
+)]
 async fn gateways_expanded(
     State(_state): State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
@@ -234,6 +277,15 @@ async fn gateways_expanded(
     Err(AxumErrorResponse::not_implemented())
 }
 
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(SemverCompatibilityQueryParam),
+    path = "/v1/unstable/nym-nodes/gateways/full-fat",
+    responses(
+        (status = 200, body = CachedNodesResponse<FullFatNode>)
+    )
+)]
 async fn gateways_detailed(
     State(_state): State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
@@ -243,6 +295,15 @@ async fn gateways_detailed(
     Err(AxumErrorResponse::not_implemented())
 }
 
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(SemverCompatibilityQueryParam),
+    path = "/v1/unstable/nym-nodes/mixnodes/skimmed",
+    responses(
+        (status = 200, body = CachedNodesResponse<SkimmedNode>)
+    )
+)]
 async fn mixnodes_basic(
     state: State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
@@ -279,6 +340,15 @@ async fn mixnodes_basic(
     }))
 }
 
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(SemverCompatibilityQueryParam),
+    path = "/v1/unstable/nym-nodes/mixnodes/semi-skimmed",
+    responses(
+        (status = 200, body = CachedNodesResponse<SemiSkimmedNode>)
+    )
+)]
 async fn mixnodes_expanded(
     State(_state): State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {
@@ -288,6 +358,15 @@ async fn mixnodes_expanded(
     Err(AxumErrorResponse::not_implemented())
 }
 
+#[utoipa::path(
+    tag = "Unstable Nym Nodes",
+    get,
+    params(SemverCompatibilityQueryParam),
+    path = "/v1/unstable/nym-nodes/mixnodes/full-fat",
+    responses(
+        (status = 200, body = CachedNodesResponse<FullFatNode>)
+    )
+)]
 async fn mixnodes_detailed(
     State(_state): State<AxumAppState>,
     Query(SemverCompatibilityQueryParam {

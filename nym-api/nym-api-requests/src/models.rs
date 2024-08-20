@@ -142,9 +142,6 @@ pub struct MixNodeDetailsSchema {
     pub pending_changes: String,
 }
 
-#[derive(ToSchema)]
-#[schema(as = String, title = Decimal)]
-pub struct DecimalSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MixNodeBondAnnotated {

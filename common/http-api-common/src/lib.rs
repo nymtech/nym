@@ -6,11 +6,11 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use bytes::{BufMut, BytesMut};
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
 
 pub mod logging;
 
-#[derive(Debug, Clone, ToSchema)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub enum FormattedResponse<T> {
     Json(Json<T>),
     Yaml(Yaml<T>),
@@ -28,7 +28,8 @@ where
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone, ToSchema)]
+#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum Output {
     #[default]
@@ -36,7 +37,8 @@ pub enum Output {
     Yaml,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone, IntoParams, ToSchema)]
+#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::IntoParams, utoipa::ToSchema))]
 #[serde(default)]
 pub struct OutputParams {
     pub output: Option<Output>,

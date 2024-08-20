@@ -3,7 +3,7 @@
 <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/897010658?h=1f55870fe6&amp;badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="NYMVPN alpha demo 37C3"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
 
 ```admonish tip title="web3summit testing"
-**If you testing NymVPN CLI on web3summit Berlin, visit our event page with all info tailored for the event: [nym-vpn-cli.sandbox.nymtech.net/](https://nym-vpn-cli.sandbox.nymtech.net/).**
+**If you testing NymVPN CLI on Web3 Summit Berlin, visit our event page with all info tailored for the event: [nym-vpn-cli.sandbox.nymtech.net](https://nym-vpn-cli.sandbox.nymtech.net/).**
 ```
 
 **NymVPN alpha** is a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet (for a full network privacy) or the faster 2-hop decentralised VPN (with some extra features).

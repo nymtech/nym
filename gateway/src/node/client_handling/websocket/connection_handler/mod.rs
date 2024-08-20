@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
+use fresh::InitialAuthenticationError;
 use nym_credentials_interface::AvailableBandwidth;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
@@ -120,6 +121,12 @@ pub(crate) async fn handle_connection<R, S, St>(
     {
         None => {
             trace!("received shutdown signal while performing initial authentication");
+            return;
+        }
+        // For storage error, we want to print the extended storage error, but without
+        // including it in the error that's returned to the clients
+        Some(Err(InitialAuthenticationError::StorageError(err))) => {
+            warn!("authentication has failed: {err}");
             return;
         }
         Some(Err(err)) => {

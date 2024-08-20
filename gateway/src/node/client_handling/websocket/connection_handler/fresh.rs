@@ -42,7 +42,7 @@ use nym_gateway_storage::{error::StorageError, Storage};
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
-    #[error("Internal gateway storage error: {0}")]
+    #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
 
     #[error(

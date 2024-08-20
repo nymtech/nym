@@ -30,6 +30,12 @@ pub use nym_compact_ecash::{
 };
 use nym_ecash_time::{ecash_today, EcashTime};
 
+#[cfg(feature = "wasm-serde-types")]
+use tsify::Tsify;
+
+#[cfg(feature = "wasm-serde-types")]
+use wasm_bindgen::prelude::wasm_bindgen;
+
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
     pub withdrawal_request: WithdrawalRequest,
@@ -233,6 +239,8 @@ impl From<PayInfo> for NymPayInfo {
 )]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
+#[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum TicketType {
     #[default]
     V1MixnetEntry,

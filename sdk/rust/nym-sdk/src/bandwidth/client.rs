@@ -26,11 +26,11 @@ where
     St: Storage,
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
-    pub(crate) fn new(
+    pub fn new(
         network_details: NymNetworkDetails,
         mnemonic: String,
         storage: &'a St,
-        client_id: String,
+        client_id_private_key_base58: String,
         ticketbook_type: TicketType,
     ) -> Result<Self> {
         let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();
@@ -44,7 +44,7 @@ where
         Ok(Self {
             client,
             storage,
-            client_id: client_id.into(),
+            client_id: client_id_private_key_base58.into(),
             ticketbook_type,
         })
     }

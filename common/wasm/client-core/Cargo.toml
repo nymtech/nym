@@ -44,4 +44,4 @@ wasm-storage = { path = "../storage" }
 console_error_panic_hook = { workspace = true, optional = true }
 
 [features]
-default = ["console_error_panic_hook"]
+default = ["wasm-utils/console_error_panic_hook"]

@@ -6,8 +6,11 @@ use log::*;
 use nym_bandwidth_controller::acquire::{
     get_ticket_book, query_and_persist_required_global_signatures,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use nym_client_core::config::disk_persistence::CommonClientPaths;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_config::DEFAULT_DATA_DIR;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_credential_storage::storage::Storage;
 use nym_credentials_interface::TicketType;
@@ -16,6 +19,7 @@ use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::{
     dkg_query_client::EpochState, DkgQueryClient, EcashQueryClient, EcashSigningClient,
 };
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -80,6 +84,7 @@ where
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub async fn setup_persistent_storage(client_home_directory: PathBuf) -> PersistentStorage {
     let data_dir = client_home_directory.join(DEFAULT_DATA_DIR);
     let paths = CommonClientPaths::new_base(data_dir);

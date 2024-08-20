@@ -15,7 +15,6 @@ use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use defguard_wireguard_rs::host::Peer;
 use futures::channel::{mpsc, oneshot};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
@@ -273,7 +272,7 @@ impl<St> Gateway<St> {
             .iter()
             .cloned()
             .map(|wireguard_peer| {
-                Peer::try_from(wireguard_peer).map(|mut peer: Peer| {
+                defguard_wireguard_rs::host::Peer::try_from(wireguard_peer).map(|mut peer: Peer| {
                     peer.allowed_ips
                         .pop()
                         .ok_or(Box::new(GatewayError::InternalWireguardError(format!(

@@ -272,7 +272,7 @@ impl<St> Gateway<St> {
             .iter()
             .cloned()
             .map(|wireguard_peer| {
-                defguard_wireguard_rs::host::Peer::try_from(wireguard_peer).map(|mut peer: Peer| {
+                defguard_wireguard_rs::host::Peer::try_from(wireguard_peer).map(|mut peer| {
                     peer.allowed_ips
                         .pop()
                         .ok_or(Box::new(GatewayError::InternalWireguardError(format!(

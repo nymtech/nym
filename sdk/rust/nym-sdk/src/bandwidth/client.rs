@@ -17,7 +17,7 @@ use zeroize::Zeroizing;
 pub struct BandwidthAcquireClient<'a, St: Storage> {
     client: DirectSigningHttpRpcNyxdClient,
     storage: &'a St,
-    client_id: Zeroizing<String>,
+    client_id: Zeroizing<Vec<u8>>,
     ticketbook_type: TicketType,
 }
 
@@ -30,7 +30,7 @@ where
         network_details: NymNetworkDetails,
         mnemonic: String,
         storage: &'a St,
-        client_id: String,
+        client_id: Vec<u8>,
         ticketbook_type: TicketType,
     ) -> Result<Self> {
         let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-use crate::utils::{get_coin_index_signatures, get_expiration_date_signatures};
+use crate::utils::{
+    get_aggregate_verification_key, get_coin_index_signatures, get_expiration_date_signatures,
+};
 use log::info;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::IssuanceTicketBook;
@@ -55,7 +57,7 @@ where
     ))
 }
 
-pub async fn query_and_persist_required_global_signatures<S>(
+pub async fn query_and_persist_required_global_data<S>(
     storage: &S,
     epoch_id: EpochId,
     expiration_date: Date,
@@ -65,6 +67,10 @@ where
     S: Storage,
     <S as Storage>::StorageError: Send + Sync + 'static,
 {
+    log::info!("Getting master verification key");
+    // this will also persist the key in the storage if was not there already
+    get_aggregate_verification_key(storage, epoch_id, apis.clone()).await?;
+
     log::info!("Getting expiration date signatures");
     // this will also persist the signatures in the storage if they were not there already
     get_expiration_date_signatures(storage, epoch_id, expiration_date, apis.clone()).await?;

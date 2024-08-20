@@ -9,6 +9,9 @@ use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_utils::utils;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
+use rand::rngs::OsRng;
+use rand::RngCore;
+use std::fs::create_dir_all;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
@@ -18,12 +21,20 @@ pub struct Args {
     pub(crate) ticketbook_type: TicketType,
 
     /// Config file of the client that is supposed to use the credential.
-    #[clap(long)]
-    pub(crate) client_config: PathBuf,
+    #[clap(long, group = "output")]
+    pub(crate) client_config: Option<PathBuf>,
+
+    /// Path to the dedicated credential storage database
+    #[clap(long, group = "output")]
+    pub(crate) credential_storage: Option<PathBuf>,
 }
 
-pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
-    let loaded = CommonConfigsWrapper::try_load(args.client_config)?;
+async fn issue_client_ticketbook(
+    cfg: PathBuf,
+    typ: TicketType,
+    client: SigningClient,
+) -> anyhow::Result<()> {
+    let loaded = CommonConfigsWrapper::try_load(cfg)?;
 
     if let Ok(id) = loaded.try_get_id() {
         println!("loaded config file for client '{id}'");
@@ -48,9 +59,40 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         &client,
         &persistent_storage,
         &private_id_key.to_bytes(),
-        args.ticketbook_type,
+        typ,
     )
     .await?;
 
     Ok(())
+}
+
+async fn issue_standalone_ticketbook(
+    credentials_store: PathBuf,
+    typ: TicketType,
+    client: SigningClient,
+) -> anyhow::Result<()> {
+    println!("attempting to issue a standalone ticketbook");
+
+    let mut rng = OsRng;
+    let mut random_seed = [0u8; 32];
+    rng.fill_bytes(&mut random_seed);
+
+    if let Some(parent) = credentials_store.parent() {
+        create_dir_all(parent)?;
+    }
+
+    let persistent_storage = initialise_persistent_storage(credentials_store).await;
+    utils::issue_credential(&client, &persistent_storage, &random_seed, typ).await?;
+
+    Ok(())
+}
+
+pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
+    match (args.client_config, args.credential_storage) {
+        (Some(cfg), None) => issue_client_ticketbook(cfg, args.ticketbook_type, client).await,
+        (None, Some(storage)) => {
+            issue_standalone_ticketbook(storage, args.ticketbook_type, client).await
+        }
+        _ => unreachable!("clap should have made this branch impossible to reach!"),
+    }
 }

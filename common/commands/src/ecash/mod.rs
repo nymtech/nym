@@ -3,6 +3,7 @@
 
 use clap::{Args, Subcommand};
 
+pub mod generate_ticket;
 pub mod import_ticket_book;
 pub mod issue_ticket_book;
 pub mod recover_ticket_book;
@@ -19,4 +20,5 @@ pub enum EcashCommands {
     IssueTicketBook(issue_ticket_book::Args),
     RecoverTicketBook(recover_ticket_book::Args),
     ImportTicketBook(import_ticket_book::Args),
+    GenerateTicket(generate_ticket::Args),
 }

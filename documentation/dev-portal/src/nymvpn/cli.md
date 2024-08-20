@@ -38,6 +38,32 @@ tar -xvf <BINARY>.tar.gz
 # tar -xvf nym-vpn-cli_<!-- cmdrun ../../../scripts/cmdrun/nym_vpn_cli_version.sh -->_ubuntu-22.04_x86_64.tar.gz
 ```
 
+### Building From Source
+
+NymVPN CLI can be built from source. This process is recommended for more advanced users as the installation may require different dependencies based on the operating system used.
+
+Start by installing [Go](https://go.dev/doc/install) and [Rust](https://rustup.rs/) languages on your system and then follow these steps:
+
+1. Clone NymVPN repository:
+```sh
+git clone https://github.com/nymtech/nym-vpn-client.git
+```
+
+2. Move to `nym-vpn-client` directory and compile `wireguard`:
+
+```sh
+cd nym-vpn-client
+
+make build-wireguard
+```
+
+3. Compile NymVPN CLI
+```sh
+make build-nym-vpn-core
+```
+
+Now your NymVPN CLI is installed. Navigate to `nym-vpn-core/target/release` and use the commands the section below to run the client.
+
 ## Running
 
 If you are running Debian/Ubuntu/PopOS or any other distributio supporting debian packages and systemd, see the [relevant section below](#debian-package-for-debianubuntupopos).

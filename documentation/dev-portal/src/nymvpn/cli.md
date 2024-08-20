@@ -1,7 +1,7 @@
 # NymVPN CLI Guide
 
 ```admonish tip title="web3summit testing"
-**If you testing NymVPN CLI on web3summit Berlin, visit our event page with all info tailored for the event: [nym-vpn-cli.sandbox.nymtech.net/](https://nym-vpn-cli.sandbox.nymtech.net/).**
+**If you testing NymVPN CLI on Web3 Summit Berlin, visit our event page with all info tailored for the event: [nym-vpn-cli.sandbox.nymtech.net](https://nym-vpn-cli.sandbox.nymtech.net/).**
 ```
 
 ```admonish info
@@ -175,8 +175,7 @@ Options:
 
 You can also run any command with `--help` flag to see a list of all options associated witht that command, the most important may be `run` command, like in this example.
 
-~~~admonish example collapsible=true title="nym-vpn-cli run --help
-"
+~~~admonish example collapsible=true title="nym-vpn-cli run --help"
 ```sh
 Run the client
 

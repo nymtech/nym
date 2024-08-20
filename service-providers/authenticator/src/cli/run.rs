@@ -55,7 +55,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), AuthenticatorError> {
         handler.run().await;
     });
     let mut server =
-        nym_authenticator::Authenticator::new(config, wireguard_gateway_data, response_rx);
+        nym_authenticator::Authenticator::new(config, wireguard_gateway_data, vec![], response_rx);
     if let Some(custom_mixnet) = &args.common_args.custom_mixnet {
         server = server.with_stored_topology(custom_mixnet)?
     }

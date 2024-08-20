@@ -204,8 +204,8 @@ pub enum GatewayError {
     WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
-    #[error("wireguard not set")]
-    WireguardNotSet,
+    #[error("internal wireguard error {0}")]
+    InternalWireguardError(String),
 
     #[error("failed to start authenticator: {source}")]
     AuthenticatorStartError {

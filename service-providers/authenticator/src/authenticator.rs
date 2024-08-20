@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::Path;
+use std::{net::IpAddr, path::Path, time::SystemTime};
 
 use futures::channel::oneshot;
 use ipnetwork::IpNetwork;
@@ -31,6 +31,7 @@ pub struct Authenticator {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
+    used_private_network_ips: Vec<IpAddr>,
     response_rx: UnboundedReceiver<PeerControlResponse>,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
@@ -40,6 +41,7 @@ impl Authenticator {
     pub fn new(
         config: Config,
         wireguard_gateway_data: WireguardGatewayData,
+        used_private_network_ips: Vec<IpAddr>,
         response_rx: UnboundedReceiver<PeerControlResponse>,
     ) -> Self {
         Self {
@@ -48,6 +50,7 @@ impl Authenticator {
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             wireguard_gateway_data,
+            used_private_network_ips,
             response_rx,
             shutdown: None,
             on_start: None,
@@ -128,13 +131,26 @@ impl Authenticator {
 
         let self_address = *mixnet_client.nym_address();
 
+        let used_private_network_ips =
+            std::collections::BTreeSet::from_iter(self.used_private_network_ips.iter());
         let private_ip_network = IpNetwork::new(
             self.config.authenticator.private_ip,
             self.config.authenticator.private_network_prefix,
         )?;
+        let now = SystemTime::now();
+        let free_private_network_ips = private_ip_network
+            .iter()
+            .map(|ip| {
+                if used_private_network_ips.contains(&ip) {
+                    (ip, Some(now))
+                } else {
+                    (ip, None)
+                }
+            })
+            .collect();
         let mixnet_listener = crate::mixnet_listener::MixnetListener::new(
             self.config,
-            private_ip_network,
+            free_private_network_ips,
             self.wireguard_gateway_data,
             self.response_rx,
             mixnet_client,

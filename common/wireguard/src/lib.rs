@@ -10,6 +10,7 @@ use defguard_wireguard_rs::WGApi;
 #[cfg(target_os = "linux")]
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::encryption::KeyPair;
+use nym_gateway_storage::models::WireguardPeer;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
@@ -84,6 +85,7 @@ pub struct WireguardData {
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard<St: nym_gateway_storage::Storage + 'static>(
     storage: St,
+    all_peers: Vec<WireguardPeer>,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
     control_tx: UnboundedSender<peer_controller::PeerControlResponse>,
@@ -95,7 +97,7 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + 'static>(
 
     let mut peers = vec![];
     let mut suspended_peers = vec![];
-    for storage_peer in storage.get_all_wireguard_peers().await? {
+    for storage_peer in all_peers {
         let suspended = storage_peer.suspended;
         let peer = Peer::try_from(storage_peer)?;
         if suspended {

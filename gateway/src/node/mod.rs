@@ -15,6 +15,7 @@ use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
+use defguard_wireguard_rs::host::Peer;
 use futures::channel::{mpsc, oneshot};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
@@ -267,12 +268,29 @@ impl<St> Gateway<St> {
             forwarding_channel,
             router_tx,
         );
+        let all_peers = self.storage.get_all_wireguard_peers().await?;
+        let used_private_network_ips = all_peers
+            .iter()
+            .cloned()
+            .map(|wireguard_peer| {
+                Peer::try_from(wireguard_peer).map(|mut peer: Peer| {
+                    peer.allowed_ips
+                        .pop()
+                        .ok_or(Box::new(GatewayError::InternalWireguardError(format!(
+                            "no private IP set for peer {}",
+                            peer.public_key
+                        ))))
+                        .map(|p| p.ip)
+                })
+            })
+            .collect::<Result<Result<Vec<_>, _>, _>>()??;
 
         if let Some(wireguard_data) = self.wireguard_data.take() {
             let (on_start_tx, on_start_rx) = oneshot::channel();
             let mut authenticator_server = nym_authenticator::Authenticator::new(
                 opts.config.clone(),
                 wireguard_data.inner.clone(),
+                used_private_network_ips,
                 peer_response_rx,
             )
             .with_custom_gateway_transceiver(Box::new(transceiver))
@@ -306,6 +324,7 @@ impl<St> Gateway<St> {
 
             let wg_api = nym_wireguard::start_wireguard(
                 self.storage.clone(),
+                all_peers,
                 shutdown,
                 wireguard_data,
                 peer_response_tx,
@@ -317,7 +336,9 @@ impl<St> Gateway<St> {
                 handle: LocalEmbeddedClientHandle::new(start_data.address, auth_mix_sender),
             })
         } else {
-            Err(Box::new(GatewayError::WireguardNotSet))
+            Err(Box::new(GatewayError::InternalWireguardError(
+                "wireguard not set".to_string(),
+            )))
         }
     }
 

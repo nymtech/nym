@@ -106,7 +106,7 @@ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-
 - **Download Nym Node:**
     - You can download the `nym-node` binary directly using the following command:
 ```bash
-curl -L https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck/nym-node -o nym-node && chmod u+x nym-node
+curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-v2024.9-topdeck/nym-node -o nym-node && chmod u+x nym-node
 ```
 
 **Step 1: Update UFW Firewall Rules**

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(target_arch = "wasm32")]
+mod bandwidth;
+#[cfg(target_arch = "wasm32")]
 mod credential;
 #[cfg(target_arch = "wasm32")]
 mod error;
@@ -9,8 +11,6 @@ mod error;
 mod helpers;
 #[cfg(target_arch = "wasm32")]
 mod opts;
-#[cfg(target_arch = "wasm32")]
-mod bandwidth;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;

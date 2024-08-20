@@ -1,15 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::WasmCredentialClientError;
 use nym_network_defaults::{NymContracts, NymNetworkDetails, ValidatorDetails};
-use zeroize::Zeroizing;
-
-pub(crate) fn parse_mnemonic(raw: String) -> Result<bip39::Mnemonic, WasmCredentialClientError> {
-    // make sure that whatever happens, the raw value gets zeroized
-    let wrapped = Zeroizing::new(raw);
-    Ok(bip39::Mnemonic::parse(&*wrapped)?)
-}
 
 pub(crate) fn minimal_coconut_sandbox() -> NymNetworkDetails {
     // we can piggyback on mainnet defaults for certain things,

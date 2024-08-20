@@ -74,7 +74,10 @@ struct PacketStatistics {
 
 impl PacketStatistics {
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-    fn handle_event(&mut self, event: crate::client::packet_statistics_control::PacketStatisticsEvent) {
+    fn handle_event(
+        &mut self,
+        _event: crate::client::packet_statistics_control::PacketStatisticsEvent,
+    ) {
     }
 
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -336,6 +339,7 @@ impl PacketRates {
     }
 }
 
+#[allow(unused_variables, dead_code)]
 #[derive(Debug)]
 pub(crate) enum PacketStatisticsEvent {
     // The real packets sent. Recall that acks are sent by the gateway, so it's not included here.

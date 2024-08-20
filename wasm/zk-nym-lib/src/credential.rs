@@ -1,14 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::bandwidth::BandwidthAcquireClient;
 use crate::error::WasmCredentialClientError;
 use crate::opts::CredentialClientOpts;
 use js_sys::Promise;
 use nym_credential_storage::ephemeral_storage::EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage;
+use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials_interface::TicketType;
 use nym_network_defaults::NymNetworkDetails;
-use crate::bandwidth::BandwidthAcquireClient;
 use nym_validator_client::nyxd::CosmWasmCoin;
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
@@ -16,7 +17,6 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::error::PromisableResult;
 use zeroize::{Zeroize, ZeroizeOnDrop};
-use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 
 #[wasm_bindgen(js_name = acquireCredential)]
 pub fn acquire_credential(
@@ -122,7 +122,10 @@ async fn acquire_credential_async(
     // .await?;
     //
 
-    match ephemeral_storage.get_next_unspent_usable_ticketbook(1u32).await? {
+    match ephemeral_storage
+        .get_next_unspent_usable_ticketbook(1u32)
+        .await?
+    {
         Some(ticket_book) => {
             let serialized = ticket_book.ticketbook.pack();
 
@@ -131,7 +134,7 @@ async fn acquire_credential_async(
                 credential_data: serialized.data,
                 ticketbook_type: format!("{}", ticketbook_type),
             })
-        },
+        }
         None => Err(WasmCredentialClientError::TicketbookCredentialStoreIsNone),
     }
 }

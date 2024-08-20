@@ -34,7 +34,7 @@ use nym_ecash_time::{ecash_today, EcashTime};
 use tsify::Tsify;
 
 #[cfg(feature = "wasm-serde-types")]
-use wasm_bindgen::{prelude::wasm_bindgen};
+use wasm_bindgen::prelude::wasm_bindgen;
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {

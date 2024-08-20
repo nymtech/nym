@@ -4856,6 +4856,9 @@ dependencies = [
  "strum 0.25.0",
  "thiserror",
  "time",
+ "tsify",
+ "wasm-bindgen",
+ "wasm-utils",
 ]
 
 [[package]]
@@ -10689,6 +10692,7 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-credential-storage",
+ "nym-credential-utils",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-network-defaults",

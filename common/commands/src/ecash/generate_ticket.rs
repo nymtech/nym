@@ -124,6 +124,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
 
         println!("{}", format!("PAYMENT FOR TICKET {next_ticket}: ").bold());
         println!("{}", bs58::encode(&payment.to_bytes()).into_string());
+        return Ok(());
     }
 
     println!(

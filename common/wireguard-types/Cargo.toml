@@ -12,7 +12,6 @@ license.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
-dashmap = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
@@ -35,7 +34,7 @@ x25519-dalek = { workspace = true, features = ["static_secrets"] }
 
 [dev-dependencies]
 rand = "0.8.5"
-nym-crypto = { path = "../crypto", features = ["rand"]}
+nym-crypto = { path = "../crypto", features = ["rand"] }
 
 
 [features]

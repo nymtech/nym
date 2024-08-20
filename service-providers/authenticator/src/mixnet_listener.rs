@@ -24,13 +24,27 @@ use nym_wireguard_types::{
     GatewayClient, InitMessage, PeerPublicKey,
 };
 use rand::{prelude::IteratorRandom, thread_rng};
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::{mpsc::UnboundedReceiver, RwLock};
 use tokio_stream::wrappers::IntervalStream;
 
 use crate::{config::Config, error::*};
 
 type AuthenticatorHandleResult = Result<AuthenticatorResponse>;
 const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
+
+pub(crate) struct RegistredAndFree {
+    registration_in_progres: PendingRegistrations,
+    free_private_network_ips: PrivateIPs,
+}
+
+impl RegistredAndFree {
+    pub(crate) fn new(free_private_network_ips: PrivateIPs) -> Self {
+        RegistredAndFree {
+            registration_in_progres: Default::default(),
+            free_private_network_ips,
+        }
+    }
+}
 
 pub(crate) struct MixnetListener {
     // The configuration for the mixnet listener
@@ -43,11 +57,9 @@ pub(crate) struct MixnetListener {
     pub(crate) task_handle: TaskHandle,
 
     // Registrations awaiting confirmation
-    pub(crate) registration_in_progres: Arc<PendingRegistrations>,
+    pub(crate) registred_and_free: RwLock<RegistredAndFree>,
 
     pub(crate) peer_manager: PeerManager,
-
-    pub(crate) free_private_network_ips: Arc<PrivateIPs>,
 
     pub(crate) timeout_check_interval: IntervalStream,
 }
@@ -63,15 +75,13 @@ impl MixnetListener {
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
+        let free_private_network_ips = private_ip_network.iter().map(|ip| (ip, None)).collect();
         MixnetListener {
             config,
             mixnet_client,
             task_handle,
-            registration_in_progres: Default::default(),
+            registred_and_free: RwLock::new(RegistredAndFree::new(free_private_network_ips)),
             peer_manager: PeerManager::new(wireguard_gateway_data, response_rx),
-            free_private_network_ips: Arc::new(
-                private_ip_network.iter().map(|ip| (ip, None)).collect(),
-            ),
             timeout_check_interval,
         }
     }
@@ -80,9 +90,15 @@ impl MixnetListener {
         self.peer_manager.wireguard_gateway_data.keypair()
     }
 
-    fn remove_stale_registrations(&self) -> Result<()> {
-        for reg in self.registration_in_progres.iter().map(|reg| reg.clone()) {
-            let mut ip = self
+    async fn remove_stale_registrations(&self) -> Result<()> {
+        let mut registred_and_free = self.registred_and_free.write().await;
+        let registred_values: Vec<_> = registred_and_free
+            .registration_in_progres
+            .values()
+            .cloned()
+            .collect();
+        for reg in registred_values {
+            let ip = registred_and_free
                 .free_private_network_ips
                 .get_mut(&reg.gateway_data.private_ip)
                 .ok_or(AuthenticatorError::InternalDataCorruption(format!(
@@ -90,10 +106,9 @@ impl MixnetListener {
                     reg.gateway_data.private_ip
                 )))?;
 
-            let timestamp = ip.ok_or(AuthenticatorError::InternalDataCorruption(format!(
-                "timestamp should be set for IP {}",
-                ip.key()
-            )))?;
+            let timestamp = ip.ok_or(AuthenticatorError::InternalDataCorruption(
+                "timestamp should be set".to_string(),
+            ))?;
             let duration = SystemTime::now().duration_since(timestamp).map_err(|_| {
                 AuthenticatorError::InternalDataCorruption(
                     "set timestamp shouldn't have been set in the future".to_string(),
@@ -101,7 +116,8 @@ impl MixnetListener {
             })?;
             if duration > DEFAULT_REGISTRATION_TIMEOUT_CHECK {
                 *ip = None;
-                self.registration_in_progres
+                registred_and_free
+                    .registration_in_progres
                     .remove(&reg.gateway_data.pub_key());
                 log::debug!(
                     "Removed stale registration of {}",
@@ -120,9 +136,15 @@ impl MixnetListener {
     ) -> AuthenticatorHandleResult {
         let remote_public = init_message.pub_key();
         let nonce: u64 = fastrand::u64(..);
-        if let Some(registration_data) = self.registration_in_progres.get(&remote_public) {
+        if let Some(registration_data) = self
+            .registred_and_free
+            .read()
+            .await
+            .registration_in_progres
+            .get(&remote_public)
+        {
             return Ok(AuthenticatorResponse::new_pending_registration_success(
-                registration_data.value().clone(),
+                registration_data.clone(),
                 request_id,
                 reply_to,
             ));
@@ -145,18 +167,19 @@ impl MixnetListener {
                 request_id,
             ));
         }
-        let mut private_ip_ref = self
+        let mut registred_and_free = self.registred_and_free.write().await;
+        let private_ip_ref = registred_and_free
             .free_private_network_ips
             .iter_mut()
-            .filter(|r| r.is_none())
+            .filter(|r| r.1.is_none())
             .choose(&mut thread_rng())
             .ok_or(AuthenticatorError::NoFreeIp)?;
         // mark it as used, even though it's not final
-        *private_ip_ref = Some(SystemTime::now());
+        *private_ip_ref.1 = Some(SystemTime::now());
         let gateway_data = GatewayClient::new(
             self.keypair().private_key(),
             remote_public.inner(),
-            *private_ip_ref.key(),
+            *private_ip_ref.0,
             nonce,
         );
         let registration_data = RegistrationData {
@@ -164,7 +187,8 @@ impl MixnetListener {
             gateway_data,
             wg_port: self.config.authenticator.announced_port,
         };
-        self.registration_in_progres
+        registred_and_free
+            .registration_in_progres
             .insert(remote_public, registration_data.clone());
 
         Ok(AuthenticatorResponse::new_pending_registration_success(
@@ -180,11 +204,11 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
-        let registration_data = self
+        let mut registred_and_free = self.registred_and_free.write().await;
+        let registration_data = registred_and_free
             .registration_in_progres
             .get(&gateway_client.pub_key())
             .ok_or(AuthenticatorError::RegistrationNotInProgress)?
-            .value()
             .clone();
 
         if gateway_client
@@ -192,7 +216,8 @@ impl MixnetListener {
             .is_ok()
         {
             self.peer_manager.add_peer(&gateway_client).await?;
-            self.registration_in_progres
+            registred_and_free
+                .registration_in_progres
                 .remove(&gateway_client.pub_key());
 
             Ok(AuthenticatorResponse::new_registered(
@@ -294,7 +319,7 @@ impl MixnetListener {
                     log::debug!("Authenticator [main loop]: received shutdown");
                 },
                 _ = self.timeout_check_interval.next() => {
-                    if let Err(e) = self.remove_stale_registrations() {
+                    if let Err(e) = self.remove_stale_registrations().await {
                         log::error!("Could not clear stale registrations. The registration process might get jammed soon - {:?}", e);
                     }
                 }

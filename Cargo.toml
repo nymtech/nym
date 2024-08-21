@@ -311,8 +311,10 @@ tracing-tree = "0.2.2"
 ts-rs = "7.0.0"
 tungstenite = { version = "0.20.1", default-features = false }
 url = "2.5"
-utoipa = "4.2.0"
-utoipa-swagger-ui = "6.0.0"
+utoipa = "4.2"
+utoipa-rapidoc = "4.0"
+utoipa-swagger-ui = "7.1"
+utoipauto = "0.1"
 uuid = "*"
 vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"

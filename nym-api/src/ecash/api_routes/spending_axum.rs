@@ -54,8 +54,15 @@ fn reject_ticket(
 
 // TODO: optimise it; for now it's just dummy split of the original `verify_offline_credential`
 // introduce bloomfilter checks without touching storage first, etc.
-// #[openapi(tag = "Ecash")]
-// #[post("/verify-ecash-ticket", data = "<verify_ticket_body>")]
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = VerifyEcashTicketBody,
+    path = "/v1/ecash/verify-ecash-ticket",
+    responses(
+        (status = 200, body = EcashTicketVerificationResponse)
+    )
+)]
 async fn verify_ticket(
     // TODO in the future: make it send binary data rather than json
     Json(verify_ticket_body): Json<VerifyEcashTicketBody>,
@@ -147,11 +154,15 @@ async fn verify_ticket(
 //     todo!()
 // }
 
-// #[openapi(tag = "Ecash")]
-// #[post(
-//     "/batch-redeem-ecash-tickets",
-//     data = "<batch_redeem_credentials_body>"
-// )]
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = BatchRedeemTicketsBody,
+    path = "/v1/ecash/batch-redeem-ecash-tickets",
+    responses(
+        (status = 200, body = EcashBatchTicketRedemptionResponse)
+    )
+)]
 async fn batch_redeem_tickets(
     // TODO in the future: make it send binary data rather than json
     Json(batch_redeem_credentials_body): Json<BatchRedeemTicketsBody>,
@@ -216,8 +227,14 @@ async fn batch_redeem_tickets(
 
 // explicitly mark it as v1 in the URL because the response type WILL change;
 // it will probably be compressed bincode or something
-// #[openapi(tag = "Ecash")]
-// #[get("/double-spending-filter-v1")]
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    path = "/v1/ecash/double-spending-filter-v1",
+    responses(
+        (status = 200, body = SpentCredentialsResponse)
+    )
+)]
 async fn double_spending_filter_v1(
     state: Arc<EcashState>,
 ) -> AxumResult<Json<SpentCredentialsResponse>> {

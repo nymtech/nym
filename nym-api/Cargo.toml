@@ -77,6 +77,7 @@ axum-extra = { workspace = true, features = ["typed-header"] }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+utoipauto = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 tracing.workspace = true
 
@@ -111,7 +112,7 @@ cw4 = { workspace = true }
 nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
 nym-gateway-client = { path = "../common/client-libs/gateway-client" }
 nym-inclusion-probability = { path = "../common/inclusion-probability" }
-nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"]}
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
@@ -122,11 +123,11 @@ nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests", features = ["rocket-traits"] }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format", "openapi"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-types = { path = "../common/types" }
-nym-http-api-common = { path = "../common/http-api-common" }
+nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
 
 [features]
 no-reward = []

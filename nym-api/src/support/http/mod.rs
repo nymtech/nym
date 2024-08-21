@@ -6,7 +6,7 @@ use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::client::Client;
 use crate::ecash::state::EcashState;
 use crate::ecash::{self, comm::QueryCommunicationChannel};
-use crate::network::handlers::nym_network_routes;
+use crate::network::handlers::{nym_network_routes, ContractVersionSchemaResponse};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
@@ -15,9 +15,9 @@ use crate::node_status_api::routes_deprecated::unstable;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
-use crate::nym_nodes::{
-    nym_node_routes, nym_node_routes_deprecated, nym_node_routes_next, nym_node_routes_unstable,
-};
+use crate::nym_nodes::handlers::nym_node_routes;
+use crate::nym_nodes::handlers_unstable::nym_node_routes_unstable;
+use crate::nym_nodes::{nym_node_routes_deprecated, nym_node_routes_next};
 use crate::status::{self, api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
@@ -25,8 +25,8 @@ use crate::support::{nyxd, storage};
 use crate::v2::AxumAppState;
 use crate::{circulating_supply_api, nym_contract_cache};
 use anyhow::{bail, Context, Result};
-use axum::response::Html;
 use axum::Router;
+use nym_api_requests::models;
 use nym_crypto::asymmetric::identity;
 use nym_http_api_common::logging::logger;
 use nym_validator_client::nyxd::Coin;
@@ -35,10 +35,12 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
 use tower_http::cors::CorsLayer;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+use utoipauto::utoipauto;
 
 pub(crate) mod helpers;
 pub(crate) mod openapi;
-pub(crate) mod static_routes;
 
 pub(crate) async fn setup_rocket(
     config: &Config,
@@ -160,9 +162,85 @@ fn setup_cors() -> CorsLayer {
         .allow_credentials(false)
 }
 
-pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
-    // TODO dz serve swagger UI
+// TODO once https://github.com/ProbablyClem/utoipauto/pull/38 is released:
+// include ",./nym-api/nym-api-requests/src from nym-api-requests" (and other packages mentioned below)
+// for automatic model discovery based on ToSchema / IntoParams implementation.
+// Then you can remove `components(schemas)` manual imports below
 
+#[utoipauto(paths = "./nym-api/src")]
+#[derive(OpenApi)]
+#[openapi(
+    info(title = "Nym API"),
+    tags(),
+    components(schemas(
+        models::CirculatingSupplyResponse,
+        models::CoinSchema,
+        nym_mixnet_contract_common::Interval,
+        nym_api_requests::models::GatewayStatusReportResponse,
+        nym_api_requests::models::GatewayUptimeHistoryResponse,
+        nym_api_requests::models::HistoricalUptimeResponse,
+        nym_api_requests::models::GatewayCoreStatusResponse,
+        nym_api_requests::models::GatewayUptimeResponse,
+        nym_api_requests::models::RewardEstimationResponse,
+        nym_api_requests::models::UptimeResponse,
+        nym_api_requests::models::ComputeRewardEstParam,
+        nym_api_requests::models::MixNodeBondAnnotated,
+        nym_api_requests::models::GatewayBondAnnotated,
+        nym_api_requests::models::MixnodeTestResultResponse,
+        nym_api_requests::models::StakeSaturationResponse,
+        nym_api_requests::models::InclusionProbabilityResponse,
+        nym_api_requests::models::AllInclusionProbabilitiesResponse,
+        nym_api_requests::models::InclusionProbability,
+        nym_api_requests::models::SelectionChance,
+        NetworkDetails,
+        nym_config::defaults::NymNetworkDetails,
+        nym_config::defaults::ChainDetails,
+        nym_config::defaults::DenomDetailsOwned,
+        nym_config::defaults::ValidatorDetails,
+        nym_config::defaults::NymContracts,
+        ContractVersionSchemaResponse,
+        crate::network::models::ContractInformation<ContractVersionSchemaResponse>,
+        nym_api_requests::models::ApiHealthResponse,
+        nym_api_requests::models::ApiStatus,
+        nym_bin_common::build_information::BinaryBuildInformationOwned,
+        nym_api_requests::models::SignerInformationResponse,
+        nym_api_requests::models::DescribedGateway,
+        nym_api_requests::models::MixNodeDetailsSchema,
+        nym_mixnet_contract_common::Gateway,
+        nym_mixnet_contract_common::GatewayBond,
+        nym_api_requests::models::NymNodeDescription,
+        nym_api_requests::models::HostInformation,
+        nym_api_requests::models::HostKeys,
+        nym_node_requests::api::v1::node::models::AuxiliaryDetails,
+        nym_api_requests::models::NetworkRequesterDetails,
+        nym_api_requests::models::IpPacketRouterDetails,
+        nym_api_requests::models::AuthenticatorDetails,
+        nym_api_requests::models::WebSockets,
+        nym_api_requests::nym_nodes::NodeRole,
+        nym_api_requests::models::DescribedMixNode,
+        nym_api_requests::ecash::VerificationKeyResponse,
+        nym_api_requests::ecash::models::AggregatedExpirationDateSignatureResponse,
+        nym_api_requests::ecash::models::AggregatedCoinIndicesSignatureResponse,
+        nym_api_requests::ecash::models::EpochCredentialsResponse,
+        nym_api_requests::ecash::models::IssuedCredentialResponse,
+        nym_api_requests::ecash::models::IssuedTicketbookBody,
+        nym_api_requests::ecash::models::BlindedSignatureResponse,
+        nym_api_requests::ecash::models::PartialExpirationDateSignatureResponse,
+        nym_api_requests::ecash::models::PartialCoinIndicesSignatureResponse,
+        nym_api_requests::ecash::models::EcashTicketVerificationResponse,
+        nym_api_requests::ecash::models::EcashTicketVerificationRejection,
+        nym_api_requests::ecash::models::EcashBatchTicketRedemptionResponse,
+        nym_api_requests::ecash::models::SpentCredentialsResponse,
+        nym_api_requests::ecash::models::IssuedCredentialsResponse,
+        nym_api_requests::nym_nodes::SkimmedNode,
+        nym_api_requests::nym_nodes::BasicEntryInformation,
+        nym_api_requests::nym_nodes::SemiSkimmedNode,
+        nym_api_requests::nym_nodes::NodeRoleQueryParam,
+    ))
+)]
+struct ApiDoc;
+
+pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
     let router = Router::new()
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
         // TODO dz use tracing instead of env_logger
@@ -173,27 +251,24 @@ pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router
         //         .on_request(DefaultOnRequest::new())
         //         .on_response(DefaultOnResponse::new().latency_unit(tower_http::LatencyUnit::Micros)),
         // )
-        .route(
-            "/",
-            axum::routing::get(|| async { axum::response::Redirect::permanent("/swagger") }),
+        // .route("/", axum::routing::get(|| async {axum::response::Redirect::permanent("/swagger")}))
+        // .route("/swagger", axum::routing::get(hello))
+        .merge(SwaggerUi::new("/swagger").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .nest(
+            "/v1",
+            Router::new()
+                .nest("/circulating-supply", circulating_supply_routes())
+                .merge(nym_contract_cache_routes())
+                .nest("/status", node_status_routes(network_monitor))
+                .nest("/network", nym_network_routes())
+                .nest("/api-status", status::handlers::api_status_routes())
+                .merge(nym_node_routes())
+                .nest("/unstable/nym-nodes", nym_node_routes_unstable()), // CORS layer needs to be "outside" of routes
         )
-        .route("/swagger", axum::routing::get(hello))
-        .merge(circulating_supply_routes())
-        .merge(nym_contract_cache_routes())
-        .merge(node_status_routes(network_monitor))
-        .merge(nym_network_routes())
-        .merge(status::handlers::api_status_routes())
-        .merge(nym_node_routes())
-        .merge(nym_node_routes_unstable())
-        // CORS layer needs to be "outside" of routes
         .layer(setup_cors());
 
     // needs to be after routes we want to log
     let router = router.layer(axum::middleware::from_fn(logger));
 
     Ok(router)
-}
-
-async fn hello() -> Html<&'static str> {
-    Html("<h1>Welcome to server V2</h1> as provided by Axum")
 }

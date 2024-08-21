@@ -3,7 +3,6 @@
 
 use crate::{
     node_status_api::models::{AxumErrorResponse, AxumResult},
-    support::http::static_routes,
     v2::AxumAppState,
 };
 use axum::{extract, Router};
@@ -12,21 +11,25 @@ use nym_validator_client::nyxd::Coin;
 
 pub(crate) fn circulating_supply_routes() -> Router<AxumAppState> {
     Router::new()
+        .route("/", axum::routing::get(get_full_circulating_supply))
         .route(
-            &static_routes::v1::circulating_supply(),
-            axum::routing::get(get_full_circulating_supply),
-        )
-        .route(
-            &static_routes::v1::circulating_supply::circulating_supply_value(),
+            "/total-supply-value",
             axum::routing::get(get_circulating_supply),
         )
         .route(
-            &static_routes::v1::circulating_supply::total_supply_value(),
+            "/circulating-supply-value",
             axum::routing::get(get_total_supply),
         )
 }
 
-// TODO dz consider "substates" axum pattern
+#[utoipa::path(
+    tag = "circulating-supply",
+    get,
+    path = "/v1/circulating-supply",
+    responses(
+        (status = 200, body = CirculatingSupplyResponse)
+    )
+)]
 async fn get_full_circulating_supply(
     extract::State(state): extract::State<AxumAppState>,
 ) -> AxumResult<axum::Json<CirculatingSupplyResponse>> {
@@ -40,6 +43,14 @@ async fn get_full_circulating_supply(
     }
 }
 
+#[utoipa::path(
+    tag = "circulating-supply",
+    get,
+    path = "/v1/circulating-supply/total-supply-value",
+    responses(
+        (status = 200, body = [f64])
+    )
+)]
 async fn get_total_supply(
     extract::State(state): extract::State<AxumAppState>,
 ) -> AxumResult<axum::Json<f64>> {
@@ -55,6 +66,14 @@ async fn get_total_supply(
     Ok(unym_coin_to_float_unym(full_circulating_supply.total_supply.into()).into())
 }
 
+#[utoipa::path(
+    tag = "circulating-supply",
+    get,
+    path = "/v1/circulating-supply/circulating-supply-value",
+    responses(
+        (status = 200, body = [f64])
+    )
+)]
 async fn get_circulating_supply(
     extract::State(state): extract::State<AxumAppState>,
 ) -> AxumResult<axum::Json<f64>> {

@@ -63,15 +63,15 @@ rocket_okapi = { workspace = true, features = ["swagger"] }
 schemars = { workspace = true, features = ["preserve_order"] }
 zeroize = { workspace = true }
 
-# TODO dz merge aphabetically
-axum = { workspace = true, features = ["tokio"] }
-axum-extra = { workspace = true, features = ["typed-header"] }
-tower-http = { workspace = true, features = ["cors", "trace"] }
-utoipa = { workspace = true, features = ["axum_extras", "time"] }
-utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-utoipauto = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-tracing.workspace = true
+# for axum server
+axum = { workspace = true, features = ["tokio"], optional = true }
+axum-extra = { workspace = true, features = ["typed-header"], optional = true }
+tower-http = { workspace = true, features = ["cors", "trace"], optional = true }
+utoipa = { workspace = true, features = ["axum_extras", "time"], optional = true }
+utoipa-swagger-ui = { workspace = true, features = ["axum"], optional = true}
+utoipauto = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
+tracing = { workspace = true, optional = true }
 
 ## ephemera-specific
 #actix-web = "4"
@@ -121,6 +121,17 @@ nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"
 [features]
 no-reward = []
 generate-ts = ["ts-rs"]
+axum = ["dep:axum",
+    "axum-extra",
+    "tower-http",
+    "utoipa",
+    "utoipauto",
+    "tracing-subscriber",
+    "tracing",
+    "utoipa-swagger-ui",
+    "nym-http-api-common/utoipa",
+    "nym-mixnet-contract-common/utoipa"
+]
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

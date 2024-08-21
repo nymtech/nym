@@ -7,8 +7,12 @@ pub(crate) mod issued;
 pub(crate) mod partial_signing;
 pub(crate) mod spending;
 
-pub(crate) mod aggregation_axum;
-pub(crate) mod handlers;
-pub(crate) mod issued_axum;
-pub(crate) mod partial_signing_axum;
-pub(crate) mod spending_axum;
+cfg_if::cfg_if! {
+    if #[cfg(feature = "axum")] {
+        pub(crate) mod aggregation_axum;
+        pub(crate) mod handlers;
+        pub(crate) mod issued_axum;
+        pub(crate) mod partial_signing_axum;
+        pub(crate) mod spending_axum;
+    }
+}

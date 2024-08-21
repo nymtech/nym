@@ -67,7 +67,7 @@ impl CirculatingSupplyCache {
         }
     }
 
-    #[deprecated(note = "TODO dz: obsolete because it's used for Rocket")]
+    #[deprecated(note = "TODO rocket: obsolete because it's used for Rocket")]
     pub(crate) fn stage(mix_denom: String) -> AdHoc {
         AdHoc::on_ignite("Circulating Supply Cache Stage", |rocket| async {
             rocket.manage(Self::new(mix_denom))

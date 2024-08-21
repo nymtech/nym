@@ -61,8 +61,6 @@ async fn get_mixnodes(
     state.nym_contract_cache().mixnodes_filtered().await.into()
 }
 
-// TODO dz:is this warning still relevant?
-
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
 // replace this with
 // ```

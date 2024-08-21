@@ -103,7 +103,7 @@ impl ShutdownHandles {
         &mut self.task_manager
     }
 
-    /// After background tasks have finished, tell server to shut down.
+    /// Send signal to Axum server to gracefully shut down.
     pub(crate) fn shutdown_axum(self) {
         self.axum_handle.0.cancel()
     }
@@ -112,7 +112,7 @@ impl ShutdownHandles {
 struct AxumHandle(CancellationToken);
 
 #[derive(Clone)]
-// TODO dz remove smurf name after eliminating rocket
+// TODO rocket remove smurf name after eliminating rocket
 pub(crate) struct AxumAppState {
     nym_contract_cache: NymContractCache,
     node_status_cache: NodeStatusCache,

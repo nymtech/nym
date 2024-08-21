@@ -227,12 +227,11 @@ impl Config {
 }
 
 fn default_http_socket_addr() -> SocketAddr {
-    // replicate rocket behaviour
     cfg_if::cfg_if! {
         if #[cfg(debug_assertions)] {
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080)
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8081)
         } else {
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8080)
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8081)
         }
     }
 }
@@ -246,9 +245,7 @@ pub struct Base {
     #[zeroize(skip)]
     pub local_validator: Url,
 
-    // TODO dz Andrew added this here ?!
-    /// Socket address this api will use for binding its http API.
-    /// default: `0.0.0.0:8080`
+    /// Socket address Axum will use for binding its HTTP API.
     #[zeroize(skip)]
     #[serde(default = "default_http_socket_addr")]
     pub bind_address: SocketAddr,

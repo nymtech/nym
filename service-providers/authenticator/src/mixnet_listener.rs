@@ -8,7 +8,6 @@ use std::{
 
 use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use futures::StreamExt;
-use ipnetwork::IpNetwork;
 use nym_authenticator_requests::v1::{
     self,
     request::{AuthenticatorRequest, AuthenticatorRequestData},
@@ -67,7 +66,7 @@ pub(crate) struct MixnetListener {
 impl MixnetListener {
     pub fn new(
         config: Config,
-        private_ip_network: IpNetwork,
+        free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         response_rx: UnboundedReceiver<PeerControlResponse>,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
@@ -75,7 +74,6 @@ impl MixnetListener {
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
-        let free_private_network_ips = private_ip_network.iter().map(|ip| (ip, None)).collect();
         MixnetListener {
             config,
             mixnet_client,

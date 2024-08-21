@@ -22,7 +22,7 @@ use tracing::{debug, error};
 pub mod bandwidth;
 pub mod error;
 mod inboxes;
-pub(crate) mod models;
+pub mod models;
 mod shared_keys;
 mod tickets;
 #[cfg(feature = "wireguard")]

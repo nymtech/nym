@@ -267,12 +267,29 @@ impl<St> Gateway<St> {
             forwarding_channel,
             router_tx,
         );
+        let all_peers = self.storage.get_all_wireguard_peers().await?;
+        let used_private_network_ips = all_peers
+            .iter()
+            .cloned()
+            .map(|wireguard_peer| {
+                defguard_wireguard_rs::host::Peer::try_from(wireguard_peer).map(|mut peer| {
+                    peer.allowed_ips
+                        .pop()
+                        .ok_or(Box::new(GatewayError::InternalWireguardError(format!(
+                            "no private IP set for peer {}",
+                            peer.public_key
+                        ))))
+                        .map(|p| p.ip)
+                })
+            })
+            .collect::<Result<Result<Vec<_>, _>, _>>()??;
 
         if let Some(wireguard_data) = self.wireguard_data.take() {
             let (on_start_tx, on_start_rx) = oneshot::channel();
             let mut authenticator_server = nym_authenticator::Authenticator::new(
                 opts.config.clone(),
                 wireguard_data.inner.clone(),
+                used_private_network_ips,
                 peer_response_rx,
             )
             .with_custom_gateway_transceiver(Box::new(transceiver))
@@ -306,6 +323,7 @@ impl<St> Gateway<St> {
 
             let wg_api = nym_wireguard::start_wireguard(
                 self.storage.clone(),
+                all_peers,
                 shutdown,
                 wireguard_data,
                 peer_response_tx,
@@ -317,7 +335,9 @@ impl<St> Gateway<St> {
                 handle: LocalEmbeddedClientHandle::new(start_data.address, auth_mix_sender),
             })
         } else {
-            Err(Box::new(GatewayError::WireguardNotSet))
+            Err(Box::new(GatewayError::InternalWireguardError(
+                "wireguard not set".to_string(),
+            )))
         }
     }
 

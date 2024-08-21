@@ -15,7 +15,8 @@ serde = { workspace = true, features = ["derive"] }
 toml = "0.7.4"
 url = { workspace = true }
 
-nym-network-defaults = { path = "../network-defaults" }
+nym-network-defaults = { path = "../network-defaults", features = ["utoipa"] }
 
 [features]
 default = ["dirs"]
+utoipa = [ "nym-network-defaults/utoipa" ]

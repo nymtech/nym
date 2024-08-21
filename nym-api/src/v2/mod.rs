@@ -229,7 +229,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
         )
         .await?;
 
-        router.merge(ecash_routes(Arc::new(ecash_state)))
+        router.nest("/v1/ecash", ecash_routes(Arc::new(ecash_state)))
     } else {
         router
     };

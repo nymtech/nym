@@ -13,6 +13,7 @@ log = { workspace = true, optional = true }
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"], optional = true }
 url = { workspace = true, optional = true }
+utoipa = { workspace = true, optional = true }
 
 # please be extremely careful when adding new dependencies because this crate is imported by the ecash contract,
 # so if anything new is added, consider feature-locking it and then just adding it to default feature
@@ -21,3 +22,4 @@ url = { workspace = true, optional = true }
 default = ["env", "network"]
 env = ["dotenvy", "log"]
 network = ["schemars", "serde", "url"]
+utoipa = [ "dep:utoipa" ]

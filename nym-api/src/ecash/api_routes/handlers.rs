@@ -11,12 +11,9 @@ use axum::Router;
 use std::sync::Arc;
 
 pub(crate) fn ecash_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState> {
-    Router::new().nest(
-        "/v1",
-        Router::new()
-            .merge(aggregation_routes(Arc::clone(&ecash_state)))
-            .merge(issued_routes(Arc::clone(&ecash_state)))
-            .merge(partial_signing_routes(Arc::clone(&ecash_state)))
-            .merge(spending_routes(Arc::clone(&ecash_state))),
-    )
+    Router::new()
+        .merge(aggregation_routes(Arc::clone(&ecash_state)))
+        .merge(issued_routes(Arc::clone(&ecash_state)))
+        .merge(partial_signing_routes(Arc::clone(&ecash_state)))
+        .merge(spending_routes(Arc::clone(&ecash_state)))
 }

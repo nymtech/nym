@@ -8,6 +8,7 @@ use std::ops::Not;
 use url::Url;
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct ChainDetails {
     pub bech32_account_prefix: String,
     pub mix_denom: DenomDetailsOwned,
@@ -15,6 +16,7 @@ pub struct ChainDetails {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NymContracts {
     pub mixnet_contract_address: Option<String>,
     pub vesting_contract_address: Option<String>,
@@ -27,6 +29,7 @@ pub struct NymContracts {
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
 // with `NetworkDetails` defined in all.rs...
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NymNetworkDetails {
     pub network_name: String,
     pub chain_details: ChainDetails,
@@ -293,6 +296,7 @@ impl DenomDetails {
 }
 
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, PartialEq, Eq, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct DenomDetailsOwned {
     pub base: String,
     pub display: String,
@@ -321,6 +325,7 @@ impl DenomDetailsOwned {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nyxd_url: String,

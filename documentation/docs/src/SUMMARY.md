@@ -31,9 +31,12 @@
 - [RPC Nodes](nyx/rpc-node.md)
 - [Ledger Live Support](nyx/ledger-live.md)
 
-# Coconut
-- [Coconut](coconut.md)
-- [Bandwidth Credentials](bandwidth-credentials.md)
+# ECash and zkNyms (prev. Coconut)
+- [What are zkNyms?](ecash/what-are-zknyms.md)
+- [zkNym Generation and Useage: High Level Overview](ecash/zknym-overview.md)
+- [Archive](ecash/archive.md)
+  - [Coconut](ecash/coconut.md)
+  - [Bandwidth Credentials](ecash/bandwidth-credentials.md)
 
 # Tools
 - [NymCLI](tools/nym-cli.md)

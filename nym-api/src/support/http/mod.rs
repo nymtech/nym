@@ -205,6 +205,7 @@ fn setup_cors() -> CorsLayer {
         nym_bin_common::build_information::BinaryBuildInformationOwned,
         nym_api_requests::models::SignerInformationResponse,
         nym_api_requests::models::DescribedGateway,
+        nym_api_requests::models::MixNodeDetailsSchema,
         nym_mixnet_contract_common::Gateway,
         nym_mixnet_contract_common::GatewayBond,
         nym_api_requests::models::NymNodeDescription,

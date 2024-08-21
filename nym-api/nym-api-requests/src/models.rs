@@ -129,21 +129,19 @@ pub struct NodePerformance {
 #[derive(ToSchema)]
 #[schema(title = "MixNodeDetails")]
 pub struct MixNodeDetailsSchema {
-    // TODO dz copy from cosmwasm crate
     /// Basic bond information of this mixnode, such as owner address, original pledge, etc.
     pub bond_information: String,
 
-    // TODO dz copy from cosmwasm crate
     /// Details used for computation of rewarding related data.
     pub rewarding_details: String,
 
-    // TODO dz copy from cosmwasm crate
     /// Adjustments to the mixnode that are ought to happen during future epoch transitions.
     pub pending_changes: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MixNodeBondAnnotated {
+    #[schema(value_type = MixNodeDetailsSchema)]
     pub mixnode_details: MixNodeDetails,
     #[schema(value_type = String)]
     pub stake_saturation: StakeSaturation,

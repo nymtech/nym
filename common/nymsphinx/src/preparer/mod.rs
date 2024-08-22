@@ -3,6 +3,7 @@
 
 use crate::message::{NymMessage, ACK_OVERHEAD, OUTFOX_ACK_OVERHEAD};
 use crate::NymPayloadBuilder;
+use log::debug;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
 use nym_sphinx_acknowledgements::surb_ack::SurbAck;
@@ -11,12 +12,14 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
+use nym_sphinx_chunking::fragment_sent;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
-use rand::{CryptoRng, Rng};
+use rand::{CryptoRng, Rng, SeedableRng};
+use rand_chacha::ChaCha20Rng;
 
 use std::time::Duration;
 
@@ -49,6 +52,7 @@ pub trait FragmentPreparer {
     type Rng: CryptoRng + Rng;
 
     fn rng(&mut self) -> &mut Self::Rng;
+    fn nonce(&self) -> i32;
     fn num_mix_hops(&self) -> u8;
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
@@ -192,9 +196,18 @@ pub trait FragmentPreparer {
         packet_type: PacketType,
         mix_hops: Option<u8>,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        debug!("Preparing chunk for sending");
         // each plain or repliable packet (i.e. not a reply) attaches an ephemeral public key so that the recipient
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
         // the packet encryption key
+
+        let seed = fragment.seed().wrapping_mul(self.nonce());
+        let mut rng = ChaCha20Rng::seed_from_u64(seed as u64);
+
+        let destination = packet_recipient.gateway();
+        let hops = mix_hops.unwrap_or(self.num_mix_hops());
+        fragment_sent(&fragment, self.nonce(), *destination, hops);
+
         let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
         let expected_plaintext = match packet_type {
             PacketType::Outfox => {
@@ -228,10 +241,8 @@ pub trait FragmentPreparer {
         };
 
         // generate pseudorandom route for the packet
-        let hops = mix_hops.unwrap_or(self.num_mix_hops());
         log::trace!("Preparing chunk for sending with {} mix hops", hops);
-        let route =
-            topology.random_route_to_gateway(self.rng(), hops, packet_recipient.gateway())?;
+        let route = topology.random_route_to_gateway(&mut rng, hops, destination)?;
         let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays
@@ -313,6 +324,8 @@ pub struct MessagePreparer<R> {
     /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
     /// Note that it does not include gateway hops.
     num_mix_hops: u8,
+
+    nonce: i32,
 }
 
 impl<R> MessagePreparer<R>
@@ -325,12 +338,15 @@ where
         average_packet_delay: Duration,
         average_ack_delay: Duration,
     ) -> Self {
+        let mut rng = rng;
+        let nonce = rng.gen();
         MessagePreparer {
             rng,
             sender_address,
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            nonce,
         }
     }
 
@@ -453,6 +469,10 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
 
     fn average_ack_delay(&self) -> Duration {
         self.average_ack_delay
+    }
+
+    fn nonce(&self) -> i32 {
+        self.nonce
     }
 }
 

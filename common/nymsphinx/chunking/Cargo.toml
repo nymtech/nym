@@ -13,7 +13,14 @@ repository = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
+dashmap = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+utoipa = { workspace = true }
 
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-types = { path = "../types" }
+nym-metrics = { path = "../../nym-metrics" }
+nym-crypto = { path = "../../crypto", version = "0.4.0", features = [
+    "asymmetric",
+] }

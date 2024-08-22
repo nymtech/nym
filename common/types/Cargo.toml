@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "Nym common types"
 authors.workspace = true
 edition = "2021"
-rust-version = "1.58"
+rust-version.workspace = true
 license.workspace = true
 
 [dependencies]

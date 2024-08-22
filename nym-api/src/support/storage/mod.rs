@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
@@ -14,6 +13,7 @@ use crate::support::storage::models::{
     GatewayDetails, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
 };
 use nym_mixnet_contract_common::MixId;
+use nym_types::monitoring::{GatewayResult, MixnodeResult};
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
 use std::path::Path;

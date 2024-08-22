@@ -10,6 +10,7 @@ use nym_api_requests::models::{
     UptimeResponse,
 };
 use nym_mixnet_contract_common::MixId;
+use nym_types::monitoring::MonitorMessage;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
@@ -28,6 +29,92 @@ use crate::node_status_api::helpers::{
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
 use crate::NymContractCache;
+
+#[openapi(tag = "status")]
+#[post("/submit-gateway-monitoring-results", data = "<message>")]
+pub(crate) async fn submit_gateway_monitoring_results(
+    message: Json<MonitorMessage>,
+    storage: &State<NymApiStorage>,
+) -> Result<(), ErrorResponse> {
+    if !message.from_allowed() {
+        return Err(ErrorResponse::new(
+            "Monitor not registered to submit results".to_string(),
+            rocket::http::Status::Forbidden,
+        ));
+    }
+
+    if !message.timely() {
+        return Err(ErrorResponse::new(
+            "Message is too old".to_string(),
+            rocket::http::Status::BadRequest,
+        ));
+    }
+
+    if !message.verify() {
+        return Err(ErrorResponse::new(
+            "Invalid signature".to_string(),
+            rocket::http::Status::BadRequest,
+        ));
+    }
+
+    match storage
+        .manager
+        .submit_gateway_statuses_v2(message.results())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("failed to submit gateway monitoring results: {}", err);
+            Err(ErrorResponse::new(
+                "failed to submit gateway monitoring results".to_string(),
+                rocket::http::Status::InternalServerError,
+            ))
+        }
+    }
+}
+
+#[openapi(tag = "status")]
+#[post("/submit-node-monitoring-results", data = "<message>")]
+pub(crate) async fn submit_node_monitoring_results(
+    message: Json<MonitorMessage>,
+    storage: &State<NymApiStorage>,
+) -> Result<(), ErrorResponse> {
+    if !message.from_allowed() {
+        return Err(ErrorResponse::new(
+            "Monitor not registered to submit results".to_string(),
+            rocket::http::Status::Forbidden,
+        ));
+    }
+
+    if !message.timely() {
+        return Err(ErrorResponse::new(
+            "Message is too old".to_string(),
+            rocket::http::Status::BadRequest,
+        ));
+    }
+
+    if !message.verify() {
+        return Err(ErrorResponse::new(
+            "Invalid signature".to_string(),
+            rocket::http::Status::BadRequest,
+        ));
+    }
+
+    match storage
+        .manager
+        .submit_mixnode_statuses_v2(message.results())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("failed to submit node monitoring results: {}", err);
+            Err(ErrorResponse::new(
+                "failed to submit node monitoring results".to_string(),
+                rocket::http::Status::InternalServerError,
+            ))
+        }
+    }
+}
 
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/report")]

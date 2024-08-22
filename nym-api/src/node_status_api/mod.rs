@@ -54,6 +54,8 @@ pub(crate) fn node_status_routes(
             routes::get_gateways_detailed_unfiltered,
             routes::unstable::mixnode_test_results,
             routes::unstable::gateway_test_results,
+            routes::submit_gateway_monitoring_results,
+            routes::submit_node_monitoring_results,
         ]
     } else {
         // in the minimal variant we would not have access to endpoints relying on existence

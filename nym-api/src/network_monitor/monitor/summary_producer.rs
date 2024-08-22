@@ -4,8 +4,8 @@
 use crate::network_monitor::monitor::preparer::InvalidNode;
 use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
-use nym_mixnet_contract_common::MixId;
 use nym_node_tester_utils::node::{NodeType, TestableNode};
+use nym_types::monitoring::{GatewayResult, MixnodeResult};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
@@ -19,42 +19,6 @@ const UNRELIABLE_THRESHOLD: u8 = 1; // 1 - 60
 // After testing network against N routes, if any one of them is worse than ALLOWED_RELIABILITY_DEVIATION
 // from the average result, remove this data and recalculate scores.
 // const ALLOWED_RELIABILITY_DEVIATION: f32 = 5.0;
-
-#[derive(Debug)]
-pub(crate) struct MixnodeResult {
-    pub(crate) mix_id: MixId,
-    pub(crate) identity: String,
-    pub(crate) owner: String,
-    pub(crate) reliability: u8,
-}
-
-impl MixnodeResult {
-    pub(crate) fn new(mix_id: MixId, identity: String, owner: String, reliability: u8) -> Self {
-        MixnodeResult {
-            mix_id,
-            identity,
-            owner,
-            reliability,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct GatewayResult {
-    pub(crate) identity: String,
-    pub(crate) owner: String,
-    pub(crate) reliability: u8,
-}
-
-impl GatewayResult {
-    pub(crate) fn new(identity: String, owner: String, reliability: u8) -> Self {
-        GatewayResult {
-            identity,
-            owner,
-            reliability,
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub(crate) struct RouteResult {

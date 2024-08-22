@@ -5,7 +5,6 @@ edition = { workspace = true }
 authors = { workspace = true }
 license = { workspace = true }
 repository = { workspace = true }
-readme = { workspace = true }
 homepage = { workspace = true }
 documentation = { workspace = true }
 
@@ -15,9 +14,10 @@ documentation = { workspace = true }
 bs58 = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
 thiserror = { workspace = true }
 async-trait = { workspace = true, optional = true }
-semver = "0.11"
+semver = { version = "0.11" }
 
 # 'serializable' feature
 serde = { workspace = true, features = ["derive"], optional = true }
@@ -28,19 +28,21 @@ tsify = { workspace = true, features = ["js"], optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## internal
+nym-bin-common = { path = "../bin-common" }
+nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto", features = ["sphinx", "outfox"] }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
-nym-sphinx-types = { path = "../nymsphinx/types", features = ["sphinx", "outfox"] }
+nym-sphinx-types = { path = "../nymsphinx/types", features = [
+    "sphinx",
+    "outfox",
+] }
 nym-sphinx-routing = { path = "../nymsphinx/routing" }
-nym-bin-common = { path = "../bin-common" }
+
 
 # I'm not sure how to feel about pulling in this dependency here...
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 
-
-# 'serializable' feature
-nym-config = { path = "../config", optional = true }
 
 # 'wasm-serde-types' feature
 wasm-utils = { path = "../wasm/utils", default-features = false, optional = true }
@@ -49,4 +51,5 @@ wasm-utils = { path = "../wasm/utils", default-features = false, optional = true
 default = ["provider-trait"]
 provider-trait = ["async-trait"]
 wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
-serializable = ["serde", "nym-config", "serde_json"]
+serializable = ["serde", "serde_json"]
+outfox = []

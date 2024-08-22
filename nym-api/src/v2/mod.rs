@@ -21,53 +21,19 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
-use crate::support::http::setup_routes;
 use crate::support::storage;
 use crate::{circulating_supply_api, ecash, network_monitor, nym_contract_cache};
-use anyhow::{anyhow, bail, Context};
-use axum::Router;
-use core::net::SocketAddr;
+use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::Coin;
+use router::RouterBuilder;
 use std::sync::Arc;
-use tokio::net::TcpListener;
 use tokio_util::sync::{CancellationToken, WaitForCancellationFutureOwned};
 
-pub(crate) struct ApiHttpServer {
-    // task_client: Option<TaskClient>,
-    // inner: AxumServer,
-    router: Router,
-    // should not be a field, parameter instead to run_server or something
-    listener: TcpListener,
-}
-
-impl ApiHttpServer {
-    pub async fn build(bind_address: &SocketAddr, router: Router) -> anyhow::Result<Self> {
-        let listener = tokio::net::TcpListener::bind(bind_address)
-            .await
-            .map_err(|err| anyhow!("Couldn't bind to address {} due to {}", bind_address, err))?;
-        // let inner = axum::serve(listener, router.inner.into_make_service_with_connect_info());
-        let server = ApiHttpServer { router, listener };
-
-        Ok(server)
-    }
-
-    pub async fn run(self, receiver: WaitForCancellationFutureOwned) {
-        let inner = axum::serve(
-            self.listener,
-            self.router
-                .into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .with_graceful_shutdown(receiver);
-        if let Err(err) = inner.await {
-            error!("the HTTP server has terminated with the error: {err}");
-        } else {
-            info!("the HTTP server has terminated without errors");
-        }
-    }
-}
+pub(crate) mod api_docs;
+pub(crate) mod router;
 
 /// Shutdown goes 2 directions:
 /// 1. signal background tasks to gracefully finish
@@ -174,7 +140,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
     let identity_keypair = config.base.storage_paths.load_identity()?;
     let identity_public_key = *identity_keypair.public_key();
 
-    let router = setup_routes(config.network_monitor.enabled).await?;
+    let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
 
     let nym_contract_cache_state = NymContractCache::new();
     let node_status_cache_state = NodeStatusCache::new();
@@ -326,7 +292,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
     }
 
     let bind_address = config.base.bind_address.to_owned();
-    let server = ApiHttpServer::build(&bind_address, router).await?;
+    let server = router.build_server(&bind_address).await?;
 
     tokio::spawn(async move {
         {

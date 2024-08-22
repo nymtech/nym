@@ -76,6 +76,14 @@ jobs:
           # Enable wireguard by default on linux only
           args: --workspace --features wireguard
 
+      # while disabled by default, this build ensures nothing is broken within
+      # `axum` feature
+      - name: Build with `axum` feature
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --features axum
+
       - name: Build all examples
         if: matrix.os == 'custom-linux'
         uses: actions-rs/cargo@v1

@@ -14,9 +14,10 @@ use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
 
-// TODO dz migrate remaining APIs to axum
 pub(crate) mod cache;
+#[cfg(feature = "axum")]
 pub(crate) mod handlers;
+#[cfg(feature = "axum")]
 pub(crate) mod helpers;
 pub(crate) mod helpers_deprecated;
 pub(crate) mod models;

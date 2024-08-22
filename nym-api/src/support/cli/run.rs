@@ -3,7 +3,7 @@
 
 use crate::start_nym_api_tasks;
 use crate::support::config::helpers::try_load_current_config;
-use crate::v2::start_nym_api_tasks_v2;
+use cfg_if::cfg_if;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -62,24 +62,29 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     config.validate()?;
 
-    let mut axum_shutdown = start_nym_api_tasks_v2(&config).await?;
-    let mut shutdown_handlers = start_nym_api_tasks(config).await?;
+    #[cfg(feature = "axum")]
+    let mut axum_shutdown = crate::v2::start_nym_api_tasks_v2(&config).await?;
+    let mut rocket_shutdown = start_nym_api_tasks(config).await?;
 
-    // TODO dz handle both res
-    let (_res1, _res2) = tokio::join!(
-        shutdown_handlers.task_manager_handle.catch_interrupt(),
-        axum_shutdown.task_manager_mut().catch_interrupt()
-    );
+    // it doesn't matter which server catches the interrupt: it needs only be caught once
+    if let Err(err) = rocket_shutdown.task_manager_handle.catch_interrupt().await {
+        error!("Error stopping Rocket tasks: {err}");
+    }
 
     log::info!("Stopping nym API");
 
-    shutdown_handlers.rocket_handle.notify();
-    axum_shutdown.shutdown_axum();
+    // because Rocket caught the interrupt, it had already signalled its
+    // background tasks to retire. Now do that for axum
+    cfg_if! {
+        if #[cfg(feature = "axum")] {
+            axum_shutdown.task_manager_mut().signal_shutdown().ok();
+            axum_shutdown.task_manager_mut().wait_for_shutdown().await;
 
-    // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-    // if let Err(err) = result {
-    //     bail!("{err}")
-    // }
+            axum_shutdown.shutdown_axum();
+        }
+    }
+
+    rocket_shutdown.rocket_handle.notify();
 
     Ok(())
 }

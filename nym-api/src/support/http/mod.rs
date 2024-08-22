@@ -2,42 +2,47 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
-use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::client::Client;
 use crate::ecash::state::EcashState;
 use crate::ecash::{self, comm::QueryCommunicationChannel};
-use crate::network::handlers::{nym_network_routes, ContractVersionSchemaResponse};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
-use crate::node_status_api::handlers::node_status_routes;
 use crate::node_status_api::routes_deprecated::unstable;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
-use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
-use crate::nym_nodes::handlers::nym_node_routes;
-use crate::nym_nodes::handlers_unstable::nym_node_routes_unstable;
 use crate::nym_nodes::{nym_node_routes_deprecated, nym_node_routes_next};
-use crate::status::{self, api_status_routes, ApiStatusState, SignerState};
+use crate::status::{api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::{nyxd, storage};
-use crate::v2::AxumAppState;
 use crate::{circulating_supply_api, nym_contract_cache};
 use anyhow::{bail, Context, Result};
-use axum::Router;
-use nym_api_requests::models;
 use nym_crypto::asymmetric::identity;
-use nym_http_api_common::logging::logger;
 use nym_validator_client::nyxd::Coin;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
-use tower_http::cors::CorsLayer;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
-use utoipauto::utoipauto;
+
+#[cfg(feature = "axum")]
+use {
+    crate::circulating_supply_api::handlers::circulating_supply_routes,
+    crate::network::handlers::{nym_network_routes, ContractVersionSchemaResponse},
+    crate::node_status_api::handlers::node_status_routes,
+    crate::nym_contract_cache::handlers::nym_contract_cache_routes,
+    crate::nym_nodes::handlers::nym_node_routes,
+    crate::nym_nodes::handlers_unstable::nym_node_routes_unstable,
+    crate::status,
+    crate::v2::AxumAppState,
+    axum::Router,
+    nym_api_requests::models,
+    nym_http_api_common::logging::logger,
+    tower_http::cors::CorsLayer,
+    utoipa::OpenApi,
+    utoipa_swagger_ui::SwaggerUi,
+    utoipauto::utoipauto,
+};
 
 pub(crate) mod helpers;
 pub(crate) mod openapi;
@@ -154,6 +159,7 @@ fn setup_rocket_cors() -> Result<Cors> {
     Ok(cors)
 }
 
+#[cfg(feature = "axum")]
 fn setup_cors() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
@@ -167,6 +173,7 @@ fn setup_cors() -> CorsLayer {
 // for automatic model discovery based on ToSchema / IntoParams implementation.
 // Then you can remove `components(schemas)` manual imports below
 
+#[cfg(feature = "axum")]
 #[utoipauto(paths = "./nym-api/src")]
 #[derive(OpenApi)]
 #[openapi(
@@ -240,10 +247,11 @@ fn setup_cors() -> CorsLayer {
 )]
 struct ApiDoc;
 
+#[cfg(feature = "axum")]
 pub(crate) async fn setup_routes(network_monitor: bool) -> anyhow::Result<Router<AxumAppState>> {
     let router = Router::new()
         // https://docs.rs/tower-http/0.1.1/tower_http/trace/index.html
-        // TODO dz use tracing instead of env_logger
+        // TODO rocket use tracing instead of env_logger
         // https://github.com/tokio-rs/axum/blob/main/examples/tracing-aka-logging/src/main.rs
         // .layer(
         //     TraceLayer::new_for_http()

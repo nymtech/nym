@@ -5,9 +5,7 @@ use crate::ecash::error::Result;
 use crate::ecash::storage::models::IssuedTicketbook;
 use nym_api_requests::ecash::models::IssuedCredentialsResponse;
 use nym_api_requests::ecash::models::IssuedTicketbookBody;
-use serde::Deserialize;
 use std::collections::BTreeMap;
-use utoipa::IntoParams;
 
 pub(crate) fn build_credentials_response(
     raw: Vec<IssuedTicketbook>,
@@ -29,7 +27,8 @@ pub(crate) fn build_credentials_response(
     Ok(IssuedCredentialsResponse { credentials })
 }
 
-#[derive(Deserialize, IntoParams)]
+#[cfg(feature = "axum")]
+#[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Path)]
 pub(super) struct EpochIdParam {
     pub(super) epoch_id: Option<u64>,

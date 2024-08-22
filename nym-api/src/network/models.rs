@@ -4,9 +4,9 @@
 use nym_config::defaults::NymNetworkDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
-#[derive(Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
 pub struct NetworkDetails {
     pub(crate) connected_nyxd: String,
     pub(crate) network: NymNetworkDetails,
@@ -21,7 +21,8 @@ impl NetworkDetails {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ContractInformation<T> {
     pub(crate) address: Option<String>,

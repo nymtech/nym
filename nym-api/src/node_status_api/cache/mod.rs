@@ -47,7 +47,7 @@ impl NodeStatusCache {
         }
     }
 
-    #[deprecated(note = "TODO dz: obsolete because it's used for Rocket")]
+    #[deprecated(note = "TODO rocket: obsolete because it's used for Rocket")]
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Node Status Cache", |rocket| async {
             rocket.manage(Self::new())

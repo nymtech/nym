@@ -12,6 +12,7 @@ use rocket_okapi::settings::OpenApiSettings;
 use self::cache::refresher::NymContractCacheRefresher;
 
 pub(crate) mod cache;
+#[cfg(feature = "axum")]
 pub(crate) mod handlers;
 pub(crate) mod routes;
 

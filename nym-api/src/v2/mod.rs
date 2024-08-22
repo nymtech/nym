@@ -31,7 +31,6 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::Coin;
-use std::net::Ipv4Addr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio_util::sync::{CancellationToken, WaitForCancellationFutureOwned};
@@ -104,7 +103,7 @@ impl ShutdownHandles {
         &mut self.task_manager
     }
 
-    /// After background tasks have finished, tell server to shut down.
+    /// Send signal to Axum server to gracefully shut down.
     pub(crate) fn shutdown_axum(self) {
         self.axum_handle.0.cancel()
     }
@@ -113,7 +112,7 @@ impl ShutdownHandles {
 struct AxumHandle(CancellationToken);
 
 #[derive(Clone)]
-// TODO dz remove smurf name after eliminating rocket
+// TODO rocket remove smurf name after eliminating rocket
 pub(crate) struct AxumAppState {
     nym_contract_cache: NymContractCache,
     node_status_cache: NodeStatusCache,
@@ -326,10 +325,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
         }
     }
 
-    // TODO dz currently read from rocket.toml
-    let ip = std::net::IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
-    let port = 8081u16;
-    let bind_address = SocketAddr::new(ip, port);
+    let bind_address = config.base.bind_address.to_owned();
     let server = ApiHttpServer::build(&bind_address, router).await?;
 
     tokio::spawn(async move {

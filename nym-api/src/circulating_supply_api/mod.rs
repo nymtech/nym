@@ -11,6 +11,7 @@ use crate::support::{config, nyxd};
 use self::cache::refresher::CirculatingSupplyCacheRefresher;
 
 pub(crate) mod cache;
+#[cfg(feature = "axum")]
 pub(crate) mod handlers;
 pub(crate) mod routes;
 

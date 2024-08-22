@@ -1,8 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// TODO dz add bind address for axum server
-
 pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
@@ -16,6 +14,10 @@ id = '{{ base.id }}'
 
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
+
+# Socket address this api will use for binding its http API.
+# Note: only used if `axum` feature is enabled.
+bind_address = '{{ base.bind_address }}'
 
 # Mnemonic used for rewarding and validator interaction
 mnemonic = '{{ base.mnemonic }}'

@@ -76,7 +76,6 @@ async fn signer_information(
     state: Arc<ApiStatusState>,
 ) -> AxumResult<Json<SignerInformationResponse>> {
     let signer_state = state.signer_information.as_ref().ok_or_else(|| {
-        // TODO dz this shouldn't be returned to client OR shouldn't be a 500: possible 405 ?
         AxumErrorResponse::internal_msg("this api does not expose zk-nym signing functionalities")
     })?;
 

@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// TODO dz remove
+// TODO rocket remove
 #![allow(deprecated)]
 
 #[macro_use]
@@ -43,6 +43,8 @@ pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;
 mod status;
 pub(crate) mod support;
+
+#[cfg(feature = "axum")]
 mod v2;
 
 struct ShutdownHandles {
@@ -50,6 +52,7 @@ struct ShutdownHandles {
     rocket_handle: rocket::Shutdown,
 }
 
+// TODO rocket: remove all such Todos once rocket is phased out completely
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
@@ -58,7 +61,7 @@ async fn main() -> Result<(), anyhow::Error> {
     }}
 
     setup_logging();
-    // TODO dz replace with tracing logger once rocket is eliminated from code
+    // TODO rocket: replace with tracing logger once rocket is eliminated from code
 
     info!("Starting nym api...");
 

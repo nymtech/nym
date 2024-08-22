@@ -610,10 +610,11 @@ impl StorageManager {
             // same ID "problem" as described for mixnode insertion
             let gateway_id = sqlx::query!(
                 r#"
-                    INSERT OR IGNORE INTO gateway_details_v2(identity) VALUES (?);
+                    INSERT OR IGNORE INTO gateway_details_v2(identity, node_id) VALUES (?, ?);
                     SELECT id FROM gateway_details_v2 WHERE identity = ?;
                 "#,
                 gateway_result.identity,
+                gateway_result.node_id,
                 gateway_result.identity,
             )
             .fetch_one(&mut tx)

@@ -16,6 +16,7 @@ id = '{{ base.id }}'
 local_validator = '{{ base.local_validator }}'
 
 # Socket address this api will use for binding its http API.
+# Note: only used if `axum` feature is enabled.
 bind_address = '{{ base.bind_address }}'
 
 # Mnemonic used for rewarding and validator interaction

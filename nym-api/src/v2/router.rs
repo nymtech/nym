@@ -123,18 +123,14 @@ pub(crate) struct ApiHttpServer {
 }
 
 impl ApiHttpServer {
-    pub async fn run(self, receiver: WaitForCancellationFutureOwned) {
+    pub async fn run(self, receiver: WaitForCancellationFutureOwned) -> Result<(), std::io::Error> {
         // into_make_service_with_connect_info allows us to see client ip address
-        let inner = axum::serve(
+        axum::serve(
             self.listener,
             self.router
                 .into_make_service_with_connect_info::<SocketAddr>(),
         )
-        .with_graceful_shutdown(receiver);
-        if let Err(err) = inner.await {
-            error!("the HTTP server has terminated with the error: {err}");
-        } else {
-            info!("the HTTP server has terminated without errors");
-        }
+        .with_graceful_shutdown(receiver)
+        .await
     }
 }

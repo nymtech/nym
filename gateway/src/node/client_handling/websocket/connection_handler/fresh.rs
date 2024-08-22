@@ -26,6 +26,7 @@ use std::time::Duration;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+use tracing::field::debug;
 use tracing::*;
 
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
@@ -298,6 +299,7 @@ where
     ///
     /// * `client_address`: address of the client that is going to receive the messages.
     /// * `shared_keys`: shared keys derived between the client and the gateway used to encrypt and tag the messages.
+    #[instrument(skip_all)]
     async fn push_stored_messages_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
@@ -306,6 +308,7 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        debug!("attempting to push stored messages to client");
         let mut start_next_after = None;
         loop {
             // retrieve some messages
@@ -521,6 +524,7 @@ where
     /// * `client_address`: address of the client wishing to authenticate.
     /// * `encrypted_address`: ciphertext of the address of the client wishing to authenticate.
     /// * `iv`: fresh IV received with the request.
+    #[instrument(skip_all)]
     async fn handle_authenticate(
         &mut self,
         client_protocol_version: Option<u8>,
@@ -531,6 +535,7 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        debug("handling client authentication");
         let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
         // populate the negotiated protocol for future uses
         self.negotiated_protocol = Some(negotiated_protocol);
@@ -625,6 +630,7 @@ where
     /// # Arguments
     ///
     /// * `init_data`: init payload of the registration handshake.
+    #[instrument(skip_all)]
     async fn handle_register(
         &mut self,
         client_protocol_version: Option<u8>,
@@ -633,6 +639,7 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
+        debug!("handling client registration");
         let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
         // populate the negotiated protocol for future uses
         self.negotiated_protocol = Some(negotiated_protocol);
@@ -645,7 +652,9 @@ where
         }
 
         let shared_keys = self.perform_registration_handshake(init_data).await?;
+        debug!("managed to derived shared keys");
         let client_id = self.register_client(remote_address, &shared_keys).await?;
+        event!(Level::DEBUG, client_id, protocol = negotiated_protocol);
 
         let client_details = ClientDetails::new(client_id, remote_address, shared_keys);
 

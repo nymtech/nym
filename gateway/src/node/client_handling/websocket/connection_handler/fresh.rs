@@ -610,22 +610,8 @@ where
         let client_id = self
             .shared_state
             .storage
-            .insert_shared_keys(client_address, client_shared_keys)
+            .insert_new_client(client_address, client_shared_keys)
             .await?;
-
-        // see if we have bandwidth entry for the client already, if not, create one with zero value
-        if self
-            .shared_state
-            .storage
-            .get_available_bandwidth(client_id)
-            .await?
-            .is_none()
-        {
-            self.shared_state
-                .storage
-                .create_bandwidth_entry(client_id)
-                .await?;
-        }
 
         self.push_stored_messages_to_client(client_address, client_shared_keys)
             .await?;

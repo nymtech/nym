@@ -35,6 +35,13 @@ pub trait Storage: Send + Sync {
         client_address: DestinationAddressBytes,
     ) -> Result<i64, StorageError>;
 
+    /// Creates all relevant database entries for the newly registered client
+    async fn insert_new_client(
+        &self,
+        client_address: DestinationAddressBytes,
+        shared_keys: &SharedKeys,
+    ) -> Result<i64, StorageError>;
+
     /// Inserts provided derived shared keys into the database.
     /// If keys previously existed for the provided client, they are overwritten with the new data.
     ///
@@ -322,6 +329,19 @@ impl Storage for PersistentStorage {
             .await?)
     }
 
+    async fn insert_new_client(
+        &self,
+        client_address: DestinationAddressBytes,
+        shared_keys: &SharedKeys,
+    ) -> Result<i64, StorageError> {
+        let id = self.insert_shared_keys(client_address, shared_keys).await?;
+        self.bandwidth_manager
+            .insert_new_client_if_doesnt_exist(id)
+            .await?;
+
+        Ok(id)
+    }
+
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
@@ -390,7 +410,9 @@ impl Storage for PersistentStorage {
     }
 
     async fn create_bandwidth_entry(&self, client_id: i64) -> Result<(), StorageError> {
-        self.bandwidth_manager.insert_new_client(client_id).await?;
+        self.bandwidth_manager
+            .insert_new_client_if_doesnt_exist(client_id)
+            .await?;
         Ok(())
     }
 

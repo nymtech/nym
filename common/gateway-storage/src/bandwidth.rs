@@ -37,10 +37,13 @@ impl BandwidthManager {
     }
 
     /// Creates a new bandwidth entry for the particular client.
-    pub(crate) async fn insert_new_client(&self, client_id: i64) -> Result<(), sqlx::Error> {
+    pub(crate) async fn insert_new_client_if_doesnt_exist(
+        &self,
+        client_id: i64,
+    ) -> Result<(), sqlx::Error> {
         // FIXME: hack; we need to change api slightly
         sqlx::query!(
-            "INSERT INTO available_bandwidth(client_id, available, expiration) VALUES (?, 0, ?)",
+            "INSERT OR IGNORE INTO available_bandwidth(client_id, available, expiration) VALUES (?, 0, ?)",
             client_id,
             OffsetDateTime::UNIX_EPOCH,
         )

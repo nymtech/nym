@@ -21,9 +21,8 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      - dependency-name:
-        - "cosmwasm-*"
-        - "cw*"
+      - dependency-name: "cosmwasm-*"
+      - dependency-name: "cw*"
     groups:
       patch-updates:
         patterns:

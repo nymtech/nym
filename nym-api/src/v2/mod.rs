@@ -83,7 +83,7 @@ impl ShutdownHandles {
 
 struct ShutdownAxum(CancellationToken);
 
-type AxumJoinHandle = JoinHandle<Result<(), std::io::Error>>;
+type AxumJoinHandle = JoinHandle<std::io::Result<()>>;
 
 #[derive(Clone)]
 // TODO rocket remove smurf name after eliminating rocket

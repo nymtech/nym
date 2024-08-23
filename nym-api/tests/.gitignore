@@ -4,3 +4,19 @@ coverage/
 .DS_Store
 .idea/
 junit.xml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual Environment
+venv/
+
+# IDEs and Editors
+.vscode/
+.idea/
+
+# Other
+.DS_Store
+python_project_template/

@@ -1,0 +1,15 @@
+- [ ] init nextra project
+- [ ] work out dir structure
+  - [ ] QU pull ts sdk docs in here, or make nextra docs in rust sdk dir?
+- [ ] start moving stuff over and check existing works
+  - [ ] docs
+  - [ ] operators
+  - [ ] developers
+  - [ ] autodocs branch
+  - [ ] others?
+- [ ] add landing page for ease of navigation
+- [ ] redirects:
+  - [ ] redirects on server
+    - [ ] QU shall we move to our own server so we dont have to live on the nymtech.net one?
+  - [ ] add redirect page + sitemap for old links
+- [ ] new readme

@@ -24,3 +24,9 @@ updates:
       - dependency-name:
         - "cosmwasm-*"
         - "cw*"
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"

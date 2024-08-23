@@ -117,4 +117,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-targets --features wireguard -- -D warnings
+          args: --workspace --all-targets --features wireguard,axum -- -D warnings

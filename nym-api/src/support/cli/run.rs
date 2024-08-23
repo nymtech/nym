@@ -72,6 +72,7 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
     }
 
     log::info!("Stopping nym API");
+    rocket_shutdown.rocket_handle.notify();
 
     // because Rocket caught the interrupt, it had already signalled its
     // background tasks to retire. Now do that for axum
@@ -80,11 +81,22 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
             axum_shutdown.task_manager_mut().signal_shutdown().ok();
             axum_shutdown.task_manager_mut().wait_for_shutdown().await;
 
-            axum_shutdown.shutdown_axum();
+            let running_server = axum_shutdown.shutdown_axum();
+
+            match running_server.await {
+                Ok(Ok(_)) => {
+                    info!("Axum HTTP server shut down without errors");
+                },
+                Ok(Err(err)) => {
+                    error!("Axum HTTP server terminated with: {err}");
+                    anyhow::bail!(err)
+                },
+                Err(err) => {
+                    error!("Server task panicked: {err}");
+                }
+            };
         }
     }
-
-    rocket_shutdown.rocket_handle.notify();
 
     Ok(())
 }

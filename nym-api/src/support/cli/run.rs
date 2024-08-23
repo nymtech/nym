@@ -84,14 +84,12 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
             let running_server = axum_shutdown.shutdown_axum();
 
             match running_server.await {
-                Ok(server_res) => match server_res {
-                    Ok(_) => {
-                        info!("Axum HTTP server shut down without errors");
-                    }
-                    Err(err) => {
-                        error!("Axum HTTP server terminated with the error: {err}");
-                        anyhow::bail!(err)
-                    }
+                Ok(Ok(_)) => {
+                    info!("Axum HTTP server shut down without errors");
+                },
+                Ok(Err(err)) => {
+                    error!("Axum HTTP server terminated with: {err}");
+                    anyhow::bail!(err)
                 },
                 Err(err) => {
                     error!("Server task panicked: {err}");

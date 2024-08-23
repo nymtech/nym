@@ -36,6 +36,8 @@ use tokio_util::sync::CancellationToken;
 pub(crate) mod api_docs;
 pub(crate) mod router;
 
+const TASK_MANAGER_TIMEOUT_S: u64 = 10;
+
 /// Shutdown goes 2 directions:
 /// 1. signal background tasks to gracefully finish
 /// 2. signal server itself
@@ -215,7 +217,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
         node_info_cache,
     });
 
-    let task_manager = TaskManager::new(10);
+    let task_manager = TaskManager::new(TASK_MANAGER_TIMEOUT_S);
 
     // start note describe cache refresher
     // we should be doing the below, but can't due to our current startup structure

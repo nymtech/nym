@@ -122,3 +122,6 @@ AVAILABLE TICKETS
 | 49    | 4kb6zmPebRxjKLVicctq2whvANjWJMoohiPBMr21cT4xj78nvXmJEK8EB4PpqQVFo6ddU9uzuer5ggQZNZgETX2VXBzymBYNzXBuXjLJi1WRdAiASqWz5Hv5im1TJh4XBE4mxKo8Q…1057bytes remaining | NOT SPENT |
 +-------+---------------------------------------------------------------------------------------------------------------------------------------------------------------+--------------------+
 ```
+
+### Double-Spend Protection
+TODO

@@ -31,7 +31,7 @@
 - [RPC Nodes](nyx/rpc-node.md)
 - [Ledger Live Support](nyx/ledger-live.md)
 
-# ECash and zkNyms (prev. Coconut)
+# zkNyms (prev. Coconut)
 - [What are zkNyms?](ecash/what-are-zknyms.md)
 - [zkNym Generation and Useage: High Level Overview](ecash/zknym-overview.md)
 - [Archive](ecash/archive.md)

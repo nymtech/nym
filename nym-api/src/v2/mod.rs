@@ -21,53 +21,22 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::{ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
-use crate::support::http::setup_routes;
 use crate::support::storage;
 use crate::{circulating_supply_api, ecash, network_monitor, nym_contract_cache};
-use anyhow::{anyhow, bail, Context};
-use axum::Router;
-use core::net::SocketAddr;
+use anyhow::{bail, Context};
 use nym_config::defaults::NymNetworkDetails;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::Coin;
+use router::RouterBuilder;
 use std::sync::Arc;
-use tokio::net::TcpListener;
-use tokio_util::sync::{CancellationToken, WaitForCancellationFutureOwned};
+use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 
-pub(crate) struct ApiHttpServer {
-    // task_client: Option<TaskClient>,
-    // inner: AxumServer,
-    router: Router,
-    // should not be a field, parameter instead to run_server or something
-    listener: TcpListener,
-}
+pub(crate) mod api_docs;
+pub(crate) mod router;
 
-impl ApiHttpServer {
-    pub async fn build(bind_address: &SocketAddr, router: Router) -> anyhow::Result<Self> {
-        let listener = tokio::net::TcpListener::bind(bind_address)
-            .await
-            .map_err(|err| anyhow!("Couldn't bind to address {} due to {}", bind_address, err))?;
-        // let inner = axum::serve(listener, router.inner.into_make_service_with_connect_info());
-        let server = ApiHttpServer { router, listener };
-
-        Ok(server)
-    }
-
-    pub async fn run(self, receiver: WaitForCancellationFutureOwned) {
-        let inner = axum::serve(
-            self.listener,
-            self.router
-                .into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .with_graceful_shutdown(receiver);
-        if let Err(err) = inner.await {
-            error!("the HTTP server has terminated with the error: {err}");
-        } else {
-            info!("the HTTP server has terminated without errors");
-        }
-    }
-}
+const TASK_MANAGER_TIMEOUT_S: u64 = 10;
 
 /// Shutdown goes 2 directions:
 /// 1. signal background tasks to gracefully finish
@@ -77,39 +46,44 @@ impl ApiHttpServer {
 /// AFTER you have shut down BG tasks (or past their grace period).
 pub(crate) struct ShutdownHandles {
     task_manager: TaskManager,
-    axum_handle: AxumHandle,
+    axum_shutdown_button: ShutdownAxum,
+    /// Tokio JoinHandle for axum server's task
+    axum_join_handle: AxumJoinHandle,
 }
 
 impl ShutdownHandles {
     /// Cancellation token is given to Axum server constructor. When the token
     /// receives a shutdown signal, Axum server will shut down gracefully.
-    pub(crate) fn new(task_manager: TaskManager) -> (Self, WaitForCancellationFutureOwned) {
-        //
-        let token = CancellationToken::new();
-        (
-            Self {
-                task_manager,
-                axum_handle: AxumHandle(token.clone()),
-            },
-            token.cancelled_owned(),
-        )
-    }
-
-    pub(crate) fn task_manager(&self) -> &TaskManager {
-        &self.task_manager
+    pub(crate) fn new(
+        task_manager: TaskManager,
+        axum_server_handle: AxumJoinHandle,
+        shutdown_button: CancellationToken,
+    ) -> Self {
+        Self {
+            task_manager,
+            axum_shutdown_button: ShutdownAxum(shutdown_button.clone()),
+            axum_join_handle: axum_server_handle,
+        }
     }
 
     pub(crate) fn task_manager_mut(&mut self) -> &mut TaskManager {
         &mut self.task_manager
     }
 
-    /// Send signal to Axum server to gracefully shut down.
-    pub(crate) fn shutdown_axum(self) {
-        self.axum_handle.0.cancel()
+    /// Signal server to shut down, then return join handle to its
+    /// `tokio` task
+    ///
+    /// https://tikv.github.io/doc/tokio/task/struct.JoinHandle.html
+    #[must_use]
+    pub(crate) fn shutdown_axum(self) -> AxumJoinHandle {
+        self.axum_shutdown_button.0.cancel();
+        self.axum_join_handle
     }
 }
 
-struct AxumHandle(CancellationToken);
+struct ShutdownAxum(CancellationToken);
+
+type AxumJoinHandle = JoinHandle<std::io::Result<()>>;
 
 #[derive(Clone)]
 // TODO rocket remove smurf name after eliminating rocket
@@ -174,7 +148,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
     let identity_keypair = config.base.storage_paths.load_identity()?;
     let identity_public_key = *identity_keypair.public_key();
 
-    let router = setup_routes(config.network_monitor.enabled).await?;
+    let router = RouterBuilder::with_default_routes(config.network_monitor.enabled);
 
     let nym_contract_cache_state = NymContractCache::new();
     let node_status_cache_state = NodeStatusCache::new();
@@ -243,8 +217,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
         node_info_cache,
     });
 
-    // setup shutdowns
-    let (shutdown, axum_receiver) = ShutdownHandles::new(TaskManager::new(10));
+    let task_manager = TaskManager::new(TASK_MANAGER_TIMEOUT_S);
 
     // start note describe cache refresher
     // we should be doing the below, but can't due to our current startup structure
@@ -256,18 +229,14 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
         described_nodes_state,
     )
     .named("node-self-described-data-refresher")
-    .start(
-        shutdown
-            .task_manager()
-            .subscribe_named("node-self-described-data-refresher"),
-    );
+    .start(task_manager.subscribe_named("node-self-described-data-refresher"));
 
     // start all the caches first
     let nym_contract_cache_listener = nym_contract_cache::start_refresher(
         &config.node_status_api,
         &nym_contract_cache_state,
         nyxd_client.clone(),
-        shutdown.task_manager(),
+        &task_manager,
     );
     node_status_api::start_cache_refresh(
         &config.node_status_api,
@@ -275,13 +244,13 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
         &node_status_cache_state,
         storage.clone(),
         nym_contract_cache_listener,
-        shutdown.task_manager(),
+        &task_manager,
     );
     circulating_supply_api::start_cache_refresh(
         &config.circulating_supply_cacher,
         nyxd_client.clone(),
         &circulating_supply_cache,
-        shutdown.task_manager(),
+        &task_manager,
     );
 
     // start dkg task
@@ -295,7 +264,7 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
             dkg_bte_keypair,
             identity_public_key,
             rand::rngs::OsRng,
-            shutdown.task_manager(),
+            &task_manager,
         )?;
     }
 
@@ -307,11 +276,11 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
             &nym_contract_cache_state,
             &storage,
             nyxd_client.clone(),
-            shutdown.task_manager(),
+            &task_manager,
         )
         .await;
 
-        HistoricalUptimeUpdater::start(storage.to_owned(), shutdown.task_manager());
+        HistoricalUptimeUpdater::start(storage.to_owned(), &task_manager);
 
         // start 'rewarding' if its enabled
         if config.rewarding.enabled {
@@ -320,20 +289,25 @@ pub(crate) async fn start_nym_api_tasks_v2(config: &Config) -> anyhow::Result<Sh
                 nyxd_client,
                 &nym_contract_cache_state,
                 storage,
-                shutdown.task_manager(),
+                &task_manager,
             );
         }
     }
 
     let bind_address = config.base.bind_address.to_owned();
-    let server = ApiHttpServer::build(&bind_address, router).await?;
+    let server = router.build_server(&bind_address).await?;
 
-    tokio::spawn(async move {
+    let cancellation_token = CancellationToken::new();
+    let shutdown_button = cancellation_token.clone();
+    let axum_shutdown_receiver = cancellation_token.cancelled_owned();
+    let server_handle = tokio::spawn(async move {
         {
             info!("Started Axum HTTP V2 server on {bind_address}");
-            server.run(axum_receiver).await
+            server.run(axum_shutdown_receiver).await
         }
     });
+
+    let shutdown = ShutdownHandles::new(task_manager, server_handle, shutdown_button);
 
     Ok(shutdown)
 }

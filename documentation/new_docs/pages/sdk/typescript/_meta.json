@@ -7,12 +7,5 @@
   "examples": "Step-by-step examples",
   "playground": "Live Playground",
   "bundling": "Bundling",
-  "FAQ": "FAQ",
-
-  "contact": {
-    "title": "Contact ↗",
-    "type": "page",
-    "href": "https://nymtech.net/",
-    "newWindow": true
-  }
+  "FAQ": "FAQ"
 }

@@ -73,10 +73,7 @@ pub struct MonitorMessage {
 
 impl MonitorMessage {
     fn message_to_sign(results: &[NodeResult], timestamp: i64) -> Vec<u8> {
-        let mut msg = match serde_json::to_vec(results) {
-            Ok(msg) => msg,
-            Err(_) => Vec::new(),
-        };
+        let mut msg = serde_json::to_vec(results).unwrap_or_default();
         msg.extend_from_slice(&timestamp.to_le_bytes());
         msg
     }

@@ -20,6 +20,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      time: "13:00"
     ignore:
       - dependency-name: "cosmwasm-*"
       - dependency-name: "cw*"

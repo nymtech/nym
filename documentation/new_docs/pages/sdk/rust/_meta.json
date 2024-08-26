@@ -1,7 +1,8 @@
 {
   "index": "Introduction",
+  "concepts": "Core Concepts",
+  "examples": "Basic Examples",
   "message-helpers": "Message Helpers",
   "message-types": "Message Types",
-  "examples": "Examples",
   "troubleshooting": "Troubleshooting"
 }

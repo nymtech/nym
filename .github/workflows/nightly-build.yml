@@ -33,7 +33,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v2
+        uses: arduino/setup-protoc@v3
         if: matrix.os == 'macos-latest' || matrix.os == 'windows-latest'
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,18 @@
+{
+  "index": "Introduction",
+  "overview": "SDK overview",
+  "integrations": "Nym integrations",
+  "installation": "Installation",
+  "start": "Getting started",
+  "examples": "Step-by-step examples",
+  "playground": "Live Playground",
+  "bundling": "Bundling",
+  "FAQ": "FAQ",
+
+  "contact": {
+    "title": "Contact ↗",
+    "type": "page",
+    "href": "https://nymtech.net/",
+    "newWindow": true
+  }
+}

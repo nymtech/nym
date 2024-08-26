@@ -20,7 +20,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
-      time: "12:20"
+      time: "09:00"
     ignore:
       - dependency-name: "cosmwasm-*"
       - dependency-name: "cw*"
@@ -30,3 +30,4 @@ updates:
           - "*"
         update-types:
           - "patch"
+    open-pull-requests-limit: 10

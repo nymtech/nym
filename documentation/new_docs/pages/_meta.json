@@ -1,0 +1,18 @@
+{
+  "sdk": {
+    "title": "SDKs",
+    "type": "page"
+  },
+  "developers": {
+    "title": "Developers",
+    "type": "page"
+  },
+  "network": {
+    "title": "Network",
+    "type": "page"
+  },
+  "operators": {
+    "title": "Operators",
+    "type": "page"
+  }
+}

@@ -4,6 +4,7 @@ Install python 3.10, make sure it's in your PATH.
 
 - Ubuntu: using `apt`
 - MacOS: using [official installer][mac-install]
+- run `./init.sh`
 
 # Managing dependencies
 

@@ -11,7 +11,8 @@ __pycache__/
 *.pyo
 
 # Virtual Environment
-venv/
+api_test/venv
+api_test/requirements.txt
 
 # IDEs and Editors
 .vscode/

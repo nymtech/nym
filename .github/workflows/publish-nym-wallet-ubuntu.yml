@@ -25,7 +25,7 @@ jobs:
       file_hash: ${{ steps.release-info.outputs.file_hash }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Tauri dependencies
         run: >

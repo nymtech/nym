@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-20.04-16-core
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install rsync
       run: sudo apt-get install rsync
       continue-on-error: true

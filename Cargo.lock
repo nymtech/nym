@@ -6317,7 +6317,7 @@ dependencies = [
  "hex",
  "humantime 2.1.0",
  "humantime-serde",
- "nix 0.27.1",
+ "nix 0.29.0",
  "nym-async-file-watcher",
  "nym-bin-common",
  "nym-config",

@@ -49,7 +49,7 @@ jobs:
             "build-tools;$SDK_BUILDTOOLS_VERSION"
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@1.70.0
+        uses: dtolnay/rust-toolchain@1.90.0
 
       - name: Install rust android targets
         run: |

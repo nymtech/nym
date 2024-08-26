@@ -47,7 +47,7 @@ Initial overhaul
 - [ ] add landing page for ease of navigation
 - [ ] try and get rid of as many random scripts from github CI as possible
 - [ ] redirects on server
-- [ ] QU shall we move to our own server so we dont have to live on the nymtech.net one?
+- [ ] QU shall we move to our own server?
 - [ ] add redirect page + sitemap for old links
 - [ ] new readme
 

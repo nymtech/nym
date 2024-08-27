@@ -5,15 +5,15 @@ use crate::context::SigningClient;
 use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::info;
-use nym_mixnet_contract_common::{MixNodeCostParams, Percent};
-use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
+use nym_mixnet_contract_common::{MixId, MixNodeCostParams, Percent};
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::nyxd::CosmWasmCoin;
 
 #[derive(Debug, Parser)]
 pub struct Args {
     #[clap(
         long,
-        help = "input your profit margin as follows; (so it would be 10, rather than 0.1)"
+        help = "input your profit margin as follows; (so it would be 20, rather than 0.2)"
     )]
     pub profit_margin_percent: Option<u8>,
 
@@ -24,14 +24,33 @@ pub struct Args {
     pub interval_operating_cost: Option<u128>,
 }
 
-pub async fn update_cost_params(args: Args, client: SigningClient) {
+pub async fn update_cost_params(args: Args, client: SigningClient, mix_id: MixId) {
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
+    fn convert_to_percent(value: u64) -> Percent {
+        Percent::from_percentage_value(value)
+            .expect("Invalid value")
+    }
+
+    let default_profit_margin: Percent = convert_to_percent(20);
+    
+    let profit_margin_percent = match client.get_mixnode_rewarding_details(mix_id).await {
+        Ok(details) => details.rewarding_details
+            .map(|rd| rd.cost_params.profit_margin_percent)
+            .unwrap_or(default_profit_margin),
+        Err(_) => {
+            eprintln!("Failed to obtain profit margin from node, using default value of 20%");
+            default_profit_margin
+        }
+    };
+    
+    let profit_margin_value = args.profit_margin_percent
+        .map(|pm| convert_to_percent(pm as u64))
+        .unwrap_or(profit_margin_percent);
+    
+    
     let cost_params = MixNodeCostParams {
-        profit_margin_percent: Percent::from_percentage_value(
-            args.profit_margin_percent.unwrap_or(10) as u64,
-        )
-        .unwrap(),
+        profit_margin_percent: profit_margin_value,
         interval_operating_cost: CosmWasmCoin {
             denom: denom.into(),
             amount: Uint128::new(args.interval_operating_cost.unwrap_or(40_000_000)),

@@ -31,7 +31,7 @@ log = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sysinfo = "0.30.12"
+sysinfo = { workspace = true }
 time.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { workspace = true, features = ["codec"] }

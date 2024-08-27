@@ -1,4 +1,4 @@
 {
-  "typescript": "Typescript",
-  "rust": "Rust"
+  "rust": "Rust SDK",
+  "typescript": "Typescript SDK"
 }

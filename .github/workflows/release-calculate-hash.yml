@@ -30,7 +30,7 @@ jobs:
         with:
           release-tag-or-name-or-id: ${{ inputs.release_tag }}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: Asset Hashes
           path: hashes.json

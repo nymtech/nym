@@ -15,7 +15,7 @@ bls12_381 = { workspace = true, features = ["alloc", "pairings", "experimental",
 bincode.workspace = true
 cfg-if.workspace = true
 itertools = "0.12.1"
-digest = "0.9"
+digest = "0.10"
 rand = { workspace = true }
 thiserror = { workspace = true }
 sha2 = "0.9"

@@ -10,7 +10,7 @@ license.workspace = true
 [dependencies]
 bls12_381 = { workspace = true, default-features = false, features = ["pairings", "alloc", "experimental"] }
 itertools = { workspace = true }
-digest = "0.9"
+digest = "0.10"
 rand = "0.8"
 thiserror = { workspace = true }
 serde = { workspace = true }

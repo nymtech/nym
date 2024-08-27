@@ -28,14 +28,14 @@ pub async fn update_cost_params(args: Args, client: SigningClient, mix_id: MixId
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
     fn convert_to_percent(value: u64) -> Percent {
-        Percent::from_percentage_value(value)
-            .expect("Invalid value")
+        Percent::from_percentage_value(value).expect("Invalid value")
     }
 
     let default_profit_margin: Percent = convert_to_percent(20);
-    
+
     let profit_margin_percent = match client.get_mixnode_rewarding_details(mix_id).await {
-        Ok(details) => details.rewarding_details
+        Ok(details) => details
+            .rewarding_details
             .map(|rd| rd.cost_params.profit_margin_percent)
             .unwrap_or(default_profit_margin),
         Err(_) => {
@@ -43,12 +43,12 @@ pub async fn update_cost_params(args: Args, client: SigningClient, mix_id: MixId
             default_profit_margin
         }
     };
-    
-    let profit_margin_value = args.profit_margin_percent
+
+    let profit_margin_value = args
+        .profit_margin_percent
         .map(|pm| convert_to_percent(pm as u64))
         .unwrap_or(profit_margin_percent);
-    
-    
+
     let cost_params = MixNodeCostParams {
         profit_margin_percent: profit_margin_value,
         interval_operating_cost: CosmWasmCoin {

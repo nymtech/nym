@@ -6,10 +6,9 @@ use crate::daemon::Daemon;
 use crate::error::NymvisorError;
 use crate::upgrades::download::download_upgrade_binary;
 use crate::upgrades::types::{CurrentVersionInfo, UpgradeHistory, UpgradePlan};
-use nix::fcntl::{flock, FlockArg};
+use nix::fcntl::{Flock, FlockArg};
 use std::fs;
 use std::fs::File;
-use std::os::fd::AsRawFd;
 use std::path::PathBuf;
 use time::OffsetDateTime;
 use tracing::{debug, info};
@@ -58,15 +57,17 @@ pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, Ny
             path: lock_path.clone(),
             source,
         })?;
-    let lock_fd = lock_file.as_raw_fd();
 
     debug!("attempting to acquire the lock");
-    if let Err(err) = flock(lock_fd, FlockArg::LockExclusiveNonblock) {
-        return Err(NymvisorError::UnableToAcquireUpgradePlanLock {
-            lock_path,
-            libc_code: err,
-        });
-    }
+    let _lock = match Flock::lock(lock_file, FlockArg::LockExclusiveNonblock) {
+        Ok(l) => l,
+        Err((_, err)) => {
+            return Err(NymvisorError::UnableToAcquireUpgradePlanLock {
+                lock_path,
+                libc_code: err,
+            });
+        }
+    };
 
     let upgrade_binary_path = config.upgrade_binary(&upgrade_name);
 

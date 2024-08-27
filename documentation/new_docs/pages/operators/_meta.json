@@ -9,6 +9,9 @@
   "tokenomics": "Tokenomics",
   "faq": "FAQ",
   "legal": "Community Legal Forum",
+  "---": {
+    "type": "separator"
+  },
   "archive": "Archive",
   "misc": "Misc."
 }

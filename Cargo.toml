@@ -368,6 +368,10 @@ wasm-bindgen = "0.2.93"
 wasm-bindgen-futures = "0.4.39"
 wasmtimer = "0.2.0"
 web-sys = "0.3.69"
+console = "0.15.8"
+indicatif = "0.17.8"
+petgraph = "0.6.5"
+uuid = "*"
 
 
 # Profile settings for individual crates

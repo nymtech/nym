@@ -20,7 +20,7 @@ async-trait = { workspace = true }
 bs58 = { workspace = true }
 bip39 = { workspace = true }
 bincode.workspace = true
-bloomfilter = "1.0.13"
+bloomfilter = { workspace = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 console-subscriber = { workspace = true, optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"

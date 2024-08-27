@@ -1,5 +1,7 @@
 # Nym Docs v2
 
+New consolidated version of the nym docs.
+
 ## Local development
 
 ```
